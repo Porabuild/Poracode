@@ -42,6 +42,16 @@ html {
     var(--composer-surface, var(--surface, var(--content-background))) var(--m-glass-alpha),
     transparent
   );
+  /* The same material a step less translucent, for floating CARDS rather than
+     controls — the composer's action docks and the info-chip panels. They carry
+     dense text (commands, paths, plan steps) over the transcript, so they need
+     more grounding than a pill. Mixing from --m-glass-surface keeps the
+     per-platform alpha ladder below intact. */
+  --m-glass-card-surface: color-mix(
+    in oklab,
+    var(--m-glass-surface) 75%,
+    var(--composer-surface, var(--surface, var(--content-background)))
+  );
 }
 
 /* iOS renders the backdrop blur as a real native material, so the 64% glass
@@ -282,10 +292,7 @@ html[data-mobile-platform="ios"][data-mobile-standalone="true"] #root {
     .m-thread-bar,
   html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
     .m-shell[data-chrome="thread"]
-    .m-thread-compose-dock,
-  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
-    .m-shell[data-chrome="thread"]
-    .m-thread-chips {
+    .m-thread-compose-dock {
     position: fixed;
   }
 
@@ -1468,13 +1475,21 @@ html[data-theme="dark"][data-theme-preset="default"] .m-shell:not(.m-shell--wide
 
 /* Ride above the on-screen keyboard while expanded (the dock is anchored to
    the layout viewport, which iOS keeps full-height under the keyboard). */
+/* [data-lifted]: the locked (pinned-collapsed) thread composer still takes the
+   keyboard band while its one-line input is focused — a denial typed under an
+   open approval must not sit behind the keyboard. */
 .m-compose-dock[data-expanded],
-.m-thread-compose-dock[data-expanded] {
+.m-thread-compose-dock[data-expanded],
+.m-thread-compose-dock[data-lifted] {
   transform: translateY(calc(-1 * (var(--m-keyboard-offset, 0px) + var(--m-keyboard-gap, 0px))));
 }
 
 html[data-mobile-platform="ios"][data-mobile-standalone="true"]
-  :is(.m-compose-dock, .m-thread-compose-dock)[data-expanded] {
+  :is(
+    .m-compose-dock[data-expanded],
+    .m-thread-compose-dock[data-expanded],
+    .m-thread-compose-dock[data-lifted]
+  ) {
   /* Installed PWAs have no Safari address pill between app content and the
      keyboard accessory strip. Lift by the device's real home-indicator inset
      instead of a fixed gap so the composer clears that strip on every iPhone. */
@@ -1482,7 +1497,8 @@ html[data-mobile-platform="ios"][data-mobile-standalone="true"]
 }
 
 .m-compose-dock[data-expanded][data-android-runtime],
-.m-thread-compose-dock[data-expanded][data-android-runtime] {
+.m-thread-compose-dock[data-expanded][data-android-runtime],
+.m-thread-compose-dock[data-lifted][data-android-runtime] {
   /* Android resizes the layout viewport around the keyboard, so keep the old
      stable bottom anchor and add the requested keyboard breathing room as a
      paint-only shift. Changing `bottom` during WebView resize can bounce the
@@ -1523,38 +1539,34 @@ html[data-mobile-platform="ios"][data-mobile-standalone="true"]
 /* ── Composer info chips (thread view) ─────────────────────────────
  *
  * The informational dock sections (subagents, crossagents, workflows, context,
- * plan, goal, errors) live OUTSIDE the compact composer as floating icon chips just
- * above it; tapping a chip expands that section into its own bubble. The strip
- * ducks away while the composer itself is expanded. */
+ * plan, goal, errors) live OUTSIDE the compact composer as icon chips stacked
+ * directly on top of it inside the floating dock; tapping a chip expands that
+ * section into its own bubble above the row. The strip ducks away while the
+ * composer itself is expanded. */
 .m-thread-chips {
-  position: absolute;
-  right: 0.75rem;
-  bottom: calc(
-    1.25rem + env(safe-area-inset-bottom) +
-      var(--m-thread-bubble-height, var(--m-floating-control-height))
-  );
-  left: 0.75rem;
-  z-index: 5;
+  /* In-flow inside the floating dock, between the composer bubble below and the
+     action-dock card above: the chips always ride directly on the composer, and
+     a blocking approval/question always sits on top of the whole stack. Being a
+     dock child also means they inherit its keyboard lift and centered column
+     instead of tracking the dock's height from the outside. */
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 0.375rem;
+  margin-bottom: 0.375rem;
+  min-height: 0;
   pointer-events: none;
-  transition:
-    bottom 0.2s cubic-bezier(0.32, 0.72, 0, 1),
-    opacity 0.16s ease;
+  transition: opacity 0.16s ease;
 }
 
 .m-thread-chips > * {
   pointer-events: auto;
 }
 
+/* Ducked (the composer is expanded): in-flow, so the strip must give its row
+   back instead of just fading — otherwise it holds a gap above the composer. */
 .m-thread-chips[data-hidden] {
-  opacity: 0;
-}
-
-.m-thread-chips[data-hidden] > * {
-  pointer-events: none;
+  display: none;
 }
 
 .m-chip-row {
@@ -1653,14 +1665,16 @@ html[data-mobile-platform="ios"][data-mobile-standalone="true"]
 
 /* The expanded section bubble. The shared dock sections it hosts were styled
    for the composer's fixedContent (transparent bg + border-b separators), so
-   the bubble supplies the surface and the trailing separator is dropped. */
+   the bubble supplies the surface and the trailing separator is dropped. Same
+   floating-card glass as the composer's action docks, so the two cards that can
+   sit stacked above the composer read as one material. */
 .m-chip-panel {
   width: 100%;
   max-height: min(45dvh, 22rem);
   overflow-y: auto;
   border: 1px solid var(--hairline, var(--border));
   border-radius: 1rem;
-  background: var(--composer-surface, var(--m-glass-surface));
+  background: var(--m-glass-card-surface);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
@@ -1701,13 +1715,78 @@ html[data-mobile-platform="ios"][data-mobile-standalone="true"]
   }
 }
 
+/* ── Composer action docks (thread view) ───────────────────────────
+ *
+ * Sign-in required, a queued steer, and an open approval/question all block or
+ * gate the turn, so they must be visible and answerable without first expanding
+ * the composer. They stack in one card hosted by the floating dock above the
+ * composer bubble (ComposerActionDocks) — the bubble itself clips to one control
+ * line while collapsed. Same glass surface as the chip panels; the shared dock
+ * sections it hosts were styled for the composer's fixedContent (transparent bg
+ * + border-b separators), so the surface is supplied here and the trailing
+ * separator dropped. */
+.m-thread-action-docks {
+  /* Shrink before the composer does when both are tall (the dock is a bounded
+     flex column), and scroll internally past that. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(45dvh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-bottom: 0.375rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem;
+  /* Same glass as the composer bubble it sits on, one step less translucent —
+     the shared floating-card material. */
+  background: var(--m-glass-card-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  padding: 0.25rem;
+  /* Approvals quote commands and paths worth copying; the surrounding dock
+     chrome disables selection. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.m-thread-action-docks > section:last-child {
+  border-bottom: none;
+}
+
+/* With a card above the bubble the dock stacks two boxes, each with its own
+   height cap, so the total could run past the top of the viewport — most easily
+   on the desktop PWA, where the composer opens expanded and a long draft can
+   grow it to its own cap. Bound the dock and let it distribute: the card shrinks
+   (and scrolls) first, the composer keeps its geometry. */
+.m-thread-compose-dock {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 4.5rem);
+}
+
+/* iOS keeps the layout viewport full-height under the keyboard, so dvh would
+   double-count the band that --m-keyboard-offset already removes (same reasoning
+   as the expanded-bubble cap below). */
+html[data-mobile-platform="ios"] .m-thread-compose-dock {
+  max-height: calc(100lvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 4.5rem);
+}
+
+/* Requests that ask for text (elicitation forms, user-input questions) raise the
+   keyboard without ever focusing the composer, so the dock's own composer-focus
+   lift never runs. Ride the raw keyboard band instead. */
+.m-thread-compose-dock:not([data-expanded]):has(.m-thread-action-docks:focus-within) {
+  transform: translateY(
+    calc(-1 * (var(--m-thread-keyboard-band, 0px) + var(--m-keyboard-gap, 0px)))
+  );
+}
+
 /* Wide screens center the chat column at 920px (see ThreadView) — keep the
-   floating composer and its info chips on the same column instead of spanning
-   the whole detail pane. 100% here is the thread section, i.e. the pane.
-   (Must come after the base .m-thread-chips rule — same specificity.) */
+   floating composer dock (and everything it stacks: info chips, action docks) on
+   the same column instead of spanning the whole detail pane. 100% here is the
+   thread section, i.e. the pane. */
 @media (min-width: 768px) {
-  .m-thread-compose-dock,
-  .m-thread-chips {
+  .m-thread-compose-dock {
     right: max(0.75rem, calc((100% - 920px) / 2));
     left: max(0.75rem, calc((100% - 920px) / 2));
   }
@@ -1794,6 +1873,10 @@ html:not([data-touch-device]) .m-compose-scrim {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  /* Inside the bounded dock column the composer keeps its own geometry; the
+     action-dock card above it is the one that gives way (it scrolls). Its own
+     cap always leaves room, so this can never overflow the dock. */
+  flex: 0 0 auto;
 }
 
 /* :not([data-collapsing]) — during the collapse height tween the pin owns the
@@ -2453,13 +2536,10 @@ html[data-touch-device] .m-compose-bubble [data-composer-input-anchor]:not(:focu
     bottom 0.2s ease-out;
 }
 
-/* When the info-chip strip is showing it owns that bottom-right slot
-   (.m-thread-chips bottom + its 1.75rem row); stack the pin one row higher
-   so the two never overlap. The bottom transition above makes the pin slide
-   rather than jump as chips appear and disappear. */
-.m-thread:has(.m-thread-chips:not([data-hidden])) {
-  --m-thread-pin-lift: 3.5rem;
-}
+/* The chips strip and the action-dock card are dock children, so the measured
+   dock height above already covers them and the pin needs no extra row — it
+   slides up as they appear. (It used to add one, back when the strip was
+   positioned outside the dock.) */
 
 /* An expanded chip panel grows over the pin's slot — duck the pin while the
    panel is open instead of letting it float above the panel surface. */

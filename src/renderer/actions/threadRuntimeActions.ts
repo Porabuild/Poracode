@@ -6,7 +6,9 @@ import type {
   ThreadConfig,
   ThreadServerRequestId,
 } from "@/shared/contracts";
+import { toast } from "@heroui/react";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { friendlyError } from "@/shared/messages";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { readBridge } from "@/renderer/bridge";
@@ -182,4 +184,18 @@ export function changeThreadConfig(threadId: string, config: ThreadConfig): void
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     });
   }
+}
+
+/**
+ * Drop a queued steer message. Shared by the desktop composer's pending-steer
+ * strip and the mobile PWA's action-dock card, which hosts the same strip
+ * outside the compact composer.
+ */
+export function clearThreadPendingSteer(threadId: string): void {
+  void readBridge()
+    .clearPendingSteer({ threadId })
+    .catch((error: unknown) => {
+      console.error("[thread] failed to clear pending steer", error);
+      toast.danger(friendlyError(error));
+    });
 }

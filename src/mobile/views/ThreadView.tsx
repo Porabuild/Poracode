@@ -29,6 +29,7 @@ import { useProject } from "@/renderer/state/useThread";
 import { MobileTerminal } from "../MobileTerminal";
 import { ComposerCompactSummary } from "../ComposerCompactSummary";
 import { ComposerInfoChips } from "../ComposerInfoChips";
+import { ComposerActionDocks } from "../ComposerActionDocks";
 import { FloatingComposerDock } from "../FloatingComposerDock";
 import { EmptyState } from "../components";
 import { WorkspaceChip } from "../GitSummaryParts";
@@ -119,6 +120,12 @@ export function ThreadView(props: ThreadViewProps) {
   const dockState = useThreadDockState(thread?.id ?? "");
   const reportedContextUsage = useAppStore((state) =>
     thread ? state.runtimeContextByThread[thread.id] : undefined,
+  );
+  // A blocking approval/question owns the surface while it is open: touch
+  // layouts keep the composer collapsed under its card instead of letting a
+  // stray tap open the bubble over it (see FloatingComposerDock.expansionLocked).
+  const requestOpen = useAppStore((state) =>
+    thread ? (state.runtimeRequestsByThread[thread.id]?.length ?? 0) > 0 : false,
   );
   // Raw keyboard band for the PTY/accessory inputs. The composer itself is
   // hosted by FloatingComposerDock, which uses the same focus-gated lift as the
@@ -263,6 +270,13 @@ export function ThreadView(props: ThreadViewProps) {
   };
   const showComposerDock = thread.status !== "launching" || !isTerminal;
   const terminalPageKeyboardOffset = isTerminal && composerInputFocused ? 0 : keyboardOffset;
+  // Desktop-pointer layouts keep their always-open composer; touch layouts pin
+  // it collapsed under the request card.
+  const expansionLocked = requestOpen && !submitOnEnter;
+  // The chips duck for an actually-open composer only — a locked dock renders
+  // collapsed even while this view still holds `composerExpanded` from before
+  // the request arrived.
+  const composerOpen = composerExpanded && !expansionLocked;
   const composerDock = showComposerDock ? (
     <FloatingComposerDock
       dockClassName="m-thread-compose-dock"
@@ -272,9 +286,32 @@ export function ThreadView(props: ThreadViewProps) {
       nonBlockingOutsidePress={submitOnEnter}
       onExpandedChange={setComposerExpanded}
       onComposerFocusChange={setComposerInputFocused}
-      onBubbleHeightChange={(height) => {
+      expansionLocked={expansionLocked}
+      aboveBubble={
+        // Order is the stack, bottom-up: the composer, the info chips riding
+        // directly on it, then a blocking approval/question above everything.
+        <>
+          <ComposerActionDocks
+            thread={thread}
+            agentStatus={agentStatus}
+            project={project}
+            dockState={dockState}
+            {...(props.onOpenWorkspaceFile
+              ? { onOpenPlanFile: (path: string) => props.onOpenWorkspaceFile?.(path) }
+              : {})}
+          />
+          <ComposerInfoChips
+            threadId={thread.id}
+            projectLocation={projectLocation}
+            dockState={dockState}
+            contextSummary={externalContextSummary}
+            hidden={composerOpen}
+          />
+        </>
+      }
+      onDockHeightChange={(height) => {
         // The scroll-to-bottom pin (and other floating chrome) reads this to
-        // stay clear of the composer as the bubble grows and shrinks.
+        // stay clear of the composer as the dock grows and shrinks.
         sectionRef.current?.style.setProperty("--m-thread-bubble-height", `${height}px`);
       }}
     >
@@ -284,6 +321,7 @@ export function ThreadView(props: ThreadViewProps) {
         composerPlaceholder={t`Follow up...`}
         submitOnEnter={submitOnEnter}
         hideInfoDocks
+        hideActionDocks
         todoDockCollapsed={dockState.todoDockCollapsed}
         todoDockPlacement={dockState.todoDockPlacement}
         todoDockState={dockState.todoDockState}
@@ -303,7 +341,15 @@ export function ThreadView(props: ThreadViewProps) {
     <section
       ref={sectionRef}
       className={isTerminal ? "m-thread m-thread--terminal" : "m-thread"}
-      style={{ "--m-keyboard-offset": `${terminalPageKeyboardOffset}px` } as CSSProperties}
+      style={
+        {
+          "--m-keyboard-offset": `${terminalPageKeyboardOffset}px`,
+          // The dock shadows --m-keyboard-offset with its own composer-focus
+          // lift, so request forms above the bubble (which never focus the
+          // composer) need the raw band under a name the dock does not own.
+          "--m-thread-keyboard-band": `${keyboardOffset}px`,
+        } as CSSProperties
+      }
     >
       {props.loading ? (
         <span className="m-loading-bar" role="progressbar" aria-label={t`Loading thread`} />
@@ -385,15 +431,6 @@ export function ThreadView(props: ThreadViewProps) {
           )}
         </div>
       </div>
-      {showComposerDock ? (
-        <ComposerInfoChips
-          threadId={thread.id}
-          projectLocation={projectLocation}
-          dockState={dockState}
-          contextSummary={externalContextSummary}
-          hidden={composerExpanded}
-        />
-      ) : null}
       {composerDock}
     </section>
   );

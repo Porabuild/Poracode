@@ -26,12 +26,28 @@ function resetCompactComposerScroll(root: HTMLElement | null): void {
 
 export function FloatingComposerDock(props: {
   readonly children: ReactNode;
+  /**
+   * Content pinned above the composer bubble, inside the dock. The bubble clips
+   * its own overflow to the collapsed control line, so chrome that must stay
+   * visible while collapsed (the action docks: auth, pending steer, runtime
+   * requests) lives here — still inside the dock, so it rides the same keyboard
+   * lift and sits above the collapse scrim.
+   */
+  readonly aboveBubble?: ReactNode | undefined;
   readonly keyboardKey: string | null | undefined;
   readonly scrimLabel: string;
   readonly collapsedTapLabel?: string | undefined;
   readonly dockClassName?: string | undefined;
   readonly bubbleClassName?: string | undefined;
   readonly expanded?: boolean | undefined;
+  /**
+   * Pin the dock collapsed: no expansion from a tap, a focus, or a controlled
+   * `expanded`. Used while a blocking approval/question is open above the bubble
+   * — the card owns the surface, and the composer must not open over it. The
+   * collapsed pill stays usable as a one-line input (deny-with-feedback), so it
+   * still takes the keyboard lift while focused.
+   */
+  readonly expansionLocked?: boolean | undefined;
   readonly focusOnExpand?: boolean | undefined;
   /**
    * Collapse on an outside press without mounting the blocking scrim, allowing
@@ -44,12 +60,14 @@ export function FloatingComposerDock(props: {
   readonly onExpandedChange?: ((expanded: boolean) => void) | undefined;
   readonly onComposerFocusChange?: ((focused: boolean) => void) | undefined;
   /**
-   * Reports the bubble's rendered height (border-box px) as it grows and
-   * shrinks, so the host view can keep floating chrome (e.g. the scroll-to-
-   * bottom pin) clear of the composer.
+   * Reports the dock's rendered height (border-box px) as it grows and shrinks,
+   * so the host view can keep floating chrome (e.g. the scroll-to-bottom pin,
+   * the info chips) clear of the composer. Covers `aboveBubble` too — chrome
+   * anchored to this height must clear the whole dock, not just the bubble.
    */
-  readonly onBubbleHeightChange?: ((height: number) => void) | undefined;
+  readonly onDockHeightChange?: ((height: number) => void) | undefined;
 }) {
+  const dockRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const [internalExpanded, setInternalExpanded] = useState(false);
   // Suppresses the expand transitions for the guarded-focus path: the input
@@ -58,7 +76,8 @@ export function FloatingComposerDock(props: {
   // reveal it (reads as the keyboard pushing the page). Cleared after the
   // expansion has painted so later offset reconciliation animates normally.
   const [instantExpand, setInstantExpand] = useState(false);
-  const expanded = props.expanded ?? internalExpanded;
+  const expansionLocked = props.expansionLocked === true;
+  const expanded = expansionLocked ? false : (props.expanded ?? internalExpanded);
   const wasExpandedRef = useRef(expanded);
   const skipNextFocusOnExpandRef = useRef(false);
   const onComposerFocusChange = props.onComposerFocusChange;
@@ -76,6 +95,7 @@ export function FloatingComposerDock(props: {
   }, [expanded, props.keyboardKey]);
 
   const setExpanded = (next: boolean) => {
+    if (next && expansionLocked) return;
     if (!next) {
       skipNextFocusOnExpandRef.current = false;
     }
@@ -194,17 +214,17 @@ export function FloatingComposerDock(props: {
     onComposerFocusChange?.(inputFocused);
   }, [inputFocused, onComposerFocusChange]);
 
-  const onBubbleHeightChange = props.onBubbleHeightChange;
+  const onDockHeightChange = props.onDockHeightChange;
   useEffect(() => {
-    const bubble = bubbleRef.current;
-    if (!onBubbleHeightChange || !bubble) return;
+    const dock = dockRef.current;
+    if (!onDockHeightChange || !dock) return;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[entries.length - 1];
-      if (entry) onBubbleHeightChange(entry.borderBoxSize?.[0]?.blockSize ?? bubble.offsetHeight);
+      if (entry) onDockHeightChange(entry.borderBoxSize?.[0]?.blockSize ?? dock.offsetHeight);
     });
-    observer.observe(bubble);
+    observer.observe(dock);
     return () => observer.disconnect();
-  }, [onBubbleHeightChange]);
+  }, [onDockHeightChange]);
 
   useEffect(
     () => () => {
@@ -225,6 +245,7 @@ export function FloatingComposerDock(props: {
   };
 
   const handleFocusCapture = (event: ReactFocusEvent<HTMLDivElement>) => {
+    if (expansionLocked) return;
     if (event.target instanceof HTMLElement && !expanded) {
       setExpanded(true);
     }
@@ -240,7 +261,11 @@ export function FloatingComposerDock(props: {
     const handlePointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
       const target = event.target;
-      if (!(target instanceof Node) || bubbleRef.current?.contains(target)) return;
+      // Containment is tested against the whole dock, not just the bubble: the
+      // action docks (approvals, pending steer) render above the bubble but are
+      // part of this composer surface. Answering an approval on the desktop PWA
+      // must not read as an outside press and collapse the composer under it.
+      if (!(target instanceof Node) || dockRef.current?.contains(target)) return;
       // Composer menus are portaled outside the bubble. They belong to the
       // current interaction and must not collapse their owning composer.
       if (target instanceof Element && target.closest(COMPOSER_OVERLAY_SELECTOR)) return;
@@ -295,14 +320,18 @@ export function FloatingComposerDock(props: {
         />
       ) : null}
       <div
+        ref={dockRef}
         className={props.dockClassName ?? "m-compose-dock"}
         data-expanded={visuallyExpanded || undefined}
+        data-locked={expansionLocked || undefined}
+        {...(expansionLocked && inputFocused && liftOffset > 0 ? { "data-lifted": "" } : {})}
         data-collapsing={(!expanded && bubblePin !== null) || undefined}
         data-android-runtime={androidRuntime || undefined}
         data-instant-expand={instantExpand || undefined}
         data-measuring-keyboard={hideDockForMeasuring || undefined}
         style={{ "--m-keyboard-offset": `${liftOffset}px` } as CSSProperties}
       >
+        {props.aboveBubble}
         <div
           ref={bubbleRef}
           className={["m-compose-bubble", props.bubbleClassName].filter(Boolean).join(" ")}
