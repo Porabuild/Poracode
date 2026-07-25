@@ -6,6 +6,22 @@
  * the pairing app's server logs.
  */
 
+import { isLoopbackHostname } from "../http";
+
+/**
+ * An `http:` endpoint on a non-loopback host. Loopback is excluded because
+ * browsers treat it as a secure context, so a page served over https may still
+ * talk to it.
+ */
+export function isCleartextLanUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" && !isLoopbackHostname(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function buildPairingUrl(input: {
   readonly httpBaseUrl: string;
   readonly credential: string;

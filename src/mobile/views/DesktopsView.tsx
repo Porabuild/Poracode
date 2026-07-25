@@ -5,6 +5,7 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   Check,
   Download,
+  ExternalLink,
   KeyRound,
   Laptop,
   Loader2,
@@ -56,6 +57,12 @@ export interface DesktopsViewProps {
   readonly onPair: () => void;
   /** Raw text decoded from a scanned QR; the route parses + pairs. */
   readonly onScan: (value: string) => void;
+  /**
+   * Present only after this https page failed to reach a cleartext LAN endpoint:
+   * leaves for the copy of the app the desktop serves itself, carrying the same
+   * pairing credential.
+   */
+  readonly onOpenDesktopServedApp?: () => void;
   readonly onSwitch: (desktop: StoredDesktop) => void;
   /** Save a local nickname for the desktop. */
   readonly onRename: (desktop: StoredDesktop, label: string) => void;
@@ -508,6 +515,26 @@ export function DesktopsView(props: DesktopsViewProps) {
         {pairing ? <Loader2 className="size-4 m-spin" /> : <Smartphone className="size-4" />}
         {pairing ? t`Pairing…` : t`Pair`}
       </Button>
+      {props.onOpenDesktopServedApp ? (
+        <>
+          <p className="m-card__hint">
+            <Trans>
+              This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access
+              for this site and pair again, or continue on the desktop's own address.
+            </Trans>
+          </p>
+          <Button
+            className="m-form__submit text-foreground"
+            size="sm"
+            variant="tertiary"
+            isDisabled={pairing ?? false}
+            onPress={props.onOpenDesktopServedApp}
+          >
+            <ExternalLink className="size-4" />
+            <Trans>Continue on the desktop address</Trans>
+          </Button>
+        </>
+      ) : null}
     </div>
   );
   return (

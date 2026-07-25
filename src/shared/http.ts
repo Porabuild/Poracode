@@ -95,6 +95,14 @@ export function writeJsonResponse(
   res.end(options?.trailingNewline ? `${json}\n` : json);
 }
 
+/**
+ * A loopback hostname as `URL.hostname` reports it — note the bracketed `[::1]`
+ * form, and the `*.localhost` subdomains browsers also resolve to loopback.
+ */
+export function isLoopbackHostname(hostname: string): boolean {
+  return LOCALHOST_ORIGIN_HOSTS.has(hostname) || hostname.endsWith(".localhost");
+}
+
 export function isLocalhostOrigin(origin: string): boolean {
   try {
     return LOCALHOST_ORIGIN_HOSTS.has(new URL(origin).hostname);

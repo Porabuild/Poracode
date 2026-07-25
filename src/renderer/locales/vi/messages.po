@@ -2581,6 +2581,10 @@ msgstr "Tiếp tục ở nhà cung cấp khác"
 msgid "Continue in..."
 msgstr "Tiếp tục trong..."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Continue on the desktop address"
+msgstr "Tiếp tục trên địa chỉ của desktop"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "Điều khiển trình duyệt Chrome bên ngoài."
@@ -2793,8 +2797,16 @@ msgid "Couldn't load your profile stats."
 msgstr "Không thể tải thống kê hồ sơ của bạn."
 
 #: src/mobile/routeComponents.tsx
-msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
-msgstr "Không thể kết nối với desktop. Nếu trình duyệt yêu cầu quyền truy cập mạng cục bộ, hãy cho phép rồi ghép đôi lại. Nếu không, hãy mở liên kết ghép đôi trực tiếp từ desktop (LAN), hoặc cung cấp desktop qua HTTPS."
+msgid "Couldn't reach the desktop from this HTTPS page."
+msgstr "Không thể kết nối với desktop từ trang HTTPS này."
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop from this HTTPS page. Continue on the desktop's own address to finish pairing, or expose the desktop over HTTPS."
+#~ msgstr "Không thể kết nối với desktop từ trang HTTPS này. Hãy tiếp tục trên địa chỉ riêng của desktop để hoàn tất ghép đôi, hoặc cung cấp desktop qua HTTPS."
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
+#~ msgstr "Không thể kết nối với desktop. Nếu trình duyệt yêu cầu quyền truy cập mạng cục bộ, hãy cho phép rồi ghép đôi lại. Nếu không, hãy mở liên kết ghép đôi trực tiếp từ desktop (LAN), hoặc cung cấp desktop qua HTTPS."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
@@ -9734,6 +9746,10 @@ msgid "That conversation is no longer available."
 msgstr "Cuộc trò chuyện đó không còn khả dụng."
 
 #: src/mobile/routeComponents.tsx
+msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
+msgstr "Mã ghép đôi này không còn hiệu lực. Trên desktop, hãy mở Cài đặt → Truy cập từ xa, nhấn “Mã mới” rồi ghép đôi lại."
+
+#: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "Mã QR đó không phải là liên kết ghép nối Poracode."
 
@@ -9935,6 +9951,14 @@ msgstr "Trình duyệt này không hỗ trợ thông báo hệ thống ở đây
 #~ msgid "This catalog requires its own API key."
 #~ msgstr "Danh mục này yêu cầu khóa API riêng."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code expires in {countdown}"
+msgstr "Mã này hết hạn sau {countdown}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code has expired."
+msgstr "Mã này đã hết hạn."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. Hãy ghép nối lại để bật."
@@ -9961,9 +9985,21 @@ msgstr "Tệp này sử dụng mã hóa không được hỗ trợ."
 msgid "This folder is empty."
 msgstr "Thư mục này trống."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
+msgstr "Trang HTTPS này không thể kết nối tới desktop dùng HTTP thuần. Hãy cho phép trang này truy cập mạng cục bộ rồi ghép đôi lại, hoặc tiếp tục trên địa chỉ riêng của desktop."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
+#~ msgstr "Liên kết này mở ứng dụng mà Poracode phục vụ trong mạng của bạn. Ứng dụng được host chạy qua HTTPS, nên trình duyệt chặn việc kết nối tới desktop dùng HTTP thuần."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Tên này được dành riêng cho máy chủ MCP tích hợp sẵn."
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
+#~ msgstr "Trang này được phục vụ qua HTTPS, nên trình duyệt chặn việc kết nối tới desktop dùng HTTP thuần. Hãy tiếp tục trên địa chỉ riêng của desktop để hoàn tất ghép đôi ở đó."
 
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx

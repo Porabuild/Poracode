@@ -2581,6 +2581,10 @@ msgstr "Продовжити в іншому провайдері"
 msgid "Continue in..."
 msgstr "Продовжити в..."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Continue on the desktop address"
+msgstr "Продовжити за адресою десктопа"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "Керує зовнішнім браузером Chrome."
@@ -2793,8 +2797,16 @@ msgid "Couldn't load your profile stats."
 msgstr "Не вдалося завантажити статистику профілю."
 
 #: src/mobile/routeComponents.tsx
-msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
-msgstr "Не вдалося з'єднатися з десктопом. Якщо браузер запросив доступ до локальної мережі, дозвольте його та повторіть підключення. Інакше відкрийте посилання підключення безпосередньо з десктопа (LAN) або надайте доступ до десктопа через HTTPS."
+msgid "Couldn't reach the desktop from this HTTPS page."
+msgstr "Не вдалося з'єднатися з десктопом із цієї HTTPS-сторінки."
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop from this HTTPS page. Continue on the desktop's own address to finish pairing, or expose the desktop over HTTPS."
+#~ msgstr "Не вдалося з'єднатися з десктопом із цієї HTTPS-сторінки. Продовжте за власною адресою десктопа, щоб завершити підключення, або надайте доступ до десктопа через HTTPS."
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
+#~ msgstr "Не вдалося з'єднатися з десктопом. Якщо браузер запросив доступ до локальної мережі, дозвольте його та повторіть підключення. Інакше відкрийте посилання підключення безпосередньо з десктопа (LAN) або надайте доступ до десктопа через HTTPS."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
@@ -9734,6 +9746,10 @@ msgid "That conversation is no longer available."
 msgstr "Ця розмова більше недоступна."
 
 #: src/mobile/routeComponents.tsx
+msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
+msgstr "Цей код підключення більше не діє. Відкрийте на десктопі Налаштування → Віддалений доступ, натисніть «Новий код» і повторіть підключення."
+
+#: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "Цей QR-код не є посиланням для сполучення Poracode."
 
@@ -9935,6 +9951,14 @@ msgstr "Цей браузер не підтримує тут системні с
 #~ msgid "This catalog requires its own API key."
 #~ msgstr "Для цього каталогу потрібен окремий ключ API."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code expires in {countdown}"
+msgstr "Код спливає за {countdown}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code has expired."
+msgstr "Термін дії коду сплив."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Це підключення може переглядати проєкти, але не керувати ними. Створіть сполучення заново, щоб увімкнути керування."
@@ -9961,9 +9985,21 @@ msgstr "Цей файл використовує непідтримуване к
 msgid "This folder is empty."
 msgstr "Ця папка порожня."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
+msgstr "Ця HTTPS-сторінка не змогла звернутися до десктопа через звичайний HTTP. Дозвольте цьому сайту доступ до локальної мережі та повторіть підключення або продовжте за власною адресою десктопа."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
+#~ msgstr "Це посилання відкриває застосунок, який Poracode роздає у вашій мережі. Розміщений застосунок працює через HTTPS, тому браузери блокують звернення до десктопа через звичайний HTTP."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Цю назву зарезервовано вбудованим сервером MCP."
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
+#~ msgstr "Ця сторінка працює через HTTPS, тому браузер блокує звернення до десктопа через звичайний HTTP. Продовжте за власною адресою десктопа, щоб завершити підключення там."
 
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx

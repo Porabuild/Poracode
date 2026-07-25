@@ -127,6 +127,39 @@ function RemoteAccessHeaderDescription(props: {
   );
 }
 
+/** Mint the next code this long before the current one lapses. */
+const PAIRING_ROTATE_LEAD_MS = 60_000;
+
+function formatCountdown(remainingMs: number): string {
+  const totalSeconds = Math.ceil(remainingMs / 1000);
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The single reading of a code's expiry, shared by the countdown and the
+ * rotation timer so they cannot disagree. An unparseable value counts as lapsed:
+ * the UI says so and rotation mints immediately, which repairs it.
+ */
+function pairingExpiryMs(expiresAt: string): number {
+  const expiresAtMs = new Date(expiresAt).getTime();
+  return Number.isFinite(expiresAtMs) ? expiresAtMs : 0;
+}
+
+/** Milliseconds left on the displayed code, re-read every second until it lapses. */
+function usePairingCodeRemainingMs(expiresAt: string): number {
+  const expiresAtMs = pairingExpiryMs(expiresAt);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    // Stop once the code has lapsed — further ticks cannot change the output.
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+      if (Date.now() >= expiresAtMs) clearInterval(timer);
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, [expiresAtMs]);
+  return Math.max(0, expiresAtMs - nowMs);
+}
+
 function CopyValueRow(props: {
   label: string;
   value: string;
@@ -257,6 +290,8 @@ function PairingReady(props: {
     : normalizePairingEndpoint(props.info.httpBaseUrl);
   const pairingUrl = retargetPairingUrl(props.info.pairingUrl, selectedEndpoint);
   const pairingToken = pairingTokenFromUrl(pairingUrl);
+  const remainingMs = usePairingCodeRemainingMs(props.info.pairingExpiresAt);
+  const countdown = formatCountdown(remainingMs);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -342,6 +377,9 @@ function PairingReady(props: {
               <Trans>New code</Trans>
             </Button>
           </div>
+          <p className="text-xs text-muted">
+            {remainingMs > 0 ? t`This code expires in ${countdown}` : t`This code has expired.`}
+          </p>
         </div>
 
         <div className="min-w-0 space-y-1">
@@ -708,6 +746,35 @@ export function RemoteAccessSettings() {
       unsubscribe();
     };
   }, [t]);
+
+  // The code on screen is one-time and short-lived, but the server mints it once
+  // at startup — so a panel opened hours later would show a credential the
+  // desktop has already dropped, and pairing would fail with "Invalid pairing
+  // token" as if the desktop were unreachable. Keep the displayed code inside
+  // its own advertised window: rotating re-runs this with the new expiry, which
+  // schedules the next mint. A code that is still fresh is left alone.
+  const pairingExpiresAt = state.info?.status === "ready" ? state.info.pairingExpiresAt : undefined;
+  useEffect(() => {
+    if (!pairingExpiresAt) return;
+    let cancelled = false;
+    const rotate = async () => {
+      try {
+        const info = await readBridge().refreshRemoteAccessPairing();
+        if (!cancelled) setState(pairingViewStateFromInfo(info));
+      } catch {
+        // Keep the current code on a transient failure; "New code" still works.
+      }
+    };
+    // An already-lapsed code mints immediately (zero delay); a fresh one waits.
+    const timer = setTimeout(
+      () => void rotate(),
+      Math.max(0, pairingExpiryMs(pairingExpiresAt) - PAIRING_ROTATE_LEAD_MS - Date.now()),
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [pairingExpiresAt]);
 
   const refresh = async () => {
     setIsRefreshing(true);

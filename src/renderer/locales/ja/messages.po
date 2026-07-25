@@ -2580,6 +2580,10 @@ msgstr "別のプロバイダーで続行する"
 msgid "Continue in..."
 msgstr "...で続行"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Continue on the desktop address"
+msgstr "デスクトップのアドレスで続ける"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "外部の Chrome ブラウザを操作します。"
@@ -2792,8 +2796,16 @@ msgid "Couldn't load your profile stats."
 msgstr "プロフィール統計を読み込めませんでした。"
 
 #: src/mobile/routeComponents.tsx
-msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
-msgstr "デスクトップに接続できませんでした。ブラウザがローカルネットワークへのアクセスを求めた場合は、許可してから再度ペアリングしてください。それ以外の場合は、デスクトップ（LAN）からペアリングリンクを直接開くか、デスクトップを HTTPS で公開してください。"
+msgid "Couldn't reach the desktop from this HTTPS page."
+msgstr "この HTTPS ページからデスクトップに接続できませんでした。"
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop from this HTTPS page. Continue on the desktop's own address to finish pairing, or expose the desktop over HTTPS."
+#~ msgstr "この HTTPS ページからデスクトップに接続できませんでした。デスクトップ自身のアドレスで続けてペアリングを完了するか、デスクトップを HTTPS で公開してください。"
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
+#~ msgstr "デスクトップに接続できませんでした。ブラウザがローカルネットワークへのアクセスを求めた場合は、許可してから再度ペアリングしてください。それ以外の場合は、デスクトップ（LAN）からペアリングリンクを直接開くか、デスクトップを HTTPS で公開してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
@@ -9732,6 +9744,10 @@ msgid "That conversation is no longer available."
 msgstr "その会話は利用できなくなりました。"
 
 #: src/mobile/routeComponents.tsx
+msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
+msgstr "このペアリングコードは無効になりました。デスクトップで設定 → リモートアクセスを開き、「新しいコード」を押してから再度ペアリングしてください。"
+
+#: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "その QR コードは Poracode のペアリングリンクではありません。"
 
@@ -9933,6 +9949,14 @@ msgstr "このブラウザはここでシステム通知をサポートしてい
 #~ msgid "This catalog requires its own API key."
 #~ msgstr "このカタログには専用の API キーが必要です。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code expires in {countdown}"
+msgstr "このコードは {countdown} で期限切れになります"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code has expired."
+msgstr "このコードは期限切れです。"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "この接続ではプロジェクトを表示できますが、管理はできません。有効にするには再度ペアリングしてください。"
@@ -9959,9 +9983,21 @@ msgstr "このファイルはサポートされていないエンコーディン
 msgid "This folder is empty."
 msgstr "このフォルダーは空です。"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
+msgstr "この HTTPS ページは平文 HTTP のデスクトップに接続できませんでした。このサイトにローカルネットワークへのアクセスを許可して再度ペアリングするか、デスクトップ自身のアドレスで続けてください。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
+#~ msgstr "このリンクは Poracode がネットワーク上で提供しているアプリを開きます。ホスト版のアプリは HTTPS で配信されるため、ブラウザは平文 HTTP のデスクトップに接続できません。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "この名前は組み込みMCPサーバーによって予約されています。"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
+#~ msgstr "このページは HTTPS で配信されているため、ブラウザは平文 HTTP のデスクトップへの接続をブロックします。デスクトップ自身のアドレスで続けて、そこでペアリングを完了してください。"
 
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx

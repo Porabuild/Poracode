@@ -18,6 +18,7 @@ export function getRemoteAccessPairingInfo(
     ...(info.tailscaleHttpBaseUrl ? { tailscaleHttpBaseUrl: info.tailscaleHttpBaseUrl } : {}),
     wsBaseUrl: info.wsBaseUrl,
     pairingUrl: info.pairingUrl,
+    pairingExpiresAt: info.pairingExpiresAt,
     sessions: server.listAccessSessions(),
   };
 }

@@ -2,11 +2,13 @@
 // @vitest-environment-options {"url":"https://app.poracode.com/"}
 import { useEffect, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { toast } from "@heroui/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { clearPairingLaunch, parsePairingLaunch, setPairingLaunch } from "./pairing";
+import { RemoteClientError } from "./remoteClient";
 import {
   DesktopsRoute,
   NotesRoute,
@@ -31,6 +33,7 @@ const desktopView = vi.hoisted(() => ({
     readonly manualToken: string;
     readonly showPairingHint: boolean;
     readonly onPair: () => void;
+    readonly onOpenDesktopServedApp?: () => void;
   },
 }));
 const mobileViews = vi.hoisted(() => ({
@@ -263,6 +266,7 @@ vi.mock("./views/DesktopsView", () => ({
     readonly manualToken: string;
     readonly showPairingHint: boolean;
     readonly onPair: () => void;
+    readonly onOpenDesktopServedApp?: () => void;
   }) => {
     desktopView.lastProps = props;
     return (
@@ -443,6 +447,90 @@ describe("mobile route components", () => {
     );
     expect(parsePairingLaunch().credential).toBeNull();
     expect(fixtures.navigate).toHaveBeenCalledWith({ to: "/threads" });
+  });
+
+  it("offers the desktop-served handoff after the browser refuses a cleartext LAN endpoint", async () => {
+    setPairingLaunch({
+      endpoint: "http://192.168.1.20:38987/",
+      credential: "lc_pair_once",
+    });
+    // A blocked request rejects at the transport layer, with no response.
+    fixtures.remote.pairDesktop.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    // The suite runs on an https origin (see the environment options above), so
+    // the cleartext LAN endpoint is a mixed-content target here. jsdom's own
+    // `assign` is non-configurable, so stub the whole location for this test.
+    const assign = vi.fn<(url: string) => void>();
+    const original = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        assign,
+        protocol: original.protocol,
+        origin: original.origin,
+        href: original.href,
+        search: "",
+        hash: "",
+      },
+    });
+
+    try {
+      render(<DesktopsRoute />);
+      expect(desktopView.lastProps?.onOpenDesktopServedApp).toBeUndefined();
+
+      fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+
+      await waitFor(() => expect(desktopView.lastProps?.onOpenDesktopServedApp).toBeDefined());
+      desktopView.lastProps?.onOpenDesktopServedApp?.();
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: original });
+    }
+
+    expect(assign).toHaveBeenCalledWith("http://192.168.1.20:38987/pair#token=lc_pair_once");
+  });
+
+  it("tells the user to mint a new code when the pairing credential is spent", async () => {
+    setPairingLaunch({ endpoint: "https://desktop.tailnet.ts.net/", credential: "lc_pair_once" });
+    fixtures.remote.pairDesktop.mockRejectedValueOnce(
+      new RemoteClientError("Invalid pairing token.", 401, "invalid_pairing_token"),
+    );
+    const danger = vi.spyOn(toast, "danger");
+
+    render(<DesktopsRoute />);
+    fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+
+    await waitFor(() =>
+      expect(danger).toHaveBeenCalledWith(expect.stringContaining("no longer valid")),
+    );
+    danger.mockRestore();
+  });
+
+  it("keeps the desktop's own failure reason instead of blaming the browser", async () => {
+    setPairingLaunch({
+      endpoint: "http://192.168.1.20:38987/",
+      credential: "lc_pair_once",
+    });
+    // A consumed one-time credential is a desktop answer, not a blocked request:
+    // the handoff would not help, so it must stay hidden.
+    fixtures.remote.pairDesktop.mockRejectedValueOnce(
+      new RemoteClientError("Invalid pairing token.", 401, "invalid_pairing_token"),
+    );
+
+    render(<DesktopsRoute />);
+    fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+
+    await waitFor(() => expect(fixtures.remote.pairDesktop).toHaveBeenCalled());
+    expect(desktopView.lastProps?.onOpenDesktopServedApp).toBeUndefined();
+  });
+
+  it("omits the desktop-served handoff for a loopback endpoint the browser can already reach", async () => {
+    setPairingLaunch({ endpoint: "http://127.0.0.1:38987/", credential: "lc_pair_once" });
+    fixtures.remote.pairDesktop.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    render(<DesktopsRoute />);
+    fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+
+    await waitFor(() => expect(fixtures.remote.pairDesktop).toHaveBeenCalled());
+    expect(desktopView.lastProps?.onOpenDesktopServedApp).toBeUndefined();
   });
 
   it("renders the empty thread state for a missing routed thread instead of the stale selection", () => {

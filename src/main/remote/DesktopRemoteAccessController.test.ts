@@ -50,6 +50,7 @@ const h = vi.hoisted(() => ({
     localHttpBaseUrl: "http://127.0.0.1:38987",
     wsBaseUrl: "ws://127.0.0.1:38987/",
     pairingUrl: "http://127.0.0.1:38987/pair?token=startup",
+    pairingExpiresAt: "2026-01-01T00:10:00.000Z",
   } satisfies RemoteAccessServerInfo,
   serverPlans: [] as ServerPlan[],
   servers: [] as FakeServer[],
