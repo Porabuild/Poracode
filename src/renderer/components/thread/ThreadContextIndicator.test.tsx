@@ -20,7 +20,7 @@ const summary: ThreadContextUsageSummary = {
 };
 
 describe("ThreadContextIndicator", () => {
-  it("renders the context ring with the percent number inside and toggles the dock", () => {
+  it("renders the context ring without any number and toggles the dock", () => {
     const onToggle = vi.fn<() => void>();
     const { container } = render(
       <ThreadContextIndicator summary={summary} isOpen={false} onToggle={onToggle} />,
@@ -31,9 +31,10 @@ describe("ThreadContextIndicator", () => {
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute("data-tone", "normal");
-    expect(container.querySelector(".poracode-context-indicator__ring-number")).toHaveTextContent(
-      "36",
-    );
+    expect(
+      container.querySelector(".poracode-context-indicator__ring-progress"),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".poracode-context-indicator svg text")).not.toBeInTheDocument();
     expect(container.querySelector(".poracode-context-indicator__percent")).not.toBeInTheDocument();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });

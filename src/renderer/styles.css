@@ -2387,8 +2387,8 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 .poracode-context-indicator__ring {
   --lc-context-ring: color-mix(in oklab, var(--foreground) 65%, transparent);
 
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
 }
 
@@ -2403,16 +2403,6 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
     stroke-dasharray 0.2s ease;
 }
 
-.poracode-context-indicator__ring-number {
-  fill: currentColor;
-  font-size: 0.375rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-anchor: middle;
-  dominant-baseline: central;
-  pointer-events: none;
-}
-
 .poracode-context-indicator[data-tone="unknown"] .poracode-context-indicator__ring {
   --lc-context-ring: color-mix(in oklab, var(--muted) 50%, transparent);
 }
@@ -2421,16 +2411,8 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   --lc-context-ring: oklch(0.86 0.16 86);
 }
 
-.poracode-context-indicator[data-tone="warning"] .poracode-context-indicator__ring-number {
-  color: oklch(0.86 0.16 86);
-}
-
 .poracode-context-indicator[data-tone="danger"] .poracode-context-indicator__ring {
   --lc-context-ring: oklch(0.62 0.22 28);
-}
-
-.poracode-context-indicator[data-tone="danger"] .poracode-context-indicator__ring-number {
-  color: oklch(0.62 0.22 28);
 }
 
 .poracode-context-dock__bar {

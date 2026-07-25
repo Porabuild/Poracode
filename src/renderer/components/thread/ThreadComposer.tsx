@@ -676,7 +676,7 @@ export function ThreadComposer(props: {
               style={{ position: "absolute", inset: 0 }}
             >
               {leadingControls && (
-                <div className="flex shrink-0 items-end gap-2">
+                <div className="flex shrink-0 items-end gap-1">
                   {typeof leadingControls === "function" ? leadingControls(level) : leadingControls}
                 </div>
               )}
@@ -686,7 +686,7 @@ export function ThreadComposer(props: {
               >
                 {renderProbeControlsList(level)}
               </div>
-              <div className="flex shrink-0 items-end gap-2">
+              <div className="flex shrink-0 items-end gap-1">
                 {typeof afterControls === "function" ? afterControls(level) : afterControls}
                 {!hideSubmitButton && <div className="size-8 shrink-0" />}
               </div>
@@ -838,12 +838,12 @@ export function ThreadComposer(props: {
   const toolbar = (
     <div ref={toolbarRef} className={toolbarClassName} data-wrap-level={wrapLevelRef.current}>
       {leadingControls && (
-        <div className="flex shrink-0 items-end gap-2">
+        <div className="flex shrink-0 items-end gap-1">
           {typeof leadingControls === "function" ? leadingControls(0) : leadingControls}
         </div>
       )}
       {renderControls()}
-      <div className="flex shrink-0 items-end gap-2">
+      <div className="flex shrink-0 items-end gap-1">
         {typeof afterControls === "function" ? afterControls(0) : afterControls}
         {renderSendButton()}
       </div>
