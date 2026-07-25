@@ -21,11 +21,14 @@ describe("mobile iOS input ergonomics", () => {
     );
   });
 
-  it("keeps the expanded iOS PWA composer clear of the keyboard accessory strip", () => {
+  it("keeps the lifted iOS PWA composer clear of the keyboard accessory strip", () => {
     const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
 
+    // Both lift states get the home-indicator gap: an expanded composer, and a
+    // dock pinned collapsed under an open request whose one-line input is
+    // focused ([data-lifted], see FloatingComposerDock.expansionLocked).
     expect(css).toMatch(
-      /html\[data-mobile-platform="ios"\]\[data-mobile-standalone="true"\]\s*:is\(\.m-compose-dock, \.m-thread-compose-dock\)\[data-expanded\]\s*\{\s*\/\*[\s\S]*?--m-keyboard-gap:\s*env\(safe-area-inset-bottom\);/,
+      /html\[data-mobile-platform="ios"\]\[data-mobile-standalone="true"\]\s*:is\(\s*\.m-compose-dock\[data-expanded\],\s*\.m-thread-compose-dock\[data-expanded\],\s*\.m-thread-compose-dock\[data-lifted\]\s*\)\s*\{\s*\/\*[\s\S]*?--m-keyboard-gap:\s*env\(safe-area-inset-bottom\);/,
     );
   });
 

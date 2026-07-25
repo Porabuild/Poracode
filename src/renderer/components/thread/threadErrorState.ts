@@ -1,4 +1,4 @@
-import type { ErrorItemPayload } from "@/shared/contracts";
+import type { AuthState, ErrorItemPayload } from "@/shared/contracts";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
   getRuntimeItemPayload,
@@ -91,4 +91,25 @@ export function isAuthErrorMessage(message: string): boolean {
     m.includes("oauth_org_not_allowed") ||
     /\bnot logged in\b/.test(m)
   );
+}
+
+/**
+ * Whether the auth-required dock applies, shared by every surface that hosts it
+ * (the desktop composer and the mobile PWA's action-dock card). A stale runtime
+ * auth error — e.g. a 401 from before the user signed in — must not keep the
+ * dock visible once detection confirms the agent is authenticated again;
+ * `hasRuntimeAuthError` is returned separately because the error dock hides
+ * itself for exactly those messages.
+ */
+export function resolveThreadAuthState(input: {
+  readonly authState: AuthState | undefined;
+  readonly errorDockStates: readonly ThreadErrorDockState[];
+}): { readonly authRequired: boolean; readonly hasRuntimeAuthError: boolean } {
+  const hasRuntimeAuthError =
+    input.authState !== "authenticated" &&
+    input.errorDockStates.some((state) => isAuthErrorMessage(state.message));
+  return {
+    authRequired: input.authState === "missing" || hasRuntimeAuthError,
+    hasRuntimeAuthError,
+  };
 }

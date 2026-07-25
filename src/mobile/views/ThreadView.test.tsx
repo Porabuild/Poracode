@@ -49,6 +49,7 @@ function createDeferred(): { promise: Promise<void>; resolve: () => void } {
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridgeMock,
+  isRemoteSession: () => true,
 }));
 
 vi.mock("@heroui/react", async (importOriginal) => {
@@ -185,6 +186,7 @@ describe("mobile ThreadView", () => {
       runtimeRequestsByThread: {},
       runtimeStructuralVersionByThread: {},
       openSubAgentByThread: {},
+      pendingSteerByThreadId: {},
       pendingComposerFocusThreadId: null,
     });
   });
@@ -434,6 +436,157 @@ describe("mobile ThreadView", () => {
       />,
     );
     expect(view.container.querySelector(".m-compose-summary .lucide-zap")).toBeNull();
+  });
+
+  it("hosts an open runtime request above the composer bubble, outside its clip", () => {
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [thread.id]: [
+          {
+            requestId: "request-1",
+            threadId: thread.id,
+            requestType: "command_execution_approval",
+            payload: {
+              summary: "Run rm -rf build",
+              details: { toolName: "Bash", description: "rm -rf build" },
+            },
+            receivedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    const card = view.container.querySelector(".m-thread-action-docks");
+    expect(card).not.toBeNull();
+    expect(card).toHaveTextContent("Run rm -rf build");
+    // The collapsed bubble clips to one control line, so the card must be a
+    // sibling of the bubble inside the dock — never nested in it.
+    expect(card?.closest(".m-thread-compose-dock")).not.toBeNull();
+    expect(card?.closest(".m-compose-bubble")).toBeNull();
+  });
+
+  it("pins the touch composer collapsed while a runtime request is open", async () => {
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [thread.id]: [
+          {
+            requestId: "request-1",
+            threadId: thread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run rm -rf build", details: { toolName: "Bash" } },
+            receivedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    const { container } = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+    const dock = container.querySelector(".m-thread-compose-dock");
+    expect(dock).toHaveAttribute("data-locked");
+
+    // Focusing the pill would normally expand the dock (see the keyboard-dismiss
+    // test below); under an open request it must stay collapsed so the card keeps
+    // the surface. The pill remains a one-line input for deny-with-feedback.
+    fireEvent.focusIn(screen.getByRole("textbox"));
+    await waitFor(() => expect(dock).toBeInTheDocument());
+    expect(dock).not.toHaveAttribute("data-expanded");
+  });
+
+  it("leaves the desktop PWA composer open while a runtime request is up", () => {
+    fixtures.desktopPointer = true;
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [thread.id]: [
+          {
+            requestId: "request-1",
+            threadId: thread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run rm -rf build", details: { toolName: "Bash" } },
+            receivedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    const { container } = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+    const dock = container.querySelector(".m-thread-compose-dock");
+    expect(dock).not.toHaveAttribute("data-locked");
+    expect(dock).toHaveAttribute("data-expanded");
+  });
+
+  it("hosts a waiting pending steer in the same action-dock card", () => {
+    const thread = {
+      ...makeTerminalThread(),
+      presentationMode: "gui",
+      status: "working",
+    } as Thread;
+    useAppStore.setState({
+      pendingSteerByThreadId: {
+        [thread.id]: {
+          id: "steer-1",
+          prompt: "Focus on the parser instead",
+          // Older than the reveal delay, so it is visible on first render.
+          stagedAt: Date.now() - 10_000,
+        },
+      },
+    });
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    const card = view.container.querySelector(".m-thread-action-docks");
+    expect(card).toHaveTextContent("Focus on the parser instead");
+    expect(card?.closest(".m-compose-bubble")).toBeNull();
+  });
+
+  it("hosts the auth-required dock in the same action-dock card", () => {
+    fixtures.agentStatuses = [{ ...makeCodexStatus(), authState: "missing" }];
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    const card = view.container.querySelector(".m-thread-action-docks");
+    expect(card).not.toBeNull();
+    expect(card?.closest(".m-compose-bubble")).toBeNull();
   });
 
   it("keeps the composer expanded when the keyboard is dismissed (no collapse-on-focus-loss)", async () => {
