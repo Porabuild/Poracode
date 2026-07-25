@@ -3478,6 +3478,7 @@ msgid "done"
 msgstr "bitti"
 
 #. Notification status: thread is done
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5379,6 +5380,11 @@ msgstr "Sağlayıcı tarafından yönetiliyor"
 msgid "Manual order"
 msgstr "Manuel sıralama"
 
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Mark {0} done"
+msgstr "{0} öğesini tamamlandı olarak işaretle"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
 msgid "Mark all done"
@@ -5407,6 +5413,11 @@ msgstr "Tamamlandı olarak işaretle"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "Tamamlandı Olarak İşaretle"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Mark done when the pull request merges"
+msgstr "Pull request birleştirildiğinde tamamlandı olarak işaretle"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
@@ -6557,7 +6568,6 @@ msgid "Offline. Showing the last synced data."
 msgstr "Çevrimdışı. Son senkronize edilen veriler gösteriliyor."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
 msgstr "Daha eski"
 
@@ -11281,6 +11291,11 @@ msgstr "WSL projeleri için çalışma ağacı kök dizini (bir Linux yolu)."
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree storage location"
 msgstr "Çalışma ağacı depolama konumu"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Worktree threads are marked done as soon as Poracode sees their pull request merge. Threads mid-turn wait until the turn finishes."
+msgstr "Çalışma ağacı konuları, Poracode pull request'in birleştirildiğini gördüğü anda tamamlandı olarak işaretlenir. Turu süren konular turun bitmesini bekler."
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch

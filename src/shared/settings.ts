@@ -275,6 +275,12 @@ export const sharedSettingsSchema = z.object({
   remoteAccessAdvertisedUrl: z.string(),
   /** Default action for the thread remove button: archive or delete permanently. */
   threadRemoveAction: threadRemoveActionSchema,
+  /**
+   * Mark a worktree thread done as soon as its pull request is observed turning
+   * merged. Only live transitions count — a PR already merged when the app
+   * starts leaves the thread alone (the sidebar row offers a Done button).
+   */
+  autoMarkDoneOnPrMerge: z.boolean(),
   /** Default new-thread behaviour: full page or side-by-side panel. */
   newThreadMode: newThreadModeSchema,
   /** Show the projectless Home scope for OS-level agent sessions. */
@@ -504,6 +510,7 @@ export const defaultSharedSettings: SharedSettings = {
   remoteAccessTailscaleHttps: false,
   remoteAccessAdvertisedUrl: "",
   threadRemoveAction: "archive",
+  autoMarkDoneOnPrMerge: true,
   newThreadMode: "page",
   homeScopeEnabled: true,
   sidebarTranslucency: true,

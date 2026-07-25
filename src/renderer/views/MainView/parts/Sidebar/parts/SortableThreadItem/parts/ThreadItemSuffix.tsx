@@ -1,10 +1,12 @@
-import { Archive, FolderOpen, Star, Trash2 } from "lucide-react";
+import { Archive, CircleCheck, FolderOpen, Star, Trash2 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { Thread } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePrState } from "@/renderer/state/gitSelectors";
+import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { GitBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/GitBadge";
 import { SyncBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/SyncBadge";
-import { archiveThread, deleteThread } from "@/renderer/actions/threadActions";
+import { archiveThread, deleteThread, markThreadDone } from "@/renderer/actions/threadActions";
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
 import { openWorktreeTerminal } from "@/renderer/actions/terminalActions";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
@@ -27,6 +29,11 @@ export function ThreadItemSuffix(props: {
   const { thread, showWorktreeBadge, showWorktreeFilesButton, isExperimentCandidate } = props;
   const { t } = useLingui();
   const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
+  const prState = usePrState(thread.worktreePath);
+  // A merged PR means the work landed, so the row offers Done inline instead of
+  // sending the user through the context menu.
+  const showDoneButton =
+    !isExperimentCandidate && !thread.done && !!thread.worktreePath && prState === "merged";
   const isFilesActive = useIsWorktreeFilesPanelActive(thread.worktreePath);
   const isGitActive = useIsWorktreeGitPanelActive(thread.worktreePath);
   const isTerminalActive = useIsWorktreeTerminalActive(thread.worktreePath);
@@ -35,6 +42,26 @@ export function ThreadItemSuffix(props: {
   const isTerminalVisible = isTerminalActive || isTerminalOpen;
   const hiddenPanelButtonClass =
     "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
+
+  // Sits left of the git badge so the PR glyph keeps its slot next to the
+  // timestamp whether or not the row is hovered.
+  const doneButton = showDoneButton ? (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={t`Mark ${thread.title} done`}
+      className={`flex h-[18px] shrink-0 items-center justify-center rounded text-muted/60 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-success ${hiddenPanelButtonClass}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        markThreadDone(thread.id);
+      }}
+      onKeyDown={(event) =>
+        handleKeyActivate(event, () => markThreadDone(thread.id), { stopPropagation: true })
+      }
+    >
+      <CircleCheck className="size-3.5" />
+    </div>
+  ) : null;
 
   return (
     <>
@@ -72,6 +99,7 @@ export function ThreadItemSuffix(props: {
             <AnimatedTerminalIcon className="size-3.5" isBusy={isTerminalBusy} />
           </SidebarPanelDragButton>
           <SyncBadge projectId={thread.projectId} worktreePath={thread.worktreePath} />
+          {doneButton}
           <GitBadge
             projectId={thread.projectId}
             projectName={thread.worktreeBranch ?? ""}
@@ -82,6 +110,8 @@ export function ThreadItemSuffix(props: {
           />
         </>
       )}
+      {/* Rows inside a worktree group hide the badge cluster — keep the button. */}
+      {!showWorktreeBadge || !thread.worktreePath ? doneButton : null}
       <span className="relative w-[2.4ch] shrink-0">
         <RelativeTime
           iso={thread.updatedAt}

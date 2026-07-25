@@ -3478,6 +3478,7 @@ msgid "done"
 msgstr "完成"
 
 #. Notification status: thread is done
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5379,6 +5380,11 @@ msgstr "由提供商托管"
 msgid "Manual order"
 msgstr "手动排序"
 
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Mark {0} done"
+msgstr "将 {0} 标记为完成"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
 msgid "Mark all done"
@@ -5407,6 +5413,11 @@ msgstr "标记完成"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "标记完成"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Mark done when the pull request merges"
+msgstr "拉取请求合并后标记为完成"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
@@ -6556,7 +6567,6 @@ msgid "Offline. Showing the last synced data."
 msgstr "离线。正在显示上次同步的数据。"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
 msgstr "更早"
 
@@ -11280,6 +11290,11 @@ msgstr "WSL 项目的工作树根目录（Linux 路径）。"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree storage location"
 msgstr "工作树存储位置"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Worktree threads are marked done as soon as Poracode sees their pull request merge. Threads mid-turn wait until the turn finishes."
+msgstr "一旦 Poracode 检测到拉取请求已合并，工作树线程就会标记为完成。处于对话轮次中的线程会等到该轮次结束。"
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch

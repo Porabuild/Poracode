@@ -321,6 +321,36 @@ export function unloadThread(threadId: string): void {
   void unloadStoredThread(threadId, { closeThreadPane: true }).catch(() => undefined);
 }
 
+/**
+ * Marks a thread done: unloads its runtime, drops the worktree's terminal tabs
+ * once no live thread is left there, and flips the store flag. Shared by the
+ * manual affordances (context menu, sidebar Done button) and the PR-merge
+ * automation.
+ */
+export function markThreadDone(threadId: string): void {
+  if (findExperimentByThreadId(threadId)) return;
+  const store = useAppStore.getState();
+  const thread = store.threads.find((t) => t.id === threadId);
+  if (!thread || thread.done) return;
+
+  void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
+  const worktreePath = thread.worktreePath;
+  const isLastOpenWorktreeThread =
+    worktreePath !== undefined &&
+    store.threads.every(
+      (t) => t.id === threadId || t.worktreePath !== worktreePath || t.done || t.archived,
+    );
+  if (worktreePath && isLastOpenWorktreeThread) {
+    const termStore = useDevTerminalStore.getState();
+    const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
+    void closeThreads(removedTabIds);
+    if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
+      termStore.closePanel();
+    }
+  }
+  store.markThreadDone(threadId);
+}
+
 export function toggleMarkThreadDone(threadId: string): void {
   if (findExperimentByThreadId(threadId)) return;
   const store = useAppStore.getState();
@@ -329,22 +359,7 @@ export function toggleMarkThreadDone(threadId: string): void {
   if (thread.done) {
     store.unmarkThreadDone(threadId);
   } else {
-    void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
-    const worktreePath = thread.worktreePath;
-    const isLastOpenWorktreeThread =
-      worktreePath !== undefined &&
-      store.threads.every(
-        (t) => t.id === threadId || t.worktreePath !== worktreePath || t.done || t.archived,
-      );
-    if (worktreePath && isLastOpenWorktreeThread) {
-      const termStore = useDevTerminalStore.getState();
-      const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
-      void closeThreads(removedTabIds);
-      if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
-        termStore.closePanel();
-      }
-    }
-    store.markThreadDone(threadId);
+    markThreadDone(threadId);
   }
 }
 

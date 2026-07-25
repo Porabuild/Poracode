@@ -10,6 +10,7 @@ import {
 import { recoverExperimentCandidateWorktrees } from "@/renderer/state/experimentHydration";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { startPrMergeAutoDone } from "@/renderer/state/prMergeAutoDone";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 
 interface IdleCallbackHandle {
@@ -178,9 +179,12 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
       }
     });
 
+    const stopPrMergeAutoDone = startPrMergeAutoDone();
+
     return () => {
       isActive = false;
       idleHandle.cancel();
+      stopPrMergeAutoDone();
     };
   }, [
     loadT0,

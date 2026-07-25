@@ -3478,6 +3478,7 @@ msgid "done"
 msgstr "완료"
 
 #. Notification status: thread is done
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5379,6 +5380,11 @@ msgstr "제공자가 관리함"
 msgid "Manual order"
 msgstr "수동 정렬"
 
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Mark {0} done"
+msgstr "{0} 완료로 표시"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
 msgid "Mark all done"
@@ -5407,6 +5413,11 @@ msgstr "완료로 표시"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "완료로 표시"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Mark done when the pull request merges"
+msgstr "풀 리퀘스트가 병합되면 완료로 표시"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
@@ -6557,7 +6568,6 @@ msgid "Offline. Showing the last synced data."
 msgstr "오프라인입니다. 마지막으로 동기화된 데이터를 표시합니다."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
 msgstr "이전"
 
@@ -11281,6 +11291,11 @@ msgstr "WSL 프로젝트의 작업 트리 루트입니다(Linux 경로)."
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree storage location"
 msgstr "작업 트리 저장 위치"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Worktree threads are marked done as soon as Poracode sees their pull request merge. Threads mid-turn wait until the turn finishes."
+msgstr "Poracode가 풀 리퀘스트 병합을 감지하면 작업 트리 스레드가 완료로 표시됩니다. 작업이 진행 중인 스레드는 작업이 끝날 때까지 기다립니다."
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch

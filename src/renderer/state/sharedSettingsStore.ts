@@ -77,6 +77,7 @@ interface SharedSettingsState extends SharedSettings {
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
   setThreadRemoveAction: (value: ThreadRemoveAction) => void;
+  setAutoMarkDoneOnPrMerge: (value: boolean) => void;
   setNewThreadMode: (value: NewThreadMode) => void;
   setHomeScopeEnabled: (value: boolean) => void;
   setSidebarTranslucency: (value: boolean) => void;
@@ -426,6 +427,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setThreadRemoveAction: (threadRemoveAction) => {
     set({ threadRemoveAction });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setAutoMarkDoneOnPrMerge: (autoMarkDoneOnPrMerge) => {
+    if (get().autoMarkDoneOnPrMerge === autoMarkDoneOnPrMerge) return;
+    set({ autoMarkDoneOnPrMerge });
     persistSettings(selectSharedSettings(get()));
   },
   setNewThreadMode: (newThreadMode) => {
@@ -788,6 +794,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     remoteAccessTailscaleHttps: state.remoteAccessTailscaleHttps,
     remoteAccessAdvertisedUrl: state.remoteAccessAdvertisedUrl,
     threadRemoveAction: state.threadRemoveAction,
+    autoMarkDoneOnPrMerge: state.autoMarkDoneOnPrMerge,
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,
     sidebarTranslucency: state.sidebarTranslucency,

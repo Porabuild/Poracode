@@ -3478,6 +3478,7 @@ msgid "done"
 msgstr "готово"
 
 #. Notification status: thread is done
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5379,6 +5380,11 @@ msgstr "Керується провайдером"
 msgid "Manual order"
 msgstr "Ручний порядок"
 
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Mark {0} done"
+msgstr "Позначити {0} виконаним"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
 msgid "Mark all done"
@@ -5407,6 +5413,11 @@ msgstr "Позначити виконаним"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "Позначити виконаним"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Mark done when the pull request merges"
+msgstr "Позначати виконаним після злиття pull request"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
@@ -6557,7 +6568,6 @@ msgid "Offline. Showing the last synced data."
 msgstr "Офлайн. Показано останні синхронізовані дані."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
 msgstr "Старіші"
 
@@ -11281,6 +11291,11 @@ msgstr "Коренева папка worktree для проєктів WSL (шля
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree storage location"
 msgstr "Розташування сховища worktree"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Worktree threads are marked done as soon as Poracode sees their pull request merge. Threads mid-turn wait until the turn finishes."
+msgstr "Треди worktree позначаються виконаними, щойно Poracode побачить злиття їхнього pull request. Треди з активним ходом чекають на його завершення."
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch

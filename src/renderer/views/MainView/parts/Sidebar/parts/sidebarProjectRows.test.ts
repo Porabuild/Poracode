@@ -125,6 +125,63 @@ describe("buildSidebarProjectRows — See more cap (date sort)", () => {
     }
   });
 
+  it("sinks done threads into a trailing Done section ordered by last update", () => {
+    const rows = build(
+      [
+        makeThread({ id: "done-old", done: true, updatedAt: "2026-07-01T00:00:00.000Z" }),
+        makeThread({ id: "live", updatedAt: "2026-07-10T00:00:00.000Z" }),
+        makeThread({ id: "done-new", done: true, updatedAt: "2026-07-20T00:00:00.000Z" }),
+      ],
+      10,
+      "updated",
+    );
+
+    expect(rows.map((row) => (row.kind === "thread" ? row.thread.id : row.kind))).toEqual([
+      "live",
+      "section-label",
+      "done-new",
+      "done-old",
+    ]);
+    const label = rows.find((row) => row.kind === "section-label");
+    expect(label).toMatchObject({ key: "done-label" });
+  });
+
+  it("keeps a worktree group in the live list until every member is done", () => {
+    const worktree = { worktreePath: "/repo/wt", worktreeBranch: "feature" };
+    const mixed = build(
+      [
+        makeThread({ id: "wt-done", done: true, ...worktree }),
+        makeThread({ id: "wt-live", ...worktree }),
+      ],
+      10,
+      "updated",
+    );
+    expect(mixed.some((row) => row.kind === "section-label")).toBe(false);
+
+    const allDone = build(
+      [
+        makeThread({ id: "wt-done-1", done: true, ...worktree }),
+        makeThread({ id: "wt-done-2", done: true, ...worktree }),
+      ],
+      10,
+      "updated",
+    );
+    expect(allDone[0]).toMatchObject({ kind: "section-label", key: "done-label" });
+    expect(allDone[1]).toMatchObject({ kind: "worktree-group" });
+  });
+
+  it("hides done threads behind See more before live ones", () => {
+    const threads = [
+      ...Array.from({ length: 8 }, (_, i) => makeThread({ id: `live-${i}` })),
+      ...Array.from({ length: 5 }, (_, i) => makeThread({ id: `done-${i}`, done: true })),
+    ];
+    const rows = build(threads, 10, "updated");
+    const visibleIds = threadRows(rows).map((r) => r.thread.id);
+    expect(visibleIds).toHaveLength(10);
+    expect(seeMore(rows)).toMatchObject({ hiddenCount: 3 });
+    for (let i = 0; i < 8; i++) expect(visibleIds).toContain(`live-${i}`);
+  });
+
   it("hides candidate rows when the experiment group collapse key is set", () => {
     const groupedThreads = [
       makeThread({ id: "candidate-1", groupId: "experiment-1", groupName: "Experiment" }),
