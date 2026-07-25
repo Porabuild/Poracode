@@ -284,7 +284,23 @@ function parseWindowsExecutablePath(stdout: string): string | undefined {
     .filter((line) => line.length > 0);
   const resolved =
     lines.findLast((line) => /\.(?:bat|cmd|com|exe|ps1)$/i.test(line)) ?? lines.at(-1);
-  return resolveWindowsCmdExeTarget(resolved) ?? resolved;
+  return (
+    resolveWindowsScoopShimTarget(resolved) ?? resolveWindowsCmdExeTarget(resolved) ?? resolved
+  );
+}
+
+function resolveWindowsScoopShimTarget(path: string | undefined): string | undefined {
+  if (!path || !/\.exe$/i.test(path)) return undefined;
+  const shimPath = path.replace(/\.exe$/i, ".shim");
+  if (!existsSync(shimPath)) return undefined;
+  try {
+    const body = readFileSync(shimPath, "utf8");
+    if (/^\s*args\s*=/im.test(body)) return undefined;
+    const target = /^\s*path\s*=\s*"([^"]+)"\s*$/im.exec(body)?.[1];
+    return target && /\.(?:com|exe)$/i.test(target) && existsSync(target) ? target : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

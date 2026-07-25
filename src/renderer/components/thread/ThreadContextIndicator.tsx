@@ -38,32 +38,20 @@ export function ThreadContextIndicator({
               cy="8"
               r={ringRadius}
               fill="none"
-              strokeWidth="1.75"
+              strokeWidth="1.5"
             />
             {percent !== undefined ? (
-              <>
-                <circle
-                  className="poracode-context-indicator__ring-progress"
-                  cx="8"
-                  cy="8"
-                  r={ringRadius}
-                  fill="none"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeDasharray={`${ringProgress} ${ringCircumference}`}
-                  transform="rotate(-90 8 8)"
-                />
-                <text
-                  className="poracode-context-indicator__ring-number"
-                  x="8"
-                  y="8"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  alignmentBaseline="central"
-                >
-                  {percent}
-                </text>
-              </>
+              <circle
+                className="poracode-context-indicator__ring-progress"
+                cx="8"
+                cy="8"
+                r={ringRadius}
+                fill="none"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeDasharray={`${ringProgress} ${ringCircumference}`}
+                transform="rotate(-90 8 8)"
+              />
             ) : null}
           </svg>
           <span className="sr-only">{label}</span>
