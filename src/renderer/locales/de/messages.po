@@ -3478,6 +3478,7 @@ msgid "done"
 msgstr "erledigt"
 
 #. Notification status: thread is done
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5379,6 +5380,11 @@ msgstr "Vom Anbieter verwaltet"
 msgid "Manual order"
 msgstr "Manuelle Reihenfolge"
 
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Mark {0} done"
+msgstr "{0} als erledigt markieren"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
 msgid "Mark all done"
@@ -5407,6 +5413,11 @@ msgstr "Als erledigt markieren"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "Als erledigt markieren"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Mark done when the pull request merges"
+msgstr "Als erledigt markieren, wenn der Pull Request zusammengeführt wird"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
@@ -6557,7 +6568,6 @@ msgid "Offline. Showing the last synced data."
 msgstr "Offline. Die zuletzt synchronisierten Daten werden angezeigt."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
 msgstr "Älter"
 
@@ -11281,6 +11291,11 @@ msgstr "Worktree-Stammverzeichnis für WSL-Projekte (ein Linux-Pfad)."
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree storage location"
 msgstr "Worktree-Speicherort"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Worktree threads are marked done as soon as Poracode sees their pull request merge. Threads mid-turn wait until the turn finishes."
+msgstr "Worktree-Threads werden als erledigt markiert, sobald Poracode das Zusammenführen ihres Pull Requests sieht. Threads mit laufendem Durchlauf warten, bis der Durchlauf endet."
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch

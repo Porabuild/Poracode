@@ -3477,6 +3477,7 @@ msgid "done"
 msgstr "完了しました"
 
 #. Notification status: thread is done
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5378,6 +5379,11 @@ msgstr "プロバイダーが管理"
 msgid "Manual order"
 msgstr "手動並び替え"
 
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Mark {0} done"
+msgstr "{0} を完了にする"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
 msgid "Mark all done"
@@ -5406,6 +5412,11 @@ msgstr "完了マークを付ける"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "完了マークを付ける"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Mark done when the pull request merges"
+msgstr "プルリクエストがマージされたら完了にする"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
@@ -6555,7 +6566,6 @@ msgid "Offline. Showing the last synced data."
 msgstr "オフラインです。最後に同期したデータを表示しています。"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
 msgstr "古い"
 
@@ -11279,6 +11289,11 @@ msgstr "WSL プロジェクトのワークツリーのルート（Linux パス�
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree storage location"
 msgstr "ワークツリーの保存場所"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Worktree threads are marked done as soon as Poracode sees their pull request merge. Threads mid-turn wait until the turn finishes."
+msgstr "Poracode がプルリクエストのマージを検知すると、ワークツリーのスレッドは完了になります。ターン実行中のスレッドはターンが終わるまで待機します。"
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch

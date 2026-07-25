@@ -267,6 +267,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "threads",
+    anchor: "threads.markDoneOnPrMerge",
+    title: msg`Mark done when the pull request merges`,
+    description: msg`Worktree threads are marked done as soon as Poracode sees their pull request merge. Threads mid-turn wait until the turn finishes.`,
+    keywords: "done pr pull request merged auto complete worktree sidebar",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
     anchor: "threads.defaultThreadRemoval",
     title: msg`Default thread removal`,
     description: msg`Action for the quick-remove button on sidebar threads.`,
