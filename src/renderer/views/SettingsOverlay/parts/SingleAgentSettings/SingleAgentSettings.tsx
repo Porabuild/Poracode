@@ -18,6 +18,7 @@ import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
+import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { readBridge } from "@/renderer/bridge";
 import {
@@ -51,6 +52,7 @@ import {
   findEnvVarAuthMethod,
   findTerminalLoginStatus,
   formatStatusList,
+  resolveLivePlanLabel,
   statusEnvKey,
   supportsAcpLogoutStatus,
 } from "./parts/authHelpers";
@@ -94,6 +96,9 @@ export function SingleAgentSettings(props: {
   const [redetectingEnvKey, setRedetectingEnvKey] = useState<string | undefined>();
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  // Live quota read for this provider. Its plan supersedes the detected one,
+  // which is frozen into provider credentials at sign-in time.
+  const providerUsage = useProviderUsage(props.agentKind);
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
   const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
@@ -626,6 +631,12 @@ export function SingleAgentSettings(props: {
             ? [terminalMethod]
             : []
       : [];
+    // Match against whichever identity the row actually displays, so the live
+    // plan is only adopted when it belongs to that same account.
+    const rowMetadata =
+      providerAccount && status.authState === "authenticated"
+        ? providerAccount
+        : status.providerMetadata;
     return (
       <AgentEnvironmentRow
         key={`${status.kind}-${envKey}`}
@@ -639,6 +650,7 @@ export function SingleAgentSettings(props: {
         includeAuthFallback={includeAuthFallbackMetadata}
         isRedetecting={redetectingEnvKey === envKey}
         latestNpmVersion={latestNpmVersion}
+        livePlan={resolveLivePlanLabel(rowMetadata, providerUsage)}
         newestInstalledVersion={newestInstalledVersion}
         pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
         status={status}

@@ -282,6 +282,7 @@ vi.mock("@/renderer/components/common", () => ({
   ),
 }));
 
+import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { SingleAgentSettings } from "./SingleAgentSettings";
 
 const baseCapabilities = {
@@ -354,6 +355,7 @@ describe("SingleAgentSettings", () => {
     toastMock.success.mockReset();
     runAgentInstallCommandMock.mockReset().mockReturnValue(true);
     runAgentLoginCommandMock.mockReset().mockReturnValue(true);
+    useProviderUsageStore.setState({ snapshots: {} });
   });
 
   it("renders identity metadata as a single compact summary line", () => {
@@ -379,6 +381,125 @@ describe("SingleAgentSettings", () => {
     // identity fields are available.
     expect(screen.queryByText("Auth method")).not.toBeInTheDocument();
     expect(screen.queryByText("Claude.ai")).not.toBeInTheDocument();
+  });
+
+  it("prefers the live usage plan over the one baked into provider credentials", () => {
+    // Codex derives its detected plan from the `chatgpt_plan_type` claim of the
+    // cached OAuth id_token, so an upgrade keeps reporting the old tier until
+    // that token is refreshed. The usage snapshot is read live.
+    statusesState.agentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        providerMetadata: {
+          authenticatedAs: "user@example.com",
+          plan: "ChatGPT Pro 5x",
+        },
+      }),
+    ];
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        providerId: "codex",
+        status: "ok",
+        plan: "ChatGPT Pro 20x",
+        windows: [],
+        fetchedAt: 1,
+      },
+    ]);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+
+    expect(screen.getByText(/ChatGPT Pro 20x/)).toBeInTheDocument();
+    expect(screen.queryByText(/ChatGPT Pro 5x/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the detected plan when the live usage snapshot is for another account", () => {
+    statusesState.agentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        providerMetadata: {
+          authenticatedAs: "user@example.com",
+          plan: "ChatGPT Pro 5x",
+        },
+      }),
+    ];
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        providerId: "codex",
+        status: "ok",
+        plan: "ChatGPT Pro 20x",
+        authenticatedAs: "someone-else@example.com",
+        windows: [],
+        fetchedAt: 1,
+      },
+    ]);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+
+    expect(screen.getByText(/ChatGPT Pro 5x/)).toBeInTheDocument();
+    expect(screen.queryByText(/ChatGPT Pro 20x/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the detected plan when the live usage read failed", () => {
+    statusesState.agentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        providerMetadata: {
+          authenticatedAs: "user@example.com",
+          plan: "ChatGPT Pro 5x",
+        },
+      }),
+    ];
+    useProviderUsageStore
+      .getState()
+      .setSnapshots([{ providerId: "codex", status: "error", windows: [], fetchedAt: 1 }]);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+
+    expect(screen.getByText(/ChatGPT Pro 5x/)).toBeInTheDocument();
+  });
+
+  it("does not lend the live plan to an environment that is not signed in", () => {
+    statusesState.agentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        envKind: "windows",
+        providerMetadata: { authenticatedAs: "user@example.com", plan: "ChatGPT Pro 5x" },
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        authState: "missing",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      }),
+    ];
+    appState.projects = [
+      makeProject({
+        id: "wsl-project",
+        name: "WSL Project",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/project",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+        },
+      }),
+    ];
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        providerId: "codex",
+        status: "ok",
+        plan: "ChatGPT Pro 20x",
+        windows: [],
+        fetchedAt: 1,
+      },
+    ]);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+
+    expect(within(envRow("WSL (Ubuntu)")).queryByText(/ChatGPT Pro/)).not.toBeInTheDocument();
+    expect(within(envRow("Windows")).getByText(/ChatGPT Pro 20x/)).toBeInTheDocument();
   });
 
   it("renders a Claude profile editor before detection has reported the profile status", () => {
