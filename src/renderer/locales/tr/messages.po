@@ -243,7 +243,6 @@ msgstr "{0} iş parçacığı"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{0} tokens"
 msgstr "{0} jeton"
 
@@ -383,11 +382,11 @@ msgstr "{installedCount, plural, one {# aracı hazır} other {# aracı hazır}}"
 #~ msgstr "{judgingLabel}, bir kazanan önermek için her adayın değişikliklerini inceliyor."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "{label} API anahtarı"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} otomatik yenileme aralığı (dakika)"
 
@@ -533,7 +532,6 @@ msgstr "{0} kontrolden <0>{passed}</0> tanesi başarılı oldu"
 
 #. placeholder {0}: snapshot.cost.period
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · tahmini"
 
@@ -1261,8 +1259,8 @@ msgstr "Otomatik oluştur"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh"
-msgstr "Otomatik yenileme"
+#~ msgid "Auto-refresh"
+#~ msgstr "Otomatik yenileme"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -1525,7 +1523,7 @@ msgid "Browser pick target for CLI threads"
 msgstr "CLI konuları için tarayıcı seçim hedefi"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "Tarayıcıyla oturum aç"
 
@@ -2922,7 +2920,6 @@ msgstr "Kimlik bilgileri yapılandırıldı."
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "Krediler"
 
@@ -4595,7 +4592,7 @@ msgstr "Gizli devam ettirilebilir konular her 5 dakikada bir taranır ve bu boş
 msgid "Hide"
 msgstr "Gizle"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "{label} dairesini kenar çubuğunda gizle"
 
@@ -5660,7 +5657,7 @@ msgid "Microphone testing is not available in this environment."
 msgstr "Bu ortamda mikrofon testi yapılamaz."
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "min"
 msgstr "dk"
 
@@ -5767,6 +5764,10 @@ msgstr "Daha fazla PR eylemi"
 msgid "More PR options"
 msgstr "Daha fazla PR seçeneği"
 
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More providers"
+msgstr "Diğer sağlayıcılar"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "Daha fazla çekme isteği seçeneği"
@@ -5778,6 +5779,10 @@ msgstr "Diğer zamanlama seçenekleri"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "Daha fazla senkronizasyon seçeneği"
+
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More usage providers — open usage panel"
+msgstr "Diğer kullanım sağlayıcıları — kullanım panelini aç"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Most active hour"
@@ -7049,7 +7054,7 @@ msgid "Paste"
 msgstr "Yapıştır"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "{label} API anahtarını yapıştır"
 
@@ -7692,7 +7697,6 @@ msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; a
 msgid "Redact notification content"
 msgstr "Bildirim içeriğini gizle"
 
-#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/PortsView.tsx
@@ -8808,7 +8812,7 @@ msgstr "Kısayollar"
 msgid "Show {0}"
 msgstr "{0} öğesini göster"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "{label} dairesini kenar çubuğunda göster"
 
@@ -8943,10 +8947,10 @@ msgstr "İlk 4.000 giriş gösteriliyor."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Sidebar"
-msgstr "Kenar çubuğu"
+#~ msgid "Sidebar"
+#~ msgstr "Kenar çubuğu"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "Kenar çubuğu daireleri yukarıda genel olarak kapatılmış"
 
@@ -8956,7 +8960,7 @@ msgid "Sidebar frosting"
 msgstr "Kenar çubuğu buzlu cam efekti"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "Oturum aç"
 
@@ -8978,11 +8982,12 @@ msgid "Sign in with the agent CLI."
 msgstr "Aracı CLI ile oturum açın."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "Oturumu kapat"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "{label} oturumunu kapat"
 
@@ -9016,7 +9021,7 @@ msgid "Signing in"
 msgstr "Oturum açılıyor"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "Oturum açılıyor…"
 
@@ -10246,7 +10251,7 @@ msgstr "token toplamı"
 msgid "Total tokens"
 msgstr "Token toplamı"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "{label} kullanımını takip edin"
 
@@ -10259,7 +10264,7 @@ msgid "Tracking and display"
 msgstr "İzleme ve görüntüleme"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "Takip kapalı"
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { UsageWindow } from "@poracode/agents-usage";
+import type { UsageSnapshot, UsageStatus, UsageWindow } from "@poracode/agents-usage";
 import type { AgentInstanceConfigMap } from "@/shared/contracts";
 import {
+  hasRailUsage,
   isClaudeUsageProvider,
   pickUsageRings,
   resolveDisplayedProviders,
@@ -164,5 +165,30 @@ describe("usageProviders", () => {
       expect(rings.outer?.id).toBe("antigravity:claude:session-5h");
       expect(rings.inner).toBeUndefined();
     });
+  });
+});
+
+describe("hasRailUsage", () => {
+  const snapshot = (status: UsageStatus): UsageSnapshot => ({
+    providerId: "kimi",
+    status,
+    windows: [],
+    fetchedAt: 0,
+  });
+
+  // Signed-out and usage-less providers belong in Settings, not the rail;
+  // everything else is readable now or recovers on its own. `undefined` keeps a
+  // cold start from painting an empty rail.
+  it.each<[UsageStatus | "pending", boolean]>([
+    ["ok", true],
+    ["app-not-running", true],
+    ["rate-limited", true],
+    ["quota-hit", true],
+    ["error", true],
+    ["pending", true],
+    ["auth-missing", false],
+    ["unsupported", false],
+  ])("keeps %s in the rail: %s", (status, expected) => {
+    expect(hasRailUsage(status === "pending" ? undefined : snapshot(status))).toBe(expected);
   });
 });

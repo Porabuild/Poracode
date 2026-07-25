@@ -243,7 +243,6 @@ msgstr "스레드 {0}개"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{0} tokens"
 msgstr "{0} 토큰"
 
@@ -383,11 +382,11 @@ msgstr "{installedCount, plural, one {# 에이전트 준비됨} other {# 에이�
 #~ msgstr "{judgingLabel}이(가) 각 후보의 변경 사항을 검토하여 우승자를 추천합니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "{label} API 키"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} 자동 새로고침 간격(분)"
 
@@ -533,7 +532,6 @@ msgstr "{0}개 검사 중 <0>{passed}</0>개 통과"
 
 #. placeholder {0}: snapshot.cost.period
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · 예상"
 
@@ -1261,8 +1259,8 @@ msgstr "자동 생성"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh"
-msgstr "자동 새로고침"
+#~ msgid "Auto-refresh"
+#~ msgstr "자동 새로고침"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -1525,7 +1523,7 @@ msgid "Browser pick target for CLI threads"
 msgstr "CLI 스레드에 대한 브라우저 선택 대상"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "브라우저로 로그인"
 
@@ -2922,7 +2920,6 @@ msgstr "자격 증명이 구성되었습니다."
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "크레딧"
 
@@ -4595,7 +4592,7 @@ msgstr "숨겨진 재개 가능 스레드는 5분마다 청소되고 이 유휴 
 msgid "Hide"
 msgstr "숨기기"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "사이드바에서 {label} 원 숨기기"
 
@@ -5660,7 +5657,7 @@ msgid "Microphone testing is not available in this environment."
 msgstr "이 환경에서는 마이크 테스트를 사용할 수 없습니다."
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "min"
 msgstr "분"
 
@@ -5767,6 +5764,10 @@ msgstr "추가 PR 작업"
 msgid "More PR options"
 msgstr "더 많은 PR 옵션"
 
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More providers"
+msgstr "추가 공급자"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "추가 풀 요청 옵션"
@@ -5778,6 +5779,10 @@ msgstr "추가 일정 옵션"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "더 많은 동기화 옵션"
+
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More usage providers — open usage panel"
+msgstr "추가 사용량 공급자 — 사용량 패널 열기"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Most active hour"
@@ -7049,7 +7054,7 @@ msgid "Paste"
 msgstr "붙여넣기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "{label} API 키 붙여넣기"
 
@@ -7692,7 +7697,6 @@ msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계�
 msgid "Redact notification content"
 msgstr "알림 내용 가리기"
 
-#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/PortsView.tsx
@@ -8808,7 +8812,7 @@ msgstr "단축키"
 msgid "Show {0}"
 msgstr "{0} 표시"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "사이드바에 {label} 원 표시"
 
@@ -8943,10 +8947,10 @@ msgstr "처음 4,000개 항목을 표시합니다."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Sidebar"
-msgstr "사이드바"
+#~ msgid "Sidebar"
+#~ msgstr "사이드바"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "위에서 사이드바 원이 전체적으로 꺼져 있습니다"
 
@@ -8956,7 +8960,7 @@ msgid "Sidebar frosting"
 msgstr "사이드바 프로스트"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "로그인"
 
@@ -8978,11 +8982,12 @@ msgid "Sign in with the agent CLI."
 msgstr "에이전트 CLI로 로그인합니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "로그아웃"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "{label} 로그아웃"
 
@@ -9016,7 +9021,7 @@ msgid "Signing in"
 msgstr "로그인 중"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "로그인 중…"
 
@@ -10246,7 +10251,7 @@ msgstr "전체 토큰"
 msgid "Total tokens"
 msgstr "전체 토큰"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "{label} 사용량 추적"
 
@@ -10259,7 +10264,7 @@ msgid "Tracking and display"
 msgstr "추적 및 표시"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "추적 꺼짐"
 
