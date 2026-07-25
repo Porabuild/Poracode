@@ -2581,6 +2581,10 @@ msgstr "Continuer dans un autre fournisseur"
 msgid "Continue in..."
 msgstr "Continuez dans..."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Continue on the desktop address"
+msgstr "Continuer sur l'adresse de l'ordinateur"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "Contrôle un navigateur Chrome externe."
@@ -2793,8 +2797,16 @@ msgid "Couldn't load your profile stats."
 msgstr "Impossible de charger vos statistiques de profil."
 
 #: src/mobile/routeComponents.tsx
-msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
-msgstr "Impossible de joindre l'ordinateur. Si le navigateur a demandé l'accès à votre réseau local, autorisez-le et réessayez l'association. Sinon, ouvrez le lien d'association directement depuis l'ordinateur (LAN) ou exposez l'ordinateur en HTTPS."
+msgid "Couldn't reach the desktop from this HTTPS page."
+msgstr "Impossible de joindre l'ordinateur depuis cette page HTTPS."
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop from this HTTPS page. Continue on the desktop's own address to finish pairing, or expose the desktop over HTTPS."
+#~ msgstr "Impossible de joindre l'ordinateur depuis cette page HTTPS. Continuez sur l'adresse de l'ordinateur pour terminer l'association, ou exposez l'ordinateur en HTTPS."
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
+#~ msgstr "Impossible de joindre l'ordinateur. Si le navigateur a demandé l'accès à votre réseau local, autorisez-le et réessayez l'association. Sinon, ouvrez le lien d'association directement depuis l'ordinateur (LAN) ou exposez l'ordinateur en HTTPS."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
@@ -9733,6 +9745,10 @@ msgid "That conversation is no longer available."
 msgstr "Cette conversation n'est plus disponible."
 
 #: src/mobile/routeComponents.tsx
+msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
+msgstr "Ce code d'association n'est plus valide. Ouvrez Paramètres → Accès distant sur l'ordinateur, appuyez sur « Nouveau code », puis réessayez l'association."
+
+#: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "Ce code QR n'est pas un lien d'appairage Poracode."
 
@@ -9934,6 +9950,14 @@ msgstr "Ce navigateur ne prend pas en charge les notifications système ici ; vo
 #~ msgid "This catalog requires its own API key."
 #~ msgstr "Ce catalogue nécessite sa propre clé API."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code expires in {countdown}"
+msgstr "Ce code expire dans {countdown}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code has expired."
+msgstr "Ce code a expiré."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Cette connexion peut voir les projets, mais pas les gérer. Associez-la à nouveau pour l’activer."
@@ -9960,9 +9984,21 @@ msgstr "Ce fichier utilise un encodage non pris en charge."
 msgid "This folder is empty."
 msgstr "Ce dossier est vide."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
+msgstr "Cette page HTTPS n'a pas pu joindre l'ordinateur en HTTP simple. Autorisez l'accès au réseau local pour ce site puis réessayez l'association, ou continuez sur l'adresse de l'ordinateur."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
+#~ msgstr "Ce lien ouvre l'application que Poracode sert sur votre réseau. L'application hébergée est servie en HTTPS, ce qui empêche les navigateurs de joindre un ordinateur en HTTP simple."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Ce nom est réservé à un serveur MCP intégré."
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
+#~ msgstr "Cette page est servie en HTTPS, le navigateur bloque donc l'accès à un ordinateur en HTTP simple. Continuez sur l'adresse de l'ordinateur pour y terminer l'association."
 
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx

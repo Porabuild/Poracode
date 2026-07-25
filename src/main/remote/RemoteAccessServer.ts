@@ -55,6 +55,8 @@ export interface RemoteAccessServerInfo {
   readonly tailscaleHttpBaseUrl?: string;
   readonly wsBaseUrl: string;
   readonly pairingUrl: string;
+  /** ISO expiry of the credential carried by `pairingUrl`. */
+  readonly pairingExpiresAt: string;
 }
 
 export interface RemoteAccessServerOptions {
@@ -322,6 +324,7 @@ export class RemoteAccessServer {
         : {}),
       wsBaseUrl: toWebSocketUrl(httpBaseUrl).toString(),
       pairingUrl: this.mintPairingUrl(httpBaseUrl, pairingCredential.credential),
+      pairingExpiresAt: pairingCredential.expiresAt,
     };
     this.heartbeat.start();
     return this.info;
@@ -459,7 +462,7 @@ export class RemoteAccessServer {
     });
     this.activePairingCredential = issued.credential;
     const pairingUrl = this.mintPairingUrl(info.httpBaseUrl, issued.credential);
-    this.info = { ...info, pairingUrl };
+    this.info = { ...info, pairingUrl, pairingExpiresAt: issued.expiresAt };
     this.notifyPairingChanged();
     return pairingUrl;
   }

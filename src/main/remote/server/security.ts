@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { isLoopbackHostname } from "@/shared/http";
 import { REMOTE_COMMAND_ID_HEADER, type RemoteAccessScope } from "@/shared/remote";
 import { parseBearerAuthorizationHeader, RemoteHttpError, type RemoteAuthStore } from "../auth";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
@@ -65,14 +66,7 @@ function isLoopbackWebOrigin(origin: string): boolean {
   try {
     const url = new URL(origin);
     if (url.protocol !== "http:" && url.protocol !== "https:") return false;
-    const host = url.hostname;
-    return (
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host === "::1" ||
-      host === "[::1]" ||
-      host.endsWith(".localhost")
-    );
+    return isLoopbackHostname(url.hostname);
   } catch {
     return false;
   }

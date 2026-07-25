@@ -2581,6 +2581,10 @@ msgstr "다른 제공업체에서 계속"
 msgid "Continue in..."
 msgstr "다음에서 계속..."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Continue on the desktop address"
+msgstr "데스크톱 주소에서 계속"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "외부 Chrome 브라우저를 제어합니다."
@@ -2793,8 +2797,16 @@ msgid "Couldn't load your profile stats."
 msgstr "프로필 통계를 불러오지 못했습니다."
 
 #: src/mobile/routeComponents.tsx
-msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
-msgstr "데스크톱에 연결할 수 없습니다. 브라우저가 로컬 네트워크 접근을 요청했다면 허용한 뒤 다시 페어링하세요. 그렇지 않으면 데스크톱(LAN)에서 페어링 링크를 직접 열거나 데스크톱을 HTTPS로 노출하세요."
+msgid "Couldn't reach the desktop from this HTTPS page."
+msgstr "이 HTTPS 페이지에서는 데스크톱에 연결할 수 없습니다."
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop from this HTTPS page. Continue on the desktop's own address to finish pairing, or expose the desktop over HTTPS."
+#~ msgstr "이 HTTPS 페이지에서는 데스크톱에 연결할 수 없습니다. 데스크톱 자체 주소에서 계속해 페어링을 완료하거나 데스크톱을 HTTPS로 노출하세요."
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
+#~ msgstr "데스크톱에 연결할 수 없습니다. 브라우저가 로컬 네트워크 접근을 요청했다면 허용한 뒤 다시 페어링하세요. 그렇지 않으면 데스크톱(LAN)에서 페어링 링크를 직접 열거나 데스크톱을 HTTPS로 노출하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
@@ -9734,6 +9746,10 @@ msgid "That conversation is no longer available."
 msgstr "해당 대화는 더 이상 사용할 수 없습니다."
 
 #: src/mobile/routeComponents.tsx
+msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
+msgstr "이 페어링 코드는 더 이상 유효하지 않습니다. 데스크톱에서 설정 → 원격 액세스를 열고 '새 코드'를 누른 뒤 다시 페어링하세요."
+
+#: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "이 QR 코드는 Poracode 페어링 링크가 아닙니다."
 
@@ -9935,6 +9951,14 @@ msgstr "이 브라우저는 여기에서 시스템 알림을 지원하지 않습
 #~ msgid "This catalog requires its own API key."
 #~ msgstr "이 카탈로그에는 자체 API 키가 필요합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code expires in {countdown}"
+msgstr "이 코드는 {countdown} 후 만료됩니다"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code has expired."
+msgstr "이 코드는 만료되었습니다."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
@@ -9961,9 +9985,21 @@ msgstr "이 파일은 지원되지 않는 인코딩을 사용합니다."
 msgid "This folder is empty."
 msgstr "이 폴더는 비어 있습니다."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
+msgstr "이 HTTPS 페이지는 일반 HTTP 데스크톱에 연결할 수 없었습니다. 이 사이트에 로컬 네트워크 접근을 허용한 뒤 다시 페어링하거나, 데스크톱 자체 주소에서 계속하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
+#~ msgstr "이 링크는 Poracode가 네트워크에서 제공하는 앱을 엽니다. 호스팅된 앱은 HTTPS로 제공되므로 브라우저가 일반 HTTP 데스크톱에 연결하는 것을 차단합니다."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "이 이름은 기본 제공 MCP 서버용으로 예약되어 있습니다."
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
+#~ msgstr "이 페이지는 HTTPS로 제공되므로 브라우저가 일반 HTTP 데스크톱 연결을 차단합니다. 데스크톱 자체 주소에서 계속해 거기서 페어링을 완료하세요."
 
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx

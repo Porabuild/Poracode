@@ -1,4 +1,9 @@
-import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import {
+  buildPairingUrl,
+  isCleartextLanUrl,
+  normalizePairingEndpoint,
+  parsePairingUrlParts,
+} from "@/shared/remote/pairingUrl";
 import { isNativeApp } from "./pwaInstall";
 
 export interface PairingLaunch {
@@ -113,11 +118,14 @@ export function parsePairingUrl(value: string): PairingLaunch | null {
 
 /**
  * Classify an http LAN endpoint requested from a hosted https page. Chromium
- * can allow this through its Local Network Access permission; browsers without
- * that support block it as mixed content. Loopback is exempt because browsers
- * treat it as a secure context. Native shells are exempt too: they serve the
- * bundle from an https/app scheme origin but allow cleartext LAN traffic
- * themselves (Android `cleartext`/`allowMixedContent`, iOS ATS exceptions).
+ * permits both the `fetch` and the `ws://` event stream once its Local Network
+ * Access permission is granted for the site (a private-IP literal is exempted
+ * from mixed content then); browsers without LNA block them, which is what
+ * {@link desktopServedPairingUrl} exists for. Loopback is exempt because
+ * browsers treat it as a secure context. Native shells are exempt too: they
+ * serve the bundle from an https/app scheme origin but allow cleartext LAN
+ * traffic themselves (Android `cleartext`/`allowMixedContent`, iOS ATS
+ * exceptions).
  */
 export function isMixedContentEndpoint(
   endpoint: string,
@@ -125,18 +133,21 @@ export function isMixedContentEndpoint(
 ): boolean {
   if (isNativeApp()) return false;
   if (location.protocol !== "https:") return false;
+  return isCleartextLanUrl(endpoint);
+}
+
+/**
+ * The escape hatch when a browser refuses a cleartext LAN endpoint: the desktop
+ * serves this very app on its own cleartext origin, where both `fetch` and the
+ * `ws://` event stream are same-scheme and always permitted. Reuses the pairing
+ * credential the user already has, so the handoff completes pairing instead of
+ * restarting it. Returns null when the endpoint is unusable as a URL.
+ */
+export function desktopServedPairingUrl(endpoint: string, credential: string): string | null {
   try {
-    const url = new URL(endpoint);
-    if (url.protocol !== "http:") return false;
-    const host = url.hostname;
-    return !(
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host === "::1" ||
-      host.endsWith(".localhost")
-    );
+    return buildPairingUrl({ httpBaseUrl: endpoint, credential });
   } catch {
-    return false;
+    return null;
   }
 }
 

@@ -14,6 +14,12 @@ import {
   type RemoteWebSocketTicketResult,
 } from "@/shared/remote";
 
+/**
+ * How long a one-time pairing credential stays redeemable. The expiry travels to
+ * the settings UI as `pairingExpiresAt`, so a shown code can be replaced before
+ * it lapses — a code redeemed past its TTL fails as `invalid_pairing_token`,
+ * which reads to the user as an unreachable desktop.
+ */
 const DEFAULT_PAIRING_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_ACCESS_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_WEBSOCKET_TICKET_TTL_MS = 30 * 1000;

@@ -24,12 +24,14 @@ import {
 } from "./navHelpers";
 import {
   clearPairingLaunch,
+  desktopServedPairingUrl,
   isMixedContentEndpoint,
   normalizePairingEndpoint,
   parsePairingLaunch,
   parsePairingUrl,
   subscribePairingLaunch,
 } from "./pairing";
+import { RemoteClientError } from "./remoteClient";
 import { MobileSetupEmptyState, type MobileSetupKind } from "./setupEmptyState";
 import { isDesktopSettingsSection } from "./settingsSections";
 import type { MobileSshPairRequest } from "./views/DesktopsView";
@@ -384,6 +386,9 @@ export function DesktopsRoute() {
   const canPairManually = Boolean(
     manualPairingLink?.credential || (manualEndpointValue && manualTokenValue),
   );
+  // Set only once the browser has actually refused a cleartext LAN endpoint, so
+  // the escape hatch appears exactly when it is the answer.
+  const [blockedHandoffUrl, setBlockedHandoffUrl] = useState<string | null>(null);
 
   async function pair(endpoint: string, credential: string) {
     let normalizedEndpoint: string;
@@ -393,17 +398,30 @@ export function DesktopsRoute() {
       toast.danger(t`Enter a valid desktop endpoint.`);
       return;
     }
+    setBlockedHandoffUrl(null);
     try {
       await remote.pairDesktop(normalizedEndpoint, credential);
       clearPairingLaunch();
       setManualToken("");
       void navigate({ to: "/threads" });
     } catch (error) {
-      // Chromium can prompt for local-network access and permit this request.
-      // Attempt it before showing fallback guidance so that prompt can appear.
-      if (isMixedContentEndpoint(normalizedEndpoint)) {
+      // A desktop that answered has a real reason (expired credential, rate
+      // limit, protocol mismatch) — report it verbatim rather than blaming the
+      // browser. Only a transport failure can be the page being blocked from a
+      // cleartext LAN endpoint, and Chromium reaches it fine once its local
+      // network permission is granted, so the handoff is the last resort.
+      const remoteError = error instanceof RemoteClientError ? error : null;
+      const answered = (remoteError?.status ?? 0) >= 400;
+      if (!answered && isMixedContentEndpoint(normalizedEndpoint)) {
+        setBlockedHandoffUrl(desktopServedPairingUrl(normalizedEndpoint, credential));
+        toast.danger(t`Couldn't reach the desktop from this HTTPS page.`);
+        return;
+      }
+      // A one-time code is also spent or expired under this status; the desktop's
+      // own "Invalid pairing token." says nothing about how to recover.
+      if (remoteError?.code === "invalid_pairing_token") {
         toast.danger(
-          t`Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS.`,
+          t`That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again.`,
         );
         return;
       }
@@ -460,6 +478,9 @@ export function DesktopsRoute() {
       onTokenChange={setManualToken}
       onPair={submitManualPairing}
       onScan={handleScan}
+      {...(blockedHandoffUrl
+        ? { onOpenDesktopServedApp: () => window.location.assign(blockedHandoffUrl) }
+        : {})}
       onSwitch={(desktop) => {
         void remote.switchDesktop(desktop).then(() => navigate({ to: "/threads" }));
       }}

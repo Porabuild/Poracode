@@ -2581,6 +2581,10 @@ msgstr "继续使用另一个提供商"
 msgid "Continue in..."
 msgstr "在其他工具中继续..."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Continue on the desktop address"
+msgstr "在桌面地址上继续"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "控制外部 Chrome 浏览器。"
@@ -2793,8 +2797,16 @@ msgid "Couldn't load your profile stats."
 msgstr "无法加载你的资料统计。"
 
 #: src/mobile/routeComponents.tsx
-msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
-msgstr "无法连接到桌面。如果浏览器请求访问你的本地网络，请允许后重新配对。否则请直接从桌面（LAN）打开配对链接，或通过 HTTPS 暴露桌面。"
+msgid "Couldn't reach the desktop from this HTTPS page."
+msgstr "无法从此 HTTPS 页面连接到桌面。"
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop from this HTTPS page. Continue on the desktop's own address to finish pairing, or expose the desktop over HTTPS."
+#~ msgstr "无法从此 HTTPS 页面连接到桌面。请在桌面自身的地址上继续以完成配对，或通过 HTTPS 暴露桌面。"
+
+#: src/mobile/routeComponents.tsx
+#~ msgid "Couldn't reach the desktop. If the browser asked to access your local network, allow it and pair again. Otherwise open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
+#~ msgstr "无法连接到桌面。如果浏览器请求访问你的本地网络，请允许后重新配对。否则请直接从桌面（LAN）打开配对链接，或通过 HTTPS 暴露桌面。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
@@ -9733,6 +9745,10 @@ msgid "That conversation is no longer available."
 msgstr "该对话已不可用。"
 
 #: src/mobile/routeComponents.tsx
+msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
+msgstr "该配对代码已失效。请在桌面上打开“设置 → 远程访问”，点击“新代码”后重新配对。"
+
+#: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "该二维码不是 Poracode 的配对链接。"
 
@@ -9934,6 +9950,14 @@ msgstr "此浏览器不支持在此处显示系统通知；你仍会看到应用
 #~ msgid "This catalog requires its own API key."
 #~ msgstr "此目录需要自己的 API 密钥。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code expires in {countdown}"
+msgstr "此代码将在 {countdown} 后过期"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This code has expired."
+msgstr "此代码已过期。"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "此连接可以查看项目，但不能管理项目。请重新配对以启用。"
@@ -9960,9 +9984,21 @@ msgstr "此文件使用不受支持的编码。"
 msgid "This folder is empty."
 msgstr "此文件夹为空。"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
+msgstr "此 HTTPS 页面无法连接使用纯 HTTP 的桌面。请允许该站点访问本地网络后重新配对，或在桌面自身的地址上继续。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
+#~ msgstr "此链接会打开 Poracode 在你网络中提供的应用。托管版应用通过 HTTPS 提供，浏览器会因此阻止它连接使用纯 HTTP 的桌面。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "此名称由内置 MCP 服务器保留。"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
+#~ msgstr "此页面通过 HTTPS 提供，因此浏览器会阻止它连接使用纯 HTTP 的桌面。请在桌面自身的地址上继续，在那里完成配对。"
 
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx

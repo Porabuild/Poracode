@@ -103,6 +103,15 @@ type SearchRow =
 type SectionMeta = { id: SettingsSection; icon: ReactNode; label: string };
 
 /**
+ * Settings navigation row. The section list is long (5 groups, ~25 rows plus the
+ * expandable agents tree), so every row here uses the compact density to keep the
+ * whole list reachable without scrolling.
+ */
+function SettingsNavButton(props: React.ComponentProps<typeof SidebarButton>) {
+  return <SidebarButton density="compact" {...props} />;
+}
+
+/**
  * A settings-search result row: a small section "eyebrow" (icon + section name)
  * above the matched setting text (its title, or a description snippet when only
  * the description matched). Clicking navigates to the section and scrolls to the
@@ -118,7 +127,7 @@ function SettingsSearchResultRow(props: {
     <button
       type="button"
       onClick={props.onPress}
-      className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-1.5 text-left transition-colors hover:bg-[var(--row-hover)]"
+      className="flex w-full flex-col gap-0.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[var(--row-hover)]"
     >
       <span className="flex items-center gap-1.5 text-[11px] text-muted [&_svg]:size-3">
         <span className="flex size-3 shrink-0 items-center justify-center">{props.icon}</span>
@@ -357,7 +366,7 @@ export function SettingsSidebar(props: {
               <div key={group.id} className={groupIndex > 0 ? "space-y-0.5 pt-2" : "space-y-0.5"}>
                 {group.hasTree &&
                   (remoteSession ? (
-                    <SidebarButton
+                    <SettingsNavButton
                       iconOnly
                       icon={<Bot className="size-4" />}
                       label={t`Models`}
@@ -366,7 +375,7 @@ export function SettingsSidebar(props: {
                     />
                   ) : (
                     <>
-                      <SidebarButton
+                      <SettingsNavButton
                         iconOnly
                         icon={<Bot className="size-4" />}
                         label={t`Agents`}
@@ -374,7 +383,7 @@ export function SettingsSidebar(props: {
                         onPress={openAgents}
                       />
                       {isAgentsActive && (
-                        <SidebarButton
+                        <SettingsNavButton
                           iconOnly
                           icon={
                             isRefreshingAgents ? (
@@ -389,7 +398,7 @@ export function SettingsSidebar(props: {
                         />
                       )}
                       {isAgentsActive && (
-                        <SidebarButton
+                        <SettingsNavButton
                           iconOnly
                           icon={<Settings2 className="size-4" />}
                           label={t`Agents · General`}
@@ -398,7 +407,7 @@ export function SettingsSidebar(props: {
                         />
                       )}
                       {isAgentsActive && (
-                        <SidebarButton
+                        <SettingsNavButton
                           iconOnly
                           icon={<Boxes className="size-4" />}
                           label={t`Agent Registry`}
@@ -411,7 +420,7 @@ export function SettingsSidebar(props: {
                           const needsAttention = attentionAgentKinds.has(agent.kind);
                           return (
                             <div key={agent.kind} className="space-y-0.5">
-                              <SidebarButton
+                              <SettingsNavButton
                                 iconOnly
                                 icon={
                                   <span className="relative flex size-4 items-center justify-center">
@@ -430,10 +439,10 @@ export function SettingsSidebar(props: {
                               {instanceAgentsFor(agent.kind).map((profile) => {
                                 const profileNeedsAttention = attentionAgentKinds.has(profile.kind);
                                 return (
-                                  <SidebarButton
+                                  <SettingsNavButton
                                     key={profile.kind}
                                     iconOnly
-                                    className="ml-3 h-7 w-7"
+                                    className="ml-3"
                                     icon={
                                       <span className="relative flex size-3.5 items-center justify-center">
                                         {renderAgentIcon(profile, {
@@ -457,7 +466,7 @@ export function SettingsSidebar(props: {
                     </>
                   ))}
                 {group.sections.map((section) => (
-                  <SidebarButton
+                  <SettingsNavButton
                     key={section.id}
                     iconOnly
                     icon={section.icon}
@@ -470,13 +479,13 @@ export function SettingsSidebar(props: {
             ))}
           </div>
           <div className={sidebarIconRailFooterClass}>
-            <SidebarButton
+            <SettingsNavButton
               iconOnly
               icon={<ArrowLeft className="size-4" />}
               label={t`Return to app`}
               onPress={onClose}
             />
-            <SidebarButton
+            <SettingsNavButton
               iconOnly
               icon={<PanelLeft className="size-4" />}
               label={t`Show sidebar`}
@@ -520,7 +529,7 @@ export function SettingsSidebar(props: {
               ) : (
                 searchRows.map((row) =>
                   row.kind === "section" ? (
-                    <SidebarButton
+                    <SettingsNavButton
                       key={row.key}
                       icon={row.icon}
                       label={row.label}
@@ -542,13 +551,16 @@ export function SettingsSidebar(props: {
           ) : (
             <div className="space-y-0.5">
               {visibleGroups.map((group, groupIndex) => (
-                <div key={group.id} className={groupIndex > 0 ? "space-y-0.5 pt-3" : "space-y-0.5"}>
-                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
+                <div
+                  key={group.id}
+                  className={groupIndex > 0 ? "space-y-0.5 pt-2.5" : "space-y-0.5"}
+                >
+                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
                     {group.label}
                   </p>
                   {group.hasTree &&
                     (remoteSession ? (
-                      <SidebarButton
+                      <SettingsNavButton
                         icon={<Bot className="size-4" />}
                         label={t`Models`}
                         isActive={activeSection === "agentsGeneral"}
@@ -556,7 +568,7 @@ export function SettingsSidebar(props: {
                       />
                     ) : (
                       <>
-                        <SidebarButton
+                        <SettingsNavButton
                           icon={<Bot className="size-4" />}
                           label={t`Agents`}
                           isActive={activeSection === "agents"}
@@ -582,13 +594,13 @@ export function SettingsSidebar(props: {
                         />
                         {isAgentsActive && (
                           <div className="space-y-0.5 pl-4">
-                            <SidebarButton
+                            <SettingsNavButton
                               icon={<Settings2 className="size-4" />}
                               label={t`General`}
                               isActive={activeSection === "agentsGeneral"}
                               onPress={() => onSectionChange("agentsGeneral")}
                             />
-                            <SidebarButton
+                            <SettingsNavButton
                               icon={<Boxes className="size-4" />}
                               label={t`Agent Registry`}
                               isActive={activeSection === "acpRegistry"}
@@ -599,7 +611,7 @@ export function SettingsSidebar(props: {
                               const needsAttention = attentionAgentKinds.has(agent.kind);
                               return (
                                 <div key={agent.kind} className="space-y-0.5">
-                                  <SidebarButton
+                                  <SettingsNavButton
                                     icon={renderAgentIcon(agent, {
                                       disabled: agentDisabled,
                                     })}
@@ -626,7 +638,7 @@ export function SettingsSidebar(props: {
                                           profile.kind,
                                         );
                                         return (
-                                          <SidebarButton
+                                          <SettingsNavButton
                                             key={profile.kind}
                                             icon={renderAgentIcon(profile, {
                                               disabled: profileDisabled,
@@ -659,7 +671,7 @@ export function SettingsSidebar(props: {
                       </>
                     ))}
                   {group.sections.map((section) => (
-                    <SidebarButton
+                    <SettingsNavButton
                       key={section.id}
                       icon={section.icon}
                       label={section.label}
@@ -674,12 +686,12 @@ export function SettingsSidebar(props: {
         </div>
 
         <div className={sidebarFooterNavClass}>
-          <SidebarButton
+          <SettingsNavButton
             icon={<ArrowLeft className="size-4" />}
             label={t`Return to app`}
             onPress={onClose}
           />
-          <SidebarButton
+          <SettingsNavButton
             icon={<PanelLeftClose className="size-4" />}
             label={t`Hide sidebar`}
             onPress={collapse}

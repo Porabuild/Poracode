@@ -633,6 +633,8 @@ export const remoteAccessPairingInfoSchema = z.discriminatedUnion("status", [
     tailscaleHttpBaseUrl: z.string().url().optional(),
     wsBaseUrl: z.string().url(),
     pairingUrl: z.string().url(),
+    /** When the credential inside `pairingUrl` stops being redeemable. */
+    pairingExpiresAt: z.string().datetime(),
     sessions: z.array(remoteAccessSessionSchema),
   }),
 ]);
