@@ -16,6 +16,7 @@ import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { ThreadProviderIcon, getStatusTone } from "@/renderer/components/providers";
 import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import {
+  entryIsDone,
   entryIsStarred,
   entryLatestDate,
   groupThreads,
@@ -523,26 +524,43 @@ export function ThreadsView(props: ThreadsViewProps) {
   // header. Standalone threads stay as plain rows. Reuses the desktop sidebar's
   // grouping so both surfaces agree on what counts as a group.
   const groupedEntries = groupThreads([...visibleThreads]);
-  // Split into Pinned / Current (updated < 24h) / Older sections, floated in
-  // that order and labeled — mirroring the desktop sidebar. `visibleThreads` is
-  // already recency-sorted, so these stable partitions keep that order within
-  // each section. Pinning any group member floats the whole group (entryIsStarred).
-  const pinnedEntries = groupedEntries.filter(entryIsStarred);
-  const unpinnedEntries = groupedEntries.filter((entry) => !entryIsStarred(entry));
+  // Done entries sink below the live list, matching the desktop sidebar. A
+  // mixed group stays live until every member is done.
+  const liveEntries: ThreadListEntry[] = [];
+  const datedDoneEntries: { entry: ThreadListEntry; updatedAt: string }[] = [];
+  for (const entry of groupedEntries) {
+    if (entryIsDone(entry)) {
+      datedDoneEntries.push({ entry, updatedAt: entryLatestDate(entry, "updatedAt") });
+    } else {
+      liveEntries.push(entry);
+    }
+  }
+  const doneEntries = datedDoneEntries
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .map(({ entry }) => entry);
+  // Split the remaining live entries into Pinned / Current (updated < 24h) /
+  // Older sections. `visibleThreads` is already recency-sorted, so these stable
+  // partitions keep that order within each section. Pinning any group member
+  // floats the whole group (entryIsStarred).
+  const pinnedEntries = liveEntries.filter(entryIsStarred);
+  const unpinnedEntries = liveEntries.filter((entry) => !entryIsStarred(entry));
   const currentEntries = unpinnedEntries.filter((entry) =>
     isRecent(entryLatestDate(entry, "updatedAt")),
   );
   const olderEntries = unpinnedEntries.filter(
     (entry) => !isRecent(entryLatestDate(entry, "updatedAt")),
   );
-  const sections = [
+  const liveSections = [
     { key: "pinned", label: t`Pinned`, entries: pinnedEntries },
     { key: "current", label: t`Current`, entries: currentEntries },
     { key: "older", label: t`Older`, entries: olderEntries },
   ].filter((section) => section.entries.length > 0);
-  // A lone section spans the whole list, so its label would be noise; only show
-  // the headers once there is an actual boundary between two or more sections.
-  const showSectionLabels = sections.length > 1;
+  // A lone live section spans the whole live list, so its label would be noise.
+  // Done always keeps its label because it is a distinct trailing state.
+  const showLiveSectionLabels = liveSections.length > 1;
+  const sections = [...liveSections, { key: "done", label: t`Done`, entries: doneEntries }].filter(
+    (section) => section.entries.length > 0,
+  );
 
   // A worktree-group child drops its worktree + git badges (the header carries
   // them); any group child drops the project name (the header carries that too).
@@ -633,7 +651,9 @@ export function ThreadsView(props: ThreadsViewProps) {
       <div className="m-thread-list">
         {sections.map((section) => (
           <Fragment key={section.key}>
-            {showSectionLabels ? <div className="m-thread-section">{section.label}</div> : null}
+            {section.key === "done" || showLiveSectionLabels ? (
+              <div className="m-thread-section">{section.label}</div>
+            ) : null}
             {section.entries.map((entry) => renderEntry(entry))}
           </Fragment>
         ))}
