@@ -3009,8 +3009,11 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-image-lightbox__close {
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+  top: calc(env(titlebar-area-height, 32px) + 1rem);
+  right: max(
+    1.5rem,
+    calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 1rem)
+  );
   display: flex;
   align-items: center;
   justify-content: center;
