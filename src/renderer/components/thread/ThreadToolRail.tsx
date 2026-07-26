@@ -129,7 +129,7 @@ export function ThreadToolRail(props: {
     return () => observer.disconnect();
   }, [alwaysOpen, paneCount, sidePanelOpen]);
 
-  const { offset, dragHandlers } = useThreadToolRailDrag({ paneHeight, railHeight });
+  const { offset, isDragging, dragHandlers } = useThreadToolRailDrag({ paneHeight, railHeight });
 
   // Home-scope "projects" have no repository or file root, matching the tabs
   // the right panel itself hides for that scope.
@@ -231,7 +231,9 @@ export function ThreadToolRail(props: {
                   ref={pillRef}
                   data-poracode-thread-tool-rail=""
                   data-placement="side"
-                  className={`${floatingChromeSurfaceClass} ${railPillClass} cursor-grab touch-none select-none active:cursor-grabbing`}
+                  className={`${floatingChromeSurfaceClass} ${railPillClass} ${
+                    isDragging ? "cursor-grabbing" : "cursor-default"
+                  } touch-none select-none`}
                   {...dragHandlers}
                 >
                   {toolButtons}
