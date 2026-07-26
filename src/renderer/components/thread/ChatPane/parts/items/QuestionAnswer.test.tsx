@@ -23,7 +23,7 @@ describe("QuestionAnswer", () => {
       streams: {},
     };
 
-    render(
+    const { container } = render(
       <QuestionAnswer
         item={item}
         checkpointRevert={{ itemId: "qa-1", onRequestRevert: () => {} }}
@@ -34,7 +34,9 @@ describe("QuestionAnswer", () => {
     expect(screen.getByText("Allow this command?")).toBeInTheDocument();
     expect(screen.getByText("Allow once")).toBeInTheDocument();
     expect(screen.getByText("Only for this run")).toBeInTheDocument();
-    expect(screen.getByText("Use README.md instead.")).toBeInTheDocument();
+    // Custom answers render via ItemMarkdown, which chips bare filenames into
+    // path buttons. Match concatenated textContent rather than a single text node.
+    expect(container).toHaveTextContent("Use README.md instead.");
     const revertButton = screen.getByRole("button", { name: "Revert to this checkpoint" });
     expect(revertButton).toBeInTheDocument();
     expect(revertButton.closest(".poracode-message-action-strip")).not.toBeNull();
