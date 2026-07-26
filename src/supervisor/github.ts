@@ -19,16 +19,23 @@ import {
   type GhListAccountsResult,
   type GhListPullRequestsResult,
   type GhListReposResult,
+  type GhGetWorkflowRunResult,
+  type GhGetWorkflowDefinitionResult,
+  type GhListWorkflowRunsResult,
+  type GhListWorkflowsResult,
   type GitHubAccountRef,
   type GitHubRepoSummary,
 } from "@/shared/contracts";
 import {
   mapGitHubApiRepo,
+  mapGitHubActionsRun,
+  mapGitHubActionsWorkflow,
   mapPrData,
   mapPrDetails,
   mapPullRequestSummary,
   parseGhAuthAccounts,
 } from "./githubMappers";
+import { parseGitHubActionsWorkflowYaml } from "./githubWorkflowDefinition";
 
 // Re-export the pure mappers previously defined inline here so the module's
 // public surface stays identical for github.test.ts and bridge consumers.
@@ -47,6 +54,8 @@ const GH_CLONE_TIMEOUT = 600_000;
 const GH_REPO_PAGE_SIZE = 100;
 const GH_REPO_MAX_PAGES = 5;
 const PULL_REQUEST_LIST_LIMIT = 1_000;
+const WORKFLOW_LIST_LIMIT = 100;
+const WORKFLOW_RUN_LIST_LIMIT = 50;
 const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
@@ -859,6 +868,187 @@ export class GitHubService {
       throw classifyError(err, "pr review");
     } finally {
       await tempFile.cleanup().catch(() => {});
+    }
+  }
+
+  async listWorkflows(location: ProjectLocation): Promise<GhListWorkflowsResult> {
+    try {
+      const stdout = await this.runGh(location, [
+        "workflow",
+        "list",
+        "--all",
+        "--limit",
+        String(WORKFLOW_LIST_LIMIT),
+        "--json",
+        "id,name,path,state",
+      ]);
+      const raw = JSON.parse(stdout) as unknown;
+      const workflows = Array.isArray(raw)
+        ? raw
+            .map(mapGitHubActionsWorkflow)
+            .filter((workflow): workflow is NonNullable<typeof workflow> => workflow !== null)
+        : [];
+      return { workflows };
+    } catch (err) {
+      throw classifyError(err, "workflow list");
+    }
+  }
+
+  async listWorkflowRuns(
+    location: ProjectLocation,
+    workflowId?: number,
+  ): Promise<GhListWorkflowRunsResult> {
+    try {
+      const stdout = await this.runGh(location, [
+        "run",
+        "list",
+        "--limit",
+        String(WORKFLOW_RUN_LIST_LIMIT),
+        ...(workflowId ? ["--workflow", String(workflowId)] : []),
+        "--json",
+        [
+          "attempt",
+          "conclusion",
+          "createdAt",
+          "databaseId",
+          "displayTitle",
+          "event",
+          "headBranch",
+          "headSha",
+          "name",
+          "number",
+          "startedAt",
+          "status",
+          "updatedAt",
+          "url",
+          "workflowDatabaseId",
+          "workflowName",
+        ].join(","),
+      ]);
+      const raw = JSON.parse(stdout) as unknown;
+      const runs = Array.isArray(raw)
+        ? raw.map(mapGitHubActionsRun).filter((run): run is NonNullable<typeof run> => run !== null)
+        : [];
+      return { runs };
+    } catch (err) {
+      throw classifyError(err, "run list");
+    }
+  }
+
+  async getWorkflowDefinition(
+    location: ProjectLocation,
+    workflowId: number,
+    ref?: string,
+  ): Promise<GhGetWorkflowDefinitionResult> {
+    try {
+      const [defaultBranch, yaml] = await Promise.all([
+        this.runGh(location, [
+          "repo",
+          "view",
+          "--json",
+          "defaultBranchRef",
+          "--jq",
+          ".defaultBranchRef.name",
+        ]),
+        this.runGh(location, [
+          "workflow",
+          "view",
+          String(workflowId),
+          "--yaml",
+          ...(ref ? ["--ref", ref] : []),
+        ]),
+      ]);
+      const defaultBranchName = defaultBranch.trim();
+      return {
+        definition: {
+          workflowId,
+          ref: ref ?? defaultBranchName,
+          defaultBranch: defaultBranchName,
+          ...parseGitHubActionsWorkflowYaml(yaml),
+        },
+      };
+    } catch (err) {
+      throw classifyError(err, "workflow view");
+    }
+  }
+
+  async getWorkflowRun(location: ProjectLocation, runId: number): Promise<GhGetWorkflowRunResult> {
+    try {
+      const stdout = await this.runGh(location, [
+        "run",
+        "view",
+        String(runId),
+        "--json",
+        [
+          "attempt",
+          "conclusion",
+          "createdAt",
+          "databaseId",
+          "displayTitle",
+          "event",
+          "headBranch",
+          "headSha",
+          "jobs",
+          "name",
+          "number",
+          "startedAt",
+          "status",
+          "updatedAt",
+          "url",
+          "workflowDatabaseId",
+          "workflowName",
+        ].join(","),
+      ]);
+      const run = mapGitHubActionsRun(JSON.parse(stdout));
+      if (!run) throw new Error("GitHub returned an invalid workflow run.");
+      return { run };
+    } catch (err) {
+      throw classifyError(err, "run view");
+    }
+  }
+
+  async dispatchWorkflow(
+    location: ProjectLocation,
+    workflowId: number,
+    ref: string | undefined,
+    inputs: Record<string, string>,
+  ): Promise<void> {
+    const args = [
+      "workflow",
+      "run",
+      String(workflowId),
+      ...(ref ? ["--ref", ref] : []),
+      ...Object.entries(inputs).flatMap(([key, value]) => ["--raw-field", `${key}=${value}`]),
+    ];
+    try {
+      await this.runGh(location, args);
+    } catch (err) {
+      throw classifyError(err, "workflow run");
+    }
+  }
+
+  async rerunWorkflowRun(
+    location: ProjectLocation,
+    runId: number,
+    failedOnly: boolean,
+  ): Promise<void> {
+    try {
+      await this.runGh(location, [
+        "run",
+        "rerun",
+        String(runId),
+        ...(failedOnly ? ["--failed"] : []),
+      ]);
+    } catch (err) {
+      throw classifyError(err, "run rerun");
+    }
+  }
+
+  async deleteWorkflowRun(location: ProjectLocation, runId: number): Promise<void> {
+    try {
+      await this.runGh(location, ["run", "delete", String(runId)]);
+    } catch (err) {
+      throw classifyError(err, "run delete");
     }
   }
 }

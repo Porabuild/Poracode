@@ -211,6 +211,12 @@ msgstr "{0} cần xác thực."
 msgid "{0} needs input."
 msgstr "{0} cần thông tin nhập."
 
+#. placeholder {0}: job.steps.filter((step) => step.status === "completed").length
+#. placeholder {1}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "{0} of {1} steps"
+msgstr "{0} trên {1} bước"
+
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
 msgid "{0} of {matchCount}"
@@ -232,6 +238,8 @@ msgid "{0} run"
 msgstr "{0} lần chạy"
 
 #. placeholder {0}: item.runCount.toLocaleString()
+#. placeholder {0}: runs.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "{0} lần chạy"
@@ -282,6 +290,11 @@ msgstr "{0} đã cập nhật."
 msgid "{0} used"
 msgstr "Đã dùng {0}"
 
+#. placeholder {0}: workflows.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "{0} workflows"
+#~ msgstr "{0} quy trình"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -321,6 +334,11 @@ msgstr "{agentLead} cần bạn nhập thông tin để tiếp tục."
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
+
+#. placeholder {0}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "{completedSteps} of {0} steps"
+#~ msgstr "Đã hoàn tất {completedSteps}/{0} bước"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
@@ -540,9 +558,17 @@ msgstr "~{money}{tokens} · {0} · ước tính."
 msgid "≈{0}% by reset"
 msgstr "≈{0}% khi đặt lại"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "1 run"
+msgstr "1 lượt chạy"
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
 msgstr "1 luồng"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "1 workflow"
+#~ msgstr "1 quy trình"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "22"
@@ -707,6 +733,10 @@ msgstr "Thêm một dự án để xem các pull request."
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Thêm một dự án để bắt đầu"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Add a project to use GitHub Actions."
+msgstr "Thêm dự án để sử dụng GitHub Actions."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
@@ -1206,6 +1236,10 @@ msgstr "Gắn dock todo vào trình soạn thảo"
 msgid "Attached browser selection."
 msgstr "Lựa chọn trình duyệt đính kèm."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Attempt"
+msgstr "Lần thử"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Audio"
@@ -1427,6 +1461,7 @@ msgid "Bottom"
 msgstr "Dưới cùng"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
 msgstr "Nhánh"
 
@@ -1446,6 +1481,10 @@ msgstr "Nhánh <0>{0}</0> có các thay đổi chưa được hợp nhất:"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Nhánh chưa được hợp nhất hoàn toàn"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Branch or tag"
+msgstr "Nhánh hoặc thẻ"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
@@ -1502,8 +1541,8 @@ msgstr "Trình duyệt đang mở trong một cửa sổ riêng"
 #~ msgstr "MCP trình duyệt"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "MCP trình duyệt được bật cho OpenCode"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "MCP trình duyệt được bật cho OpenCode"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1610,6 +1649,7 @@ msgstr "Không thể tải danh sách cổng"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -1651,6 +1691,7 @@ msgstr "đã hủy"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancelled"
 msgstr "Đã hủy"
 
@@ -2115,6 +2156,10 @@ msgstr "Đóng bản xem trước"
 msgid "Close project filter"
 msgstr "Đóng bộ lọc dự án"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Close run details"
+msgstr "Đóng chi tiết lượt chạy"
+
 #: src/mobile/QrScanner.tsx
 msgid "Close scanner"
 msgstr "Đóng trình quét"
@@ -2276,6 +2321,7 @@ msgstr "Bình luận đã đăng"
 msgid "commented"
 msgstr "đã bình luận"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
 msgstr "Commit"
@@ -3155,6 +3201,10 @@ msgstr "Xóa tập tin"
 msgid "Delete permanently"
 msgstr "Xóa vĩnh viễn"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete run"
+msgstr "Xóa lượt chạy"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
 msgstr "Xóa lịch"
@@ -3195,6 +3245,15 @@ msgstr "Xóa chủ đề?"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Delete to-do"
 msgstr "Xóa việc cần làm"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Delete workflow run"
+msgstr "Xóa lượt chạy workflow"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete workflow run?"
+msgstr "Xóa lượt chạy workflow?"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -3802,6 +3861,10 @@ msgstr "Lỗi · Tác nhân gặp lỗi"
 msgid "Errors"
 msgstr "Lỗi"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Event"
+msgstr "Sự kiện"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
 msgstr "Hằng ngày lúc {time}"
@@ -3992,9 +4055,14 @@ msgstr "thất bại"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "Thất bại"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Failed jobs queued to run again."
+msgstr "Các công việc thất bại đã được xếp hàng để chạy lại."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
@@ -4116,6 +4184,10 @@ msgstr "Tập tin cho {0}"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm kiếm @file."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Fill in all required workflow inputs."
+msgstr "Điền tất cả đầu vào workflow bắt buộc."
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
@@ -4465,6 +4537,17 @@ msgstr "Trạng thái Git cho {0}"
 msgid "Git status for {0}: not a Git repository"
 msgstr "Trạng thái Git cho {0}: không phải kho lưu trữ Git"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "GitHub Actions"
+msgstr "GitHub Actions"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "GitHub Actions shortcut"
+msgstr "Lối tắt GitHub Actions"
+
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
@@ -4807,6 +4890,10 @@ msgstr "Đã nhập 1 skill."
 msgid "Improved"
 msgstr "Cải thiện"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "In progress"
+msgstr "Đang chạy"
+
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
 msgstr "Quét bằng camera trong ứng dụng chỉ hoạt động qua HTTPS. Dùng ứng dụng camera trên điện thoại để quét mã QR của desktop, hoặc nhập endpoint và token bên dưới."
@@ -4837,6 +4924,18 @@ msgstr "Khởi tạo kho lưu trữ"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "Mức đầu vào"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Input values must be strings, numbers, or booleans."
+#~ msgstr "Giá trị đầu vào phải là chuỗi, số hoặc giá trị boolean."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Inputs (JSON)"
+#~ msgstr "Đầu vào (JSON)"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Inputs must be a JSON object."
+#~ msgstr "Đầu vào phải là một đối tượng JSON."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -4972,6 +5071,10 @@ msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoà
 msgid "Italic"
 msgstr "Nghiêng"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Jobs"
+msgstr "Công việc"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "JSON"
 msgstr "JSON"
@@ -5081,6 +5184,10 @@ msgstr "Đang khởi chạy…"
 msgid "Leave a comment"
 msgstr "Để lại bình luận"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Leave empty to use the repository default branch."
+#~ msgstr "Để trống để dùng nhánh mặc định của kho lưu trữ."
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Ít"
@@ -5165,6 +5272,10 @@ msgstr "Đang tải trình chỉnh sửa…"
 msgid "Loading file…"
 msgstr "Đang tải tập tin…"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Loading jobs"
+msgstr "Đang tải công việc"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "Đang tải marketplace…"
@@ -5217,6 +5328,14 @@ msgstr "Đang tải luồng"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Loading threads"
 msgstr "Đang tải luồng"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Loading workflow inputs"
+msgstr "Đang tải đầu vào workflow"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Loading workflow runs"
+msgstr "Đang tải các lần chạy quy trình"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/ThreadDetail.tsx
@@ -6104,6 +6223,14 @@ msgstr "Không có tab trình duyệt đang hoạt động"
 msgid "No active session"
 msgstr "Không có phiên hoạt động"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "No active workflows"
+#~ msgstr "Không có quy trình đang hoạt động"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "No active workflows found."
+msgstr "Không tìm thấy workflow đang hoạt động."
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "Chưa có hoạt động nào."
@@ -6266,6 +6393,10 @@ msgstr "Chưa có lịch sử"
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Không có tác nhân nào đã cài đặt có mô hình có thể chọn dành cho dự án này."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "No jobs reported for this run."
+msgstr "Không có công việc nào được báo cáo cho lần chạy này."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6436,6 +6567,10 @@ msgstr "Không phát hiện thấy giọng nói nào."
 msgid "No staged changes"
 msgstr "Không có thay đổi nào được đưa vào staging"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "No steps reported"
+#~ msgstr "Không có bước nào được báo cáo"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 msgstr "Không có tác tử được hỗ trợ nào được cài đặt trên máy từ xa này. Hãy cài đặt và đăng nhập vào tác tử từ xa trước khi bắt đầu một luồng."
@@ -6469,6 +6604,10 @@ msgstr "Chưa có luồng nào."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "Không có cửa sổ nào được báo cáo"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "No workflow runs found."
+msgstr "Không tìm thấy lần chạy quy trình nào."
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #~ msgid "No worktree"
@@ -6626,6 +6765,10 @@ msgstr "Trực tuyến"
 msgid "Only when unfocused"
 msgstr "Chỉ khi không tập trung"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
+#~ msgstr "Chỉ có thể khởi chạy thủ công các quy trình có trình kích hoạt workflow_dispatch."
+
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -6770,6 +6913,10 @@ msgstr "Mở trong trình duyệt"
 msgid "Open in editor"
 msgstr "Mở trong trình chỉnh sửa"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Open job on GitHub"
+msgstr "Mở công việc trên GitHub"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Bảng xếp hạng mở với số liệu cài đặt và xu hướng."
@@ -6801,6 +6948,8 @@ msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "Mở luồng mới dưới dạng toàn trang hoặc bảng cạnh nhau."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Open on GitHub"
 msgstr "Mở trên GitHub"
 
@@ -6840,6 +6989,10 @@ msgstr "Mở yêu cầu"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Open required URL"
 msgstr "Mở URL được yêu cầu"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "Open run in GitHub Actions"
+msgstr "Mở lượt chạy trong GitHub Actions"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Open settings"
@@ -6914,6 +7067,10 @@ msgstr "Không bắt buộc"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "Hook trạng thái tùy chọn. Các hook đã cài đặt sẽ tự động cập nhật; hook bị thiếu không bao giờ được cài đặt tự động."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Optional workflow_dispatch input values."
+#~ msgstr "Các giá trị đầu vào workflow_dispatch không bắt buộc."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -7387,6 +7544,7 @@ msgstr "Hồ sơ"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -7573,6 +7731,11 @@ msgstr "Tùy chọn pull request"
 msgid "Pull requests"
 msgstr "Pull request"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Pull requests shortcut"
+msgstr "Lối tắt pull request"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Push"
@@ -7606,6 +7769,10 @@ msgstr "Qoder CLI"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "Câu hỏi"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Queued"
+msgstr "Đã xếp hàng"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -7661,6 +7828,16 @@ msgstr "Đăng nhập lại"
 msgid "Re-pair this connection to grant access to port forwarding."
 msgstr "Ghép đôi lại kết nối này để cấp quyền truy cập chuyển tiếp cổng."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run all jobs"
+msgstr "Chạy lại tất cả công việc"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run failed jobs"
+msgstr "Chạy lại các công việc thất bại"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "Đang đọc các thay đổi của từng ứng viên…"
@@ -7693,6 +7870,10 @@ msgstr "Gần đây"
 msgid "Recent installs"
 msgstr "Lượt cài đặt gần đây"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Recent runs"
+#~ msgstr "Các lần chạy gần đây"
+
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
 msgstr "Luồng gần đây"
@@ -7724,6 +7905,7 @@ msgstr "Ẩn nội dung thông báo"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7757,9 +7939,17 @@ msgstr "Làm mới nguồn máy chủ MCP"
 msgid "Refresh registry"
 msgstr "Làm mới registry"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Refresh run"
+msgstr "Làm mới lượt chạy"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Refresh skills"
 msgstr "Làm mới skill"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Refresh workflow runs"
+msgstr "Làm mới lượt chạy workflow"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8298,8 +8488,10 @@ msgstr "Nhấp chuột phải để đổi vòng"
 msgid "Run"
 msgstr "Chạy"
 
+#. placeholder {0}: props.workflow.name
 #. placeholder {0}: workflow.runId
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Run {0}"
 msgstr "Chạy {0}"
 
@@ -8316,6 +8508,10 @@ msgstr "Chạy {loginCommand} để đăng nhập."
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Run a new thread on {0}."
 msgstr "Chạy luồng mới trên {0}."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Run actions"
+msgstr "Thao tác lượt chạy"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -8373,6 +8569,11 @@ msgstr "Chạy lệnh Terminal"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run this schedule automatically on the schedule below."
 msgstr "Tự động chạy lịch này theo lịch bên dưới."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Run workflow"
+msgstr "Chạy quy trình"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -8509,6 +8710,11 @@ msgstr "Tác vụ đã lên lịch trên máy tính này"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Schedules"
 msgstr "Lịch biểu"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Schedules shortcut"
+msgstr "Lối tắt lịch biểu"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -8697,6 +8903,10 @@ msgstr "Chọn một tập tin để bắt đầu chỉnh sửa."
 msgid "Select a repository."
 msgstr "Chọn một kho lưu trữ."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Select a workflow to see its runs."
+msgstr "Chọn một workflow để xem các lượt chạy."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "Chọn tài khoản"
@@ -8884,6 +9094,11 @@ msgstr "Hiển thị chi tiết sử dụng ngữ cảnh"
 msgid "Show estimated cost"
 msgstr "Hiển thị chi phí ước tính"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show GitHub Actions in the sidebar footer."
+msgstr "Hiển thị GitHub Actions ở chân thanh bên."
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Hiển thị trong trình duyệt tệp"
@@ -8930,9 +9145,19 @@ msgstr "Hiển thị hoặc ẩn thanh bên"
 msgid "Show preview"
 msgstr "Hiển thị bản xem trước"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Pull requests in the sidebar footer."
+msgstr "Hiển thị pull request ở chân thanh bên."
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
 msgstr "Hiển thị bảng gỡ lỗi thời gian chạy"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Schedules in the sidebar footer."
+msgstr "Hiển thị lịch biểu ở chân thanh bên."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9127,6 +9352,7 @@ msgid "Skills.sh"
 msgstr "Skills.sh"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "Đã bỏ qua"
 
@@ -9357,6 +9583,10 @@ msgstr "Bắt đầu bằng một lịch"
 msgid "Start Without Context"
 msgstr "Bắt đầu không có bối cảnh"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Start workflows and monitor their runs for each project."
+msgstr "Khởi chạy quy trình và theo dõi các lần chạy cho từng dự án."
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Đã bắt đầu chủ đề {targetLabel}"
@@ -9399,6 +9629,7 @@ msgid "Stashed changes pending"
 msgstr "Thay đổi trong stash đang chờ"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Status"
 msgstr "Trạng thái"
 
@@ -9526,6 +9757,7 @@ msgstr "Gửi biểu mẫu Git"
 msgid "Submit review"
 msgstr "Gửi đánh giá"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Succeeded"
 msgstr "Thành công"
@@ -10036,6 +10268,11 @@ msgstr "Tên này được dành riêng cho máy chủ MCP tích hợp sẵn."
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "Trang này được phục vụ qua HTTPS, nên trình duyệt chặn việc kết nối tới desktop dùng HTTP thuần. Hãy tiếp tục trên địa chỉ riêng của desktop để hoàn tất ghép đôi ở đó."
 
+#. placeholder {0}: deleteRun?.number
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This permanently deletes run #{0} and its logs from GitHub."
+msgstr "Thao tác này xóa vĩnh viễn lượt chạy #{0} và nhật ký của nó khỏi GitHub."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -10085,6 +10322,10 @@ msgstr "Phím tắt toàn hệ thống này không khả dụng. Hãy chọn t�
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 msgstr "Luồng này sử dụng cây làm việc <0>{0}</0>. Cũng xóa thư mục cây làm việc?"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This workflow cannot be started manually."
+msgstr "Không thể khởi động workflow này theo cách thủ công."
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
@@ -10172,6 +10413,10 @@ msgstr "Các luồng được đánh dấu hoàn thành mà không được đ�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "Thời gian"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Timed out"
+msgstr "Đã hết thời gian chờ"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
@@ -10310,6 +10555,10 @@ msgstr "Thanh bên trong suốt"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "Đang thịnh hành"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Triggers:"
+msgstr "Trình kích hoạt:"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -10625,6 +10874,7 @@ msgstr "Gỡ cài đặt"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Không xác định"
@@ -10774,6 +11024,10 @@ msgstr "Cập nhật bằng commit hợp nhất (merge commit)"
 msgid "Update with rebase"
 msgstr "Cập nhật với rebase"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Updated"
+msgstr "Đã cập nhật"
+
 #. placeholder {0}: formatUpdatedAgo(lastUpdated, nowTick, t)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Updated {0}"
@@ -10863,6 +11117,10 @@ msgstr "Sử dụng phiên"
 msgid "Use the {name} skill."
 msgstr "Sử dụng skill {name}."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Use the default branch"
+#~ msgstr "Dùng nhánh mặc định"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "Sử dụng tài khoản này để theo dõi việc sử dụng hoặc thay đổi người dùng trong trình duyệt trước khi tiếp tục."
@@ -10875,6 +11133,10 @@ msgstr "Sử dụng thư mục này"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "Sử dụng tính năng tăng tốc WebGPU"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Use workflow from"
+msgstr "Dùng workflow từ"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
@@ -11017,6 +11279,10 @@ msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi mở pull re
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Chờ cho luồng khởi động xong."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Waiting"
+msgstr "Đang chờ"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents will refresh when it finishes."
@@ -11220,6 +11486,10 @@ msgstr "Đã làm việc trong {elapsed}"
 msgid "Workflow"
 msgstr "Quy trình làm việc"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow dispatch requested."
+msgstr "Đã yêu cầu chạy quy trình."
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
 msgstr "Quy trình làm việc đã kết thúc. Các tác nhân con chạy trong một quy trình riêng biệt và chưa được truyền trực tuyến tại đây."
@@ -11232,10 +11502,24 @@ msgstr "Quy trình làm việc đang chạy ở chế độ nền. Các tác nh�
 msgid "Workflow phases"
 msgstr "Các giai đoạn của quy trình làm việc"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow queued to run again."
+msgstr "Workflow đã được xếp hàng để chạy lại."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowResultGroup.tsx
 msgid "Workflow results"
 msgstr "Kết quả quy trình làm việc"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Workflow run"
+msgstr "Lần chạy quy trình"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow run deleted."
+msgstr "Đã xóa lượt chạy workflow."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Workflow runs"
 msgstr "Lượt chạy workflow"
@@ -11246,6 +11530,7 @@ msgstr "Quy trình làm việc: {description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Workflows"
 msgstr "Quy trình làm việc"
 

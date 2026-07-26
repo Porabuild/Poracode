@@ -211,6 +211,12 @@ msgstr "{0}에는 인증이 필요합니다."
 msgid "{0} needs input."
 msgstr "{0}의 입력이 필요합니다."
 
+#. placeholder {0}: job.steps.filter((step) => step.status === "completed").length
+#. placeholder {1}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "{0} of {1} steps"
+msgstr "{1}단계 중 {0}"
+
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
 msgid "{0} of {matchCount}"
@@ -232,6 +238,8 @@ msgid "{0} run"
 msgstr "{0}회 실행"
 
 #. placeholder {0}: item.runCount.toLocaleString()
+#. placeholder {0}: runs.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "{0}회 실행"
@@ -282,6 +290,11 @@ msgstr "{0} 업데이트되었습니다."
 msgid "{0} used"
 msgstr "{0} 사용됨"
 
+#. placeholder {0}: workflows.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "{0} workflows"
+#~ msgstr "{0}개 워크플로"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -321,6 +334,11 @@ msgstr "{agentLead}가 계속하려면 입력이 필요합니다."
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {커밋 #개} other {커밋 #개}}"
+
+#. placeholder {0}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "{completedSteps} of {0} steps"
+#~ msgstr "{completedSteps}/{0}단계 완료"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
@@ -540,9 +558,17 @@ msgstr "~{money}{tokens} · {0} · 예상"
 msgid "≈{0}% by reset"
 msgstr "재설정 시 ≈{0}%"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "1 run"
+msgstr "실행 1개"
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
 msgstr "스레드 1개"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "1 workflow"
+#~ msgstr "1개 워크플로"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "22"
@@ -707,6 +733,10 @@ msgstr "풀 리퀘스트를 보려면 프로젝트를 추가하세요."
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "시작하려면 프로젝트를 추가하세요."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Add a project to use GitHub Actions."
+msgstr "GitHub Actions를 사용하려면 프로젝트를 추가하세요."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
@@ -1206,6 +1236,10 @@ msgstr "할 일 독을 작성기에 고정"
 msgid "Attached browser selection."
 msgstr "브라우저 선택 항목을 첨부했습니다."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Attempt"
+msgstr "시도"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Audio"
@@ -1427,6 +1461,7 @@ msgid "Bottom"
 msgstr "아래쪽"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
 msgstr "브랜치"
 
@@ -1446,6 +1481,10 @@ msgstr "<0>{0}</0> 분기에 병합되지 않은 변경 사항이 있습니다:"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "완전히 병합되지 않은 분기"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Branch or tag"
+msgstr "브랜치 또는 태그"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
@@ -1502,8 +1541,8 @@ msgstr "브라우저가 별도의 창에서 열려 있습니다"
 #~ msgstr "브라우저 MCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "OpenCode에 브라우저 MCP가 활성화됨"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "OpenCode에 브라우저 MCP가 활성화됨"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1610,6 +1649,7 @@ msgstr "포트를 불러올 수 없습니다"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -1651,6 +1691,7 @@ msgstr "취소됨"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancelled"
 msgstr "취소됨"
 
@@ -2115,6 +2156,10 @@ msgstr "미리보기 닫기"
 msgid "Close project filter"
 msgstr "프로젝트 필터 닫기"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Close run details"
+msgstr "실행 세부 정보 닫기"
+
 #: src/mobile/QrScanner.tsx
 msgid "Close scanner"
 msgstr "스캐너 닫기"
@@ -2276,6 +2321,7 @@ msgstr "댓글이 게시되었습니다."
 msgid "commented"
 msgstr "댓글을 달았습니다."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
 msgstr "커밋"
@@ -3155,6 +3201,10 @@ msgstr "파일 삭제"
 msgid "Delete permanently"
 msgstr "영구 삭제"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete run"
+msgstr "실행 삭제"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
 msgstr "일정 삭제"
@@ -3195,6 +3245,15 @@ msgstr "스레드를 삭제하시겠습니까?"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Delete to-do"
 msgstr "할 일 삭제"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Delete workflow run"
+msgstr "워크플로 실행 삭제"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete workflow run?"
+msgstr "워크플로 실행을 삭제할까요?"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -3802,6 +3861,10 @@ msgstr "오류 · 에이전트에 오류가 발생했습니다."
 msgid "Errors"
 msgstr "오류"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Event"
+msgstr "이벤트"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
 msgstr "매일 {time}"
@@ -3992,9 +4055,14 @@ msgstr "실패"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "실패"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Failed jobs queued to run again."
+msgstr "실패한 작업을 다시 실행하도록 대기열에 추가했습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
@@ -4116,6 +4184,10 @@ msgstr "{0}에 대한 파일"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨겨집니다."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Fill in all required workflow inputs."
+msgstr "필수 워크플로 입력을 모두 작성하세요."
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
@@ -4465,6 +4537,17 @@ msgstr "{0}의 Git 상태"
 msgid "Git status for {0}: not a Git repository"
 msgstr "{0}에 대한 Git 상태: Git 저장소가 아닙니다."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "GitHub Actions"
+msgstr "GitHub Actions"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "GitHub Actions shortcut"
+msgstr "GitHub Actions 바로가기"
+
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
@@ -4807,6 +4890,10 @@ msgstr "스킬 1개를 가져왔습니다."
 msgid "Improved"
 msgstr "개선됨"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "In progress"
+msgstr "진행 중"
+
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
 msgstr "앱 내 카메라 스캔은 HTTPS에서만 작동합니다. 휴대폰의 카메라 앱으로 데스크톱 QR 코드를 스캔하거나 아래에 엔드포인트와 토큰을 입력하세요."
@@ -4837,6 +4924,18 @@ msgstr "저장소 초기화"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "입력 레벨"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Input values must be strings, numbers, or booleans."
+#~ msgstr "입력 값은 문자열, 숫자 또는 불리언이어야 합니다."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Inputs (JSON)"
+#~ msgstr "입력 (JSON)"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Inputs must be a JSON object."
+#~ msgstr "입력은 JSON 객체여야 합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -4972,6 +5071,10 @@ msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니
 msgid "Italic"
 msgstr "이탤릭체"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Jobs"
+msgstr "작업"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "JSON"
 msgstr "JSON"
@@ -5081,6 +5184,10 @@ msgstr "실행 중…"
 msgid "Leave a comment"
 msgstr "댓글 남기기"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Leave empty to use the repository default branch."
+#~ msgstr "비워 두면 저장소의 기본 브랜치를 사용합니다."
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "적음"
@@ -5165,6 +5272,10 @@ msgstr "편집기 로드 중…"
 msgid "Loading file…"
 msgstr "파일 로드 중…"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Loading jobs"
+msgstr "작업 불러오는 중"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "마켓플레이스 로드 중…"
@@ -5217,6 +5328,14 @@ msgstr "스레드 로드 중"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Loading threads"
 msgstr "스레드 로드 중"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Loading workflow inputs"
+msgstr "워크플로 입력 불러오는 중"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Loading workflow runs"
+msgstr "워크플로 실행 불러오는 중"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/ThreadDetail.tsx
@@ -6104,6 +6223,14 @@ msgstr "활성 브라우저 탭이 없습니다."
 msgid "No active session"
 msgstr "활성 세션 없음"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "No active workflows"
+#~ msgstr "활성 워크플로 없음"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "No active workflows found."
+msgstr "활성 워크플로를 찾을 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "아직 활동이 없습니다."
@@ -6266,6 +6393,10 @@ msgstr "아직 기록이 없습니다"
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "이 프로젝트에서 선택 가능한 모델이 있는 설치된 에이전트를 사용할 수 없습니다."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "No jobs reported for this run."
+msgstr "이 실행에 보고된 작업이 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6436,6 +6567,10 @@ msgstr "음성이 감지되지 않았습니다."
 msgid "No staged changes"
 msgstr "단계적 변경 없음"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "No steps reported"
+#~ msgstr "보고된 단계 없음"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 msgstr "이 원격 머신에 지원되는 에이전트가 설치되어 있지 않습니다. 스레드를 시작하기 전에 원격으로 에이전트를 설치하고 로그인하세요."
@@ -6469,6 +6604,10 @@ msgstr "아직 스레드가 없습니다."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "보고된 창 없음"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "No workflow runs found."
+msgstr "워크플로 실행을 찾을 수 없습니다."
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #~ msgid "No worktree"
@@ -6626,6 +6765,10 @@ msgstr "온라인"
 msgid "Only when unfocused"
 msgstr "포커스가 없을 때만"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
+#~ msgstr "workflow_dispatch 트리거가 있는 워크플로만 수동으로 시작할 수 있습니다."
+
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -6770,6 +6913,10 @@ msgstr "브라우저에서 열기"
 msgid "Open in editor"
 msgstr "편집기에서 열기"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Open job on GitHub"
+msgstr "GitHub에서 작업 열기"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "설치 및 추세 지표를 제공하는 공개 순위표입니다."
@@ -6801,6 +6948,8 @@ msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "새 스레드를 전체 페이지 또는 병렬 패널로 엽니다."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Open on GitHub"
 msgstr "GitHub에서 열기"
 
@@ -6840,6 +6989,10 @@ msgstr "요청 열기"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Open required URL"
 msgstr "필수 URL 열기"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "Open run in GitHub Actions"
+msgstr "GitHub Actions에서 실행 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Open settings"
@@ -6914,6 +7067,10 @@ msgstr "선택 사항"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "선택적 상태 후크. 설치된 후크는 자동으로 업데이트됩니다. 누락된 후크는 자동으로 설치되지 않습니다."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Optional workflow_dispatch input values."
+#~ msgstr "선택적 workflow_dispatch 입력 값입니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -7387,6 +7544,7 @@ msgstr "프로필"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -7573,6 +7731,11 @@ msgstr "풀 요청 옵션"
 msgid "Pull requests"
 msgstr "풀 리퀘스트"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Pull requests shortcut"
+msgstr "풀 리퀘스트 바로가기"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Push"
@@ -7606,6 +7769,10 @@ msgstr "Qoder CLI"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "질문"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Queued"
+msgstr "대기열에 있음"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -7661,6 +7828,16 @@ msgstr "재로그인"
 msgid "Re-pair this connection to grant access to port forwarding."
 msgstr "포트 포워딩 액세스 권한을 부여하려면 이 연결을 다시 페어링하세요."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run all jobs"
+msgstr "모든 작업 다시 실행"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run failed jobs"
+msgstr "실패한 작업 다시 실행"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "각 후보의 변경 사항을 읽는 중…"
@@ -7693,6 +7870,10 @@ msgstr "최근"
 msgid "Recent installs"
 msgstr "최근 설치"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Recent runs"
+#~ msgstr "최근 실행"
+
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
 msgstr "최근 스레드"
@@ -7724,6 +7905,7 @@ msgstr "알림 내용 가리기"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7757,9 +7939,17 @@ msgstr "MCP 서버 소스 새로 고침"
 msgid "Refresh registry"
 msgstr "레지스트리 새로 고침"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Refresh run"
+msgstr "실행 새로고침"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Refresh skills"
 msgstr "스킬 새로 고침"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Refresh workflow runs"
+msgstr "워크플로 실행 새로고침"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8298,8 +8488,10 @@ msgstr "마우스 오른쪽 버튼을 클릭해 링 전환"
 msgid "Run"
 msgstr "실행"
 
+#. placeholder {0}: props.workflow.name
 #. placeholder {0}: workflow.runId
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Run {0}"
 msgstr "{0} 실행"
 
@@ -8316,6 +8508,10 @@ msgstr "{loginCommand}을 실행하여 로그인합니다."
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Run a new thread on {0}."
 msgstr "{0}에서 새 스레드를 실행합니다."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Run actions"
+msgstr "실행 작업"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -8373,6 +8569,11 @@ msgstr "터미널 명령 실행"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run this schedule automatically on the schedule below."
 msgstr "아래 일정에 따라 이 일정을 자동으로 실행합니다."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Run workflow"
+msgstr "워크플로 실행"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -8509,6 +8710,11 @@ msgstr "이 데스크톱의 예약 작업"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Schedules"
 msgstr "일정"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Schedules shortcut"
+msgstr "일정 바로가기"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -8697,6 +8903,10 @@ msgstr "편집을 시작하려면 파일을 선택하세요."
 msgid "Select a repository."
 msgstr "저장소를 선택하세요."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Select a workflow to see its runs."
+msgstr "실행을 보려면 워크플로를 선택하세요."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "계정 선택"
@@ -8884,6 +9094,11 @@ msgstr "컨텍스트 사용 세부정보 표시"
 msgid "Show estimated cost"
 msgstr "예상 비용 표시"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show GitHub Actions in the sidebar footer."
+msgstr "사이드바 바닥글에 GitHub Actions를 표시합니다."
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "파일 탐색기에 표시"
@@ -8930,9 +9145,19 @@ msgstr "사이드바를 표시하거나 숨깁니다."
 msgid "Show preview"
 msgstr "미리보기 표시"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Pull requests in the sidebar footer."
+msgstr "사이드바 바닥글에 풀 리퀘스트를 표시합니다."
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
 msgstr "런타임 디버그 패널 표시"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Schedules in the sidebar footer."
+msgstr "사이드바 바닥글에 일정을 표시합니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9127,6 +9352,7 @@ msgid "Skills.sh"
 msgstr "Skills.sh"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "건너뜀"
 
@@ -9357,6 +9583,10 @@ msgstr "일정으로 시작하기"
 msgid "Start Without Context"
 msgstr "맥락 없이 시작하기"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Start workflows and monitor their runs for each project."
+msgstr "프로젝트별로 워크플로를 시작하고 실행을 모니터링합니다."
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} 스레드를 시작했습니다."
@@ -9399,6 +9629,7 @@ msgid "Stashed changes pending"
 msgstr "스태시된 변경 사항 대기 중"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Status"
 msgstr "상태"
 
@@ -9526,6 +9757,7 @@ msgstr "Git 양식 제출"
 msgid "Submit review"
 msgstr "리뷰 제출"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Succeeded"
 msgstr "성공"
@@ -10036,6 +10268,11 @@ msgstr "이 이름은 기본 제공 MCP 서버용으로 예약되어 있습니�
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "이 페이지는 HTTPS로 제공되므로 브라우저가 일반 HTTP 데스크톱 연결을 차단합니다. 데스크톱 자체 주소에서 계속해 거기서 페어링을 완료하세요."
 
+#. placeholder {0}: deleteRun?.number
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This permanently deletes run #{0} and its logs from GitHub."
+msgstr "실행 #{0} 및 해당 로그를 GitHub에서 영구적으로 삭제합니다."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -10085,6 +10322,10 @@ msgstr "이 시스템 전역 단축키를 사용할 수 없습니다. 다른 키
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 msgstr "이 스레드는 작업 트리 <0>{0}</0>을 사용합니다. 작업 트리 디렉터리도 제거하시겠습니까?"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This workflow cannot be started manually."
+msgstr "이 워크플로는 수동으로 시작할 수 없습니다."
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
@@ -10172,6 +10413,10 @@ msgstr "완료로 표시된 스레드 중 며칠 동안 건드리지 않은 스�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "시간"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Timed out"
+msgstr "시간 초과"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
@@ -10310,6 +10555,10 @@ msgstr "반투명 사이드바"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "현재 인기"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Triggers:"
+msgstr "트리거:"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -10625,6 +10874,7 @@ msgstr "제거"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "알 수 없음"
@@ -10774,6 +11024,10 @@ msgstr "병합 커밋으로 업데이트"
 msgid "Update with rebase"
 msgstr "리베이스로 업데이트"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Updated"
+msgstr "업데이트됨"
+
 #. placeholder {0}: formatUpdatedAgo(lastUpdated, nowTick, t)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Updated {0}"
@@ -10863,6 +11117,10 @@ msgstr "세션 사용"
 msgid "Use the {name} skill."
 msgstr "{name} 스킬을 사용합니다."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Use the default branch"
+#~ msgstr "기본 브랜치 사용"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "사용 추적을 위해 이 계정을 사용하거나 계속하기 전에 브라우저에서 사용자를 변경하세요."
@@ -10875,6 +11133,10 @@ msgstr "이 폴더 사용"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "WebGPU 가속 사용"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Use workflow from"
+msgstr "워크플로 사용 위치"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
@@ -11017,6 +11279,10 @@ msgstr "풀 리퀘스트를 열기 전에 모든 후보가 완료될 때까지 �
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "스레드 시작이 완료될 때까지 기다리세요."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Waiting"
+msgstr "대기 중"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents will refresh when it finishes."
@@ -11220,6 +11486,10 @@ msgstr "{elapsed} 동안 작업함"
 msgid "Workflow"
 msgstr "워크플로"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow dispatch requested."
+msgstr "워크플로 실행이 요청되었습니다."
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
 msgstr "워크플로가 완료되었습니다. 하위 에이전트는 별도의 프로세스에서 실행되었으며 아직 여기에서 스트리밍되지 않습니다."
@@ -11232,10 +11502,24 @@ msgstr "워크플로가 백그라운드에서 실행 중입니다. 하위 에이
 msgid "Workflow phases"
 msgstr "워크플로 단계"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow queued to run again."
+msgstr "워크플로를 다시 실행하도록 대기열에 추가했습니다."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowResultGroup.tsx
 msgid "Workflow results"
 msgstr "워크플로 결과"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Workflow run"
+msgstr "워크플로 실행"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow run deleted."
+msgstr "워크플로 실행을 삭제했습니다."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Workflow runs"
 msgstr "워크플로 실행"
@@ -11246,6 +11530,7 @@ msgstr "워크플로: {description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Workflows"
 msgstr "워크플로"
 

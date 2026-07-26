@@ -145,6 +145,9 @@ export const DEFAULT_USAGE_DISABLED_PROVIDER_IDS = allUsageProviderDescriptors()
   .map((provider) => provider.id)
   .filter((id) => !DEFAULT_USAGE_ENABLED_PROVIDER_ID_SET.has(id));
 
+export const SIDEBAR_SHORTCUT_IDS = ["pullRequests", "githubActions", "schedules"] as const;
+export type SidebarShortcutId = (typeof SIDEBAR_SHORTCUT_IDS)[number];
+
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
   /**
@@ -285,6 +288,8 @@ export const sharedSettingsSchema = z.object({
   newThreadMode: newThreadModeSchema,
   /** Show the projectless Home scope for OS-level agent sessions. */
   homeScopeEnabled: z.boolean(),
+  /** Footer shortcuts hidden from both the expanded and collapsed sidebar. */
+  sidebarHiddenShortcuts: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
   /**
    * Translucent ("liquid glass") sidebar. When on, the window uses a
    * native blur material where supported (macOS vibrancy, Windows 11 acrylic)
@@ -513,6 +518,7 @@ export const defaultSharedSettings: SharedSettings = {
   autoMarkDoneOnPrMerge: true,
   newThreadMode: "page",
   homeScopeEnabled: true,
+  sidebarHiddenShortcuts: ["githubActions"],
   sidebarTranslucency: true,
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,

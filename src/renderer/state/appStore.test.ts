@@ -281,6 +281,23 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().view).toEqual({ kind: "pullRequests" });
   });
 
+  it("opens GitHub Actions for a project as a main view", () => {
+    useAppStore.getState().openGitHubActions("project-1");
+    expect(useAppStore.getState().view).toEqual({
+      kind: "githubActions",
+      projectId: "project-1",
+    });
+  });
+
+  it("opens a GitHub Actions run from another surface", () => {
+    useAppStore.getState().openGitHubActions("project-1", 501);
+    expect(useAppStore.getState().view).toEqual({
+      kind: "githubActions",
+      projectId: "project-1",
+      runId: 501,
+    });
+  });
+
   it("openThread replaces panes[0] and keeps secondary panes", () => {
     const project = useAppStore.getState().addProject({
       kind: "windows",

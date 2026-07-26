@@ -50,7 +50,7 @@ import {
   mapGitHubApiRepo,
   parseGhAuthAccounts,
 } from "./github";
-import { mapStatusCheck } from "./githubMappers";
+import { mapGitHubActionsRun, mapGitHubActionsWorkflow, mapStatusCheck } from "./githubMappers";
 import { resolveClonedProjectPath } from "./git/exec";
 
 const location = { kind: "windows" as const, path: "C:\\Users\\demo\\repo" };
@@ -1187,6 +1187,193 @@ describe("GitHubService", () => {
     });
   });
 
+  describe("GitHub Actions", () => {
+    it("lists workflows for the project repository", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify([
+          { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+        ]),
+      });
+
+      const result = await new GitHubService().listWorkflows(location);
+
+      expect(result.workflows).toEqual([
+        { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+      ]);
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual([
+        "workflow",
+        "list",
+        "--all",
+        "--limit",
+        "100",
+        "--json",
+        "id,name,path,state",
+      ]);
+    });
+
+    it("lists recent workflow runs", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify([
+          {
+            databaseId: 501,
+            workflowDatabaseId: 11,
+            workflowName: "CI",
+            name: "CI",
+            number: 7,
+            displayTitle: "Test changes",
+            event: "push",
+            headBranch: "main",
+            headSha: "abc123",
+            status: "in_progress",
+            conclusion: "",
+            createdAt: "2026-07-25T10:00:00Z",
+            startedAt: "2026-07-25T10:00:01Z",
+            updatedAt: "2026-07-25T10:00:02Z",
+            url: "https://github.com/owner/repo/actions/runs/501",
+          },
+        ]),
+      });
+
+      const result = await new GitHubService().listWorkflowRuns(location, 11);
+
+      expect(result.runs[0]).toMatchObject({
+        id: 501,
+        workflowId: 11,
+        workflowName: "CI",
+        attempt: 1,
+        status: "in_progress",
+        jobs: [],
+      });
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual(
+        expect.arrayContaining(["run", "list", "--workflow", "11"]),
+      );
+    });
+
+    it("loads a workflow definition from the selected ref", async () => {
+      execFileAsyncMock.mockResolvedValueOnce({ stdout: "main\n" }).mockResolvedValueOnce({
+        stdout: `
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+`,
+      });
+
+      const result = await new GitHubService().getWorkflowDefinition(location, 11, "release");
+
+      expect(result.definition).toEqual({
+        workflowId: 11,
+        ref: "release",
+        defaultBranch: "main",
+        dispatchable: true,
+        triggers: ["workflow_dispatch"],
+        inputs: [
+          {
+            name: "version",
+            description: "",
+            required: true,
+            type: "string",
+            options: [],
+          },
+        ],
+      });
+      expect(execFileAsyncMock.mock.calls[1]![1]).toEqual([
+        "workflow",
+        "view",
+        "11",
+        "--yaml",
+        "--ref",
+        "release",
+      ]);
+    });
+
+    it("loads jobs and steps for one workflow run", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify({
+          databaseId: 501,
+          workflowDatabaseId: 11,
+          workflowName: "CI",
+          name: "CI",
+          number: 7,
+          displayTitle: "Test changes",
+          status: "in_progress",
+          jobs: [
+            {
+              databaseId: 9001,
+              name: "Typecheck",
+              status: "in_progress",
+              conclusion: "",
+              steps: [
+                {
+                  number: 1,
+                  name: "Checkout",
+                  status: "completed",
+                  conclusion: "success",
+                },
+                {
+                  number: 2,
+                  name: "Typecheck",
+                  status: "in_progress",
+                  conclusion: "",
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const result = await new GitHubService().getWorkflowRun(location, 501);
+
+      expect(result.run.jobs[0]).toMatchObject({
+        id: 9001,
+        name: "Typecheck",
+        status: "in_progress",
+        steps: [
+          { number: 1, name: "Checkout", status: "completed", conclusion: "success" },
+          { number: 2, name: "Typecheck", status: "in_progress", conclusion: "" },
+        ],
+      });
+      expect(execFileAsyncMock.mock.calls[0]![1]).toContain("501");
+    });
+
+    it("dispatches a workflow with an optional ref and inputs", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "" });
+
+      await new GitHubService().dispatchWorkflow(location, 11, "release", {
+        channel: "nightly",
+        dry_run: "true",
+      });
+
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual([
+        "workflow",
+        "run",
+        "11",
+        "--ref",
+        "release",
+        "--raw-field",
+        "channel=nightly",
+        "--raw-field",
+        "dry_run=true",
+      ]);
+    });
+
+    it("reruns all or only failed jobs and deletes runs", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "" });
+      const service = new GitHubService();
+
+      await service.rerunWorkflowRun(location, 501, false);
+      await service.rerunWorkflowRun(location, 501, true);
+      await service.deleteWorkflowRun(location, 501);
+
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual(["run", "rerun", "501"]);
+      expect(execFileAsyncMock.mock.calls[1]![1]).toEqual(["run", "rerun", "501", "--failed"]);
+      expect(execFileAsyncMock.mock.calls[2]![1]).toEqual(["run", "delete", "501"]);
+    });
+  });
+
   describe("listAccounts", () => {
     const AUTH_STATUS = [
       "github.com",
@@ -1367,6 +1554,31 @@ describe("mapGitHubApiRepo", () => {
   it("returns null without a full_name", () => {
     expect(mapGitHubApiRepo({})).toBeNull();
     expect(mapGitHubApiRepo(null)).toBeNull();
+  });
+});
+
+describe("GitHub Actions mappers", () => {
+  it("rejects workflows without an id or name", () => {
+    expect(mapGitHubActionsWorkflow({ id: 1 })).toBeNull();
+    expect(mapGitHubActionsWorkflow({ name: "CI" })).toBeNull();
+  });
+
+  it("ignores malformed jobs and steps", () => {
+    expect(
+      mapGitHubActionsRun({
+        databaseId: 1,
+        jobs: [{ databaseId: 2, name: "Build", steps: [{ number: 1, name: "Compile" }, {}] }, {}],
+      }),
+    ).toMatchObject({
+      id: 1,
+      jobs: [
+        {
+          id: 2,
+          name: "Build",
+          steps: [{ number: 1, name: "Compile" }],
+        },
+      ],
+    });
   });
 });
 

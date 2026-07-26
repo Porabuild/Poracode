@@ -143,6 +143,7 @@
     "vscode-jsonrpc": "^9.0.1",
     "vscode-languageserver-protocol": "^3.18.2",
     "ws": "^8.21.0",
+    "yaml": "^2.9.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },

@@ -41,6 +41,16 @@ describe("sharedSettingsStore", () => {
     expect(useSharedSettings.getState().staleThreadUnloadMinutes).toBe(30);
   });
 
+  it("shows and hides sidebar shortcuts", () => {
+    useSharedSettings.setState({ sidebarHiddenShortcuts: ["githubActions"] });
+
+    useSharedSettings.getState().setSidebarShortcutVisible("githubActions", true);
+    expect(useSharedSettings.getState().sidebarHiddenShortcuts).toEqual([]);
+
+    useSharedSettings.getState().setSidebarShortcutVisible("schedules", false);
+    expect(useSharedSettings.getState().sidebarHiddenShortcuts).toEqual(["schedules"]);
+  });
+
   it("updates audio settings", () => {
     useSharedSettings.getState().setAudioSetting("transcriptionLanguage", "es");
     expect(useSharedSettings.getState().audio.transcriptionLanguage).toBe("es");

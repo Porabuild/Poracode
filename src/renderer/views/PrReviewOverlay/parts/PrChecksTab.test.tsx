@@ -1,8 +1,9 @@
-import { act, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrDetails } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { PrChecksTab } from "./PrChecksTab";
 
 const cacheKey = "project-1#42";
@@ -56,7 +57,7 @@ describe("PrChecksTab", () => {
   });
 
   it("shows friendly statuses and check durations", async () => {
-    render(<PrChecksTab cacheKey={cacheKey} loading={false} />);
+    render(<PrChecksTab cacheKey={cacheKey} loading={false} projectId="project-1" />);
 
     expect(screen.getByText("Typecheck").closest("li")).toHaveTextContent("46s · Passed");
     expect(screen.getByText("Windows build").closest("li")).toHaveTextContent("2m 05s · Running");
@@ -67,5 +68,31 @@ describe("PrChecksTab", () => {
 
     await act(() => vi.advanceTimersByTimeAsync(1_000));
     expect(screen.getByText("Windows build").closest("li")).toHaveTextContent("2m 06s · Running");
+  });
+
+  it("opens GitHub Actions checks inside Poracode", () => {
+    useGitStore.setState({
+      prDetails: {
+        [cacheKey]: {
+          ...details,
+          checks: [
+            {
+              ...details.checks[0]!,
+              url: "https://github.com/owner/repo/actions/runs/501/job/9001",
+            },
+          ],
+        },
+      },
+    });
+    useAppStore.setState({ view: { kind: "home" } });
+    render(<PrChecksTab cacheKey={cacheKey} loading={false} projectId="project-1" />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Open run in GitHub Actions" }));
+
+    expect(useAppStore.getState().view).toEqual({
+      kind: "githubActions",
+      projectId: "project-1",
+      runId: 501,
+    });
   });
 });

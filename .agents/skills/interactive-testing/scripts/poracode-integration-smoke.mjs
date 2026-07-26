@@ -179,6 +179,9 @@ async function runSmoke(plan) {
     if (plan.automated.includes("schedules")) {
       await runScenario(report, "schedules", () => schedulesScenario(client));
     }
+    if (plan.automated.includes("github-actions")) {
+      await runScenario(report, "github-actions", () => githubActionsScenario(client));
+    }
     if (plan.automated.includes("thread-search")) {
       await runScenario(report, "thread-search", () => threadSearchScenario(client));
     }
@@ -1027,6 +1030,68 @@ async function schedulesScenario(client) {
   }
 }
 
+async function githubActionsScenario(client) {
+  await evaluate(
+    client,
+    `window.__poracodeDev.openSettings("general"); new Promise((resolve) => setTimeout(resolve, 250))`,
+    true,
+  );
+  const settingsState = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const settings = window.__poracodeDev.stores.sharedSettings.getState();
+          const toggle = document.querySelector('[aria-label="GitHub Actions shortcut"]');
+          return {
+            hiddenByDefault: settings.sidebarHiddenShortcuts.includes("githubActions"),
+            toggleVisible: toggle instanceof HTMLElement,
+            toggleSelected:
+              toggle instanceof HTMLInputElement
+                ? toggle.checked
+                : toggle?.getAttribute("aria-checked") === "true",
+          };
+        })()`,
+      ),
+    (state) => state.hiddenByDefault && state.toggleVisible,
+    "GitHub Actions shortcut setting",
+  );
+  assert(!settingsState.toggleSelected, "GitHub Actions shortcut should be off by default");
+
+  const opened = await evaluate(
+    client,
+    `(() => {
+      window.__poracodeDev.closeSettings();
+      const app = window.__poracodeDev.stores.app.getState();
+      const project = app.projects.find((candidate) => !candidate.disabled);
+      if (!project) return false;
+      app.openGitHubActions(project.id);
+      return true;
+    })()`,
+  );
+  assert(opened, "isolated fixture project was not available for GitHub Actions");
+  const actionsState = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => ({
+          viewKind: window.__poracodeDev.stores.app.getState().view.kind,
+          heading: [...document.querySelectorAll("h1")].some(
+            (element) => element.textContent?.trim() === "GitHub Actions",
+          ),
+          projectPicker: Boolean(document.querySelector('[aria-label="Project"]')),
+          crash: /renderer crash|rendered more hooks/i.test(document.body?.innerText ?? ""),
+        }))()`,
+      ),
+    (state) => state.viewKind === "githubActions" && state.heading && state.projectPicker,
+    "GitHub Actions main view",
+  );
+  assert(!actionsState.crash, "GitHub Actions view rendered a crash state");
+  const screenshotPath = join(outDir, "smoke-02c-github-actions.png");
+  await screenshot(client, screenshotPath);
+  return { ...settingsState, ...actionsState, screenshotPath };
+}
+
 async function controlGeometryScenario(client) {
   await evaluate(
     client,
@@ -1222,6 +1287,18 @@ async function runMockGate(client, gate, fixture) {
       });
       assert(result && typeof result === "object", "git status bridge returned no result");
       return "fixture git status round-trip returned successfully";
+    }
+    case "github-actions-live": {
+      for (const key of [
+        "ghListWorkflows",
+        "ghListWorkflowRuns",
+        "ghGetWorkflowDefinition",
+        "ghRerunWorkflowRun",
+        "ghDeleteWorkflowRun",
+      ]) {
+        assert(fixture.bridgeKeys.includes(key), `GitHub Actions bridge is missing ${key}`);
+      }
+      return "GitHub Actions list, definition, rerun, and delete bridge contracts are exposed";
     }
     case "ipc-roundtrip": {
       const projects = await bridgeInvoke(client, "dbGetProjects");

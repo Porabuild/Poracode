@@ -51,6 +51,7 @@ export interface ViewSlice {
   openDraftSideBySide: (projectId: string) => void;
   openHome: () => void;
   openPullRequests: () => void;
+  openGitHubActions: (projectId?: string, runId?: number) => void;
   openSchedules: () => void;
   openExperiment: (experimentId: string, projectId: string) => void;
   openThread: (threadId: string) => void;
@@ -161,6 +162,14 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
     }),
   openHome: () => set({ view: { kind: "home" } }),
   openPullRequests: () => set({ view: { kind: "pullRequests" } }),
+  openGitHubActions: (projectId, runId) =>
+    set({
+      view: {
+        kind: "githubActions",
+        ...(projectId ? { projectId } : {}),
+        ...(runId ? { runId } : {}),
+      },
+    }),
   openSchedules: () => set({ view: { kind: "schedules" } }),
   openExperiment: (experimentId, projectId) =>
     set((state) => ({

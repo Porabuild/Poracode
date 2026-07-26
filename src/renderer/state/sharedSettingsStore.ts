@@ -4,6 +4,7 @@ import {
   defaultSharedSettings,
   normalizeSharedSettings,
   type CliPickerTarget,
+  type SidebarShortcutId,
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
@@ -80,6 +81,7 @@ interface SharedSettingsState extends SharedSettings {
   setAutoMarkDoneOnPrMerge: (value: boolean) => void;
   setNewThreadMode: (value: NewThreadMode) => void;
   setHomeScopeEnabled: (value: boolean) => void;
+  setSidebarShortcutVisible: (id: SidebarShortcutId, visible: boolean) => void;
   setSidebarTranslucency: (value: boolean) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
@@ -443,6 +445,17 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ homeScopeEnabled });
     persistSettings(selectSharedSettings(get()));
   },
+  setSidebarShortcutVisible: (id, visible) => {
+    const current = get().sidebarHiddenShortcuts;
+    const hidden = current.includes(id);
+    if (hidden === !visible) return;
+    set({
+      sidebarHiddenShortcuts: visible
+        ? current.filter((shortcutId) => shortcutId !== id)
+        : [...current, id],
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
   setSidebarTranslucency: (sidebarTranslucency) => {
     if (get().sidebarTranslucency === sidebarTranslucency) return;
     set({ sidebarTranslucency });
@@ -797,6 +810,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     autoMarkDoneOnPrMerge: state.autoMarkDoneOnPrMerge,
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,
+    sidebarHiddenShortcuts: state.sidebarHiddenShortcuts,
     sidebarTranslucency: state.sidebarTranslucency,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,

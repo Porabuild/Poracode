@@ -7,6 +7,10 @@
 
 import {
   PR_CHECK_FAILURE_CONCLUSIONS,
+  type GitHubActionsJob,
+  type GitHubActionsRun,
+  type GitHubActionsStep,
+  type GitHubActionsWorkflow,
   type GitHubAccount,
   type GitHubRepoSummary,
   type PrAuthor,
@@ -20,6 +24,95 @@ import {
   type PrState,
   type PullRequestSummary,
 } from "@/shared/contracts";
+
+function optionalString(raw: unknown): string | undefined {
+  return typeof raw === "string" && raw ? raw : undefined;
+}
+
+export function mapGitHubActionsWorkflow(raw: unknown): GitHubActionsWorkflow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const workflow = raw as Record<string, unknown>;
+  const id = typeof workflow.id === "number" ? workflow.id : 0;
+  const name = typeof workflow.name === "string" ? workflow.name : "";
+  if (!id || !name) return null;
+  return {
+    id,
+    name,
+    path: typeof workflow.path === "string" ? workflow.path : "",
+    state: typeof workflow.state === "string" ? workflow.state : "",
+  };
+}
+
+function mapGitHubActionsStep(raw: unknown): GitHubActionsStep | null {
+  if (!raw || typeof raw !== "object") return null;
+  const step = raw as Record<string, unknown>;
+  const number = typeof step.number === "number" ? step.number : 0;
+  const name = typeof step.name === "string" ? step.name : "";
+  if (!number || !name) return null;
+  const startedAt = optionalString(step.startedAt);
+  const completedAt = optionalString(step.completedAt);
+  return {
+    number,
+    name,
+    status: typeof step.status === "string" ? step.status : "",
+    conclusion: typeof step.conclusion === "string" ? step.conclusion : "",
+    ...(startedAt ? { startedAt } : {}),
+    ...(completedAt ? { completedAt } : {}),
+  };
+}
+
+function mapGitHubActionsJob(raw: unknown): GitHubActionsJob | null {
+  if (!raw || typeof raw !== "object") return null;
+  const job = raw as Record<string, unknown>;
+  const id = typeof job.databaseId === "number" ? job.databaseId : 0;
+  const name = typeof job.name === "string" ? job.name : "";
+  if (!id || !name) return null;
+  const startedAt = optionalString(job.startedAt);
+  const completedAt = optionalString(job.completedAt);
+  const url = optionalString(job.url);
+  return {
+    id,
+    name,
+    status: typeof job.status === "string" ? job.status : "",
+    conclusion: typeof job.conclusion === "string" ? job.conclusion : "",
+    ...(startedAt ? { startedAt } : {}),
+    ...(completedAt ? { completedAt } : {}),
+    ...(url ? { url } : {}),
+    steps: Array.isArray(job.steps)
+      ? job.steps
+          .map(mapGitHubActionsStep)
+          .filter((step): step is GitHubActionsStep => step !== null)
+      : [],
+  };
+}
+
+export function mapGitHubActionsRun(raw: unknown): GitHubActionsRun | null {
+  if (!raw || typeof raw !== "object") return null;
+  const run = raw as Record<string, unknown>;
+  const id = typeof run.databaseId === "number" ? run.databaseId : 0;
+  if (!id) return null;
+  return {
+    id,
+    workflowId: typeof run.workflowDatabaseId === "number" ? run.workflowDatabaseId : 0,
+    workflowName: typeof run.workflowName === "string" ? run.workflowName : "",
+    name: typeof run.name === "string" ? run.name : "",
+    number: typeof run.number === "number" ? run.number : 0,
+    attempt: typeof run.attempt === "number" ? run.attempt : 1,
+    title: typeof run.displayTitle === "string" ? run.displayTitle : "",
+    event: typeof run.event === "string" ? run.event : "",
+    headBranch: typeof run.headBranch === "string" ? run.headBranch : "",
+    headSha: typeof run.headSha === "string" ? run.headSha : "",
+    status: typeof run.status === "string" ? run.status : "",
+    conclusion: typeof run.conclusion === "string" ? run.conclusion : "",
+    createdAt: typeof run.createdAt === "string" ? run.createdAt : "",
+    startedAt: typeof run.startedAt === "string" ? run.startedAt : "",
+    updatedAt: typeof run.updatedAt === "string" ? run.updatedAt : "",
+    url: typeof run.url === "string" ? run.url : "",
+    jobs: Array.isArray(run.jobs)
+      ? run.jobs.map(mapGitHubActionsJob).filter((job): job is GitHubActionsJob => job !== null)
+      : [],
+  };
+}
 
 export function mapPrState(raw: { state: string; isDraft: boolean }): PrState {
   if (raw.isDraft) return "draft";

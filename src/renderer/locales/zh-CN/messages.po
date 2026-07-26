@@ -211,6 +211,12 @@ msgstr "{0}需要身份验证。"
 msgid "{0} needs input."
 msgstr "{0} 需要输入。"
 
+#. placeholder {0}: job.steps.filter((step) => step.status === "completed").length
+#. placeholder {1}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "{0} of {1} steps"
+msgstr "{1} 个步骤中的 {0} 个"
+
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
 msgid "{0} of {matchCount}"
@@ -232,6 +238,8 @@ msgid "{0} run"
 msgstr "运行{0}次"
 
 #. placeholder {0}: item.runCount.toLocaleString()
+#. placeholder {0}: runs.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "运行{0}次"
@@ -282,6 +290,11 @@ msgstr "{0}已更新。"
 msgid "{0} used"
 msgstr "已使用 {0}"
 
+#. placeholder {0}: workflows.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "{0} workflows"
+#~ msgstr "{0} 个工作流"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -321,6 +334,11 @@ msgstr "{agentLead} 需要你的输入才能继续。"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# 个提交} other {# 个提交}}"
+
+#. placeholder {0}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "{completedSteps} of {0} steps"
+#~ msgstr "已完成 {completedSteps}/{0} 个步骤"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
@@ -540,9 +558,17 @@ msgstr "~{money}{tokens} · {0} · 预计"
 msgid "≈{0}% by reset"
 msgstr "≈{0}% 重置时"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "1 run"
+msgstr "1 次运行"
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
 msgstr "1 个线程"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "1 workflow"
+#~ msgstr "1 个工作流"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "22"
@@ -707,6 +733,10 @@ msgstr "添加项目以查看拉取请求。"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "添加一个项目来启动"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Add a project to use GitHub Actions."
+msgstr "添加项目以使用 GitHub Actions。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
@@ -1206,6 +1236,10 @@ msgstr "将待办事项停靠栏附加到编写器"
 msgid "Attached browser selection."
 msgstr "已附加浏览器选区。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Attempt"
+msgstr "尝试次数"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Audio"
@@ -1427,6 +1461,7 @@ msgid "Bottom"
 msgstr "底部"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
 msgstr "分支"
 
@@ -1446,6 +1481,10 @@ msgstr "分支 <0>{0}</0> 具有未合并的更改："
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "分支未完全合并"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Branch or tag"
+msgstr "分支或标签"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
@@ -1502,8 +1541,8 @@ msgstr "浏览器已在单独的窗口中打开"
 #~ msgstr "浏览器 MCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "为 OpenCode 启用的浏览器 MCP"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "为 OpenCode 启用的浏览器 MCP"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1610,6 +1649,7 @@ msgstr "无法加载端口"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -1651,6 +1691,7 @@ msgstr "已取消"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancelled"
 msgstr "已取消"
 
@@ -2115,6 +2156,10 @@ msgstr "关闭预览"
 msgid "Close project filter"
 msgstr "关闭项目筛选"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Close run details"
+msgstr "关闭运行详情"
+
 #: src/mobile/QrScanner.tsx
 msgid "Close scanner"
 msgstr "关闭扫描器"
@@ -2276,6 +2321,7 @@ msgstr "评论已发布"
 msgid "commented"
 msgstr "评论了"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
 msgstr "提交"
@@ -3155,6 +3201,10 @@ msgstr "删除文件"
 msgid "Delete permanently"
 msgstr "永久删除"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete run"
+msgstr "删除运行"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
 msgstr "删除计划"
@@ -3195,6 +3245,15 @@ msgstr "删除线程？"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Delete to-do"
 msgstr "删除待办事项"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Delete workflow run"
+msgstr "删除工作流运行"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete workflow run?"
+msgstr "删除工作流运行？"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -3802,6 +3861,10 @@ msgstr "错误 · 代理遇到错误"
 msgid "Errors"
 msgstr "错误"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Event"
+msgstr "事件"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
 msgstr "每天 {time}"
@@ -3992,9 +4055,14 @@ msgstr "失败了"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "失败"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Failed jobs queued to run again."
+msgstr "失败的作业已排队等待重新运行。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
@@ -4116,6 +4184,10 @@ msgstr "{0}的文件"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "与这些 glob 匹配的文件在 @file 提及搜索中隐藏。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Fill in all required workflow inputs."
+msgstr "请填写所有必需的工作流输入。"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
@@ -4465,6 +4537,17 @@ msgstr "{0}的 Git 状态"
 msgid "Git status for {0}: not a Git repository"
 msgstr "{0}的 Git 状态：不是 Git 存储库"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "GitHub Actions"
+msgstr "GitHub Actions"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "GitHub Actions shortcut"
+msgstr "GitHub Actions 快捷方式"
+
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
@@ -4807,6 +4890,10 @@ msgstr "已导入 1 个技能。"
 msgid "Improved"
 msgstr "已改进"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "In progress"
+msgstr "进行中"
+
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
 msgstr "应用内摄像头扫描仅支持 HTTPS。请使用手机相机应用扫描桌面的二维码，或在下方输入端点和令牌。"
@@ -4837,6 +4924,18 @@ msgstr "初始化存储库"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "输入电平"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Input values must be strings, numbers, or booleans."
+#~ msgstr "输入值必须是字符串、数字或布尔值。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Inputs (JSON)"
+#~ msgstr "输入 (JSON)"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Inputs must be a JSON object."
+#~ msgstr "输入必须是 JSON 对象。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -4972,6 +5071,10 @@ msgstr "已中断：代理会话在完成之前结束。"
 msgid "Italic"
 msgstr "斜体"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Jobs"
+msgstr "作业"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "JSON"
 msgstr "JSON"
@@ -5081,6 +5184,10 @@ msgstr "正在启动…"
 msgid "Leave a comment"
 msgstr "发表评论"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Leave empty to use the repository default branch."
+#~ msgstr "留空以使用仓库的默认分支。"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "少"
@@ -5165,6 +5272,10 @@ msgstr "正在加载编辑器..."
 msgid "Loading file…"
 msgstr "正在加载文件..."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Loading jobs"
+msgstr "正在加载作业"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "正在加载市场…"
@@ -5217,6 +5328,14 @@ msgstr "正在加载线程"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Loading threads"
 msgstr "正在加载线程"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Loading workflow inputs"
+msgstr "正在加载工作流输入"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Loading workflow runs"
+msgstr "正在加载工作流运行记录"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/ThreadDetail.tsx
@@ -6103,6 +6222,14 @@ msgstr "没有活动的浏览器选项卡"
 msgid "No active session"
 msgstr "没有活动会话"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "No active workflows"
+#~ msgstr "没有活动的工作流"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "No active workflows found."
+msgstr "未找到活动的工作流。"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "暂无活动。"
@@ -6265,6 +6392,10 @@ msgstr "暂无历史记录"
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "此项目中没有具有可选模型的已安装智能体。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "No jobs reported for this run."
+msgstr "此次运行未报告任何作业。"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6435,6 +6566,10 @@ msgstr "未检测到语音。"
 msgid "No staged changes"
 msgstr "没有暂存的更改"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "No steps reported"
+#~ msgstr "未报告任何步骤"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 msgstr "此远程计算机上未安装受支持的代理。请先在远程安装代理并登录，然后再启动线程。"
@@ -6468,6 +6603,10 @@ msgstr "暂无对话。"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "没有报告窗口"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "No workflow runs found."
+msgstr "未找到工作流运行记录。"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #~ msgid "No worktree"
@@ -6625,6 +6764,10 @@ msgstr "在线"
 msgid "Only when unfocused"
 msgstr "仅当窗口失去焦点时"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
+#~ msgstr "只有包含 workflow_dispatch 触发器的工作流才能手动启动。"
+
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -6769,6 +6912,10 @@ msgstr "在浏览器中打开"
 msgid "Open in editor"
 msgstr "在编辑器中打开"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Open job on GitHub"
+msgstr "在 GitHub 上打开作业"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "提供安装量和趋势指标的公开排行榜。"
@@ -6800,6 +6947,8 @@ msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "以整页或并排面板的形式打开新线程。"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Open on GitHub"
 msgstr "在 GitHub 上打开"
 
@@ -6839,6 +6988,10 @@ msgstr "未完成请求"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Open required URL"
 msgstr "打开需要的网址"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "Open run in GitHub Actions"
+msgstr "在 GitHub Actions 中打开运行"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Open settings"
@@ -6913,6 +7066,10 @@ msgstr "可选"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "可选的状态挂钩。已安装的挂钩会自动更新；缺失的挂钩永远不会自动安装。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Optional workflow_dispatch input values."
+#~ msgstr "可选的 workflow_dispatch 输入值。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -7386,6 +7543,7 @@ msgstr "配置文件"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -7572,6 +7730,11 @@ msgstr "拉取请求选项"
 msgid "Pull requests"
 msgstr "拉取请求"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Pull requests shortcut"
+msgstr "拉取请求快捷方式"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Push"
@@ -7605,6 +7768,10 @@ msgstr "Qoder CLI"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "问题"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Queued"
+msgstr "已排队"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -7660,6 +7827,16 @@ msgstr "重新登录"
 msgid "Re-pair this connection to grant access to port forwarding."
 msgstr "重新配对此连接以授予端口转发的访问权限。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run all jobs"
+msgstr "重新运行所有作业"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run failed jobs"
+msgstr "重新运行失败的作业"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "正在读取每个候选的更改…"
@@ -7692,6 +7869,10 @@ msgstr "最近"
 msgid "Recent installs"
 msgstr "近期安装量"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Recent runs"
+#~ msgstr "最近运行记录"
+
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
 msgstr "最近的线程"
@@ -7723,6 +7904,7 @@ msgstr "隐藏通知内容"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7756,9 +7938,17 @@ msgstr "刷新 MCP 服务器来源"
 msgid "Refresh registry"
 msgstr "刷新注册表"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Refresh run"
+msgstr "刷新运行"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Refresh skills"
 msgstr "刷新技能"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Refresh workflow runs"
+msgstr "刷新工作流运行"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8297,8 +8487,10 @@ msgstr "右键点击以切换环"
 msgid "Run"
 msgstr "运行"
 
+#. placeholder {0}: props.workflow.name
 #. placeholder {0}: workflow.runId
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Run {0}"
 msgstr "运行{0}"
 
@@ -8315,6 +8507,10 @@ msgstr "运行{loginCommand}进行登录。"
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Run a new thread on {0}."
 msgstr "在 {0} 上运行新线程。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Run actions"
+msgstr "运行操作"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -8372,6 +8568,11 @@ msgstr "运行终端命令"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run this schedule automatically on the schedule below."
 msgstr "按照下方的计划自动运行此计划。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Run workflow"
+msgstr "运行工作流"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -8508,6 +8709,11 @@ msgstr "此桌面上的计划任务"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Schedules"
 msgstr "计划"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Schedules shortcut"
+msgstr "计划快捷方式"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -8696,6 +8902,10 @@ msgstr "选择一个文件开始编辑。"
 msgid "Select a repository."
 msgstr "选择一个存储库。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Select a workflow to see its runs."
+msgstr "选择一个工作流以查看其运行记录。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "选择账户"
@@ -8883,6 +9093,11 @@ msgstr "显示上下文使用详细信息"
 msgid "Show estimated cost"
 msgstr "显示预计费用"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show GitHub Actions in the sidebar footer."
+msgstr "在侧边栏底部显示 GitHub Actions。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "在文件资源管理器中显示"
@@ -8929,9 +9144,19 @@ msgstr "显示或隐藏侧边栏"
 msgid "Show preview"
 msgstr "显示预览"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Pull requests in the sidebar footer."
+msgstr "在侧边栏底部显示拉取请求。"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
 msgstr "显示运行时调试面板"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Schedules in the sidebar footer."
+msgstr "在侧边栏底部显示计划。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9126,6 +9351,7 @@ msgid "Skills.sh"
 msgstr "Skills.sh"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "已跳过"
 
@@ -9356,6 +9582,10 @@ msgstr "从计划开始"
 msgid "Start Without Context"
 msgstr "在没有上下文的情况下开始"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Start workflows and monitor their runs for each project."
+msgstr "启动工作流并监控每个项目的运行状态。"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "开始{targetLabel}线程"
@@ -9398,6 +9628,7 @@ msgid "Stashed changes pending"
 msgstr "贮藏的更改待应用"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Status"
 msgstr "状态"
 
@@ -9525,6 +9756,7 @@ msgstr "提交 Git 表单"
 msgid "Submit review"
 msgstr "提交审查"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Succeeded"
 msgstr "成功"
@@ -10035,6 +10267,11 @@ msgstr "此名称由内置 MCP 服务器保留。"
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "此页面通过 HTTPS 提供，因此浏览器会阻止它连接使用纯 HTTP 的桌面。请在桌面自身的地址上继续，在那里完成配对。"
 
+#. placeholder {0}: deleteRun?.number
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This permanently deletes run #{0} and its logs from GitHub."
+msgstr "这会从 GitHub 永久删除运行 #{0} 及其日志。"
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -10084,6 +10321,10 @@ msgstr "此全局快捷键不可用。请选择其他按键组合。"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 msgstr "该线程使用工作树 <0>{0}</0>。还要删除工作树目录吗？"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This workflow cannot be started manually."
+msgstr "此工作流无法手动启动。"
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
@@ -10171,6 +10412,10 @@ msgstr "标记为“已完成”且已多日未触及的线程将在应用程序
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "时间"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Timed out"
+msgstr "已超时"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
@@ -10309,6 +10554,10 @@ msgstr "半透明侧边栏"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "当前热门"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Triggers:"
+msgstr "触发器："
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -10624,6 +10873,7 @@ msgstr "卸载"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "未知"
@@ -10773,6 +11023,10 @@ msgstr "使用合并提交更新"
 msgid "Update with rebase"
 msgstr "使用变基更新"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Updated"
+msgstr "更新时间"
+
 #. placeholder {0}: formatUpdatedAgo(lastUpdated, nowTick, t)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Updated {0}"
@@ -10862,6 +11116,10 @@ msgstr "使用会话"
 msgid "Use the {name} skill."
 msgstr "使用 {name} 技能。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Use the default branch"
+#~ msgstr "使用默认分支"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "使用此帐户进行使用情况跟踪，或在继续之前更改浏览器中的用户。"
@@ -10874,6 +11132,10 @@ msgstr "使用此文件夹"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "使用WebGPU加速"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Use workflow from"
+msgstr "使用以下来源的工作流"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
@@ -11016,6 +11278,10 @@ msgstr "请等待所有候选项完成后再创建拉取请求。"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "等待线程完成启动。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Waiting"
+msgstr "等待中"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents will refresh when it finishes."
@@ -11219,6 +11485,10 @@ msgstr "已工作 {elapsed}"
 msgid "Workflow"
 msgstr "工作流程"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow dispatch requested."
+msgstr "已请求运行工作流。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
 msgstr "工作流程完成。子代理在单独的进程中运行，尚未在此处进行流式传输。"
@@ -11231,10 +11501,24 @@ msgstr "工作流正在后台运行。子代理在单独的进程中运行，尚
 msgid "Workflow phases"
 msgstr "工作流程阶段"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow queued to run again."
+msgstr "工作流已排队等待重新运行。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowResultGroup.tsx
 msgid "Workflow results"
 msgstr "工作流程结果"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Workflow run"
+msgstr "工作流运行"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow run deleted."
+msgstr "工作流运行已删除。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Workflow runs"
 msgstr "工作流运行次数"
@@ -11245,6 +11529,7 @@ msgstr "工作流程：{description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Workflows"
 msgstr "工作流程"
 

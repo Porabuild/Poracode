@@ -211,6 +211,12 @@ msgstr "{0} kimlik doğrulaması gerektiriyor."
 msgid "{0} needs input."
 msgstr "{0} giriş gerektiriyor."
 
+#. placeholder {0}: job.steps.filter((step) => step.status === "completed").length
+#. placeholder {1}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "{0} of {1} steps"
+msgstr "{1} adımın {0} tanesi"
+
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
 msgid "{0} of {matchCount}"
@@ -232,6 +238,8 @@ msgid "{0} run"
 msgstr "{0} çalıştırma"
 
 #. placeholder {0}: item.runCount.toLocaleString()
+#. placeholder {0}: runs.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "{0} çalıştırma"
@@ -282,6 +290,11 @@ msgstr "{0} güncellendi."
 msgid "{0} used"
 msgstr "{0} kullanıldı"
 
+#. placeholder {0}: workflows.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "{0} workflows"
+#~ msgstr "{0} iş akışı"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -321,6 +334,11 @@ msgstr "{agentLead} devam etmek için girişinizi bekliyor."
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
+
+#. placeholder {0}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "{completedSteps} of {0} steps"
+#~ msgstr "{completedSteps}/{0} adım tamamlandı"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
@@ -540,9 +558,17 @@ msgstr "~{money}{tokens} · {0} · tahmini"
 msgid "≈{0}% by reset"
 msgstr "sıfırlamaya kadar ≈%{0}"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "1 run"
+msgstr "1 çalıştırma"
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
 msgstr "1 iş parçacığı"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "1 workflow"
+#~ msgstr "1 iş akışı"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "22"
@@ -707,6 +733,10 @@ msgstr "Çekme isteklerini görmek için bir proje ekleyin."
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Başlamak için bir proje ekleyin"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Add a project to use GitHub Actions."
+msgstr "GitHub Actions'ı kullanmak için bir proje ekleyin."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
@@ -1206,6 +1236,10 @@ msgstr "Yapılacaklar panelini yazım alanına sabitle"
 msgid "Attached browser selection."
 msgstr "Ekli tarayıcı seçimi."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Attempt"
+msgstr "Deneme"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Audio"
@@ -1427,6 +1461,7 @@ msgid "Bottom"
 msgstr "Alt"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
 msgstr "Şube"
 
@@ -1446,6 +1481,10 @@ msgstr "<0>{0}</0> şubesinde birleştirilmemiş değişiklikler var:"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Şube tam olarak birleştirilmedi"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Branch or tag"
+msgstr "Dal veya etiket"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
@@ -1502,8 +1541,8 @@ msgstr "Tarayıcı ayrı bir pencerede açık"
 #~ msgstr "Tarayıcı MCP'si"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "OpenCode için tarayıcı MCP'si etkinleştirildi"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "OpenCode için tarayıcı MCP'si etkinleştirildi"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1610,6 +1649,7 @@ msgstr "Portlar yüklenemedi"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -1651,6 +1691,7 @@ msgstr "iptal edildi"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancelled"
 msgstr "İptal edildi"
 
@@ -2115,6 +2156,10 @@ msgstr "Önizlemeyi kapat"
 msgid "Close project filter"
 msgstr "Proje filtresini kapat"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Close run details"
+msgstr "Çalıştırma ayrıntılarını kapat"
+
 #: src/mobile/QrScanner.tsx
 msgid "Close scanner"
 msgstr "Tarayıcıyı kapat"
@@ -2276,6 +2321,7 @@ msgstr "Yorum gönderildi"
 msgid "commented"
 msgstr "yorum yaptı"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
 msgstr "Commit"
@@ -3155,6 +3201,10 @@ msgstr "Dosyayı sil"
 msgid "Delete permanently"
 msgstr "Kalıcı olarak sil"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete run"
+msgstr "Çalıştırmayı sil"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
 msgstr "Zamanlamayı sil"
@@ -3195,6 +3245,15 @@ msgstr "Konu silinsin mi?"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Delete to-do"
 msgstr "Yapılacak işi sil"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Delete workflow run"
+msgstr "Workflow çalıştırmasını sil"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete workflow run?"
+msgstr "Workflow çalıştırması silinsin mi?"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -3802,6 +3861,10 @@ msgstr "Hata · Temsilci bir hatayla karşılaştı"
 msgid "Errors"
 msgstr "Hatalar"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Event"
+msgstr "Olay"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
 msgstr "Her gün saat {time}"
@@ -3992,9 +4055,14 @@ msgstr "başarısız oldu"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "Başarısız"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Failed jobs queued to run again."
+msgstr "Başarısız işler yeniden çalıştırılmak üzere sıraya alındı."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
@@ -4116,6 +4184,10 @@ msgstr "{0} için dosyalar"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Bu glob'larla eşleşen dosyalar, @file bahsetme aramasında gizlenir."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Fill in all required workflow inputs."
+msgstr "Tüm gerekli workflow girdilerini doldurun."
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
@@ -4465,6 +4537,17 @@ msgstr "{0} için Git durumu"
 msgid "Git status for {0}: not a Git repository"
 msgstr "{0} için Git durumu: Git deposu değil"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "GitHub Actions"
+msgstr "GitHub Actions"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "GitHub Actions shortcut"
+msgstr "GitHub Actions kısayolu"
+
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
@@ -4807,6 +4890,10 @@ msgstr "1 beceri içe aktarıldı."
 msgid "Improved"
 msgstr "İyileştirildi"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "In progress"
+msgstr "Devam ediyor"
+
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
 msgstr "Uygulama içi kamera taraması yalnızca HTTPS üzerinden çalışır. Masaüstündeki QR kodunu taramak için telefonunuzun kamera uygulamasını kullanın veya endpoint ve token'ı aşağıya girin."
@@ -4837,6 +4924,18 @@ msgstr "Depoyu Başlat"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "Giriş seviyesi"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Input values must be strings, numbers, or booleans."
+#~ msgstr "Giriş değerleri dize, sayı veya boole olmalıdır."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Inputs (JSON)"
+#~ msgstr "Girişler (JSON)"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Inputs must be a JSON object."
+#~ msgstr "Girişler bir JSON nesnesi olmalıdır."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -4972,6 +5071,10 @@ msgstr "Kesintiye uğradı: Ajan oturumu tamamlanmadan sona erdi."
 msgid "Italic"
 msgstr "italik"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Jobs"
+msgstr "İşler"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "JSON"
 msgstr "JSON"
@@ -5081,6 +5184,10 @@ msgstr "Başlatılıyor…"
 msgid "Leave a comment"
 msgstr "Yorum bırak"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Leave empty to use the repository default branch."
+#~ msgstr "Deponun varsayılan dalını kullanmak için boş bırakın."
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Az"
@@ -5165,6 +5272,10 @@ msgstr "Düzenleyici yükleniyor…"
 msgid "Loading file…"
 msgstr "Dosya yükleniyor…"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Loading jobs"
+msgstr "İşler yükleniyor"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "Marketplace yükleniyor…"
@@ -5217,6 +5328,14 @@ msgstr "İş parçacığı yükleniyor"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Loading threads"
 msgstr "İş parçacıkları yükleniyor"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Loading workflow inputs"
+msgstr "Workflow girdileri yükleniyor"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Loading workflow runs"
+msgstr "İş akışı çalıştırmaları yükleniyor"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/ThreadDetail.tsx
@@ -6104,6 +6223,14 @@ msgstr "Etkin tarayıcı sekmesi yok"
 msgid "No active session"
 msgstr "Aktif oturum yok"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "No active workflows"
+#~ msgstr "Etkin iş akışı yok"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "No active workflows found."
+msgstr "Etkin workflow bulunamadı."
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "Henüz etkinlik yok."
@@ -6266,6 +6393,10 @@ msgstr "Henüz geçmiş yok"
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Bu proje için seçilebilir modellere sahip yüklü bir ajan yok."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "No jobs reported for this run."
+msgstr "Bu çalıştırma için bildirilen iş yok."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6436,6 +6567,10 @@ msgstr "Konuşma algılanmadı."
 msgid "No staged changes"
 msgstr "Aşamalı değişiklik yok"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "No steps reported"
+#~ msgstr "Bildirilen adım yok"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 msgstr "Bu uzak makinede desteklenen bir aracı yüklü değil. Bir iş parçacığı başlatmadan önce uzaktan bir aracı yükleyip oturum açın."
@@ -6469,6 +6604,10 @@ msgstr "Henüz konuşma yok."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "Hiçbir pencere bildirilmedi"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "No workflow runs found."
+msgstr "İş akışı çalıştırması bulunamadı."
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #~ msgid "No worktree"
@@ -6626,6 +6765,10 @@ msgstr "Çevrimiçi"
 msgid "Only when unfocused"
 msgstr "Yalnızca odaklanmadığında"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
+#~ msgstr "Yalnızca workflow_dispatch tetikleyicisi olan iş akışları manuel olarak başlatılabilir."
+
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -6770,6 +6913,10 @@ msgstr "Tarayıcıda aç"
 msgid "Open in editor"
 msgstr "Düzenleyicide aç"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Open job on GitHub"
+msgstr "İşi GitHub'da aç"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Yükleme ve eğilim ölçümlerini içeren açık liderlik tablosu."
@@ -6801,6 +6948,8 @@ msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "Yeni konuları tam sayfa veya yan yana panel olarak açın."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Open on GitHub"
 msgstr "GitHub'da aç"
 
@@ -6840,6 +6989,10 @@ msgstr "İstekleri aç"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Open required URL"
 msgstr "Gerekli URL'yi aç"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "Open run in GitHub Actions"
+msgstr "Çalıştırmayı GitHub Actions'ta aç"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Open settings"
@@ -6914,6 +7067,10 @@ msgstr "İsteğe bağlı"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "İsteğe bağlı durum kancaları. Kurulu kancalar otomatik olarak güncellenir; eksik kancalar hiçbir zaman otomatik olarak kurulmaz."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Optional workflow_dispatch input values."
+#~ msgstr "İsteğe bağlı workflow_dispatch giriş değerleri."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -7387,6 +7544,7 @@ msgstr "Profiller"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -7573,6 +7731,11 @@ msgstr "Çekme isteği seçenekleri"
 msgid "Pull requests"
 msgstr "Çekme istekleri"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Pull requests shortcut"
+msgstr "Çekme istekleri kısayolu"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Push"
@@ -7606,6 +7769,10 @@ msgstr "Qoder CLI"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "Sorular"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Queued"
+msgstr "Kuyrukta"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -7661,6 +7828,16 @@ msgstr "Yeniden giriş yap"
 msgid "Re-pair this connection to grant access to port forwarding."
 msgstr "Port yönlendirmeye erişim izni vermek için bu bağlantıyı yeniden eşleştirin."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run all jobs"
+msgstr "Tüm işleri yeniden çalıştır"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run failed jobs"
+msgstr "Başarısız işleri yeniden çalıştır"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "Her adayın değişiklikleri okunuyor…"
@@ -7693,6 +7870,10 @@ msgstr "Son"
 msgid "Recent installs"
 msgstr "Son yüklemeler"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Recent runs"
+#~ msgstr "Son çalıştırmalar"
+
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
 msgstr "Son konular"
@@ -7724,6 +7905,7 @@ msgstr "Bildirim içeriğini gizle"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7757,9 +7939,17 @@ msgstr "MCP sunucusu kaynaklarını yenile"
 msgid "Refresh registry"
 msgstr "Kayıt defterini yenile"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Refresh run"
+msgstr "Çalıştırmayı yenile"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Refresh skills"
 msgstr "Becerileri yenile"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Refresh workflow runs"
+msgstr "Workflow çalıştırmalarını yenile"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8298,8 +8488,10 @@ msgstr "Halkayı değiştirmek için sağ tıklayın"
 msgid "Run"
 msgstr "Çalıştır"
 
+#. placeholder {0}: props.workflow.name
 #. placeholder {0}: workflow.runId
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Run {0}"
 msgstr "{0} komutunu çalıştırın"
 
@@ -8316,6 +8508,10 @@ msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Run a new thread on {0}."
 msgstr "{0} üzerinde yeni bir iş parçacığı çalıştır."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Run actions"
+msgstr "Çalıştırma eylemleri"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -8373,6 +8569,11 @@ msgstr "Terminal Komutunu Çalıştır"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run this schedule automatically on the schedule below."
 msgstr "Bu zamanlamayı aşağıdaki zamanlamaya göre otomatik olarak çalıştır."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Run workflow"
+msgstr "İş akışını çalıştır"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -8509,6 +8710,11 @@ msgstr "Bu masaüstündeki zamanlanmış görevler"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Schedules"
 msgstr "Zamanlamalar"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Schedules shortcut"
+msgstr "Zamanlamalar kısayolu"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -8697,6 +8903,10 @@ msgstr "Düzenlemeye başlamak için bir dosya seçin."
 msgid "Select a repository."
 msgstr "Bir depo seçin."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Select a workflow to see its runs."
+msgstr "Çalıştırmalarını görmek için bir workflow seçin."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "Hesap seçin"
@@ -8884,6 +9094,11 @@ msgstr "Bağlam kullanım ayrıntılarını göster"
 msgid "Show estimated cost"
 msgstr "Tahmini maliyeti göster"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show GitHub Actions in the sidebar footer."
+msgstr "GitHub Actions'ı kenar çubuğu alt kısmında göster."
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Dosya gezgininde göster"
@@ -8930,9 +9145,19 @@ msgstr "Kenar çubuğunu göster veya gizle"
 msgid "Show preview"
 msgstr "Önizlemeyi göster"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Pull requests in the sidebar footer."
+msgstr "Çekme isteklerini kenar çubuğu alt kısmında göster."
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
 msgstr "Çalışma zamanı hata ayıklama panelini göster"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Schedules in the sidebar footer."
+msgstr "Zamanlamaları kenar çubuğu alt kısmında göster."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9127,6 +9352,7 @@ msgid "Skills.sh"
 msgstr "Skills.sh"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "Atlandı"
 
@@ -9357,6 +9583,10 @@ msgstr "Bir zamanlamayla başlayın"
 msgid "Start Without Context"
 msgstr "Bağlam Olmadan Başlayın"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Start workflows and monitor their runs for each project."
+msgstr "Her proje için iş akışlarını başlatın ve çalıştırmaları izleyin."
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} iş parçacığı başlatıldı"
@@ -9399,6 +9629,7 @@ msgid "Stashed changes pending"
 msgstr "Zulada (stash) bekleyen değişiklikler"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Status"
 msgstr "Durum"
 
@@ -9526,6 +9757,7 @@ msgstr "Git formunu gönder"
 msgid "Submit review"
 msgstr "İncelemeyi gönder"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Succeeded"
 msgstr "Başarılı"
@@ -10036,6 +10268,11 @@ msgstr "Bu ad, yerleşik bir MCP sunucusu için ayrılmıştır."
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "Bu sayfa HTTPS üzerinden sunuluyor, bu yüzden tarayıcı düz HTTP kullanan bir masaüstüne erişimi engelliyor. Eşleştirmeyi orada tamamlamak için masaüstünün kendi adresinde devam edin."
 
+#. placeholder {0}: deleteRun?.number
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This permanently deletes run #{0} and its logs from GitHub."
+msgstr "Bu işlem #{0} numaralı çalıştırmayı ve günlüklerini GitHub'dan kalıcı olarak siler."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -10085,6 +10322,10 @@ msgstr "Bu sistem genelindeki kısayol kullanılamıyor. Başka bir tuş birleş
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 msgstr "Bu iş parçacığı <0>{0}</0> çalışma ağacını kullanıyor. Ayrıca çalışma ağacı dizini de kaldırılsın mı?"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This workflow cannot be started manually."
+msgstr "Bu workflow elle başlatılamaz."
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
@@ -10172,6 +10413,10 @@ msgstr "Bu kadar gün boyunca dokunulmayan ve tamamlandı olarak işaretlenen ko
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "Saat"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Timed out"
+msgstr "Zaman aşımına uğradı"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
@@ -10310,6 +10555,10 @@ msgstr "Yarı saydam kenar çubuğu"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "Şu anda trend"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Triggers:"
+msgstr "Tetikleyiciler:"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -10625,6 +10874,7 @@ msgstr "Kaldır"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Bilinmiyor"
@@ -10774,6 +11024,10 @@ msgstr "Birleştirme taahhüdüyle güncelleme"
 msgid "Update with rebase"
 msgstr "Rebase ile güncelleme"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Updated"
+msgstr "Güncellendi"
+
 #. placeholder {0}: formatUpdatedAgo(lastUpdated, nowTick, t)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Updated {0}"
@@ -10863,6 +11117,10 @@ msgstr "Oturumu Kullan"
 msgid "Use the {name} skill."
 msgstr "{name} becerisini kullan."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Use the default branch"
+#~ msgstr "Varsayılan dalı kullan"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "Kullanım takibi için bu hesabı kullanın veya devam etmeden önce tarayıcıdaki kullanıcıları değiştirin."
@@ -10875,6 +11133,10 @@ msgstr "Bu klasörü kullan"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "WebGPU hızlandırmasını kullanın"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Use workflow from"
+msgstr "Workflow kaynağı"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
@@ -11017,6 +11279,10 @@ msgstr "Pull request açmadan önce tüm adayların çalışmasını tamamlamas�
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Konunun başlatılmasının bitmesini bekleyin."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Waiting"
+msgstr "Bekliyor"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents will refresh when it finishes."
@@ -11220,6 +11486,10 @@ msgstr "{elapsed} boyunca çalıştı"
 msgid "Workflow"
 msgstr "İş akışı"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow dispatch requested."
+msgstr "İş akışı çalıştırma isteği gönderildi."
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
 msgstr "İş akışı tamamlandı. Alt aracılar ayrı bir süreçte çalıştırıldı ve henüz burada yayınlanmadı."
@@ -11232,10 +11502,24 @@ msgstr "Arka planda iş akışı çalışıyor. Alt aracılar ayrı bir süreçt
 msgid "Workflow phases"
 msgstr "İş akışı aşamaları"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow queued to run again."
+msgstr "Workflow yeniden çalıştırılmak üzere sıraya alındı."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowResultGroup.tsx
 msgid "Workflow results"
 msgstr "İş akışı sonuçları"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Workflow run"
+msgstr "İş akışı çalıştırması"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Workflow run deleted."
+msgstr "Workflow çalıştırması silindi."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Workflow runs"
 msgstr "Workflow çalıştırmaları"
@@ -11246,6 +11530,7 @@ msgstr "İş akışı: {description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Workflows"
 msgstr "İş akışları"
 
