@@ -9,7 +9,6 @@ import { guiChatFontCssVars } from "./ChatPane/chatFontVars";
 import { clearUserMessageCollapsedHeightCache } from "./ChatPane/parts/items/userMessageOverflow";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerSection } from "./ThreadComposerSection";
-import { ThreadTodoDock } from "./ThreadTodoDock";
 import { useThreadDockState, type ThreadDockState } from "./useThreadDockState";
 
 export type ThreadContentCommonProps = {
@@ -49,9 +48,6 @@ export function GuiThreadContent(
   }, [guiChatFontSize]);
   const ownDockState = useThreadDockState(thread.id);
   const dockState = props.dockState ?? ownDockState;
-  const { todoDockState } = dockState;
-  const showTodoInRightRail = dockState.showTodoInRightRail;
-  const showThreadSideRail = runtimeDebugOpen || showTodoInRightRail;
 
   return (
     <>
@@ -84,34 +80,14 @@ export function GuiThreadContent(
                 : {})}
             />
           </div>
-          {showThreadSideRail ? (
+          {runtimeDebugOpen ? (
             <div className="flex h-full min-h-0 w-[min(44%,24rem)] shrink-0 flex-col gap-2 border-l border-[color:var(--border)] pl-2">
-              {showTodoInRightRail ? (
-                <div
-                  className={
-                    runtimeDebugOpen && !dockState.todoDockCollapsed
-                      ? "min-h-0 max-h-[45%] shrink-0"
-                      : "min-h-0 flex-1"
-                  }
-                >
-                  <ThreadTodoDock
-                    collapsed={dockState.todoDockCollapsed}
-                    placement={dockState.todoDockPlacement}
-                    state={todoDockState!}
-                    onCollapsedChange={dockState.onTodoDockCollapsedChange}
-                    onPlacementChange={dockState.onTodoDockPlacementChange}
-                    onRetire={dockState.onTodoDockRetire}
-                  />
-                </div>
-              ) : null}
-              {runtimeDebugOpen ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-                  <p className="shrink-0 text-xs font-medium text-foreground">
-                    <Trans>Runtime debug</Trans>
-                  </p>
-                  <ChatRuntimeDebugPanel threadId={thread.id} />
-                </div>
-              ) : null}
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+                <p className="shrink-0 text-xs font-medium text-foreground">
+                  <Trans>Runtime debug</Trans>
+                </p>
+                <ChatRuntimeDebugPanel threadId={thread.id} />
+              </div>
             </div>
           ) : null}
         </div>

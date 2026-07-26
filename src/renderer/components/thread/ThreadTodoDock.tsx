@@ -59,7 +59,14 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
   const countLabel = `${completedCount}/${state.steps.length}`;
 
   return (
-    <ThreadDockSection ariaLabel={t`Thread todo dock`} placement={placement} collapsed={collapsed}>
+    <ThreadDockSection
+      ariaLabel={t`Thread todo dock`}
+      placement={placement}
+      collapsed={collapsed}
+      className={
+        placement === "right" ? "rounded-none border-0 bg-[var(--content-background)]" : ""
+      }
+    >
       <ThreadDockHeader
         icon={ListChecks}
         title={t`Plan`}
