@@ -676,6 +676,18 @@ export class SupervisorRuntime {
     return {};
   }
 
+  releaseWslBridgeIfUnused(distro: string): void {
+    const hasLiveSession = [...this.sessions.values()].some(
+      (session) =>
+        session.status !== "inactive" &&
+        session.projectLocation.kind === "wsl" &&
+        session.projectLocation.distro === distro,
+    );
+    if (!hasLiveSession) {
+      this.wslHookBridge?.releaseBridge(distro);
+    }
+  }
+
   dispose(): void {
     void this.disposeAsync();
   }

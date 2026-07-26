@@ -22,7 +22,7 @@ export function buildWslProjectDistrosKey(projects: readonly Project[]): string 
   return [
     ...new Set(
       projects.flatMap((project) =>
-        project.location.kind === "wsl" ? [project.location.distro] : [],
+        !project.disabled && project.location.kind === "wsl" ? [project.location.distro] : [],
       ),
     ),
   ]
