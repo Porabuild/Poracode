@@ -25,10 +25,10 @@ describe("dispatchChromeTool", () => {
       setSessionActive,
     };
 
-    await expect(dispatchChromeTool("chrome_enable", {}, ctx)).resolves.toMatchObject({
+    await expect(dispatchChromeTool("enable", {}, ctx)).resolves.toMatchObject({
       enabled: true,
     });
-    await expect(dispatchChromeTool("chrome_disable", {}, ctx)).resolves.toEqual({
+    await expect(dispatchChromeTool("disable", {}, ctx)).resolves.toEqual({
       enabled: false,
     });
 
@@ -52,7 +52,7 @@ describe("dispatchChromeTool", () => {
 
     await expect(
       dispatchChromeTool(
-        "chrome_disable",
+        "disable",
         {},
         {
           connection,

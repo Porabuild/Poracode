@@ -50,9 +50,9 @@ export const CHROME_MCP_INSTRUCTIONS = [
   "there; tabs are never auto-closed. Pass newTab:true only when you truly need a second tab. Use chrome_attach",
   "(with a tabId from chrome_list_tabs) only when the user asks you to act on a specific tab they already have open.",
   "Prefer chrome_snapshot / chrome_find to discover elements (they return @e refs) before chrome_click / chrome_fill.",
-  "Use chrome_status first to confirm the extension is connected, then call chrome_enable once before the first browser action.",
+  "Use chrome_status first to confirm the extension is connected, then call chrome.enable once before the first browser action.",
   "Keep Chrome enabled across the whole uninterrupted session so agent presence stays consistent between calls.",
-  "Always call chrome_disable before pausing to ask for user input, waiting for an external event, or finishing, and call chrome_enable again when you resume.",
+  "Always call chrome.disable before pausing to ask for user input, waiting for an external event, or finishing, and call chrome.enable again when you resume.",
   "Destructive or account-affecting actions (purchases, deletions, messages) should be confirmed with the user first.",
 ].join(" ");
 
@@ -118,7 +118,7 @@ export async function dispatchChromeTool(
     return conn.status();
   }
 
-  if (name === "chrome_disable") {
+  if (name === "disable") {
     const shouldDetach = ctx.setSessionActive?.(false) ?? true;
     if (shouldDetach && conn?.isAttached()) {
       await setCursorOverlayVisible(conn.cdpSession(), false);
@@ -137,7 +137,7 @@ export async function dispatchChromeTool(
   const cdp = conn.cdpSession();
 
   switch (name) {
-    case "chrome_enable":
+    case "enable":
       await conn.ensureWorkspace();
       ctx.setSessionActive?.(true);
       await setCursorOverlayVisible(cdp, true);
@@ -353,13 +353,13 @@ export const CHROME_TOOLS: ToolSpec[] = [
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "chrome_enable",
+    name: "enable",
     description:
       "Begin one uninterrupted Chrome MCP session, attach the background workspace, and keep agent presence active between calls.",
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "chrome_disable",
+    name: "disable",
     description:
       "End the current Chrome MCP session, hide agent presence, and detach when no other session is active. Always call before pausing for user input or finishing.",
     inputSchema: { type: "object", properties: {} },
