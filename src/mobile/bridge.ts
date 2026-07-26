@@ -1,6 +1,7 @@
 import type {
   ClearPendingSteerPayload,
   CloseThreadPayload,
+  ControlThreadGoalPayload,
   RefreshAgentScope,
   InterruptThreadPayload,
   ProfileIdentity,
@@ -194,6 +195,8 @@ const remoteBridge = {
   sendThreadInput: (payload: SendThreadInputPayload) => requireClient().sendThreadInput(payload),
   interruptThread: (payload: InterruptThreadPayload) =>
     requireClient().interruptThread(payload.threadId),
+  controlThreadGoal: (payload: ControlThreadGoalPayload) =>
+    requireClient().controlThreadGoal(payload),
   writeTerminal: (payload: WriteTerminalPayload) => requireClient().writeTerminal(payload),
   resizeTerminal: (payload: ResizeTerminalPayload) => requireClient().resizeTerminal(payload),
   startThread: (payload: StartThreadPayload) => requireClient().startThread(payload),

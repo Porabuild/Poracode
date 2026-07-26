@@ -4,6 +4,7 @@ export interface ProviderGoalState {
   providerThreadId?: string;
   objective?: string;
   status?: GoalItemPayload["status"];
+  availableActions?: GoalItemPayload["availableActions"];
   tokenBudget?: number | null;
   tokensUsed?: number;
   timeUsedSeconds?: number;
@@ -36,6 +37,7 @@ export function goalPayloadFromProviderState(
     action,
     ...(goal.objective ? { objective: goal.objective } : {}),
     ...(goal.status ? { status: goal.status } : {}),
+    ...(goal.availableActions ? { availableActions: goal.availableActions } : {}),
     ...(goal.tokenBudget !== undefined ? { tokenBudget: goal.tokenBudget } : {}),
     ...(goal.tokensUsed !== undefined ? { tokensUsed: goal.tokensUsed } : {}),
     ...(goal.timeUsedSeconds !== undefined ? { timeUsedSeconds: goal.timeUsedSeconds } : {}),

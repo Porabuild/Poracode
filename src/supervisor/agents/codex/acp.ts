@@ -9,6 +9,7 @@ import {
   type RuntimeEvent,
   type SessionRef,
   type ThreadConfig,
+  type ThreadGoalControl,
   type ThreadServerRequestId,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -376,6 +377,16 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  async controlGoal(control: ThreadGoalControl): Promise<void> {
+    const threadId = await this.waitForRemoteThreadId();
+    await this.dispatchCodexGoalCommand(
+      threadId,
+      control.action === "edit"
+        ? { kind: "set", objective: control.objective }
+        : { kind: control.action },
+    );
+  }
+
   private updateSlashCommands(commands: AgentSlashCommand[]): void {
     if (areAgentSlashCommandsEqual(this.currentSlashCommands, commands)) {
       return;
@@ -535,6 +546,25 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.remoteThreadId = threadId;
     this.ensureMapperState().usageScope = new CodexUsageScopeTracker(threadId, createdNewThread);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
+    if (!createdNewThread) {
+      try {
+        const { goal } = await this.rpc.request("thread/goal/get", { threadId });
+        if (goal) {
+          this.emitRuntimeEvents(
+            mapCodexNotification(
+              "thread/goal/updated",
+              { threadId, goal },
+              this.ensureMapperState(),
+              this.wslDistro,
+            ),
+          );
+        }
+      } catch (error) {
+        if (!isUnsupportedCodexRequestError(error)) {
+          console.warn("[codex] Failed to hydrate thread goal after resume:", error);
+        }
+      }
+    }
     if (sessionRef) {
       void this.syncRemoteThreadState(threadId, toSessionRef(threadId));
     }

@@ -16,6 +16,7 @@ import type {
   ThreadPresentationMode,
   ThreadServerRequestId,
   ThreadStatus,
+  ThreadGoalControl,
   ResolvedMcpServer,
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
@@ -131,6 +132,7 @@ export interface StructuredSessionHandle {
    */
   prepareSteerInterrupt?(): Promise<void>;
   interruptTurn?(): Promise<void>;
+  controlGoal?(control: ThreadGoalControl): Promise<void>;
   /**
    * Close the provider's current canonical turn locally before a forced
    * process disposal. Implementations should complete any open items and mark

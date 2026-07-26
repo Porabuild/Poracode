@@ -48,10 +48,12 @@ import {
 } from "@/shared/remote";
 import {
   DEFAULT_TERMINAL_SIZE,
+  controlThreadGoalPayloadSchema,
   profileIdentitySchema,
   projectNotesSchema,
   sendThreadInputPayloadSchema,
   type ProfileCoreStats,
+  type ControlThreadGoalPayload,
   type ProfileDevicesResponse,
   type ProfileIdentity,
   type ProfileIdentityResponse,
@@ -602,6 +604,14 @@ export class RemoteDesktopClient {
   async interruptThread(threadId: string): Promise<void> {
     await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/interrupt`, {
       method: "POST",
+    });
+  }
+
+  async controlThreadGoal(input: ControlThreadGoalPayload): Promise<void> {
+    const { threadId, ...body } = controlThreadGoalPayloadSchema.parse(input);
+    await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/goal`, {
+      method: "POST",
+      body,
     });
   }
 

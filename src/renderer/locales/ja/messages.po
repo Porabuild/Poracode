@@ -1509,8 +1509,8 @@ msgstr "ブラウザは別のウィンドウで開いています"
 #~ msgstr "ブラウザMCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "OpenCode に対応したブラウザ MCP"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "OpenCode に対応したブラウザ MCP"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1613,6 +1613,7 @@ msgstr "ポートを読み込めません"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -1927,6 +1928,10 @@ msgstr "キャッシュのクリア"
 msgid "Clear Cookies"
 msgstr "Cookie を消去"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Clear goal"
+msgstr "目標をクリア"
+
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -2062,7 +2067,7 @@ msgstr "ポートの転送を閉じる"
 msgid "Close forward actions"
 msgstr "転送の操作メニューを閉じる"
 
-#: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "ゴールを閉じる"
 
@@ -3576,6 +3581,10 @@ msgstr "{serverName}を編集"
 msgid "Edit file"
 msgstr "ファイルを編集する"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Edit goal"
+msgstr "目標を編集"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Edit MCP server"
 msgstr "MCPサーバーを編集"
@@ -4007,6 +4016,10 @@ msgstr "失敗しました"
 msgid "Failed"
 msgstr "失敗"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to clear goal"
+msgstr "目標をクリアできませんでした"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "プル リクエストを閉じることができませんでした:{detail}"
@@ -4046,6 +4059,10 @@ msgstr "固定されたソースのメタデータを記録できませんでし
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "所有権付きブランチのメタデータを記録できませんでした: {detail}。ロールバック後もブランチ {branch} が残っています: {rollback}"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to update goal"
+msgstr "目標を更新できませんでした"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -4540,6 +4557,10 @@ msgstr "ナビゲーション履歴で進む"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "目標"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Goal objective"
+msgstr "目標の内容"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -7114,6 +7135,10 @@ msgstr "SSH 秘密鍵を貼り付けてください。"
 msgid "Pause"
 msgstr "一時停止"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Pause goal"
+msgstr "目標を一時停止"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -8160,6 +8185,10 @@ msgstr "結果"
 msgid "Resume"
 msgstr "再開"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Resume goal"
+msgstr "目標を再開"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -8438,6 +8467,7 @@ msgstr "実行時オプション"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx

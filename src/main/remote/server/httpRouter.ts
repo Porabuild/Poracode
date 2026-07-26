@@ -21,6 +21,7 @@ import {
 import {
   closeThreadPayloadSchema,
   clearPendingSteerPayloadSchema,
+  controlThreadGoalPayloadSchema,
   interruptThreadPayloadSchema,
   profileIdentitySchema,
   profileStatsRequestSchema,
@@ -132,6 +133,11 @@ const THREAD_POST_ROUTES: ReadonlyArray<{
     suffix: "/interrupt",
     scope: "session:operate",
     dispatch: (call, body) => call("interruptThread", interruptThreadPayloadSchema.parse(body)),
+  },
+  {
+    suffix: "/goal",
+    scope: "session:operate",
+    dispatch: (call, body) => call("controlThreadGoal", controlThreadGoalPayloadSchema.parse(body)),
   },
   {
     suffix: "/close",

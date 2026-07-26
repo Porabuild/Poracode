@@ -209,6 +209,7 @@ export function ComposerInfoChips(props: {
         >
           {open.key === "goal" && dockState.goalDockState ? (
             <ThreadGoalDock
+              threadId={threadId}
               state={dockState.goalDockState}
               onDismiss={dockState.onGoalDockDismiss}
             />

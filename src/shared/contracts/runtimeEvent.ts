@@ -107,10 +107,14 @@ export const goalStatusSchema = z.enum([
 ]);
 export type GoalStatus = z.infer<typeof goalStatusSchema>;
 
+export const goalControlActionSchema = z.enum(["edit", "pause", "resume", "clear"]);
+export type GoalControlAction = z.infer<typeof goalControlActionSchema>;
+
 export const goalItemPayloadSchema = z.object({
   action: z.enum(["set", "updated", "cleared", "viewed"]).optional(),
   objective: z.string().optional(),
   status: goalStatusSchema.optional(),
+  availableActions: z.array(goalControlActionSchema).optional(),
   tokenBudget: z.number().int().nonnegative().nullable().optional(),
   tokensUsed: z.number().int().nonnegative().optional(),
   timeUsedSeconds: z.number().nonnegative().optional(),
