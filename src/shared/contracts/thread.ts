@@ -210,6 +210,7 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     presentationMode: threadPresentationModeSchema.optional(),
     worktreePath: z.string().min(1).optional(),
     worktreeBranch: z.string().optional(),
+    prNumber: z.number().int().min(1).optional(),
     isNewWorktree: z.boolean().optional(),
     /**
      * Desktop-renderer hint. Remote clients send `start` to the HTTP server;

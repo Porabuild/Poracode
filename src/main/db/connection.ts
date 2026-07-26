@@ -222,6 +222,23 @@ export function initDatabase(dbPath: string) {
     );
     CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_schedule
       ON scheduled_task_runs (schedule_id, started_at DESC);
+    CREATE TABLE IF NOT EXISTS pr_watches (
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      pr_number INTEGER NOT NULL,
+      head_branch TEXT NOT NULL,
+      worktree_path TEXT,
+      watch_enabled INTEGER NOT NULL DEFAULT 1,
+      auto_merge INTEGER NOT NULL DEFAULT 0,
+      agent_kind TEXT,
+      config TEXT,
+      last_comment_cursor TEXT,
+      last_review_comment_cursor TEXT,
+      last_review_cursor TEXT,
+      last_check_key TEXT,
+      active_thread_id TEXT,
+      last_error TEXT,
+      PRIMARY KEY (project_id, pr_number)
+    );
     CREATE TABLE IF NOT EXISTS remote_command_receipts (
       command_id TEXT PRIMARY KEY,
       route TEXT NOT NULL,
@@ -236,7 +253,7 @@ export function initDatabase(dbPath: string) {
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 27;
+  const SCHEMA_VERSION = 28;
 
   const storedVersion = Number(
     (
@@ -522,6 +539,28 @@ export function initDatabase(dbPath: string) {
         CREATE TABLE IF NOT EXISTS usage_token_samples (
           sample_id TEXT PRIMARY KEY,
           ts INTEGER NOT NULL
+        );
+      `);
+    }
+
+    if (storedVersion < 28) {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS pr_watches (
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          pr_number INTEGER NOT NULL,
+          head_branch TEXT NOT NULL,
+          worktree_path TEXT,
+          watch_enabled INTEGER NOT NULL DEFAULT 1,
+          auto_merge INTEGER NOT NULL DEFAULT 0,
+          agent_kind TEXT,
+          config TEXT,
+          last_comment_cursor TEXT,
+          last_review_comment_cursor TEXT,
+          last_review_cursor TEXT,
+          last_check_key TEXT,
+          active_thread_id TEXT,
+          last_error TEXT,
+          PRIMARY KEY (project_id, pr_number)
         );
       `);
     }
