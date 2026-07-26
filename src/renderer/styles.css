@@ -1466,8 +1466,7 @@ html[data-platform="win32"][data-native-material="on"][data-theme="dark"] {
 
    macOS keeps the base token — vibrancy already carries this. Unlayered so both
    the token and `backdrop-filter` beat Tailwind's utilities, but deliberately
-   *not* `box-shadow`, which carries the pill's `shadow-lg` and its accent
-   `ring-1` open-state indicator. */
+   *not* `box-shadow`, which carries the pill's `shadow-lg`. */
 html[data-platform="win32"] {
   --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 55%, transparent);
   --floating-chrome-backdrop: blur(20px) saturate(150%) brightness(0.97);

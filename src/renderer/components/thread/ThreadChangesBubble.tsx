@@ -50,7 +50,7 @@ export function ThreadChangesBubble(props: {
       aria-pressed={isOpen}
       /* Sized to a 28px pill — same height as the scroll-to-bottom circle and the
          rail's icon buttons, so the floating chrome shares one scale. */
-      className={`${floatingChromeSurfaceClass} absolute bottom-full right-2 z-10 mb-1.5 flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors ${
+      className={`${floatingChromeSurfaceClass} absolute bottom-full right-3 z-10 mb-1.5 flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors ${
         isOpen ? floatingChromeActiveClass : "hover:border-border/30"
       }`}
       onClick={() => {
