@@ -3,6 +3,7 @@ import { readNumber, readString, readWindow } from "../drivers/common";
 
 export interface ToolContext {
   driver: ComputerUseDriver;
+  setSessionActive?: (active: boolean) => void;
   threadId?: string;
 }
 
@@ -27,13 +28,25 @@ const WINDOW_SCHEMA = {
 };
 
 export const COMPUTER_USE_MCP_INSTRUCTIONS =
-  "Use the computer_use MCP server to inspect and control native macOS or Windows apps on the host desktop (including when the user is driving from a paired phone/remote client — agents still run on that desktop). Start with computer_use.api or computer_use.list_apps, choose a returned window, then call computer_use.get_window_state before coordinate input. Prefer ordinary Win32 desktop apps when you have a choice — some Store/WinUI apps recreate window handles during activation, so always prefer the `window` object returned by interactive tools (or re-call list_windows/get_window) before the next click/type. list/get/screenshot operations are passive and do not steal focus; click, drag, scroll, type_text, press_key, activate_window, and launch_app switch to interactive mode, bring the target app to the FOREGROUND, and take exclusive control of the real mouse/keyboard — nobody should use the host machine while interactive computer-use is running. Coordinates (x/y) are window-relative with the origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the most recent get_window_state screenshot for that window; if the window may have moved or resized, call get_window_state again before sending coordinates. If a tool reports that the window is no longer available (windows are re-identified after they move/resize), call computer_use.list_windows or computer_use.get_window to obtain a fresh window id and retry. Prefer the browser MCP server for web pages. Locked desktops, secure prompts, OS permission prompts, and password/authentication surfaces require the user.";
+  "Use the computer_use MCP server to inspect and control native macOS or Windows apps on the host desktop (including when the user is driving from a paired phone/remote client — agents still run on that desktop). Start with computer_use.api or computer_use.list_apps, choose a returned window, then call computer_use.get_window_state before coordinate input. Immediately before the first interactive action, call computer_use.enable once; it keeps the Computer Use overlay visible across the whole uninterrupted control session. Keep it enabled between related actions, including passive inspection calls. Always call computer_use.disable before you pause to ask for user input, wait for an external event, or finish; call enable again when you resume. Prefer ordinary Win32 desktop apps when you have a choice — some Store/WinUI apps recreate window handles during activation, so always prefer the `window` object returned by interactive tools (or re-call list_windows/get_window) before the next click/type. list/get/screenshot operations are passive and do not steal focus; click, drag, scroll, type_text, press_key, activate_window, and launch_app switch to interactive mode, bring the target app to the FOREGROUND, and take exclusive control of the real mouse/keyboard — nobody should use the host machine while interactive computer-use is running. Coordinates (x/y) are window-relative with the origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the most recent get_window_state screenshot for that window; if the window may have moved or resized, call get_window_state again before sending coordinates. If a tool reports that the window is no longer available (windows are re-identified after they move/resize), call computer_use.list_windows or computer_use.get_window to obtain a fresh window id and retry. Prefer the browser MCP server for web pages. Locked desktops, secure prompts, OS permission prompts, and password/authentication surfaces require the user.";
 
 export const TOOLS: ToolSpec[] = [
   {
     name: "api",
     description:
       "Return the complete Computer Use API and guidance. Call first when controlling a native app.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "enable",
+    description:
+      "Begin one uninterrupted interactive Computer Use session and keep its desktop overlay visible between actions. Call once before the first interactive action.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "disable",
+    description:
+      "End the current Computer Use session and hide its desktop overlay. Always call before pausing for user input or finishing.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -237,6 +250,14 @@ export async function dispatchTool(
           description: entry.description,
         })),
       };
+    case "enable":
+      if (!ctx.setSessionActive) throw new Error("computer_use.enable requires a thread context");
+      ctx.setSessionActive(true);
+      return { enabled: true };
+    case "disable":
+      if (!ctx.setSessionActive) throw new Error("computer_use.disable requires a thread context");
+      ctx.setSessionActive(false);
+      return { enabled: false };
     case "list_apps":
       return await ctx.driver.listApps();
     case "list_windows":
