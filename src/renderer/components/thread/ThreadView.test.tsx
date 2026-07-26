@@ -1,9 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import type { Thread } from "@/shared/contracts";
+import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ThreadView } from "./ThreadView";
@@ -88,6 +90,7 @@ describe("ThreadView", () => {
       defaultCollapsed: false,
       byThreadId: {},
     });
+    usePanelStore.setState({ rightPanelTab: "git" });
     useAppStore.setState({
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -1232,8 +1235,9 @@ describe("ThreadView", () => {
     expect(screen.getByText("Complete · 120 tokens")).toBeInTheDocument();
   });
 
-  it("moves the pinned todo dock to the right rail and supports collapse", () => {
+  it("moves the pinned todo dock into the unified right panel", () => {
     useAppStore.setState({
+      view: { kind: "thread", panes: ["thread-gui-plan"] },
       runtimeItemIdsByThread: {
         "thread-gui-plan": ["plan-1"],
       },
@@ -1304,11 +1308,14 @@ describe("ThreadView", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Move todo dock to right panel" }));
-    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-placement", "right");
+    expect(screen.queryByLabelText("Thread todo dock")).not.toBeInTheDocument();
+    expect(useThreadTodoDockStore.getState().byThreadId["thread-gui-plan"]?.placement).toBe(
+      "right",
+    );
+    expect(usePanelStore.getState().rightPanelTab).toBe("plan");
 
-    fireEvent.click(screen.getByRole("button", { name: "Collapse todo dock" }));
-    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-collapsed", "true");
-    expect(screen.queryByText("Wire ACP todo placement")).not.toBeInTheDocument();
+    act(() => closeAllPanels());
+    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-placement", "composer");
   });
 
   it("keeps todo dock placement and collapse scoped to each thread", () => {
@@ -1398,10 +1405,12 @@ describe("ThreadView", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Move todo dock to right panel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Collapse todo dock" }));
+    useThreadTodoDockStore.getState().setCollapsed("thread-gui-plan-a", true);
 
-    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-placement", "right");
-    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-collapsed", "true");
+    expect(useThreadTodoDockStore.getState().byThreadId["thread-gui-plan-a"]).toMatchObject({
+      placement: "right",
+      collapsed: true,
+    });
 
     rerender(
       <AppProvider>
