@@ -17,7 +17,6 @@ interface RailDragState {
 interface ThreadToolRailDrag {
   /** Clamped vertical offset to render at, live while dragging. */
   offset: number;
-  isDragging: boolean;
   /** Spread onto the rail pill — it is both the grab handle and the tool container. */
   dragHandlers: {
     onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -109,7 +108,6 @@ export function useThreadToolRailDrag(params: {
 
   return {
     offset,
-    isDragging: dragOffset !== null,
     dragHandlers: {
       onPointerDown,
       onPointerMove,

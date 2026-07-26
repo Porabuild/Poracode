@@ -51,6 +51,7 @@ export function usePanelVisibility() {
       browserPanelOpen ||
       usagePanelOpen ||
       notesPanelOpen);
+  const sidePanelOpen = isTerminalRight ? rightPanelOpen : sideGitPanelOpen;
 
-  return { rightPanelOpen, gitPanelOpen: sideGitPanelOpen };
+  return { rightPanelOpen, gitPanelOpen: sideGitPanelOpen, sidePanelOpen };
 }
