@@ -2010,6 +2010,10 @@ msgstr "Đóng thêm dự án"
 msgid "Close browser"
 msgstr "Đóng trình duyệt"
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
+msgid "Close changes"
+msgstr "Đóng thay đổi"
+
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Close composer"

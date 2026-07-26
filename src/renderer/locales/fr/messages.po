@@ -2010,6 +2010,10 @@ msgstr "Fermer l'ajout de projet"
 msgid "Close browser"
 msgstr "Fermer le navigateur"
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
+msgid "Close changes"
+msgstr "Fermer les changements"
+
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Close composer"

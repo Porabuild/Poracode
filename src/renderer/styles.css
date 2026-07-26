@@ -1450,6 +1450,37 @@ html[data-platform="win32"][data-native-material="on"][data-theme="dark"] {
   --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 85%, transparent);
 }
 
+/* Windows frosting for the *floating chrome* (thread tool rail, changes bubble,
+   chat + terminal scroll-to-bottom). These pills sit over the opaque
+   conversation pane, not over the OS material, so their glass is entirely ours
+   to author — and on Windows, where there is no vibrancy softening them, the
+   shared 82% tint reads as a flat plate stamped on the chat.
+
+   Thinning the tint alone does not fix it: --sidebar-background and
+   --content-background are close in value (dark: #0e0e14 over #070709), so the
+   pill's *fill* composites to nearly the same color either way. What sells the
+   glass is the backdrop — hence a `brightness()` lift alongside the blur, so
+   the sampled conversation reads as lit frosting rather than a faded patch.
+   Dark leans on brightness (it has room to lift); light instead settles the
+   backdrop slightly, where a lift would blow out to white.
+
+   macOS keeps the base token — vibrancy already carries this. Unlayered so both
+   the token and `backdrop-filter` beat Tailwind's utilities, but deliberately
+   *not* `box-shadow`, which carries the pill's `shadow-lg`. */
+html[data-platform="win32"] {
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 55%, transparent);
+  --floating-chrome-backdrop: blur(20px) saturate(150%) brightness(0.97);
+}
+html[data-platform="win32"].dark,
+html[data-platform="win32"][data-theme="dark"] {
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 45%, transparent);
+  --floating-chrome-backdrop: blur(20px) saturate(160%) brightness(1.35);
+}
+html[data-platform="win32"] .poracode-floating-chrome {
+  backdrop-filter: var(--floating-chrome-backdrop);
+  -webkit-backdrop-filter: var(--floating-chrome-backdrop);
+}
+
 /* 2. In-app fallback: opaque window, faux-translucent gradient sidebar. */
 html[data-sidebar-glass="on"]:not([data-native-material="on"]) .poracode-sidebar-aside {
   background: linear-gradient(
@@ -1519,6 +1550,16 @@ html[data-native-material="on"]
     backdrop-filter: none;
     box-shadow: none;
   }
+  /* The Windows floating chrome leans hard on backdrop blur (see the win32 block
+     above), so it needs its own opt-out: paint the pills solid and drop the
+     filter so the diff counts and rail icons keep full contrast. Set on the
+     element rather than the token — the dark-theme token override carries more
+     specificity than a bare html[data-platform] rule would here. */
+  html[data-platform="win32"] .poracode-floating-chrome {
+    background: var(--sidebar-background);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* Counterpart to .poracode-content-over-drag-region: used on pane headers
@@ -1577,6 +1618,35 @@ html[data-platform="darwin"] .poracode-content-over-drag-region--drag {
   position: relative;
   z-index: 20;
   flex-shrink: 0;
+}
+
+/* Right / git panel floating as a right-edge overlay: the handle sits inside the
+   fixed aside (which clips its children), so it cannot straddle the shared
+   border with negative margins. Keep the hit area inside the panel's left
+   gutter and draw the hover accent over the border itself. */
+.poracode-resize-handle-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 20;
+}
+
+.poracode-resize-handle-overlay::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.poracode-resize-handle-overlay:hover::after,
+.poracode-resize-handle-overlay:focus-visible::after {
+  background: var(--accent);
 }
 
 /* Right / git / bottom terminal: [handle][aside] or [horizontal handle][aside] */
@@ -2939,8 +3009,11 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-image-lightbox__close {
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+  top: calc(env(titlebar-area-height, 32px) + 1rem);
+  right: max(
+    1.5rem,
+    calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 1rem)
+  );
   display: flex;
   align-items: center;
   justify-content: center;

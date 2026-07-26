@@ -303,6 +303,7 @@ export function GitReviewOverlay(props: {
       sidebar={
         <GitReviewSidebar
           project={effectiveProject}
+          mergeSyncLocation={project.location}
           gitStatus={gitStatus}
           selectedFile={selectedFile}
           selectedStaged={selectedStaged}

@@ -268,6 +268,7 @@ export function GitView(props: {
         <div className="m-ws-pane">
           <GitReviewSidebar
             project={effectiveProject}
+            mergeSyncLocation={project.location}
             gitStatus={gitStatus}
             selectedFile={selectedFile}
             selectedStaged={selectedStaged}

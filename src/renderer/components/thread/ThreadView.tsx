@@ -15,9 +15,6 @@ import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
-import { ComputerUseChip, McpChip } from "@/renderer/components/composer/AttachmentBar";
-import { browserMcpServer } from "@/renderer/components/composer/composerMcpServers";
-import { readBridge } from "@/renderer/bridge";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { setRendererRuntimeDiagnosticContext } from "@/renderer/diagnostics/sentry";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
@@ -69,8 +66,6 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.thread.done === next.thread.done &&
     prev.thread.canResumeWithConfig === next.thread.canResumeWithConfig &&
     prev.thread.sessionRef?.providerSessionId === next.thread.sessionRef?.providerSessionId &&
-    prev.thread.config.browserMcp === next.thread.config.browserMcp &&
-    prev.thread.config.computerUse === next.thread.config.computerUse &&
     (!configAffectsLaunch || prev.thread.config === next.thread.config) &&
     prev.agentStatus === next.agentStatus &&
     prev.projectLocation === next.projectLocation &&
@@ -179,15 +174,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     (thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal") ===
     "terminal";
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
-  // Browser MCP is bound at session-create time for every provider (Claude SDK
-  // `mcpServers` baked into `query()`, Codex `-c` overrides, ACP `newSession`).
-  // Toggling mid-thread can't re-attach the server, so the indicator in the
-  // active-thread header is informational only — disabling it would mislead
-  // the user into thinking the tool is no longer in scope. The toggle lives
-  // exclusively in the draft composer's ComposerAddMenu.
-  const showBrowserChip = thread.config.browserMcp === true;
-  const showComputerUseChip =
-    thread.config.computerUse === true && !isWsl && readBridge().platform !== "linux";
 
   useEffect(() => {
     const presentation =
@@ -264,6 +250,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     <>
       <div
         ref={droppableRef}
+        data-poracode-thread-pane=""
         className={`group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
       >
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
@@ -308,16 +295,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   {thread.title}
                 </Tooltip.Content>
               </Tooltip>
-              {showBrowserChip ? (
-                <McpChip
-                  descriptor={browserMcpServer}
-                  variant="header"
-                  {...(thread.agentKind === "opencode"
-                    ? { title: t`Browser MCP enabled for OpenCode` }
-                    : {})}
-                />
-              ) : null}
-              {showComputerUseChip ? <ComputerUseChip variant="header" /> : null}
               <div className="flex shrink-0 items-center">
                 {projectName ? (
                   <span className="px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
@@ -390,6 +367,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     <CircleCheck className="size-3.5" />
                   </button>
                 ) : null}
+                <ThreadToolRail
+                  projectId={thread.projectId}
+                  paneCount={paneCount}
+                  {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                />
                 {showCloseButton ? (
                   <button
                     type="button"
@@ -464,12 +446,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
             )}
           </div>
         </div>
-
-        <ThreadToolRail
-          projectId={thread.projectId}
-          paneCount={paneCount}
-          {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-        />
       </div>
       {onContinueInProvider && installedAgents && continueDialogOpen ? (
         <ContinueInProviderDialog

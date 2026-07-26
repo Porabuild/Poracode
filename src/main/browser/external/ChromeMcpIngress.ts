@@ -23,6 +23,7 @@ export type ChromeMcpIngressInfo = StreamableHttpMcpIngressInfo;
 export class ChromeMcpIngress {
   private allowEval = false;
   private allowDataAccess = false;
+  private readonly activeSessions = new Set<string>();
   private getConnection: (() => ExternalChromeConnection | null) | null = null;
   private readonly ingress = new StreamableHttpMcpIngress<ChromeToolContext>({
     // Chrome MCP is intentionally unavailable to WSL agents, so exposing this
@@ -58,14 +59,21 @@ export class ChromeMcpIngress {
   }
 
   dispose(): void {
+    this.activeSessions.clear();
     this.ingress.dispose();
   }
 
   private buildContext(identity: McpThreadIdentity): ChromeToolContext {
+    const sessionId = identity.threadId ?? "unscoped";
     return {
       connection: this.getConnection?.() ?? null,
       allowEval: this.allowEval,
       allowDataAccess: this.allowDataAccess,
+      setSessionActive: (active) => {
+        if (active) this.activeSessions.add(sessionId);
+        else this.activeSessions.delete(sessionId);
+        return this.activeSessions.size === 0;
+      },
       ...(identity.threadId ? { threadId: identity.threadId } : {}),
       ...(identity.title ? { threadTitle: identity.title } : {}),
     };

@@ -49,19 +49,25 @@ export const panelHeaderTooltipTriggerResetClass =
  * Floating chrome that hovers over a thread's conversation — the per-thread tool
  * rail, the changes bubble above the composer, and the scroll-to-bottom button.
  * One class so the three share a surface; the tint tracks `--sidebar-background`
- * (see styles.css) so they read as app chrome in every theme.
+ * (see styles.css) so they read as app chrome in every theme. The
+ * `poracode-floating-chrome` marker lets styles.css push the blur further on
+ * Windows, which has no OS vibrancy behind these pills.
  */
 export const floatingChromeSurfaceClass =
-  "border border-border/15 bg-[var(--floating-chrome-surface)] shadow-lg backdrop-blur-md";
+  "poracode-floating-chrome border border-border/15 bg-[var(--floating-chrome-surface)] shadow-lg backdrop-blur-md";
+
+/** Pressed/open state for a floating-chrome pill that toggles a panel. */
+export const floatingChromeActiveClass =
+  "!bg-[color:color-mix(in_oklab,var(--floating-chrome-surface)_94%,var(--foreground)_6%)]";
 
 /** Icon button in panel headers (tab toggles, close, expand). */
 export const panelHeaderIconButtonClass =
   "inline-flex items-center justify-center rounded p-0.5 text-muted hover:text-foreground";
 
-/** Tab-style icon button: accents when active, muted+hover otherwise. */
+/** Tab-style icon button: foreground when active, muted+hover otherwise. */
 export function panelHeaderTabIconButtonClass(active: boolean) {
   return `inline-flex items-center justify-center rounded p-0.5 transition-colors ${
-    active ? "text-accent" : "text-muted hover:text-foreground"
+    active ? "text-foreground" : "text-muted hover:text-foreground"
   }`;
 }
 

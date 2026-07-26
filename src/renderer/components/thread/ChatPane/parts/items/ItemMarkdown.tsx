@@ -7,7 +7,7 @@ import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
-import { parseProjectPathRef } from "./parseProjectPathRef";
+import { parseProjectPathRef, PROJECT_PATH_TOKEN_SOURCE } from "./parseProjectPathRef";
 import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
 
 interface ItemMarkdownProps {
@@ -111,8 +111,7 @@ type PlainTextNode =
   | { kind: "file"; path: string; line?: number; endLine?: number }
   | { kind: "folder"; path: string };
 
-const PLAIN_TOKEN_RE =
-  /https?:\/\/[^\s<>"']+|(?<![A-Za-z0-9_:/@.\\-])(\/?[A-Za-z0-9_@.][A-Za-z0-9_@.-]*(?:[\\/][A-Za-z0-9_@.-]+)+)(?::(\d+)(?:-\d+)?)?/g;
+const PLAIN_TOKEN_RE = new RegExp(`https?:\\/\\/[^\\s<>"']+|${PROJECT_PATH_TOKEN_SOURCE}`, "g");
 
 function tokenizePlainText(
   text: string,

@@ -2009,6 +2009,10 @@ msgstr "プロジェクトの追加を閉じる"
 msgid "Close browser"
 msgstr "ブラウザを閉じる"
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
+msgid "Close changes"
+msgstr "変更点を閉じる"
+
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Close composer"
