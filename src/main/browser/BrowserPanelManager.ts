@@ -74,6 +74,7 @@ export class BrowserPanelManager {
   private readonly bookmarks = new BrowserBookmarkStore();
   private restored = false;
   private automationActive = false;
+  private readonly automationSessions = new Set<string>();
   private automationTimer: ReturnType<typeof setTimeout> | null = null;
   private pickerKeyCleanup: (() => void) | null = null;
   private readonly loginCoordinator = new BrowserLoginCaptureCoordinator({
@@ -177,6 +178,8 @@ export class BrowserPanelManager {
       clearTimeout(this.automationTimer);
       this.automationTimer = null;
     }
+    this.automationSessions.clear();
+    this.automationActive = false;
     this.clearPickerShortcut();
     this.loginCoordinator.cancelLoginConfirmations();
     for (const t of this.tabs) {
@@ -271,11 +274,34 @@ export class BrowserPanelManager {
       this.emit({ type: "automation-active", active: true });
     }
     if (this.automationTimer) clearTimeout(this.automationTimer);
+    if (this.automationSessions.size > 0) {
+      this.automationTimer = null;
+      return;
+    }
     this.automationTimer = setTimeout(() => {
       this.automationTimer = null;
       this.automationActive = false;
       this.emit({ type: "automation-active", active: false });
     }, AUTOMATION_GRACE_MS);
+  }
+
+  setAutomationSession(sessionId: string, active: boolean): boolean {
+    if (active) {
+      this.automationSessions.add(sessionId);
+      this.markAutomationActivity();
+      return false;
+    }
+
+    this.automationSessions.delete(sessionId);
+    if (this.automationSessions.size > 0) return false;
+    if (!this.automationActive) return true;
+    if (this.automationTimer) {
+      clearTimeout(this.automationTimer);
+      this.automationTimer = null;
+    }
+    this.automationActive = false;
+    this.emit({ type: "automation-active", active: false });
+    return true;
   }
 
   /**

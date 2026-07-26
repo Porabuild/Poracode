@@ -50,6 +50,9 @@ function __pcRipple(x,y){
 }`;
 
 const SCREENSHOT_OVERLAY_STYLE_ID = "__poracode_screenshot_overlay_hide__";
+const SESSION_OVERLAY_STYLE_ID = "__poracode_session_overlay_hide__";
+const CURSOR_OVERLAY_HIDDEN_CSS =
+  "#__poracode_cursor__,[data-poracode-cursor-ripple]{visibility:hidden!important}";
 const SCREENSHOT_OVERLAY_EVAL_CAP_MS = 250;
 
 const HIDE_OVERLAY_FOR_SCREENSHOT = `(async () => {
@@ -58,7 +61,7 @@ const HIDE_OVERLAY_FOR_SCREENSHOT = `(async () => {
   if(!style){
     style=document.createElement("style");
     style.id=ID;
-    style.textContent="#__poracode_cursor__,[data-poracode-cursor-ripple]{visibility:hidden!important}";
+    style.textContent=${JSON.stringify(CURSOR_OVERLAY_HIDDEN_CSS)};
     (document.head||document.documentElement).appendChild(style);
   }
   const depth=Number(style.dataset.depth||"0");
@@ -110,6 +113,25 @@ async function settleBounded<T>(promise: Promise<T>): Promise<BoundedResult<T>> 
 
 function restoreCursorOverlay(cdp: CdpSession): Promise<unknown> {
   return evalJs(cdp, RESTORE_OVERLAY_AFTER_SCREENSHOT);
+}
+
+/** Show or hide the page-level agent presence visuals for an explicit MCP
+ * session. Best-effort so presence bookkeeping never blocks browser work. */
+export async function setCursorOverlayVisible(cdp: CdpSession, visible: boolean): Promise<void> {
+  const expression = visible
+    ? `(() => { document.getElementById(${JSON.stringify(SESSION_OVERLAY_STYLE_ID)})?.remove(); return true; })()`
+    : `(() => {
+        const ID=${JSON.stringify(SESSION_OVERLAY_STYLE_ID)};
+        let style=document.getElementById(ID);
+        if(!style){
+          style=document.createElement("style");
+          style.id=ID;
+          style.textContent=${JSON.stringify(CURSOR_OVERLAY_HIDDEN_CSS)};
+          (document.head||document.documentElement).appendChild(style);
+        }
+        return true;
+      })()`;
+  await settleBounded(evalJs(cdp, expression));
 }
 
 /** Hide the agent-presence cursor and click ripples for the duration of a page
