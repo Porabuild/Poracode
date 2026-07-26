@@ -250,6 +250,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     <>
       <div
         ref={droppableRef}
+        data-poracode-thread-pane=""
         className={`group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
       >
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
@@ -366,6 +367,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     <CircleCheck className="size-3.5" />
                   </button>
                 ) : null}
+                <ThreadToolRail
+                  projectId={thread.projectId}
+                  paneCount={paneCount}
+                  {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                />
                 {showCloseButton ? (
                   <button
                     type="button"
@@ -440,12 +446,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
             )}
           </div>
         </div>
-
-        <ThreadToolRail
-          projectId={thread.projectId}
-          paneCount={paneCount}
-          {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-        />
       </div>
       {onContinueInProvider && installedAgents && continueDialogOpen ? (
         <ContinueInProviderDialog

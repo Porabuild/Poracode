@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
 import { FileDiff, FolderOpen, NotebookPen, PanelRightOpen, TerminalSquare } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
@@ -17,10 +18,6 @@ import { usePanelVisibility } from "@/renderer/views/MainView/parts/AppShell/par
 import { floatingChromeSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
 import { useThreadToolRailDrag } from "./useThreadToolRailDrag";
 
-/**
- * Closed handle and open rail share both the surface (with the changes bubble
- * and scroll-to-bottom) and the pill geometry, so opening shifts nothing.
- */
 const railPillClass = "flex flex-col items-center gap-0.5 rounded-full p-1";
 
 /**
@@ -39,6 +36,8 @@ interface RailTool {
   activate: () => void;
 }
 
+type HeaderMenuPhase = "ready" | "suppressed" | "awaiting-reentry";
+
 /**
  * Per-pane launcher for the thread-scoped right-panel tools (git, files,
  * terminal, notes) pointed at *this* thread's project + worktree. Panel-wide
@@ -46,15 +45,12 @@ interface RailTool {
  * header only.
  *
  * Interaction mirrors the mobile PWA:
- * - Hidden entirely while the right panel is docked — the panel already exposes
- *   every tool in its header, and the rail would sit right against it.
+ * - The header launcher is omitted while the side rail is rendered, leaving no
+ *   duplicate icon or empty header space.
  * - Single pane wide enough that the rail lands beside the centered chat column
  *   instead of over it: permanently open and visible.
- * - Anything narrower (or split panes): only a handle, revealed on pane
- *   hover/focus, expanding into the rail on hover/focus of the rail itself. The
- *   hover target is deliberately larger than the handle so approaching the edge
- *   counts as intent to open, but stays short vertically so it does not swallow
- *   text selection or scrollbar drags down the whole right edge.
+ * - Anything narrower (or split panes): a header icon that expands downward
+ *   into the tool menu on hover/focus, keeping the conversation unobstructed.
  */
 export function ThreadToolRail(props: {
   projectId: string;
@@ -84,53 +80,56 @@ export function ThreadToolRail(props: {
       (s.activeWorktreePath ?? undefined) === worktreePath,
   );
   const terminalOnRight = useSharedSettings((s) => s.terminalPosition === "right");
-  const { rightPanelOpen, gitPanelOpen } = usePanelVisibility();
-  // Only the right-edge aside counts: with the terminal docked at the bottom,
-  // `rightPanelOpen` tracks that bottom dock and must not hide the rail.
-  const sidePanelOpen = gitPanelOpen || (terminalOnRight && rightPanelOpen);
+  const { sidePanelOpen } = usePanelVisibility();
 
-  const railRef = useRef<HTMLDivElement>(null);
+  const paneAnchorRef = useRef<HTMLSpanElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
+  const [paneElement, setPaneElement] = useState<HTMLElement | null>(null);
   const [paneWidth, setPaneWidth] = useState<number | null>(null);
   const [paneHeight, setPaneHeight] = useState<number | null>(null);
   const [railHeight, setRailHeight] = useState<number | null>(null);
+  const [headerMenuPhase, setHeaderMenuPhase] = useState<HeaderMenuPhase>("ready");
+  const alwaysOpen =
+    paneCount === 1 && paneWidth !== null && paneWidth >= ALWAYS_OPEN_MIN_PANE_WIDTH;
+  const sideRailVisible = alwaysOpen && paneElement !== null && !sidePanelOpen;
+
   useLayoutEffect(() => {
-    if (sidePanelOpen) return;
-    // The rail is absolutely positioned inside the thread pane, so its
-    // offsetParent *is* that pane. Its width decides whether an always-open rail
-    // lands beside the centered chat column or on top of it; its height, plus
-    // the pill's own, bounds how far the rail can be dragged.
-    const pane = railRef.current?.offsetParent;
+    if (paneCount !== 1 || sidePanelOpen) return;
+    // The pane width decides whether the rail clears the centered chat column;
+    // its height and the pill height bound rail dragging.
+    const pane = paneAnchorRef.current?.closest("[data-poracode-thread-pane]");
     if (!(pane instanceof HTMLElement)) return;
-    // `invisible` keeps layout, so the closed rail still reports its real height.
+    setPaneElement(pane);
     const pill = pillRef.current;
 
     const skipIfClose = (prev: number | null, next: number) =>
       prev !== null && Math.abs(prev - next) < 0.5 ? prev : next;
+
+    const paneRect = pane.getBoundingClientRect();
+    setPaneWidth((prev) => skipIfClose(prev, paneRect.width));
+    if (alwaysOpen) {
+      setPaneHeight((prev) => skipIfClose(prev, paneRect.height));
+    }
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.target === pane) {
           const rect = entry.contentRect;
           setPaneWidth((prev) => skipIfClose(prev, rect.width));
-          setPaneHeight((prev) => skipIfClose(prev, rect.height));
+          if (alwaysOpen) {
+            setPaneHeight((prev) => skipIfClose(prev, rect.height));
+          }
         } else if (entry.target === pill) {
           setRailHeight((prev) => skipIfClose(prev, entry.contentRect.height));
         }
       }
     });
     observer.observe(pane);
-    if (pill) observer.observe(pill);
+    if (alwaysOpen && pill) observer.observe(pill);
     return () => observer.disconnect();
-  }, [sidePanelOpen]);
+  }, [alwaysOpen, paneCount, sidePanelOpen]);
 
-  const { offset, isDragging, dragHandlers } = useThreadToolRailDrag({ paneHeight, railHeight });
-
-  const alwaysOpen =
-    paneCount === 1 && paneWidth !== null && paneWidth >= ALWAYS_OPEN_MIN_PANE_WIDTH;
-  // A drag can travel outside the hover box, which would otherwise drop the
-  // CSS-driven open state mid-gesture.
-  const forceOpen = alwaysOpen || isDragging;
+  const { offset, dragHandlers } = useThreadToolRailDrag({ paneHeight, railHeight });
 
   // Home-scope "projects" have no repository or file root, matching the tabs
   // the right panel itself hides for that scope.
@@ -187,90 +186,105 @@ export function ThreadToolRail(props: {
 
   const primaryTool = tools[0];
   if (!primaryTool) return null;
-  // The docked panel already exposes every tool in its header. Re-measuring is
-  // handled by the layout effect above, which re-attaches once this clears.
-  if (sidePanelOpen) return null;
 
-  // Top-anchored with a draggable offset rather than vertically centered, so the
-  // rail sits over the conversation body wherever the user parked it.
-  return (
-    <div
-      ref={railRef}
-      className="pointer-events-none absolute inset-y-0 right-0 z-20 flex items-start"
-    >
-      {/* When the rail has to overlap the chat column, padding — not size —
-          makes the open/intent area larger than the handle, while staying short
-          enough that it does not swallow scrollbar drags down the right edge.
-          Positioned with a transform, not layout: the pill carries a
-          `backdrop-blur` layer, and re-laying it out every drag frame makes the
-          compositor flash a stale copy of that backdrop. */}
-      <div
-        className={`group/rail pointer-events-auto flex items-start py-3 pr-1.5 ${
-          alwaysOpen ? "pl-1.5" : "pl-10"
+  const suppressHeaderMenu = () => {
+    setHeaderMenuPhase("suppressed");
+  };
+
+  const toolButtons = tools.map((tool) => {
+    const Icon = tool.icon;
+    return (
+      <button
+        key={tool.id}
+        type="button"
+        title={tool.label}
+        aria-label={tool.label}
+        aria-pressed={tool.active}
+        className={`flex size-7 items-center justify-center rounded-full transition-colors ${
+          tool.active
+            ? "bg-accent/15 text-accent"
+            : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
         }`}
-        style={{ transform: `translateY(${offset}px)` }}
+        onClick={() => {
+          suppressHeaderMenu();
+          tool.activate();
+        }}
       >
-        <div className="relative flex items-start">
-          {/* Same pill geometry as the open rail, so opening shifts nothing.
-              Fades in with the pane, then out as the rail opens over it — the
-              open surface is translucent, so leaving it underneath would show
-              its glyph through. */}
-          {forceOpen ? null : (
-            <div className="opacity-0 transition-opacity duration-150 group-hover/pane:opacity-80">
-              <div className="transition-opacity duration-150 group-hover/rail:opacity-0 group-focus-within/rail:opacity-0">
-                <div className={`${floatingChromeSurfaceClass} ${railPillClass}`}>
-                  <button
-                    type="button"
-                    title={t`Show thread tools`}
-                    aria-label={t`Show thread tools`}
-                    className="flex size-7 items-center justify-center rounded-full text-muted transition-colors hover:text-foreground"
-                    onClick={primaryTool.activate}
-                  >
-                    <PanelRightOpen className="size-3.5" />
-                  </button>
+        <Icon className="size-3.5" />
+      </button>
+    );
+  });
+
+  return (
+    <>
+      {sideRailVisible && paneElement
+        ? createPortal(
+            <div className="poracode-overlay-header__controls pointer-events-none absolute inset-y-0 right-0 z-20 flex items-start">
+              {/* Positioned with a transform, not layout: the pill carries a
+                `backdrop-blur` layer, and re-laying it out every drag frame
+                makes the compositor flash a stale copy of that backdrop. */}
+              <div
+                className="pointer-events-auto flex items-start py-3 pl-1.5 pr-1.5"
+                style={{ transform: `translateY(${offset}px)` }}
+              >
+                <div
+                  ref={pillRef}
+                  data-poracode-thread-tool-rail=""
+                  data-placement="side"
+                  className={`${floatingChromeSurfaceClass} ${railPillClass} cursor-grab touch-none select-none active:cursor-grabbing`}
+                  {...dragHandlers}
+                >
+                  {toolButtons}
                 </div>
               </div>
-            </div>
-          )}
-          {/* `invisible` (not just opacity) keeps the closed rail out of the tab
-              order; focus-within on the handle reveals it before Tab moves in.
-              It grows downward from the handle instead of expanding around it,
-              which would push the rail up over the pane header. */}
-          <div
-            ref={pillRef}
-            data-poracode-thread-tool-rail=""
-            className={`${floatingChromeSurfaceClass} ${railPillClass} cursor-grab touch-none select-none transition-opacity duration-150 active:cursor-grabbing ${
-              alwaysOpen ? "" : "absolute right-0 top-0"
-            } ${
-              forceOpen
-                ? ""
-                : "invisible opacity-0 group-hover/rail:visible group-hover/rail:opacity-100 group-focus-within/rail:visible group-focus-within/rail:opacity-100"
-            }`}
-            {...dragHandlers}
+            </div>,
+            paneElement,
+          )
+        : null}
+      {sideRailVisible ? null : (
+        <div
+          data-poracode-thread-tool-rail=""
+          data-placement="header"
+          className="poracode-overlay-header__controls group/thread-tools relative shrink-0"
+          onPointerLeave={() => {
+            setHeaderMenuPhase((phase) => (phase === "suppressed" ? "awaiting-reentry" : phase));
+          }}
+          onPointerEnter={() => {
+            setHeaderMenuPhase((phase) => (phase === "awaiting-reentry" ? "ready" : phase));
+          }}
+          onFocusCapture={() => setHeaderMenuPhase("ready")}
+        >
+          <button
+            type="button"
+            title={t`Show thread tools`}
+            aria-label={t`Show thread tools`}
+            className="flex size-6 items-center justify-center rounded text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+            onClick={() => {
+              suppressHeaderMenu();
+              primaryTool.activate();
+            }}
           >
-            {tools.map((tool) => {
-              const Icon = tool.icon;
-              return (
-                <button
-                  key={tool.id}
-                  type="button"
-                  title={tool.label}
-                  aria-label={tool.label}
-                  aria-pressed={tool.active}
-                  className={`flex size-7 items-center justify-center rounded-full transition-colors ${
-                    tool.active
-                      ? "bg-accent/15 text-accent"
-                      : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
-                  }`}
-                  onClick={tool.activate}
-                >
-                  <Icon className="size-3.5" />
-                </button>
-              );
-            })}
+            <PanelRightOpen className="size-3.5" />
+          </button>
+          <div
+            data-poracode-thread-tool-menu=""
+            className={`pointer-events-none invisible absolute left-1/2 top-full z-30 grid w-9 -translate-x-1/2 grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-150 ${
+              headerMenuPhase !== "ready"
+                ? ""
+                : "group-hover/thread-tools:pointer-events-auto group-hover/thread-tools:visible group-hover/thread-tools:grid-rows-[1fr] group-hover/thread-tools:opacity-100 group-focus-within/thread-tools:pointer-events-auto group-focus-within/thread-tools:visible group-focus-within/thread-tools:grid-rows-[1fr] group-focus-within/thread-tools:opacity-100"
+            }`}
+          >
+            <div className="min-h-0 overflow-hidden pt-1">
+              <div className={`${floatingChromeSurfaceClass} ${railPillClass}`}>{toolButtons}</div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+      <span
+        ref={paneAnchorRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute left-0 top-0 size-0"
+      />
+    </>
   );
 }

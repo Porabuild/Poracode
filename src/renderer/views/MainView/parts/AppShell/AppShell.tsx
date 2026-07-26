@@ -441,7 +441,7 @@ export function AppShell(props: {
   }, []);
   const layoutMetricsReady = shellWidth > 0;
 
-  const { rightPanelOpen, gitPanelOpen } = usePanelVisibility();
+  const { rightPanelOpen, gitPanelOpen, sidePanelOpen } = usePanelVisibility();
   const isBottom = terminalPosition === "bottom";
   const hasHeaders = sidebarHeader != null || contentHeader != null;
   const hasContentHeader = contentHeader != null;
@@ -450,7 +450,7 @@ export function AppShell(props: {
   // CONTENT_MIN_WIDTH, render them as a fixed overlay anchored to the right
   // edge (mirroring the sidebar's narrow overlay).
   const dockedRightPanelOpen = !isBottom && rightPanelOpen;
-  const wantsRightOverlay = dockedRightPanelOpen || gitPanelOpen;
+  const wantsRightOverlay = sidePanelOpen;
   // Compute the docked main width even when panels are currently overlaid, so
   // the transition between modes is driven by a stable signal.
   const wouldBeMainWidth = layoutMetricsReady
