@@ -5,7 +5,7 @@ import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice"
 import { QuestionAnswer } from "./QuestionAnswer";
 
 describe("QuestionAnswer", () => {
-  it("renders selected options, descriptions, custom answers, and checkpoint controls", async () => {
+  it("renders selected options, descriptions, custom answers, and checkpoint controls", () => {
     const item: RuntimeChatItem = {
       id: "qa-1",
       type: "question_answer",
@@ -23,7 +23,7 @@ describe("QuestionAnswer", () => {
       streams: {},
     };
 
-    render(
+    const { container } = render(
       <QuestionAnswer
         item={item}
         checkpointRevert={{ itemId: "qa-1", onRequestRevert: () => {} }}
@@ -34,12 +34,7 @@ describe("QuestionAnswer", () => {
     expect(screen.getByText("Allow this command?")).toBeInTheDocument();
     expect(screen.getByText("Allow once")).toBeInTheDocument();
     expect(screen.getByText("Only for this run")).toBeInTheDocument();
-    expect(
-      await screen.findByText(
-        (_, element) =>
-          element?.tagName === "P" && element.textContent === "Use README.md instead.",
-      ),
-    ).toBeInTheDocument();
+    expect(container).toHaveTextContent("Use README.md instead.");
     const revertButton = screen.getByRole("button", { name: "Revert to this checkpoint" });
     expect(revertButton).toBeInTheDocument();
     expect(revertButton.closest(".poracode-message-action-strip")).not.toBeNull();
