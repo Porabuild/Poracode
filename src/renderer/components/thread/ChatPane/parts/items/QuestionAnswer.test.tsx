@@ -34,7 +34,12 @@ describe("QuestionAnswer", () => {
     expect(screen.getByText("Allow this command?")).toBeInTheDocument();
     expect(screen.getByText("Allow once")).toBeInTheDocument();
     expect(screen.getByText("Only for this run")).toBeInTheDocument();
-    expect(await screen.findByText("Use README.md instead.")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        (_, element) =>
+          element?.tagName === "P" && element.textContent === "Use README.md instead.",
+      ),
+    ).toBeInTheDocument();
     const revertButton = screen.getByRole("button", { name: "Revert to this checkpoint" });
     expect(revertButton).toBeInTheDocument();
     expect(revertButton.closest(".poracode-message-action-strip")).not.toBeNull();
