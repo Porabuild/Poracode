@@ -225,6 +225,42 @@ describe("ChatPane", () => {
     expect(loadOlderThreadRuntimeItems).toHaveBeenLastCalledWith(thread.id);
   });
 
+  it("resolves a bare filename chip through the project index before opening it", async () => {
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Open BrowserPanelManager.ts:288.");
+    useAppStore.setState({ projects: [project] });
+    const searchProjectFiles = vi
+      .fn<typeof window.poracode.searchProjectFiles>()
+      .mockResolvedValue({
+        entries: [
+          {
+            path: "src/main/browser/BrowserPanelManager.ts",
+            name: "BrowserPanelManager.ts",
+            type: "file",
+          },
+        ],
+        totalIndexed: 1,
+      });
+    Object.assign(window.poracode, { searchProjectFiles });
+    const onOpenProjectRelativePath = vi.fn<(path: string, lineNumber?: number) => void>();
+
+    renderChatPane(thread, { onOpenProjectRelativePath });
+
+    fireEvent.click(await screen.findByRole("button", { name: /BrowserPanelManager\.ts.*288/ }));
+
+    await waitFor(() =>
+      expect(onOpenProjectRelativePath).toHaveBeenCalledWith(
+        "src/main/browser/BrowserPanelManager.ts",
+        288,
+      ),
+    );
+    expect(searchProjectFiles).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      query: "BrowserPanelManager.ts",
+      limit: 5,
+    });
+  });
+
   it("keeps the chat pinned when the last assistant message grows without changing the scroll anchor", async () => {
     const thread = makeThread();
     seedAssistantMessage(thread.id, "Inspect output");

@@ -13,6 +13,34 @@ interface MdNode {
 }
 
 describe("remarkAutolinkProjectPaths", () => {
+  it("detects bare filename references in plain text", () => {
+    const tree: MdNode = {
+      type: "root",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "text",
+              value: "BrowserPanelManager.ts:288 lost its badge.",
+            },
+          ],
+        },
+      ],
+    };
+
+    remarkAutolinkProjectPaths({
+      parsePathRef: (token): ProjectPathRef | null =>
+        token === "BrowserPanelManager.ts:288"
+          ? { kind: "file", path: "BrowserPanelManager.ts", line: 288 }
+          : null,
+    })(tree);
+
+    expect(tree.children?.[0]?.children?.[0]?.url).toBe(
+      `${AUTO_PATH_FILE_HREF_PREFIX}${encodeURIComponent("BrowserPanelManager.ts:288")}`,
+    );
+  });
+
   it("rewrites recognized markdown link urls to file-chip links", () => {
     const tree: MdNode = {
       type: "root",
