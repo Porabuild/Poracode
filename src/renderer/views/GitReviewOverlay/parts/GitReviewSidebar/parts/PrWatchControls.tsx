@@ -153,7 +153,7 @@ export function PrWatchControls(props: {
           aria-label={t`PR automation`}
           title={t`PR automation`}
           className={`flex items-center justify-center rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${
-            enabled ? "text-accent" : "text-muted"
+            enabled ? "text-foreground" : "text-muted"
           }`}
         >
           <Workflow className="size-3.5" />
