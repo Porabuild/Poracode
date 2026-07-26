@@ -105,7 +105,7 @@ export interface WatchEvent {
 export class WslBridgeServer {
   private readonly bridges = new Map<string, BridgeState>();
   private readonly inFlight = new Map<string, Promise<BridgeHandle | undefined>>();
-  private readonly disposed = new WeakSet<BridgeState>();
+  private readonly disposed = new WeakSet<ChildProcess>();
   private readonly bootTimeoutMs: number;
   private readonly watchListeners = new Map<string, WatchListenerEntry>();
   private isDisposed = false;
@@ -158,7 +158,7 @@ export class WslBridgeServer {
           });
         }
         this.bridges.delete(distro);
-        this.disposed.add(existing);
+        this.disposed.add(existing.child);
         try {
           terminateChildProcessTree(existing.child);
         } catch {
@@ -195,7 +195,7 @@ export class WslBridgeServer {
       const state = this.bridges.get(distro);
       if (!state) continue;
       this.bridges.delete(distro);
-      this.disposed.add(state);
+      this.disposed.add(state.child);
       this.unregisterWatchListenersForDistro(distro);
       try {
         terminateChildProcessTree(state.child);
@@ -203,6 +203,24 @@ export class WslBridgeServer {
         // best effort
       }
     }
+  }
+
+  /** Stop Poracode's bridge process without terminating the WSL distro itself. */
+  releaseBridge(distro: string): void {
+    this.unregisterWatchListenersForDistro(distro);
+    const releaseStartedBridge = (): void => {
+      const state = this.bridges.get(distro);
+      if (!state) return;
+      this.bridges.delete(distro);
+      this.disposed.add(state.child);
+      try {
+        terminateChildProcessTree(state.child);
+      } catch {
+        // best effort
+      }
+    };
+    void this.inFlight.get(distro)?.then(releaseStartedBridge);
+    releaseStartedBridge();
   }
 
   /**
@@ -415,7 +433,7 @@ export class WslBridgeServer {
       }
       if (!booted) {
         rejectBoot(new Error(`wsl hook bridge[${distro}] exited before boot`));
-      } else if (!this.isDisposed) {
+      } else if (!this.isDisposed && !this.disposed.has(child)) {
         this.options.onBridgeExit?.(distro);
       }
     };
@@ -487,11 +505,12 @@ export class WslBridgeServer {
         actual: reportedVersion,
       });
     }
-    this.bridges.set(distro, {
+    const bridgeState = {
       child,
       handle,
       ...(reportedVersion ? { version: reportedVersion } : {}),
-    });
+    };
+    this.bridges.set(distro, bridgeState);
     return handle;
   }
 }

@@ -45,8 +45,24 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
   store.setProjectDisabled(projectId, disabled);
 
   if (disabled) {
+    const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
+    const releaseWslDistro =
+      wslDistro &&
+      !useAppStore
+        .getState()
+        .projects.some(
+          (candidate) =>
+            !candidate.disabled &&
+            candidate.location.kind === "wsl" &&
+            candidate.location.distro === wslDistro,
+        )
+        ? wslDistro
+        : undefined;
     void readBridge()
-      .gitUnwatchProject({ projectId })
+      .gitUnwatchProject({
+        projectId,
+        ...(releaseWslDistro ? { releaseWslDistro } : {}),
+      })
       .catch(() => undefined);
 
     useGitStore.getState().clearStatus(projectId);
