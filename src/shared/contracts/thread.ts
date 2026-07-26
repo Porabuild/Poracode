@@ -15,6 +15,7 @@ import {
   builtInMcpDisabledToolsSchema,
   mcpServerListSchema,
 } from "./mcpServer";
+import { goalControlActionSchema } from "./runtimeEvent";
 
 /** How thread status/attention is derived for terminal agents (supervisor → renderer). */
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
@@ -146,6 +147,21 @@ export const interruptThreadPayloadSchema = z.object({
   threadId: z.string().min(1),
 });
 export type InterruptThreadPayload = z.infer<typeof interruptThreadPayloadSchema>;
+
+export const MAX_GOAL_OBJECTIVE_LENGTH = 4000;
+
+const goalObjectiveSchema = z.string().trim().min(1).max(MAX_GOAL_OBJECTIVE_LENGTH);
+
+export const threadGoalControlSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("edit"), objective: goalObjectiveSchema }),
+  z.object({ action: goalControlActionSchema.exclude(["edit"]) }),
+]);
+export type ThreadGoalControl = z.infer<typeof threadGoalControlSchema>;
+
+export const controlThreadGoalPayloadSchema = threadGoalControlSchema.and(
+  z.object({ threadId: z.string().min(1) }),
+);
+export type ControlThreadGoalPayload = z.infer<typeof controlThreadGoalPayloadSchema>;
 
 export const rollbackThreadConversationPayloadSchema = z.object({
   threadId: z.string().min(1),

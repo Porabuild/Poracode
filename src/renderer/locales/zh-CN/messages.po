@@ -1510,8 +1510,8 @@ msgstr "浏览器已在单独的窗口中打开"
 #~ msgstr "浏览器 MCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "为 OpenCode 启用的浏览器 MCP"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "为 OpenCode 启用的浏览器 MCP"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1614,6 +1614,7 @@ msgstr "无法加载端口"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -1928,6 +1929,10 @@ msgstr "清除缓存"
 msgid "Clear Cookies"
 msgstr "清除 Cookie"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Clear goal"
+msgstr "清除目标"
+
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -2063,7 +2068,7 @@ msgstr "关闭转发端口"
 msgid "Close forward actions"
 msgstr "关闭转发操作"
 
-#: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "关闭目标"
 
@@ -3577,6 +3582,10 @@ msgstr "编辑 {serverName}"
 msgid "Edit file"
 msgstr "编辑文件"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Edit goal"
+msgstr "编辑目标"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Edit MCP server"
 msgstr "编辑 MCP 服务器"
@@ -4008,6 +4017,10 @@ msgstr "失败了"
 msgid "Failed"
 msgstr "失败"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to clear goal"
+msgstr "无法清除目标"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "无法关闭拉取请求：{detail}"
@@ -4047,6 +4060,10 @@ msgstr "记录冻结源元数据失败：{detail}。回滚后仍留下 {rollback
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "记录已标记所有者的分支元数据失败：{detail}。回滚后仍留下分支 {branch}：{rollback}"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to update goal"
+msgstr "无法更新目标"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -4541,6 +4558,10 @@ msgstr "在导航历史记录中前进"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "目标"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Goal objective"
+msgstr "目标内容"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -7115,6 +7136,10 @@ msgstr "请粘贴 SSH 私钥。"
 msgid "Pause"
 msgstr "暂停"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Pause goal"
+msgstr "暂停目标"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -8161,6 +8186,10 @@ msgstr "结果"
 msgid "Resume"
 msgstr "继续"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Resume goal"
+msgstr "继续目标"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -8439,6 +8468,7 @@ msgstr "运行时选项"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx

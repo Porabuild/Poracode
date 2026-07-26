@@ -1,6 +1,7 @@
 import {
   authenticateAcpAgentPayloadSchema,
   clearPendingSteerPayloadSchema,
+  controlThreadGoalPayloadSchema,
   closeThreadPayloadSchema,
   extractContextPayloadSchema,
   agentHookPluginPayloadSchema,
@@ -34,6 +35,7 @@ import type {
   AgentStatusesResponse,
   AuthenticateAcpAgentPayload,
   ClearPendingSteerPayload,
+  ControlThreadGoalPayload,
   CloseThreadPayload,
   ExtractContextPayload,
   ExtractContextResult,
@@ -181,6 +183,11 @@ export const threadProcedures = {
     "interruptThread",
     "supervisor",
     interruptThreadPayloadSchema,
+  ),
+  controlThreadGoal: definePayloadProcedure<ControlThreadGoalPayload, void, "supervisor">(
+    "controlThreadGoal",
+    "supervisor",
+    controlThreadGoalPayloadSchema,
   ),
   rollbackThreadConversation: definePayloadProcedure<
     RollbackThreadConversationPayload,

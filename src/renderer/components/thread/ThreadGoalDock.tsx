@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
-import { CircleCheckBig, CircleStop, CircleX, Target, X } from "lucide-react";
+import { CircleCheckBig, CircleStop, CircleX, Target } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import { ThreadDockSection } from "./ThreadDockUI";
+import { ThreadGoalControls } from "./ThreadGoalControls";
 import { formatTokenCount } from "./formatTokenCount";
 
 interface ThreadGoalDockProps {
+  threadId: string;
   state: ThreadGoalDockState;
   onDismiss: () => void;
 }
@@ -19,7 +21,7 @@ const localGoalTimingByItemId = new Map<
   { timeUsedSeconds: number; anchorSeconds: number }
 >();
 
-export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
+export function ThreadGoalDock({ threadId, state, onDismiss }: ThreadGoalDockProps) {
   const { t } = useLingui();
   const [localAnchorSeconds, setLocalAnchorSeconds] = useState(() =>
     resolveLocalGoalAnchorSeconds(state, Date.now() / 1000),
@@ -61,7 +63,6 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
       : isActive
         ? "text-white"
         : "text-foreground-muted";
-
   return (
     <ThreadDockSection ariaLabel={t`Thread goal dock`} className="px-2 py-1">
       <div className="flex min-w-0 items-center gap-2 leading-5">
@@ -97,21 +98,7 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
         ) : null}
         <span className="h-3 w-px shrink-0 bg-[color:var(--border)]" />
         <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
-        <Tooltip delay={0}>
-          <Tooltip.Trigger>
-            <button
-              aria-label={t`Close goal`}
-              className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-              type="button"
-              onClick={onDismiss}
-            >
-              <X className="size-3.5" />
-            </button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <Trans>Close goal</Trans>
-          </Tooltip.Content>
-        </Tooltip>
+        <ThreadGoalControls threadId={threadId} state={state} onDismiss={onDismiss} />
       </div>
     </ThreadDockSection>
   );

@@ -1510,8 +1510,8 @@ msgstr "Браузер открыт в отдельном окне"
 #~ msgstr "Browser MCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "Browser MCP включён для OpenCode"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "Browser MCP включён для OpenCode"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1614,6 +1614,7 @@ msgstr "Не удалось загрузить порты"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -1928,6 +1929,10 @@ msgstr "Очистить кэш"
 msgid "Clear Cookies"
 msgstr "Очистить cookies"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Clear goal"
+msgstr "Очистить цель"
+
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -2063,7 +2068,7 @@ msgstr "Закрыть перенаправление порта"
 msgid "Close forward actions"
 msgstr "Закрыть действия с перенаправлением"
 
-#: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "Закрыть цель"
 
@@ -3577,6 +3582,10 @@ msgstr "Изменить {serverName}"
 msgid "Edit file"
 msgstr "Изменить файл"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Edit goal"
+msgstr "Изменить цель"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Edit MCP server"
 msgstr "Изменить сервер MCP"
@@ -4008,6 +4017,10 @@ msgstr "не удалось"
 msgid "Failed"
 msgstr "Ошибка"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to clear goal"
+msgstr "Не удалось очистить цель"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "Не удалось закрыть pull request: {detail}"
@@ -4047,6 +4060,10 @@ msgstr "Не удалось записать метаданные заморож
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "Не удалось записать метаданные принадлежащей приложению ветки: {detail}. После отката осталась ветка {branch}: {rollback}"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to update goal"
+msgstr "Не удалось обновить цель"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -4541,6 +4558,10 @@ msgstr "Вперёд по истории навигации"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "Цель"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Goal objective"
+msgstr "Описание цели"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -7116,6 +7137,10 @@ msgstr "Вставьте закрытый ключ SSH."
 msgid "Pause"
 msgstr "Приостановить"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Pause goal"
+msgstr "Приостановить цель"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -8162,6 +8187,10 @@ msgstr "Результаты"
 msgid "Resume"
 msgstr "Возобновить"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Resume goal"
+msgstr "Возобновить цель"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -8440,6 +8469,7 @@ msgstr "Параметры среды выполнения"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
