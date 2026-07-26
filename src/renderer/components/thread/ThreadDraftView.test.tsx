@@ -172,11 +172,15 @@ const commandCodeStatus: AgentStatus = {
   authState: "authenticated",
   capabilities: {
     models: [
-      { id: "moonshotai/Kimi-K2.5", label: "Kimi K2.5" },
+      { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash" },
       { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
     ],
     efforts: [],
-    modelEfforts: {},
+    defaultEffort: "high",
+    modelEfforts: {
+      "deepseek/deepseek-v4-flash": ["high", "max"],
+      "gpt-5.4-mini": ["low", "medium", "high"],
+    },
     modes: ["agent", "plan"],
     approvalPolicies: [{ id: "yolo", label: "Bypass Permissions" }],
     sandboxModes: [],
@@ -1088,8 +1092,8 @@ describe("ThreadDraftView", () => {
     const onStart = vi.fn<(input: unknown) => void>();
     const lastDraftConfig = {
       agentKind: "commandcode",
-      model: "moonshotai/Kimi-K2.5",
-      effort: "",
+      model: "deepseek/deepseek-v4-flash",
+      effort: "high",
       mode: "agent",
       approvalPolicy: "yolo",
       sandboxMode: "",
@@ -1145,7 +1149,7 @@ describe("ThreadDraftView", () => {
         (provider) => provider.kind === "commandcode",
       );
       expect(commandCodeProvider?.capabilities.models.map((model) => model.id)).toEqual([
-        "moonshotai/Kimi-K2.5",
+        "deepseek/deepseek-v4-flash",
         "gpt-5.4-mini",
       ]);
     });

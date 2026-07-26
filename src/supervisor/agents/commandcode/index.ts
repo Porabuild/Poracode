@@ -42,11 +42,6 @@ function commandCodeHookActiveTerminalFallback(hint: TerminalStatusHint): boolea
   return hint.status !== "idle";
 }
 
-// A cheap model for one-shot utility runs (title/commit generation) when the
-// caller doesn't pin one. Kept in sync with the renderer's registered
-// utility-task defaults.
-const COMMANDCODE_ONESHOT_MODEL_ID = "gpt-5.4-mini";
-
 export function createCommandCodeAdapter(): AgentAdapter {
   let capabilities: AgentCapability = defaultCommandCodeCapabilities;
 
@@ -186,17 +181,19 @@ export function createCommandCodeAdapter(): AgentAdapter {
     optimisticWorkingOnSubmit: true,
     detectInvalidSessionRef: detectCommandCodeInvalidSessionRef,
 
-    defaultOneShotModel: COMMANDCODE_ONESHOT_MODEL_ID,
+    defaultOneShotModel: COMMANDCODE_DEFAULT_MODEL_ID,
 
-    buildOneShotCommand(model, _effort, prompt) {
+    buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
       return {
         command: "command-code",
         args: [
           "--trust",
           "--skip-onboarding",
+          "--no-session",
           "--model",
           model || COMMANDCODE_DEFAULT_MODEL_ID,
+          ...(effort ? ["--effort", effort] : []),
           "-p",
           prompt,
         ],
@@ -207,17 +204,20 @@ export function createCommandCodeAdapter(): AgentAdapter {
     },
 
     // Command Code has no structured (GUI) runtime, so it joins the subagent
-    // roster via the one-shot child lane. `--trust` is its bypass-permissions
-    // flag (approve every tool without prompting) — required because a one-shot
-    // child has no interactive approval channel and must never block on input.
-    buildSubagentOneShotCommand({ model, prompt }) {
+    // roster via the one-shot child lane. `--trust` skips folder trust; `--yolo`
+    // is the actual tool-permission bypass required because a one-shot child has
+    // no interactive approval channel and must never block on input.
+    buildSubagentOneShotCommand({ model, effort, prompt }) {
       return {
         command: "command-code",
         args: [
           "--trust",
           "--skip-onboarding",
+          "--no-session",
+          "--yolo",
           "--model",
           model || COMMANDCODE_DEFAULT_MODEL_ID,
+          ...(effort ? ["--effort", effort] : []),
           "-p",
           prompt,
         ],
