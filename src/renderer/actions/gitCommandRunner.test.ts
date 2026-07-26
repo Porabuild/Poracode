@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult } from "@/shared/contracts";
 import {
+  pullMergedPrBaseIfPossible,
   refreshGitStatusForWorktree,
   runGitSyncCommand,
   showGitActionError,
@@ -44,6 +45,19 @@ vi.mock("@/renderer/state/gitStore", () => ({
 }));
 
 const projectLocation = { kind: "posix" as const, path: "/repo" };
+const cleanMainStatus: GitStatusResult = {
+  isRepo: true,
+  branch: "main",
+  tracking: "origin/main",
+  hasRemote: true,
+  remoteInfo: null,
+  ahead: 0,
+  behind: 0,
+  staged: [],
+  unstaged: [],
+  totalInsertions: 0,
+  totalDeletions: 0,
+};
 
 describe("gitCommandRunner", () => {
   beforeEach(() => {
@@ -113,6 +127,58 @@ describe("gitCommandRunner", () => {
       projectLocation: worktreeLocation,
     });
     expect(setWorktreeStatusMock).toHaveBeenCalledWith("/repo-worktree", conflictStatus);
+  });
+
+  it("pulls after a PR merge when the clean project checkout is on the base branch", async () => {
+    bridgeMock.getGitStatus.mockResolvedValueOnce(cleanMainStatus);
+    bridgeMock.gitPull.mockResolvedValueOnce(undefined);
+
+    await pullMergedPrBaseIfPossible(projectLocation, "main");
+
+    expect(bridgeMock.getGitStatus).toHaveBeenCalledWith({
+      projectLocation,
+      detail: "summary",
+    });
+    expect(bridgeMock.gitPull).toHaveBeenCalledWith({
+      projectLocation,
+      remote: "origin",
+    });
+  });
+
+  it.each<[string, Partial<GitStatusResult>]>([
+    ["another branch", { branch: "feature" }],
+    ["local commits", { ahead: 1 }],
+    [
+      "local changes",
+      {
+        unstaged: [
+          {
+            path: "file.ts",
+            status: "M",
+            staged: false,
+            insertions: 0,
+            deletions: 0,
+          },
+        ],
+      },
+    ],
+    ["no tracking branch", { tracking: "" }],
+  ])("skips the post-merge pull with %s", async (_name, override) => {
+    bridgeMock.getGitStatus.mockResolvedValueOnce({
+      ...cleanMainStatus,
+      ...override,
+    });
+
+    await pullMergedPrBaseIfPossible(projectLocation, "main");
+
+    expect(bridgeMock.gitPull).not.toHaveBeenCalled();
+  });
+
+  it("keeps a successful PR merge successful when the local pull fails", async () => {
+    bridgeMock.getGitStatus.mockResolvedValueOnce(cleanMainStatus);
+    bridgeMock.gitPull.mockRejectedValueOnce(new Error("network unavailable"));
+
+    await expect(pullMergedPrBaseIfPossible(projectLocation, "main")).resolves.toBeUndefined();
   });
 });
 // @vitest-environment node

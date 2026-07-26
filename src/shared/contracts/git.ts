@@ -79,6 +79,7 @@ export type FileCheckpointTurn = z.infer<typeof fileCheckpointTurnSchema>;
 
 export const getGitStatusPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
+  detail: gitStatusDetailSchema.optional(),
 });
 export type GetGitStatusPayload = z.infer<typeof getGitStatusPayloadSchema>;
 

@@ -40,12 +40,16 @@ describe("ChromeMcpIngress", () => {
     };
     expect(initializeBody.result.serverInfo.name).toBe("chrome");
     expect(initializeBody.result.instructions).toContain("USER'S OWN Chrome");
+    expect(initializeBody.result.instructions).toContain("chrome.enable");
+    expect(initializeBody.result.instructions).toContain("chrome.disable");
 
     const list = await postMcp(info, { jsonrpc: "2.0", id: 2, method: "tools/list" });
     const listBody = (await list.json()) as {
       result: { tools: Array<{ name: string }> };
     };
     expect(listBody.result.tools.map((tool) => tool.name)).toContain("chrome_status");
+    expect(listBody.result.tools.map((tool) => tool.name)).toContain("enable");
+    expect(listBody.result.tools.map((tool) => tool.name)).toContain("disable");
   });
 
   it("routes Chrome tool calls and formats their result", async () => {

@@ -113,6 +113,21 @@ describe("ExternalChromeConnection", () => {
     expect(conn.isAttached()).toBe(false);
   });
 
+  it("detaches the current tab when an MCP session ends", async () => {
+    const { conn, ws } = makeConn();
+    const attach = conn.attach(5);
+    ws.inbound({ id: ws.last().id, type: "result", ok: true, tab: { tabId: 5, url: "https://b" } });
+    await attach;
+
+    const detach = conn.detach();
+    const req = ws.last();
+    expect(req).toMatchObject({ type: "detach", tabId: 5 });
+    ws.inbound({ id: req.id, type: "result", ok: true });
+    await detach;
+
+    expect(conn.isAttached()).toBe(false);
+  });
+
   it("ignores events from a stale attached tab", async () => {
     const { conn, ws } = makeConn();
     const seen: unknown[] = [];

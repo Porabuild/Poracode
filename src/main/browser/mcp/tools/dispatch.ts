@@ -37,7 +37,7 @@ import {
   setCheckedSelector,
   typeIntoSelector,
 } from "../../pageDriver";
-import { glideCursorToSelector } from "../../cursorOverlay";
+import { glideCursorToSelector, setCursorOverlayVisible } from "../../cursorOverlay";
 import {
   agentTabOpts,
   clampInteger,
@@ -66,6 +66,7 @@ export async function dispatchTool(
           "Controls the Poracode in-app browser panel through tabs, navigation, inspection, input, screenshots, console, network, dialogs, cookies, and storage.",
         guidance: [
           "Prefer this MCP server over shell-driven browser automation when a page is visible in Poracode.",
+          "Call enable before a browsing session and disable before pausing for user input or finishing.",
           "Start with snapshot or find to identify @e refs before click, fill, type, hover, get, is, or scroll.",
           "Use fill for form fields when replacing text; use type only when appending text to the current value.",
           "Use wait after navigation or mutations instead of fixed sleeps unless a plain ms delay is intentional.",
@@ -107,6 +108,28 @@ export async function dispatchTool(
         tools: TOOLS.filter((tool) => tool.name !== "api").map(compactToolSpec),
         tabs: ctx.manager.snapshot(),
       };
+    case "enable": {
+      ctx.manager.setAutomationSession(ctx.threadId ?? "unscoped", true);
+      const tab = ctx.manager.getActiveTab();
+      if (tab) {
+        await ctx.manager.ensureTabReady(tab.tabId);
+        await tab.cdp.attach();
+        await setCursorOverlayVisible(tab.cdp, true);
+      }
+      return { enabled: true };
+    }
+    case "disable": {
+      const shouldHidePresence = ctx.manager.setAutomationSession(
+        ctx.threadId ?? "unscoped",
+        false,
+      );
+      const tab = ctx.manager.getActiveTab();
+      if (shouldHidePresence && tab) {
+        await tab.cdp.attach();
+        await setCursorOverlayVisible(tab.cdp, false);
+      }
+      return { enabled: false };
+    }
     case "list_tabs":
       return ctx.manager.snapshot();
     case "new_tab": {

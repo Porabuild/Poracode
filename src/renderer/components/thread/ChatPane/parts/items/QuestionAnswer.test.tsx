@@ -34,8 +34,6 @@ describe("QuestionAnswer", () => {
     expect(screen.getByText("Allow this command?")).toBeInTheDocument();
     expect(screen.getByText("Allow once")).toBeInTheDocument();
     expect(screen.getByText("Only for this run")).toBeInTheDocument();
-    // Custom answers render via ItemMarkdown, which chips bare filenames into
-    // path buttons. Match concatenated textContent rather than a single text node.
     expect(container).toHaveTextContent("Use README.md instead.");
     const revertButton = screen.getByRole("button", { name: "Revert to this checkpoint" });
     expect(revertButton).toBeInTheDocument();
