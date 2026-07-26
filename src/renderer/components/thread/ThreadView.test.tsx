@@ -1628,6 +1628,59 @@ describe("ThreadView", () => {
     expect(hasAncestorWithClassFragment(terminalPane.parentElement, "max-w-[1040px]")).toBe(true);
   });
 
+  it("moves thread tools into the header when the pane cannot clear a side rail", () => {
+    renderThreadView({
+      thread: {
+        id: "thread-split-tool-menu",
+        projectId: "project-1",
+        title: "Split pane thread",
+        agentKind: "codex",
+        config: {
+          model: "gpt-5.4",
+        },
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        archived: false,
+        done: false,
+        starred: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      agentStatus: undefined,
+      projectLocation: {
+        kind: "windows",
+        path: "C:\\repo",
+      },
+      paneCount: 2,
+      onMarkDone: () => undefined,
+    });
+
+    const headerTrigger = screen.getByRole("button", { name: "Show thread tools" });
+    const headerMenu = headerTrigger.closest("[data-poracode-thread-tool-rail]");
+    const toolMenu = headerMenu?.querySelector("[data-poracode-thread-tool-menu]");
+    const doneButton = screen.getByRole("button", { name: "Mark done" });
+
+    expect(headerMenu).toHaveAttribute("data-placement", "header");
+    expect(headerMenu).not.toHaveClass("invisible");
+    expect(toolMenu).toHaveClass("left-1/2", "w-9", "-translate-x-1/2");
+    expect(toolMenu).toHaveClass("group-hover/thread-tools:visible");
+    expect(doneButton.nextElementSibling).toBe(headerMenu);
+    expect(hasAncestorWithClassFragment(headerMenu as HTMLElement, "@container")).toBe(true);
+    expect(headerMenu?.querySelector('[aria-label="Git"]')).not.toBeNull();
+    expect(headerMenu?.querySelector('[aria-label="Files"]')).not.toBeNull();
+    expect(headerMenu?.querySelector('[aria-label="Terminal"]')).not.toBeNull();
+    expect(headerMenu?.querySelector('[aria-label="Notes"]')).not.toBeNull();
+
+    fireEvent.click(headerTrigger);
+    expect(toolMenu).not.toHaveClass("group-hover/thread-tools:visible");
+    fireEvent.pointerLeave(headerMenu as HTMLElement);
+    expect(toolMenu).not.toHaveClass("group-hover/thread-tools:visible");
+    fireEvent.pointerEnter(headerMenu as HTMLElement);
+    expect(toolMenu).toHaveClass("group-hover/thread-tools:visible");
+    fireEvent.click(headerTrigger);
+  });
+
   it("allows queued follow-ups and stop while a GUI ACP thread is running", async () => {
     renderThreadView({
       thread: {

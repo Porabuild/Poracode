@@ -1058,6 +1058,10 @@ msgstr "Zawsze"
 msgid "Always excluded"
 msgstr "Zawsze wykluczone"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "An agent is fixing this PR."
+msgstr "Agent naprawia ten PR."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Oczekiwany właściciel drzewa roboczego wymaga gałęzi"
@@ -1290,6 +1294,10 @@ msgstr "Automatyczna archiwizacja wykonanych wątków po (dniach)"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Auto-generate"
 msgstr "Generuj automatycznie"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto-merge"
+msgstr "Automatyczne scalanie"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -2499,6 +2507,10 @@ msgstr "Połącz"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect a server"
 #~ msgstr "Połącz serwer"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Connect an agent before watching PRs."
+msgstr "Połącz agenta przed obserwowaniem PR-ów."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Connect an agent to create schedules."
@@ -4302,6 +4314,10 @@ msgstr "Pierwszorzędna integracja z Qwen Code korzystająca z natywnych środow
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Napraw w Agencie"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Fix new comments and failed checks, then push updates."
+msgstr "Napraw nowe komentarze i nieudane kontrole, a następnie wypchnij zmiany."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -7439,6 +7455,10 @@ msgstr "Porty"
 msgid "PR actions"
 msgstr "Działania PR"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation"
+msgstr "Automatyzacja PR"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "Opcje PR"
@@ -9430,6 +9450,10 @@ msgstr "Podzielony terminal"
 msgid "Split view"
 msgstr "Widok podzielony"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Squash merge when checks and required reviews pass."
+msgstr "Scal metodą squash, gdy kontrole i wymagane recenzje zakończą się pomyślnie."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
 msgstr "SSE (starszy)"
@@ -11335,6 +11359,10 @@ msgstr "Rozgrzewanie środowisk powłoki..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Rozgrzewanie środowiska powłoki WSL…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Watch PR"
+msgstr "Obserwuj PR"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

@@ -57,7 +57,7 @@ function MenuSwitch(props: { checked: boolean; readOnly?: boolean }) {
   return (
     <span
       aria-hidden
-      className={`relative ms-auto h-5 w-9 shrink-0 rounded-full ${
+      className={`relative ms-auto h-4 w-7 shrink-0 rounded-full ${
         readOnly ? "" : "transition-colors"
       } ${
         checked
@@ -70,9 +70,9 @@ function MenuSwitch(props: { checked: boolean; readOnly?: boolean }) {
       }`}
     >
       <span
-        className={`absolute top-0.5 size-4 rounded-full bg-white ${
+        className={`absolute top-0.5 size-3 rounded-full bg-white ${
           readOnly ? "opacity-90" : "transition-transform"
-        } ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`}
+        } ${checked ? "translate-x-3.5" : "translate-x-0.5"}`}
       />
     </span>
   );
@@ -488,7 +488,6 @@ export function ComposerAddMenu(props: {
                             key={server.descriptor.id}
                             id={server.descriptor.id}
                             textValue={label}
-                            className="data-[selected=true]:bg-transparent"
                           >
                             <Icon className="size-4 text-muted" />
                             <Label className="flex-1 truncate">{label}</Label>
@@ -501,7 +500,6 @@ export function ComposerAddMenu(props: {
                           key={`${CUSTOM_KEY_PREFIX}${server.id}`}
                           id={`${CUSTOM_KEY_PREFIX}${server.id}`}
                           textValue={server.name}
-                          className="data-[selected=true]:bg-transparent"
                         >
                           <Settings2 className="size-4 text-muted" />
                           <Label className="flex-1 truncate">{server.name}</Label>
@@ -509,11 +507,7 @@ export function ComposerAddMenu(props: {
                         </Dropdown.Item>
                       ))}
                       {showComputerUse ? (
-                        <Dropdown.Item
-                          id={COMPUTER_USE_KEY}
-                          textValue={t`Computer Use`}
-                          className="data-[selected=true]:bg-transparent"
-                        >
+                        <Dropdown.Item id={COMPUTER_USE_KEY} textValue={t`Computer Use`}>
                           <Monitor className="size-4 shrink-0 self-start text-muted" />
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                             <Label className="truncate">

@@ -1529,6 +1529,30 @@ describe("GitService.getStatus Windows path normalization", () => {
     vi.clearAllMocks();
   });
 
+  it("uses the lightweight status path when summary detail is requested", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "status") {
+        return {
+          stdout: [
+            "# branch.oid abc123",
+            "# branch.head main",
+            "# branch.upstream origin/main",
+            "# branch.ab +0 -1",
+          ].join("\n"),
+        };
+      }
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().getStatus(location, "summary");
+    const commands = execFileMock.mock.calls.map((call) => gitSubcommandArgs(call[1]));
+
+    expect(result.detail).toBe("summary");
+    expect(result.branch).toBe("main");
+    expect(result.behind).toBe(1);
+    expect(commands.some((args) => args[0] === "remote" || args[0] === "diff")).toBe(false);
+  });
+
   it("normalizes Windows-style git paths before returning status", async () => {
     mockGitCommands((args) => {
       if (args[0] === "rev-parse") return { stdout: "true\n" };

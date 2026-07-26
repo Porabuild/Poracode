@@ -101,6 +101,7 @@ function createDispatchContext(send: ReturnType<typeof vi.fn>): ToolContext {
       getTab: () => tab,
       ensureTabReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       createTab: vi.fn<() => Promise<unknown>>().mockResolvedValue({ tabId: "tab-1" }),
+      setAutomationSession: vi.fn<() => boolean>().mockReturnValue(true),
       setActiveTab: vi.fn<() => void>(),
       closeTab: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       navigate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -154,6 +155,8 @@ function createRoutingSend(): ReturnType<typeof vi.fn> {
 
 const ROUTING_ARGS: Record<string, Record<string, unknown>> = {
   api: {},
+  enable: {},
+  disable: {},
   list_tabs: {},
   new_tab: { url: "https://example.test/", activate: true },
   open: { url: "https://example.test/open" },
@@ -227,6 +230,8 @@ describe("browser MCP tool registry", () => {
     const formatted = formatToolResult("api", result);
 
     expect(BROWSER_MCP_INSTRUCTIONS).toContain("call browser.api");
+    expect(BROWSER_MCP_INSTRUCTIONS).toContain("browser.enable");
+    expect(BROWSER_MCP_INSTRUCTIONS).toContain("browser.disable");
     expect(formatted.content[0]?.type).toBe("text");
     expect(formatted.content[0]?.text).toContain('"workflows"');
     expect(formatted.content[0]?.text).toContain('"args"');
@@ -285,6 +290,16 @@ describe("browser MCP tool registry", () => {
     ).toBe(true);
     expect(activeTab.cdp.attach).not.toHaveBeenCalled();
     expect(activeTab.webContents.focus).not.toHaveBeenCalled();
+  });
+
+  it("keeps browser automation presence active between enable and disable", async () => {
+    const ctx = createDispatchContext(createRoutingSend());
+
+    await expect(dispatchTool("enable", {}, ctx)).resolves.toEqual({ enabled: true });
+    await expect(dispatchTool("disable", {}, ctx)).resolves.toEqual({ enabled: false });
+
+    expect(ctx.manager.setAutomationSession).toHaveBeenNthCalledWith(1, "unscoped", true);
+    expect(ctx.manager.setAutomationSession).toHaveBeenNthCalledWith(2, "unscoped", false);
   });
 
   it("dispatches every advertised browser tool through the browser context", async () => {

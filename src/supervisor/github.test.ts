@@ -1374,6 +1374,30 @@ on:
     });
   });
 
+  describe("getPrReviewComments", () => {
+    it("returns inline review comments from the paginated REST endpoint", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout:
+          '{"id":"99","author":{"login":"reviewer","avatarUrl":"https://example.com/a.png"},"body":"Please handle null.","createdAt":"2026-07-25T00:00:00Z","url":"https://github.com/o/r/pull/1#discussion_r99"}\n',
+      });
+
+      const result = await new GitHubService().getPrReviewComments(location, 1);
+
+      expect(result.comments).toEqual([
+        {
+          id: "99",
+          author: { login: "reviewer", avatarUrl: "https://example.com/a.png" },
+          body: "Please handle null.",
+          createdAt: "2026-07-25T00:00:00Z",
+          url: "https://github.com/o/r/pull/1#discussion_r99",
+        },
+      ]);
+      expect(buildAgentCommandMock.mock.calls[0]?.[2]).toContain(
+        "repos/{owner}/{repo}/pulls/1/comments?per_page=100",
+      );
+    });
+  });
+
   describe("listAccounts", () => {
     const AUTH_STATUS = [
       "github.com",

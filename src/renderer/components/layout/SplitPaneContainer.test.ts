@@ -174,6 +174,52 @@ describe("SplitPaneContainer", () => {
     HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
   });
 
+  it("does not render outer drop zones as resize handles or reserve space for them", () => {
+    const renderPane = (paneId: string) => React.createElement("div", { "data-pane-id": paneId });
+    const { container, rerender } = render(
+      React.createElement(SplitPaneContainer, {
+        layout: {
+          kind: "split",
+          axis: "vertical",
+          children: [
+            { kind: "leaf", paneId: "first" },
+            { kind: "leaf", paneId: "second" },
+          ],
+        },
+        renderPane,
+      }),
+    );
+    expect(
+      container.querySelectorAll('[class*="cursor-row-resize"], [class*="cursor-col-resize"]'),
+    ).toHaveLength(0);
+    expect(container.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    const secondPane =
+      container.querySelector<HTMLElement>("[data-pane-id='second']")?.parentElement;
+    expect(secondPane?.style.top).toBe("0px");
+    expect(secondPane?.style.height).toBe("600px");
+    expect(Number(secondPane?.style.left.replace("px", ""))).toBe(504);
+    expect(
+      Number(secondPane?.style.left.replace("px", "")) +
+        Number(secondPane?.style.width.replace("px", "")),
+    ).toBe(1000);
+
+    rerender(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "only" },
+        renderPane,
+      }),
+    );
+
+    expect(
+      container.querySelectorAll('[class*="cursor-row-resize"], [class*="cursor-col-resize"]'),
+    ).toHaveLength(0);
+    const pane = container.querySelector<HTMLElement>("[data-pane-id='only']")?.parentElement;
+    expect(pane?.style.left).toBe("0px");
+    expect(pane?.style.top).toBe("0px");
+    expect(pane?.style.width).toBe("1000px");
+    expect(pane?.style.height).toBe("600px");
+  });
+
   it("updates an existing divider position when panes are added at the same container size", () => {
     const twoPanes: PaneLayout = {
       kind: "split",
@@ -201,12 +247,12 @@ describe("SplitPaneContainer", () => {
       '[role="separator"][aria-orientation="vertical"]',
     );
     expect(divider).not.toBeNull();
-    expect(parseFloat(divider!.style.left)).toBeCloseTo(492);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(496);
 
     rerender(React.createElement(SplitPaneContainer, { layout: threePanes, renderPane }));
 
     expect(container.querySelector<HTMLElement>('[role="separator"]')).toBe(divider);
-    expect(parseFloat(divider!.style.left)).toBeCloseTo(976 / 3);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(984 / 3);
   });
 
   it("keeps a pane shell mounted when its caller-provided DOM key stays stable", () => {
@@ -314,13 +360,13 @@ describe("SplitPaneContainer", () => {
       '[role="separator"][aria-orientation="vertical"]',
     );
     expect(divider).not.toBeNull();
-    expect(parseFloat(divider!.style.left)).toBeCloseTo(492);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(496);
 
     rerender(React.createElement(SplitPaneContainer, { layout: twoPanes, renderPane }));
     writeStoredSizes(splitStorageKey(fourPanes, "vertical"), [35, 65]);
 
     rerender(React.createElement(SplitPaneContainer, { layout: fourPanes, renderPane }));
 
-    expect(parseFloat(divider!.style.left)).toBeCloseTo(344.4);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(347.2);
   });
 });

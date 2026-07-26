@@ -381,6 +381,10 @@ export interface GhGetPrDetailsResult {
   details: PrDetails;
 }
 
+export interface GhGetPrReviewCommentsResult {
+  comments: PrComment[];
+}
+
 export const ghPostPrCommentPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   prNumber: z.number().int().min(1),

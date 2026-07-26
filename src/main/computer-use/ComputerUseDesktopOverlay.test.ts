@@ -93,7 +93,12 @@ describe("ComputerUseDesktopOverlay", () => {
       onExit: vi.fn<(threadIds: string[]) => void>(),
     });
 
-    overlay.setActivity({ threadId: "thread-1", toolName: "click", active: true });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      active: true,
+    });
     await Promise.resolve();
 
     expect(electronMock.BrowserWindow.instances).toHaveLength(2);
@@ -103,7 +108,8 @@ describe("ComputerUseDesktopOverlay", () => {
       expect(window.setAlwaysOnTop).toHaveBeenCalledWith(true, "screen-saver");
       expect(window.showInactive).toHaveBeenCalled();
       const overlayHtml = decodeURIComponent(window.loadURL.mock.calls[0]![0].split(",", 2)[1]!);
-      expect(overlayHtml).toContain("inset 0 0 0 3px");
+      expect(overlayHtml).toContain("inset 0 0 0 2px rgba(92, 167, 255, 0.6)");
+      expect(overlayHtml).toContain("inset 0 0 48px rgba(92, 167, 255, 0.08)");
       expect(overlayHtml).toContain("Poracode using your computer | Esc to Exit");
       expect(overlayHtml).not.toContain("<button");
     }
@@ -119,11 +125,21 @@ describe("ComputerUseDesktopOverlay", () => {
     const overlay = new ComputerUseDesktopOverlay({
       onExit: vi.fn<(threadIds: string[]) => void>(),
     });
-    overlay.setActivity({ threadId: "thread-1", toolName: "click", active: true });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      active: true,
+    });
     await Promise.resolve();
     const windows = [...electronMock.BrowserWindow.instances];
 
-    overlay.setActivity({ threadId: "thread-1", toolName: "click", active: false });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      active: false,
+    });
     vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS - 1);
     expect(windows.every((window) => window.visible)).toBe(true);
 
@@ -133,10 +149,44 @@ describe("ComputerUseDesktopOverlay", () => {
     overlay.dispose();
   });
 
+  it("keeps the border visible for an enabled session until it is disabled", async () => {
+    const overlay = new ComputerUseDesktopOverlay({
+      onExit: vi.fn<(threadIds: string[]) => void>(),
+    });
+    overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
+    await Promise.resolve();
+    const windows = [...electronMock.BrowserWindow.instances];
+
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      active: true,
+    });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      active: false,
+    });
+    vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
+    expect(windows.every((window) => window.visible)).toBe(true);
+
+    overlay.setActivity({ kind: "session", threadId: "thread-1", active: false });
+    expect(windows.every((window) => !window.visible)).toBe(true);
+
+    overlay.dispose();
+  });
+
   it("interrupts active threads when Escape returns control to the user", async () => {
     const onExit = vi.fn<(threadIds: string[]) => void>();
     const overlay = new ComputerUseDesktopOverlay({ onExit });
-    overlay.setActivity({ threadId: "thread-1", toolName: "click", active: true });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      active: true,
+    });
     await Promise.resolve();
 
     electronMock.shortcuts.get("Escape")?.();
@@ -152,12 +202,22 @@ describe("ComputerUseDesktopOverlay", () => {
     const overlay = new ComputerUseDesktopOverlay({
       onExit: vi.fn<(threadIds: string[]) => void>(),
     });
-    overlay.setActivity({ threadId: "thread-1", toolName: "press_key", active: true });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "press_key",
+      active: true,
+    });
     await Promise.resolve();
 
     expect(electronMock.shortcuts.has("Escape")).toBe(false);
 
-    overlay.setActivity({ threadId: "thread-1", toolName: "press_key", active: false });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "press_key",
+      active: false,
+    });
     expect(electronMock.shortcuts.has("Escape")).toBe(true);
 
     overlay.dispose();
@@ -167,17 +227,37 @@ describe("ComputerUseDesktopOverlay", () => {
     const overlay = new ComputerUseDesktopOverlay({
       onExit: vi.fn<(threadIds: string[]) => void>(),
     });
-    overlay.setActivity({ threadId: "thread-1", toolName: "click", active: true });
-    overlay.setActivity({ threadId: "thread-1", toolName: "press_key", active: true });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      active: true,
+    });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "press_key",
+      active: true,
+    });
     await Promise.resolve();
     const windows = [...electronMock.BrowserWindow.instances];
 
-    overlay.setActivity({ threadId: "thread-1", toolName: "click", active: false });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      active: false,
+    });
     vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
     expect(windows.every((window) => window.visible)).toBe(true);
     expect(electronMock.shortcuts.has("Escape")).toBe(false);
 
-    overlay.setActivity({ threadId: "thread-1", toolName: "press_key", active: false });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "press_key",
+      active: false,
+    });
     expect(electronMock.shortcuts.has("Escape")).toBe(true);
     vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
     expect(windows.every((window) => !window.visible)).toBe(true);

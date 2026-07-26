@@ -7,12 +7,14 @@ import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { refreshSinglePr } from "@/renderer/state/gitRefresh";
+import { pullMergedPrBaseIfPossible } from "@/renderer/actions/gitCommandRunner";
 
 const ADMIN_BYPASS_RX = /--admin|base branch policy|not mergeable/i;
 
 export interface UsePrWriteActionsArgs {
   projectLocation: ProjectLocation;
   localSyncLocation?: ProjectLocation | undefined;
+  mergeSyncLocation?: ProjectLocation | undefined;
   skipLocalSync?: boolean | undefined;
   prKey: string | undefined;
   /** PR head branch — required for the on-demand `handleRefreshPr` refetch. */
@@ -45,8 +47,16 @@ export interface UsePrWriteActionsResult {
  * stay in lockstep across surfaces.
  */
 export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteActionsResult {
-  const { projectLocation, localSyncLocation, skipLocalSync, prKey, branch, projectId, onRefresh } =
-    args;
+  const {
+    projectLocation,
+    localSyncLocation,
+    mergeSyncLocation,
+    skipLocalSync,
+    prKey,
+    branch,
+    projectId,
+    onRefresh,
+  } = args;
   const [pendingAction, setPendingAction] = useState<PrWriteAction | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const prLoading = pendingAction !== null;
@@ -91,6 +101,7 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
         method,
         admin,
       });
+      await pullMergedPrBaseIfPossible(mergeSyncLocation ?? projectLocation, prData.baseBranch);
       if (prKey) {
         useGitStore.getState().setPrData(prKey, { ...prData, state: "merged" });
       }

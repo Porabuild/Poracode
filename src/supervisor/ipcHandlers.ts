@@ -91,7 +91,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     restoreFileCheckpoint: async (payload) => {
       await checkpoints.restore(payload);
     },
-    getGitStatus: (payload) => git.getStatus(payload.projectLocation),
+    getGitStatus: (payload) => git.getStatus(payload.projectLocation, payload.detail),
     getGitDiff: (payload) => git.getDiff(payload.projectLocation, payload.filePath, payload.staged),
     getGitDiffBatch: (payload) => git.getDiffBatch(payload.projectLocation, payload.untrackedPaths),
     getGitFileContent: (payload) =>
@@ -272,6 +272,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghUpdatePrBranch: (payload) =>
       github.updatePrBranch(payload.projectLocation, payload.prNumber, payload.rebase),
     ghGetPrDetails: (payload) => github.getPrDetails(payload.projectLocation, payload.prNumber),
+    ghGetPrReviewComments: (payload) =>
+      github.getPrReviewComments(payload.projectLocation, payload.prNumber),
     ghPostPrComment: (payload) =>
       github.postPrComment(payload.projectLocation, payload.prNumber, payload.body),
     ghListAccounts: (payload) => github.listAccounts(payload.runtime),

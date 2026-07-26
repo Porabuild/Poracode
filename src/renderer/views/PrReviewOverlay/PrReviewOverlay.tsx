@@ -296,6 +296,7 @@ export function PrReviewOverlay(props: {
           loading={loading}
           projectId={project.id}
           projectLocation={effectiveLocation}
+          mergeSyncLocation={project.location}
           prKey={prKey}
           worktreePath={worktreePath}
           {...(skipLocalSync ? { skipLocalSync: true } : {})}

@@ -56,23 +56,18 @@ export const panelHeaderTooltipTriggerResetClass =
 export const floatingChromeSurfaceClass =
   "poracode-floating-chrome border border-border/15 bg-[var(--floating-chrome-surface)] shadow-lg backdrop-blur-md";
 
-/**
- * Pressed/open state for a floating-chrome pill that toggles a panel. A ring
- * rather than a border or background so it composes with
- * {@link floatingChromeSurfaceClass} without fighting its own utilities; matches
- * the accent ring the sidebar `GitBadge` uses for the same "this panel is open"
- * signal.
- */
-export const floatingChromeActiveClass = "ring-1 ring-accent/50";
+/** Pressed/open state for a floating-chrome pill that toggles a panel. */
+export const floatingChromeActiveClass =
+  "!bg-[color:color-mix(in_oklab,var(--floating-chrome-surface)_94%,var(--foreground)_6%)]";
 
 /** Icon button in panel headers (tab toggles, close, expand). */
 export const panelHeaderIconButtonClass =
   "inline-flex items-center justify-center rounded p-0.5 text-muted hover:text-foreground";
 
-/** Tab-style icon button: accents when active, muted+hover otherwise. */
+/** Tab-style icon button: foreground when active, muted+hover otherwise. */
 export function panelHeaderTabIconButtonClass(active: boolean) {
   return `inline-flex items-center justify-center rounded p-0.5 transition-colors ${
-    active ? "text-accent" : "text-muted hover:text-foreground"
+    active ? "text-foreground" : "text-muted hover:text-foreground"
   }`;
 }
 
