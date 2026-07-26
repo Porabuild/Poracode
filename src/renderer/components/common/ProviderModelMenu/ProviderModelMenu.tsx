@@ -503,7 +503,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         )
       }
       placement="top start"
-      contentClassName="w-96 p-0"
+      contentClassName="w-fit min-w-64 max-w-96 p-0"
       dialogClassName="flex max-h-[28rem] flex-col overflow-hidden !p-0"
     >
       {renderContent}
