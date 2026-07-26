@@ -3,75 +3,86 @@ import type { CollectOptions, HostPort, HttpClient, HttpResponse } from "../host
 import type { UsageSnapshot, UsageWindow } from "../types";
 
 /**
- * Command Code (api.commandcode.ai). The CLI ships a long-lived API key in
- * `~/.commandcode/auth.json`, but the public Provider API at `/provider/v1/*`
- * has no usage or billing endpoints — and the key is rejected (401) by the
- * studio's `/internal/*` routes. Usage therefore flows through the same
- * in-app browser login as Grok/OpenCode: the user signs in at commandcode.ai,
- * we capture the session cookie, and forward it to the studio's undocumented
- * internal billing/usage routes. Endpoints are private and may rotate without
- * notice; responses are normalized into the shared `UsageSnapshot` shape.
+ * Command Code v1.4.1 reads the CLI API key from
+ * `COMMAND_CODE_API_KEY`/`~/.commandcode/auth.json` and calls its authenticated
+ * `/alpha/*` API directly. The usage flow mirrors the CLI:
  *
- *   GET /auth/get-session            → session probe (null body = signed out)
- *   GET /internal/billing/credits    → { credits: { monthlyCredits, purchasedCredits, ... } }
- *   GET /internal/usage/summary      → { totalCost, totalTokensIn, totalTokensOut, ... }
- *   GET /internal/billing/subscriptions → { success, data: { planId, currentPeriodEnd, ... } }
+ *   GET /alpha/whoami
+ *   GET /alpha/billing/credits
+ *   GET /alpha/billing/subscriptions
+ *   GET /alpha/usage/summary?since=<currentPeriodStart>
  *
- * Command Code is pay-as-you-go within a monthly credit cap (no rate-limit
- * windows), so the snapshot surfaces a single `monthly` `usd` window whose
- * `used` is consumed this cycle and whose `limit` is the original monthly
- * allocation (`monthlyCredits + totalCost`). The bar is the single source of
- * truth — the snapshot intentionally does NOT carry `cost`/`credits`/`tokens`,
- * which the panel's meta block would otherwise re-render as duplicates.
+ * Organization accounts include `orgId` on the three billing requests. Usage
+ * is a monthly USD credit pool, normalized into the shared snapshot shape.
  */
 
 const COMMANDCODE_BASE = "https://api.commandcode.ai";
-export const COMMANDCODE_AUTH_SESSION_ENDPOINT = `${COMMANDCODE_BASE}/auth/get-session`;
-export const COMMANDCODE_BILLING_CREDITS_ENDPOINT = `${COMMANDCODE_BASE}/internal/billing/credits`;
-export const COMMANDCODE_USAGE_SUMMARY_ENDPOINT = `${COMMANDCODE_BASE}/internal/usage/summary`;
-export const COMMANDCODE_BILLING_SUBSCRIPTIONS_ENDPOINT = `${COMMANDCODE_BASE}/internal/billing/subscriptions`;
+export const COMMANDCODE_WHOAMI_ENDPOINT = `${COMMANDCODE_BASE}/alpha/whoami`;
+export const COMMANDCODE_BILLING_CREDITS_ENDPOINT = `${COMMANDCODE_BASE}/alpha/billing/credits`;
+export const COMMANDCODE_BILLING_SUBSCRIPTIONS_ENDPOINT = `${COMMANDCODE_BASE}/alpha/billing/subscriptions`;
+export const COMMANDCODE_USAGE_SUMMARY_ENDPOINT = `${COMMANDCODE_BASE}/alpha/usage/summary`;
 
 export const COMMANDCODE_PROVIDER_ID = "commandcode" as const;
 
+interface CommandCodeWhoamiBody {
+  user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    userName?: string;
+  };
+  org?: {
+    id?: string;
+    name?: string;
+    login?: string;
+  } | null;
+}
+
 interface CommandCodeCreditsBody {
   credits?: {
-    monthlyCredits?: number;
+    monthlyCredits?: number | string;
+    purchasedCredits?: number | string;
+    freeCredits?: number | string;
   };
 }
 
 interface CommandCodeUsageSummaryBody {
-  totalCost?: number;
+  totalCost?: number | string;
 }
 
 interface CommandCodeSubscriptionsBody {
-  success?: boolean;
   data?: {
     planId?: string;
     currentPeriodStart?: string;
     currentPeriodEnd?: string;
     status?: string;
-    cancelAtPeriodEnd?: boolean;
   };
 }
 
-const COMMANDCODE_PLAN_LABELS: Record<string, string> = {
-  "individual-go": "Go",
-  "individual-pro": "Pro",
-  "individual-max": "Max",
-  "individual-ultra": "Ultra",
-  "team-pro": "Team Pro",
-  "team-business": "Team Business",
-  "team-enterprise": "Team Enterprise",
-  enterprise: "Enterprise",
-  "open-source": "Open Source",
-  free: "Free",
+const COMMANDCODE_PLANS: Record<string, { label: string; monthlyCredits: number }> = {
+  "individual-go": { label: "Go", monthlyCredits: 10 },
+  "individual-pro": { label: "Pro", monthlyCredits: 30 },
+  "individual-provider": { label: "Provider", monthlyCredits: 15 },
+  "individual-max": { label: "Max", monthlyCredits: 150 },
+  "individual-ultra": { label: "Ultra", monthlyCredits: 300 },
+  "teams-pro": { label: "Teams Pro", monthlyCredits: 40 },
 };
+const COMMANDCODE_PLAN_IDS = Object.keys(COMMANDCODE_PLANS).sort((a, b) => b.length - a.length);
 
-/** Map a `planId` from /internal/billing/subscriptions to a display name. */
+function commandCodePlan(
+  value: string | undefined,
+): { label: string; monthlyCredits: number } | undefined {
+  const normalized = value?.trim().toLowerCase().replaceAll("_", "-");
+  if (!normalized) return undefined;
+  const id = COMMANDCODE_PLAN_IDS.find((candidate) => normalized.startsWith(candidate));
+  return id ? COMMANDCODE_PLANS[id] : undefined;
+}
+
+/** Map a Command Code plan id to the label used by its v1.4.1 CLI. */
 export function formatCommandCodePlanLabel(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   if (!trimmed) return undefined;
-  return COMMANDCODE_PLAN_LABELS[trimmed] ?? trimmed;
+  return commandCodePlan(trimmed)?.label ?? trimmed;
 }
 
 function numeric(value: number | string | undefined): number | undefined {
@@ -83,177 +94,198 @@ function numeric(value: number | string | undefined): number | undefined {
   return undefined;
 }
 
+function nonNegative(value: number | string | undefined): number {
+  return Math.max(0, numeric(value) ?? 0);
+}
+
 /**
- * Pure: map parsed studio responses to a `UsageSnapshot`. The bar already shows
- * used/limit/reset in $ for a `usd` window, so the snapshot intentionally
- * carries NO `cost`, `credits`, or `tokens` field — the panel's meta block
- * would otherwise duplicate the bar (e.g. `~$0.01 · ... · est.` plus
- * `Credits: $9.99` under a bar that already says `$0.01 / $10.00`). The
- * remaining balance is implicit in `limit - used`; the period is implicit in
- * `resetsAt`.
+ * Pure: project the v1 billing responses into the monthly credit bar. For an
+ * active known plan, use the plan allocation as the pool floor exactly as the
+ * CLI does; otherwise reconstruct the pool from remaining + reported spend.
  */
 export function parseCommandCodeUsage(
   creditsBody: unknown,
   summaryBody: unknown,
   subscriptionsBody: unknown,
   nowMs: number,
+  whoamiBody?: unknown,
 ): UsageSnapshot {
-  const credits = ((creditsBody ?? {}) as CommandCodeCreditsBody).credits ?? {};
+  const credits = ((creditsBody ?? {}) as CommandCodeCreditsBody).credits;
   const summary = (summaryBody ?? {}) as CommandCodeUsageSummaryBody;
-  const subscription = ((subscriptionsBody ?? {}) as CommandCodeSubscriptionsBody).data ?? {};
+  const subscription = ((subscriptionsBody ?? {}) as CommandCodeSubscriptionsBody).data;
+  const whoami = (whoamiBody ?? {}) as CommandCodeWhoamiBody;
 
-  const remainingMonthly = numeric(credits.monthlyCredits) ?? 0;
-  const hasConsumed = summary.totalCost !== undefined;
-  const consumed = numeric(summary.totalCost) ?? 0;
-  const monthlyAllocation = remainingMonthly + consumed;
+  const monthlyRemaining = nonNegative(credits?.monthlyCredits);
+  const purchasedRemaining = nonNegative(credits?.purchasedCredits);
+  const freeRemaining = nonNegative(credits?.freeCredits);
+  const totalRemaining = monthlyRemaining + purchasedRemaining + freeRemaining;
+  const totalSpent = nonNegative(summary.totalCost);
+  const knownPlan = commandCodePlan(subscription?.planId);
+  const activePlanAllocation =
+    subscription?.status === "active" ? knownPlan?.monthlyCredits : undefined;
+  const totalPool =
+    activePlanAllocation !== undefined
+      ? Math.max(activePlanAllocation, monthlyRemaining) + purchasedRemaining + freeRemaining
+      : totalSpent + totalRemaining;
+  const used = Math.max(0, totalPool - totalRemaining);
+  const usedPercent = totalPool > 0 ? Math.min(100, (used / totalPool) * 100) : 0;
+  const resetsAt = toEpochMs(subscription?.currentPeriodEnd);
 
-  const usedPercent =
-    monthlyAllocation > 0 ? Math.min(100, Math.max(0, (consumed / monthlyAllocation) * 100)) : 0;
-  const resetsAt = toEpochMs(subscription.currentPeriodEnd);
-
+  const hasCreditData = credits !== undefined || summary.totalCost !== undefined;
   const monthlyWindow: UsageWindow = {
     id: "monthly",
     label: "Monthly credits",
     usedPercent,
     unit: "usd",
     currency: "USD",
-    ...(hasConsumed ? { used: Number(consumed.toFixed(4)) } : {}),
-    ...(monthlyAllocation > 0 ? { limit: Number(monthlyAllocation.toFixed(4)) } : {}),
+    ...(hasCreditData ? { used: Number(used.toFixed(4)) } : {}),
+    ...(totalPool > 0 ? { limit: Number(totalPool.toFixed(4)) } : {}),
     ...(resetsAt !== undefined ? { resetsAt } : {}),
   };
 
-  const plan = formatCommandCodePlanLabel(subscription.planId);
-  const snapshot: UsageSnapshot = {
+  const plan = formatCommandCodePlanLabel(subscription?.planId);
+  const authenticatedAs =
+    whoami.user?.email?.trim() ||
+    whoami.user?.userName?.trim() ||
+    whoami.user?.name?.trim() ||
+    whoami.org?.name?.trim();
+  return {
     providerId: COMMANDCODE_PROVIDER_ID,
     status: "ok",
     windows: [monthlyWindow],
     fetchedAt: nowMs,
+    ...(plan ? { plan } : {}),
+    ...(authenticatedAs ? { authenticatedAs } : {}),
   };
-  if (plan) snapshot.plan = plan;
-  return snapshot;
 }
 
-function commandCodeRequest(
-  http: HttpClient,
-  method: "GET" | "POST",
-  url: string,
-  cookie: string,
-  timeoutMs: number,
-): Promise<HttpResponse> {
+function commandCodeRequest(http: HttpClient, url: string, apiKey: string): Promise<HttpResponse> {
   return http.request({
-    method,
+    method: "GET",
     url,
     headers: {
-      Cookie: cookie,
+      Authorization: `Bearer ${apiKey}`,
       Accept: "application/json",
       "Content-Type": "application/json",
-      Origin: "https://commandcode.ai",
-      Referer: "https://commandcode.ai/",
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-        "(KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
     },
-    timeoutMs,
+    timeoutMs: 15_000,
   });
 }
 
-/**
- * True iff the captured `Cookie` header authenticates as a live commandcode.ai
- * session. `GET /auth/get-session` returns 200 + a JSON object when signed in
- * and 200 + literal `null` (or an empty body) when signed out — so a non-null
- * parsed body is the simplest "is live" signal.
- */
-export async function isCommandCodeSessionLive(
-  http: HttpClient,
-  cookieHeader: string,
-): Promise<boolean> {
-  if (!cookieHeader) return false;
-  const res = await commandCodeRequest(
-    http,
-    "GET",
-    COMMANDCODE_AUTH_SESSION_ENDPOINT,
-    cookieHeader,
-    5_000,
-  );
-  if (res.status < 200 || res.status >= 300) return false;
-  const body = res.body.trim();
-  if (!body || body === "null") return false;
-  try {
-    const parsed = JSON.parse(body) as unknown;
-    return parsed !== null && typeof parsed === "object";
-  } catch {
-    return false;
+function queryEndpoint(endpoint: string, params: Record<string, string | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query.set(key, value);
   }
+  const suffix = query.toString();
+  return suffix ? `${endpoint}?${suffix}` : endpoint;
 }
 
-async function fetchJson(http: HttpClient, url: string, cookie: string): Promise<unknown> {
-  const res = await commandCodeRequest(http, "GET", url, cookie, 15_000);
-  if (res.status === 401 || res.status === 403) {
-    return { __authMissing: true, status: res.status };
-  }
-  if (res.status < 200 || res.status >= 300) {
-    return { __error: `HTTP ${res.status}` };
-  }
+function parseJson(res: HttpResponse): unknown {
   try {
     return JSON.parse(res.body);
   } catch {
-    return { __error: "invalid JSON response" };
+    return undefined;
   }
 }
 
-/**
- * Collect Command Code usage via the captured browser session cookie. Returns
- * an `auth-missing` snapshot when no cookie has been stored, distinguishing it
- * from a transient error so the UI can prompt for sign-in.
- */
+function commandCodeSnapshot(
+  status: UsageSnapshot["status"],
+  now: number,
+  error?: string,
+): UsageSnapshot {
+  return {
+    providerId: COMMANDCODE_PROVIDER_ID,
+    status,
+    windows: [],
+    fetchedAt: now,
+    ...(error ? { error } : {}),
+  };
+}
+
+function responseFailure(responses: HttpResponse[], now: number): UsageSnapshot | undefined {
+  if (responses.some((response) => response.status === 401 || response.status === 403)) {
+    return commandCodeSnapshot("auth-missing", now);
+  }
+  if (responses.some((response) => response.status === 429)) {
+    return commandCodeSnapshot("rate-limited", now);
+  }
+  const failed = responses.find((response) => response.status < 200 || response.status >= 300);
+  return failed ? commandCodeSnapshot("error", now, `HTTP ${failed.status}`) : undefined;
+}
+
+/** Collect usage with the same API-key and `/alpha/*` flow as Command Code v1.4.1. */
 export async function collectCommandCode(
   host: HostPort,
   _opts?: CollectOptions,
 ): Promise<UsageSnapshot> {
   const now = host.now();
-  const cookie = await host.credentials.getSecret(COMMANDCODE_PROVIDER_ID, "cookie");
-  if (!cookie) {
-    return {
-      providerId: COMMANDCODE_PROVIDER_ID,
-      status: "auth-missing",
-      windows: [],
-      fetchedAt: now,
-    };
-  }
+  const token = await host.credentials.getOAuthToken(COMMANDCODE_PROVIDER_ID);
+  if (!token?.accessToken) return commandCodeSnapshot("auth-missing", now);
 
-  let live = false;
+  let whoamiResponse: HttpResponse;
   try {
-    live = await isCommandCodeSessionLive(host.http, cookie);
+    whoamiResponse = await commandCodeRequest(
+      host.http,
+      COMMANDCODE_WHOAMI_ENDPOINT,
+      token.accessToken,
+    );
   } catch {
-    live = false;
+    return commandCodeSnapshot("error", now);
   }
-  if (!live) {
-    return {
-      providerId: COMMANDCODE_PROVIDER_ID,
-      status: "auth-missing",
-      windows: [],
-      fetchedAt: now,
-    };
+  const whoamiFailure = responseFailure([whoamiResponse], now);
+  if (whoamiFailure) return whoamiFailure;
+
+  const parsedWhoami = parseJson(whoamiResponse);
+  if (parsedWhoami === undefined) {
+    return commandCodeSnapshot("error", now, "invalid JSON response");
+  }
+  const whoami = (parsedWhoami ?? {}) as CommandCodeWhoamiBody;
+  const orgId = whoami.org?.id?.trim() || undefined;
+  let creditsResponse: HttpResponse;
+  let subscriptionsResponse: HttpResponse;
+  try {
+    [creditsResponse, subscriptionsResponse] = await Promise.all([
+      commandCodeRequest(
+        host.http,
+        queryEndpoint(COMMANDCODE_BILLING_CREDITS_ENDPOINT, { orgId }),
+        token.accessToken,
+      ),
+      commandCodeRequest(
+        host.http,
+        queryEndpoint(COMMANDCODE_BILLING_SUBSCRIPTIONS_ENDPOINT, { orgId }),
+        token.accessToken,
+      ),
+    ]);
+  } catch {
+    return commandCodeSnapshot("error", now);
+  }
+  const billingFailure = responseFailure([creditsResponse, subscriptionsResponse], now);
+  if (billingFailure) return billingFailure;
+
+  const credits = parseJson(creditsResponse);
+  const parsedSubscriptions = parseJson(subscriptionsResponse);
+  if (credits === undefined || parsedSubscriptions === undefined) {
+    return commandCodeSnapshot("error", now, "invalid JSON response");
+  }
+  const subscriptions = (parsedSubscriptions ?? {}) as CommandCodeSubscriptionsBody;
+  const since = subscriptions.data?.currentPeriodStart;
+  let summaryResponse: HttpResponse;
+  try {
+    summaryResponse = await commandCodeRequest(
+      host.http,
+      queryEndpoint(COMMANDCODE_USAGE_SUMMARY_ENDPOINT, { orgId, since }),
+      token.accessToken,
+    );
+  } catch {
+    return commandCodeSnapshot("error", now);
+  }
+  const summaryFailure = responseFailure([summaryResponse], now);
+  if (summaryFailure) return summaryFailure;
+  const summary = parseJson(summaryResponse);
+  if (summary === undefined) {
+    return commandCodeSnapshot("error", now, "invalid JSON response");
   }
 
-  const [credits, summary, subscriptions] = await Promise.all([
-    fetchJson(host.http, COMMANDCODE_BILLING_CREDITS_ENDPOINT, cookie),
-    fetchJson(host.http, COMMANDCODE_USAGE_SUMMARY_ENDPOINT, cookie),
-    fetchJson(host.http, COMMANDCODE_BILLING_SUBSCRIPTIONS_ENDPOINT, cookie),
-  ]);
-
-  if (
-    (credits as { __authMissing?: boolean })?.__authMissing ||
-    (summary as { __authMissing?: boolean })?.__authMissing ||
-    (subscriptions as { __authMissing?: boolean })?.__authMissing
-  ) {
-    return {
-      providerId: COMMANDCODE_PROVIDER_ID,
-      status: "auth-missing",
-      windows: [],
-      fetchedAt: now,
-    };
-  }
-
-  return parseCommandCodeUsage(credits, summary, subscriptions, now);
+  return parseCommandCodeUsage(credits, summary, subscriptions, now, whoami);
 }
