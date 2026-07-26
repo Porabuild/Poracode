@@ -73,6 +73,7 @@ import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshConnectionManager } from "../ssh/SshConnectionManager";
 import type { ScheduleService } from "../schedules/ScheduleService";
+import type { PrWatchService } from "../prWatch";
 import { homeScopeLocation } from "../schedules";
 import { resolvePoracodeChannel } from "@/shared/channel";
 import {
@@ -106,6 +107,7 @@ interface CreateLocalIpcHandlersOptions {
   /** Relaunch the app (exposed via the relaunchApp IPC). */
   requestRelaunch(): void;
   scheduleService: ScheduleService;
+  prWatchService: PrWatchService;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -443,6 +445,9 @@ export function createLocalIpcHandlers(
     deleteSchedule: ({ id }) => options.scheduleService.delete(id),
     runScheduleNow: ({ id }) => options.scheduleService.runNow(id),
     getScheduleRuns: ({ id }) => dbListScheduleRuns(id),
+    getPrWatch: ({ projectId, prNumber }) => options.prWatchService.get(projectId, prNumber),
+    upsertPrWatch: (watch) => options.prWatchService.upsert(watch),
+    deletePrWatch: ({ projectId, prNumber }) => options.prWatchService.delete(projectId, prNumber),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),
     startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
     installUpdate: () => options.autoUpdater.installUpdate(),

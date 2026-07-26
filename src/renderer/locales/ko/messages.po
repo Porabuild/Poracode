@@ -1028,6 +1028,10 @@ msgstr "항상"
 msgid "Always excluded"
 msgstr "항상 제외됨"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "An agent is fixing this PR."
+msgstr "에이전트가 이 PR을 수정하고 있습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "예상 작업 트리 소유자에는 브랜치가 필요합니다"
@@ -1256,6 +1260,10 @@ msgstr "완료된 스레드 자동 보관 기간(일)"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Auto-generate"
 msgstr "자동 생성"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto-merge"
+msgstr "자동 병합"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -2453,6 +2461,10 @@ msgstr "연결"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect a server"
 #~ msgstr "서버 연결"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Connect an agent before watching PRs."
+msgstr "PR을 감시하기 전에 에이전트를 연결하세요."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Connect an agent to create schedules."
@@ -4230,6 +4242,10 @@ msgstr "Poracode의 네이티브 터미널 및 ACP 런타임을 사용하는 Qwe
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "에이전트에서 수정"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Fix new comments and failed checks, then push updates."
+msgstr "새 댓글과 실패한 검사를 수정한 후 업데이트를 푸시합니다."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -7282,6 +7298,10 @@ msgstr "포트"
 msgid "PR actions"
 msgstr "PR 작업"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation"
+msgstr "PR 자동화"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "PR 옵션"
@@ -9204,6 +9224,10 @@ msgstr "터미널 분할"
 msgid "Split view"
 msgstr "분할 보기"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Squash merge when checks and required reviews pass."
+msgstr "검사와 필수 리뷰를 통과하면 스쿼시 병합합니다."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
 msgstr "SSE(레거시)"
@@ -11069,6 +11093,10 @@ msgstr "쉘 환경 준비 중..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "WSL 셸 환경 준비 중…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Watch PR"
+msgstr "PR 감시"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

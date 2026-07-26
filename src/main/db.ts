@@ -60,6 +60,8 @@ export {
 
 export { dbGetSchedules, dbGetSchedule, dbUpsertSchedule, dbDeleteSchedule } from "./db/schedules";
 
+export { dbGetPrWatches, dbGetPrWatch, dbUpsertPrWatch, dbDeletePrWatch } from "./db/prWatches";
+
 export {
   dbInsertScheduleRun,
   dbUpdateScheduleRun,

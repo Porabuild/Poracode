@@ -7,6 +7,7 @@ import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
 import { mcpProcedures } from "./procedures/mcp";
 import { profileProcedures } from "./procedures/profile";
+import { prWatchProcedures } from "./procedures/prWatches";
 import { scheduleProcedures } from "./procedures/schedules";
 import { skillProcedures } from "./procedures/skills";
 import { projectTreeProcedures } from "./procedures/projectTree";
@@ -33,6 +34,7 @@ export const groupedIpcProcedures = {
   usage: usageProcedures,
   profile: profileProcedures,
   schedules: scheduleProcedures,
+  prWatches: prWatchProcedures,
   skills: skillProcedures,
 } as const;
 
@@ -53,6 +55,7 @@ export const ipcProcedureMap = {
   ...usageProcedures,
   ...profileProcedures,
   ...scheduleProcedures,
+  ...prWatchProcedures,
   ...skillProcedures,
 } as const;
 
@@ -179,6 +182,9 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "deleteSchedule",
   "runScheduleNow",
   "getScheduleRuns",
+  "getPrWatch",
+  "upsertPrWatch",
+  "deletePrWatch",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

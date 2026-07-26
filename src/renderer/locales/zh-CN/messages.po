@@ -1028,6 +1028,10 @@ msgstr "总是"
 msgid "Always excluded"
 msgstr "总是被排除在外"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "An agent is fixing this PR."
+msgstr "代理正在修复此 PR。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "预期的工作树所有者需要指定分支"
@@ -1256,6 +1260,10 @@ msgstr "自动存档已完成线程的等待天数"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Auto-generate"
 msgstr "自动生成"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto-merge"
+msgstr "自动合并"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -2453,6 +2461,10 @@ msgstr "连接"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect a server"
 #~ msgstr "连接服务器"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Connect an agent before watching PRs."
+msgstr "请先连接代理，再监视 PR。"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Connect an agent to create schedules."
@@ -4230,6 +4242,10 @@ msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qwen Code 集成�
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "在代理中修复"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Fix new comments and failed checks, then push updates."
+msgstr "修复新评论和失败的检查，然后推送更新。"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -7281,6 +7297,10 @@ msgstr "端口"
 msgid "PR actions"
 msgstr "PR 操作"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation"
+msgstr "PR 自动化"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "PR 选项"
@@ -9203,6 +9223,10 @@ msgstr "拆分终端"
 msgid "Split view"
 msgstr "分割视图"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Squash merge when checks and required reviews pass."
+msgstr "检查和必需审核通过后执行 squash 合并。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
 msgstr "SSE（旧版）"
@@ -11068,6 +11092,10 @@ msgstr "正在预热 shell 环境..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "正在预热 WSL shell 环境..."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Watch PR"
+msgstr "监视 PR"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"
