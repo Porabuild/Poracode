@@ -14,6 +14,7 @@ import {
   type GhCheckAvailableResult,
   type GhGetPrChecksResult,
   type GhGetPrDetailsResult,
+  type GhGetPrReviewThreadsResult,
   type GhGetPrFilesResult,
   type GhGetPrDiffResult,
   type GhListAccountsResult,
@@ -29,6 +30,7 @@ import {
   mapPullRequestSummary,
   parseGhAuthAccounts,
 } from "./githubMappers";
+import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThreads";
 
 // Re-export the pure mappers previously defined inline here so the module's
 // public surface stays identical for github.test.ts and bridge consumers.
@@ -771,6 +773,33 @@ export class GitHubService {
       return { details: mapPrDetails(raw) };
     } catch (err) {
       throw classifyError(err, "pr view --json (details)");
+    }
+  }
+
+  async getPrReviewThreads(
+    location: ProjectLocation,
+    prNumber: number,
+  ): Promise<GhGetPrReviewThreadsResult> {
+    try {
+      const stdout = await this.runGh(location, [
+        "api",
+        "graphql",
+        "--paginate",
+        "-F",
+        "owner={owner}",
+        "-F",
+        "name={repo}",
+        "-F",
+        `number=${prNumber}`,
+        "-f",
+        `query=${PR_REVIEW_THREADS_QUERY}`,
+        "--jq",
+        ".data.repository.pullRequest.reviewThreads.nodes[]",
+      ]);
+      const threads = parsePrReviewThreads(stdout);
+      return { comments: threads.flatMap((thread) => thread.comments), threads };
+    } catch (err) {
+      throw classifyError(err, "api pull request review threads");
     }
   }
 

@@ -3,11 +3,10 @@ import type { HttpClient } from "@poracode/agents-usage";
 const DEFAULT_PROBE_TIMEOUT_MS = 5_000;
 
 /**
- * Minimal `HttpClient` backed by global `fetch`, shared by the usage-login
- * cookie probes (commandcode/opencode/factory). Each probe runs the same
- * "is this session live" check as the supervisor usage collector — which
- * injects its own HTTP client — so here we provide a fetch-backed one with an
- * AbortController timeout and lower-cased response headers.
+ * Minimal `HttpClient` backed by global `fetch` for usage-login session probes.
+ * Each probe runs the same "is this session live" check as its supervisor
+ * collector, which injects its own HTTP client. Here we provide a fetch-backed
+ * one with an AbortController timeout and lower-cased response headers.
  */
 export const fetchHttpClient: HttpClient = {
   async request(req) {

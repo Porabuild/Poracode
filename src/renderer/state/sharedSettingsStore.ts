@@ -15,7 +15,9 @@ import type {
   InstalledAcpRegistryAgent,
   NewThreadMode,
   NotificationFilter,
+  PrAutomationMode,
   PrCreateMode,
+  PrMergeMethod,
   ProviderDraftConfig,
   TerminalPosition,
   ThemeMode,
@@ -79,6 +81,7 @@ interface SharedSettingsState extends SharedSettings {
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
   setThreadRemoveAction: (value: ThreadRemoveAction) => void;
+  setAutoMarkDoneOnPrMerge: (value: boolean) => void;
   setNewThreadMode: (value: NewThreadMode) => void;
   setHomeScopeEnabled: (value: boolean) => void;
   setSidebarTranslucency: (value: boolean) => void;
@@ -89,6 +92,8 @@ interface SharedSettingsState extends SharedSettings {
   setWslWorktreeBasePath: (value: string) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
+  setPrAutomationDefault: (value: PrAutomationMode) => void;
+  setPrMergeMethod: (value: PrMergeMethod) => void;
   setCommitDefaultAction: (value: CommitDefaultAction) => void;
   setEditorLspEnabled: (value: boolean) => void;
   setSearchUseIgnoreFiles: (value: boolean) => void;
@@ -437,6 +442,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ threadRemoveAction });
     persistSettings(selectSharedSettings(get()));
   },
+  setAutoMarkDoneOnPrMerge: (autoMarkDoneOnPrMerge) => {
+    if (get().autoMarkDoneOnPrMerge === autoMarkDoneOnPrMerge) return;
+    set({ autoMarkDoneOnPrMerge });
+    persistSettings(selectSharedSettings(get()));
+  },
   setNewThreadMode: (newThreadMode) => {
     set({ newThreadMode });
     persistSettings(selectSharedSettings(get()));
@@ -483,6 +493,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   setPrCreateMode: (prCreateMode) => {
     if (get().prCreateMode === prCreateMode) return;
     set({ prCreateMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrAutomationDefault: (prAutomationDefault) => {
+    if (get().prAutomationDefault === prAutomationDefault) return;
+    set({ prAutomationDefault });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrMergeMethod: (prMergeMethod) => {
+    if (get().prMergeMethod === prMergeMethod) return;
+    set({ prMergeMethod });
     persistSettings(selectSharedSettings(get()));
   },
   setCommitDefaultAction: (commitDefaultAction) => {
@@ -827,6 +847,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     remoteAccessTailscaleHttps: state.remoteAccessTailscaleHttps,
     remoteAccessAdvertisedUrl: state.remoteAccessAdvertisedUrl,
     threadRemoveAction: state.threadRemoveAction,
+    autoMarkDoneOnPrMerge: state.autoMarkDoneOnPrMerge,
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,
     sidebarTranslucency: state.sidebarTranslucency,
@@ -837,6 +858,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     wslWorktreeBasePath: state.wslWorktreeBasePath,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,
+    prAutomationDefault: state.prAutomationDefault,
+    prMergeMethod: state.prMergeMethod,
     commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,

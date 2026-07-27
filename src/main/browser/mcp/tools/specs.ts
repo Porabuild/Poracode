@@ -1,13 +1,25 @@
 import type { ToolSpec } from "./types";
 
 export const BROWSER_MCP_INSTRUCTIONS =
-  "Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Poracode. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.";
+  "Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Poracode. Before the first browsing action, call browser.enable once and keep it enabled across the whole uninterrupted browser session so agent presence stays consistent between calls. Always call browser.disable before pausing to ask for user input, waiting for an external event, or finishing, and enable again when you resume. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.";
 
 export const TOOLS: ToolSpec[] = [
   {
     name: "api",
     description:
       "Return the complete Browser MCP API, recommended workflows, and current tabs. Call this first if you need to browse, inspect, click, type, screenshot, or verify a web page.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "enable",
+    description:
+      "Begin one uninterrupted Browser MCP session and keep its automation host and presence state active between calls.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "disable",
+    description:
+      "End the current Browser MCP session and release its automation presence state. Always call before pausing for user input or finishing.",
     inputSchema: { type: "object", properties: {} },
   },
   {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseClaudeCredentials } from "./claudeCredentials";
 import { claudeKeychainAccount, claudeKeychainServiceNames } from "./macClaudeKeychain";
 import { parseCodexAuth } from "./codexCredentials";
+import { parseCommandCodeAuth, parseCommandCodeEnv } from "./commandCodeCredentials";
 import { copilotCredentialTargetFromConfig } from "./copilotCredentials";
 import {
   CURSOR_CLI_KEYCHAIN_ACCOUNT,
@@ -135,6 +136,30 @@ describe("parseCodexAuth", () => {
   it("returns undefined when tokens are absent or JSON is invalid", () => {
     expect(parseCodexAuth(JSON.stringify({ OPENAI_API_KEY: "sk-..." }))).toBeUndefined();
     expect(parseCodexAuth("nope")).toBeUndefined();
+  });
+});
+
+describe("Command Code credentials", () => {
+  it("reads COMMAND_CODE_API_KEY and strips wrapping quotes", () => {
+    expect(parseCommandCodeEnv({ COMMAND_CODE_API_KEY: '  "cc-env-key"  ' })).toEqual({
+      accessToken: "cc-env-key",
+    });
+    expect(parseCommandCodeEnv({})).toBeUndefined();
+  });
+
+  it("extracts the API key and user name from auth.json", () => {
+    expect(
+      parseCommandCodeAuth(JSON.stringify({ apiKey: "cc-file-key", userName: "command-user" })),
+    ).toEqual({
+      accessToken: "cc-file-key",
+      raw: { userName: "command-user" },
+    });
+  });
+
+  it("rejects missing, blank, and malformed auth.json keys", () => {
+    expect(parseCommandCodeAuth("{}")).toBeUndefined();
+    expect(parseCommandCodeAuth(JSON.stringify({ apiKey: " " }))).toBeUndefined();
+    expect(parseCommandCodeAuth("not json")).toBeUndefined();
   });
 });
 

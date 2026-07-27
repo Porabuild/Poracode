@@ -2,11 +2,17 @@ import type { ProjectLocation, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  useThreadTodoDockStore,
+  type ThreadTodoDockPlacement,
+} from "@/renderer/state/threadTodoDockStore";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
+import { resolveActivePaneId } from "./currentProject";
 
 function panelContextMatchesThread(
   projectId: string,
@@ -129,8 +135,22 @@ export function openProjectSettings(projectId: string): void {
   usePanelStore.getState().openProjectSettings(projectId);
 }
 
-/** Closes git/files side and right-panel content only. Does not hide the dev terminal (bottom or right). */
+export function moveThreadTodoDock(threadId: string, placement: ThreadTodoDockPlacement): void {
+  useThreadTodoDockStore.getState().setPlacement(threadId, placement);
+  if (placement === "right") {
+    usePanelStore.getState().setRightPanelTab("plan");
+  }
+}
+
+/** Close right-panel content and return its focused Plan to the composer. */
 export function closeAllPanels(): void {
+  const appState = useAppStore.getState();
+  if (appState.view.kind === "thread") {
+    moveThreadTodoDock(
+      resolveActivePaneId(appState.view.panes, appState.focusedPaneId),
+      "composer",
+    );
+  }
   usePanelStore.getState().closeAllPanels();
 }
 
@@ -151,7 +171,7 @@ export function showSubAgentPanel(
 
 /** Dismiss every panel that can occupy the right edge — used by the overlay backdrop. */
 export function dismissRightOverlay(): void {
-  usePanelStore.getState().closeAllPanels();
+  closeAllPanels();
   useDevTerminalStore.getState().closePanel();
 }
 
@@ -171,14 +191,15 @@ function applyFilesPanel(
 
   const fileEditor = useFileEditorStore.getState();
   const currentRoot = fileEditor.rootContext;
-  const hasDirtyBuffers = Object.values(fileEditor.buffers).some(
-    (buffer) => buffer.status === "ready" && buffer.isDirty,
-  );
   const isSameContext =
     currentRoot?.projectId === context.projectId &&
     currentRoot?.worktreePath === context.worktreePath;
 
-  if (!isSameContext && hasDirtyBuffers && !window.confirm("Discard unsaved editor changes?")) {
+  if (
+    !isSameContext &&
+    hasDirtyEditorBuffers() &&
+    !window.confirm("Discard unsaved editor changes?")
+  ) {
     return;
   }
 

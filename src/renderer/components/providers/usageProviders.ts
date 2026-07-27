@@ -1,6 +1,6 @@
 import { antigravityWindowId } from "@poracode/agents-usage/antigravity";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
-import type { UsageWindow } from "@poracode/agents-usage/types";
+import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
 import {
   baseAgentKind,
   claudeProfileKind,
@@ -90,9 +90,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   codex: {
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
   },
-  // Copilot uses GitHub's OAuth device flow, the others a captured web-session
-  // cookie — both surface as the in-app browser login.
-  commandcode: { supportsBrowserLogin: true },
+  // Copilot uses GitHub's OAuth device flow through the in-app browser.
   copilot: { supportsBrowserLogin: true },
   cursor: { sharedWindowReset: true, rings: { outer: ["cursor-auto"], inner: ["cursor-api"] } },
   // Droid signs in via the in-app app.factory.ai browser session. The standard
@@ -258,6 +256,31 @@ export function pickUsageRings(
   }
   const worst = [...windows].sort((a, b) => b.usedPercent - a.usedPercent)[0];
   return worst ? { outer: worst } : {};
+}
+
+/**
+ * Whether a provider earns a circle in the sidebar rail. A signed-out provider
+ * (`auth-missing`) or one with no usage API (`unsupported`) has nothing a ring
+ * can show, so the rail leaves it out — Settings → Usage still lists it with its
+ * status and login action. Everything else stays: snapshots that haven't arrived
+ * yet (so a cold start isn't an empty rail) and signed-in-but-unreadable states
+ * like `app-not-running` or `rate-limited`, which do recover on their own.
+ */
+export function hasRailUsage(snapshot: UsageSnapshot | undefined): boolean {
+  if (!snapshot) return true;
+  // Exhaustive on purpose: a status added upstream should fail the typecheck
+  // here rather than silently defaulting into (or out of) the rail.
+  switch (snapshot.status) {
+    case "auth-missing":
+    case "unsupported":
+      return false;
+    case "ok":
+    case "app-not-running":
+    case "rate-limited":
+    case "quota-hit":
+    case "error":
+      return true;
+  }
 }
 
 /**

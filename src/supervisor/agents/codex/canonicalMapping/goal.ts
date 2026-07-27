@@ -6,14 +6,38 @@ import type { ProviderGoalState } from "../../goalRuntime";
 import type { CodexMapperState } from "../canonicalMappingState";
 import type { ThreadGoalStatus } from "../protocol";
 
-const CODEX_GOAL_STATUS_MAP = {
-  active: "active",
-  paused: "paused",
-  blocked: "paused",
-  usageLimited: "budget_limited",
-  budgetLimited: "budget_limited",
-  complete: "complete",
-} as const satisfies Record<ThreadGoalStatus, NonNullable<ProviderGoalState["status"]>>;
+const CODEX_GOAL_METADATA = {
+  active: {
+    status: "active",
+    availableActions: ["edit", "pause", "clear"],
+  },
+  paused: {
+    status: "paused",
+    availableActions: ["edit", "resume", "clear"],
+  },
+  blocked: {
+    status: "paused",
+    availableActions: ["edit", "resume", "clear"],
+  },
+  usageLimited: {
+    status: "budget_limited",
+    availableActions: ["edit", "resume", "clear"],
+  },
+  budgetLimited: {
+    status: "budget_limited",
+    availableActions: ["edit", "clear"],
+  },
+  complete: {
+    status: "complete",
+    availableActions: ["edit", "clear"],
+  },
+} as const satisfies Record<
+  ThreadGoalStatus,
+  {
+    status: NonNullable<ProviderGoalState["status"]>;
+    availableActions: NonNullable<ProviderGoalState["availableActions"]>;
+  }
+>;
 
 export function readCodexGoal(
   params: Record<string, unknown> | undefined,
@@ -22,11 +46,11 @@ export function readCodexGoal(
   if (!goal || typeof goal !== "object") return undefined;
   const record = goal as Record<string, unknown>;
   const objective = typeof record.objective === "string" ? record.objective.trim() : "";
-  const status = readCodexGoalStatus(record.status);
+  const metadata = readCodexGoalMetadata(record.status);
   return {
     ...(typeof record.threadId === "string" ? { providerThreadId: record.threadId } : {}),
     ...(objective.length > 0 ? { objective } : {}),
-    ...(status ? { status } : {}),
+    ...metadata,
     ...(typeof record.tokenBudget === "number" || record.tokenBudget === null
       ? { tokenBudget: record.tokenBudget }
       : {}),
@@ -39,10 +63,16 @@ export function readCodexGoal(
   };
 }
 
-export function readCodexGoalStatus(status: unknown): ProviderGoalState["status"] | undefined {
-  return typeof status === "string" && status in CODEX_GOAL_STATUS_MAP
-    ? CODEX_GOAL_STATUS_MAP[status as ThreadGoalStatus]
+function readCodexGoalMetadata(
+  status: unknown,
+): (typeof CODEX_GOAL_METADATA)[ThreadGoalStatus] | undefined {
+  return typeof status === "string" && status in CODEX_GOAL_METADATA
+    ? CODEX_GOAL_METADATA[status as ThreadGoalStatus]
     : undefined;
+}
+
+export function readCodexGoalStatus(status: unknown): ProviderGoalState["status"] | undefined {
+  return readCodexGoalMetadata(status)?.status;
 }
 
 export function isNewCodexGoal(goal: ProviderGoalState, state: CodexMapperState): boolean {

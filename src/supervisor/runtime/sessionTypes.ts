@@ -170,6 +170,8 @@ export interface ThreadOutputPipelineCallbacks {
   onRecoverInvalidSessionRef(session: SessionRuntime): void;
   onStartQueuedLaunchPrompt(session: SessionRuntime): void;
   onStartSessionRefDiscovery(session: SessionRuntime): void;
+  /** Observe committed runtime-state changes (used by queued background work). */
+  onSessionStateChanged?(session: SessionRuntime): void;
 }
 
 export interface ThreadOutputPipelineHooks extends ThreadOutputPipelineCallbacks {

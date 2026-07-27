@@ -2,10 +2,10 @@ import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import {
+  entryIsDone,
   entryIsStarred,
   entryLatestDate,
   groupThreads,
-  isRecent,
   type ThreadListEntry,
   type WorktreeThreadGroup,
 } from "./groupThreads";
@@ -266,20 +266,34 @@ export function buildSidebarProjectRows(input: {
   const entries = groupThreads(
     [...input.projectThreads].sort((a, b) => b[dateField].localeCompare(a[dateField])),
   );
-  const starredEntries = entries.filter(entryIsStarred);
-  const unstarredEntries = entries.filter((e) => !entryIsStarred(e));
-  const recentEntries = unstarredEntries.filter((e) => isRecent(entryLatestDate(e, dateField)));
-  const olderEntries = unstarredEntries.filter((e) => !isRecent(entryLatestDate(e, dateField)));
+  // One pass into the three sections: done entries sink to the bottom, newest
+  // activity first — independent of the sort mode, which only orders the live
+  // list above. Their sort key is computed once per entry rather than per
+  // comparison, since a group entry has to scan its threads for it.
+  const starredEntries: ThreadListEntry[] = [];
+  const activeEntries: ThreadListEntry[] = [];
+  const datedDoneEntries: { entry: ThreadListEntry; updatedAt: string }[] = [];
+  for (const entry of entries) {
+    if (entryIsDone(entry)) {
+      datedDoneEntries.push({ entry, updatedAt: entryLatestDate(entry, "updatedAt") });
+    } else if (entryIsStarred(entry)) {
+      starredEntries.push(entry);
+    } else {
+      activeEntries.push(entry);
+    }
+  }
+  const doneEntries = datedDoneEntries
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .map((item) => item.entry);
 
   const { visible, hiddenCount } = selectVisible(
-    [...starredEntries, ...recentEntries, ...olderEntries],
+    [...starredEntries, ...activeEntries, ...doneEntries],
     input.visibleLimit,
     (e) => entryIsProtected(e, liveBackgroundThreadIds),
   );
   const starredVisible = starredEntries.filter((e) => visible.has(e));
-  const recentVisible = recentEntries.filter((e) => visible.has(e));
-  const olderVisible = olderEntries.filter((e) => visible.has(e));
-  const hasBothSections = recentVisible.length > 0 && olderVisible.length > 0;
+  const activeVisible = activeEntries.filter((e) => visible.has(e));
+  const doneVisible = doneEntries.filter((e) => visible.has(e));
   let ungroupedIndex = 0;
 
   const nextUngroupedIndex = () => ungroupedIndex++;
@@ -299,11 +313,11 @@ export function buildSidebarProjectRows(input: {
   };
 
   pushList(starredVisible);
-  pushList(recentVisible, starredVisible.length);
-  if (hasBothSections) {
-    rows.push({ kind: "section-label", key: "older-label", label: msg`Older` });
+  pushList(activeVisible, starredVisible.length);
+  if (doneVisible.length > 0) {
+    rows.push({ kind: "section-label", key: "done-label", label: msg`Done` });
   }
-  pushList(olderVisible, starredVisible.length + recentVisible.length);
+  pushList(doneVisible, starredVisible.length + activeVisible.length);
   if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });
 
   return rows;

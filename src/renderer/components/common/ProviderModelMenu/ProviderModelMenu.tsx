@@ -283,6 +283,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const favorites = useSharedSettings((s) => s.favoriteModels);
   const recents = useSharedSettings((s) => s.recentModels);
   const providerOrder = useSharedSettings((s) => s.providerOrder);
+  const hiddenModels = useSharedSettings((s) => s.hiddenModels);
   const toggleFavoriteModel = useSharedSettings((s) => s.toggleFavoriteModel);
   const latestFavoritesRef = useRef(favorites);
   const latestRecentsRef = useRef(recents);
@@ -356,6 +357,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         favorites: sectionFavorites,
         favoriteStateRefs: activeFavorites,
         recents: sectionRecents,
+        hiddenModels,
         providerOrder,
       })
     : [];
@@ -501,7 +503,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         )
       }
       placement="top start"
-      contentClassName="w-96 p-0"
+      contentClassName="w-fit min-w-64 max-w-96 p-0"
       dialogClassName="flex max-h-[28rem] flex-col overflow-hidden !p-0"
     >
       {renderContent}

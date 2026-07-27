@@ -16,7 +16,7 @@ import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { discardExperiment } from "@/renderer/actions/experimentActions";
-import { archiveThread, toggleMarkThreadDone } from "@/renderer/actions/threadActions";
+import { archiveThread, markThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -161,7 +161,7 @@ export function SidebarThreadGroup(props: {
             }
             if (key === "mark-all-done") {
               for (const thread of entry.group.threads) {
-                if (!thread.done) toggleMarkThreadDone(thread.id);
+                markThreadDone(thread.id);
               }
             }
             if (key === "archive-all") {

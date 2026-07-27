@@ -12,7 +12,10 @@ import { ChevronDown, GitFork, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { changeThreadConfig } from "@/renderer/actions/threadRuntimeActions";
+import {
+  changeThreadConfig,
+  clearThreadPendingSteer,
+} from "@/renderer/actions/threadRuntimeActions";
 import { BranchSelector, type BranchSelection } from "../common/BranchSelector/BranchSelector";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
@@ -43,6 +46,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useThread } from "@/renderer/state/useThread";
+import { ThreadChangesBubble } from "./ThreadChangesBubble";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
@@ -57,7 +61,7 @@ import {
 } from "./threadSlashCommands";
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
-import { isAuthErrorMessage, type ThreadErrorDockState } from "./threadErrorState";
+import { resolveThreadAuthState, type ThreadErrorDockState } from "./threadErrorState";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
@@ -100,10 +104,20 @@ type ThreadComposerSectionProps = {
    * Suppress the informational docks (subagents/crossagents/workflows, context,
    * goal, plan, errors) inside the composer. The mobile PWA sets this and surfaces
    * the same state as compact chips above the floating composer instead
-   * (ComposerInfoChips). Interactive docks — auth, pending steer, runtime
-   * requests, slash commands — always stay inline.
+   * (ComposerInfoChips). The action docks are gated separately — see
+   * {@link ThreadComposerSectionProps.hideActionDocks}.
    */
   hideInfoDocks?: boolean | undefined;
+  /**
+   * Suppress the action docks (auth required, pending steer, runtime requests)
+   * because the host renders them itself. The mobile PWA sets this: its compact
+   * composer clips to a single control line, so those docks are hoisted into the
+   * floating dock above the bubble (ComposerActionDocks). The slash-command
+   * panel stays inline — it only appears while the user is typing, i.e. with the
+   * composer already expanded. Deny-with-feedback from the input keeps working
+   * either way: this gates the panels, not the open request.
+   */
+  hideActionDocks?: boolean | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onTodoDockCollapsedChange: (collapsed: boolean) => void;
   onTodoDockPlacementChange: (placement: "composer" | "right") => void;
@@ -278,13 +292,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
   const showCommandPanel = filteredCommands.length > 0;
-  // A stale runtime auth error (e.g. a 401 from before the user signed in)
-  // must not keep the auth dock visible once detection confirms the agent is
-  // authenticated again — otherwise the dock sticks until the user retries.
-  const isAgentAuthenticated = agentStatus?.authState === "authenticated";
-  const hasRuntimeAuthError =
-    !isAgentAuthenticated && errorDockStates.some((state) => isAuthErrorMessage(state.message));
-  const authRequired = agentStatus?.authState === "missing" || hasRuntimeAuthError;
+  const { authRequired, hasRuntimeAuthError } = resolveThreadAuthState({
+    authState: agentStatus?.authState,
+    errorDockStates,
+  });
   const canShowRuntimeChrome = !usesTerminalPresentation || isRemote;
   const isServerControlled =
     agentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
@@ -372,6 +383,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const approvalDenyOption = activeRuntimeRequest
     ? getApprovalDenyOption(activeRuntimeRequest)
     : undefined;
+  // Gate the inline docks only. `activeRuntimeRequest` still drives the
+  // composer's deny-with-feedback submit path, and `authRequired` still disables
+  // submit/voice, when a host renders these docks itself.
+  const hideActionDocks = props.hideActionDocks === true;
+  const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
+  const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
+  const showAuthInComposer = authRequired && !hideActionDocks;
   const reportedContextUsage = useAppStore((s) =>
     canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
   );
@@ -468,15 +486,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         setControlOpenRequest((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 })),
       onSubmitInput: props.onSubmitInput,
     });
-  }
-
-  function handleCancelPendingSteer() {
-    void readBridge()
-      .clearPendingSteer({ threadId: thread.id })
-      .catch((error: unknown) => {
-        console.error("[thread] failed to clear pending steer", error);
-        toast.danger(friendlyError(error));
-      });
   }
 
   useEffect(() => {
@@ -601,7 +610,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   return (
     <>
       {thread.status !== "launching" || !usesTerminalPresentation ? (
-        <div>
+        <div className="relative">
+          <ThreadChangesBubble
+            projectId={thread.projectId}
+            {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+          />
           <div
             className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
             style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}
@@ -637,9 +650,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     showErrorInComposer ||
                     showGoalInComposer ||
                     showTodoInComposer ||
-                    authRequired ||
-                    visiblePendingSteer ||
-                    activeRuntimeRequest ||
+                    showAuthInComposer ||
+                    composerPendingSteer ||
+                    composerRuntimeRequest ||
                     showCommandPanel ? (
                       <ThreadComposerDocks
                         hasActiveSubAgent={hasActiveSubAgent}
@@ -647,7 +660,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         showErrorInComposer={showErrorInComposer}
                         showGoalInComposer={showGoalInComposer}
                         showTodoInComposer={showTodoInComposer}
-                        authRequired={authRequired}
+                        authRequired={showAuthInComposer}
                         showCommandPanel={showCommandPanel}
                         threadId={thread.id}
                         projectLocation={projectLocation}
@@ -662,8 +675,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         todoDockState={todoDockState}
                         todoDockCollapsed={todoDockCollapsed}
                         todoDockPlacement={todoDockPlacement}
-                        pendingSteer={visiblePendingSteer}
-                        activeRuntimeRequest={activeRuntimeRequest}
+                        pendingSteer={composerPendingSteer}
+                        activeRuntimeRequest={composerRuntimeRequest}
                         filteredCommands={filteredCommands}
                         slashActiveIndex={slashActiveIndex}
                         commandListId={commandListId}
@@ -675,7 +688,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         {...(props.onTodoDockRetire
                           ? { onTodoDockRetire: props.onTodoDockRetire }
                           : {})}
-                        onCancelPendingSteer={handleCancelPendingSteer}
+                        onCancelPendingSteer={() => clearThreadPendingSteer(thread.id)}
                         {...(props.onOpenProjectRelativePath
                           ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
                           : {})}

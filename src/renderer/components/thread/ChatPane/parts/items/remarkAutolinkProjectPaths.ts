@@ -1,4 +1,4 @@
-import type { ProjectPathRef } from "./parseProjectPathRef";
+import { PROJECT_PATH_TOKEN_SOURCE, type ProjectPathRef } from "./parseProjectPathRef";
 
 /**
  * Sentinel URL prefixes used to mark links injected by `remarkAutolinkProjectPaths`,
@@ -25,15 +25,15 @@ interface PluginOptions {
 
 const SKIP_PARENT_TYPES = new Set(["code", "inlineCode", "link", "linkReference", "html"]);
 
-const PATH_TOKEN_RE =
-  /(?<![A-Za-z0-9_:/@.\\-])(\/?[A-Za-z0-9_@.][A-Za-z0-9_@.-]*(?:[\\/][A-Za-z0-9_@.-]+)+)(?::(\d+)(?:-\d+)?)?/g;
+const PATH_TOKEN_RE = new RegExp(PROJECT_PATH_TOKEN_SOURCE, "g");
 
 /**
  * Markdown plugin that auto-links plain-text path tokens (e.g.
- * `src/foo/bar.ts`, `src/foo/bar.ts:42`, `src/lib/`) to chip-rendered links
- * when `parsePathRef` confirms they refer to a real project path. Tokens that
- * fail validation are left as plain text, so unrelated `@scope/name` package
- * references and arbitrary slashed strings don't become chips.
+ * `foo.ts:42`, `src/foo/bar.ts`, `src/lib/`) to chip-rendered links when
+ * `parsePathRef` confirms they are path-shaped. Bare filenames resolve through
+ * the project file index when clicked. Tokens that fail validation are left as
+ * plain text, so unrelated words, `@scope/name` package references, and
+ * arbitrary slashed strings don't become chips.
  *
  * Detection skips text inside code spans, fenced blocks, and existing links.
  */

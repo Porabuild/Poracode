@@ -71,6 +71,31 @@ export const remoteCommandReceipts = sqliteTable("remote_command_receipts", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const prWatches = sqliteTable(
+  "pr_watches",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    prNumber: integer("pr_number").notNull(),
+    headBranch: text("head_branch").notNull(),
+    worktreePath: text("worktree_path"),
+    watchEnabled: integer("watch_enabled", { mode: "boolean" }).notNull().default(true),
+    autoMerge: integer("auto_merge", { mode: "boolean" }).notNull().default(false),
+    agentKind: text("agent_kind"),
+    config: text("config"),
+    lastCommentCursor: text("last_comment_cursor"),
+    lastReviewCommentCursor: text("last_review_comment_cursor"),
+    lastReviewCursor: text("last_review_cursor"),
+    lastCheckKey: text("last_check_key"),
+    activeThreadId: text("active_thread_id"),
+    lastError: text("last_error"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.projectId, table.prNumber] }),
+  }),
+);
+
 /**
  * Per-project notes panel content. One row per project, keyed by project id.
  * `doc` holds the TipTap (ProseMirror) JSON for the free-form notes editor;

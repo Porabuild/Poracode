@@ -29,6 +29,7 @@ export function PrReviewSidebar(props: {
   loading: boolean;
   projectId: string;
   projectLocation: ProjectLocation;
+  mergeSyncLocation: ProjectLocation;
   prKey: string;
   worktreePath?: string | undefined;
   skipLocalSync?: boolean;
@@ -42,6 +43,7 @@ export function PrReviewSidebar(props: {
     loading,
     projectId,
     projectLocation,
+    mergeSyncLocation,
     prKey,
     worktreePath,
     skipLocalSync,
@@ -61,6 +63,7 @@ export function PrReviewSidebar(props: {
     handleUpdatePrBranch,
   } = usePrWriteActions({
     projectLocation,
+    mergeSyncLocation,
     prKey,
     ...(skipLocalSync ? { skipLocalSync: true } : {}),
     onRefresh,

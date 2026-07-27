@@ -1,4 +1,4 @@
-import { watch } from "node:fs";
+import { existsSync, watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -11,6 +11,7 @@ import {
   session as electronSession,
 } from "electron";
 import { resolveThemeMode } from "@/shared/themeMode";
+import { isThreadTurnActive, type RemoteThreadCommand } from "@/shared/contracts";
 import {
   closeDatabase,
   dbDeleteThread,
@@ -74,7 +75,6 @@ import {
   type UpdateStatus,
 } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
-import type { RemoteThreadCommand } from "@/shared/contracts";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
 import { remoteProjectCommandResultSchema } from "@/shared/remote";
 import { WindowsJobObjectManager } from "./windowsJobObject";
@@ -97,6 +97,7 @@ import { legacyProductNameFor, resolveLegacyElectronUserDataDir } from "./legacy
 import { refreshMacDockIcon } from "./macDockIcon";
 import { repairLegacyMacAppPath } from "./macAppPathMigration";
 import { persistSupervisorEvent } from "./remote/server/runtimePersistence";
+import { createDevicePrWatchService, type PrWatchService } from "./prWatch";
 import { shouldUseMockKeychain } from "./mockKeychain";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -659,6 +660,7 @@ if (!hasSingleInstanceLock) {
       // Assigned right after the supervisor client below; the `onEvent` tap only
       // fires once the supervisor is started, by which point it is set.
       let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
+      let prWatchService: PrWatchService | null = null;
       const supervisorClient = new SupervisorClient({
         appVersion: app.getVersion(),
         isDev,
@@ -701,6 +703,7 @@ if (!hasSingleInstanceLock) {
           handleSupervisorEventForSleep(event);
           appControlsMcpIngress?.observeSupervisorEvent(event);
           scheduleRunCoordinator?.observeSupervisorEvent(event);
+          prWatchService?.observeSupervisorEvent(event);
           remoteAccessController?.handleSupervisorEvent(event);
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
           forwardAgentStatusEventToQuickComposer(event);
@@ -746,6 +749,43 @@ if (!hasSingleInstanceLock) {
         });
         mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, { projects });
       };
+      const sharedAppControlsDeps = buildSharedAppControlsIngressDeps({
+        call: (name, payload) => supervisorClient.call(name, payload),
+        sendThreadCommand: emitRemoteThreadCommand,
+        getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
+        publishProjectsChanged,
+      });
+      prWatchService = createDevicePrWatchService({
+        getProject: dbGetProject,
+        getPrForBranch: (project, branch) =>
+          supervisorClient.call("ghGetPrForBranch", {
+            projectLocation: project.location,
+            branch,
+          }),
+        getPrDetails: (project, prNumber) =>
+          supervisorClient
+            .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
+            .then((result) => result.details),
+        getPrReviewThreads: (project, prNumber) =>
+          supervisorClient
+            .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
+            .then((result) => result.threads),
+        getMergeMethod: () =>
+          readSharedSettingsFile(requirePoracodePaths().settingsPath).prMergeMethod,
+        mergePr: (project, prNumber, method) =>
+          supervisorClient.call("ghMergePr", {
+            projectLocation: project.location,
+            prNumber,
+            method,
+            admin: false,
+          }),
+        createThread: sharedAppControlsDeps.createThread,
+        isThreadActive: (threadId) => {
+          const status = dbGetThread(threadId)?.status;
+          return status !== undefined && isThreadTurnActive(status);
+        },
+        worktreeExists: existsSync,
+      });
       // Latest updater status, captured from the auto-updater's status stream so
       // the app-controls `check_for_update` tool can report the most recent
       // result (the check itself is fire-and-forget and event-driven).
@@ -757,13 +797,7 @@ if (!hasSingleInstanceLock) {
         getProjects: dbGetProjects,
         getProject: dbGetProject,
         getProjectNotes: dbGetProjectNotes,
-        ...buildSharedAppControlsIngressDeps({
-          call: (name, payload) => supervisorClient.call(name, payload),
-          // The desktop mirrors thread commands to its renderer store.
-          sendThreadCommand: emitRemoteThreadCommand,
-          getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
-          publishProjectsChanged,
-        }),
+        ...sharedAppControlsDeps,
         settings: {
           read: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
           write: (next) => {
@@ -958,6 +992,7 @@ if (!hasSingleInstanceLock) {
             app.quit();
           },
           scheduleService,
+          prWatchService,
         }),
         callSupervisor: (name, payload) => supervisorClient.call(name, payload),
       });
@@ -1033,6 +1068,7 @@ if (!hasSingleInstanceLock) {
       ]);
       supervisorClient.start(paths.baseDir);
       scheduleService.start();
+      prWatchService.start();
 
       void controller.startIfEnabled();
 
@@ -1079,6 +1115,7 @@ if (!hasSingleInstanceLock) {
         quickComposerDismissTimer = null;
         pendingQuickComposerSubmissions.length = 0;
         scheduleService.dispose();
+        prWatchService.dispose();
         supervisorClient.dispose();
         windowsJobObjectManager?.dispose();
         windowsJobObjectManager = null;

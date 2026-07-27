@@ -5,6 +5,7 @@ import { getBasename } from "@/shared/pathUtils";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
+import { isFullscreenScreenPath } from "./fullscreenScreenPath";
 import { useGitSummariesStore } from "./gitSummaries";
 import type { RemoteSession } from "./remoteContext";
 import { isDesktopSettingsSection } from "./settingsSectionIds";
@@ -101,6 +102,10 @@ export function threadIdFromPath(pathname: string): string | null {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
+// Defined in fullscreenScreenPath (dependency-free) so the lightweight
+// transition predicates can share it; re-exported here for existing importers.
+export { isFullscreenScreenPath };
+
 /**
  * Depth of a screen in the phone navigation stack. Higher = deeper. Drives the
  * direction of the native view transition: deeper is a forward push, shallower
@@ -110,21 +115,6 @@ export function threadIdFromPath(pathname: string): string | null {
  * calling `history.back()`, so history index can't tell us the direction —
  * comparing depth gives the correct visual direction regardless.
  */
-/**
- * True for routes that render a fullscreen overlay screen with their own
- * chrome and no `.m-main` (RootLayout's "fullscreen" layout). These carry the
- * `m-screen` view-transition name; navigations into/out of them add the
- * `screen` transition type so the page chrome holds steady under the slide.
- */
-export function isFullscreenScreenPath(path: string): boolean {
-  return (
-    path.startsWith("/workspace/") ||
-    path.startsWith("/notes/") ||
-    path.startsWith("/pr/") ||
-    path.startsWith("/terminal/")
-  );
-}
-
 export function screenDepth(path: string): number {
   if (path.startsWith("/subagent/")) return 2;
   if (path.startsWith("/thread/")) return 1;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Eye, GitBranch, ImageIcon, Pencil, SearchCode, Sparkles, Terminal } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
-import { isCrossagentRunAgentTool } from "@/shared/toolCallClassification";
+import { isCrossagentSpawnAgentTool } from "@/shared/toolCallClassification";
 import {
   deriveToolDisplay,
   isCrossagentTool,
@@ -274,16 +274,21 @@ describe("deriveToolDisplay", () => {
 
   it.each([
     ["mcp__crossagents__run_agent", undefined, true],
+    ["mcp__crossagents__spawn_agent", undefined, true],
     ["crossagents-mcp-server-run_agent", undefined, true],
+    ["crossagents-mcp-server-spawn_agent", undefined, true],
     ["crossagents__run_agent", undefined, true],
+    ["crossagents__spawn_agent", undefined, true],
     ["crossagents_run_agent", undefined, true],
+    ["crossagents_spawn_agent", undefined, true],
     ["run_agent", "crossagents", true],
+    ["spawn_agent", "crossagents", true],
     ["mcp__other__run_agent", undefined, false],
     ["mcp__crossagents__list_agents", undefined, false],
-  ])("classifies the Crossagents run transport %s", (name, serverId, expected) => {
-    expect(isCrossagentRunAgentTool(makePayload({ name, ...(serverId ? { serverId } : {}) }))).toBe(
-      expected,
-    );
+  ])("classifies the Crossagents spawn transport %s", (name, serverId, expected) => {
+    expect(
+      isCrossagentSpawnAgentTool(makePayload({ name, ...(serverId ? { serverId } : {}) })),
+    ).toBe(expected);
   });
 
   it("labels Droid ApplyPatch as edit even when kind is other", () => {

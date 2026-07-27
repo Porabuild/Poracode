@@ -25,7 +25,10 @@ const runtimeActions = vi.hoisted(() => ({
   submitThreadInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
-vi.mock("@/renderer/actions/threadRuntimeActions", () => ({
+// Partial mock: `clearThreadPendingSteer` keeps its real implementation so the
+// pending-steer cancel path still exercises the (mocked) bridge and its toast.
+vi.mock("@/renderer/actions/threadRuntimeActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadRuntimeActions")>()),
   changeThreadConfig: runtimeActions.changeThreadConfig,
   resolveThreadServerRequest: runtimeActions.resolveThreadServerRequest,
   submitThreadInput: runtimeActions.submitThreadInput,

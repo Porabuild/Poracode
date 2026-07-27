@@ -10,23 +10,28 @@ import {
   parseCommandCodeModels,
 } from "./detection";
 import { authJsonHasApiKey, detectCommandCodeInvalidSessionRef } from "./session";
-import { commandCodeTranscriptId, isUuid, sanitizeCommandCodeCwd } from "./sessionFiles";
+import {
+  commandCodeTranscriptId,
+  isUuid,
+  sanitizeCommandCodeCwd,
+  sanitizeCommandCodeMcpCwd,
+} from "./sessionFiles";
 import { detectCommandCodeTerminalStatus } from "./terminal";
 
 describe("buildCommandCodeArgs", () => {
   const config: ThreadConfig = { model: "claude-opus-4-8" };
 
-  it("pins standard mode and always appends --yolo to unlock bypass in the picker", () => {
+  it("pins default mode and always appends --yolo to unlock bypass in the picker", () => {
     // `--yolo` is always appended as an unlock; pinning `--permission-mode
-    // standard` keeps it from becoming the initial mode. Verified against the
-    // v0.31.2 bundle: initial = permissionMode || (yolo ? "bypass":"standard").
+    // default` keeps it from becoming the initial mode. Verified against the
+    // v1.4.1 bundle: initial = permissionMode || (yolo ? "bypass":"default").
     expect(buildCommandCodeArgs(config, "hello")).toEqual([
       "--trust",
       "--skip-onboarding",
       "--model",
       "claude-opus-4-8",
       "--permission-mode",
-      "standard",
+      "default",
       "--yolo",
       "hello",
     ]);
@@ -41,7 +46,7 @@ describe("buildCommandCodeArgs", () => {
       "--model",
       "claude-opus-4-8",
       "--permission-mode",
-      "standard",
+      "default",
       "--yolo",
       "next",
     ]);
@@ -55,7 +60,7 @@ describe("buildCommandCodeArgs", () => {
       "--model",
       "claude-opus-4-8",
       "--permission-mode",
-      "standard",
+      "default",
       "--yolo",
       "next",
     ]);
@@ -74,9 +79,15 @@ describe("buildCommandCodeArgs", () => {
       "--model",
       "claude-opus-4-8",
       "--permission-mode",
-      "standard",
+      "default",
       "--yolo",
     ]);
+  });
+
+  it("passes the selected model effort to v1", () => {
+    const args = buildCommandCodeArgs({ ...config, effort: "xhigh" }, "");
+    expect(args).toContain("--effort");
+    expect(args[args.indexOf("--effort") + 1]).toBe("xhigh");
   });
 
   it("opens directly in bypass for a yolo/never pick (omits the start mode)", () => {
@@ -92,6 +103,12 @@ describe("buildCommandCodeArgs", () => {
   it("starts in auto-accept for auto_edit, with bypass still unlocked", () => {
     const args = buildCommandCodeArgs({ ...config, approvalPolicy: "auto_edit" }, "");
     expect(args.join(" ")).toContain("--permission-mode auto-accept");
+    expect(args).toContain("--yolo");
+  });
+
+  it("starts in v1 dont-ask mode while keeping bypass available", () => {
+    const args = buildCommandCodeArgs({ ...config, approvalPolicy: "dont-ask" }, "");
+    expect(args.join(" ")).toContain("--permission-mode dont-ask");
     expect(args).toContain("--yolo");
   });
 
@@ -122,27 +139,36 @@ describe("createCommandCodeAdapter", () => {
     expect(adapter.capabilities.approvalPolicies.map((p) => p.id)).toEqual([
       "default",
       "auto_edit",
+      "dont-ask",
       "yolo",
     ]);
     expect(adapter.capabilities.defaultApprovalPolicy).toBe("yolo");
+    expect(adapter.capabilities.defaultEffort).toBe("high");
+    expect(adapter.capabilities.models).toHaveLength(48);
     expect(defaultCommandCodeCapabilities.presentationModes).toEqual(["terminal"]);
+    expect(adapter.defaultOneShotModel).toBe(COMMANDCODE_DEFAULT_MODEL_ID);
   });
 
-  it("builds a bypass-permissions one-shot subagent command with --trust", () => {
+  it("builds a bypass-permissions one-shot subagent command with --yolo", () => {
     const adapter = createCommandCodeAdapter();
     const cmd = adapter.buildSubagentOneShotCommand?.({
       model: "claude-opus-4-8",
+      effort: "xhigh",
       prompt: "do the work",
       location: project,
     });
     expect(cmd?.command).toBe("command-code");
-    // `--trust` is the bypass flag (a one-shot child has no approval channel).
     expect(cmd?.args).toContain("--trust");
+    expect(cmd?.args).toContain("--yolo");
     expect(cmd?.args).toEqual([
       "--trust",
       "--skip-onboarding",
+      "--no-session",
+      "--yolo",
       "--model",
       "claude-opus-4-8",
+      "--effort",
+      "xhigh",
       "-p",
       "do the work",
     ]);
@@ -169,7 +195,7 @@ describe("createCommandCodeAdapter", () => {
       "--model",
       "gpt-5.5",
       "--permission-mode",
-      "standard",
+      "default",
       "--yolo",
       "hi",
     ]);
@@ -207,9 +233,19 @@ describe("createCommandCodeAdapter", () => {
 
   it("builds a print-mode one-shot command", () => {
     const adapter = createCommandCodeAdapter();
-    expect(adapter.buildOneShotCommand?.("gpt-5.4-mini", undefined, "summarize")).toEqual({
+    expect(adapter.buildOneShotCommand?.("gpt-5.4-mini", "high", "summarize")).toEqual({
       command: "command-code",
-      args: ["--trust", "--skip-onboarding", "--model", "gpt-5.4-mini", "-p", "summarize"],
+      args: [
+        "--trust",
+        "--skip-onboarding",
+        "--no-session",
+        "--model",
+        "gpt-5.4-mini",
+        "--effort",
+        "high",
+        "-p",
+        "summarize",
+      ],
       stdin: "",
       // Suppress the CLI's background self-updater on one-shot utility runs.
       env: { COMMANDCODE_SKIP_UPDATES: "1" },
@@ -306,10 +342,8 @@ describe("commandCodeDetectionSpec auth", () => {
     expect(result).toBeUndefined();
   });
 
-  it("declares a credential-file auth probe (not a config-dir presence check)", () => {
-    // Sign-in must be read from `auth.json`, not the config dir, which is
-    // created on first run regardless. The probe maps to authenticated/missing.
-    expect(commandCodeDetectionSpec.authProbes).toHaveLength(1);
+  it("declares environment and credential-file auth probes", () => {
+    expect(commandCodeDetectionSpec.authProbes).toHaveLength(2);
   });
 
   it("treats auth.json as signed in only when it carries a non-empty apiKey", () => {
@@ -317,6 +351,7 @@ describe("commandCodeDetectionSpec auth", () => {
     // absent / empty / unparseable => missing ("Login").
     expect(authJsonHasApiKey(JSON.stringify({ apiKey: "k", userName: "x" }))).toBe(true);
     expect(authJsonHasApiKey(JSON.stringify({ apiKey: "" }))).toBe(false);
+    expect(authJsonHasApiKey(JSON.stringify({ apiKey: " " }))).toBe(false);
     expect(authJsonHasApiKey("{}")).toBe(false);
     expect(authJsonHasApiKey(undefined)).toBe(false);
     expect(authJsonHasApiKey("not json")).toBe(false);
@@ -333,7 +368,7 @@ Open Source
 
 deepseek/deepseek-v4-pro           hybrid-attention long-context reasoning
 deepseek/deepseek-v4-flash         fast hybrid-attention reasoning (default)
-moonshotai/Kimi-K2.7-Code          improved long-horizon coding with vision
+moonshotai/kimi-k2.7-code          improved long-horizon coding with vision
 nvidia/nemotron-3-ultra-550b-a55b  open reasoning model for long-horizon autonomous agents
 
 Anthropic
@@ -346,7 +381,7 @@ OpenAI
 gpt-5.5                            latest frontier model for general complex work
 
 Pass the full id, or just the short name after the last "/":
-cmd --model moonshotai/Kimi-K2.5
+cmd --model moonshotai/kimi-k2.5
 cmd --model kimi-k2.5
 
 Docs:  https://commandcode.ai/docs/reference/cli/models
@@ -358,7 +393,7 @@ describe("parseCommandCodeModels", () => {
     expect(parsed.map((m) => m.id)).toEqual([
       "deepseek/deepseek-v4-pro",
       "deepseek/deepseek-v4-flash",
-      "moonshotai/Kimi-K2.7-Code",
+      "moonshotai/kimi-k2.7-code",
       "nvidia/nemotron-3-ultra-550b-a55b",
       "claude-sonnet-4-6",
       "claude-fable-5",
@@ -396,10 +431,10 @@ describe("buildCommandCodeModelPickerCapabilities", () => {
 
     const byId = new Map(caps.models.map((m) => [m.id, m]));
     // Curated label override wins; humanize is only the fallback.
-    expect(byId.get("moonshotai/Kimi-K2.7-Code")?.label).toBe("Kimi K2.7 Code");
+    expect(byId.get("moonshotai/kimi-k2.7-code")?.label).toBe("Kimi K2.7 Code");
     expect(byId.get("gpt-5.5")?.label).toBe("GPT-5.5");
     // The CLI tagline rides along as the (search/tooltip) description.
-    expect(byId.get("moonshotai/Kimi-K2.7-Code")?.description).toBe(
+    expect(byId.get("moonshotai/kimi-k2.7-code")?.description).toBe(
       "improved long-horizon coding with vision",
     );
 
@@ -407,6 +442,8 @@ describe("buildCommandCodeModelPickerCapabilities", () => {
     expect(caps.modelSubProvider?.["claude-fable-5"]).toBe("anthropic");
     expect(caps.modelSubProvider?.["gpt-5.5"]).toBe("openai");
     expect(caps.modelSubProvider?.["nvidia/nemotron-3-ultra-550b-a55b"]).toBe("nvidia");
+    expect(caps.modelEfforts["deepseek/deepseek-v4-flash"]).toEqual(["high", "max"]);
+    expect(caps.modelEfforts["gpt-5.5"]).toEqual(["low", "medium", "high", "xhigh"]);
 
     // Curated label for a known sub-provider; humanized fallback for nvidia.
     const subById = new Map((caps.subProviders ?? []).map((s) => [s.id, s.label]));
@@ -488,7 +525,7 @@ describe("commandCodeTranscriptId", () => {
 describe("sanitizeCommandCodeCwd", () => {
   // These fixture paths don't exist on the test machine, so realpath throws and
   // the raw path is sanitized — deterministic, and matching the verified
-  // on-disk layout (lowercase, leading slash dropped, non-alphanumeric -> '-').
+  // on-disk layout produced by @sindresorhus/slugify.
   it("maps a project cwd to command-code's projects/<dir> name", () => {
     expect(sanitizeCommandCodeCwd("/Users/test-fixture-xyz/work/poracode")).toBe(
       "users-test-fixture-xyz-work-poracode",
@@ -504,5 +541,16 @@ describe("sanitizeCommandCodeCwd", () => {
     expect(sanitizeCommandCodeCwd("/private/var/T/cc-dbg-ca.ppww")).toBe(
       "private-var-t-cc-dbg-ca-ppww",
     );
+  });
+
+  it("splits camel-cased Windows path components like the v1.4.1 CLI", () => {
+    expect(sanitizeCommandCodeCwd("C:\\Users\\demo\\AppData\\Local\\CommandCode")).toBe(
+      "c-users-demo-app-data-local-command-code",
+    );
+  });
+
+  it("matches the CLI's distinct empty-slug fallbacks for sessions and MCP", () => {
+    expect(sanitizeCommandCodeCwd("")).toBe("root");
+    expect(sanitizeCommandCodeMcpCwd("")).toBe("");
   });
 });

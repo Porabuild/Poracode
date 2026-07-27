@@ -1187,6 +1187,43 @@ describe("GitHubService", () => {
     });
   });
 
+  describe("getPrReviewThreads", () => {
+    it("returns inline comments grouped by review-thread resolution state", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout:
+          '{"id":"thread-1","isResolved":false,"isOutdated":false,"path":"src/app.ts","line":42,"comments":{"nodes":[{"id":"comment-99","author":{"login":"reviewer","avatarUrl":"https://example.com/a.png"},"body":"Please handle null.","createdAt":"2026-07-25T00:00:00Z","url":"https://github.com/o/r/pull/1#discussion_r99"}]}}\n',
+      });
+
+      const result = await new GitHubService().getPrReviewThreads(location, 1);
+
+      expect(result.comments).toEqual([
+        {
+          id: "comment-99",
+          author: { login: "reviewer", avatarUrl: "https://example.com/a.png" },
+          body: "Please handle null.",
+          createdAt: "2026-07-25T00:00:00Z",
+          url: "https://github.com/o/r/pull/1#discussion_r99",
+        },
+      ]);
+      expect(result.threads).toEqual([
+        {
+          id: "thread-1",
+          isResolved: false,
+          isOutdated: false,
+          path: "src/app.ts",
+          line: 42,
+          comments: result.comments,
+        },
+      ]);
+      const args = buildAgentCommandMock.mock.calls[0]?.[2] as string[];
+      expect(args).toContain("graphql");
+      expect(args).toContain("owner={owner}");
+      expect(args).toContain("name={repo}");
+      expect(args).toContain("number=1");
+      expect(args.find((arg) => arg.startsWith("query="))).toContain("reviewThreads");
+    });
+  });
+
   describe("listAccounts", () => {
     const AUTH_STATUS = [
       "github.com",

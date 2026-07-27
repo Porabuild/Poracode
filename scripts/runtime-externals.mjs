@@ -7,6 +7,11 @@ import { tokenizer } from "acorn";
 // into the packaged app's node_modules tree.
 const HOST_PROVIDED_PACKAGES = new Set(["electron"]);
 
+// Optional feature probes that are guarded by their caller. These must not
+// force a production dependency into the clean packaging stage merely because
+// a bundled dependency retains its literal `require()` inside a try/catch.
+const OPTIONAL_RUNTIME_PACKAGES = new Set(["supports-color"]);
+
 function packageNameFor(id) {
   const parts = id.split("/");
   return id.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
@@ -99,7 +104,12 @@ export function scanRuntimeExternals(repoRoot) {
     for (const id of scanModuleIds(readFileSync(path, "utf8"))) {
       if (id.startsWith(".") || id.startsWith("/") || isBuiltin(id)) continue;
       const packageName = packageNameFor(id);
-      if (!packageName || isBuiltin(packageName) || HOST_PROVIDED_PACKAGES.has(packageName)) {
+      if (
+        !packageName ||
+        isBuiltin(packageName) ||
+        HOST_PROVIDED_PACKAGES.has(packageName) ||
+        OPTIONAL_RUNTIME_PACKAGES.has(packageName)
+      ) {
         continue;
       }
       externals.add(packageName);

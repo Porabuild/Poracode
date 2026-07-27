@@ -313,6 +313,46 @@ describe("ItemMarkdownInner", () => {
     );
   });
 
+  it("renders a bare filename with a line number as a clickable file chip", () => {
+    const actions = makeActions();
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"BrowserPanelManager.ts:288 lost its badge."} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const chip = screen.getByRole("button", { name: /BrowserPanelManager\.ts.*288/ });
+    expect(chip).toHaveAttribute("title", "BrowserPanelManager.ts:288");
+
+    fireEvent.click(chip);
+    expect(actions.openProjectRelativePath).toHaveBeenCalledWith("BrowserPanelManager.ts", 288);
+  });
+
+  it("makes an unresolved bare filename chip read-only after the index lookup fails", async () => {
+    const actions = makeActions({
+      openProjectRelativePath: vi
+        .fn<(path: string, lineNumber?: number) => Promise<void>>()
+        .mockRejectedValue(new Error("File not found")),
+    });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"MissingFile.ts:12 could not be found."} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const chip = screen.getByRole("button", { name: /MissingFile\.ts.*12/ });
+    fireEvent.click(chip);
+
+    await waitFor(() => expect(chip).toBeDisabled());
+    expect(chip).toHaveClass("poracode-inline-path-chip--inert");
+  });
+
   it("keeps out-of-project absolute markdown link hrefs absolute", () => {
     const actions = makeActions();
 
@@ -432,7 +472,7 @@ describe("ItemMarkdownInner", () => {
 
 function makeActions(overrides?: Partial<ChatPaneActions>): ChatPaneActions {
   return {
-    openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
+    openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
     revealProjectFolderInTree: vi.fn<(path: string) => void>(),
     showProjectEntryInExplorer: vi.fn<(path: string) => void>(),
     onContentHeightChange: vi.fn<() => void>(),

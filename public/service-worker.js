@@ -12,6 +12,9 @@ const NAVIGATION_FALLBACK_DELAY_MS = 500;
 const APP_BASE_URL = new URL("./", self.location.href);
 const shellUrl = (path) => new URL(path, APP_BASE_URL).pathname;
 const SHELL_URLS = ["./", "app", "manifest.webmanifest", "app-icon.svg"].map(shellUrl);
+// Substituted per channel by scripts/finalize-mobile-build.mjs so a nightly
+// install's notifications carry the nightly art, not the stable icon.
+const NOTIFICATION_ICON_URL = shellUrl("__PORACODE_NOTIFICATION_ICON__");
 
 function shellAssetUrls(html) {
   const urls = new Set();
@@ -91,8 +94,8 @@ self.addEventListener("push", (event) => {
       if (windows.some((client) => client.visibilityState === "visible")) return;
       return self.registration.showNotification(payload.title, {
         body: payload.body,
-        icon: new URL("icons/icon-192.png", APP_BASE_URL).pathname,
-        badge: new URL("icons/icon-192.png", APP_BASE_URL).pathname,
+        icon: NOTIFICATION_ICON_URL,
+        badge: NOTIFICATION_ICON_URL,
         tag: `poracode-thread-${payload.threadId}`,
         data: { url: payload.url },
       });
@@ -146,6 +149,13 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
+            // The SPA fallback rewrites missing assets to the HTML shell. A
+            // hashed build asset that returns HTML is stale — the deployment
+            // replaced it. Serve a clean 404 instead of a MIME-type violation.
+            const contentType = response.headers.get("content-type") ?? "";
+            if (response.ok && contentType.startsWith("text/html")) {
+              return new Response("Not found", { status: 404, statusText: "Not Found" });
+            }
             if (response.ok) {
               const clone = response.clone();
               void caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));

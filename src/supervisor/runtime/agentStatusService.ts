@@ -283,15 +283,16 @@ export class AgentStatusService {
    * racing the adapter's in-memory capabilities (which stay at their empty
    * defaults until this session's probe completes). Returns `undefined` when
    * there is no cache entry or the provider isn't installed + authenticated in
-   * it — callers fall back to the live adapter capabilities.
+   * it. Returns `null` when a populated cache says the provider is unavailable,
+   * and `undefined` only when no cache exists yet.
    */
-  getCachedCapabilities(kind: AgentKind): AgentCapability | undefined {
+  getCachedCapabilities(kind: AgentKind): AgentCapability | null | undefined {
     const { windows, fromCache } = this.readCachedStatuses([]);
     if (!fromCache) return undefined;
     const status = windows.find(
       (s) => s.kind === kind && s.installed && s.authState === "authenticated",
     );
-    return status?.capabilities;
+    return status?.capabilities ?? null;
   }
 
   /** Return the last detected installed version for one native or WSL provider. */

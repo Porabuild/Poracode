@@ -7,6 +7,7 @@ import { defaultSharedSettings, normalizeSharedSettings } from "@/shared/setting
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
   type ClearPendingSteerPayload,
+  type ControlThreadGoalPayload,
   type AgentEventEnvelope,
   type AgentKind,
   type CloseThreadPayload,
@@ -68,6 +69,8 @@ import {
   type SpawnThreadInput,
 } from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
+import { BackgroundSubagentNotifications } from "./threadSession/backgroundSubagentNotifications";
+import type { BackgroundSubagentCompletion } from "../crossagentMcp/types";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
@@ -90,9 +93,20 @@ export class ThreadSessionManager {
   private readonly spawnPipeline: SpawnPipeline;
   private readonly invalidSessionRecovery: InvalidSessionRecoveryCoordinator;
   private readonly structuredTurnQueue: StructuredTurnQueue;
+  private readonly backgroundSubagentNotifications: BackgroundSubagentNotifications;
   private disposed = false;
 
   constructor(private readonly options: ThreadSessionManagerOptions) {
+    this.backgroundSubagentNotifications = new BackgroundSubagentNotifications({
+      sessions: this.sessions,
+      isCurrentSession: (session) => this.isCurrentSession(session),
+      onDeliveryError: (threadId, error) => {
+        console.warn(
+          `[supervisor] failed to deliver background crossagent result to ${threadId}:`,
+          error,
+        );
+      },
+    });
     this.runtimeEventRouter = new RuntimeEventRouter(options.emit);
     this.outputPipeline = new ThreadOutputPipeline({
       emit: options.emit,
@@ -105,6 +119,8 @@ export class ThreadSessionManager {
       onStartQueuedLaunchPrompt: (session) =>
         this.structuredTurnQueue.startQueuedLaunchPrompt(session),
       onStartSessionRefDiscovery: (session) => this.pollSessionRefDiscovery(session),
+      onSessionStateChanged: (session) =>
+        this.backgroundSubagentNotifications.onSessionStateChanged(session),
     });
     // Construct the watchdog first: it drains the pending-steer slot via the
     // free `clearPendingSteerSlot` (no back-reference to SteerCoordinator), so
@@ -377,6 +393,18 @@ export class ThreadSessionManager {
   }
 
   /**
+   * Subagent host hook: deliver a detached run's result to the parent model.
+   * Active steer-capable sessions receive it immediately; all others queue it
+   * until idle so completion never interrupts foreground work.
+   */
+  notifyBackgroundSubagentCompletion(
+    parentThreadId: string,
+    completion: BackgroundSubagentCompletion,
+  ): void {
+    this.backgroundSubagentNotifications.enqueue(parentThreadId, completion);
+  }
+
+  /**
    * Renderer-facing: subscribe a sub-agent overlay. Returns the buffered
    * child-event history so the renderer can hydrate the overlay; subsequent
    * child events stream live via the regular runtime-event channels.
@@ -606,8 +634,17 @@ export class ThreadSessionManager {
       }
       throw new Error(`Unknown thread session: ${payload.threadId}`);
     }
-    this.options.crossagentMcp?.cancelAll(payload.threadId);
+    this.options.crossagentMcp?.cancelForeground(payload.threadId);
     await this.structuredInterruptWatchdog.interruptStructuredTurn(session);
+  }
+
+  async controlThreadGoal(payload: ControlThreadGoalPayload): Promise<void> {
+    const { threadId, ...control } = payload;
+    const session = this.requireSession(threadId);
+    if (!session.structuredSession?.controlGoal) {
+      throw new Error(`${session.adapter.label} does not support goal controls.`);
+    }
+    await session.structuredSession.controlGoal(control);
   }
 
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
@@ -818,6 +855,7 @@ export class ThreadSessionManager {
     }
 
     existing.ignoreExit = true;
+    this.backgroundSubagentNotifications.clear(payload.threadId);
     this.outputPipeline.clearSessionTimers(existing);
     existing.stopSessionRefWatcher?.();
     existing.stopSessionRefWatcher = undefined;
@@ -981,6 +1019,7 @@ export class ThreadSessionManager {
 
   async dispose(): Promise<void> {
     this.disposed = true;
+    this.backgroundSubagentNotifications.dispose();
     for (const threadId of this.startLocks.keys()) {
       this.pendingStartAborts.add(threadId);
     }

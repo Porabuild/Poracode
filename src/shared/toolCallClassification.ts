@@ -5,6 +5,8 @@ export interface McpInfo {
   tool: string;
 }
 
+const CROSSAGENT_SPAWN_TOOL_NAMES = new Set(["spawn_agent", "run_agent"]);
+
 export function parseMcpName(payload: ToolCallPayload): McpInfo | null {
   const m1 = /^mcp__(.+?)__(.+)$/.exec(payload.name);
   if (m1) return { server: m1[1]!, tool: m1[2]! };
@@ -50,15 +52,23 @@ export function isCrossagentTool(payload: ToolCallPayload | undefined): boolean 
   return payload?.isCrossagent === true && !parseMcpName(payload);
 }
 
-export function isCrossagentRunAgentTool(payload: ToolCallPayload | undefined): boolean {
+export function isCrossagentSpawnAgentTool(payload: ToolCallPayload | undefined): boolean {
   if (!payload?.name) return false;
   const crossagentName = BUILT_IN_MCP_SERVER_NAMES.crossagents;
   const mcp = parseMcpName(payload);
-  if (mcp?.server.toLowerCase() === crossagentName && mcp.tool.toLowerCase() === "run_agent") {
+  if (
+    mcp?.server.toLowerCase() === crossagentName &&
+    CROSSAGENT_SPAWN_TOOL_NAMES.has(mcp.tool.toLowerCase())
+  ) {
     return true;
   }
   const name = payload.name.toLowerCase();
-  return name === `${crossagentName}__run_agent` || name === `${crossagentName}_run_agent`;
+  for (const tool of CROSSAGENT_SPAWN_TOOL_NAMES) {
+    if (name === `${crossagentName}__${tool}` || name === `${crossagentName}_${tool}`) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function isDelegatedAgentTool(payload: ToolCallPayload | undefined): boolean {

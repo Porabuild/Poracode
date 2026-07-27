@@ -11,6 +11,7 @@ export interface ThreadGoalDockState {
   objective: string;
   status: GoalStatus;
   action: GoalItemPayload["action"];
+  availableActions?: GoalItemPayload["availableActions"];
   tokenBudget?: number | null;
   tokensUsed?: number;
   timeUsedSeconds?: number;
@@ -79,6 +80,7 @@ export function getThreadGoalDockStateFromThreadItems(
     objective,
     status: payload.status ?? "active",
     action: payload.action,
+    ...(payload.availableActions ? { availableActions: payload.availableActions } : {}),
     ...(payload.tokenBudget !== undefined ? { tokenBudget: payload.tokenBudget } : {}),
     ...(payload.tokensUsed !== undefined ? { tokensUsed: payload.tokensUsed } : {}),
     ...(payload.timeUsedSeconds !== undefined ? { timeUsedSeconds: payload.timeUsedSeconds } : {}),

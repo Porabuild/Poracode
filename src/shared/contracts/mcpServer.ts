@@ -26,6 +26,8 @@ export const BUILT_IN_MCP_SERVER_NAMES: Record<BuiltInMcpServerId, string> = {
 export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
   browser: [
     "api",
+    "enable",
+    "disable",
     "list_tabs",
     "new_tab",
     "open",
@@ -75,12 +77,14 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "get_agent",
     "spawn_agent",
     "wait_for_agent",
-    "run_agent",
     "get_status",
+    "list_runs",
     "cancel",
   ],
   chrome: [
     "chrome_status",
+    "enable",
+    "disable",
     "chrome_list_tabs",
     "chrome_open",
     "chrome_attach",
@@ -103,6 +107,8 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
   ],
   "computer-use": [
     "api",
+    "enable",
+    "disable",
     "list_apps",
     "list_windows",
     "launch_app",

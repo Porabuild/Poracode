@@ -88,6 +88,38 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
+  it("hides persisted open-request items from the visible transcript", () => {
+    const state = {
+      runtimeItemIdsByThread: { t1: ["assistant", "pending_request:req-1"] },
+      runtimeItemsByIdByThread: {
+        t1: {
+          assistant: {
+            id: "assistant",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "Let me ask you something" },
+          },
+          "pending_request:req-1": {
+            id: "pending_request:req-1",
+            type: "pending_request",
+            state: "started",
+            payload: {
+              requestId: "req-1",
+              requestType: "tool_user_input",
+              payload: { summary: "Which framework?" },
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { t1: 1 },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      { kind: "item", id: "assistant" },
+    ]);
+  });
+
   it("anchors the main chat to its visible tail instead of a hidden subagent child", () => {
     const state = {
       runtimeItemIdsByThread: { t1: ["parent", "assistant", "child"] },
@@ -791,7 +823,7 @@ describe("chatPaneSelectors", () => {
     );
   });
 
-  it("hides Crossagents run_agent calls and only treats the synthetic tile as an agent", () => {
+  it("hides Crossagents spawn calls and only treats the synthetic tile as an agent", () => {
     const state = {
       runtimeItemIdsByThread: {
         t1: ["tool-1", "raw-run", "failed-run", "list-1", "sub:run-1", "raw-spawn"],
@@ -853,7 +885,6 @@ describe("chatPaneSelectors", () => {
       "failed-run",
       "list-1",
       "sub:run-1",
-      "raw-spawn",
     ]);
     expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
       {
@@ -862,7 +893,6 @@ describe("chatPaneSelectors", () => {
         itemIds: ["tool-1", "failed-run", "list-1"],
       },
       { kind: "item", id: "sub:run-1" },
-      { kind: "item", id: "raw-spawn" },
     ]);
     // The synthetic tile still drives the active sub-agent strip.
     expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual(["sub:run-1"]);

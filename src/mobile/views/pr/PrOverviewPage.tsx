@@ -32,6 +32,7 @@ import {
   usePrViewerDidAuthor,
 } from "@/renderer/state/gitSelectors";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
+import { pullMergedPrBaseIfPossible } from "@/renderer/actions/gitCommandRunner";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { PrHeaderCard } from "@/renderer/views/PrReviewOverlay/parts/PrHeaderCard";
 import { PrMetaRow } from "@/renderer/views/PrReviewOverlay/parts/PrMetaRow";
@@ -169,6 +170,7 @@ export function PrOverviewPage() {
       });
       const current = useGitStore.getState().prData[pr.prKey];
       if (current) {
+        await pullMergedPrBaseIfPossible(pr.project.location, current.baseBranch);
         useGitStore.getState().setPrData(pr.prKey, {
           ...current,
           state: "merged",

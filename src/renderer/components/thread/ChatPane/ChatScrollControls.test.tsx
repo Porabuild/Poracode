@@ -508,6 +508,57 @@ describe("ChatScrollControls", () => {
     expect(scrollTop).toBe(1200);
   });
 
+  it("re-pins an automatic tool-group collapse immediately on touch-first devices", () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) =>
+        ({
+          matches: query === "(hover: none) and (pointer: coarse)",
+          media: query,
+          onchange: null,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          dispatchEvent: () => false,
+        }) as MediaQueryList,
+    );
+    let scrollHeight = 1400;
+    let scrollTop = 1200;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, scrollHeight - 200);
+        },
+      },
+    });
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+
+    renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={() => undefined}
+      />,
+    );
+
+    act(() => {
+      // When the next assistant item arrives, the live tool group automatically
+      // collapses. Its row shrinks before the post-commit height notification,
+      // and LegendList's visible-content compensation rewrites scrollTop.
+      scrollHeight = 1000;
+      scrollTop = 500;
+      fireEvent.scroll(scrollEl);
+    });
+
+    expect(scrollTop).toBe(800);
+    expect(controlsRef.current?.isStickToBottom()).toBe(true);
+  });
+
   it("re-pins after the submitted message is appended", () => {
     let scrollHeight = 1000;
     let scrollTop = 800;

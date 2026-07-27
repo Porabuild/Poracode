@@ -59,6 +59,8 @@ const {
   unsubscribeMock: vi.fn<() => void>(),
 }));
 
+const MOCK_ROW_SIZE = 100;
+
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");
   return {
@@ -110,10 +112,15 @@ vi.mock("@legendapp/list/react", async () => {
           >
             {props.ListHeaderComponent}
             {props.data.length === 0 ? props.ListEmptyComponent : null}
+            {/* Mirror LegendList's absolutely positioned per-row containers so
+                row code that reads/writes sibling offsets is exercised. */}
             {props.data.map((item, index) => (
-              <React.Fragment key={props.keyExtractor(item, index)}>
+              <div
+                key={props.keyExtractor(item, index)}
+                style={{ position: "absolute", top: `${index * MOCK_ROW_SIZE}px` }}
+              >
                 {props.renderItem({ item, index })}
-              </React.Fragment>
+              </div>
             ))}
             {props.ListFooterComponent}
           </div>
@@ -402,6 +409,55 @@ describe("MessageList", () => {
     }
   });
 
+  it("pushes the rows below down when a mid-list row grows, before LegendList reflows", () => {
+    const observed: Array<{ target: Element; callback: () => void }> = [];
+    const originalResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      constructor(private readonly callback: () => void) {}
+      observe(target: Element) {
+        observed.push({ target, callback: this.callback });
+      }
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+
+    try {
+      const threadId = "thread-1";
+      seedCompletedItem(threadId, "assistant-1", "assistant_message");
+      seedCompletedItem(threadId, "user-1", "user_message");
+      render(<MessageList threadId={threadId} entries={makeEntries(["assistant-1", "user-1"])} />);
+
+      const row = screen.getByText("assistant-1").closest("[data-chat-virtual-row='true']");
+      if (!(row instanceof HTMLDivElement)) throw new Error("missing anchor row");
+      const nextContainer = row.parentElement?.nextElementSibling;
+      if (!(nextContainer instanceof HTMLDivElement)) throw new Error("missing following row");
+      const resize = observed.find((entry) => entry.target === row);
+      if (!resize) throw new Error("row is not observed");
+
+      const grow = (height: number) => {
+        Object.defineProperties(row, {
+          offsetHeight: { configurable: true, value: height },
+          offsetWidth: { configurable: true, value: 500 },
+        });
+        act(() => resize.callback());
+      };
+
+      grow(120);
+      const topAfterBaseline = Number.parseFloat(nextContainer.style.top);
+      setItemSizeMock.mockClear();
+
+      grow(180);
+
+      expect(setItemSizeMock).toHaveBeenCalledWith("assistant-1", { height: 180, width: 500 });
+      // The 60px the row gained is handed to the following row immediately, so a
+      // prompt appended under a still-working row cannot paint over its last line
+      // (the "Worked for X" record) while LegendList catches up next frame.
+      expect(Number.parseFloat(nextContainer.style.top)).toBe(topAfterBaseline + 60);
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
   it("coalesces live streaming remeasurement to one animation frame", async () => {
     vi.useFakeTimers();
     try {
@@ -545,7 +601,7 @@ function makeEntries(itemIds: string[]): ChatTimelineEntry[] {
 
 function makeActions(overrides: Partial<ChatPaneActions> = {}): ChatPaneActions {
   return {
-    openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
+    openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
     revealProjectFolderInTree: vi.fn<(path: string) => void>(),
     onContentHeightChange: vi.fn<() => void>(),
     projectLocation: { kind: "windows", path: "C:\\repo" },

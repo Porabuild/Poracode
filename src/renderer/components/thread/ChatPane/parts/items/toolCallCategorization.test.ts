@@ -24,6 +24,17 @@ describe("categorizeItem", () => {
     // Thoughts are group members like any other tool row.
     expect(isToolGroupItem(item)).toBe(true);
   });
+
+  it("maps MCP tool calls to their own category", () => {
+    const encodedName = makeTool("mcp-encoded", "mcp__crossagents__wait_for_agent");
+    const explicitServer = {
+      ...makeTool("mcp-server", "wait_for_agent"),
+      payload: { name: "wait_for_agent", serverId: "crossagents", status: "success" },
+    } as RuntimeChatItem;
+
+    expect(categorizeItem(encodedName)).toBe("mcp");
+    expect(categorizeItem(explicitServer)).toBe("mcp");
+  });
 });
 
 describe("segmentToolGroupRows", () => {
@@ -140,6 +151,8 @@ describe("categoryFromSummaryLabel", () => {
     expect(categoryFromSummaryLabel("edits")).toBe("edited");
     expect(categoryFromSummaryLabel("command")).toBe("executed");
     expect(categoryFromSummaryLabel("commands")).toBe("executed");
+    expect(categoryFromSummaryLabel("MCP")).toBe("mcp");
+    expect(categoryFromSummaryLabel("MCPs")).toBe("mcp");
     expect(categoryFromSummaryLabel("tool")).toBe("other");
     expect(categoryFromSummaryLabel("tools")).toBe("other");
   });

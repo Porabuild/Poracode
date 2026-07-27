@@ -57,7 +57,7 @@ type RequestPayload =
       groupTitle?: string;
       groupColor?: string;
     }
-  | { type: "detach" }
+  | { type: "detach"; tabId: number }
   | { type: "cdp"; tabId: number; method: string; params?: Record<string, unknown> };
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
@@ -148,6 +148,16 @@ export class ExternalChromeConnection {
     if (this.attachedTabId !== null) return this.attachedTabId;
     const tab = await this.openTab();
     return tab.tabId;
+  }
+
+  async detach(): Promise<void> {
+    if (this.attachedTabId === null) return;
+    const tabId = this.attachedTabId;
+    await this.request({ type: "detach", tabId });
+    if (this.attachedTabId !== tabId) return;
+    this.attachedTabId = null;
+    this.attachedUrl = undefined;
+    this.attachedTitle = undefined;
   }
 
   /** Run a CDP command against the attached tab. Opens a workspace on first use. */

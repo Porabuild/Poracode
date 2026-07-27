@@ -79,6 +79,36 @@ export async function runGitPullFromSource(
   return readBridge().gitPullFromSource(payload);
 }
 
+export async function pullMergedPrBaseIfPossible(
+  projectLocation: ProjectLocation,
+  baseBranch: string,
+): Promise<void> {
+  try {
+    const status = await readBridge().getGitStatus({ projectLocation, detail: "summary" });
+    if (
+      status.branch !== baseBranch ||
+      !status.hasRemote ||
+      !status.tracking ||
+      status.ahead > 0 ||
+      status.staged.length > 0 ||
+      status.unstaged.length > 0 ||
+      status.mergeInProgress
+    ) {
+      return;
+    }
+
+    const separator = status.tracking.indexOf("/");
+    if (separator <= 0) return;
+    await runGitSyncCommand({
+      command: "pull",
+      projectLocation,
+      remote: status.tracking.slice(0, separator),
+    });
+  } catch (error) {
+    console.warn("[git] post-merge pull skipped", error);
+  }
+}
+
 /**
  * Refresh one worktree directly after a renderer-initiated Git mutation.
  * Remote PWA clients do not receive the desktop's noisy `git-changed` watcher

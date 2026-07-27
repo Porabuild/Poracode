@@ -116,4 +116,32 @@ describe("projectKeys", () => {
       buildWslProjectDistrosKey(baseProjects),
     );
   });
+
+  it("ignores disabled projects when building the WSL distro key", () => {
+    const projects: Project[] = [
+      makeProject({
+        id: "ubuntu-disabled",
+        name: "Ubuntu disabled",
+        disabled: true,
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/disabled",
+          uncPath: "\\\\wsl$\\Ubuntu\\disabled",
+        },
+      }),
+      makeProject({
+        id: "debian-active",
+        name: "Debian active",
+        location: {
+          kind: "wsl",
+          distro: "Debian",
+          linuxPath: "/active",
+          uncPath: "\\\\wsl$\\Debian\\active",
+        },
+      }),
+    ];
+
+    expect(buildWslProjectDistrosKey(projects)).toBe("Debian");
+  });
 });

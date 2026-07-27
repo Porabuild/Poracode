@@ -245,7 +245,9 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "if command -v npm >/dev/null 2>&1; then npm install -g command-code@latest; else " +
           "printf 'npm is required to install Command Code. Install Node.js/npm first, then refresh detected agents.\\n'; fi",
         posix:
-          "if command -v npm >/dev/null 2>&1; then npm install -g command-code@latest; else " +
+          "if command -v npm >/dev/null 2>&1; then npm install -g command-code@latest && " +
+          'prefix="$(npm config get prefix)" && mkdir -p "$HOME/.local/bin" && ' +
+          'ln -sf "$prefix/bin/command-code" "$HOME/.local/bin/command-code"; else ' +
           "printf 'npm is required to install Command Code. Install Node.js/npm first, then refresh detected agents.\\n'; fi",
         windows:
           "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g command-code@latest } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",

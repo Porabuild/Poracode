@@ -25,7 +25,6 @@ const dockState: ThreadDockState = {
   errorDockStates: [],
   showTodoDock: false,
   showGoalDock: true,
-  showTodoInRightRail: false,
   hiddenRuntimeItemId: undefined,
   dockLayoutToken: "goal:goal-1",
   onGoalDockDismiss: vi.fn<ThreadDockState["onGoalDockDismiss"]>(),

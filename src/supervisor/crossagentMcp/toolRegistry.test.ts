@@ -151,6 +151,50 @@ describe("buildSpawnableAgents", () => {
     ]);
     expect(buildSpawnableAgents(adapters, [makeStatus()])).toEqual([]);
   });
+
+  it("excludes providers disabled in settings", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "claude" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+    ]);
+    expect(
+      buildSpawnableAgents(adapters, [makeStatus()], {
+        disabledAgents: ["claude"],
+        hiddenModels: {},
+      }),
+    ).toEqual([]);
+  });
+
+  it("filters hidden models and recomputes the advertised default", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "claude" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+    ]);
+    const [agent] = buildSpawnableAgents(adapters, [makeStatus()], {
+      disabledAgents: [],
+      hiddenModels: { claude: ["claude-haiku-4", "claude-sonnet-4.5"] },
+    });
+    expect(agent?.models.map((model) => model.value)).toEqual(["claude-opus-4"]);
+    expect(agent?.defaultModel).toBe("claude-opus-4");
+  });
+
+  it("uses a structured provider's dedicated ACP visibility surface when configured", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "claude" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+    ]);
+    const [agent] = buildSpawnableAgents(adapters, [makeStatus()], {
+      disabledAgents: [],
+      hiddenModels: { "claude-acp": ["claude-opus-4"] },
+    });
+    expect(agent?.models.map((model) => model.value)).not.toContain("claude-opus-4");
+  });
 });
 
 function makeToolContext(): {
@@ -224,11 +268,14 @@ describe("subagent tool registration", () => {
       "get_agent",
       "spawn_agent",
       "wait_for_agent",
-      "run_agent",
       "get_status",
+      "list_runs",
       "cancel",
     ]) {
       expect(names.has(name)).toBe(true);
+    }
+    for (const legacy of ["run_agent", "spawn_agents", "wait_for_agents"]) {
+      expect(names.has(legacy)).toBe(false);
     }
     // Full-thread orchestration moved to the `poracode` (app-controls) MCP.
     for (const name of [
@@ -248,13 +295,12 @@ describe("subagent tool registration", () => {
   it("declares required fields on the subagent tool schemas", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
-      required: ["provider", "prompt"],
-    });
-    expect(byName.get("run_agent")!.inputSchema).toMatchObject({
-      required: ["provider", "prompt"],
+      oneOf: [{ required: ["provider", "prompt"] }, { required: ["tasks"] }],
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
-    expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({ required: ["run_id"] });
+    expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({
+      oneOf: [{ required: ["run_id"] }, { required: ["run_ids"] }],
+    });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
   });
@@ -264,5 +310,129 @@ describe("subagent tool registration", () => {
     const result = await dispatchTool("create_thread", { prompt: "x" }, ctx);
     expect(result.isError).toBe(true);
     expect(resultText(result)).toContain("Unknown tool");
+  });
+
+  it("parses parallel tasks, background lifetime, and fallback selections", async () => {
+    const { ctx } = makeToolContext();
+    const received: unknown[] = [];
+    ctx.runManager = {
+      spawnMany: (_parentThreadId: string, requests: unknown[]) => {
+        received.push(...requests);
+        return requests.map((_, index) => ({ runId: `run-${index + 1}` }));
+      },
+    } as unknown as SubagentRunManager;
+
+    const result = await dispatchTool(
+      "spawn_agent",
+      {
+        background: true,
+        tasks: [
+          {
+            provider: "codex",
+            model: "gpt-5.5",
+            prompt: "inspect",
+            retry_on: "any-failure",
+            fallbacks: [{ provider: "claude", model: "sonnet", reasoning: "high" }],
+          },
+          { provider: "claude", prompt: "review" },
+        ],
+      },
+      ctx,
+    );
+
+    expect(JSON.parse(resultText(result))).toEqual({
+      runs: [
+        { run_id: "run-1", status: "running", output: "" },
+        { run_id: "run-2", status: "running", output: "" },
+      ],
+    });
+    expect(received).toEqual([
+      {
+        agent: "codex",
+        model: "gpt-5.5",
+        prompt: "inspect",
+        background: true,
+        retryMode: "any-failure",
+        fallbacks: [{ agent: "claude", model: "sonnet", effort: "high" }],
+      },
+      { agent: "claude", prompt: "review", background: true },
+    ]);
+  });
+
+  it("returns immediately when spawn_agent is explicitly backgrounded", async () => {
+    const { ctx } = makeToolContext();
+    let waited = false;
+    let spawnedRequest: unknown;
+    ctx.runManager = {
+      spawn: (_parentThreadId: string, request: unknown) => {
+        spawnedRequest = request;
+        return { runId: "run-bg" };
+      },
+      waitFor: async () => {
+        waited = true;
+        return { status: "completed" as const, output: "too late" };
+      },
+    } as unknown as SubagentRunManager;
+
+    const result = await dispatchTool(
+      "spawn_agent",
+      { provider: "codex", prompt: "keep working", background: true },
+      ctx,
+    );
+
+    expect(JSON.parse(resultText(result))).toEqual({
+      run_id: "run-bg",
+      status: "running",
+      output: "",
+    });
+    expect(waited).toBe(false);
+    expect(spawnedRequest).toMatchObject({ background: true });
+  });
+
+  it("waits by default when spawn_agent is foregrounded", async () => {
+    const { ctx } = makeToolContext();
+    ctx.runManager = {
+      spawn: () => ({ runId: "run-fg" }),
+      waitFor: async () => ({ status: "completed" as const, output: "done" }),
+    } as unknown as SubagentRunManager;
+
+    const result = await dispatchTool(
+      "spawn_agent",
+      { provider: "codex", prompt: "finish first" },
+      ctx,
+    );
+    expect(JSON.parse(resultText(result))).toEqual({
+      run_id: "run-fg",
+      status: "completed",
+      output: "done",
+    });
+  });
+
+  it("waits for parallel tasks through the same spawn_agent call", async () => {
+    const { ctx } = makeToolContext();
+    ctx.runManager = {
+      spawnMany: () => [{ runId: "run-1" }, { runId: "run-2" }],
+      waitForMany: async () => [
+        { run_id: "run-1", status: "completed" as const, output: "one" },
+        { run_id: "run-2", status: "completed" as const, output: "two" },
+      ],
+    } as unknown as SubagentRunManager;
+
+    const result = await dispatchTool(
+      "spawn_agent",
+      {
+        tasks: [
+          { provider: "codex", prompt: "one" },
+          { provider: "claude", prompt: "two" },
+        ],
+      },
+      ctx,
+    );
+    expect(JSON.parse(resultText(result))).toEqual({
+      runs: [
+        { run_id: "run-1", status: "completed", output: "one" },
+        { run_id: "run-2", status: "completed", output: "two" },
+      ],
+    });
   });
 });

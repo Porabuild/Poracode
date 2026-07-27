@@ -552,7 +552,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
   }, [entry, isLastEntry, scheduleLiveMeasure, threadId]);
   useLayoutEffect(() => {
     const element = rowElementRef.current;
-    if (!isLastEntry || !element) return;
+    if (!element) return;
 
     let previousHeight = element.offsetHeight;
     let previousWidth = element.offsetWidth;
@@ -560,16 +560,26 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
       const nextHeight = element.offsetHeight;
       const nextWidth = element.offsetWidth;
       if (nextHeight === previousHeight && nextWidth === previousWidth) return;
+      const heightDelta = nextHeight - previousHeight;
       previousHeight = nextHeight;
       previousWidth = nextWidth;
-      // The smoothed Markdown renderer can grow between provider deltas. Its
-      // actual DOM resize is the earliest reliable signal and ResizeObserver
-      // runs after layout but before paint, so measure LegendList here instead
-      // of letting the tail paint below the reserved composer/safe-area band
-      // until the next stream event or animation frame catches up. Observe the
-      // single tail row through turn completion as well: the final unsmoothed
-      // text commit can land in the same update that marks the turn inactive.
+      // The smoothed Markdown renderer can grow between provider deltas, and the
+      // completion commit renders the final text concurrently — often a few
+      // frames after the store event. The DOM resize is the earliest reliable
+      // signal and ResizeObserver runs after layout but before paint, so measure
+      // LegendList here rather than waiting for the next stream event or frame.
       remeasureElement(entry.id, element, true);
+      // LegendList turns that size into new row offsets through a React render,
+      // which lands on the NEXT frame. Nothing sits below the tail, so there it
+      // is invisible — but a row that grows mid-list paints into its neighbour
+      // for that frame. Steering is when that shows: the prompt is appended
+      // under the still-working row, so when the turn closes, the row's final
+      // text plus its "Worked for X" line grow underneath the prompt bubble,
+      // which covers them until the reflow catches up. Shift the rows below by
+      // the same delta here, still before paint; LegendList rewrites the
+      // identical offsets on its own pass, so the two converge. Growth only —
+      // LegendList deliberately defers shrinks, and racing that would jitter.
+      if (!isLastEntry && heightDelta > 0) shiftFollowingRows(element, heightDelta);
     });
     observer.observe(element);
     return () => observer.disconnect();
@@ -762,6 +772,27 @@ function getFixedTimelineEntrySize(
     (availableWidth * source.height) / source.width,
   );
   return Math.round(renderedHeight + INLINE_IMAGE_ROW_CHROME_PX);
+}
+
+/**
+ * Nudge the virtual rows below `element` by `delta` px, before paint, to cover
+ * the frame between a mid-list row growing and LegendList re-rendering the new
+ * offsets. Purely transient: LegendList owns `top` and rewrites it (to the same
+ * value) on its own pass.
+ */
+function shiftFollowingRows(element: HTMLElement, delta: number): void {
+  if (!Number.isFinite(delta) || Math.abs(delta) < 1) return;
+  const container = element.parentElement;
+  const parent = container?.parentElement;
+  if (!container || !parent) return;
+  const ownTop = Number.parseFloat(container.style.top);
+  if (!Number.isFinite(ownTop)) return;
+  for (const sibling of parent.children) {
+    if (!(sibling instanceof HTMLElement) || sibling === container) continue;
+    const top = Number.parseFloat(sibling.style.top);
+    if (!Number.isFinite(top) || top <= ownTop) continue;
+    sibling.style.top = `${top + delta}px`;
+  }
 }
 
 /**

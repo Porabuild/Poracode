@@ -15,7 +15,7 @@ import {
 } from "./paneSizeStorage";
 
 const DIVIDER_SIZE = 8;
-const ROOT_INSERT_ZONE_INSET = DIVIDER_SIZE / 2;
+const ROOT_INSERT_ZONE_SIZE = DIVIDER_SIZE / 2;
 // Step (in percent of the split's available space) used when a divider is
 // nudged via arrow keys instead of dragged.
 const KEY_RESIZE_STEP_PERCENT = 2;
@@ -56,8 +56,8 @@ function getContainerRect(size: ContainerSize): Rect {
   return {
     left: 0,
     top: 0,
-    width: Math.max(0, size.width - ROOT_INSERT_ZONE_INSET * 2),
-    height: Math.max(0, size.height - ROOT_INSERT_ZONE_INSET * 2),
+    width: Math.max(0, size.width),
+    height: Math.max(0, size.height),
   };
 }
 
@@ -241,17 +241,17 @@ const RootInsertZone = React.memo(function RootInsertZone(props: {
 
   const edgeClass =
     props.side === "top"
-      ? "top-0 right-0 left-0 cursor-row-resize"
+      ? "top-0 right-0 left-0"
       : props.side === "bottom"
-        ? "right-0 bottom-0 left-0 cursor-row-resize"
+        ? "right-0 bottom-0 left-0"
         : props.side === "left"
-          ? "top-0 bottom-0 left-0 cursor-col-resize"
-          : "top-0 right-0 bottom-0 cursor-col-resize";
+          ? "top-0 bottom-0 left-0"
+          : "top-0 right-0 bottom-0";
 
   const edgeStyle =
     props.side === "top" || props.side === "bottom"
-      ? { height: `${ROOT_INSERT_ZONE_INSET}px` }
-      : { width: `${ROOT_INSERT_ZONE_INSET}px` };
+      ? { height: `${ROOT_INSERT_ZONE_SIZE}px` }
+      : { width: `${ROOT_INSERT_ZONE_SIZE}px` };
 
   const lineClass =
     props.side === "top"
@@ -367,7 +367,6 @@ export function SplitPaneContainer(props: {
     transientSizesRef.current.clear();
   }
 
-  // Account for the inset padding around the layout.
   const containerRect = getContainerRect(containerSizeRef.current);
 
   const computed =
@@ -554,10 +553,7 @@ export function SplitPaneContainer(props: {
       <div
         className="absolute"
         style={{
-          left: ROOT_INSERT_ZONE_INSET,
-          top: ROOT_INSERT_ZONE_INSET,
-          right: ROOT_INSERT_ZONE_INSET,
-          bottom: ROOT_INSERT_ZONE_INSET,
+          inset: 0,
         }}
       >
         {/* Sort by DOM key so React keeps the same DOM slot per pane across

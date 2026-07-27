@@ -2,11 +2,12 @@ import type { CredentialStore } from "@poracode/agents-usage";
 import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
 import { resolveCodexToken } from "./codexCredentials";
+import { resolveCommandCodeToken } from "./commandCodeCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
 import { resolveCursorToken } from "./cursorCredentials";
 import { resolveFactoryCliToken } from "./factoryCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
-import { resolveGrokToken } from "./grokCredentials";
+import { refreshRejectedGrokToken, resolveFreshGrokToken } from "./grokTokenRefresh";
 import { resolveKimiToken } from "./kimiCredentials";
 import { resolveQwenUsageToken } from "./qwenCredentials";
 import { resolveZaiToken } from "./zaiCredentials";
@@ -34,9 +35,10 @@ function tokenResolvers(
   return {
     claude: resolveClaudeToken,
     codex: resolveCodexToken,
+    commandcode: resolveCommandCodeToken,
     copilot: resolveCopilotToken,
     cursor: resolveCursorToken,
-    grok: resolveGrokToken,
+    grok: resolveFreshGrokToken,
     gemini: resolveGeminiToken,
     // resolveFactoryCliToken is sync (returns the token directly, not a Promise);
     // wrap it so every entry shares the () => Promise<OAuthToken | undefined> shape.
@@ -47,9 +49,10 @@ function tokenResolvers(
   };
 }
 
-/** Per-provider refreshers (currently only Claude rejects/expired tokens). */
+/** Per-provider refreshers, called after the provider rejected a token. */
 const tokenRefreshers: Record<string, (token: OAuthToken) => Promise<OAuthToken | undefined>> = {
   claude: refreshRejectedClaudeToken,
+  grok: refreshRejectedGrokToken,
 };
 
 /** Build the native credential store consumed by the usage HostPort. */

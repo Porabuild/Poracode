@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrData, PrDetails } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { PrSection } from "./PrSection";
+
+vi.mock("./PrWatchControls", () => ({
+  PrWatchControls: () => null,
+}));
 
 vi.mock("@heroui/react", () => {
   function Wrapper(props: { children?: ReactNode }) {
@@ -107,6 +112,7 @@ describe("PrSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useGitStore.setState({ prData: { [prKey]: pr }, prDetails: {} });
+    useSharedSettings.setState({ prMergeMethod: "squash" });
   });
 
   it("shows target branch, diff totals, and passed checks", () => {
@@ -135,5 +141,14 @@ describe("PrSection", () => {
 
     view.rerender(<PrSection {...baseProps} onRefreshPr={onRefreshPr} />);
     expect(onRefreshPr).toHaveBeenCalledOnce();
+  });
+
+  it("uses the selected merge method for the primary merge action", () => {
+    useSharedSettings.setState({ prMergeMethod: "merge" });
+    render(<PrSection {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Merge PR: Commit" }));
+
+    expect(baseProps.handleMergePr).toHaveBeenCalledWith("merge", false);
   });
 });

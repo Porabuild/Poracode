@@ -37,6 +37,8 @@ describe("BrowserMcpIngress", () => {
 
     expect(body.result.serverInfo.name).toBe("browser");
     expect(body.result.instructions).toContain("Use the browser MCP server");
+    expect(body.result.instructions).toContain("browser.enable");
+    expect(body.result.instructions).toContain("browser.disable");
     expect(body.result.instructions).toContain("browser.api");
     expect(body.result.instructions).toContain("@e refs");
   });
@@ -88,6 +90,7 @@ describe("BrowserMcpIngress", () => {
           getTab: () => tab,
           ensureTabReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
           createTab: vi.fn<() => Promise<unknown>>().mockResolvedValue({ tabId: "tab-1" }),
+          setAutomationSession: vi.fn<() => boolean>().mockReturnValue(true),
           reload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         }) as unknown as BrowserPanelManager,
     );
