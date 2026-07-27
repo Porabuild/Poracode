@@ -846,7 +846,6 @@ msgstr "Додати на головний екран"
 msgid "Add to-do"
 msgstr "Додати завдання"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Додати робочу область"
@@ -5515,8 +5514,8 @@ msgstr "Керуйте конфігураціями серверів MCP, які
 #~ msgstr "Керуйте навичками, які Poracode надає підтримуваним агентам. Навичками проєкту можна керувати в налаштуваннях кожного проєкту."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Керування робочими областями"
+#~ msgid "Manage workspaces"
+#~ msgstr "Керування робочими областями"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"

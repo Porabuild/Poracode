@@ -846,7 +846,6 @@ msgstr "Add to Home Screen"
 msgid "Add to-do"
 msgstr "Add to-do"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Add workspace"
@@ -5515,8 +5514,8 @@ msgstr "Manage the MCP server configurations Poracode adds when starting support
 #~ msgstr "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Manage workspaces"
+#~ msgid "Manage workspaces"
+#~ msgstr "Manage workspaces"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"

@@ -845,7 +845,6 @@ msgstr "ホーム画面に追加"
 msgid "Add to-do"
 msgstr "タスクを追加"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "ワークスペースを追加"
@@ -5514,8 +5513,8 @@ msgstr "対応エージェントの起動時にPoracodeが追加するMCPサー�
 #~ msgstr "Poracode が対応エージェントに提供するスキルを管理します。プロジェクトスキルは各プロジェクトの設定で管理できます。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "ワークスペースを管理"
+#~ msgid "Manage workspaces"
+#~ msgstr "ワークスペースを管理"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
