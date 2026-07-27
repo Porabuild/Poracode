@@ -32,6 +32,7 @@ const USER_SCROLL_INTENT_MS = 750;
 const VIRTUALIZER_LAYOUT_SETTLE_MS = 250;
 /** Minimum at-bottom cache when no coalesce window is active. */
 const AT_BOTTOM_CACHE_MS = 16;
+const TOUCH_FIRST_POINTER_QUERY = "(hover: none) and (pointer: coarse)";
 /**
  * How long sticky pins pause after an untagged upward scroll that release
  * logic classified as layout-driven. Long enough to bridge the gap between a
@@ -112,6 +113,7 @@ export const ChatScrollControls = forwardRef<
   const previousInitialScrollSettledRef = useRef(initialScrollSettled);
   const disableStickToBottomRef = useRef<() => void>(() => undefined);
   const pinHoldoffUntilRef = useRef(0);
+  const touchFirstPointer = window.matchMedia(TOUCH_FIRST_POINTER_QUERY).matches;
   const [showScrollDown, setShowScrollDown] = useState(false);
 
   function cancelVirtualizerLayoutChange() {
@@ -626,13 +628,23 @@ export const ChatScrollControls = forwardRef<
         !viewportHeightChanged &&
         nextScrollTop < prevScrollTop
       ) {
-        // Release was suppressed as layout-driven (virtualizer window / height
-        // growth), but the untagged upward move could equally be a native
-        // scrollbar-thumb drag — those emit no pointer events. Hold pins off:
-        // a real drag keeps re-arming this via its scroll stream and is never
-        // yanked, while a one-shot virtualizer anchor adjustment lets it lapse
-        // and the next streaming pin reattaches. See scrollToBottom.
-        pinHoldoffUntilRef.current = performance.now() + PIN_HOLDOFF_MS;
+        if (touchFirstPointer) {
+          // Touch scrolling always starts with the pane's pointerdown handler,
+          // which disables sticky mode before the first scroll event. With no
+          // recorded intent, an upward move inside a virtualizer/height-change
+          // window is therefore LegendList's visible-content compensation.
+          // Re-pin in this event, before Safari can paint the live tail below
+          // the floating composer while waiting for another provider delta.
+          pinHoldoffUntilRef.current = 0;
+          atBottomCachedUntilRef.current = 0;
+          writeBottomPin(el);
+        } else {
+          // Desktop native scrollbar thumbs can emit scroll without pointer
+          // events. Hold pins off briefly so a real drag keeps re-arming the
+          // guard, while a one-shot virtualizer adjustment lets it lapse and
+          // the next streaming pin reattaches. See scrollToBottom.
+          pinHoldoffUntilRef.current = performance.now() + PIN_HOLDOFF_MS;
+        }
       }
       setShowScrollDown(
         nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }),
@@ -645,7 +657,7 @@ export const ChatScrollControls = forwardRef<
     handleScroll();
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [scrollRef, threadId]);
+  }, [scrollRef, threadId, touchFirstPointer]);
 
   useEffect(() => {
     const el = scrollRef.current;
