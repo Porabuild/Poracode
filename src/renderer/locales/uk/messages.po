@@ -99,6 +99,11 @@ msgstr "{0, plural, one {# інструмент} few {# інструменти} 
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {Кандидат (#)} few {Кандидати (#)} many {Кандидати (#)} other {Кандидати (#)}}"
 
+#. placeholder {0}: section.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {MCP} other {MCPs}}"
+msgstr "{0, plural, one {MCP} few {MCP} many {MCP} other {MCP}}"
+
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -1248,6 +1253,22 @@ msgstr "Авто"
 msgid "Auto Approve"
 msgstr "Автосхвалення"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Fix"
+msgstr "Автовиправлення"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
+#~ msgstr "«Автовиправлення» чекає завершення перевірок і усуває перешкоди для злиття. «Автозлиття» також виконує squash-злиття, коли все готово."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected merge method when ready."
+msgstr "«Автовиправлення» чекає завершення перевірок і усуває перешкоди для злиття. «Автозлиття» використовує вибраний спосіб злиття, коли все готово."
+
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Merge"
+msgstr "Автозлиття"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -1262,8 +1283,13 @@ msgid "Auto-generate"
 msgstr "Генерувати автоматично"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Auto-merge"
-msgstr "Автозлиття"
+#~ msgid "Auto-merge"
+#~ msgstr "Автозлиття"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Auto-merge new pull requests"
+#~ msgstr "Автоматично зливати нові PR"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -1840,6 +1866,11 @@ msgstr "Виберіть батьківську папку"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "Виберіть щонайменше двох кандидатів і введіть промпт."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose how Poracode performs manual merges and automatic PR merges."
+msgstr "Виберіть, як Poracode виконує ручне й автоматичне злиття PR."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "Виберіть спосіб входу для {env}."
@@ -1864,6 +1895,11 @@ msgstr "Виберіть мову відображення інтерфейсу 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Виберіть тред для прикріплення"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
+msgstr "Виберіть, що Poracode робитиме з новими pull request: нічого, усувати перешкоди для злиття або усувати їх і виконувати злиття."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2467,6 +2503,7 @@ msgstr "Підключити"
 #~ msgid "Connect a server"
 #~ msgstr "Підключити сервер"
 
+#: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
 msgstr "Підключіть агента, перш ніж відстежувати PR."
@@ -3103,6 +3140,11 @@ msgstr "Типовий новий тред"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Default permissions"
 msgstr "Дозволи за замовчуванням"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Default PR automation"
+msgstr "Автоматизація PR за замовчуванням"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -4262,8 +4304,17 @@ msgid "Fix in Agent"
 msgstr "Виправити в агенті"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Fix new comments and failed checks, then push updates."
-msgstr "Виправте зауваження в нових коментарях і невдалі перевірки, а потім надішліть оновлення."
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Fix issues"
+#~ msgstr "Виправити проблеми"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix issues waits for checks and repairs merge blockers. Merge PR also squash merges when ready."
+#~ msgstr "«Виправити проблеми» чекає завершення перевірок і усуває перешкоди для злиття. «Об’єднати PR» також виконує squash-злиття, коли все готово."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix new comments and failed checks, then push updates."
+#~ msgstr "Виправте зауваження в нових коментарях і невдалі перевірки, а потім надішліть оновлення."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -5619,6 +5670,8 @@ msgstr "Злити локально та видалити worktree"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Merge method"
 msgstr "Метод злиття"
 
@@ -5626,18 +5679,26 @@ msgstr "Метод злиття"
 msgid "Merge options"
 msgstr "Параметри злиття"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Merge PR"
+#~ msgstr "Об’єднати PR"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Commit"
 msgstr "Злити PR: Commit"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Rebase"
 msgstr "Злити PR: Rebase"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Squash"
 msgstr "Злити PR: Squash"
 
@@ -6599,6 +6660,7 @@ msgstr "npx"
 msgid "off"
 msgstr "вимк"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
@@ -7226,6 +7288,7 @@ msgid "Pinned"
 msgstr "Закріплено"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
@@ -7605,6 +7668,11 @@ msgstr "Pull request #{0}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
 msgstr "Категорія pull request"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/prAutomationActions.ts
+msgid "Pull request created, but its default automation could not be enabled: {0}"
+msgstr "Pull request створено, але не вдалося ввімкнути типову автоматизацію: {0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
@@ -9256,8 +9324,8 @@ msgid "Split view"
 msgstr "Розділений вигляд"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Squash merge when checks and required reviews pass."
-msgstr "Виконайте squash-злиття, коли пройдуть перевірки й обов’язкові рев’ю."
+#~ msgid "Squash merge when checks and required reviews pass."
+#~ msgstr "Виконайте squash-злиття, коли пройдуть перевірки й обов’язкові рев’ю."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
@@ -10374,9 +10442,19 @@ msgstr "Довіряти та підключитися"
 msgid "Try a different search or project filter."
 msgstr "Спробуйте інший пошук або фільтр проєкту."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+#~ msgstr "Автоматично вмикати автозлиття для pull request, створених у Poracode."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "Увімкніть віддалений доступ, щоб показати код сполучення."
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+#~ msgstr "Автоматично вмикати спостереження за PR для pull request, створених у Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11045,6 +11123,10 @@ msgstr "Мова голосового вводу"
 msgid "Voice input model"
 msgstr "Модель голосового вводу"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+#~ msgstr "Дочекатися завершення перевірок, потім виправити помилки, невирішені обговорення та блокування гілки."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "Зачекайте, доки всі кандидати завершать роботу, перш ніж виконувати очищення."
@@ -11125,9 +11207,14 @@ msgstr "Підготовка середовищ оболонки..."
 msgid "Warming up WSL shell environment…"
 msgstr "Підготовка середовища оболонки WSL…"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Watch new pull requests"
+#~ msgstr "Спостерігати за новими PR"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Watch PR"
-msgstr "Відстежувати PR"
+#~ msgid "Watch PR"
+#~ msgstr "Відстежувати PR"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

@@ -99,6 +99,11 @@ msgstr "{0, plural, one {# công cụ} other {# công cụ}}"
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {Ứng viên (#)} other {Ứng viên (#)}}"
 
+#. placeholder {0}: section.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {MCP} other {MCPs}}"
+msgstr "{0, plural, one {MCP} other {MCP}}"
+
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -1248,6 +1253,22 @@ msgstr "Tự động"
 msgid "Auto Approve"
 msgstr "Tự động phê duyệt"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Fix"
+msgstr "Tự động sửa"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
+#~ msgstr "“Tự động sửa” chờ các bước kiểm tra hoàn tất và xử lý các trở ngại hợp nhất. “Tự động hợp nhất” cũng squash merge khi mọi thứ đã sẵn sàng."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected merge method when ready."
+msgstr "“Tự động sửa” chờ các bước kiểm tra hoàn tất và xử lý các trở ngại hợp nhất. “Tự động hợp nhất” sử dụng phương thức hợp nhất bạn đã chọn khi mọi thứ sẵn sàng."
+
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Merge"
+msgstr "Tự động hợp nhất"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -1262,8 +1283,13 @@ msgid "Auto-generate"
 msgstr "Tự động tạo"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Auto-merge"
-msgstr "Tự động hợp nhất"
+#~ msgid "Auto-merge"
+#~ msgstr "Tự động hợp nhất"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Auto-merge new pull requests"
+#~ msgstr "Tự động hợp nhất Pull Request mới"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -1840,6 +1866,11 @@ msgstr "Chọn một thư mục cha"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "Chọn ít nhất hai ứng viên và nhập lời nhắc."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose how Poracode performs manual merges and automatic PR merges."
+msgstr "Chọn cách Poracode thực hiện hợp nhất thủ công và tự động cho PR."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "Chọn cách đăng nhập cho {env}."
@@ -1864,6 +1895,11 @@ msgstr "Chọn ngôn ngữ hiển thị cho giao diện của Poracode."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Chọn chủ đề để đính kèm"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
+msgstr "Chọn việc Poracode sẽ làm với pull request mới: không làm gì, khắc phục các trở ngại hợp nhất, hoặc khắc phục rồi hợp nhất."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2467,6 +2503,7 @@ msgstr "Kết nối"
 #~ msgid "Connect a server"
 #~ msgstr "Kết nối máy chủ"
 
+#: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
 msgstr "Kết nối một tác nhân trước khi theo dõi PR."
@@ -3103,6 +3140,11 @@ msgstr "Chủ đề mới mặc định"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Default permissions"
 msgstr "Quyền mặc định"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Default PR automation"
+msgstr "Tự động hóa PR mặc định"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -4262,8 +4304,17 @@ msgid "Fix in Agent"
 msgstr "Sửa trong Tác nhân"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Fix new comments and failed checks, then push updates."
-msgstr "Sửa các bình luận mới và kiểm tra bị lỗi, rồi đẩy bản cập nhật."
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Fix issues"
+#~ msgstr "Khắc phục sự cố"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix issues waits for checks and repairs merge blockers. Merge PR also squash merges when ready."
+#~ msgstr "“Khắc phục sự cố” chờ các bước kiểm tra hoàn tất và xử lý các trở ngại hợp nhất. “Hợp nhất PR” cũng squash merge khi mọi thứ đã sẵn sàng."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix new comments and failed checks, then push updates."
+#~ msgstr "Sửa các bình luận mới và kiểm tra bị lỗi, rồi đẩy bản cập nhật."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -5619,6 +5670,8 @@ msgstr "Hợp nhất cục bộ và xóa Worktree"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Merge method"
 msgstr "Phương pháp hợp nhất"
 
@@ -5626,18 +5679,26 @@ msgstr "Phương pháp hợp nhất"
 msgid "Merge options"
 msgstr "Tùy chọn hợp nhất"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Merge PR"
+#~ msgstr "Hợp nhất PR"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Commit"
 msgstr "Hợp nhất PR: Cam kết"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Rebase"
 msgstr "Hợp nhất PR: Rebase"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Squash"
 msgstr "Hợp nhất PR: Squash"
 
@@ -6599,6 +6660,7 @@ msgstr "npx"
 msgid "off"
 msgstr "tắt"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
@@ -7226,6 +7288,7 @@ msgid "Pinned"
 msgstr "Đã ghim"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
@@ -7605,6 +7668,11 @@ msgstr "Pull request #{0}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
 msgstr "Danh mục pull request"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/prAutomationActions.ts
+msgid "Pull request created, but its default automation could not be enabled: {0}"
+msgstr "Đã tạo Pull Request nhưng không thể bật tính năng tự động hóa mặc định: {0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
@@ -9256,8 +9324,8 @@ msgid "Split view"
 msgstr "Chế độ xem chia đôi"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Squash merge when checks and required reviews pass."
-msgstr "Hợp nhất kiểu squash khi các kiểm tra và lượt đánh giá bắt buộc đều đạt."
+#~ msgid "Squash merge when checks and required reviews pass."
+#~ msgstr "Hợp nhất kiểu squash khi các kiểm tra và lượt đánh giá bắt buộc đều đạt."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
@@ -10374,9 +10442,19 @@ msgstr "Tin cậy và kết nối"
 msgid "Try a different search or project filter."
 msgstr "Thử cụm tìm kiếm hoặc bộ lọc dự án khác."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+#~ msgstr "Tự động bật tính năng tự động hợp nhất cho các Pull Request bạn tạo trong Poracode."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "Bật quyền truy cập từ xa để hiển thị mã ghép nối."
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+#~ msgstr "Tự động bật Theo dõi PR cho các Pull Request bạn tạo trong Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11045,6 +11123,10 @@ msgstr "Ngôn ngữ nhập bằng giọng nói"
 msgid "Voice input model"
 msgstr "Mô hình nhập liệu bằng giọng nói"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+#~ msgstr "Chờ các bước kiểm tra hoàn tất, sau đó sửa lỗi, cuộc hội thoại chưa giải quyết và các trở ngại của nhánh."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi dọn dẹp."
@@ -11125,9 +11207,14 @@ msgstr "Đang khởi động các môi trường shell..."
 msgid "Warming up WSL shell environment…"
 msgstr "Đang khởi động môi trường shell WSL…"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Watch new pull requests"
+#~ msgstr "Theo dõi Pull Request mới"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Watch PR"
-msgstr "Theo dõi PR"
+#~ msgid "Watch PR"
+#~ msgstr "Theo dõi PR"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

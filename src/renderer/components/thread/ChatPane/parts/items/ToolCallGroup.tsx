@@ -180,7 +180,12 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                       <span className="flex shrink-0 items-center gap-1">
                         <section.Icon className="size-3" />
                         <code className="font-mono tabular-nums !text-[color:var(--muted)]">
-                          {section.count} {section.label}
+                          {section.count}{" "}
+                          {section.category === "mcp" ? (
+                            <Plural value={section.count} one="MCP" other="MCPs" />
+                          ) : (
+                            section.label
+                          )}
                         </code>
                         {diffLabel ? (
                           <span className="shrink-0 tabular-nums font-medium">{diffLabel}</span>

@@ -99,6 +99,11 @@ msgstr "{0, plural, one {도구 #개} other {도구 #개}}"
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {후보(#개)} other {후보(#개)}}"
 
+#. placeholder {0}: section.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {MCP} other {MCPs}}"
+msgstr "{0, plural, one {MCP} other {MCP}}"
+
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -1248,6 +1253,22 @@ msgstr "자동"
 msgid "Auto Approve"
 msgstr "자동 승인"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Fix"
+msgstr "자동 수정"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
+#~ msgstr "‘자동 수정’은 검사가 끝날 때까지 기다린 후 병합 차단 문제를 해결합니다. ‘자동 병합’은 준비되면 스쿼시 병합도 수행합니다."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected merge method when ready."
+msgstr "‘자동 수정’은 검사가 끝날 때까지 기다린 후 병합 차단 문제를 해결합니다. ‘자동 병합’은 준비되면 선택한 병합 방법을 사용합니다."
+
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Merge"
+msgstr "자동 병합"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -1262,8 +1283,13 @@ msgid "Auto-generate"
 msgstr "자동 생성"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Auto-merge"
-msgstr "자동 병합"
+#~ msgid "Auto-merge"
+#~ msgstr "자동 병합"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Auto-merge new pull requests"
+#~ msgstr "새 Pull Request 자동 병합"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -1840,6 +1866,11 @@ msgstr "상위 폴더 선택"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "후보를 두 개 이상 선택하고 프롬프트를 입력하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose how Poracode performs manual merges and automatic PR merges."
+msgstr "Poracode가 수동 병합과 자동 PR 병합을 수행하는 방법을 선택하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "{env}에 로그인하는 방법을 선택하세요."
@@ -1864,6 +1895,11 @@ msgstr "Poracode 인터페이스의 표시 언어를 선택하세요."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "첨부할 스레드를 선택하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
+msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세요: 아무 작업 안 함, 병합 차단 문제 수정, 또는 수정 후 병합."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2467,6 +2503,7 @@ msgstr "연결"
 #~ msgid "Connect a server"
 #~ msgstr "서버 연결"
 
+#: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
 msgstr "PR을 감시하기 전에 에이전트를 연결하세요."
@@ -3103,6 +3140,11 @@ msgstr "기본 새 스레드"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Default permissions"
 msgstr "기본 권한"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Default PR automation"
+msgstr "기본 PR 자동화"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -4262,8 +4304,17 @@ msgid "Fix in Agent"
 msgstr "에이전트에서 수정"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Fix new comments and failed checks, then push updates."
-msgstr "새 댓글과 실패한 검사를 수정한 후 업데이트를 푸시합니다."
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Fix issues"
+#~ msgstr "문제 수정"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix issues waits for checks and repairs merge blockers. Merge PR also squash merges when ready."
+#~ msgstr "‘문제 수정’은 검사가 끝날 때까지 기다린 후 병합 차단 문제를 해결합니다. ‘PR 병합’은 준비되면 스쿼시 병합도 수행합니다."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix new comments and failed checks, then push updates."
+#~ msgstr "새 댓글과 실패한 검사를 수정한 후 업데이트를 푸시합니다."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -5619,6 +5670,8 @@ msgstr "로컬로 병합 및 작업 트리 제거"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Merge method"
 msgstr "병합 방법"
 
@@ -5626,18 +5679,26 @@ msgstr "병합 방법"
 msgid "Merge options"
 msgstr "병합 옵션"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Merge PR"
+#~ msgstr "PR 병합"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Commit"
 msgstr "PR 병합: 커밋"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Rebase"
 msgstr "PR 병합: 리베이스"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Squash"
 msgstr "PR 병합: 스쿼시"
 
@@ -6599,6 +6660,7 @@ msgstr "npx"
 msgid "off"
 msgstr "꺼짐"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
@@ -7226,6 +7288,7 @@ msgid "Pinned"
 msgstr "고정됨"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
@@ -7605,6 +7668,11 @@ msgstr "풀 리퀘스트 #{0}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
 msgstr "풀 리퀘스트 카테고리"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/prAutomationActions.ts
+msgid "Pull request created, but its default automation could not be enabled: {0}"
+msgstr "Pull Request가 생성되었지만 기본 자동화를 활성화하지 못했습니다: {0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
@@ -9256,8 +9324,8 @@ msgid "Split view"
 msgstr "분할 보기"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Squash merge when checks and required reviews pass."
-msgstr "검사와 필수 리뷰를 통과하면 스쿼시 병합합니다."
+#~ msgid "Squash merge when checks and required reviews pass."
+#~ msgstr "검사와 필수 리뷰를 통과하면 스쿼시 병합합니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
@@ -10374,9 +10442,19 @@ msgstr "신뢰하고 연결"
 msgid "Try a different search or project filter."
 msgstr "다른 검색어 또는 프로젝트 필터를 사용해 보세요."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+#~ msgstr "Poracode에서 생성하는 Pull Request에 자동 병합을 자동으로 켭니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "페어링 코드를 표시하려면 원격 액세스를 켜세요."
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+#~ msgstr "Poracode에서 생성하는 Pull Request에 PR 감시를 자동으로 켭니다."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11045,6 +11123,10 @@ msgstr "음성 입력 언어"
 msgid "Voice input model"
 msgstr "음성 입력 모델"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+#~ msgstr "검사가 완료될 때까지 기다린 다음 실패, 해결되지 않은 대화 및 브랜치 차단 문제를 수정합니다."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "정리하기 전에 모든 후보가 완료될 때까지 기다리세요."
@@ -11125,9 +11207,14 @@ msgstr "쉘 환경 준비 중..."
 msgid "Warming up WSL shell environment…"
 msgstr "WSL 셸 환경 준비 중…"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Watch new pull requests"
+#~ msgstr "새 Pull Request 감시"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Watch PR"
-msgstr "PR 감시"
+#~ msgid "Watch PR"
+#~ msgstr "PR 감시"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

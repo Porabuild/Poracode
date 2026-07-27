@@ -30,7 +30,7 @@ import type {
   GhGetPrChecksResult,
   GhGetPrDetailsPayload,
   GhGetPrDetailsResult,
-  GhGetPrReviewCommentsResult,
+  GhGetPrReviewThreadsResult,
   GhGetPrDiffPayload,
   GhGetPrDiffResult,
   GhGetPrFilesPayload,
@@ -133,7 +133,7 @@ export const githubProcedures = {
   ),
   ghGetPrReviewComments: definePayloadProcedure<
     GhGetPrDetailsPayload,
-    GhGetPrReviewCommentsResult,
+    GhGetPrReviewThreadsResult,
     "supervisor"
   >("ghGetPrReviewComments", "supervisor", ghGetPrDetailsPayloadSchema),
   ghPostPrComment: definePayloadProcedure<GhPostPrCommentPayload, PrComment, "supervisor">(

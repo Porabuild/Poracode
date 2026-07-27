@@ -10,6 +10,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # CI checkouts do not benefit from the worktree-oriented global virtual
+  # store, and targeted pnpm rebuilds must operate on checkout-local packages.
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
 jobs:
   typecheck:
     name: Typecheck

@@ -22,6 +22,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # Mobile release runners are disposable single checkouts and do not benefit
+  # from the developer worktree global virtual store.
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
 concurrency:
   group: release-mobile-${{ github.ref }}
   cancel-in-progress: false

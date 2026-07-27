@@ -766,15 +766,17 @@ if (!hasSingleInstanceLock) {
           supervisorClient
             .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
             .then((result) => result.details),
-        getPrReviewComments: (project, prNumber) =>
+        getPrReviewThreads: (project, prNumber) =>
           supervisorClient
             .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
-            .then((result) => result.comments),
-        mergePr: (project, prNumber) =>
+            .then((result) => result.threads),
+        getMergeMethod: () =>
+          readSharedSettingsFile(requirePoracodePaths().settingsPath).prMergeMethod,
+        mergePr: (project, prNumber, method) =>
           supervisorClient.call("ghMergePr", {
             projectLocation: project.location,
             prNumber,
-            method: "squash",
+            method,
             admin: false,
           }),
         createThread: sharedAppControlsDeps.createThread,

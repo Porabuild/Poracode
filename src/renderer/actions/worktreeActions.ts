@@ -14,6 +14,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads, runShellScriptToCompletion } from "@/renderer/utils/shellUtils";
+import { cancelQueuedWorktreeSetup } from "./worktreeLaunchActions";
 
 export async function performWorktreeRemoval(
   project: Project,
@@ -88,6 +89,8 @@ export async function prepareWorktreeRemoval(
   project: Project,
   worktreePath: string,
 ): Promise<void> {
+  cancelQueuedWorktreeSetup(project, worktreePath);
+
   const cleanupScript = project.scripts?.cleanupScript;
   if (cleanupScript) {
     const wtLocation = buildWorktreeLocation(project.location, worktreePath);

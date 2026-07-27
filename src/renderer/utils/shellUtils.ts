@@ -51,6 +51,47 @@ function buildPowerShellExitOnSuccess(lines: string[]): string {
   return lines.reduceRight((tail, line) => `${line}; if ($?) { ${tail} }`, "exit");
 }
 
+function createShellCompletionToken(): string {
+  return `pc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+}
+
+function shellCompletionMarker(token: string): string {
+  return `\u001B]777;poracode-shell-complete=${token}:`;
+}
+
+function buildScriptWithCompletion(
+  script: string,
+  locationKind: ProjectLocation["kind"],
+  token: string,
+): string {
+  const lines = normalizeShellScriptLines(script);
+  if (lines.length === 0) return "";
+
+  if (locationKind === "windows") {
+    const succeeded = "$poracodeSetupSucceeded";
+    const exitCode = "$poracodeSetupExitCode";
+    const guarded = lines.reduceRight(
+      (tail, line) => `${line}; if ($?) { ${tail} }`,
+      `${succeeded} = $true`,
+    );
+    return [
+      `${succeeded} = $false`,
+      guarded,
+      `${exitCode} = if (${succeeded}) { 0 } elseif ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { $LASTEXITCODE } else { 1 }`,
+      `Write-Host "$([char]27)]777;poracode-shell-complete=${token}:${exitCode}$([char]7)" -NoNewline`,
+      `if (${succeeded}) { exit }`,
+    ].join("; ");
+  }
+
+  const exitCode = "__poracode_setup_exit";
+  return [
+    lines.join(" && "),
+    `${exitCode}=$?`,
+    `printf '\\033]777;poracode-shell-complete=${token}:%s\\007' "$${exitCode}"`,
+    `if [ "$${exitCode}" -eq 0 ]; then exit; fi`,
+  ].join("; ");
+}
+
 export function buildScriptWithExitOnSuccess(
   script: string,
   locationKind: ProjectLocation["kind"],
@@ -120,27 +161,42 @@ export function appendExitOnSuccess(
  * surviving PTY when the shell respawns (e.g. a panel-driven, viewport-sized
  * respawn).
  *
- * `onExit` fires once the shell's PTY exits — success, or a manual `exit` — and
- * the listener detaches itself first. Returns a detach fn so callers can stop
- * listening if the shell is torn down before it finishes (a manual close kills
- * the PTY with `ignoreExit`, suppressing `thread-exited`), avoiding a dangling
- * subscription. Unlike {@link runShellScriptToCompletion} this keeps the shell
- * visible and never times out, so long installs are not cut short.
+ * `onExit` fires once the shell's PTY exits — success, or a manual `exit`.
+ * `onCommandComplete` additionally fires when the script finishes, including
+ * failures that deliberately leave the shell open for inspection. Returns a
+ * detach fn so callers can stop listening if the shell is torn down before it
+ * finishes (a manual close kills the PTY with `ignoreExit`, suppressing
+ * `thread-exited`), avoiding a dangling subscription. Unlike
+ * {@link runShellScriptToCompletion} this keeps the shell visible and never
+ * times out, so long installs are not cut short.
  */
 export function writeScriptToShellThenExitOnSuccess(
   shellId: string,
   script: string,
   locationKind: ProjectLocation["kind"],
   onExit: (exitCode: number | null) => void,
+  onCommandComplete?: (exitCode: number) => void,
 ): () => void {
   const command = normalizeShellScript(script);
   // Nothing meaningful to run — leave the (caller-guarded) shell untouched.
   if (!command) return () => undefined;
-  const data = `${buildScriptWithExitOnSuccess(script, locationKind)}\r`;
+  const completionToken = onCommandComplete ? createShellCompletionToken() : undefined;
+  const data = `${
+    completionToken
+      ? buildScriptWithCompletion(script, locationKind, completionToken)
+      : buildScriptWithExitOnSuccess(script, locationKind)
+  }\r`;
 
   let armed = true;
   let detached = false;
+  let commandCompleted = false;
+  let outputBuffer = "";
   let unsubscribe: () => void = () => undefined;
+  const reportCommandComplete = (exitCode: number) => {
+    if (commandCompleted) return;
+    commandCompleted = true;
+    onCommandComplete?.(exitCode);
+  };
   const detach = () => {
     if (detached) return;
     detached = true;
@@ -152,6 +208,7 @@ export function writeScriptToShellThenExitOnSuccess(
       // A fresh PTY spawned; re-send on its first output so the command runs
       // in the survivor rather than a PTY that is about to be replaced.
       armed = true;
+      outputBuffer = "";
       return;
     }
     if (event.type === "thread-output" && armed) {
@@ -163,10 +220,21 @@ export function writeScriptToShellThenExitOnSuccess(
             `[shellUtils] Unable to write command to shell ${shellId}:`,
             error instanceof Error ? error.message : error,
           );
+          reportCommandComplete(-1);
         });
       return;
     }
+    if (event.type === "thread-output" && completionToken) {
+      outputBuffer = `${outputBuffer}${event.data}`.slice(-1024);
+      const marker = shellCompletionMarker(completionToken);
+      const markerStart = outputBuffer.indexOf(marker);
+      if (markerStart < 0) return;
+      const match = /^(\d+)/u.exec(outputBuffer.slice(markerStart + marker.length));
+      if (match) reportCommandComplete(Number(match[1]));
+      return;
+    }
     if (event.type === "thread-exited") {
+      reportCommandComplete(event.exitCode ?? -1);
       detach();
       onExit(event.exitCode);
     }

@@ -589,6 +589,38 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("Tool search · deploy")).toBeInTheDocument();
   });
 
+  it("summarizes MCP calls separately from generic tools", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeSemanticToolItem("mcp-1", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeSemanticToolItem("mcp-2", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeSemanticToolItem("mcp-3", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeReasoningItem("reasoning-1", "Testing website build and pnpm config"),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    expect(screen.getByText("3 MCPs")).toBeInTheDocument();
+    expect(screen.getByText("1 thought")).toBeInTheDocument();
+    expect(screen.queryByText("3 tools")).not.toBeInTheDocument();
+  });
+
   it("keeps web searches visible when Codex omits the query", () => {
     const threadId = "thread-1";
     const item = makeWebSearchItem("web-search-1", {
