@@ -80,11 +80,69 @@ export interface CreatePushGatewayOptions {
   readonly fetchImpl?: FetchLike;
   /** Per-request timeout; defaults to 10s. */
   readonly timeoutMs?: number;
-  /** Structured-log sink for gateway failures. */
+  /**
+   * Operational-health sink. Receives only bounded, privacy-safe failures with
+   * operation/outcome metadata; raw transport errors and request data are never
+   * forwarded.
+   */
   readonly onError?: (error: unknown) => void;
+  /** Injectable clock and reporting window for deterministic tests. */
+  readonly now?: () => number;
+  readonly operationalReportIntervalMs?: number;
 }
 
 const DEFAULT_GATEWAY_TIMEOUT_MS = 10_000;
+const DEFAULT_OPERATIONAL_REPORT_INTERVAL_MS = 15 * 60 * 1_000;
+const TRANSIENT_GATEWAY_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+type PushGatewayOperation = "send" | "resolve-web-key";
+type PushGatewayOutcome = "network-error" | "timeout" | "transient-response" | "invalid-response";
+
+class PushGatewayOperationalError extends Error {
+  constructor(
+    readonly operation: PushGatewayOperation,
+    readonly outcome: PushGatewayOutcome,
+    readonly platform: SendPushInput["platform"] | "none",
+    readonly status: number,
+  ) {
+    super(`Remote push ${operation} warning: ${outcome}.`);
+    this.name = "PushGatewayOperationalWarning";
+  }
+}
+
+function classifyTransportOutcome(error: unknown): PushGatewayOutcome {
+  const code =
+    typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+      ? error.code.toUpperCase()
+      : null;
+  if (
+    (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) ||
+    code === "ETIMEDOUT"
+  ) {
+    return "timeout";
+  }
+  return "network-error";
+}
+
+function createOperationalReporter(options: CreatePushGatewayOptions) {
+  const lastReports = new Map<string, number>();
+  const now = options.now ?? Date.now;
+  const interval = options.operationalReportIntervalMs ?? DEFAULT_OPERATIONAL_REPORT_INTERVAL_MS;
+  return (
+    operation: PushGatewayOperation,
+    outcome: PushGatewayOutcome,
+    platform: SendPushInput["platform"] | "none",
+    status: number,
+  ): void => {
+    if (!options.onError) return;
+    const key = `${operation}:${outcome}:${platform}:${status}`;
+    const timestamp = now();
+    const lastReport = lastReports.get(key);
+    if (lastReport !== undefined && timestamp - lastReport < interval) return;
+    lastReports.set(key, timestamp);
+    options.onError(new PushGatewayOperationalError(operation, outcome, platform, status));
+  };
+}
 
 interface GatewayTransport {
   /** Absolute `/api/push` URL on the resolved gateway origin. */
@@ -130,6 +188,7 @@ function createGatewayTransport(options: CreatePushGatewayOptions): GatewayTrans
  */
 export function createPushGateway(options: CreatePushGatewayOptions = {}): SendPush {
   const transport = createGatewayTransport(options);
+  const reportOperationalIssue = createOperationalReporter(options);
   return async (input: SendPushInput): Promise<SendPushResult> => {
     try {
       const response = await transport.request({
@@ -147,6 +206,9 @@ export function createPushGateway(options: CreatePushGatewayOptions = {}): SendP
           ...(input.expiration !== undefined ? { expiration: input.expiration } : {}),
         }),
       });
+      if (TRANSIENT_GATEWAY_STATUSES.has(response.status)) {
+        reportOperationalIssue("send", "transient-response", input.platform, response.status);
+      }
       return {
         ok: response.ok,
         status: response.status,
@@ -154,12 +216,13 @@ export function createPushGateway(options: CreatePushGatewayOptions = {}): SendP
           response.status === 410 || (input.platform === "web" && response.status === 404),
       };
     } catch (error) {
-      options.onError?.(error);
+      const outcome = classifyTransportOutcome(error);
+      reportOperationalIssue("send", outcome, input.platform, 0);
       return {
         ok: false,
         status: 0,
         unregistered: false,
-        reason: error instanceof Error ? error.message : String(error),
+        reason: outcome === "timeout" ? "Gateway request timed out." : "Gateway request failed.",
       };
     }
   };
@@ -176,19 +239,35 @@ export function createWebPushPublicKeyResolver(
   options: CreatePushGatewayOptions = {},
 ): ResolveWebPushPublicKey {
   const transport = createGatewayTransport(options);
+  const reportOperationalIssue = createOperationalReporter(options);
   const fetchPublicKey = async (): Promise<string> => {
     try {
       const response = await transport.request({ method: "GET" });
       if (!response.ok || !response.json) {
+        reportOperationalIssue(
+          "resolve-web-key",
+          TRANSIENT_GATEWAY_STATUSES.has(response.status)
+            ? "transient-response"
+            : "invalid-response",
+          "web",
+          response.status,
+        );
         throw new Error(`Web Push config request failed with status ${response.status}.`);
       }
       const body = (await response.json()) as { publicKey?: unknown };
       if (typeof body.publicKey !== "string" || body.publicKey.length === 0) {
+        reportOperationalIssue("resolve-web-key", "invalid-response", "web", response.status);
         throw new Error("Web Push config response did not include a public key.");
       }
       return body.publicKey;
     } catch (error) {
-      options.onError?.(error);
+      if (
+        !(error instanceof Error) ||
+        (!error.message.startsWith("Web Push config request failed") &&
+          error.message !== "Web Push config response did not include a public key.")
+      ) {
+        reportOperationalIssue("resolve-web-key", classifyTransportOutcome(error), "web", 0);
+      }
       throw error;
     }
   };

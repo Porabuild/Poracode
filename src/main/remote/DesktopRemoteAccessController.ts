@@ -98,6 +98,35 @@ class RemoteAccessStartSupersededError extends Error {
   }
 }
 
+function remoteAccessStartupDiagnostic(
+  error: unknown,
+  channel: PoracodeChannel,
+): { error: unknown; tags: PoracodeDiagnosticTags } {
+  const code =
+    typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+      ? error.code
+      : null;
+  if (code === "EADDRINUSE") {
+    const diagnostic = new Error("Remote access server port remained unavailable after retries.");
+    diagnostic.name = "RemoteAccessPortConflictError";
+    return {
+      error: diagnostic,
+      tags: {
+        "poracode.feature_area": "remote-access",
+        "poracode.channel": channel,
+        "poracode.platform":
+          process.platform === "darwin" ||
+          process.platform === "linux" ||
+          process.platform === "win32"
+            ? process.platform
+            : "other",
+        "event.origin": "remote-access.listen.port-conflict",
+      },
+    };
+  }
+  return { error, tags: { "poracode.feature_area": "remote-access" } };
+}
+
 interface RemoteAccessStartAttempt {
   readonly generation: number;
   readonly promise: Promise<RemoteAccessServerInfo>;
@@ -384,7 +413,8 @@ export function createDesktopRemoteAccessController(
       const superseded = !isCurrentStartAttempt(attempt);
       if (!superseded) {
         console.error("[poracode] remote access failed to start:", toErrorMessage(error));
-        options.reportError(error, { "poracode.feature_area": "remote-access" });
+        const diagnostic = remoteAccessStartupDiagnostic(error, options.channel);
+        options.reportError(diagnostic.error, diagnostic.tags);
       }
       throw superseded ? new RemoteAccessStartSupersededError() : error;
     } finally {
