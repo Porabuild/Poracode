@@ -3,6 +3,7 @@ import {
   FileDiff,
   FolderOpen,
   GitFork,
+  Layers,
   Play,
   Power,
   PowerOff,
@@ -22,6 +23,14 @@ import {
   openProjectSettings,
 } from "@/renderer/actions/panelActions";
 import { gitSync } from "@/renderer/actions/gitActions";
+import {
+  WORKSPACE_UNFILED_KEY,
+  parseWorkspaceMenuKey,
+  workspaceMenuKey,
+} from "@/renderer/components/workspace/workspaceMenuKeys";
+import { WorkspaceIcon } from "@/renderer/components/workspace/WorkspaceIcon";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { openTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
 import {
   useIsProjectFilesPanelActive,
@@ -46,6 +55,7 @@ export function SidebarProjectHeader(props: {
   const { project, isCollapsed, isDragging } = props;
   const { t } = useLingui();
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
+  const workspaces = useSharedSettings((s) => s.workspaces);
   const hasTerminal = useIsProjectTerminalOpen(project.id);
   const isActiveTerminal = useIsProjectTerminalActive(project.id);
   const isBusyTerminal = useIsProjectTerminalBusy(project.id);
@@ -100,6 +110,30 @@ export function SidebarProjectHeader(props: {
                   ]
                 : []),
             ]),
+        ...(workspaces.length > 1
+          ? [
+              {
+                type: "submenu" as const,
+                id: "move-to-workspace",
+                label: t`Move to Workspace`,
+                icon: <Layers className="size-3.5" />,
+                items: [
+                  ...workspaces.map((workspace) => ({
+                    id: workspaceMenuKey(workspace.id),
+                    label: workspace.name,
+                    icon: <WorkspaceIcon icon={workspace.icon} className="size-3.5" />,
+                    isDisabled: workspace.id === project.workspaceId,
+                  })),
+                  {
+                    id: WORKSPACE_UNFILED_KEY,
+                    label: t`All workspaces`,
+                    icon: <Layers className="size-3.5" />,
+                    isDisabled: !project.workspaceId,
+                  },
+                ],
+              },
+            ]
+          : []),
         {
           id: "toggle-disabled",
           label: isDisabled ? t`Enable Project` : t`Disable Project`,
@@ -120,6 +154,12 @@ export function SidebarProjectHeader(props: {
         if (key === "git-sync") gitSync(project.id);
         if (key.startsWith("action:")) {
           runProjectAction(project.id, key.slice("action:".length));
+        }
+        const workspaceChoice = parseWorkspaceMenuKey(key);
+        if (workspaceChoice?.kind === "unfiled") {
+          useAppStore.getState().setProjectWorkspace(project.id, undefined);
+        } else if (workspaceChoice?.kind === "workspace") {
+          useAppStore.getState().setProjectWorkspace(project.id, workspaceChoice.workspaceId);
         }
       }}
     >

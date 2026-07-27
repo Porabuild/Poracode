@@ -19,3 +19,4 @@ export * from "./contracts/prWatch";
 export * from "./contracts/mcpServer";
 export * from "./contracts/skill";
 export * from "./contracts/experiment";
+export * from "./contracts/workspace";

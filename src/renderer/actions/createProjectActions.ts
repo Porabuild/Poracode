@@ -13,6 +13,7 @@ import { readBridge } from "@/renderer/bridge";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { autoDetectSetupScript } from "@/renderer/utils/gitHelpers";
 
 /** Whether a project is being created from scratch or opened from an existing folder. */
@@ -35,7 +36,11 @@ function registerNewProject(location: ProjectLocation, name: string, lastUsedDir
   useSharedSettings.getState().setLastUsedProjectDir(runtimeKeyForLocation(location), lastUsedDir);
 
   startTransition(() => {
-    const project = useAppStore.getState().addProject(location, name || undefined);
+    // New projects join the workspace the user is currently looking at,
+    // otherwise they'd land unfiled and show up in every workspace.
+    const project = useAppStore
+      .getState()
+      .addProject(location, name || undefined, getActiveWorkspaceId() ?? undefined);
     autoDetectSetupScript(project);
     useAppStore.getState().openDraft(project.id);
   });

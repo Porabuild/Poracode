@@ -26,7 +26,9 @@ import type {
   WorktreeStorageMode,
   BuiltInMcpServerId,
   McpServer,
+  Workspace,
 } from "@/shared/contracts";
+import { nextWorkspaceIconId } from "@/shared/contracts";
 
 const STORAGE_KEY = "poracode-shared-settings";
 
@@ -136,6 +138,13 @@ interface SharedSettingsState extends SharedSettings {
     error?: boolean;
   }) => void;
   setNotifyL2Cli: (value: boolean) => void;
+  /** Append a workspace and return it, so callers can activate the new entry. */
+  addWorkspace: (name: string) => Workspace;
+  renameWorkspace: (workspaceId: string, name: string) => void;
+  /** Remove a workspace. No-op on the last remaining one — a project must always have a home. */
+  removeWorkspace: (workspaceId: string) => void;
+  /** Replace the whole list in one persist write (used to seed the defaults). */
+  setWorkspaces: (workspaces: Workspace[]) => void;
   toggleFavoriteModel: (
     agentKind: string,
     modelId: string,
@@ -689,6 +698,36 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ notifyL2Cli });
     persistSettings(selectSharedSettings(get()));
   },
+  addWorkspace: (name) => {
+    const current = get().workspaces;
+    const workspace: Workspace = {
+      id: crypto.randomUUID(),
+      name,
+      createdAt: new Date().toISOString(),
+      icon: nextWorkspaceIconId(current),
+    };
+    set({ workspaces: [...current, workspace] });
+    persistSettings(selectSharedSettings(get()));
+    return workspace;
+  },
+  renameWorkspace: (workspaceId, name) => {
+    const current = get().workspaces;
+    if (!current.some((w) => w.id === workspaceId && w.name !== name)) return;
+    set({ workspaces: current.map((w) => (w.id === workspaceId ? { ...w, name } : w)) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  removeWorkspace: (workspaceId) => {
+    const current = get().workspaces;
+    // Refuse to drop the last workspace: with none left there is no valid
+    // active id, and every project would render as unfiled.
+    if (current.length <= 1 || !current.some((w) => w.id === workspaceId)) return;
+    set({ workspaces: current.filter((w) => w.id !== workspaceId) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWorkspaces: (workspaces) => {
+    set({ workspaces });
+    persistSettings(selectSharedSettings(get()));
+  },
   toggleFavoriteModel: (agentKind, modelId, presentationMode) => {
     const current = get().favoriteModels;
     const idx = current.findIndex(
@@ -841,6 +880,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     notifyL2Cli: state.notifyL2Cli,
     remotePushEnabled: state.remotePushEnabled,
     remotePushRedactContent: state.remotePushRedactContent,
+    workspaces: state.workspaces,
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
     browser: state.browser,

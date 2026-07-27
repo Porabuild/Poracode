@@ -33,11 +33,13 @@ import { DevSettings } from "./parts/DevSettings";
 import { McpServersSettings } from "./parts/McpServersSettings";
 import { SkillsSettings } from "./parts/SkillsSettings";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
+import { WorkspacesSettings } from "./parts/WorkspacesSettings";
 import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSettings";
 import type { SettingsSection } from "./parts/types";
 
 const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   profile: () => <ProfileSettings />,
+  workspaces: () => <WorkspacesSettings />,
   general: () => <GeneralSettings />,
   audio: () => <AudioSettings />,
   appearance: () => <AppearanceSettings />,

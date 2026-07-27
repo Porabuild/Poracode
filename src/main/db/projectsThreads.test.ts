@@ -139,6 +139,48 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     });
   });
 
+  it("round-trips the project workspace through the projects table", () => {
+    const project = {
+      id: "project-1",
+      name: "Test project",
+      location: { kind: "posix" as const, path: "/tmp/project" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    // Unfiled by default — a project created before workspaces existed must not
+    // come back pinned to some arbitrary group.
+    expect(dbGetProject("project-1")?.workspaceId).toBeUndefined();
+
+    dbUpsertProject({ ...project, workspaceId: "ws-work" }, 0);
+    expect(dbGetProject("project-1")?.workspaceId).toBe("ws-work");
+
+    dbUpsertProject({ ...project, workspaceId: "ws-side" }, 0);
+    expect(dbGetProject("project-1")?.workspaceId).toBe("ws-side");
+
+    // Unfiling clears the column rather than leaving the previous value behind.
+    dbUpsertProject(project, 0);
+    expect(dbGetProject("project-1")?.workspaceId).toBeUndefined();
+  });
+
+  it("round-trips the project workspace through the bulk renderer sync", () => {
+    const project = {
+      id: "project-bulk",
+      name: "Bulk project",
+      location: { kind: "posix" as const, path: "/tmp/project-bulk" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const viewJson = JSON.stringify({ kind: "home" });
+
+    dbSyncAll([{ ...project, workspaceId: "ws-work" }], [], viewJson);
+    expect(dbGetProject(project.id)?.workspaceId).toBe("ws-work");
+
+    dbSyncAll([{ ...project, workspaceId: "ws-side" }], [], viewJson);
+    expect(dbGetProject(project.id)?.workspaceId).toBe("ws-side");
+
+    dbSyncAll([project], [], viewJson);
+    expect(dbGetProject(project.id)?.workspaceId).toBeUndefined();
+  });
+
   it("persists candidate threads and the experiment record atomically", () => {
     const existing = testThread({ id: "candidate-existing" });
     dbPersistExperimentState({

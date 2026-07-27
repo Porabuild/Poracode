@@ -43,6 +43,7 @@ export function rowToProject(row: typeof schema.projects.$inferSelect): Project 
     ...(row.scripts ? { scripts: JSON.parse(row.scripts) } : {}),
     ...(row.searchSettings ? { searchSettings: JSON.parse(row.searchSettings) } : {}),
     ...(row.mcpServers ? { mcpServers: JSON.parse(row.mcpServers) } : {}),
+    ...(row.workspaceId ? { workspaceId: row.workspaceId } : {}),
     ...(row.disabled ? { disabled: true } : {}),
     createdAt: row.createdAt,
   };

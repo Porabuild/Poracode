@@ -3,6 +3,19 @@ import { Tooltip } from "@heroui/react";
 import type { StatusTone } from "@/renderer/components/providers/statusTone";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 
+/**
+ * The idle sidebar-row treatment, shared with rows that can't be a
+ * `SidebarButton` because they are a menu trigger and must own their own
+ * element (e.g. the workspace switcher). Keeping one definition means padding,
+ * radius, and hover can't drift between neighbouring rows.
+ */
+export function sidebarRowClass(options: { density?: "default" | "compact" } = {}): string {
+  const compact = options.density === "compact";
+  return `flex w-full shrink-0 cursor-default items-center gap-2 rounded-3xl px-2 ${
+    compact ? "py-1" : "py-1.5"
+  } text-left text-sm text-muted outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:focus-ring`;
+}
+
 export function SidebarButton(props: {
   ref?: React.Ref<HTMLDivElement>;
   icon: React.ReactNode;
