@@ -1789,3 +1789,144 @@ describe("ACP turn config sync", () => {
     });
   });
 });
+
+describe("ACP orphan turns — agent-initiated work after prompt() settled", () => {
+  const ORPHAN_TURN_IDLE_MS = 20_000;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function statusUpdates(listener: { onUpdate: { mock: { calls: unknown[][] } } }) {
+    return listener.onUpdate.mock.calls.map((call) => (call[0] as { status: string }).status);
+  }
+
+  function runtimeEventTypes(listener: { onRuntimeEvent: { mock: { calls: unknown[][] } } }) {
+    return listener.onRuntimeEvent.mock.calls.map((call) => (call[0] as { type: string }).type);
+  }
+
+  function thoughtChunk(text: string) {
+    return { update: { sessionUpdate: "agent_thought_chunk", content: { type: "text", text } } };
+  }
+
+  it("reopens a working turn when the agent keeps going after its prompt settled", () => {
+    const { listener, session } = makeConfigSyncSession();
+
+    session.handleSessionUpdate(thoughtChunk("still thinking about the fix"));
+
+    expect(statusUpdates(listener)).toEqual(["working"]);
+    expect(runtimeEventTypes(listener)).toContain("turn.started");
+  });
+
+  it("ignores empty chunks and metadata-only updates so trailing chatter cannot reopen a turn", () => {
+    const { listener, session } = makeConfigSyncSession();
+
+    session.handleSessionUpdate({
+      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "" } },
+    });
+    session.handleSessionUpdate({ update: { sessionUpdate: "session_info_update", title: "t" } });
+    session.handleSessionUpdate({
+      update: { sessionUpdate: "available_commands_update", availableCommands: [] },
+    });
+
+    expect(statusUpdates(listener)).not.toContain("working");
+    expect(runtimeEventTypes(listener)).not.toContain("turn.started");
+  });
+
+  it("closes the orphan turn after the idle window, closing its open items", () => {
+    vi.useFakeTimers();
+    const { listener, session } = makeConfigSyncSession();
+
+    session.handleSessionUpdate({
+      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "summary" } },
+    });
+    expect(statusUpdates(listener)).toEqual(["working"]);
+
+    vi.advanceTimersByTime(ORPHAN_TURN_IDLE_MS + 1);
+
+    expect(statusUpdates(listener)).toEqual(["working", "idle"]);
+    // The streaming assistant item must not be left dangling in `updated`.
+    expect(runtimeEventTypes(listener)).toContain("item.completed");
+    expect(listener.onRuntimeEvent.mock.calls.at(-1)?.[0]).toMatchObject({
+      type: "turn.completed",
+      state: "completed",
+    });
+  });
+
+  it("stays working past the idle window while a tool call is still open", () => {
+    vi.useFakeTimers();
+    const { listener, session } = makeConfigSyncSession();
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-1",
+        title: "shell exec",
+        kind: "execute",
+        status: "in_progress",
+        rawInput: { command: "pnpm run test", cwd: "C:\\repo" },
+      },
+    });
+    // A long test run emits nothing for minutes; that is not idleness.
+    vi.advanceTimersByTime(ORPHAN_TURN_IDLE_MS * 10);
+    expect(statusUpdates(listener)).toEqual(["working"]);
+
+    session.handleSessionUpdate({
+      update: { sessionUpdate: "tool_call_update", toolCallId: "tc-1", status: "completed" },
+    });
+    vi.advanceTimersByTime(ORPHAN_TURN_IDLE_MS + 1);
+
+    expect(statusUpdates(listener).at(-1)).toBe("idle");
+  });
+
+  it("sends session/cancel when Stop lands on an orphan turn", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    session.handleSessionUpdate(thoughtChunk("mid-flight"));
+
+    await session.interruptTurn();
+
+    expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(statusUpdates(listener).at(-1)).toBe("idle");
+  });
+
+  it("lets a real prompt supersede an orphan turn without an idle flicker", async () => {
+    const { listener, session } = makeConfigSyncSession();
+    session.handleSessionUpdate(thoughtChunk("leftover work"));
+    listener.onRuntimeEvent.mockClear();
+    listener.onUpdate.mockClear();
+
+    await session.startTurn("next question", { model: "model-a" });
+
+    const types = runtimeEventTypes(listener);
+    expect(types.indexOf("turn.completed")).toBeLessThan(types.indexOf("turn.started"));
+    // The handover paints `working` straight away — no idle in between. (The
+    // trailing idle is this prompt's own end_turn, which the mock resolves.)
+    expect(statusUpdates(listener)[0]).toBe("working");
+  });
+
+  it("covers the Qwen case: work continuing after end_turn gets its own turn", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    connection.prompt.mockResolvedValueOnce({ stopReason: "end_turn" });
+
+    await session.startTurn("investigate this", { model: "model-a" });
+    expect(statusUpdates(listener).at(-1)).toBe("idle");
+    listener.onRuntimeEvent.mockClear();
+    listener.onUpdate.mockClear();
+
+    // Qwen settles our prompt and immediately opens a turn of its own to
+    // process a backgrounded subagent's report. Nothing tags these updates.
+    session.handleSessionUpdate(thoughtChunk("now let me apply the fix"));
+
+    expect(statusUpdates(listener)).toEqual(["working"]);
+    expect(runtimeEventTypes(listener)).toContain("turn.started");
+  });
+
+  it("leaves turn ownership alone while our own prompt is in flight", () => {
+    const { listener, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["promptInFlight"] = true;
+
+    session.handleSessionUpdate(thoughtChunk("normal streaming"));
+
+    expect(runtimeEventTypes(listener)).not.toContain("turn.started");
+  });
+});
