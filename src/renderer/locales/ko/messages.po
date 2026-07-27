@@ -1265,6 +1265,11 @@ msgstr "자동 생성"
 msgid "Auto-merge"
 msgstr "자동 병합"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Auto-merge new pull requests"
+msgstr "새 Pull Request 자동 병합"
+
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Auto-refresh"
@@ -2467,6 +2472,7 @@ msgstr "연결"
 #~ msgid "Connect a server"
 #~ msgstr "서버 연결"
 
+#: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
 msgstr "PR을 감시하기 전에 에이전트를 연결하세요."
@@ -4262,8 +4268,8 @@ msgid "Fix in Agent"
 msgstr "에이전트에서 수정"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Fix new comments and failed checks, then push updates."
-msgstr "새 댓글과 실패한 검사를 수정한 후 업데이트를 푸시합니다."
+#~ msgid "Fix new comments and failed checks, then push updates."
+#~ msgstr "새 댓글과 실패한 검사를 수정한 후 업데이트를 푸시합니다."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -7226,6 +7232,7 @@ msgid "Pinned"
 msgstr "고정됨"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
@@ -7605,6 +7612,11 @@ msgstr "풀 리퀘스트 #{0}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
 msgstr "풀 리퀘스트 카테고리"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/prAutomationActions.ts
+msgid "Pull request created, but its default automation could not be enabled: {0}"
+msgstr "Pull Request가 생성되었지만 기본 자동화를 활성화하지 못했습니다: {0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
@@ -10374,9 +10386,19 @@ msgstr "신뢰하고 연결"
 msgid "Try a different search or project filter."
 msgstr "다른 검색어 또는 프로젝트 필터를 사용해 보세요."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+msgstr "Poracode에서 생성하는 Pull Request에 자동 병합을 자동으로 켭니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "페어링 코드를 표시하려면 원격 액세스를 켜세요."
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+msgstr "Poracode에서 생성하는 Pull Request에 PR 감시를 자동으로 켭니다."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11045,6 +11067,10 @@ msgstr "음성 입력 언어"
 msgid "Voice input model"
 msgstr "음성 입력 모델"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+msgstr "검사가 완료될 때까지 기다린 다음 실패, 해결되지 않은 대화 및 브랜치 차단 문제를 수정합니다."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "정리하기 전에 모든 후보가 완료될 때까지 기다리세요."
@@ -11124,6 +11150,11 @@ msgstr "쉘 환경 준비 중..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "WSL 셸 환경 준비 중…"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Watch new pull requests"
+msgstr "새 Pull Request 감시"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Watch PR"

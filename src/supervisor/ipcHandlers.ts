@@ -262,7 +262,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       github.updatePrBranch(payload.projectLocation, payload.prNumber, payload.rebase),
     ghGetPrDetails: (payload) => github.getPrDetails(payload.projectLocation, payload.prNumber),
     ghGetPrReviewComments: (payload) =>
-      github.getPrReviewComments(payload.projectLocation, payload.prNumber),
+      github.getPrReviewThreads(payload.projectLocation, payload.prNumber),
     ghPostPrComment: (payload) =>
       github.postPrComment(payload.projectLocation, payload.prNumber, payload.body),
     ghListAccounts: (payload) => github.listAccounts(payload.runtime),

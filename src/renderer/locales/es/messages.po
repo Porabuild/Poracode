@@ -1265,6 +1265,11 @@ msgstr "Autogenerar"
 msgid "Auto-merge"
 msgstr "Fusión automática"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Auto-merge new pull requests"
+msgstr "Fusionar automáticamente los pull requests nuevos"
+
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Auto-refresh"
@@ -2467,6 +2472,7 @@ msgstr "Conectar"
 #~ msgid "Connect a server"
 #~ msgstr "Conectar un servidor"
 
+#: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
 msgstr "Conecta un agente antes de supervisar PR."
@@ -4262,8 +4268,8 @@ msgid "Fix in Agent"
 msgstr "Corregir en el agente"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Fix new comments and failed checks, then push updates."
-msgstr "Corrige comentarios nuevos y verificaciones fallidas; luego envía las actualizaciones."
+#~ msgid "Fix new comments and failed checks, then push updates."
+#~ msgstr "Corrige comentarios nuevos y verificaciones fallidas; luego envía las actualizaciones."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -7226,6 +7232,7 @@ msgid "Pinned"
 msgstr "Fijado"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
@@ -7605,6 +7612,11 @@ msgstr "Pull request #{0}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
 msgstr "Categoría de pull request"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/prAutomationActions.ts
+msgid "Pull request created, but its default automation could not be enabled: {0}"
+msgstr "Se creó el pull request, pero no se pudo activar su automatización predeterminada: {0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
@@ -10374,9 +10386,19 @@ msgstr "Confiar y conectar"
 msgid "Try a different search or project filter."
 msgstr "Prueba con otra búsqueda o filtro de proyecto."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+msgstr "Activa automáticamente la fusión automática para los pull requests que crees en Poracode."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "Activa el acceso remoto para mostrar un código de emparejamiento."
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+msgstr "Activa automáticamente Vigilar PR para los pull requests que crees en Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11045,6 +11067,10 @@ msgstr "Idioma de la entrada de voz"
 msgid "Voice input model"
 msgstr "Modelo de la entrada de voz"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+msgstr "Espera a que terminen las comprobaciones y corrige los fallos, las conversaciones sin resolver y los bloqueos de la rama."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "Espera a que todos los candidatos terminen antes de realizar la limpieza."
@@ -11124,6 +11150,11 @@ msgstr "Preparando los entornos de shell..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Preparando el entorno de shell de WSL…"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Watch new pull requests"
+msgstr "Vigilar pull requests nuevos"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Watch PR"

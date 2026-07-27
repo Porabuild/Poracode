@@ -21,6 +21,8 @@ describe("GitSettings", () => {
     render(<GitSettings />);
 
     expect(screen.getByText("Git review mode")).toBeInTheDocument();
+    expect(screen.getByText("Watch new pull requests")).toBeInTheDocument();
+    expect(screen.getByText("Auto-merge new pull requests")).toBeInTheDocument();
   });
 
   it("hides desktop git review navigation controls in remote sessions", () => {

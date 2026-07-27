@@ -3,29 +3,15 @@ import { Popover, toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Workflow } from "lucide-react";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import type { PrWatch, PrWatchInput, Project, ScheduledTaskConfig } from "@/shared/contracts";
+import type { PrWatch, PrWatchInput } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { ToggleSwitch } from "@/renderer/components/common";
-import {
-  getConflictResolverCandidates,
-  readConflictResolverSettingsForProject,
-  resolveConflictResolverLaunchConfig,
-} from "@/renderer/components/providers/conflictResolver";
-import {
-  agentWithCapabilities,
-  resolveFastValue,
-} from "@/renderer/components/thread/threadDraftViewHelpers";
+import { resolvePrAutomationAgent } from "@/renderer/actions/prAutomationActions";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-
-interface AutomationAgent {
-  agentKind: string;
-  config: ScheduledTaskConfig;
-}
 
 export function PrWatchControls(props: {
   projectId: string;
@@ -59,7 +45,7 @@ export function PrWatchControls(props: {
           prNumber: props.prNumber,
         });
         if (result?.watchEnabled && project) {
-          const automation = resolveAutomationAgent(
+          const automation = resolvePrAutomationAgent(
             project,
             windowsAgents,
             wslAgents,
@@ -117,7 +103,12 @@ export function PrWatchControls(props: {
 
       const automation =
         watchEnabled && (!watch?.agentKind || !watch.config)
-          ? resolveAutomationAgent(project, windowsAgents, wslAgents, useSharedSettings.getState())
+          ? resolvePrAutomationAgent(
+              project,
+              windowsAgents,
+              wslAgents,
+              useSharedSettings.getState(),
+            )
           : watch?.agentKind && watch.config
             ? { agentKind: watch.agentKind, config: watch.config }
             : undefined;
@@ -171,7 +162,10 @@ export function PrWatchControls(props: {
                   <Trans>Watch PR</Trans>
                 </p>
                 <p className="text-[11px] leading-tight text-muted">
-                  <Trans>Fix new comments and failed checks, then push updates.</Trans>
+                  <Trans>
+                    Wait for checks, then fix failures, unresolved conversations, and branch
+                    blockers.
+                  </Trans>
                 </p>
               </div>
               <ToggleSwitch
@@ -211,38 +205,4 @@ export function PrWatchControls(props: {
       </Popover.Content>
     </Popover>
   );
-}
-
-function resolveAutomationAgent(
-  project: Project,
-  windowsAgents: ReturnType<typeof useAgentStatusesStore.getState>["agentStatuses"],
-  wslAgents: ReturnType<typeof useAgentStatusesStore.getState>["wslAgentStatuses"],
-  settings: ReturnType<typeof useSharedSettings.getState>,
-): AutomationAgent | undefined {
-  const conflictSettings = readConflictResolverSettingsForProject(project.location.kind, settings);
-  const agents = getProjectAgentStatuses(project.location, windowsAgents, wslAgents)
-    .filter((agent) => {
-      const modes = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-      return agent.installed && agent.authState !== "missing" && modes.includes("gui");
-    })
-    .map((agent) => agentWithCapabilities(agent, "gui"))
-    .filter((agent) => agent.capabilities.models.length > 0);
-  const selected = getConflictResolverCandidates(agents, conflictSettings.provider)[0];
-  if (!selected) return undefined;
-  const { model, effort } = resolveConflictResolverLaunchConfig(
-    conflictSettings.provider,
-    selected,
-    conflictSettings.model,
-    conflictSettings.effort,
-  );
-  if (!model) return undefined;
-  const fast = resolveFastValue(selected, model, conflictSettings.fast);
-  return {
-    agentKind: selected.kind,
-    config: {
-      model,
-      ...(effort ? { effort } : {}),
-      ...(fast ? { fast: true } : {}),
-    },
-  };
 }

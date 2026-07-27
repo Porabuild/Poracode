@@ -573,6 +573,8 @@ export const remoteSettingsSchema = sharedSettingsSchema.pick({
   wslConflictResolverModel: true,
   wslConflictResolverEffort: true,
   wslConflictResolverPresentationMode: true,
+  prWatchDefault: true,
+  prAutoMergeDefault: true,
 });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 

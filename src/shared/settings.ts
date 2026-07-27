@@ -329,6 +329,10 @@ export const sharedSettingsSchema = z.object({
    * sticky last-used choice for the Create PR split-button.
    */
   prCreateMode: prCreateModeSchema,
+  /** Automatically watch pull requests created from Poracode for new actionable signals. */
+  prWatchDefault: z.boolean(),
+  /** Automatically squash-merge pull requests created from Poracode once ready. */
+  prAutoMergeDefault: z.boolean(),
   /**
    * Sticky last-used primary commit action for the commit split-button,
    * remembered across sessions so it defaults to whatever the user picked last.
@@ -521,6 +525,8 @@ export const defaultSharedSettings: SharedSettings = {
   wslWorktreeBasePath: "",
   gitReviewMode: "panel",
   prCreateMode: "dialog",
+  prWatchDefault: false,
+  prAutoMergeDefault: false,
   commitDefaultAction: "commit-push",
   providerConfigs: {},
   lastPresentationModeByAgent: {},

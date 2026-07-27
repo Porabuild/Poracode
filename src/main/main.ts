@@ -766,10 +766,10 @@ if (!hasSingleInstanceLock) {
           supervisorClient
             .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
             .then((result) => result.details),
-        getPrReviewComments: (project, prNumber) =>
+        getPrReviewThreads: (project, prNumber) =>
           supervisorClient
             .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
-            .then((result) => result.comments),
+            .then((result) => result.threads),
         mergePr: (project, prNumber) =>
           supervisorClient.call("ghMergePr", {
             projectLocation: project.location,

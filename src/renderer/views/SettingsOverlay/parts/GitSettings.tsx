@@ -3,7 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitReviewMode, PrCreateMode } from "@/shared/contracts";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { Select } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { gitReviewModeOptions, prCreateModeOptions, useLocalizedOptions } from "./settingsOptions";
 
@@ -13,6 +13,10 @@ export function GitSettings() {
   const setGitReviewMode = useSharedSettings((state) => state.setGitReviewMode);
   const prCreateMode = useSharedSettings((state) => state.prCreateMode);
   const setPrCreateMode = useSharedSettings((state) => state.setPrCreateMode);
+  const prWatchDefault = useSharedSettings((state) => state.prWatchDefault);
+  const setPrWatchDefault = useSharedSettings((state) => state.setPrWatchDefault);
+  const prAutoMergeDefault = useSharedSettings((state) => state.prAutoMergeDefault);
+  const setPrAutoMergeDefault = useSharedSettings((state) => state.setPrAutoMergeDefault);
 
   const gitReviewOptions = useLocalizedOptions(gitReviewModeOptions);
   const prCreateOptions = useLocalizedOptions(prCreateModeOptions);
@@ -60,6 +64,32 @@ export function GitSettings() {
               setPrCreateMode(value as PrCreateMode);
             });
           }}
+        />
+      </SettingRow>
+      <SettingRow
+        anchorId="git.watchNewPullRequests"
+        title={t`Watch new pull requests`}
+        description={
+          <Trans>Turn on Watch PR automatically for pull requests you create in Poracode.</Trans>
+        }
+      >
+        <ToggleSwitch
+          aria-label={t`Watch new pull requests`}
+          isSelected={prWatchDefault}
+          onChange={setPrWatchDefault}
+        />
+      </SettingRow>
+      <SettingRow
+        anchorId="git.autoMergeNewPullRequests"
+        title={t`Auto-merge new pull requests`}
+        description={
+          <Trans>Turn on Auto-merge automatically for pull requests you create in Poracode.</Trans>
+        }
+      >
+        <ToggleSwitch
+          aria-label={t`Auto-merge new pull requests`}
+          isSelected={prAutoMergeDefault}
+          onChange={setPrAutoMergeDefault}
         />
       </SettingRow>
     </SettingsPage>

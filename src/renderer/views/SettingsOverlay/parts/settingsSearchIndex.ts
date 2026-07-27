@@ -298,6 +298,20 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     description: msg`What the Create PR button does by default: open a dialog to edit the title and description first, or auto-generate them and create the PR in one click. You can also switch this from the button's menu.`,
     keywords: "pull request github create open dialog auto-generate",
   },
+  {
+    section: "git",
+    anchor: "git.watchNewPullRequests",
+    title: msg`Watch new pull requests`,
+    description: msg`Turn on Watch PR automatically for pull requests you create in Poracode.`,
+    keywords: "pull request github watch default automation comments checks",
+  },
+  {
+    section: "git",
+    anchor: "git.autoMergeNewPullRequests",
+    title: msg`Auto-merge new pull requests`,
+    description: msg`Turn on Auto-merge automatically for pull requests you create in Poracode.`,
+    keywords: "pull request github merge squash default automation",
+  },
 
   // Worktrees
   {

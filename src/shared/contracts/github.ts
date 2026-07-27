@@ -77,6 +77,15 @@ export interface PrComment {
   url?: string;
 }
 
+export interface PrReviewThread {
+  id: string;
+  isResolved: boolean;
+  isOutdated: boolean;
+  path?: string;
+  line?: number;
+  comments: PrComment[];
+}
+
 export type PrReviewState =
   | "APPROVED"
   | "CHANGES_REQUESTED"
@@ -248,8 +257,9 @@ export interface GhGetPrDetailsResult {
   details: PrDetails;
 }
 
-export interface GhGetPrReviewCommentsResult {
+export interface GhGetPrReviewThreadsResult {
   comments: PrComment[];
+  threads: PrReviewThread[];
 }
 
 export const ghPostPrCommentPayloadSchema = z.object({

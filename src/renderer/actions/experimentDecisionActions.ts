@@ -33,6 +33,7 @@ import {
   resolveCandidateWorktreePath,
 } from "./experimentWorktreeActions";
 import { runGitMergeToSource, showGitOperationFailure } from "./gitCommandRunner";
+import { applyDefaultPrAutomation } from "./prAutomationActions";
 
 export interface ExperimentJudgeSelection {
   agentKind: string;
@@ -384,6 +385,12 @@ export async function createExperimentCandidatePr(
         title: title || candidate.worktreeBranch,
         body,
         isDraft: false,
+      });
+      await applyDefaultPrAutomation({
+        project,
+        prNumber: pr.number,
+        headBranch: candidate.worktreeBranch,
+        ...(candidate.worktreePath ? { worktreePath: candidate.worktreePath } : {}),
       });
       const candidateIds = new Set(experiment.candidates.map((item) => item.threadId));
       const appStore = useAppStore.getState();

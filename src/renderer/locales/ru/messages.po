@@ -1265,6 +1265,11 @@ msgstr "Создавать автоматически"
 msgid "Auto-merge"
 msgstr "Автослияние"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Auto-merge new pull requests"
+msgstr "Автоматически сливать новые PR"
+
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Auto-refresh"
@@ -2467,6 +2472,7 @@ msgstr "Подключить"
 #~ msgid "Connect a server"
 #~ msgstr "Подключить сервер"
 
+#: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
 msgstr "Подключите агента, прежде чем отслеживать PR."
@@ -4262,8 +4268,8 @@ msgid "Fix in Agent"
 msgstr "Исправить в агенте"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Fix new comments and failed checks, then push updates."
-msgstr "Исправьте замечания в новых комментариях и сбои проверок, затем отправьте обновления."
+#~ msgid "Fix new comments and failed checks, then push updates."
+#~ msgstr "Исправьте замечания в новых комментариях и сбои проверок, затем отправьте обновления."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -7226,6 +7232,7 @@ msgid "Pinned"
 msgstr "Закреплено"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
@@ -7605,6 +7612,11 @@ msgstr "Pull request #{0}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
 msgstr "Категория pull request"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/prAutomationActions.ts
+msgid "Pull request created, but its default automation could not be enabled: {0}"
+msgstr "Pull request создан, но не удалось включить автоматизацию по умолчанию: {0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
@@ -10374,9 +10386,19 @@ msgstr "Доверять и подключиться"
 msgid "Try a different search or project filter."
 msgstr "Попробуйте другой поиск или фильтр проекта."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+msgstr "Автоматически включать автослияние для pull request, созданных в Poracode."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "Включите удаленный доступ, чтобы показать код сопряжения."
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+msgstr "Автоматически включать наблюдение за PR для pull request, созданных в Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11045,6 +11067,10 @@ msgstr "Язык голосового ввода"
 msgid "Voice input model"
 msgstr "Модель голосового ввода"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+msgstr "Дождаться завершения проверок, затем исправить ошибки, нерешённые обсуждения и блокировки ветки."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "Дождитесь завершения работы всех кандидатов перед очисткой."
@@ -11124,6 +11150,11 @@ msgstr "Подготовка окружений оболочки..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Подготовка окружения оболочки WSL…"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Watch new pull requests"
+msgstr "Наблюдать за новыми PR"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Watch PR"

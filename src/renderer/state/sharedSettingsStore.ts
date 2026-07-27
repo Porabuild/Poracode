@@ -88,6 +88,8 @@ interface SharedSettingsState extends SharedSettings {
   setWslWorktreeBasePath: (value: string) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
+  setPrWatchDefault: (value: boolean) => void;
+  setPrAutoMergeDefault: (value: boolean) => void;
   setCommitDefaultAction: (value: CommitDefaultAction) => void;
   setEditorLspEnabled: (value: boolean) => void;
   setSearchUseIgnoreFiles: (value: boolean) => void;
@@ -482,6 +484,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ prCreateMode });
     persistSettings(selectSharedSettings(get()));
   },
+  setPrWatchDefault: (prWatchDefault) => {
+    if (get().prWatchDefault === prWatchDefault) return;
+    set({ prWatchDefault });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrAutoMergeDefault: (prAutoMergeDefault) => {
+    if (get().prAutoMergeDefault === prAutoMergeDefault) return;
+    set({ prAutoMergeDefault });
+    persistSettings(selectSharedSettings(get()));
+  },
   setCommitDefaultAction: (commitDefaultAction) => {
     if (get().commitDefaultAction === commitDefaultAction) return;
     set({ commitDefaultAction });
@@ -805,6 +817,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     wslWorktreeBasePath: state.wslWorktreeBasePath,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,
+    prWatchDefault: state.prWatchDefault,
+    prAutoMergeDefault: state.prAutoMergeDefault,
     commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
