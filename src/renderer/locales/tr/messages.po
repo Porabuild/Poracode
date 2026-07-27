@@ -846,7 +846,6 @@ msgstr "Ana Ekrana ekle"
 msgid "Add to-do"
 msgstr "Yapılacak ekle"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Çalışma alanı ekle"
@@ -5515,8 +5514,8 @@ msgstr "Poracode'un desteklenen aracıları başlatırken eklediği MCP sunucusu
 #~ msgstr "Poracode'un desteklenen aracılara sunduğu becerileri yönetin. Proje becerileri her projenin ayarlarından yönetilebilir."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Çalışma alanlarını yönet"
+#~ msgid "Manage workspaces"
+#~ msgstr "Çalışma alanlarını yönet"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"

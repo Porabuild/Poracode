@@ -846,7 +846,6 @@ msgstr "Ajouter à l'écran d'accueil"
 msgid "Add to-do"
 msgstr "Ajouter une tâche"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Ajouter un espace de travail"
@@ -5515,8 +5514,8 @@ msgstr "Gérez les configurations de serveurs MCP que Poracode ajoute au démarr
 #~ msgstr "Gérez les compétences que Poracode met à la disposition des agents pris en charge. Les compétences de projet peuvent être gérées dans les paramètres de chaque projet."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Gérer les espaces de travail"
+#~ msgid "Manage workspaces"
+#~ msgstr "Gérer les espaces de travail"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"

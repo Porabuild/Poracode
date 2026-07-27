@@ -846,7 +846,6 @@ msgstr "Thêm vào màn hình chính"
 msgid "Add to-do"
 msgstr "Thêm việc cần làm"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Thêm không gian làm việc"
@@ -5515,8 +5514,8 @@ msgstr "Quản lý cấu hình máy chủ MCP mà Poracode thêm khi khởi đ�
 #~ msgstr "Quản lý các skill mà Poracode cung cấp cho những tác tử được hỗ trợ. Có thể quản lý skill dự án trong phần cài đặt của từng dự án."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Quản lý không gian làm việc"
+#~ msgid "Manage workspaces"
+#~ msgstr "Quản lý không gian làm việc"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"

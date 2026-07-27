@@ -846,7 +846,6 @@ msgstr "Dodaj do ekranu głównego"
 msgid "Add to-do"
 msgstr "Dodaj zadanie"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Dodaj obszar roboczy"
@@ -5515,8 +5514,8 @@ msgstr "Zarządzaj konfiguracjami serwerów MCP dodawanymi przez Poracode podcza
 #~ msgstr "Zarządzaj umiejętnościami udostępnianymi przez Poracode obsługiwanym agentom. Umiejętnościami projektu można zarządzać w ustawieniach każdego projektu."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Zarządzaj obszarami roboczymi"
+#~ msgid "Manage workspaces"
+#~ msgstr "Zarządzaj obszarami roboczymi"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"

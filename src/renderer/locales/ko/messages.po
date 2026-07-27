@@ -846,7 +846,6 @@ msgstr "홈 화면에 추가"
 msgid "Add to-do"
 msgstr "할 일 추가"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "작업 영역 추가"
@@ -5515,8 +5514,8 @@ msgstr "지원되는 에이전트를 시작할 때 Poracode에서 추가하는 M
 #~ msgstr "Poracode가 지원되는 에이전트에 제공하는 스킬을 관리합니다. 프로젝트 스킬은 각 프로젝트의 설정에서 관리할 수 있습니다."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "작업 영역 관리"
+#~ msgid "Manage workspaces"
+#~ msgstr "작업 영역 관리"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
