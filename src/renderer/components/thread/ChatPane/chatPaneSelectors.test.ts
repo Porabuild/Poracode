@@ -823,7 +823,7 @@ describe("chatPaneSelectors", () => {
     );
   });
 
-  it("hides Crossagents run_agent calls and only treats the synthetic tile as an agent", () => {
+  it("hides Crossagents spawn calls and only treats the synthetic tile as an agent", () => {
     const state = {
       runtimeItemIdsByThread: {
         t1: ["tool-1", "raw-run", "failed-run", "list-1", "sub:run-1", "raw-spawn"],
@@ -885,7 +885,6 @@ describe("chatPaneSelectors", () => {
       "failed-run",
       "list-1",
       "sub:run-1",
-      "raw-spawn",
     ]);
     expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
       {
@@ -894,7 +893,6 @@ describe("chatPaneSelectors", () => {
         itemIds: ["tool-1", "failed-run", "list-1"],
       },
       { kind: "item", id: "sub:run-1" },
-      { kind: "item", id: "raw-spawn" },
     ]);
     // The synthetic tile still drives the active sub-agent strip.
     expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual(["sub:run-1"]);

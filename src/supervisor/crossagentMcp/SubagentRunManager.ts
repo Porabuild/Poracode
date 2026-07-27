@@ -8,12 +8,13 @@ import type {
   ThreadServerRequestId,
   ToolCallPayload,
 } from "@/shared/contracts";
-import { capabilitiesForPresentation, validateAgentModelSelection } from "@/shared/agentSelection";
-import { formatReasoningLabel } from "@/shared/modelLabels";
-import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/base";
-import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
-import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
+import type { AgentAdapter } from "@/supervisor/agents/base";
+import { SubagentAttemptRunner, type AttemptExecutionState } from "./SubagentAttemptRunner";
+import { SubagentSpawnError } from "./errors";
+import { prepareSubagentRun, type PreparedSubagentRun } from "./spawnPlan";
 import type {
+  SubagentAttemptResult,
+  SubagentRunSummary,
   SpawnAgentRequest,
   SubagentRunHost,
   SubagentRunStatus,
@@ -34,33 +35,36 @@ export const DEFAULT_WAIT_TIMEOUT_MS = 120_000;
 export const MAX_WAIT_TIMEOUT_MS = 240_000;
 /** Max concurrent live children per parent thread. */
 export const MAX_CONCURRENT_CHILDREN_PER_PARENT = 4;
+/** Bound terminal result retention for long-lived parent threads. */
+const MAX_RETAINED_RUNS_PER_PARENT = 50;
 
 export interface SubagentRunManagerDeps {
   adapters: Map<AgentKind, AgentAdapter>;
   host: SubagentRunHost;
   /**
-   * Resolved provider capabilities from the agent-status pipeline — the same
-   * source the composer and the `list_agents`/`get_agent` roster are served
-   * from. Preferred over the adapter's in-memory capabilities so the executor
-   * accepts exactly the models the roster advertised. `undefined` (no cache
-   * entry / not authenticated) falls back to the live adapter capabilities.
+   * Settings-filtered provider capabilities from the same status pipeline that
+   * serves the roster. `null` explicitly denies a provider; `undefined` falls
+   * back to live adapter capabilities when no cached status exists.
    */
-  getStatusCapabilities?: (kind: AgentKind) => AgentCapability | undefined;
+  getStatusCapabilities?: (kind: AgentKind) => AgentCapability | null | undefined;
 }
 
-interface RunRecord {
+interface RunRecord extends AttemptExecutionState {
   runId: string;
+  createdAt: number;
   parentThreadId: string;
   childThreadId: string;
   label: string;
+  background: boolean;
+  plan: PreparedSubagentRun;
+  attemptIndex: number;
+  attemptSettled: boolean;
+  attemptResults: SubagentAttemptResult[];
   status: SubagentRunStatus;
-  /** Accumulated assistant text from `content.delta` events. */
+  /** Assistant text accumulated for the current attempt. */
   output: string;
   /** Direct child items started under the synthetic Agent row. */
   stepCount: number;
-  handle: StructuredSessionHandle | undefined;
-  /** One-shot child driver handle (set instead of `handle` for CLI-only agents). */
-  oneShot: OneShotChildHandle | undefined;
   /**
    * Child-side ids of forwarded `request.opened` events still awaiting a
    * resolution. Drained on settle/cancel via synthetic `request.resolved`
@@ -69,17 +73,23 @@ interface RunRecord {
   pendingRequestIds: Set<string>;
   cancelRequested: boolean;
   turnStarted: boolean;
+  turnDispatched: boolean;
+  error:
+    | {
+        message: string;
+        may_have_side_effects: boolean;
+      }
+    | undefined;
   settled: boolean;
   settledPromise: Promise<void>;
   resolveSettled: () => void;
 }
 
-/** A synchronous spawn-time failure surfaced to the caller as an MCP error. */
-export class SubagentSpawnError extends Error {}
+export { SubagentSpawnError } from "./errors";
 
 /** Prefix used for a child's re-tagged item ids inside the parent stream. */
-function childItemPrefix(runId: string): string {
-  return `${runId}:`;
+function childItemPrefix(runId: string, attemptIndex: number): string {
+  return `${runId}:${attemptIndex + 1}:`;
 }
 
 /** Synthetic parent tool_call item id that hosts the subagent's child items. */
@@ -126,76 +136,41 @@ function parseNamespacedRequestId(
  */
 export class SubagentRunManager {
   private readonly runs = new Map<string, RunRecord>();
+  private readonly attemptRunner: SubagentAttemptRunner;
 
-  constructor(private readonly deps: SubagentRunManagerDeps) {}
+  constructor(private readonly deps: SubagentRunManagerDeps) {
+    this.attemptRunner = new SubagentAttemptRunner(deps.host);
+  }
+
+  /** Validate and start one child run, returning its id immediately. */
+  spawn(parentThreadId: string, request: SpawnAgentRequest): { runId: string } {
+    return this.spawnMany(parentThreadId, [request])[0]!;
+  }
 
   /**
-   * Kick off a child run. Validates synchronously (adapter, parent, capacity)
-   * — throwing {@link SubagentSpawnError} on failure — then creates the child
-   * session and starts its turn asynchronously. Returns immediately with the
-   * run id.
+   * Atomically validate and start several runs. Every child is launched before
+   * control returns, so callers can fan out without serial MCP round trips.
    */
-  spawn(parentThreadId: string, request: SpawnAgentRequest): { runId: string } {
-    const prompt = request.prompt?.trim();
-    if (!prompt) {
-      throw new SubagentSpawnError("prompt is required");
-    }
-    const adapter = this.deps.adapters.get(request.agent as AgentKind);
-    if (!adapter) {
-      throw new SubagentSpawnError(`Unknown provider: ${request.agent}`);
-    }
-    const execution = resolveSubagentExecution(adapter);
-    if (!execution) {
-      throw new SubagentSpawnError(`Provider ${request.agent} cannot be spawned as a subagent`);
-    }
-    const parent = this.deps.host.getParentContext(parentThreadId);
-    if (!parent) {
-      throw new SubagentSpawnError("Parent thread is no longer active");
-    }
-    if (this.activeCountForParent(parentThreadId) >= MAX_CONCURRENT_CHILDREN_PER_PARENT) {
+  spawnMany(
+    parentThreadId: string,
+    requests: readonly SpawnAgentRequest[],
+  ): Array<{ runId: string }> {
+    if (requests.length === 0) throw new SubagentSpawnError("tasks must not be empty");
+    const parent = this.requireParent(parentThreadId);
+    const active = this.activeCountForParent(parentThreadId);
+    if (active + requests.length > MAX_CONCURRENT_CHILDREN_PER_PARENT) {
       throw new SubagentSpawnError(
-        `Too many concurrent subagents (max ${MAX_CONCURRENT_CHILDREN_PER_PARENT}). Wait for one to finish or cancel it.`,
+        `Too many concurrent subagents (max ${MAX_CONCURRENT_CHILDREN_PER_PARENT}, ${active} already running).`,
       );
     }
+    const plans = requests.map((request) => prepareSubagentRun(this.deps, parent, request));
+    return plans.map((plan) => this.startRun(parentThreadId, plan));
+  }
 
-    const baseCapabilities =
-      this.deps.getStatusCapabilities?.(adapter.kind) ?? adapter.capabilities;
-    const capabilities =
-      execution === "structured"
-        ? capabilitiesForPresentation(baseCapabilities, "gui")
-        : baseCapabilities;
-    const model = request.model ?? capabilities.models[0]?.id;
-    if (!model) {
-      throw new SubagentSpawnError(`Provider ${request.agent} has no available models`);
-    }
-    const selectionError = validateAgentModelSelection(capabilities, {
-      model,
-      ...(request.effort ? { reasoning: request.effort } : {}),
-      ...(request.fast === true ? { fast: true } : {}),
-    });
-    if (selectionError) throw new SubagentSpawnError(selectionError);
-    const modelLabel = capabilities.models.find((m) => m.id === model)?.label ?? model;
-    const runName = request.name?.trim();
-    const selectionLabel = [
-      adapter.label,
-      modelLabel,
-      ...(request.effort ? [formatReasoningLabel(request.effort)] : []),
-      ...(request.fast === true ? ["Fast"] : []),
-    ].join(" · ");
-    const label = runName ? `${runName} — ${selectionLabel}` : selectionLabel;
-
+  private startRun(parentThreadId: string, plan: PreparedSubagentRun): { runId: string } {
     const runId = randomBytes(6).toString("hex");
-    const childThreadId = `${parentThreadId}::sub::${runId}`;
-
-    const childConfig = buildUnrestrictedChildConfig(
-      {
-        model,
-        ...(request.effort ? { effort: request.effort } : {}),
-        ...(request.fast === true ? { fast: true } : {}),
-      },
-      capabilities,
-      parent.config,
-    );
+    const firstAttempt = plan.attempts[0]!;
+    const childThreadId = this.childThreadId(parentThreadId, runId, 0);
 
     let resolveSettled!: () => void;
     const settledPromise = new Promise<void>((resolve) => {
@@ -203,9 +178,15 @@ export class SubagentRunManager {
     });
     const record: RunRecord = {
       runId,
+      createdAt: Date.now(),
       parentThreadId,
       childThreadId,
-      label,
+      label: firstAttempt.label,
+      background: plan.background,
+      plan,
+      attemptIndex: 0,
+      attemptSettled: false,
+      attemptResults: [],
       status: "running",
       output: "",
       stepCount: 0,
@@ -214,6 +195,8 @@ export class SubagentRunManager {
       pendingRequestIds: new Set<string>(),
       cancelRequested: false,
       turnStarted: false,
+      turnDispatched: false,
+      error: undefined,
       settled: false,
       settledPromise,
       resolveSettled,
@@ -221,7 +204,11 @@ export class SubagentRunManager {
     this.runs.set(runId, record);
 
     // Emit the synthetic parent tile so the delegated-agent renderer picks it up.
-    const startPayload: ToolCallPayload = { name: label, status: "running", isCrossagent: true };
+    const startPayload: ToolCallPayload = {
+      name: firstAttempt.label,
+      status: "running",
+      isCrossagent: true,
+    };
     this.deps.host.appendRuntimeEvent(parentThreadId, {
       type: "item.started",
       threadId: parentThreadId,
@@ -230,19 +217,23 @@ export class SubagentRunManager {
       payload: startPayload,
     });
 
-    void this.runChild(record, adapter, parent.projectLocation, childConfig, prompt);
+    void this.runAttempt(record, 0);
 
     return { runId };
   }
 
   /** Block until the run settles or the timeout elapses. */
-  async waitFor(runId: string, timeoutMs: number): Promise<SubagentWaitResult> {
-    const record = this.runs.get(runId);
+  async waitFor(
+    runId: string,
+    timeoutMs: number,
+    parentThreadId?: string,
+  ): Promise<SubagentWaitResult> {
+    const record = this.ownedRun(runId, parentThreadId);
     if (!record) {
       return { status: "failed", output: `Unknown run_id: ${runId}` };
     }
     if (record.status !== "running") {
-      return { status: record.status, output: record.output };
+      return this.waitResult(record);
     }
     const timedOut = Symbol("timeout");
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -254,23 +245,53 @@ export class SubagentRunManager {
     ]);
     if (timer) clearTimeout(timer);
     if (result === timedOut) {
-      return { status: "running", output: record.output };
+      return this.waitResult(record);
     }
-    return { status: record.status, output: record.output };
+    return this.waitResult(record);
   }
 
-  getStatus(runId: string): SubagentWaitResult {
-    const record = this.runs.get(runId);
+  /** Wait for several already-running children concurrently under one deadline. */
+  async waitForMany(
+    runIds: readonly string[],
+    timeoutMs: number,
+    parentThreadId?: string,
+  ): Promise<Array<{ run_id: string } & SubagentWaitResult>> {
+    return await Promise.all(
+      runIds.map(async (runId) => ({
+        run_id: runId,
+        ...(await this.waitFor(runId, timeoutMs, parentThreadId)),
+      })),
+    );
+  }
+
+  getStatus(runId: string, parentThreadId?: string): SubagentWaitResult {
+    const record = this.ownedRun(runId, parentThreadId);
     if (!record) return { status: "failed", output: `Unknown run_id: ${runId}` };
-    return { status: record.status, output: record.output };
+    return this.waitResult(record);
+  }
+
+  listRuns(parentThreadId: string): SubagentRunSummary[] {
+    const out: SubagentRunSummary[] = [];
+    for (const record of this.runs.values()) {
+      if (record.parentThreadId !== parentThreadId) continue;
+      out.push({
+        run_id: record.runId,
+        name: record.label,
+        status: record.status,
+        background: record.background,
+        attempt: record.attemptIndex + 1,
+        attempt_count: record.plan.attempts.length,
+      });
+    }
+    return out;
   }
 
   /** Interrupt + dispose a single run. */
-  async cancel(runId: string): Promise<void> {
-    const record = this.runs.get(runId);
+  async cancel(runId: string, parentThreadId?: string): Promise<void> {
+    const record = this.ownedRun(runId, parentThreadId);
     if (!record) return;
     record.cancelRequested = true;
-    await this.teardown(record);
+    await this.attemptRunner.teardown(record);
     this.settle(record, "cancelled");
   }
 
@@ -306,6 +327,48 @@ export class SubagentRunManager {
     }
   }
 
+  /** Cancel turn-scoped runs while leaving explicitly detached background work alive. */
+  cancelForegroundForThread(parentThreadId: string): void {
+    for (const record of this.runs.values()) {
+      if (
+        record.parentThreadId !== parentThreadId ||
+        record.background ||
+        record.status !== "running"
+      ) {
+        continue;
+      }
+      record.cancelRequested = true;
+      this.settle(record, "cancelled");
+    }
+  }
+
+  private ownedRun(runId: string, parentThreadId?: string): RunRecord | undefined {
+    const record = this.runs.get(runId);
+    return record && (!parentThreadId || record.parentThreadId === parentThreadId)
+      ? record
+      : undefined;
+  }
+
+  private waitResult(record: RunRecord): SubagentWaitResult {
+    return {
+      status: record.status,
+      output: record.output,
+      ...(record.error ? { error: record.error } : {}),
+      ...(record.plan.attempts.length > 1
+        ? { attempts: record.attemptResults.map((attempt) => ({ ...attempt })) }
+        : {}),
+    };
+  }
+
+  private requireParent(parentThreadId: string): {
+    projectLocation: ProjectLocation;
+    config: ThreadConfig;
+  } {
+    const parent = this.deps.host.getParentContext(parentThreadId);
+    if (!parent) throw new SubagentSpawnError("Parent thread is no longer active");
+    return parent;
+  }
+
   private activeCountForParent(parentThreadId: string): number {
     let count = 0;
     for (const record of this.runs.values()) {
@@ -314,136 +377,49 @@ export class SubagentRunManager {
     return count;
   }
 
-  private async runChild(
-    record: RunRecord,
-    adapter: AgentAdapter,
-    projectLocation: ProjectLocation,
-    childConfig: ThreadConfig,
-    prompt: string,
-  ): Promise<void> {
-    // CLI-only agents (no structured runtime) run through the one-shot child
-    // driver: a single bypass-permissions CLI invocation whose stdout is
-    // streamed into the parent tile as a growing text item.
-    if (resolveSubagentExecution(adapter) === "one-shot") {
-      this.runOneShotChild(record, adapter, projectLocation, childConfig, prompt);
-      return;
-    }
-    try {
-      const mcpAccess = await this.deps.host.resolveParentMcpAccess?.(
-        record.parentThreadId,
-        {
-          threadId: record.childThreadId,
-          title: record.label,
-        },
-        adapter.kind,
-      );
-      const handle = await adapter.createStructuredSession?.({
-        threadId: record.childThreadId,
-        projectLocation,
-        config: childConfig,
-        presentationMode: "gui",
-        ...(mcpAccess ?? {}),
-      });
-      if (!handle) {
-        this.settle(record, "failed", "Failed to create subagent session");
-        return;
-      }
-      record.handle = handle;
-      if (record.cancelRequested) {
-        this.settle(record, "cancelled");
-        return;
-      }
-      handle.setListener({
-        onClose: () => this.settle(record, "completed"),
-        onError: (message) => this.settle(record, "failed", message),
-        onUpdate: (update) => {
-          if (record.turnStarted && update.status === "idle") {
-            this.settle(record, "completed");
-          }
-        },
-        onRuntimeEvent: (event) => this.onChildEvent(record, event),
-      });
-
-      if (handle.activate) await handle.activate();
-      if (record.cancelRequested) return void this.settle(record, "cancelled");
-      if (handle.openThread) await handle.openThread(childConfig);
-      if (record.cancelRequested) return void this.settle(record, "cancelled");
-      if (handle.startTurn) {
-        record.turnStarted = true;
-        await handle.startTurn(prompt, childConfig);
-      }
-    } catch (error) {
-      this.settle(
-        record,
-        record.cancelRequested ? "cancelled" : "failed",
-        error instanceof Error ? error.message : String(error),
-      );
-    }
+  private childThreadId(parentThreadId: string, runId: string, attemptIndex: number): string {
+    return `${parentThreadId}::sub::${runId}::attempt::${attemptIndex + 1}`;
   }
 
-  /**
-   * Drive a CLI-only agent as a one-shot child. Streams stdout into the parent
-   * stream as a single growing `assistant_message` item (opened lazily on the
-   * first chunk, mirroring the structured mapper's assistant-text streaming) and
-   * settles from the process exit code. The synthetic tile + re-tag / output
-   * accumulation are reused via {@link onChildEvent}.
-   */
-  private runOneShotChild(
-    record: RunRecord,
-    adapter: AgentAdapter,
-    projectLocation: ProjectLocation,
-    childConfig: ThreadConfig,
-    prompt: string,
-  ): void {
-    const itemId = `${record.runId}-oneshot-out`;
-    let opened = false;
-    const ensureOpen = () => {
-      if (opened) return;
-      opened = true;
-      this.onChildEvent(record, {
-        type: "item.started",
-        threadId: record.childThreadId,
-        itemId,
-        itemType: "assistant_message",
+  private runAttempt(record: RunRecord, attemptIndex: number): void {
+    if (record.cancelRequested || record.settled) return;
+    const attempt = record.plan.attempts[attemptIndex];
+    if (!attempt) {
+      this.settle(record, "failed", "No subagent attempt is available");
+      return;
+    }
+
+    record.attemptIndex = attemptIndex;
+    record.attemptSettled = false;
+    record.childThreadId = this.childThreadId(record.parentThreadId, record.runId, attemptIndex);
+    record.label = attempt.label;
+    record.output = "";
+    record.error = undefined;
+    record.turnStarted = false;
+    record.turnDispatched = false;
+    record.handle = undefined;
+    record.oneShot = undefined;
+
+    if (attemptIndex > 0) {
+      this.deps.host.appendRuntimeEvent(record.parentThreadId, {
+        type: "item.updated",
+        threadId: record.parentThreadId,
+        itemId: syntheticItemId(record.runId),
+        payload: {
+          name: attempt.label,
+          status: "running",
+          isCrossagent: true,
+          progress: { stepCount: record.stepCount },
+        },
       });
-    };
+    }
 
-    const handle = runOneShotChild({
-      adapter,
-      projectLocation,
-      model: childConfig.model,
-      effort: childConfig.effort,
-      prompt,
-      onTextDelta: (delta) => {
-        ensureOpen();
-        this.onChildEvent(record, {
-          type: "content.delta",
-          threadId: record.childThreadId,
-          itemId,
-          stream: "assistant_text",
-          delta,
-        });
-      },
-      onSettle: ({ status, errorMessage }) => {
-        if (opened) {
-          this.onChildEvent(record, {
-            type: "item.completed",
-            threadId: record.childThreadId,
-            itemId,
-          });
-        }
-        // On cancel, `cancel()`/`cancelAllForThread()` set `cancelRequested` and
-        // synchronously called `settle("cancelled")` in the same tick, so by the
-        // time this exit-driven callback fires the record is already settled and
-        // this call is an idempotent no-op — the process exit status never
-        // overrides the recorded `cancelled`.
-        this.settle(record, status, errorMessage);
-      },
+    this.attemptRunner.run(record, attemptIndex, attempt, {
+      isActive: () => this.isCurrentAttempt(record, attemptIndex),
+      onRuntimeEvent: (event) => this.onChildEvent(record, attemptIndex, event),
+      onSettle: (status, errorMessage) =>
+        this.finishAttempt(record, attemptIndex, status, errorMessage),
     });
-
-    record.oneShot = handle;
-    // A cancel that landed between spawn() and here: tear the fresh process down.
-    if (record.cancelRequested) handle.cancel();
   }
 
   /**
@@ -456,11 +432,17 @@ export class SubagentRunManager {
    * forwarded — they belong to the child's own lifecycle and would corrupt the
    * parent thread's turn state if replayed under the parent threadId.
    */
-  private onChildEvent(record: RunRecord, event: RuntimeEvent): void {
+  private onChildEvent(record: RunRecord, attemptIndex: number, event: RuntimeEvent): void {
+    if (record.settled || record.attemptSettled || record.attemptIndex !== attemptIndex) {
+      return;
+    }
     switch (event.type) {
       case "content.delta":
         if (event.stream === "assistant_text") record.output += event.delta;
-        this.deps.host.appendRuntimeEvent(record.parentThreadId, this.retag(record, event));
+        this.deps.host.appendRuntimeEvent(
+          record.parentThreadId,
+          this.retag(record, attemptIndex, event),
+        );
         return;
       case "item.started":
         if (!event.parentItemId) {
@@ -472,22 +454,39 @@ export class SubagentRunManager {
             payload: { progress: { stepCount: record.stepCount } },
           });
         }
-        this.deps.host.appendRuntimeEvent(record.parentThreadId, this.retag(record, event));
+        this.deps.host.appendRuntimeEvent(
+          record.parentThreadId,
+          this.retag(record, attemptIndex, event),
+        );
         return;
       case "item.updated":
       case "item.completed":
-        this.deps.host.appendRuntimeEvent(record.parentThreadId, this.retag(record, event));
+        this.deps.host.appendRuntimeEvent(
+          record.parentThreadId,
+          this.retag(record, attemptIndex, event),
+        );
         return;
       case "request.opened":
         record.pendingRequestIds.add(event.requestId);
-        this.deps.host.appendRuntimeEvent(record.parentThreadId, this.retag(record, event));
+        this.deps.host.appendRuntimeEvent(
+          record.parentThreadId,
+          this.retag(record, attemptIndex, event),
+        );
         return;
       case "request.resolved":
         record.pendingRequestIds.delete(event.requestId);
-        this.deps.host.appendRuntimeEvent(record.parentThreadId, this.retag(record, event));
+        this.deps.host.appendRuntimeEvent(
+          record.parentThreadId,
+          this.retag(record, attemptIndex, event),
+        );
         return;
       case "turn.completed":
-        this.settle(record, event.state === "completed" ? "completed" : "failed");
+        this.finishAttempt(
+          record,
+          attemptIndex,
+          event.state === "completed" ? "completed" : "failed",
+          event.state === "completed" ? undefined : `Subagent turn ${event.state}`,
+        );
         return;
       default:
         return;
@@ -500,8 +499,8 @@ export class SubagentRunManager {
    * synthetic tile (deeper items keep their prefixed parent), and namespace
    * server-request ids under the run so resolutions route back to the child.
    */
-  private retag(record: RunRecord, event: RuntimeEvent): RuntimeEvent {
-    const prefix = childItemPrefix(record.runId);
+  private retag(record: RunRecord, attemptIndex: number, event: RuntimeEvent): RuntimeEvent {
+    const prefix = childItemPrefix(record.runId, attemptIndex);
     if (event.type === "request.opened" || event.type === "request.resolved") {
       return {
         ...event,
@@ -529,6 +528,63 @@ export class SubagentRunManager {
     return { ...event, threadId: record.parentThreadId };
   }
 
+  private isCurrentAttempt(record: RunRecord, attemptIndex: number): boolean {
+    return !record.settled && !record.attemptSettled && record.attemptIndex === attemptIndex;
+  }
+
+  private finishAttempt(
+    record: RunRecord,
+    attemptIndex: number,
+    status: Exclude<SubagentRunStatus, "running">,
+    errorMessage?: string,
+  ): void {
+    if (!this.isCurrentAttempt(record, attemptIndex)) return;
+    record.attemptSettled = true;
+    this.drainPendingRequests(record);
+
+    const attempt = record.plan.attempts[attemptIndex]!;
+    record.attemptResults.push({
+      attempt: attemptIndex + 1,
+      provider: attempt.provider,
+      model: attempt.model,
+      status,
+      output: record.output,
+      ...(errorMessage ? { error: errorMessage } : {}),
+      ...(record.turnDispatched ? { may_have_side_effects: true } : {}),
+    });
+
+    const nextAttemptIndex = attemptIndex + 1;
+    const mayRetry =
+      status === "failed" &&
+      !record.cancelRequested &&
+      nextAttemptIndex < record.plan.attempts.length &&
+      (record.plan.retryMode === "any-failure" || !record.turnDispatched);
+    if (mayRetry) {
+      void this.attemptRunner.teardown(record).then(() => {
+        if (record.cancelRequested || record.settled) {
+          this.settle(record, "cancelled");
+          return;
+        }
+        this.runAttempt(record, nextAttemptIndex);
+      });
+      return;
+    }
+
+    this.settle(record, status, errorMessage);
+  }
+
+  private drainPendingRequests(record: RunRecord): void {
+    for (const requestId of record.pendingRequestIds) {
+      this.deps.host.appendRuntimeEvent(record.parentThreadId, {
+        type: "request.resolved",
+        threadId: record.parentThreadId,
+        requestId: namespacedRequestId(record.runId, requestId),
+        outcome: "cancelled",
+      });
+    }
+    record.pendingRequestIds.clear();
+  }
+
   /**
    * Terminal transition (idempotent): mark settled, tear the child down, emit
    * the synthetic tile completion (which drains buffered child events in the
@@ -539,22 +595,37 @@ export class SubagentRunManager {
     record.settled = true;
     if (record.status === "running") record.status = status;
 
-    // Clear any still-open forwarded requests so the parent's request panel
-    // doesn't strand a stale prompt for a child that's gone.
-    for (const requestId of record.pendingRequestIds) {
-      this.deps.host.appendRuntimeEvent(record.parentThreadId, {
-        type: "request.resolved",
-        threadId: record.parentThreadId,
-        requestId: namespacedRequestId(record.runId, requestId),
-        outcome: "cancelled",
-      });
+    this.drainPendingRequests(record);
+    if (
+      status !== "running" &&
+      !record.attemptResults.some((attempt) => attempt.attempt === record.attemptIndex + 1)
+    ) {
+      const attempt = record.plan.attempts[record.attemptIndex];
+      if (attempt) {
+        record.attemptResults.push({
+          attempt: record.attemptIndex + 1,
+          provider: attempt.provider,
+          model: attempt.model,
+          status,
+          output: record.output,
+          ...(errorMessage ? { error: errorMessage } : {}),
+          ...(record.turnDispatched ? { may_have_side_effects: true } : {}),
+        });
+      }
     }
-    record.pendingRequestIds.clear();
 
-    void this.teardown(record);
+    void this.attemptRunner.teardown(record);
 
     const text = errorMessage ? `${record.output}\n${errorMessage}`.trim() : record.output;
-    if (errorMessage) record.output = text;
+    if (errorMessage) {
+      // Preserve the legacy failed-run output shape while also exposing the
+      // structured error metadata added for retry safety.
+      record.output = text;
+      record.error = {
+        message: errorMessage,
+        may_have_side_effects: record.turnDispatched,
+      };
+    }
     const payload: ToolCallPayload = {
       name: record.label,
       status: record.status === "completed" ? "success" : "error",
@@ -569,22 +640,26 @@ export class SubagentRunManager {
       payload,
     });
 
+    if (record.background && (record.status === "completed" || record.status === "failed")) {
+      this.deps.host.notifyBackgroundCompletion?.(record.parentThreadId, {
+        runId: record.runId,
+        name: record.label,
+        status: record.status,
+        output: record.output,
+        ...(record.error ? { error: record.error } : {}),
+      });
+    }
+
     record.resolveSettled();
+    this.pruneSettledRuns(record.parentThreadId);
   }
 
-  private async teardown(record: RunRecord): Promise<void> {
-    if (record.oneShot) {
-      record.oneShot.cancel();
-      record.oneShot = undefined;
+  private pruneSettledRuns(parentThreadId: string): void {
+    const settled = [...this.runs.values()]
+      .filter((record) => record.parentThreadId === parentThreadId && record.status !== "running")
+      .sort((a, b) => a.createdAt - b.createdAt);
+    for (const record of settled.slice(0, -MAX_RETAINED_RUNS_PER_PARENT)) {
+      this.runs.delete(record.runId);
     }
-    const handle = record.handle;
-    if (!handle) return;
-    record.handle = undefined;
-    try {
-      if (handle.interruptTurn) await handle.interruptTurn();
-    } catch {}
-    try {
-      await handle.dispose();
-    } catch {}
   }
 }

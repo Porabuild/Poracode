@@ -143,6 +143,17 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledTimes(1);
   });
 
+  it("distinguishes a missing status cache from a cached unavailable provider", async () => {
+    const detectInstall = vi
+      .fn<AgentAdapter["detectInstall"]>()
+      .mockResolvedValue({ ...makeStatus(), authState: "missing" });
+    const { service } = makeService(detectInstall);
+
+    expect(service.getCachedCapabilities("codex")).toBeUndefined();
+    await service.refreshAgentStatuses({ wslDistros: [] });
+    expect(service.getCachedCapabilities("codex")).toBeNull();
+  });
+
   it("runs startup detection again when a new WSL distro is requested", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
     const adapter = makeAdapter("codex", "Codex", detectInstall);

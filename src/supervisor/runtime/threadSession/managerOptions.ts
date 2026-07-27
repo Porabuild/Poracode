@@ -39,9 +39,9 @@ export interface ThreadSessionManagerOptions {
    * Optional: Crossagents MCP hooks. When a thread launches with
    * `config.crossagentMcp === true`, the manager registers it with the ingress
    * and threads the resulting http config into the structured session / launch
-   * options. On interrupt + close it cancels the thread's child runs; on close
-   * it also unregisters the thread. All heavy lifting lives in the crossagentMcp
-   * module — these are thin hooks only.
+   * options. An interrupt cancels turn-scoped children while preserving explicit
+   * background runs; close cancels everything and unregisters the thread. All
+   * heavy lifting lives in the crossagentMcp module — these are thin hooks only.
    */
   crossagentMcp?: {
     register(
@@ -53,6 +53,7 @@ export interface ThreadSessionManagerOptions {
       disabledTools?: readonly string[],
     ): CrossagentMcpHttpConfig | undefined;
     unregister(threadId: string): void;
+    cancelForeground(threadId: string): void;
     cancelAll(threadId: string): void;
     /**
      * Try to route a server-request resolution to a subagent child run. Returns

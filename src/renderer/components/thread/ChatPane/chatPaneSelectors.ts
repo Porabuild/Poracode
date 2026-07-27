@@ -8,7 +8,7 @@ import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import {
   isAskUserQuestionToolName,
-  isCrossagentRunAgentTool,
+  isCrossagentSpawnAgentTool,
   isDelegatedAgentTool,
 } from "@/shared/toolCallClassification";
 import { imageViewRendersInline } from "./parts/items/imageViewSource";
@@ -285,7 +285,7 @@ function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
     }
     // Successful Crossagents runs render as the richer delegated-agent row.
     // Keep failed transport calls visible because they may have no delegated row.
-    if (payload?.status !== "error" && isCrossagentRunAgentTool(payload)) return false;
+    if (payload?.status !== "error" && isCrossagentSpawnAgentTool(payload)) return false;
     // Tool renderers defer rows without a name. Keep those incomplete calls out
     // of the virtualized timeline and group counts until a later update names them.
     if (!payload?.name?.trim()) return false;

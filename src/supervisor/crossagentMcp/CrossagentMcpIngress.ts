@@ -24,6 +24,11 @@ export interface CrossagentMcpIngressDeps {
 const MAX_BODY = 1024 * 1024;
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 export const CROSSAGENT_PROVIDER_SESSION_ID_ARG = "__poracode_provider_session_id";
+const TOOL_PERMISSION_ALIASES = new Map([
+  ["spawn_agents", "spawn_agent"],
+  ["wait_for_agents", "wait_for_agent"],
+  ["run_agent", "spawn_agent"],
+]);
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -281,11 +286,8 @@ export class CrossagentMcpIngress {
     res.setHeader("Mcp-Session-Id", sessionId);
 
     if (Array.isArray(body)) {
-      const out: JsonRpcResponse[] = [];
-      for (const message of body) {
-        const reply = await this.handleSingle(message, auth);
-        if (reply) out.push(reply);
-      }
+      const replies = await Promise.all(body.map((message) => this.handleSingle(message, auth)));
+      const out = replies.filter((reply): reply is JsonRpcResponse => reply !== null);
       this.sendJson(res, 200, out);
       return;
     }
@@ -335,7 +337,13 @@ export class CrossagentMcpIngress {
         return {
           jsonrpc: "2.0",
           id,
-          result: { tools: TOOLS.filter((tool) => !disabled.has(tool.name)) },
+          result: {
+            tools: TOOLS.filter(
+              (tool) =>
+                !disabled.has(tool.name) &&
+                !disabled.has(TOOL_PERMISSION_ALIASES.get(tool.name) ?? ""),
+            ),
+          },
         };
       }
       if (method === "tools/call") {
@@ -353,7 +361,9 @@ export class CrossagentMcpIngress {
             result: errorResult("Unable to route Crossagents call to a live parent thread."),
           };
         }
-        if (this.disabledToolsByThread.get(threadId)?.has(name)) {
+        const disabled = this.disabledToolsByThread.get(threadId);
+        const permissionAlias = TOOL_PERMISSION_ALIASES.get(name);
+        if (disabled?.has(name) || (permissionAlias && disabled?.has(permissionAlias))) {
           return { jsonrpc: "2.0", id, result: errorResult(`Tool disabled by Poracode: ${name}`) };
         }
         if (!isKnownToolName(name)) {

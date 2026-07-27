@@ -17,7 +17,11 @@ import {
   SubagentRunManager,
   SubagentSpawnError,
 } from "./SubagentRunManager";
-import { buildUnrestrictedChildConfig, type SubagentRunHost } from "./types";
+import {
+  buildUnrestrictedChildConfig,
+  type BackgroundSubagentCompletion,
+  type SubagentRunHost,
+} from "./types";
 
 const PARENT = "parent";
 const PROJECT: ProjectLocation = { kind: "posix", path: "/tmp/project" };
@@ -73,17 +77,30 @@ interface Harness {
   handles: FakeHandle[];
   inputs: CreateStructuredSessionInput[];
   appended: Array<{ threadId: string; event: RuntimeEvent }>;
+  notifications: Array<{ threadId: string; completion: BackgroundSubagentCompletion }>;
   mcpTargets: string[];
+  releaseCreate: () => void;
 }
 
 function makeHarness(options?: {
   models?: Array<{ id: string; label: string }>;
-  statusCapabilities?: AgentCapability;
+  statusCapabilities?: AgentCapability | null;
+  createFailures?: number;
+  deferCreate?: boolean;
 }): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
   const appended: Array<{ threadId: string; event: RuntimeEvent }> = [];
+  const notifications: Array<{
+    threadId: string;
+    completion: BackgroundSubagentCompletion;
+  }> = [];
   const mcpTargets: string[] = [];
+  let createFailures = options?.createFailures ?? 0;
+  let releaseCreate!: () => void;
+  const createGate = new Promise<void>((resolve) => {
+    releaseCreate = resolve;
+  });
 
   const adapter = {
     kind: "codex",
@@ -106,6 +123,11 @@ function makeHarness(options?: {
     },
     createStructuredSession: async (input: CreateStructuredSessionInput) => {
       inputs.push(input);
+      if (options?.deferCreate) await createGate;
+      if (createFailures > 0) {
+        createFailures -= 1;
+        throw new Error("session launch failed");
+      }
       const handle = new FakeHandle();
       handles.push(handle);
       return handle;
@@ -144,15 +166,18 @@ function makeHarness(options?: {
       };
     },
     appendRuntimeEvent: (threadId, event) => appended.push({ threadId, event }),
+    notifyBackgroundCompletion: (threadId, completion) =>
+      notifications.push({ threadId, completion }),
   };
 
+  const hasStatusCapabilities = options?.statusCapabilities !== undefined;
   const statusCapabilities = options?.statusCapabilities;
   const manager = new SubagentRunManager({
     adapters: new Map([["codex" as never, adapter]]),
-    ...(statusCapabilities ? { getStatusCapabilities: () => statusCapabilities } : {}),
+    ...(hasStatusCapabilities ? { getStatusCapabilities: () => statusCapabilities } : {}),
     host,
   });
-  return { manager, handles, inputs, appended, mcpTargets };
+  return { manager, handles, inputs, appended, notifications, mcpTargets, releaseCreate };
 }
 
 describe("SubagentRunManager", () => {
@@ -244,7 +269,7 @@ describe("SubagentRunManager", () => {
       .filter(
         (e): e is Extract<RuntimeEvent, { type: "item.started" }> => e.type === "item.started",
       )
-      .find((e) => e.itemId === `${runId}:abc`);
+      .find((e) => e.itemId === `${runId}:1:abc`);
     expect(started).toBeDefined();
     expect(started!.threadId).toBe(PARENT);
     expect(started!.parentItemId).toBe(`sub:${runId}`);
@@ -304,8 +329,8 @@ describe("SubagentRunManager", () => {
       .filter(
         (e): e is Extract<RuntimeEvent, { type: "item.started" }> => e.type === "item.started",
       )
-      .find((e) => e.itemId === `${runId}:leaf`);
-    expect(started!.parentItemId).toBe(`${runId}:branch`);
+      .find((e) => e.itemId === `${runId}:1:leaf`);
+    expect(started!.parentItemId).toBe(`${runId}:1:branch`);
   });
 
   it("captures assistant text from content.delta and settles completed", async () => {
@@ -397,6 +422,18 @@ describe("SubagentRunManager", () => {
     expect(h.manager.getStatus(runId).output).toContain("Unknown run_id");
   });
 
+  it("disposes a structured handle that finishes creating after cancellation", async () => {
+    const h = makeHarness({ deferCreate: true });
+    h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    h.manager.cancelAllForThread(PARENT);
+    h.releaseCreate();
+    await flush();
+    await flush();
+    expect(h.handles[0]?.disposed).toBe(true);
+    expect(h.handles[0]?.startTurns).toEqual([]);
+  });
+
   it("enforces the per-parent concurrency cap", () => {
     const h = makeHarness();
     for (let i = 0; i < MAX_CONCURRENT_CHILDREN_PER_PARENT; i++) {
@@ -405,6 +442,215 @@ describe("SubagentRunManager", () => {
     expect(() => h.manager.spawn(PARENT, { agent: "codex", prompt: "overflow" })).toThrow(
       SubagentSpawnError,
     );
+  });
+
+  it("atomically starts a validated batch in parallel", async () => {
+    const h = makeHarness({
+      models: [
+        { id: "gpt-5.5", label: "GPT-5.5" },
+        { id: "gpt-5.6", label: "GPT-5.6" },
+      ],
+    });
+    const runs = h.manager.spawnMany(PARENT, [
+      { agent: "codex", model: "gpt-5.5", prompt: "one" },
+      { agent: "codex", model: "gpt-5.6", prompt: "two" },
+    ]);
+    expect(runs).toHaveLength(2);
+    await flush();
+    expect(h.inputs.map((input) => input.config.model)).toEqual(["gpt-5.5", "gpt-5.6"]);
+    expect(h.handles).toHaveLength(2);
+  });
+
+  it("does not partially start a batch when one task is invalid", () => {
+    const h = makeHarness();
+    expect(() =>
+      h.manager.spawnMany(PARENT, [
+        { agent: "codex", prompt: "valid" },
+        { agent: "codex", model: "hidden-or-unknown", prompt: "invalid" },
+      ]),
+    ).toThrow(SubagentSpawnError);
+    expect(h.appended).toEqual([]);
+    expect(h.inputs).toEqual([]);
+  });
+
+  it("rejects a direct spawn when the provider is disabled in settings", () => {
+    const h = makeHarness({ statusCapabilities: null });
+    expect(() => h.manager.spawn(PARENT, { agent: "codex", prompt: "go" })).toThrow(
+      /disabled in settings/,
+    );
+  });
+
+  it("rejects a direct spawn of a model hidden from the filtered capability surface", () => {
+    const h = makeHarness({
+      statusCapabilities: {
+        models: [{ id: "gpt-5.6", label: "GPT-5.6" }],
+        efforts: [],
+        modelEfforts: {},
+        modes: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: false,
+        supportsDirectInput: true,
+      } as unknown as AgentCapability,
+    });
+    expect(() =>
+      h.manager.spawn(PARENT, {
+        agent: "codex",
+        model: "gpt-5.5",
+        prompt: "go",
+      }),
+    ).toThrow(/Unknown model/);
+  });
+
+  it("retries a startup failure with an explicitly selected fallback", async () => {
+    const h = makeHarness({
+      models: [
+        { id: "gpt-5.5", label: "GPT-5.5" },
+        { id: "gpt-5.6", label: "GPT-5.6" },
+      ],
+      createFailures: 1,
+    });
+    const { runId } = h.manager.spawn(PARENT, {
+      agent: "codex",
+      model: "gpt-5.5",
+      prompt: "go",
+      fallbacks: [{ agent: "codex", model: "gpt-5.6" }],
+    });
+    await flush();
+    await flush();
+    expect(h.inputs.map((input) => input.config.model)).toEqual(["gpt-5.5", "gpt-5.6"]);
+
+    h.handles[0]!.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "answer",
+      stream: "assistant_text",
+      delta: "recovered",
+    });
+    h.handles[0]!.completeTurn("completed");
+    const result = await h.manager.waitFor(runId, 1000);
+    expect(result).toMatchObject({
+      status: "completed",
+      output: "recovered",
+      attempts: [
+        {
+          attempt: 1,
+          provider: "codex",
+          model: "gpt-5.5",
+          status: "failed",
+          error: "session launch failed",
+          output: "",
+        },
+        {
+          attempt: 2,
+          provider: "codex",
+          model: "gpt-5.6",
+          status: "completed",
+          output: "recovered",
+        },
+      ],
+    });
+  });
+
+  it("does not retry a dispatched turn failure unless explicitly allowed", async () => {
+    const h = makeHarness({
+      models: [
+        { id: "gpt-5.5", label: "GPT-5.5" },
+        { id: "gpt-5.6", label: "GPT-5.6" },
+      ],
+    });
+    const { runId } = h.manager.spawn(PARENT, {
+      agent: "codex",
+      model: "gpt-5.5",
+      prompt: "go",
+      fallbacks: [{ agent: "codex", model: "gpt-5.6" }],
+    });
+    await flush();
+    h.handles[0]!.completeTurn("failed");
+    const result = await h.manager.waitFor(runId, 1000);
+    expect(result.status).toBe("failed");
+    expect(result.error).toEqual({
+      message: "Subagent turn failed",
+      may_have_side_effects: true,
+    });
+    expect(h.inputs).toHaveLength(1);
+  });
+
+  it("keeps background runs alive across foreground cancellation", async () => {
+    const h = makeHarness();
+    const foreground = h.manager.spawn(PARENT, { agent: "codex", prompt: "foreground" });
+    const background = h.manager.spawn(PARENT, {
+      agent: "codex",
+      prompt: "background",
+      background: true,
+    });
+    await flush();
+
+    h.manager.cancelForegroundForThread(PARENT);
+    await flush();
+    expect(h.manager.getStatus(foreground.runId).status).toBe("cancelled");
+    expect(h.manager.getStatus(background.runId).status).toBe("running");
+    expect(h.manager.listRuns(PARENT)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ run_id: background.runId, background: true, status: "running" }),
+      ]),
+    );
+  });
+
+  it("notifies the parent when a background run completes without notifying for foreground runs", async () => {
+    const h = makeHarness();
+    const foreground = h.manager.spawn(PARENT, { agent: "codex", prompt: "foreground" });
+    const background = h.manager.spawn(PARENT, {
+      agent: "codex",
+      name: "research",
+      prompt: "background",
+      background: true,
+    });
+    await flush();
+
+    h.handles[0]!.completeTurn("completed");
+    h.handles[1]!.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "answer",
+      stream: "assistant_text",
+      delta: "background result",
+    });
+    h.handles[1]!.completeTurn("completed");
+    await h.manager.waitFor(foreground.runId, 1000);
+    await h.manager.waitFor(background.runId, 1000);
+
+    expect(h.notifications).toEqual([
+      {
+        threadId: PARENT,
+        completion: {
+          runId: background.runId,
+          name: "research — Codex · GPT-5.5",
+          status: "completed",
+          output: "background result",
+        },
+      },
+    ]);
+  });
+
+  it("scopes status and cancellation to the owning parent thread", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    expect(h.manager.getStatus(runId, "other-parent").output).toContain("Unknown run_id");
+    await h.manager.cancel(runId, "other-parent");
+    expect(h.manager.getStatus(runId, PARENT).status).toBe("running");
+  });
+
+  it("treats an unexpected structured-session close as a failure", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    h.handles[0]!.listener?.onClose();
+    await expect(h.manager.waitFor(runId, 1000)).resolves.toMatchObject({
+      status: "failed",
+      error: { message: "Subagent session closed before the turn completed" },
+    });
   });
 
   it("uses unrestricted permissions and inherits non-recursive MCPs", async () => {

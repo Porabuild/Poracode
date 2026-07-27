@@ -53,6 +53,10 @@ import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSess
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
 import { CrossagentMcpIngress } from "./crossagentMcp/CrossagentMcpIngress";
 import { SubagentRunManager } from "./crossagentMcp/SubagentRunManager";
+import {
+  visibleCrossagentCapabilitiesForAdapter,
+  type CrossagentVisibilitySettings,
+} from "./crossagentMcp/availability";
 import { buildSpawnableAgents } from "./crossagentMcp/toolRegistry";
 import { dispatchAgentEvent } from "./runtime/agentEventDispatcher";
 import { hookDebugEnvelope, isPoracodeHookDebug } from "./runtime/hookDebug";
@@ -299,7 +303,14 @@ export class SupervisorRuntime {
       // Validate spawn selections against the persisted status pipeline — the
       // same source list_agents/get_agent (and the composer) are served from —
       // so the executor never disagrees with the roster it advertised.
-      getStatusCapabilities: (kind) => this.agentStatusService.getCachedCapabilities(kind),
+      getStatusCapabilities: (kind) => {
+        const adapter = this.adapters.get(kind);
+        if (!adapter) return null;
+        const settings = this.sharedSettingsCache.read();
+        const cachedCapabilities = this.agentStatusService.getCachedCapabilities(kind);
+        if (cachedCapabilities === null) return null;
+        return visibleCrossagentCapabilitiesForAdapter(adapter, cachedCapabilities, settings);
+      },
       host: {
         getParentContext: (threadId) =>
           this.threadSessionManager.getSubagentParentContext(threadId),
@@ -311,13 +322,16 @@ export class SupervisorRuntime {
           ),
         appendRuntimeEvent: (parentThreadId, event) =>
           this.threadSessionManager.appendSubagentRuntimeEvent(parentThreadId, event),
+        notifyBackgroundCompletion: (parentThreadId, completion) =>
+          this.threadSessionManager.notifyBackgroundSubagentCompletion(parentThreadId, completion),
       },
     });
     this.crossagentMcpIngress = new CrossagentMcpIngress({
       runManager: this.subagentRunManager,
       getSpawnableAgents: async () => {
         const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
-        return buildSpawnableAgents(this.adapters, windows);
+        const settings: CrossagentVisibilitySettings = this.sharedSettingsCache.read();
+        return buildSpawnableAgents(this.adapters, windows, settings);
       },
       resolveProviderSessionThreadId: (sessionId) =>
         this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
@@ -350,6 +364,7 @@ export class SupervisorRuntime {
         registerProviderSession: (threadId, disabledTools) =>
           this.crossagentMcpIngress.registerProviderSessionThread(threadId, disabledTools),
         unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
+        cancelForeground: (threadId) => this.subagentRunManager.cancelForegroundForThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
         resolveChildRequest: (requestId, response) =>
           this.subagentRunManager.resolveChildServerRequest(requestId, response),
