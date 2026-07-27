@@ -6,6 +6,7 @@ import {
 import {
   buildDiagnosticBreadcrumb,
   classifyDiagnosticFailure,
+  isStableDiagnosticToken,
   type DiagnosticFailureDecision,
   type DiagnosticFailureMetadata,
 } from "@/shared/diagnostics/sentryPolicy";
@@ -46,6 +47,12 @@ const GIT_NETWORK_OPERATIONS = [
   "gitSync",
   "gitSyncRebase",
 ] as const;
+
+const STRUCTURED_RUNTIME_FAILURES = new Map<string, string>([
+  ["Structured runtime session creation failed.", "session-creation-failed"],
+  ["Structured runtime transport failed.", "transport-failed"],
+  ["Structured runtime turn failed.", "turn-failed"],
+]);
 
 const SUPERVISOR_IPC_FAILURE_RULES: readonly SupervisorIpcFailureRule[] = [
   {
@@ -253,6 +260,28 @@ function errorMessage(error: unknown): string | null {
   return error instanceof Error ? error.message : null;
 }
 
+function structuredRuntimeClassification(error: unknown): DiagnosticFailureMetadata | undefined {
+  if (!(error instanceof Error) || error.name !== "StructuredRuntimeDiagnosticError") {
+    return undefined;
+  }
+  const errorClass = STRUCTURED_RUNTIME_FAILURES.get(error.message);
+  return errorClass
+    ? {
+        failureClass: "product-defect",
+        domain: "structured-runtime",
+        errorClass,
+      }
+    : undefined;
+}
+
+function structuredRuntimeProvider(error: unknown): string | undefined {
+  if (!(error instanceof Error) || error.name !== "StructuredRuntimeDiagnosticError") {
+    return undefined;
+  }
+  const provider = (error as Error & { diagnosticProvider?: unknown }).diagnosticProvider;
+  return isStableDiagnosticToken(provider) ? provider : undefined;
+}
+
 function matchesFailureRule(
   rule: SupervisorIpcFailureRule,
   error: unknown,
@@ -270,6 +299,8 @@ function knownSupervisorIpcClassification(
   error: unknown,
   operation: string,
 ): DiagnosticFailureMetadata | undefined {
+  const structuredClassification = structuredRuntimeClassification(error);
+  if (structuredClassification) return structuredClassification;
   const message = errorMessage(error);
   if (!message) return undefined;
   const rule = SUPERVISOR_IPC_FAILURE_RULES.find((candidate) =>
@@ -300,13 +331,14 @@ export function classifySupervisorFailure(
   operation: string,
 ): DiagnosticFailureDecision {
   const knownClassification: DiagnosticFailureMetadata | undefined =
-    error instanceof Error && error.name === "Error" && error.message === "write EPIPE"
+    structuredRuntimeClassification(error) ??
+    (error instanceof Error && error.name === "Error" && error.message === "write EPIPE"
       ? {
           failureClass: "transient-service",
           domain: "supervisor.runtime",
           errorClass: "broken-pipe",
         }
-      : undefined;
+      : undefined);
   return classifyDiagnosticFailure(error, { domain: "supervisor", operation }, knownClassification);
 }
 
@@ -363,14 +395,20 @@ function captureSupervisorFailure(
 }
 
 export function captureSupervisorIpcFailure(error: unknown, operation: string): void {
+  const provider = structuredRuntimeProvider(error);
   captureSupervisorFailure(error, classifySupervisorIpcFailure(error, operation), {
     "poracode.feature_area": "supervisor-ipc",
+    ...(provider ? { "poracode.provider": provider } : {}),
   });
 }
 
 export function captureSupervisorException(error: unknown, tags?: PoracodeDiagnosticTags): void {
   const operation = tags?.["poracode.feature_area"] ?? "unhandled";
-  captureSupervisorFailure(error, classifySupervisorFailure(error, operation), tags);
+  const provider = tags?.["poracode.provider"] ?? structuredRuntimeProvider(error);
+  captureSupervisorFailure(error, classifySupervisorFailure(error, operation), {
+    ...tags,
+    ...(provider ? { "poracode.provider": provider } : {}),
+  });
 }
 
 export async function flushSupervisorSentry(timeoutMs = 2000): Promise<void> {

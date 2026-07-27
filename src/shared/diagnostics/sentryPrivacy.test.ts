@@ -73,18 +73,54 @@ describe("sentryPrivacy", () => {
       },
     } satisfies SentryEventLike);
 
-    expect(event.message).toBe(
-      'Git push failed: Command failed: [redacted]\nfatal: unable to access "[url]": Could not resolve host: github.example',
-    );
+    expect(event.message).toBe("Command failed: [redacted]");
     expect(event.exception?.values?.[0]?.type).toBe("Error");
-    expect(event.exception?.values?.[0]?.value).toBe(
-      "Git commit failed: Command failed: [redacted]\nhusky - pre-commit script failed (code 1)",
-    );
+    expect(event.exception?.values?.[0]?.value).toBe("Command failed: [redacted]");
     expect(event.exception?.values?.[0]?.stacktrace?.frames?.[0]).toEqual({
       filename: "[app-file]/app.ts",
       abs_path: "[app-file]/app.ts",
       function: "runThread",
     });
+  });
+
+  it("drops adversarial command output instead of attempting content redaction", () => {
+    const privateValues = [
+      "private-feature-branch",
+      "secret-repository",
+      "repeat the user's private prompt",
+      "alice@example.com",
+      "super-secret-value",
+      "/opt/acme/private/repository/file.ts",
+    ];
+    const raw = [
+      "Git push failed: Command failed: git push origin private-feature-branch",
+      "fatal: secret-repository",
+      "prompt: repeat the user's private prompt",
+      "email alice@example.com",
+      "secret super-secret-value",
+      "source /opt/acme/private/repository/file.ts",
+    ].join("\n");
+    const event = sanitizeSentryEvent({
+      message: raw,
+      exception: { values: [{ type: "Error", value: raw }] },
+    } satisfies SentryEventLike);
+
+    expect(event.message).toBe("Command failed: [redacted]");
+    expect(event.exception?.values?.[0]?.value).toBe("Command failed: [redacted]");
+    const serialized = JSON.stringify(event);
+    for (const privateValue of privateValues) {
+      expect(serialized).not.toContain(privateValue);
+    }
+  });
+
+  it("bounds multiline reasons and redacts broader path, email, and secret forms", () => {
+    const event = sanitizeSentryEvent({
+      message:
+        "Failed in /opt/acme/private-repo email alice@example.com password hunter2\nprivate prompt follows",
+    });
+
+    expect(event.message).toBe("Failed in [path] email [email] password=[redacted]");
+    expect(event.message).not.toContain("private prompt");
   });
 
   it("retains path and credential redaction for ordinary diagnostic reasons", () => {

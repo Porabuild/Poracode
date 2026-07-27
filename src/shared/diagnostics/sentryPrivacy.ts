@@ -84,13 +84,31 @@ const SENSITIVE_KEY_PATTERN =
   /(?:account|api[-_]?key|authorization|branch|cmd|code|command|cookie|cwd|diff|email|env|file|filename|home|ip|key|output|password|path|project|prompt|query|remote|repo|repository|secret|terminal|token|url|user|username|worktree)/i;
 
 function sanitizeString(value: string): string {
-  return value
+  // Child-process errors append arbitrary stdout/stderr after this marker.
+  // Those streams can contain prompts, branch/repository names, hook output,
+  // source text, emails, or credentials. Classification runs on the raw error
+  // before beforeSend, so telemetry only needs a fixed payload-free reason.
+  if (value.includes("Command failed:")) {
+    return "Command failed: [redacted]";
+  }
+
+  // Exception messages are not a safe transport for multiline process output.
+  // Retain only the bounded summary line; stable tags/fingerprints carry the
+  // diagnostic class selected from the raw error.
+  const [summary = ""] = value.split(/\r?\n/u, 1);
+  return summary
     .replace(/https?:\/\/[^\s"'<>)]*/giu, "[url]")
-    .replace(/Command failed:[^\r\n]*/gu, "Command failed: [redacted]")
-    .replace(/(?:file:\/\/)?\/(?:Users|home|private|tmp|var)\/[^\s"'<>)]*/g, "[path]")
+    .replace(
+      /(?:file:\/\/)?\/(?:Users|home|private|tmp|var|opt|srv|mnt|Volumes)\/[^\s"'<>)]*/g,
+      "[path]",
+    )
     .replace(/[A-Za-z]:\\[^\s"'<>)]*/g, "[path]")
-    .replace(/(token|secret|password|api[-_]?key|authorization)=([^&\s]+)/gi, "$1=[redacted]")
-    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]");
+    .replace(
+      /(token|secret|password|api[-_ ]?key|authorization)(?:\s*[:=]\s*|\s+)([^&\s]+)/gi,
+      "$1=[redacted]",
+    )
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu, "[email]");
 }
 
 function sanitizeFramePath(value: unknown): unknown {

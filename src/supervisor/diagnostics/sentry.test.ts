@@ -210,6 +210,49 @@ function expectTransient(operation: string, error: Error, errorClass: string): v
 }
 
 describe("supervisor Sentry policy", () => {
+  it.each([
+    ["Structured runtime session creation failed.", "session-creation-failed"],
+    ["Structured runtime transport failed.", "transport-failed"],
+    ["Structured runtime turn failed.", "turn-failed"],
+  ])("classifies the stable structured-runtime identity: %s", (message, errorClass) => {
+    const error = new Error(message) as Error & { diagnosticProvider?: string };
+    error.name = "StructuredRuntimeDiagnosticError";
+    error.diagnosticProvider = "codex";
+
+    expect(classifySupervisorIpcFailure(error, "startThread")).toEqual({
+      failureClass: "product-defect",
+      treatment: "capture",
+      level: "error",
+      operational: false,
+      domain: "structured-runtime",
+      operation: "startthread",
+      errorClass,
+      fingerprint: ["poracode", "structured-runtime", "startthread", errorClass],
+    });
+    expect(classifySupervisorFailure(error, "structured-runtime-turn")).toEqual({
+      failureClass: "product-defect",
+      treatment: "capture",
+      level: "error",
+      operational: false,
+      domain: "structured-runtime",
+      operation: "structured-runtime-turn",
+      errorClass,
+      fingerprint: ["poracode", "structured-runtime", "structured-runtime-turn", errorClass],
+    });
+  });
+
+  it("keeps a structured-runtime name/message near miss unknown", () => {
+    const error = new Error("Structured runtime provider output failed.");
+    error.name = "StructuredRuntimeDiagnosticError";
+
+    expect(classifySupervisorIpcFailure(error, "startThread")).toMatchObject({
+      failureClass: "unknown",
+      treatment: "capture",
+      domain: "supervisor.ipc",
+      fingerprint: null,
+    });
+  });
+
   it.each(EXPECTED_OPERATIONAL_CASES)(
     "drops $errorClass only for $operation",
     ({ operation, message, errorClass }) => {
