@@ -242,6 +242,53 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     expect(supervisorHandlers).toHaveLength(0);
   });
 
+  it("reports a failed command without closing its shell", () => {
+    const onExit = vi.fn<(exitCode: number | null) => void>();
+    const onCommandComplete = vi.fn<(exitCode: number) => void>();
+    writeScriptToShellThenExitOnSuccess(
+      "shell:1",
+      "npm install\nnpm run setup",
+      "posix",
+      onExit,
+      onCommandComplete,
+    );
+
+    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+    const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
+    expect(token).toBeTruthy();
+    expect(lastWrite()).toContain('if [ "$__poracode_setup_exit" -eq 0 ]; then exit; fi');
+
+    const marker = `\u001B]777;poracode-shell-complete=${token}:1\u0007`;
+    emit({ type: "thread-output", threadId: "shell:1", data: marker, outputLength: marker.length });
+
+    expect(onCommandComplete).toHaveBeenCalledWith(1);
+    expect(onExit).not.toHaveBeenCalled();
+    expect(supervisorHandlers).toHaveLength(1);
+  });
+
+  it("reports command completion only once when a successful shell exits", () => {
+    const onExit = vi.fn<(exitCode: number | null) => void>();
+    const onCommandComplete = vi.fn<(exitCode: number) => void>();
+    writeScriptToShellThenExitOnSuccess(
+      "shell:1",
+      "npm install",
+      "windows",
+      onExit,
+      onCommandComplete,
+    );
+
+    emit({ type: "thread-output", threadId: "shell:1", data: "PS> ", outputLength: 4 });
+    const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
+    const marker = `\u001B]777;poracode-shell-complete=${token}:0\u0007`;
+    emit({ type: "thread-output", threadId: "shell:1", data: marker, outputLength: marker.length });
+    emit({ type: "thread-exited", threadId: "shell:1", exitCode: 0 });
+
+    expect(onCommandComplete).toHaveBeenCalledTimes(1);
+    expect(onCommandComplete).toHaveBeenCalledWith(0);
+    expect(onExit).toHaveBeenCalledWith(0);
+    expect(supervisorHandlers).toHaveLength(0);
+  });
+
   it("ignores events for other shells", () => {
     const onExit = vi.fn<(exitCode: number | null) => void>();
     writeScriptToShellThenExitOnSuccess("shell:1", "echo hi", "posix", onExit);

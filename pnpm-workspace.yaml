@@ -6,6 +6,8 @@ packages:
 
 # Share the virtual store across worktrees/checkouts via symlinks instead of
 # hardlinking every package into each node_modules/.pnpm (see pnpm.io/git-worktrees).
+# Native build outputs are shared too; worktrees intentionally testing a
+# different Electron ABI should set PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE=false.
 enableGlobalVirtualStore: true
 
 allowBuilds:
@@ -27,28 +29,40 @@ onlyBuiltDependencies:
   - esbuild
   - node-pty
 
-# @sentry/electron's main-process bundle eagerly requires @sentry/node, which
-# requires @opentelemetry/* via bare paths. Under pnpm's nested layout
-# electron-builder does not traverse those into the asar. Public-hoisting
-# pins them to top-level node_modules so the default packaging traversal
-# picks them up.
+# TypeScript does not use Node's ESM resolver bridge, so keep a root-level
+# compatibility facade for external declaration files and tooling. This masks
+# undeclared transitive imports at the root; first-party imports must still be
+# declared. Entries are symlinks, not duplicate package contents.
 publicHoistPattern:
-  - "@opentelemetry/*"
-  - "@sentry/*"
-  - "@sentry-internal/*"
-  - "@fastify/otel"
-  - "@prisma/instrumentation"
-  - "import-in-the-middle"
-  - "require-in-the-middle"
-  - "acorn"
-  - "acorn-import-attributes"
-  - "cjs-module-lexer"
-  - "module-details-from-path"
+  - "*"
 
-# Force electron-builder to traverse symlinked transitive deps under pnpm's
-# nested layout. Without this, deep deps like @opentelemetry/* are not copied
-# into the asar even when listed in `files`.
-nodeLinker: hoisted
+# Declare published packages' direct imports at their package boundaries so
+# resolution still works when the dependency graph lives in pnpm's global
+# virtual store.
+packageExtensions:
+  "@testing-library/jest-dom@6.9.1":
+    dependencies:
+      vitest: 4.1.9
+  "@huggingface/transformers@4.2.0":
+    dependencies:
+      onnxruntime-common: 1.24.3
+  "@heroui/react@3.2.2":
+    dependencies:
+      "@internationalized/date": 3.12.2
+  "react-aria-components@1.17.0":
+    dependencies:
+      "@internationalized/string": 3.2.9
+  "react-aria-components@1.19.0":
+    dependencies:
+      "@internationalized/string": 3.2.9
+
+# Keep development installs lightweight across Git worktrees. The global
+# virtual store above shares package graphs between checkouts, while each
+# worktree keeps only the symlinks needed for its own dependency graph.
+#
+# Production packaging is intentionally independent: build-desktop-artifact.mjs
+# installs the curated runtime dependency set into a clean, flat npm stage.
+nodeLinker: isolated
 
 minimumReleaseAgeExclude:
   # Claude steering relies on the current official SDK lifecycle controls.

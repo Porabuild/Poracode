@@ -1,5 +1,8 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { scanModuleIds } from "../../scripts/runtime-externals.mjs";
+import { scanModuleIds, scanRuntimeExternals } from "../../scripts/runtime-externals.mjs";
 
 describe("scanModuleIds", () => {
   it("finds CommonJS, dynamic, static, and minified-template module specifiers", () => {
@@ -34,5 +37,21 @@ describe("scanModuleIds", () => {
     `;
 
     expect(scanModuleIds(code)).toEqual([]);
+  });
+
+  it("does not stage debug's optional supports-color feature probe", () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), "poracode-runtime-externals-"));
+    try {
+      const outputDir = join(repoRoot, "dist", "main");
+      mkdirSync(outputDir, { recursive: true });
+      writeFileSync(
+        join(outputDir, "main.cjs"),
+        'try { require("supports-color"); } catch {} require("required-runtime");',
+      );
+
+      expect(scanRuntimeExternals(repoRoot)).toEqual(["required-runtime"]);
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true });
+    }
   });
 });

@@ -62,13 +62,15 @@ describe("copyIgnoredFilesIntoWorktree", () => {
     worktreeDir = await mkdtemp(join(tmpdir(), "poracode-copy-dest-"));
 
     await execFileAsync("git", ["init"], { cwd: repoDir });
-    await writeFile(join(repoDir, ".gitignore"), ".env*\nsecrets/\n");
+    await writeFile(join(repoDir, ".gitignore"), ".env*\nsecrets/\nnode_modules/\n");
     await writeFile(join(repoDir, ".env"), "ROOT=1\n");
     await writeFile(join(repoDir, ".env.local"), "LOCAL=1\n");
     await mkdir(join(repoDir, "packages", "app"), { recursive: true });
     await writeFile(join(repoDir, "packages", "app", ".env"), "NESTED=1\n");
     await mkdir(join(repoDir, "secrets"), { recursive: true });
     await writeFile(join(repoDir, "secrets", "key.pem"), "KEY\n");
+    await mkdir(join(repoDir, "node_modules", "example"), { recursive: true });
+    await writeFile(join(repoDir, "node_modules", "example", "index.js"), "module.exports = 1;\n");
     await writeFile(join(repoDir, "tracked.ts"), "export {};\n");
   });
 
@@ -111,5 +113,11 @@ describe("copyIgnoredFilesIntoWorktree", () => {
     await copyIgnoredFilesIntoWorktree(location(), worktreeDir, []);
 
     await expect(stat(join(worktreeDir, ".env"))).rejects.toThrow(/ENOENT/);
+  });
+
+  it("never copies dependency installations", async () => {
+    await copyIgnoredFilesIntoWorktree(location(), worktreeDir, ["node_modules"]);
+
+    await expect(stat(join(worktreeDir, "node_modules"))).rejects.toThrow(/ENOENT/);
   });
 });

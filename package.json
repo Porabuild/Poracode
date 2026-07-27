@@ -191,6 +191,7 @@
     "oxlint-tsgolint": "^0.24.0",
     "postcss": "^8.5.16",
     "react-devtools": "^7.0.1",
+    "sharp": "0.35.3",
     "tsdown": "^0.22.4",
     "typescript": "^7.0.2",
     "vite": "8.0.16",
