@@ -16,6 +16,17 @@ const LEGACY_REF_ROOT = "refs/lightcode/checkpoints";
 
 type CheckpointMetadata = FileCheckpointRecord | FileCheckpointTurn;
 
+export function buildCheckpointCommitInput(
+  tree: string,
+  head: string | null,
+  metadata: unknown,
+): { args: string[]; input: string } {
+  return {
+    args: ["commit-tree", tree, ...(head ? ["-p", head] : []), "-F", "-"],
+    input: `Poracode checkpoint\n\n${JSON.stringify(metadata)}\n`,
+  };
+}
+
 export class GitCheckpointService {
   private wslClient: WslBridgeClient | undefined;
 
@@ -161,16 +172,10 @@ export class GitCheckpointService {
       await execGit(projectLocation, ["add", "-A", "--", "."], { env });
       const tree = (await execGit(projectLocation, ["write-tree"], { env })).trim();
       const head = await resolveHeadCommit(projectLocation);
-      const commitArgs = [
-        "commit-tree",
-        tree,
-        ...(head ? ["-p", head] : []),
-        "-m",
-        "Poracode checkpoint",
-        "-m",
-        JSON.stringify({ ...metadata, ref }),
-      ];
-      const commit = (await execGit(projectLocation, commitArgs, { env })).trim();
+      const commitInput = buildCheckpointCommitInput(tree, head, { ...metadata, ref });
+      const commit = (
+        await execGit(projectLocation, commitInput.args, { env, input: commitInput.input })
+      ).trim();
       await execGit(projectLocation, ["update-ref", ref, commit]);
       return {
         threadId: metadata.threadId,

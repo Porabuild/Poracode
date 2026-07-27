@@ -35,7 +35,7 @@ import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThr
 // Re-export the pure mappers previously defined inline here so the module's
 // public surface stays identical for github.test.ts and bridge consumers.
 export { aggregateChecksStatus, mapGitHubApiRepo, parseGhAuthAccounts } from "./githubMappers";
-import { buildAgentCommand } from "./agents/base";
+import { buildAgentCommand, primeProjectShellEnv } from "./agents/base";
 import { resolveClonedProjectPath } from "./git/exec";
 import type { WslBridgeClient, WslProcessExecResult } from "./wsl/bridge/client";
 
@@ -49,6 +49,7 @@ const GH_CLONE_TIMEOUT = 600_000;
 const GH_REPO_PAGE_SIZE = 100;
 const GH_REPO_MAX_PAGES = 5;
 const PULL_REQUEST_LIST_LIMIT = 1_000;
+const PR_DIFF_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
@@ -58,6 +59,15 @@ const PR_VIEW_FIELDS =
 const PR_LIST_FIELDS =
   "number,headRefName,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
 const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests`;
+const PR_CHECK_FIELDS = "name,state,bucket,link,startedAt,completedAt,workflow";
+const PR_CHECK_PENDING_STATES = new Set([
+  "EXPECTED",
+  "IN_PROGRESS",
+  "PENDING",
+  "QUEUED",
+  "REQUESTED",
+  "WAITING",
+]);
 
 function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
   return items.reduce<Record<string, unknown> | null>((latest, item) => {
@@ -67,6 +77,52 @@ function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
     const latestNumber = typeof latest?.number === "number" ? latest.number : 0;
     return number > latestNumber ? pr : latest;
   }, null);
+}
+
+function mapGhPrCheck(item: unknown): PrCheck {
+  const check = item !== null && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  const field = (name: string): string =>
+    typeof check[name] === "string" ? (check[name] as string) : "";
+  const bucket = field("bucket").toLowerCase();
+  const rawState = field("state").toUpperCase();
+
+  let state = rawState;
+  let conclusion = "";
+  switch (bucket) {
+    case "pass":
+      state = "COMPLETED";
+      conclusion = "SUCCESS";
+      break;
+    case "fail":
+      state = "COMPLETED";
+      conclusion = "FAILURE";
+      break;
+    case "pending":
+      state = PR_CHECK_PENDING_STATES.has(rawState) ? rawState : "PENDING";
+      break;
+    case "cancel":
+      state = "COMPLETED";
+      conclusion = "CANCELLED";
+      break;
+    case "skipping":
+      state = "COMPLETED";
+      conclusion = "SKIPPED";
+      break;
+  }
+
+  const url = field("link");
+  const workflowName = field("workflow");
+  const startedAt = field("startedAt");
+  const completedAt = field("completedAt");
+  return {
+    name: field("name"),
+    state,
+    conclusion,
+    ...(url ? { url } : {}),
+    ...(workflowName ? { workflowName } : {}),
+    ...(startedAt ? { startedAt } : {}),
+    ...(completedAt ? { completedAt } : {}),
+  };
 }
 
 function delay(ms: number): Promise<void> {
@@ -95,6 +151,7 @@ function isNoGitHubRepositoryError(error: unknown): boolean {
   const lower = msg.toLowerCase();
   return (
     lower.includes("not a git repository") ||
+    lower.includes("no repository configured") ||
     lower.includes("no git remotes") ||
     lower.includes("none of the git remotes") ||
     lower.includes("unable to determine current repository")
@@ -130,7 +187,17 @@ function classifyError(error: unknown, operation: string): Error {
 interface RunGhOptions {
   /** Extra env (e.g. `GH_TOKEN`) merged into the gh invocation. */
   env?: Record<string, string>;
+  maxBufferBytes?: number;
   timeoutMs?: number;
+}
+
+function isMachineReadableGhCommand(args: readonly string[]): boolean {
+  return (
+    args.includes("--json") ||
+    args.includes("--jq") ||
+    args[0] === "api" ||
+    (args[0] === "auth" && (args[1] === "status" || args[1] === "token"))
+  );
 }
 
 /**
@@ -151,6 +218,7 @@ async function runGh(
   options?: RunGhOptions,
 ): Promise<string> {
   const timeoutMs = options?.timeoutMs ?? GH_TIMEOUT;
+  const machineReadable = isMachineReadableGhCommand(args);
   if (location.kind === "wsl") {
     if (!wslClient) {
       throw new Error(`WSL bridge unavailable for GitHub CLI in distro "${location.distro}"`);
@@ -169,14 +237,26 @@ async function runGh(
     throw processResultToError(result);
   }
 
+  // Native desktop launches frequently inherit a minimal PATH that does not
+  // include Homebrew or other user-managed binary directories. Machine-readable
+  // commands must run directly so login-shell startup output cannot corrupt JSON,
+  // but they still need the PATH captured from that shell first.
+  if (machineReadable && location.kind === "posix") {
+    await primeProjectShellEnv(location.path);
+  }
   const spec = buildAgentCommand(location, "gh", args, undefined, options?.env);
   const cwd = spec.cwd ?? location.path;
-  const { stdout } = await execFileAsync(spec.command, spec.args, {
-    windowsHide: true,
-    timeout: timeoutMs,
-    ...(cwd ? { cwd } : {}),
-    env: projectGhEnvironment({ ...spec.env, ...options?.env }),
-  });
+  const { stdout } = await execFileAsync(
+    machineReadable ? "gh" : spec.command,
+    machineReadable ? args : spec.args,
+    {
+      windowsHide: true,
+      timeout: timeoutMs,
+      ...(cwd ? { cwd } : {}),
+      ...(options?.maxBufferBytes ? { maxBuffer: options.maxBufferBytes } : {}),
+      env: projectGhEnvironment({ ...spec.env, ...options?.env }),
+    },
+  );
   return stdout;
 }
 
@@ -260,6 +340,11 @@ function extractStdout(error: unknown): string {
     if (typeof value === "string") return value;
   }
   return "";
+}
+
+function isPendingPrChecksResult(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("code" in error)) return false;
+  return (error as { code?: unknown }).code === 8 && extractStdout(error).trim().startsWith("[");
 }
 
 /** Stable cache key for {@link GitHubService.viewerLoginCache}. */
@@ -580,7 +665,7 @@ export class GitHubService {
       }
       return result;
     } catch (err) {
-      if (isRepoNotFoundError(err)) return {};
+      if (isNoGitHubRepositoryError(err)) return {};
       throw classifyError(err, "pr list");
     }
   }
@@ -687,21 +772,15 @@ export class GitHubService {
 
   async getPrChecks(location: ProjectLocation, branch: string): Promise<GhGetPrChecksResult> {
     try {
-      const stdout = await this.runGh(location, [
-        "pr",
-        "checks",
-        branch,
-        "--json",
-        "name,state,conclusion",
-      ]);
+      let stdout: string;
+      try {
+        stdout = await this.runGh(location, ["pr", "checks", branch, "--json", PR_CHECK_FIELDS]);
+      } catch (err) {
+        if (!isPendingPrChecksResult(err)) throw err;
+        stdout = extractStdout(err);
+      }
       const items = JSON.parse(stdout);
-      const checks: PrCheck[] = Array.isArray(items)
-        ? items.map((c: Record<string, string>) => ({
-            name: c.name ?? "",
-            state: c.state ?? "",
-            conclusion: c.conclusion ?? "",
-          }))
-        : [];
+      const checks = Array.isArray(items) ? items.map(mapGhPrCheck) : [];
       return { checks };
     } catch (err) {
       throw classifyError(err, "pr checks");
@@ -735,7 +814,9 @@ export class GitHubService {
 
   async getPrDiff(location: ProjectLocation, prNumber: number): Promise<GhGetPrDiffResult> {
     try {
-      const stdout = await this.runGh(location, ["pr", "diff", String(prNumber)]);
+      const stdout = await this.runGh(location, ["pr", "diff", String(prNumber)], {
+        maxBufferBytes: PR_DIFF_MAX_BUFFER_BYTES,
+      });
       return { diff: stdout };
     } catch (err) {
       throw classifyError(err, "pr diff");

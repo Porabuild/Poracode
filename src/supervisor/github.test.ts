@@ -12,6 +12,9 @@ const buildAgentCommandMock = vi.hoisted(() =>
     ) => { command: string; args: string[] }
   >(),
 );
+const primeProjectShellEnvMock = vi.hoisted(() =>
+  vi.fn<(cwd: string) => Promise<Record<string, string> | undefined>>(),
+);
 const mkdtempMock = vi.hoisted(() => vi.fn<(prefix: string) => Promise<string>>());
 const rmMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>());
 const writeFileMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>());
@@ -42,6 +45,7 @@ vi.mock("node:fs/promises", () => ({
 
 vi.mock("./agents/base", () => ({
   buildAgentCommand: buildAgentCommandMock,
+  primeProjectShellEnv: primeProjectShellEnvMock,
 }));
 
 import {
@@ -54,6 +58,7 @@ import { mapStatusCheck } from "./githubMappers";
 import { resolveClonedProjectPath } from "./git/exec";
 
 const location = { kind: "windows" as const, path: "C:\\Users\\demo\\repo" };
+const posixLocation = { kind: "posix" as const, path: "/Users/demo/repo" };
 const wslLocation = {
   kind: "wsl" as const,
   distro: "Ubuntu",
@@ -71,6 +76,7 @@ describe("GitHubService", () => {
     mkdtempMock.mockImplementation(async (prefix) => `${prefix}abc123`);
     rmMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue(undefined);
+    primeProjectShellEnvMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -406,6 +412,63 @@ describe("GitHubService", () => {
       const result = await new GitHubService().listPrs(location);
 
       expect(result).toEqual({});
+    });
+
+    it.each([
+      "failed to run git: fatal: not a git repository (or any parent): .git",
+      "no repository configured for this command",
+    ])("returns an empty map for a non-repository project: %s", async (message) => {
+      execFileAsyncMock.mockRejectedValue(new Error(message));
+
+      await expect(new GitHubService().listPrs(location)).resolves.toEqual({});
+    });
+
+    it("does not hide unrelated gh failures", async () => {
+      execFileAsyncMock.mockRejectedValue(new Error("GraphQL: API rate limit exceeded"));
+
+      await expect(new GitHubService().listPrs(location)).rejects.toThrow(
+        "gh pr list failed: GraphQL: API rate limit exceeded",
+      );
+    });
+
+    it("bypasses login shells so OSC 1337 startup output cannot contaminate JSON", async () => {
+      buildAgentCommandMock.mockReturnValue({
+        command: "/bin/zsh",
+        args: ["-l", "-i", "-c", "\u001b]1337;RemoteHost=test\u0007"],
+      });
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+
+      await new GitHubService().listPrs(location);
+
+      expect(execFileAsyncMock.mock.calls[0]?.[0]).toBe("gh");
+      expect(execFileAsyncMock.mock.calls[0]?.[1]).toEqual(
+        expect.arrayContaining(["pr", "list", "--json"]),
+      );
+    });
+
+    it("captures the login-shell PATH before directly running machine-readable gh", async () => {
+      let primed = false;
+      primeProjectShellEnvMock.mockImplementation(async () => {
+        primed = true;
+        return { PATH: "/opt/homebrew/bin:/usr/bin:/bin" };
+      });
+      buildAgentCommandMock.mockImplementation((_location, command, args) => ({
+        command: "/bin/zsh",
+        args: ["-l", "-i", "-c", command, ...args],
+        ...(primed ? { env: { PATH: "/opt/homebrew/bin:/usr/bin:/bin" } } : {}),
+      }));
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+
+      await new GitHubService().listPrs(posixLocation);
+
+      expect(primeProjectShellEnvMock).toHaveBeenCalledWith(posixLocation.path);
+      expect(execFileAsyncMock).toHaveBeenCalledWith(
+        "gh",
+        expect.arrayContaining(["pr", "list", "--json"]),
+        expect.objectContaining({
+          env: expect.objectContaining({ PATH: "/opt/homebrew/bin:/usr/bin:/bin" }),
+        }),
+      );
     });
   });
 
@@ -976,6 +1039,9 @@ describe("GitHubService", () => {
 
       expect(buildAgentCommandMock.mock.calls[0]![2]).toEqual(["pr", "diff", "42"]);
       expect(result.diff).toBe("diff --git a/x b/x\n");
+      expect(execFileAsyncMock.mock.calls[0]?.[2]).toMatchObject({
+        maxBuffer: 50 * 1024 * 1024,
+      });
     });
   });
 
@@ -1163,19 +1229,79 @@ describe("GitHubService", () => {
   });
 
   describe("getPrChecks", () => {
-    it("returns parsed check results", async () => {
+    it("maps gh check buckets into canonical pass, fail, and pending results", async () => {
       const checksJson = JSON.stringify([
-        { name: "CI", state: "completed", conclusion: "success" },
-        { name: "Lint", state: "completed", conclusion: "failure" },
+        {
+          name: "CI",
+          state: "SUCCESS",
+          bucket: "pass",
+          link: "https://github.com/owner/repo/actions/runs/1",
+          workflow: "CI",
+          startedAt: "2026-07-27T10:00:00Z",
+          completedAt: "2026-07-27T10:01:00Z",
+        },
+        { name: "Lint", state: "FAILURE", bucket: "fail" },
+        { name: "Build", state: "IN_PROGRESS", bucket: "pending" },
+        { name: "Queued", state: "QUEUED", bucket: "pending" },
       ]);
       execFileAsyncMock.mockResolvedValue({ stdout: checksJson });
 
       const result = await new GitHubService().getPrChecks(location, "feature/x");
 
       expect(result.checks).toEqual([
-        { name: "CI", state: "completed", conclusion: "success" },
-        { name: "Lint", state: "completed", conclusion: "failure" },
+        {
+          name: "CI",
+          state: "COMPLETED",
+          conclusion: "SUCCESS",
+          url: "https://github.com/owner/repo/actions/runs/1",
+          workflowName: "CI",
+          startedAt: "2026-07-27T10:00:00Z",
+          completedAt: "2026-07-27T10:01:00Z",
+        },
+        { name: "Lint", state: "COMPLETED", conclusion: "FAILURE" },
+        { name: "Build", state: "IN_PROGRESS", conclusion: "" },
+        { name: "Queued", state: "QUEUED", conclusion: "" },
       ]);
+
+      const args = execFileAsyncMock.mock.calls[0]?.[1] as string[];
+      expect(args).toEqual([
+        "pr",
+        "checks",
+        "feature/x",
+        "--json",
+        "name,state,bucket,link,startedAt,completedAt,workflow",
+      ]);
+      expect(args.join(",")).not.toContain("conclusion");
+    });
+
+    it("maps cancelled and skipped buckets to completed outcomes", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify([
+          { name: "Cancelled", state: "CANCELLED", bucket: "cancel" },
+          { name: "Skipped", state: "SKIPPED", bucket: "skipping" },
+        ]),
+      });
+
+      const result = await new GitHubService().getPrChecks(location, "feature/x");
+
+      expect(result.checks).toEqual([
+        { name: "Cancelled", state: "COMPLETED", conclusion: "CANCELLED" },
+        { name: "Skipped", state: "COMPLETED", conclusion: "SKIPPED" },
+      ]);
+    });
+
+    it("parses pending check JSON returned with gh exit code 8", async () => {
+      const pendingJson = JSON.stringify([{ name: "Build", state: "PENDING", bucket: "pending" }]);
+      execFileAsyncMock.mockRejectedValue(
+        Object.assign(new Error("Command failed with exit code 8"), {
+          code: 8,
+          stdout: pendingJson,
+        }),
+      );
+
+      const result = await new GitHubService().getPrChecks(location, "feature/x");
+
+      expect(result.checks).toEqual([{ name: "Build", state: "PENDING", conclusion: "" }]);
     });
 
     it("returns empty checks when gh returns empty array", async () => {
@@ -1184,6 +1310,14 @@ describe("GitHubService", () => {
       const result = await new GitHubService().getPrChecks(location, "feature/x");
 
       expect(result.checks).toEqual([]);
+    });
+
+    it("keeps unsupported gh field failures observable", async () => {
+      execFileAsyncMock.mockRejectedValue(new Error("Unknown JSON field: futureField"));
+
+      await expect(new GitHubService().getPrChecks(location, "feature/x")).rejects.toThrow(
+        "gh pr checks failed: Unknown JSON field: futureField",
+      );
     });
   });
 
