@@ -66,8 +66,10 @@ msgstr "{0, plural, one {# eşleştirilmiş bağlantı} other {# eşleştirilmi�
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# eşleştirilmiş masaüstü} other {# eşleştirilmiş masaüstü}}"
 
+#. placeholder {0}: projectCounts.get(workspace.id) ?? 0
 #. placeholder {0}: props.projects.length
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
 msgstr "{0, plural, one {# proje} other {# proje}}"
 
@@ -221,6 +223,11 @@ msgstr "{0} giriş gerektiriyor."
 msgid "{0} of {matchCount}"
 msgstr "{0} / {matchCount}"
 
+#. placeholder {0}: projectCount(workspace.id)
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+#~ msgid "{0} projects"
+#~ msgstr "{0} proje"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -366,6 +373,10 @@ msgstr "{head} veya {tail}"
 msgid "{heading} mode"
 msgstr "{heading} modu"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{hiddenByWorkspaceCount, plural, one {# schedule belongs to a project in another workspace.} other {# schedules belong to projects in another workspace.}}"
+msgstr "{hiddenByWorkspaceCount, plural, one {# zamanlama başka bir çalışma alanındaki projeye ait.} other {# zamanlama başka çalışma alanlarındaki projelere ait.}}"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{hook} hook failed"
 msgstr "{hook} kancası başarısız oldu"
@@ -444,6 +455,10 @@ msgstr "{minutes} dk önce"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{missingAuthLabel} needs authentication."
 msgstr "{missingAuthLabel} kimlik doğrulaması gerektiriyor."
+
+#: src/renderer/actions/workspaceActions.ts
+msgid "{movedCount, plural, one {Moved # project to {target}.} other {Moved # projects to {target}.}}"
+msgstr "{movedCount, plural, one {# proje {target} alanına taşındı.} other {# proje {target} alanına taşındı.}}"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{original}\n"
@@ -544,6 +559,10 @@ msgstr "~{money}{tokens} · {0} · tahmini"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "≈{0}% by reset"
 msgstr "sıfırlamaya kadar ≈%{0}"
+
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+#~ msgid "1 project"
+#~ msgstr "1 proje"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
@@ -654,6 +673,7 @@ msgstr "{title} için işlemler"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Active"
 msgstr "Aktif"
 
@@ -826,6 +846,11 @@ msgstr "Ana Ekrana ekle"
 msgid "Add to-do"
 msgstr "Yapılacak ekle"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "Add workspace"
+msgstr "Çalışma alanı ekle"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik için boş bırakın."
@@ -981,6 +1006,11 @@ msgstr "Tüm projeler"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
 msgstr "Tüm kaynaklar"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "All workspaces"
+msgstr "Tüm çalışma alanları"
 
 #: src/mobile/push/WebPushPermissionPrompt.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
@@ -1643,6 +1673,7 @@ msgstr "Portlar yüklenemedi"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -2889,6 +2920,7 @@ msgid "Couldn't update the skill."
 msgstr "Beceri güncellenemedi."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
+#: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 msgid "Create"
 msgstr "Oluştur"
 
@@ -3167,6 +3199,7 @@ msgstr "İşi diğer yapay zeka aracılarına devredin."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
 msgstr "Sil"
 
@@ -3254,6 +3287,14 @@ msgstr "Konu silinsin mi?"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Delete to-do"
 msgstr "Yapılacak işi sil"
+
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "Delete workspace"
+msgstr "Çalışma alanını sil"
+
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "Delete workspace?"
+msgstr "Çalışma alanı silinsin mi?"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -4649,6 +4690,10 @@ msgstr "Grup adı"
 msgid "Group open threads"
 msgstr "Açık konuları gruplandır"
 
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
+msgstr "Projeleri gruplayın; böylece kenar çubuğu, zamanlamalar ve çekme istekleri her seferinde yalnızca bir grubu gösterir. Kenar çubuğunun altından geçiş yapabilirsiniz."
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "GUI chat font size"
@@ -5077,6 +5122,14 @@ msgstr "Bölüme git"
 msgid "just now"
 msgstr "şimdi"
 
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "Keep at least one workspace"
+msgstr "En az bir çalışma alanı bırakın"
+
+#: src/renderer/actions/workspaceActions.ts
+msgid "Keep at least one workspace."
+msgstr "En az bir çalışma alanı bırakın."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Keep Branch"
 msgstr "Şubeyi Koru"
@@ -5451,6 +5504,10 @@ msgstr "Poracode'un desteklenen aracıları başlatırken eklediği MCP sunucusu
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
 #~ msgstr "Poracode'un desteklenen aracılara sunduğu becerileri yönetin. Proje becerileri her projenin ayarlarından yönetilebilir."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
+msgid "Manage workspaces"
+msgstr "Çalışma alanlarını yönet"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
@@ -5947,9 +6004,23 @@ msgstr "Tarayıcıyı pencereye taşı"
 msgid "Move changes to a new worktree"
 msgstr "Değişiklikleri yeni bir çalışma ağacına taşı"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Move to Workspace"
+msgstr "Çalışma alanına taşı"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Yapılacaklar panelini sağ panele taşı"
+
+#. placeholder {0}: fallback.name
+#: src/renderer/actions/workspaceActions.ts
+#~ msgid "Moved {movedCount} projects to {0}."
+#~ msgstr "{movedCount} proje {0} alanına taşındı."
+
+#. placeholder {0}: fallback.name
+#: src/renderer/actions/workspaceActions.ts
+#~ msgid "Moved 1 project to {0}."
+#~ msgstr "1 proje {0} alanına taşındı."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -5965,6 +6036,7 @@ msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
@@ -6161,6 +6233,10 @@ msgstr "Worktree'de yeni iş parçacığı"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "New Thread in Worktree"
 msgstr "Worktree'de Yeni Konu"
+
+#: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+msgid "New workspace"
+msgstr "Yeni çalışma alanı"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "New worktree"
@@ -6454,6 +6530,10 @@ msgstr "Henüz aşama yok."
 msgid "No projects"
 msgstr "Proje yok"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "No projects in this workspace"
+msgstr "Bu çalışma alanında proje yok"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No projects on this server."
 msgstr "Bu sunucuda proje yok."
@@ -6461,6 +6541,10 @@ msgstr "Bu sunucuda proje yok."
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "No projects yet"
 msgstr "Henüz proje yok"
+
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "No projects yet."
+msgstr "Henüz proje yok."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
@@ -7540,8 +7624,15 @@ msgstr "Genel arama ayarlarının yanı sıra projeye özel geçersiz kılmalar.
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
 msgstr "Projeler"
+
+#. placeholder {0}: deleting.name
+#. placeholder {1}: deleteFallback.name
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "Projects in {0} move to {1}. No project is deleted."
+msgstr "{0} içindeki projeler {1} alanına taşınır. Hiçbir proje silinmez."
 
 #: src/mobile/setupEmptyState.tsx
 msgid "Projects live on the connected desktop. Add one before starting a thread."
@@ -8095,6 +8186,11 @@ msgstr "Konuyu yeniden adlandır"
 msgid "Rename to"
 msgstr "Şu adla yeniden adlandır"
 
+#: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "Rename workspace"
+msgstr "Çalışma alanını yeniden adlandır"
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Renderer crashed"
 msgstr "Oluşturucu çöktü"
@@ -8539,6 +8635,7 @@ msgstr "Çalışma zamanı seçenekleri"
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -9726,6 +9823,10 @@ msgstr "Önceki sohbete geç"
 #: src/renderer/commands/registry.ts
 msgid "Switch to the previous tab"
 msgstr "Önceki sekmeye geç"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
+msgid "Switch workspace"
+msgstr "Çalışma alanını değiştir"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -11350,6 +11451,7 @@ msgid "Winner merged."
 msgstr "Kazanan birleştirildi."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 msgid "Work"
 msgstr "İş"
 
@@ -11414,6 +11516,7 @@ msgstr "Çalışıyor…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
 msgstr "Çalışma alanı"
 
@@ -11424,6 +11527,12 @@ msgstr "Çalışma alanı MCP sunucuları aynı adlı kullanıcı sunucularını
 #: src/mobile/views/WorkspaceView.tsx
 msgid "Workspace view"
 msgstr "Çalışma alanı görünümü"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
+msgid "Workspaces"
+msgstr "Çalışma alanları"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx

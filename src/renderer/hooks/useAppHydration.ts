@@ -10,6 +10,7 @@ import {
 import { recoverExperimentCandidateWorktrees } from "@/renderer/state/experimentHydration";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { bootstrapWorkspaces } from "@/renderer/state/workspaceStore";
 import { startPrMergeAutoDone } from "@/renderer/state/prMergeAutoDone";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 
@@ -90,6 +91,15 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     console.log(
       `[renderer] +${Date.now() - loadT0}ms: store hydrated, view=${JSON.stringify(restoredView)}, ${useAppStore.getState().projects.length} projects, ${useAppStore.getState().threads.length} threads`,
     );
+
+    // Seed default workspaces and file pre-existing projects. Runtime-owner
+    // only: a remote client must not decide how the desktop's projects are
+    // grouped. Projects are hydrated by now, so nothing is missed.
+    if (runtimeOwner) {
+      void bootstrapWorkspaces().catch((error: unknown) => {
+        captureRendererException(error, { featureArea: "hydration" });
+      });
+    }
 
     void (async () => {
       const candidateRecovery = recoverExperimentCandidateWorktrees();

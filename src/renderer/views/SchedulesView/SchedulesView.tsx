@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, ButtonGroup, Dropdown, Input, Label, TextField } from "@heroui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Bot, CalendarClock, ChevronDown, Clock3, Loader2, Plus, Sparkles } from "lucide-react";
 import type { ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -10,6 +10,7 @@ import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useProjectIdsHiddenByWorkspace } from "@/renderer/state/workspaceSelectors";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import { ScheduleEditor } from "./ScheduleEditor";
 import { PreviousRunsModal } from "./parts/PreviousRunsModal";
@@ -41,6 +42,12 @@ export function SchedulesView() {
   const [draft, setDraft] = useState<ScheduleDraft | null>(null);
   const [deleteTask, setDeleteTask] = useState<ScheduledTask | null>(null);
   const [runsTaskId, setRunsTaskId] = useState<string | null>(null);
+  /**
+   * Only projects the active workspace hides are excluded, which lets both the
+   * device-wide schedules (no project) and schedules whose project was deleted
+   * stay visible without needing their own special cases.
+   */
+  const hiddenProjectIds = useProjectIdsHiddenByWorkspace();
   const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
   const agents = agentStatuses.filter(
     (agent) =>
@@ -85,7 +92,11 @@ export function SchedulesView() {
   }, [hasRunningTask]);
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleTasks = tasks.filter((task) => {
+  const workspaceTasks = tasks.filter(
+    (task) => !task.projectId || !hiddenProjectIds.has(task.projectId),
+  );
+  const hiddenByWorkspaceCount = tasks.length - workspaceTasks.length;
+  const visibleTasks = workspaceTasks.filter((task) => {
     if (filter === "active" && !task.enabled) return false;
     if (filter === "paused" && task.enabled) return false;
     return (
@@ -388,7 +399,7 @@ export function SchedulesView() {
         </div>
       ) : (
         <>
-          {tasks.length === 0 ? (
+          {workspaceTasks.length === 0 ? (
             <div className="py-4 text-center">
               <Sparkles className="mx-auto mb-3 size-8 text-muted" />
               <p className="text-sm font-medium text-foreground">
@@ -422,6 +433,16 @@ export function SchedulesView() {
               ))}
             </div>
           )}
+
+          {hiddenByWorkspaceCount > 0 ? (
+            <p className="text-center text-xs text-muted">
+              <Plural
+                value={hiddenByWorkspaceCount}
+                one="# schedule belongs to a project in another workspace."
+                other="# schedules belong to projects in another workspace."
+              />
+            </p>
+          ) : null}
 
           {suggestions}
 
