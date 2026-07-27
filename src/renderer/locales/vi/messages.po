@@ -10182,6 +10182,14 @@ msgstr "Không thể tải marketplace skill."
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "Thao tác cập nhật không thành công."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "Dịch vụ cập nhật tạm thời không khả dụng."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "người dùng Windows"
@@ -10980,6 +10988,10 @@ msgstr "Đã có bản cập nhật"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "Cập nhật nhánh"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "Không thể kiểm tra bản cập nhật trong chế độ phát triển."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

@@ -28,6 +28,9 @@ describe("shared message i18n integration", () => {
     // interpolates the `{detail}` value.
     expect(translated).not.toBe("Commit failed: boom");
     expect(translated).toContain("boom");
+    expect(msg("update.serviceUnavailable")).toBe(
+      "El servicio de actualizaciones no está disponible temporalmente.",
+    );
   });
 
   it("preserves a leading placeholder + newline through translation", async () => {

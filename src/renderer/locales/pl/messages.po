@@ -10182,6 +10182,14 @@ msgstr "Nie udało się załadować marketplace umiejętności."
 msgid "the target provider"
 msgstr "docelowego dostawcy"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "Operacja aktualizacji nie powiodła się."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "Usługa aktualizacji jest tymczasowo niedostępna."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "użytkownika Windows"
@@ -10980,6 +10988,10 @@ msgstr "Dostępna aktualizacja"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "Zaktualizuj gałąź"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "Sprawdzanie aktualizacji nie jest dostępne w trybie programistycznym."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

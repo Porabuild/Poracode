@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { UpdateStatus } from "@/shared/ipc";
 
 const autoUpdaterMock = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => void>();
@@ -38,6 +39,7 @@ describe("createAutoUpdaterController", () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined);
+    autoUpdaterMock.downloadUpdate.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -62,36 +64,159 @@ describe("createAutoUpdaterController", () => {
     expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(process.platform === "win32", true);
   });
 
-  it("installs a downloaded update when the user quits a stuck app", () => {
+  it("keeps automatic delivery controller-owned and installs on app quit", () => {
     autoUpdaterMock.autoInstallOnAppQuit = false;
     const controller = createAutoUpdaterController(vi.fn(), "stable", false);
 
     controller.initialize();
 
-    expect(autoUpdaterMock.autoDownload).toBe(true);
+    expect(autoUpdaterMock.autoDownload).toBe(false);
     expect(autoUpdaterMock.autoInstallOnAppQuit).toBe(true);
   });
 
-  it("does not reject from a manual check when checkForUpdates() fails", async () => {
-    // A freshly-published release whose channel manifest hasn't finished
-    // uploading 404s, so electron-updater emits "error" and then rejects.
-    // The renderer invokes checkForUpdate() fire-and-forget, so a rejection
-    // here would escalate into a fatal unhandled-rejection crash screen.
+  it("starts the controller-owned download when a check finds an update", async () => {
+    const controller = createAutoUpdaterController(vi.fn(), "stable", false);
+    controller.initialize();
+    autoUpdaterMock.checkForUpdates.mockImplementationOnce(async () => {
+      autoUpdaterMock.emit("update-available", { version: "1.2.3" });
+    });
+
+    await controller.checkForUpdate();
+
+    expect(autoUpdaterMock.downloadUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("treats a missing nightly manifest as an optional probe", async () => {
     const sendStatus = vi.fn<(status: { type: string; message?: string }) => void>();
     const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
     const controller = createAutoUpdaterController(sendStatus, "nightly", false, reportError);
     controller.initialize();
 
-    const failure = new Error("Cannot find latest-mac.yml in the latest release artifacts");
-    autoUpdaterMock.checkForUpdates.mockRejectedValueOnce(failure);
+    const failure = Object.assign(
+      new Error("Cannot find nightly-mac.yml in the latest release artifacts (404)"),
+      { statusCode: 404 },
+    );
+    autoUpdaterMock.checkForUpdates.mockImplementationOnce(async () => {
+      autoUpdaterMock.emit("error", failure);
+      throw failure;
+    });
 
     await expect(controller.checkForUpdate()).resolves.toBeUndefined();
 
-    // The user still sees the failure: electron-updater's "error" event drives
-    // the toast + Sentry report, independent of the swallowed rejection.
-    autoUpdaterMock.emit("error", failure);
-    expect(sendStatus).toHaveBeenCalledWith({ type: "error", message: failure.message });
-    expect(reportError).toHaveBeenCalledWith(failure, { "poracode.feature_area": "updates" });
+    expect(sendStatus).toHaveBeenCalledWith({ type: "update-not-available" });
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("keeps a missing stable manifest observable with normalized tags", async () => {
+    const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
+    const controller = createAutoUpdaterController(vi.fn(), "stable", false, reportError);
+    controller.initialize();
+    const failure = Object.assign(new Error("latest-mac.yml returned 404"), { statusCode: 404 });
+    autoUpdaterMock.checkForUpdates.mockImplementationOnce(async () => {
+      autoUpdaterMock.emit("error", failure);
+      throw failure;
+    });
+
+    await controller.checkForUpdate();
+
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError.mock.calls[0]?.[0]).toMatchObject({
+      name: "UpdateDiagnosticError",
+      message: "Updater check failed: required-manifest-missing.",
+    });
+    expect(reportError.mock.calls[0]?.[1]).toEqual({
+      "poracode.feature_area": "updates",
+      "poracode.channel": "stable",
+      "poracode.platform": process.platform,
+      "event.origin": "updater.check.required-manifest-missing",
+    });
+  });
+
+  it("does not report transient check failures when a retry succeeds", async () => {
+    const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
+    const controller = createAutoUpdaterController(vi.fn(), "stable", false, reportError);
+    controller.initialize();
+    const transient = Object.assign(new Error("socket closed"), { code: "ECONNRESET" });
+    autoUpdaterMock.checkForUpdates
+      .mockImplementationOnce(async () => {
+        autoUpdaterMock.emit("error", transient);
+        throw transient;
+      })
+      .mockImplementationOnce(async () => {
+        autoUpdaterMock.emit("error", transient);
+        throw transient;
+      })
+      .mockResolvedValueOnce(undefined);
+
+    const checking = controller.checkForUpdate();
+    await vi.advanceTimersByTimeAsync(1_500);
+    await checking;
+
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(3);
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("logs one bounded warning without capturing exhausted transient retries as errors", async () => {
+    const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const sendStatus = vi.fn<(status: UpdateStatus) => void>();
+    const controller = createAutoUpdaterController(sendStatus, "stable", false, reportError);
+    controller.initialize();
+    const transient = Object.assign(new Error("socket closed"), { code: "EPIPE" });
+    autoUpdaterMock.checkForUpdates.mockImplementation(async () => {
+      autoUpdaterMock.emit("error", transient);
+      throw transient;
+    });
+
+    const first = controller.checkForUpdate();
+    await vi.advanceTimersByTimeAsync(1_500);
+    await first;
+    const second = controller.checkForUpdate();
+    await vi.advanceTimersByTimeAsync(1_500);
+    await second;
+
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(6);
+    expect(reportError).not.toHaveBeenCalled();
+    expect(sendStatus).toHaveBeenLastCalledWith({
+      type: "error",
+      messageKey: "update.serviceUnavailable",
+    });
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith("[poracode] updater check transient failure after retries.");
+    warn.mockRestore();
+  });
+
+  it("uses a localized message key when update checks are unavailable in development", async () => {
+    const sendStatus = vi.fn<(status: UpdateStatus) => void>();
+    const controller = createAutoUpdaterController(sendStatus, "stable", true);
+
+    await controller.checkForUpdate();
+
+    expect(sendStatus).toHaveBeenCalledWith({
+      type: "error",
+      messageKey: "update.devUnavailable",
+    });
+  });
+
+  it("keeps signature failures observable without sending the raw error", async () => {
+    const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
+    const controller = createAutoUpdaterController(vi.fn(), "stable", false, reportError);
+    controller.initialize();
+    const failure = new Error(
+      "Code signature invalid for /Users/person/private/Poracode.zip from https://example.test",
+    );
+    autoUpdaterMock.downloadUpdate.mockImplementationOnce(async () => {
+      autoUpdaterMock.emit("error", failure);
+      throw failure;
+    });
+
+    await expect(controller.startUpdateDownload()).rejects.toBe(failure);
+
+    expect(reportError).toHaveBeenCalledOnce();
+    const reported = reportError.mock.calls[0]?.[0] as Error;
+    expect(reported.message).toBe("Updater download failed: artifact-integrity.");
+    expect(reported.message).not.toContain("/Users/");
+    expect(reported.message).not.toContain("https://");
   });
 
   it("runs an initial check after launch and then keeps checking on the hourly interval", async () => {

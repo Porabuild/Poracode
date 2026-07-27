@@ -10180,6 +10180,14 @@ msgstr "スキルマーケットプレイスを読み込めませんでした。
 msgid "the target provider"
 msgstr "対象プロバイダー"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "アップデート操作に失敗しました。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "アップデートサービスは一時的に利用できません。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "Windows ユーザー"
@@ -10978,6 +10986,10 @@ msgstr "利用可能なアップデート"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "ブランチを更新する"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "開発モードではアップデートを確認できません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

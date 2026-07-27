@@ -180,6 +180,13 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
       "Kimi Code ended the turn without returning a response. Restart the thread and try again.",
   }),
   "update.error": msg({ message: "Update error: {detail}" }),
+  "update.serviceUnavailable": msg({
+    message: "The update service is temporarily unavailable.",
+  }),
+  "update.operationFailed": msg({ message: "The update operation failed." }),
+  "update.devUnavailable": msg({
+    message: "Update checks are not available in development mode.",
+  }),
 };
 
 /**
