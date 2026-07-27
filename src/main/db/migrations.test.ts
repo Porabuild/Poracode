@@ -34,8 +34,9 @@ describe("database migration registry", () => {
       [27, "token usage ledger"],
       [28, "pull request watches"],
       [29, "project workspace"],
+      [30, "repair empty thread models"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(29);
+    expect(LATEST_SCHEMA_VERSION).toBe(30);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

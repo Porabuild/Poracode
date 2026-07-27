@@ -138,15 +138,21 @@ export const dbDeleteThreadPayloadSchema = z.object({
 export const dbDeleteProjectPayloadSchema = z.object({
   projectId: z.string().min(1),
 });
+const persistedThreadConfigSchema = threadConfigSchema
+  .extend({ model: z.string() })
+  .transform((config) => (config.model.trim().length > 0 ? config : { ...config, model: "auto" }));
+export const persistedThreadSchema = threadSchema.extend({
+  config: persistedThreadConfigSchema,
+});
 export const dbSyncAllPayloadSchema = z.object({
   projects: z.array(projectSchema),
-  threads: z.array(threadSchema),
+  threads: z.array(persistedThreadSchema),
   viewJson: z.string(),
 });
 export const dbPersistExperimentStatePayloadSchema = z.object({
   upsertThreads: z.array(
     z.object({
-      thread: threadSchema,
+      thread: persistedThreadSchema,
       sortOrder: z.number().int().nonnegative(),
     }),
   ),

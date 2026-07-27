@@ -13,6 +13,7 @@ import {
   dbGetProject,
   dbGetThreads,
   dbMarkLiveThreadsInactive,
+  dbSetState,
   dbUpsertProject,
   dbUpsertThread,
 } from "./projectsThreads";
@@ -199,7 +200,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("29");
+    expect(dbGetState("schema_version")).toBe("30");
   });
 
   it("repairs safe schema drift even when the database claims the latest version", () => {
@@ -245,11 +246,52 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("29");
+    expect(dbGetState("schema_version")).toBe("30");
     expect(dbGetProject("legacy-project")).toMatchObject({
       id: "legacy-project",
       name: "Legacy project",
       location: { kind: "posix", path: "/tmp/legacy-project" },
+    });
+  });
+
+  it("repairs blank legacy thread models from schema v29 without changing valid configs", () => {
+    const sqlite = getSqlite();
+    const insert = sqlite.prepare(`
+      INSERT INTO threads (
+        id, project_id, title, agent_kind, config, status, attention,
+        can_resume_with_config, archived, done, starred, presentation_mode,
+        sort_order, created_at, updated_at
+      ) VALUES (
+        @id, 'project-1', @title, 'claude', @config, 'idle', 'none',
+        0, 0, 0, 0, 'gui', @sortOrder,
+        '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      )
+    `);
+    insert.run({
+      id: "legacy-empty-model",
+      title: "Legacy",
+      config: JSON.stringify({ model: "", effort: "high" }),
+      sortOrder: 0,
+    });
+    insert.run({
+      id: "valid-model",
+      title: "Valid",
+      config: JSON.stringify({ model: "sonnet", effort: "low" }),
+      sortOrder: 1,
+    });
+    dbSetState("schema_version", "29");
+
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    expect(dbGetState("schema_version")).toBe("30");
+    expect(dbGetThread("legacy-empty-model")?.config).toEqual({
+      model: "auto",
+      effort: "high",
+    });
+    expect(dbGetThread("valid-model")?.config).toEqual({
+      model: "sonnet",
+      effort: "low",
     });
   });
 
