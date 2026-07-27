@@ -512,6 +512,11 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
 }: VirtualChatListRowProps) {
   const rowElementRef = useRef<HTMLDivElement | null>(null);
   const liveMeasureRafRef = useRef<number | null>(null);
+  // Keep the observer mounted when an appended prompt changes this row from
+  // tail to mid-list; resetting its height baseline there misses completion
+  // growth that lands in the same commit.
+  const isLastEntryRef = useRef(isLastEntry);
+  isLastEntryRef.current = isLastEntry;
   const ref = useCallback((element: HTMLDivElement | null) => {
     rowElementRef.current = element;
   }, []);
@@ -579,11 +584,13 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
       // the same delta here, still before paint; LegendList rewrites the
       // identical offsets on its own pass, so the two converge. Growth only —
       // LegendList deliberately defers shrinks, and racing that would jitter.
-      if (!isLastEntry && heightDelta > 0) shiftFollowingRows(element, heightDelta);
+      if (!isLastEntryRef.current && heightDelta > 0) {
+        shiftFollowingRows(element, heightDelta);
+      }
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [entry.id, isLastEntry, remeasureElement]);
+  }, [entry.id, remeasureElement]);
   useLayoutEffect(
     () => () => {
       if (liveMeasureRafRef.current !== null) {
