@@ -709,14 +709,19 @@
   cursor: default;
 }
 
-/* Primary actions use the neutral filled treatment across every app theme.
-   Keep the semantic `primary` variant for submit/save/create actions while the
-   foreground remains theme-derived instead of forcing white, so light themes
-   retain accessible dark text. */
+/* Buttons use neutral foregrounds across every app theme. HeroUI's stock
+   secondary variant uses --accent-soft-foreground, which makes ordinary
+   controls (including shared OptionMenu triggers) accent-colored by default.
+   Keep accent text opt-in and make all neutral action variants inherit the
+   theme foreground: off-white in dark themes and dark in light themes. */
 .button--primary {
   --button-bg: var(--default);
   --button-bg-hover: var(--default-hover);
   --button-bg-pressed: var(--default-hover);
+  --button-fg: var(--foreground);
+}
+
+.button--secondary {
   --button-fg: var(--foreground);
 }
 
@@ -947,13 +952,9 @@
     --link: var(--accent);
     --focus: var(--foreground);
 
-    /* Soft-accent text: HeroUI uses raw --accent for the label that sits on a
-       soft/neutral fill (secondary button labels, selected toggle labels,
-       badges, chips). Full --accent drops to ~2.4:1 on those fills in
-       lower-contrast palettes (Solarized, Monokai). Deepen it toward
-       --foreground so it stays accent-hued but clears the UI-text floor on
-       every preset; both inputs are themed, so it adapts per theme/mode.
-       Enforced by themePresets.test ("keeps interactive colors readable"). */
+    /* Soft-accent text remains available for explicitly accent-tinted controls
+       such as selected toggles, badges, and chips. Neutral buttons override
+       their foreground above instead of inheriting this accent treatment. */
     --color-accent-soft-foreground: color-mix(in oklab, var(--accent) 65%, var(--foreground));
     --surface-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
     --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);

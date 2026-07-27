@@ -168,6 +168,7 @@ const {
       checkForUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       startUpdateDownload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       installUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      relaunchApp: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
       listAcpRegistry: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
       onBrowserEvent: vi.fn<() => () => void>(() => () => undefined),
@@ -381,7 +382,7 @@ vi.mock("./state/sharedSettingsStore", () => ({
   ),
 }));
 
-import { App } from "./app";
+import { App, STARTUP_RECOVERY_TIMEOUT_MS } from "./app";
 
 describe("App", () => {
   const originalHasHydrated = useAppStore.persist.hasHydrated;
@@ -441,6 +442,29 @@ describe("App", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("offers recovery controls when initial hydration does not finish", async () => {
+    vi.useFakeTimers();
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(false);
+    useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
+
+    render(<App />);
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(STARTUP_RECOVERY_TIMEOUT_MS);
+    });
+    expect(screen.getByText("Startup is taking longer than expected")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep waiting" }));
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(STARTUP_RECOVERY_TIMEOUT_MS);
+    });
+    expect(screen.getByText("Startup is taking longer than expected")).toBeInTheDocument();
   });
 
   it("opens a thread requested by a native app surface", async () => {

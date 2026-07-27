@@ -3,6 +3,7 @@ import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import { Suspense, useEffect, useState } from "react";
 import { PixelLoader } from "./components/common/PixelLoader";
+import { StartupRecoveryScreen } from "./components/startup/StartupRecoveryScreen";
 import { msg } from "@/shared/messages";
 import type { RuntimeEvent } from "@/shared/contracts";
 import {
@@ -68,6 +69,7 @@ import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/de
 // so that Vite HMR can tear them down before re-executing the module.
 
 let threadStateNotificationsArmed = false;
+export const STARTUP_RECOVERY_TIMEOUT_MS = 15_000;
 const windowKind = readBridge().windowKind;
 const isBrowserExtractWindow = windowKind === "browserExtract";
 const isQuickComposerWindow = windowKind === "quickComposer";
@@ -497,6 +499,19 @@ function QuickComposerApp() {
 
 function MainApp() {
   const { initialLoading, storeHydrated, loadT0 } = useAppHydration();
+  const [showStartupRecovery, setShowStartupRecovery] = useState(false);
+  const [startupRecoveryCycle, setStartupRecoveryCycle] = useState(0);
+
+  useEffect(() => {
+    if (!initialLoading) {
+      setShowStartupRecovery(false);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setShowStartupRecovery(true);
+    }, STARTUP_RECOVERY_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [initialLoading, startupRecoveryCycle]);
 
   useEffect(() => {
     if (initialLoading) {
@@ -531,14 +546,23 @@ function MainApp() {
     );
     return (
       <AppProvider contentReady={false}>
-        <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
-          <div className="flex flex-col items-center gap-4">
-            <PixelLoader size="lg" />
-            <p className="text-sm text-muted">
-              <Trans>Loading…</Trans>
-            </p>
+        {showStartupRecovery ? (
+          <StartupRecoveryScreen
+            onKeepWaiting={() => {
+              setShowStartupRecovery(false);
+              setStartupRecoveryCycle((cycle) => cycle + 1);
+            }}
+          />
+        ) : (
+          <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+            <div className="flex flex-col items-center gap-4">
+              <PixelLoader size="lg" />
+              <p className="text-sm text-muted">
+                <Trans>Loading…</Trans>
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </AppProvider>
     );
   }

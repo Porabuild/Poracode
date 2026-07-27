@@ -202,6 +202,57 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetState("schema_version")).toBe("29");
   });
 
+  it("repairs safe schema drift even when the database claims the latest version", () => {
+    closeDatabase();
+    const databasePath = join(dir, "corrupt-v29.sqlite");
+    const corrupt = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    corrupt.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        location_kind TEXT NOT NULL,
+        location_path TEXT,
+        location_distro TEXT,
+        location_linux_path TEXT,
+        location_unc_path TEXT,
+        last_draft_config TEXT,
+        scripts TEXT,
+        search_settings TEXT,
+        mcp_servers TEXT,
+        disabled INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE app_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT INTO projects (
+        id, name, location_kind, location_path, disabled, sort_order, created_at
+      ) VALUES (
+        'legacy-project', 'Legacy project', 'posix', '/tmp/legacy-project', 0, 0,
+        '2026-01-01T00:00:00.000Z'
+      );
+      INSERT INTO app_state (key, value) VALUES ('schema_version', '29');
+    `);
+    corrupt.close();
+
+    initDatabase(databasePath);
+
+    const columns = getSqlite().prepare("PRAGMA table_info(projects)").all() as {
+      name: string;
+    }[];
+    expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
+    expect(dbGetState("schema_version")).toBe("29");
+    expect(dbGetProject("legacy-project")).toMatchObject({
+      id: "legacy-project",
+      name: "Legacy project",
+      location: { kind: "posix", path: "/tmp/legacy-project" },
+    });
+  });
+
   it("round-trips the project workspace through the bulk renderer sync", () => {
     const project = {
       id: "project-bulk",

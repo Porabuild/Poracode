@@ -1818,6 +1818,7 @@ msgstr "Vérifier à nouveau {serverName}"
 msgid "Check again"
 msgstr "Vérifier à nouveau"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "Vérifier les mises à jour"
@@ -1848,6 +1849,7 @@ msgid "Checking Tailscale…"
 msgstr "Vérification de Tailscale…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "Vérification…"
@@ -3599,6 +3601,7 @@ msgstr "Télécharger l'image"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "Téléchargement dans « {0} ». Cela peut prendre un certain temps pour les grands dépôts."
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
@@ -5048,6 +5051,7 @@ msgstr "Installer Tailscale"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Installez Tailscale pour activer l’accès HTTPS via MagicDNS."
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
@@ -5057,6 +5061,7 @@ msgstr "Installer la mise à jour"
 msgid "Install v{updateVersion}"
 msgstr "Installer v{updateVersion}"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install v{version}"
 msgstr "Installer v{version}"
@@ -5147,6 +5152,10 @@ msgstr "Garder Poracode dans la zone de notification lors de son lancement au d�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Gardez le système éveillé pendant qu'un thread fonctionne activement."
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Keep waiting"
+msgstr "Continuer à attendre"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Kill bash"
@@ -7416,6 +7425,10 @@ msgstr "Poracode et vos agents s’exécutent sur la machine distante. SSH sert 
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode ne stocke pas les identifiants de marketplace en clair dans les paramètres. Ouvrez le catalogue pour parcourir ses skills analysées sur le plan de la sécurité."
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
+msgstr "Poracode attend peut-être des données enregistrées ou un service en arrière-plan. Vous pouvez continuer à attendre, redémarrer ou installer une mise à jour disponible."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -8321,6 +8334,10 @@ msgstr "Redimensionner le panneau de terminal"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Résout les conflits de fusion lors du rebase ou de la fusion."
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Restart Poracode"
+msgstr "Redémarrer Poracode"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
@@ -9608,6 +9625,10 @@ msgstr "Démarrage de la saisie vocale"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "starting…"
 msgstr "démarrage…"
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Startup is taking longer than expected"
+msgstr "Le démarrage prend plus de temps que prévu"
 
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"

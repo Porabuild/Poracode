@@ -1817,6 +1817,7 @@ msgstr "{serverName} を再確認"
 msgid "Check again"
 msgstr "再確認"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "アップデートをチェックする"
@@ -1847,6 +1848,7 @@ msgid "Checking Tailscale…"
 msgstr "Tailscaleを確認中…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "確認中…"
@@ -3598,6 +3600,7 @@ msgstr "画像をダウンロード"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "「{0}」にダウンロード中です。大規模なリポジトリの場合、これには時間がかかることがあります。"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
@@ -5047,6 +5050,7 @@ msgstr "Tailscaleをインストール"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "MagicDNS 経由の HTTPS アクセスを有効にするには Tailscale をインストールしてください。"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
@@ -5056,6 +5060,7 @@ msgstr "アップデートをインストールする"
 msgid "Install v{updateVersion}"
 msgstr "v{updateVersion} をインストール"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install v{version}"
 msgstr "v{version} をインストール"
@@ -5146,6 +5151,10 @@ msgstr "スタートアップ時は Poracode をシステムトレイに格納�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "スレッドがアクティブに動作している間は、システムを起動したままにします。"
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Keep waiting"
+msgstr "待機を続ける"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Kill bash"
@@ -7415,6 +7424,10 @@ msgstr "Poracode とエージェントはリモートマシン上で実行され
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode はマーケットプレイスの認証情報を設定に平文で保存しません。カタログを開いて、セキュリティスキャン済みのスキルを確認してください。"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
+msgstr "Poracode は保存済みデータまたはバックグラウンドサービスを待機している可能性があります。待機を続けるか、再起動するか、利用可能なアップデートをインストールできます。"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -8320,6 +8333,10 @@ msgstr "ターミナルパネルのサイズを変更する"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "リベースまたはマージ中のマージ競合を解決します。"
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Restart Poracode"
+msgstr "Poracode を再起動"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
@@ -9607,6 +9624,10 @@ msgstr "音声入力を開始しています"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "starting…"
 msgstr "始めています…"
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Startup is taking longer than expected"
+msgstr "起動に通常より時間がかかっています"
 
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"

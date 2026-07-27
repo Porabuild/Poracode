@@ -62,6 +62,16 @@ describe("createAutoUpdaterController", () => {
     expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(process.platform === "win32", true);
   });
 
+  it("installs a downloaded update when the user quits a stuck app", () => {
+    autoUpdaterMock.autoInstallOnAppQuit = false;
+    const controller = createAutoUpdaterController(vi.fn(), "stable", false);
+
+    controller.initialize();
+
+    expect(autoUpdaterMock.autoDownload).toBe(true);
+    expect(autoUpdaterMock.autoInstallOnAppQuit).toBe(true);
+  });
+
   it("does not reject from a manual check when checkForUpdates() fails", async () => {
     // A freshly-published release whose channel manifest hasn't finished
     // uploading 404s, so electron-updater emits "error" and then rejects.

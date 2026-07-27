@@ -59,7 +59,10 @@ export function createAutoUpdaterController(
     initialized = true;
 
     autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = false;
+    // A renderer stuck during hydration cannot reach the normal install
+    // button. Once an update is downloaded, Cmd/Ctrl+Q still provides a
+    // main-process-owned recovery path that applies it on quit.
+    autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.forceDevUpdateConfig = Boolean(process.env.UPDATE_SERVER_URL);
 
     if (channel === "nightly") {

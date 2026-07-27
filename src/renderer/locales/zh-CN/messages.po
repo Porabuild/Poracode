@@ -1818,6 +1818,7 @@ msgstr "再次检查 {serverName}"
 msgid "Check again"
 msgstr "再次检查"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "检查更新"
@@ -1848,6 +1849,7 @@ msgid "Checking Tailscale…"
 msgstr "正在检查 Tailscale..."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "正在检查..."
@@ -3599,6 +3601,7 @@ msgstr "下载图片"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "下载到“{0}”。对于大型存储库，这可能需要一些时间。"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
@@ -5048,6 +5051,7 @@ msgstr "安装 Tailscale"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "安装 Tailscale 以通过 MagicDNS 启用 HTTPS 访问。"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
@@ -5057,6 +5061,7 @@ msgstr "安装更新"
 msgid "Install v{updateVersion}"
 msgstr "安装 v{updateVersion}"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install v{version}"
 msgstr "安装 v{version}"
@@ -5147,6 +5152,10 @@ msgstr "开机启动时将 Poracode 保持在系统托盘中。"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "当任何线程正在工作时保持系统唤醒状态（不休眠）。"
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Keep waiting"
+msgstr "继续等待"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Kill bash"
@@ -7416,6 +7425,10 @@ msgstr "Poracode 和代理在远程计算机上运行。SSH 仅用于启动远�
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode 不会以明文形式在设置中存储市场凭据。打开目录即可浏览经过安全扫描的技能。"
 
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
+msgstr "Poracode 可能正在等待已保存的数据或后台服务。你可以继续等待、重新启动，或安装可用的更新。"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -8321,6 +8334,10 @@ msgstr "调整终端面板大小"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "解决变基或合并期间的合并冲突。"
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Restart Poracode"
+msgstr "重新启动 Poracode"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
@@ -9608,6 +9625,10 @@ msgstr "开始语音输入"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "starting…"
 msgstr "开始…"
+
+#: src/renderer/components/startup/StartupRecoveryScreen.tsx
+msgid "Startup is taking longer than expected"
+msgstr "启动所需时间超出预期"
 
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
