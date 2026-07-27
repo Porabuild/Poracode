@@ -7,6 +7,12 @@ import {
   LIGHTWEIGHT_SUBAGENT_PUSH_CLASS,
   LIGHTWEIGHT_SUBAGENT_POP_ANIMATION,
   LIGHTWEIGHT_SUBAGENT_POP_CLASS,
+  LIGHTWEIGHT_FULLSCREEN_PUSH_ANIMATION,
+  LIGHTWEIGHT_FULLSCREEN_PUSH_CLASS,
+  LIGHTWEIGHT_FULLSCREEN_POP_ANIMATION,
+  LIGHTWEIGHT_FULLSCREEN_POP_CLASS,
+  shouldUseLightweightFullscreenPop,
+  shouldUseLightweightFullscreenPush,
   shouldUseLightweightSubAgentPop,
   shouldUseLightweightSubAgentPush,
   shouldUseLightweightThreadListPop,
@@ -14,8 +20,9 @@ import {
 
 /**
  * Starts iOS-web fallback animations during the route commit, before the new
- * route paints. Both supported paths target only lightweight incoming layers,
- * never a virtualized transcript snapshot.
+ * route paints. Every supported path targets only a lightweight incoming layer
+ * (the list/subagent shell, or a fullscreen overlay sliding over the page),
+ * never a virtualized transcript or diff snapshot.
  */
 export function useLightweightThreadListPop(
   shellRef: RefObject<HTMLDivElement | null>,
@@ -32,24 +39,44 @@ export function useLightweightThreadListPop(
     shell.classList.remove(LIGHTWEIGHT_THREAD_LIST_POP_CLASS);
     shell.classList.remove(LIGHTWEIGHT_SUBAGENT_PUSH_CLASS);
     shell.classList.remove(LIGHTWEIGHT_SUBAGENT_POP_CLASS);
-    const threadListPop = shouldUseLightweightThreadListPop(previousPathname, pathname);
-    const subAgentPush = shouldUseLightweightSubAgentPush(previousPathname, pathname);
-    const subAgentPop = shouldUseLightweightSubAgentPop(previousPathname, pathname);
-    if (!threadListPop && !subAgentPush && !subAgentPop) return;
+    shell.classList.remove(LIGHTWEIGHT_FULLSCREEN_PUSH_CLASS);
+    shell.classList.remove(LIGHTWEIGHT_FULLSCREEN_POP_CLASS);
+
+    // Mutually exclusive: a navigation matches at most one lightweight path.
+    const candidates = [
+      {
+        active: shouldUseLightweightThreadListPop(previousPathname, pathname),
+        className: LIGHTWEIGHT_THREAD_LIST_POP_CLASS,
+        animationName: LIGHTWEIGHT_THREAD_LIST_POP_ANIMATION,
+      },
+      {
+        active: shouldUseLightweightSubAgentPush(previousPathname, pathname),
+        className: LIGHTWEIGHT_SUBAGENT_PUSH_CLASS,
+        animationName: LIGHTWEIGHT_SUBAGENT_PUSH_ANIMATION,
+      },
+      {
+        active: shouldUseLightweightSubAgentPop(previousPathname, pathname),
+        className: LIGHTWEIGHT_SUBAGENT_POP_CLASS,
+        animationName: LIGHTWEIGHT_SUBAGENT_POP_ANIMATION,
+      },
+      {
+        active: shouldUseLightweightFullscreenPush(previousPathname, pathname),
+        className: LIGHTWEIGHT_FULLSCREEN_PUSH_CLASS,
+        animationName: LIGHTWEIGHT_FULLSCREEN_PUSH_ANIMATION,
+      },
+      {
+        active: shouldUseLightweightFullscreenPop(previousPathname, pathname),
+        className: LIGHTWEIGHT_FULLSCREEN_POP_CLASS,
+        animationName: LIGHTWEIGHT_FULLSCREEN_POP_ANIMATION,
+      },
+    ];
+    const transition = candidates.find((candidate) => candidate.active);
+    if (!transition) return;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
 
-    const animationClass = subAgentPush
-      ? LIGHTWEIGHT_SUBAGENT_PUSH_CLASS
-      : subAgentPop
-        ? LIGHTWEIGHT_SUBAGENT_POP_CLASS
-        : LIGHTWEIGHT_THREAD_LIST_POP_CLASS;
-    const animationName = subAgentPush
-      ? LIGHTWEIGHT_SUBAGENT_PUSH_ANIMATION
-      : subAgentPop
-        ? LIGHTWEIGHT_SUBAGENT_POP_ANIMATION
-        : LIGHTWEIGHT_THREAD_LIST_POP_ANIMATION;
-    shell.classList.add(animationClass);
-    const removeClass = () => shell.classList.remove(animationClass);
+    const { className, animationName } = transition;
+    shell.classList.add(className);
+    const removeClass = () => shell.classList.remove(className);
     const onAnimationEnd = (event: AnimationEvent) => {
       if (event.animationName === animationName) removeClass();
     };

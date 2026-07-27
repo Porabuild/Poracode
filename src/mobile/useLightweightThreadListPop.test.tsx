@@ -9,6 +9,10 @@ import {
   LIGHTWEIGHT_SUBAGENT_PUSH_CLASS,
   LIGHTWEIGHT_SUBAGENT_POP_ANIMATION,
   LIGHTWEIGHT_SUBAGENT_POP_CLASS,
+  LIGHTWEIGHT_FULLSCREEN_PUSH_ANIMATION,
+  LIGHTWEIGHT_FULLSCREEN_PUSH_CLASS,
+  LIGHTWEIGHT_FULLSCREEN_POP_ANIMATION,
+  LIGHTWEIGHT_FULLSCREEN_POP_CLASS,
 } from "./lightweightThreadListPop";
 import { useLightweightThreadListPop } from "./useLightweightThreadListPop";
 
@@ -114,5 +118,35 @@ describe("useLightweightThreadListPop", () => {
     });
     fireEvent(shell, animationEnd);
     expect(shell).not.toHaveClass(LIGHTWEIGHT_SUBAGENT_POP_CLASS);
+  });
+
+  it("animates only the incoming overlay on a thread-to-fullscreen commit", () => {
+    const view = render(<Harness pathname="/thread/thread-1" />);
+    const shell = view.getByTestId("shell");
+
+    view.rerender(<Harness pathname="/workspace/thread-1" />);
+    expect(shell).toHaveClass(LIGHTWEIGHT_FULLSCREEN_PUSH_CLASS);
+
+    const animationEnd = new Event("animationend", { bubbles: true });
+    Object.defineProperty(animationEnd, "animationName", {
+      value: LIGHTWEIGHT_FULLSCREEN_PUSH_ANIMATION,
+    });
+    fireEvent(shell, animationEnd);
+    expect(shell).not.toHaveClass(LIGHTWEIGHT_FULLSCREEN_PUSH_CLASS);
+  });
+
+  it("animates only the incoming shell on a fullscreen-to-thread commit", () => {
+    const view = render(<Harness pathname="/workspace/thread-1" />);
+    const shell = view.getByTestId("shell");
+
+    view.rerender(<Harness pathname="/thread/thread-1" />);
+    expect(shell).toHaveClass(LIGHTWEIGHT_FULLSCREEN_POP_CLASS);
+
+    const animationEnd = new Event("animationend", { bubbles: true });
+    Object.defineProperty(animationEnd, "animationName", {
+      value: LIGHTWEIGHT_FULLSCREEN_POP_ANIMATION,
+    });
+    fireEvent(shell, animationEnd);
+    expect(shell).not.toHaveClass(LIGHTWEIGHT_FULLSCREEN_POP_CLASS);
   });
 });
