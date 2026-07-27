@@ -5,7 +5,7 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EXPERIMENT_STORE_KEY, type Thread } from "@/shared/contracts";
-import { closeDatabase, initDatabase } from "./connection";
+import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import {
   dbDeleteThread,
   dbGetThread,
@@ -160,6 +160,46 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     // Unfiling clears the column rather than leaving the previous value behind.
     dbUpsertProject(project, 0);
     expect(dbGetProject("project-1")?.workspaceId).toBeUndefined();
+  });
+
+  it("repairs a schema-v28 database that is missing the workspace column", () => {
+    closeDatabase();
+    const databasePath = join(dir, "partial-v28.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        location_kind TEXT NOT NULL,
+        location_path TEXT,
+        location_distro TEXT,
+        location_linux_path TEXT,
+        location_unc_path TEXT,
+        last_draft_config TEXT,
+        scripts TEXT,
+        search_settings TEXT,
+        mcp_servers TEXT,
+        disabled INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE app_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT INTO app_state (key, value) VALUES ('schema_version', '28');
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    const columns = getSqlite().prepare("PRAGMA table_info(projects)").all() as {
+      name: string;
+    }[];
+    expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
+    expect(dbGetState("schema_version")).toBe("29");
   });
 
   it("round-trips the project workspace through the bulk renderer sync", () => {

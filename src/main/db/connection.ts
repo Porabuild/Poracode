@@ -103,6 +103,7 @@ export function initDatabase(dbPath: string) {
       location_unc_path TEXT,
       last_draft_config TEXT,
       scripts TEXT,
+      workspace_id TEXT,
       mcp_servers TEXT,
       disabled INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
@@ -253,7 +254,7 @@ export function initDatabase(dbPath: string) {
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 28;
+  const SCHEMA_VERSION = 29;
 
   const storedVersion = Number(
     (
@@ -544,12 +545,6 @@ export function initDatabase(dbPath: string) {
     }
 
     if (storedVersion < 28) {
-      // Workspace a project belongs to. Left NULL on upgrade; the renderer's
-      // first-run bootstrap files existing projects into the default workspace.
-      const cols = sqlite.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
-      if (!cols.some((c) => c.name === "workspace_id")) {
-        sqlite.exec("ALTER TABLE projects ADD COLUMN workspace_id TEXT");
-      }
       sqlite.exec(`
         CREATE TABLE IF NOT EXISTS pr_watches (
           project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -569,6 +564,18 @@ export function initDatabase(dbPath: string) {
           PRIMARY KEY (project_id, pr_number)
         );
       `);
+    }
+
+    if (storedVersion < 29) {
+      // Workspace support originally landed under schema version 28, which was
+      // already used by the preceding PR-watch migration. Existing Nightly
+      // installs therefore reported v28 without having this column. Give the
+      // workspace column its own version so those partially upgraded databases
+      // are repaired on the next launch.
+      const cols = sqlite.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
+      if (!cols.some((c) => c.name === "workspace_id")) {
+        sqlite.exec("ALTER TABLE projects ADD COLUMN workspace_id TEXT");
+      }
     }
 
     sqlite
