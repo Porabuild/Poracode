@@ -1,11 +1,13 @@
 import { BrowserWindow, screen, type Rectangle, type RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
+import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
 import { installSessionPermissions } from "../browser/permissions";
 import { showAndFocusWindow } from "./showAndFocusWindow";
 import {
   buildRendererAdditionalArguments,
   installAppNavigationGuards,
   installRendererReloadGuard,
+  noteRendererWindowClose,
 } from "./windowHardening";
 import { rectOverlapsWorkArea } from "./windowGeometry";
 
@@ -28,7 +30,10 @@ export interface CreateQuickComposerWindowOptions {
   sentryEnabled: boolean;
   browserUserAgent: string;
   onClosed(): void;
-  onRendererProcessGone?: (details: RenderProcessGoneDetails) => void;
+  onRendererProcessGone?: (
+    details: RenderProcessGoneDetails,
+    intent: RendererProcessGoneIntent | undefined,
+  ) => void;
   devServerUrl?: string;
 }
 
@@ -140,6 +145,7 @@ export function createQuickComposerWindow(
       : {}),
   });
 
+  window.on("close", (event) => noteRendererWindowClose(window, event));
   window.on("closed", options.onClosed);
   return window;
 }
