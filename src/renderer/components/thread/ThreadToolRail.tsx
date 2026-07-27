@@ -270,13 +270,13 @@ export function ThreadToolRail(props: {
           </button>
           <div
             data-poracode-thread-tool-menu=""
-            className={`pointer-events-none invisible absolute left-1/2 top-full z-30 grid w-9 -translate-x-1/2 grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-150 ${
+            className={`pointer-events-none invisible absolute left-1/2 top-full z-30 w-9 -translate-x-1/2 opacity-0 transition-opacity duration-150 ${
               headerMenuPhase !== "ready"
                 ? ""
-                : "group-hover/thread-tools:pointer-events-auto group-hover/thread-tools:visible group-hover/thread-tools:grid-rows-[1fr] group-hover/thread-tools:opacity-100 group-focus-within/thread-tools:pointer-events-auto group-focus-within/thread-tools:visible group-focus-within/thread-tools:grid-rows-[1fr] group-focus-within/thread-tools:opacity-100"
+                : "group-hover/thread-tools:pointer-events-auto group-hover/thread-tools:visible group-hover/thread-tools:opacity-100 group-focus-within/thread-tools:pointer-events-auto group-focus-within/thread-tools:visible group-focus-within/thread-tools:opacity-100"
             }`}
           >
-            <div className="min-h-0 overflow-hidden pt-1">
+            <div className="pt-1">
               <div className={`${floatingChromeSurfaceClass} ${railPillClass}`}>{toolButtons}</div>
             </div>
           </div>

@@ -1673,6 +1673,8 @@ describe("ThreadView", () => {
     expect(headerMenu).toHaveAttribute("data-placement", "header");
     expect(headerMenu).not.toHaveClass("invisible");
     expect(toolMenu).toHaveClass("left-1/2", "w-9", "-translate-x-1/2");
+    expect(toolMenu).toHaveClass("transition-opacity");
+    expect(toolMenu).not.toHaveClass("grid-rows-[0fr]");
     expect(toolMenu).toHaveClass("group-hover/thread-tools:visible");
     expect(doneButton.nextElementSibling).toBe(headerMenu);
     expect(hasAncestorWithClassFragment(headerMenu as HTMLElement, "@container")).toBe(true);
