@@ -1,4 +1,13 @@
-import { Brain, Eye, Pencil, SearchCode, Terminal, Wrench, type LucideIcon } from "lucide-react";
+import {
+  Brain,
+  Eye,
+  Pencil,
+  Plug,
+  SearchCode,
+  Terminal,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 import type {
   CommandExecutionPayload,
   FileChangePayload,
@@ -8,13 +17,21 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { parseMcpName } from "@/shared/toolCallClassification";
 import { extractAcpDiffSummary, readAcpStringField } from "./acpToolPayload";
 import { commandIntentDisplay } from "./commandSummary";
 import { isContextCompactionToolCall } from "./ContextCompaction";
 import { isPlanProposalToolCall } from "./PlanProposal";
 import { deriveToolDisplay, isDelegatedAgentTool } from "./toolDisplay";
 
-export type GroupCategory = "thought" | "viewed" | "searched" | "edited" | "executed" | "other";
+export type GroupCategory =
+  | "thought"
+  | "viewed"
+  | "searched"
+  | "edited"
+  | "executed"
+  | "mcp"
+  | "other";
 
 export interface CategoryMeta {
   Icon: LucideIcon;
@@ -25,12 +42,13 @@ export interface CategoryMeta {
 }
 
 export const CATEGORY_META: Record<GroupCategory, CategoryMeta> = {
-  thought: { Icon: Brain, singular: "thought", plural: "thoughts", priority: 5 },
+  thought: { Icon: Brain, singular: "thought", plural: "thoughts", priority: 6 },
   viewed: { Icon: Eye, singular: "view", plural: "views", priority: 0 },
   searched: { Icon: SearchCode, singular: "search", plural: "searches", priority: 1 },
   edited: { Icon: Pencil, singular: "edit", plural: "edits", priority: 2 },
   executed: { Icon: Terminal, singular: "command", plural: "commands", priority: 3 },
-  other: { Icon: Wrench, singular: "tool", plural: "tools", priority: 4 },
+  mcp: { Icon: Plug, singular: "MCP", plural: "MCPs", priority: 4 },
+  other: { Icon: Wrench, singular: "tool", plural: "tools", priority: 5 },
 };
 
 export interface GroupSection {
@@ -313,6 +331,7 @@ export function categorizeItem(item: RuntimeChatItem): GroupCategory {
   const payload = getToolLikePayload(item);
   if (!payload) return "other";
   if (isDelegatedAgentTool(payload)) return "executed";
+  if (parseMcpName(payload)) return "mcp";
 
   switch (payload.kind) {
     case "read":
@@ -443,7 +462,7 @@ export function categoryFromSummaryLabel(label: string): GroupCategory | null {
   for (const [category, labels] of Object.entries(SUMMARY_CATEGORY_LABELS) as Array<
     [GroupCategory, readonly string[]]
   >) {
-    if (labels.includes(normalized)) return category;
+    if (labels.some((candidate) => candidate.toLowerCase() === normalized)) return category;
   }
   return null;
 }

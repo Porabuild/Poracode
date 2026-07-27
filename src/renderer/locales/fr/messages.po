@@ -99,6 +99,11 @@ msgstr "{0, plural, one {# outil} other {# outils}}"
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {Candidat (#)} other {Candidats (#)}}"
 
+#. placeholder {0}: section.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {MCP} other {MCPs}}"
+msgstr "{0, plural, one {MCP} other {MCP}}"
+
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
