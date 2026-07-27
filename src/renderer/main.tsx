@@ -199,7 +199,7 @@ void Promise.all([appModulePromise, providerBootstrapPromise, localeBootstrapPro
   .then(([{ App }]) => {
     logRendererBootstrap("rendering React app");
     reactRoot?.render(
-      <RendererErrorBoundary>
+      <RendererErrorBoundary captureCaughtErrors={false}>
         <App />
       </RendererErrorBoundary>,
     );

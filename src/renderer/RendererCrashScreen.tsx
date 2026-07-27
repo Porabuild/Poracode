@@ -196,6 +196,12 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
 
 type RendererErrorBoundaryProps = {
   children: ReactNode;
+  /**
+   * The desktop root owns caught-error reporting through React's
+   * `onCaughtError` callback so it can attach the complete component stack
+   * exactly once. Standalone/mobile roots keep this fallback enabled.
+   */
+  captureCaughtErrors?: boolean;
 };
 
 type RendererErrorBoundaryState = {
@@ -220,7 +226,9 @@ export class RendererErrorBoundary extends Component<
   }
 
   override componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
-    captureRendererException(error, { featureArea: "react" });
+    if (this.props.captureCaughtErrors ?? true) {
+      captureRendererException(error, { featureArea: "react" }, errorInfo.componentStack?.trim());
+    }
     this.setState({
       report: createRendererCrashReport({
         kind: "react",
