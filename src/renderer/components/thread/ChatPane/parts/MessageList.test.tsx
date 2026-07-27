@@ -458,6 +458,63 @@ describe("MessageList", () => {
     }
   });
 
+  it("keeps measuring a row while it changes from the tail to a completed mid-list row", () => {
+    const observed: Array<{ target: Element; callback: () => void; active: boolean }> = [];
+    const originalResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      private records: Array<{ target: Element; callback: () => void; active: boolean }> = [];
+
+      constructor(private readonly callback: () => void) {}
+      observe(target: Element) {
+        const record = { target, callback: this.callback, active: true };
+        this.records.push(record);
+        observed.push(record);
+      }
+      unobserve() {}
+      disconnect() {
+        for (const record of this.records) record.active = false;
+      }
+    } as unknown as typeof ResizeObserver;
+
+    try {
+      const threadId = "thread-1";
+      seedCompletedItem(threadId, "assistant-1", "assistant_message");
+      seedCompletedItem(threadId, "user-1", "user_message");
+      const view = render(
+        <MessageList threadId={threadId} entries={makeEntries(["assistant-1"])} />,
+      );
+      const row = screen.getByText("assistant-1").closest("[data-chat-virtual-row='true']");
+      if (!(row instanceof HTMLDivElement)) throw new Error("missing anchor row");
+      let rowHeight = 120;
+      Object.defineProperties(row, {
+        offsetHeight: { configurable: true, get: () => rowHeight },
+        offsetWidth: { configurable: true, value: 500 },
+      });
+      const initialObserver = observed.find((entry) => entry.target === row && entry.active);
+      if (!initialObserver) throw new Error("row is not observed");
+      act(() => initialObserver.callback());
+
+      rowHeight = 180;
+      view.rerender(
+        <MessageList threadId={threadId} entries={makeEntries(["assistant-1", "user-1"])} />,
+      );
+      const nextContainer = row.parentElement?.nextElementSibling;
+      if (!(nextContainer instanceof HTMLDivElement)) throw new Error("missing following row");
+      const topBeforeCompletionResize = Number.parseFloat(nextContainer.style.top);
+      const activeObserver = observed.find((entry) => entry.target === row && entry.active);
+      if (!activeObserver) throw new Error("row observation was dropped");
+
+      act(() => activeObserver.callback());
+
+      // Completing the turn and appending the prompt happen in one render. The
+      // observer must retain its pre-completion baseline so the prompt moves by
+      // the assistant row's late 60px growth instead of covering that content.
+      expect(Number.parseFloat(nextContainer.style.top)).toBe(topBeforeCompletionResize + 60);
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
   it("coalesces live streaming remeasurement to one animation frame", async () => {
     vi.useFakeTimers();
     try {
