@@ -1,8 +1,14 @@
 import {
-  sanitizeSentryEvent,
+  prepareSentryEvent,
   type PoracodeDiagnosticTags,
   type SentryEventLike,
 } from "@/shared/diagnostics/sentryPrivacy";
+import {
+  buildDiagnosticBreadcrumb,
+  classifyDiagnosticFailure,
+  type DiagnosticFailureDecision,
+  type DiagnosticFailureMetadata,
+} from "@/shared/diagnostics/sentryPolicy";
 import {
   readBuildSentryDsn,
   readBuildSentryEnvironment,
@@ -11,6 +17,154 @@ import {
 type SupervisorSentryModule = typeof import("@sentry/node");
 
 let supervisorSentry: SupervisorSentryModule | null | undefined;
+
+type SupervisorIpcFailureRule = {
+  operations: readonly string[] | null;
+  signature: string | RegExp;
+  failureClass: DiagnosticFailureMetadata["failureClass"];
+  errorClass: string;
+  errorType?: "type-error";
+};
+
+const PROVIDER_GENERATION_OPERATIONS = [
+  "extractContext",
+  "generateCommitMessage",
+  "generatePrSummary",
+  "generateTitle",
+] as const;
+const PROVIDER_PROMPT_OPERATIONS = [
+  ...PROVIDER_GENERATION_OPERATIONS,
+  "sendThreadInput",
+  "startThread",
+] as const;
+const PROVIDER_AUTH_OPERATIONS = ["authenticateAcpAgent", ...PROVIDER_PROMPT_OPERATIONS] as const;
+const GIT_NETWORK_OPERATIONS = [
+  "gitFetch",
+  "gitPull",
+  "gitPullRebase",
+  "gitPush",
+  "gitSync",
+  "gitSyncRebase",
+] as const;
+
+const SUPERVISOR_IPC_FAILURE_RULES: readonly SupervisorIpcFailureRule[] = [
+  {
+    operations: ["resizeTerminal"],
+    signature: "Cannot resize a pty that has already exited",
+    failureClass: "expected-operational",
+    errorClass: "terminal-already-exited",
+  },
+  {
+    operations: ["resizeTerminal"],
+    signature: "ioctl(2) failed, ENOTTY",
+    failureClass: "expected-operational",
+    errorClass: "terminal-not-attached",
+  },
+  {
+    operations: ["ghListPrs"],
+    signature: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal.',
+    failureClass: "expected-operational",
+    errorClass: "github-cli-unauthenticated",
+  },
+  {
+    operations: ["interruptThread"],
+    signature: /^no active turn to interrupt$/iu,
+    failureClass: "expected-operational",
+    errorClass: "no-active-turn",
+  },
+  {
+    operations: ["rollbackThreadConversation"],
+    signature: /^.+ does not support checkpoint rollback\.$/u,
+    failureClass: "expected-operational",
+    errorClass: "checkpoint-rollback-unsupported",
+  },
+  {
+    operations: ["extractContext"],
+    signature: /^Cannot extract context from .+: no session resume or scrollback available$/u,
+    failureClass: "expected-operational",
+    errorClass: "context-extraction-unavailable",
+  },
+  {
+    operations: ["generateTitle"],
+    signature: /^No default one-shot model configured for .+$/u,
+    failureClass: "expected-operational",
+    errorClass: "one-shot-model-unconfigured",
+  },
+  {
+    operations: ["generatePrSummary"],
+    signature: "No commits found between branches",
+    failureClass: "expected-operational",
+    errorClass: "no-commits-between-branches",
+  },
+  {
+    operations: ["ghCreatePr"],
+    signature:
+      /(?:^|\r?\n)a pull request for branch "[^"\r\n]+" into branch "[^"\r\n]+" already exists:(?:\r?\n|$)/u,
+    failureClass: "expected-operational",
+    errorClass: "github-pull-request-exists",
+  },
+  {
+    operations: PROVIDER_PROMPT_OPERATIONS,
+    signature:
+      /^error: failed to run prompt: provider\.api_error: (?:402|403) [^\r\n]*(?:usage limit|quota|billing (?:cycle|limit)|payment required)[\s\S]*$/iu,
+    failureClass: "expected-operational",
+    errorClass: "provider-quota-exhausted",
+  },
+  {
+    operations: PROVIDER_PROMPT_OPERATIONS,
+    signature:
+      /^Payment or usage limit reached \(HTTP 402\)\. Check your [A-Za-z0-9][A-Za-z0-9 ._-]* account billing or usage\.$/u,
+    failureClass: "expected-operational",
+    errorClass: "provider-quota-exhausted",
+  },
+  {
+    operations: PROVIDER_AUTH_OPERATIONS,
+    signature: /^(?:Internal error: )?(?:Device|User) authentication (?:failed|required)$/u,
+    failureClass: "expected-operational",
+    errorClass: "provider-authentication-required",
+  },
+  {
+    operations: ["generateTitle"],
+    signature: "session.prompt: Unexpected server error. Check server logs for details.",
+    failureClass: "transient-service",
+    errorClass: "provider-service-unavailable",
+  },
+  {
+    operations: null,
+    signature:
+      /(?:^|\r?\n)fatal: not a git repository \(or any of the parent directories\): \.git(?:\r?\n|\p{Cc}|$)/u,
+    failureClass: "expected-operational",
+    errorClass: "git-not-a-repository",
+  },
+  {
+    operations: GIT_NETWORK_OPERATIONS,
+    signature:
+      /(?=[\s\S]*(?:Command failed: git|fatal:|error:))[\s\S]*(?:failed to connect|could not connect|could not resolve host|connection (?:reset|timed out)|operation timed out)/iu,
+    failureClass: "transient-service",
+    errorClass: "git-network-unavailable",
+  },
+  {
+    operations: ["gitPush"],
+    signature:
+      /(?:\[rejected\][^\r\n]*\(non-fast-forward\)|Updates were rejected because the tip[^\r\n]* is behind)/u,
+    failureClass: "expected-operational",
+    errorClass: "git-non-fast-forward",
+  },
+  {
+    operations: ["gitCommit"],
+    signature:
+      /(?:^|\r?\n)(?:husky - )?(?:(?:pre-commit|commit-msg|prepare-commit-msg|post-commit) hook (?:declined|exited with code \d+(?: \(error\))?|failed|rejected)|pre-commit script failed \(code \d+\))(?:\r?\n|\p{Cc}|$)/iu,
+    failureClass: "expected-operational",
+    errorClass: "git-commit-hook-rejected",
+  },
+  {
+    operations: null,
+    signature: "fetch failed",
+    failureClass: "transient-service",
+    errorClass: "fetch-failed",
+    errorType: "type-error",
+  },
+];
 
 export type SupervisorSentryOptions = {
   appVersion: string;
@@ -75,7 +229,7 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
     environment: readSentryEnvironment(options),
     sendDefaultPii: false,
     defaultIntegrations: false,
-    maxBreadcrumbs: 0,
+    maxBreadcrumbs: 20,
     normalizeDepth: 4,
     tracesSampleRate: 0,
     debug: process.env.SENTRY_DEBUG === "1",
@@ -83,7 +237,7 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
       tags: buildBaseTags(options),
     },
     beforeSend(event) {
-      return sanitizeSentryEvent(event as unknown as SentryEventLike) as unknown as typeof event;
+      return prepareSentryEvent(event as unknown as SentryEventLike) as unknown as typeof event;
     },
   });
 
@@ -95,16 +249,128 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
   return true;
 }
 
-export function captureSupervisorException(error: unknown, tags?: PoracodeDiagnosticTags): void {
+function errorMessage(error: unknown): string | null {
+  return error instanceof Error ? error.message : null;
+}
+
+function matchesFailureRule(
+  rule: SupervisorIpcFailureRule,
+  error: unknown,
+  operation: string,
+  message: string,
+) {
+  if (rule.operations && !rule.operations.includes(operation)) return false;
+  if (rule.errorType === "type-error" && !(error instanceof TypeError)) return false;
+  return typeof rule.signature === "string"
+    ? message === rule.signature
+    : rule.signature.test(message);
+}
+
+function knownSupervisorIpcClassification(
+  error: unknown,
+  operation: string,
+): DiagnosticFailureMetadata | undefined {
+  const message = errorMessage(error);
+  if (!message) return undefined;
+  const rule = SUPERVISOR_IPC_FAILURE_RULES.find((candidate) =>
+    matchesFailureRule(candidate, error, operation, message),
+  );
+  return rule
+    ? {
+        failureClass: rule.failureClass,
+        domain: "supervisor.ipc",
+        errorClass: rule.errorClass,
+      }
+    : undefined;
+}
+
+export function classifySupervisorIpcFailure(
+  error: unknown,
+  operation: string,
+): DiagnosticFailureDecision {
+  return classifyDiagnosticFailure(
+    error,
+    { domain: "supervisor.ipc", operation },
+    knownSupervisorIpcClassification(error, operation),
+  );
+}
+
+export function classifySupervisorFailure(
+  error: unknown,
+  operation: string,
+): DiagnosticFailureDecision {
+  const knownClassification: DiagnosticFailureMetadata | undefined =
+    error instanceof Error && error.name === "Error" && error.message === "write EPIPE"
+      ? {
+          failureClass: "transient-service",
+          domain: "supervisor.runtime",
+          errorClass: "broken-pipe",
+        }
+      : undefined;
+  return classifyDiagnosticFailure(error, { domain: "supervisor", operation }, knownClassification);
+}
+
+function captureSupervisorFailure(
+  error: unknown,
+  decision: DiagnosticFailureDecision,
+  tags?: PoracodeDiagnosticTags,
+): void {
+  if (decision.treatment === "drop") return;
   const Sentry = loadSupervisorSentry();
   if (!Sentry) return;
   if (!Sentry.isEnabled()) return;
+
+  const diagnosticTags: PoracodeDiagnosticTags = {
+    ...tags,
+    "poracode.error_class": decision.errorClass,
+    "poracode.failure_domain": decision.domain,
+    "poracode.operation": decision.operation,
+    "poracode.operational": String(decision.operational),
+    "poracode.process": "supervisor",
+  };
+  if (decision.treatment === "metric") {
+    Sentry.metrics.count("poracode.diagnostic.failure", 1, {
+      attributes: {
+        domain: decision.domain,
+        error_class: decision.errorClass,
+        level: decision.level ?? "warning",
+        operation: decision.operation,
+        operational: decision.operational,
+        process: "supervisor",
+      },
+    });
+    return;
+  }
+
   Sentry.withScope((scope) => {
-    if (tags) {
-      scope.setTags(tags);
+    scope.setTags(diagnosticTags);
+    if (decision.fingerprint) {
+      scope.setFingerprint(decision.fingerprint);
     }
+    scope.setLevel(decision.level ?? "error");
+    scope.addBreadcrumb(
+      buildDiagnosticBreadcrumb({
+        domain: decision.domain,
+        operation: decision.operation,
+        state: "failed",
+        transition: decision.failureClass,
+        level: decision.level ?? "error",
+      }),
+      20,
+    );
     Sentry.captureException(error);
   });
+}
+
+export function captureSupervisorIpcFailure(error: unknown, operation: string): void {
+  captureSupervisorFailure(error, classifySupervisorIpcFailure(error, operation), {
+    "poracode.feature_area": "supervisor-ipc",
+  });
+}
+
+export function captureSupervisorException(error: unknown, tags?: PoracodeDiagnosticTags): void {
+  const operation = tags?.["poracode.feature_area"] ?? "unhandled";
+  captureSupervisorFailure(error, classifySupervisorFailure(error, operation), tags);
 }
 
 export async function flushSupervisorSentry(timeoutMs = 2000): Promise<void> {
