@@ -28,10 +28,8 @@ onlyBuiltDependencies:
   - node-pty
 
 # @sentry/electron's main-process bundle eagerly requires @sentry/node, which
-# requires @opentelemetry/* via bare paths. Under pnpm's nested layout
-# electron-builder does not traverse those into the asar. Public-hoisting
-# pins them to top-level node_modules so the default packaging traversal
-# picks them up.
+# requires @opentelemetry/* via bare paths. Keep these packages public-hoisted
+# so that development and tests work with pnpm's isolated linker.
 publicHoistPattern:
   - "@opentelemetry/*"
   - "@sentry/*"
@@ -45,10 +43,33 @@ publicHoistPattern:
   - "cjs-module-lexer"
   - "module-details-from-path"
 
-# Force electron-builder to traverse symlinked transitive deps under pnpm's
-# nested layout. Without this, deep deps like @opentelemetry/* are not copied
-# into the asar even when listed in `files`.
-nodeLinker: hoisted
+# Declare published packages' direct imports at their package boundaries so
+# resolution still works when the dependency graph lives in pnpm's global
+# virtual store.
+packageExtensions:
+  "@testing-library/jest-dom@6.9.1":
+    dependencies:
+      vitest: 4.1.9
+  "@huggingface/transformers@4.2.0":
+    dependencies:
+      onnxruntime-common: 1.24.3
+  "@heroui/react@3.2.2":
+    dependencies:
+      "@internationalized/date": 3.12.2
+  "react-aria-components@1.17.0":
+    dependencies:
+      "@internationalized/string": 3.2.9
+  "react-aria-components@1.19.0":
+    dependencies:
+      "@internationalized/string": 3.2.9
+
+# Keep development installs lightweight across Git worktrees. The global
+# virtual store above shares package graphs between checkouts, while each
+# worktree keeps only the symlinks needed for its own dependency graph.
+#
+# Production packaging is intentionally independent: build-desktop-artifact.mjs
+# installs the curated runtime dependency set into a clean, flat npm stage.
+nodeLinker: isolated
 
 minimumReleaseAgeExclude:
   # Claude steering relies on the current official SDK lifecycle controls.

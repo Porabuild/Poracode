@@ -11,6 +11,7 @@ import {
   startShellWithToast,
   writeScriptToShellThenExitOnSuccess,
 } from "@/renderer/utils/shellUtils";
+import { cancelPendingWorktreeSetup, enqueueWorktreeSetup } from "./worktreeSetupQueue";
 
 export async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
   const worktreePaths = [
@@ -37,6 +38,28 @@ export function runWorktreeSetupScript(
   // entirely rather than leaving an idle "setup" shell behind.
   if (!normalizeShellScript(setupScript)) return Promise.resolve();
 
+  return enqueueWorktreeSetup(worktreeSetupKey(project, worktreePath), () =>
+    startWorktreeSetupScript(project, worktreePath, setupScript, options),
+  );
+}
+
+export function cancelQueuedWorktreeSetup(project: Project, worktreePath: string): void {
+  cancelPendingWorktreeSetup(worktreeSetupKey(project, worktreePath));
+}
+
+function worktreeSetupKey(project: Project, worktreePath: string): string {
+  const normalizedPath = worktreePath.replace(/\\/gu, "/").replace(/\/+$/u, "");
+  const comparablePath =
+    project.location.kind === "windows" ? normalizedPath.toLowerCase() : normalizedPath;
+  return `${project.id}:${comparablePath}`;
+}
+
+function startWorktreeSetupScript(
+  project: Project,
+  worktreePath: string,
+  setupScript: string,
+  options: { openTerminalPanel?: boolean },
+): Promise<void> {
   const wtLocation = buildWorktreeLocation(project.location, worktreePath);
   const store = useDevTerminalStore.getState();
   const tab = store.addTab(project.id, "setup", worktreePath);
@@ -63,10 +86,16 @@ export function runWorktreeSetupScript(
       finished = true;
       resolve();
     };
-    const detach = writeScriptToShellThenExitOnSuccess(tab.id, setupScript, wtLocation.kind, () => {
-      finish();
-      removeWorktreeSetupTab(tab);
-    });
+    const detach = writeScriptToShellThenExitOnSuccess(
+      tab.id,
+      setupScript,
+      wtLocation.kind,
+      () => {
+        finish();
+        removeWorktreeSetupTab(tab);
+      },
+      finish,
+    );
     const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
       if (state.tabs === prev.tabs) return;
       if (state.tabs.some((item) => item.id === tab.id)) return;
