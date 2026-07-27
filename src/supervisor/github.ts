@@ -59,6 +59,15 @@ const PR_VIEW_FIELDS =
 const PR_LIST_FIELDS =
   "number,headRefName,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
 const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests`;
+const PR_CHECK_FIELDS = "name,state,bucket,link,startedAt,completedAt,workflow";
+const PR_CHECK_PENDING_STATES = new Set([
+  "EXPECTED",
+  "IN_PROGRESS",
+  "PENDING",
+  "QUEUED",
+  "REQUESTED",
+  "WAITING",
+]);
 
 function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
   return items.reduce<Record<string, unknown> | null>((latest, item) => {
@@ -68,6 +77,52 @@ function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
     const latestNumber = typeof latest?.number === "number" ? latest.number : 0;
     return number > latestNumber ? pr : latest;
   }, null);
+}
+
+function mapGhPrCheck(item: unknown): PrCheck {
+  const check = item !== null && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  const field = (name: string): string =>
+    typeof check[name] === "string" ? (check[name] as string) : "";
+  const bucket = field("bucket").toLowerCase();
+  const rawState = field("state").toUpperCase();
+
+  let state = rawState;
+  let conclusion = "";
+  switch (bucket) {
+    case "pass":
+      state = "COMPLETED";
+      conclusion = "SUCCESS";
+      break;
+    case "fail":
+      state = "COMPLETED";
+      conclusion = "FAILURE";
+      break;
+    case "pending":
+      state = PR_CHECK_PENDING_STATES.has(rawState) ? rawState : "PENDING";
+      break;
+    case "cancel":
+      state = "COMPLETED";
+      conclusion = "CANCELLED";
+      break;
+    case "skipping":
+      state = "COMPLETED";
+      conclusion = "SKIPPED";
+      break;
+  }
+
+  const url = field("link");
+  const workflowName = field("workflow");
+  const startedAt = field("startedAt");
+  const completedAt = field("completedAt");
+  return {
+    name: field("name"),
+    state,
+    conclusion,
+    ...(url ? { url } : {}),
+    ...(workflowName ? { workflowName } : {}),
+    ...(startedAt ? { startedAt } : {}),
+    ...(completedAt ? { completedAt } : {}),
+  };
 }
 
 function delay(ms: number): Promise<void> {
@@ -278,6 +333,11 @@ function extractStdout(error: unknown): string {
     if (typeof value === "string") return value;
   }
   return "";
+}
+
+function isPendingPrChecksResult(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("code" in error)) return false;
+  return (error as { code?: unknown }).code === 8 && extractStdout(error).trim().startsWith("[");
 }
 
 /** Stable cache key for {@link GitHubService.viewerLoginCache}. */
@@ -705,21 +765,15 @@ export class GitHubService {
 
   async getPrChecks(location: ProjectLocation, branch: string): Promise<GhGetPrChecksResult> {
     try {
-      const stdout = await this.runGh(location, [
-        "pr",
-        "checks",
-        branch,
-        "--json",
-        "name,state,conclusion",
-      ]);
+      let stdout: string;
+      try {
+        stdout = await this.runGh(location, ["pr", "checks", branch, "--json", PR_CHECK_FIELDS]);
+      } catch (err) {
+        if (!isPendingPrChecksResult(err)) throw err;
+        stdout = extractStdout(err);
+      }
       const items = JSON.parse(stdout);
-      const checks: PrCheck[] = Array.isArray(items)
-        ? items.map((c: Record<string, string>) => ({
-            name: c.name ?? "",
-            state: c.state ?? "",
-            conclusion: c.conclusion ?? "",
-          }))
-        : [];
+      const checks = Array.isArray(items) ? items.map(mapGhPrCheck) : [];
       return { checks };
     } catch (err) {
       throw classifyError(err, "pr checks");

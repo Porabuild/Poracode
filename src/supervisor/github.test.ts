@@ -1198,19 +1198,79 @@ describe("GitHubService", () => {
   });
 
   describe("getPrChecks", () => {
-    it("returns parsed check results", async () => {
+    it("maps gh check buckets into canonical pass, fail, and pending results", async () => {
       const checksJson = JSON.stringify([
-        { name: "CI", state: "completed", conclusion: "success" },
-        { name: "Lint", state: "completed", conclusion: "failure" },
+        {
+          name: "CI",
+          state: "SUCCESS",
+          bucket: "pass",
+          link: "https://github.com/owner/repo/actions/runs/1",
+          workflow: "CI",
+          startedAt: "2026-07-27T10:00:00Z",
+          completedAt: "2026-07-27T10:01:00Z",
+        },
+        { name: "Lint", state: "FAILURE", bucket: "fail" },
+        { name: "Build", state: "IN_PROGRESS", bucket: "pending" },
+        { name: "Queued", state: "QUEUED", bucket: "pending" },
       ]);
       execFileAsyncMock.mockResolvedValue({ stdout: checksJson });
 
       const result = await new GitHubService().getPrChecks(location, "feature/x");
 
       expect(result.checks).toEqual([
-        { name: "CI", state: "completed", conclusion: "success" },
-        { name: "Lint", state: "completed", conclusion: "failure" },
+        {
+          name: "CI",
+          state: "COMPLETED",
+          conclusion: "SUCCESS",
+          url: "https://github.com/owner/repo/actions/runs/1",
+          workflowName: "CI",
+          startedAt: "2026-07-27T10:00:00Z",
+          completedAt: "2026-07-27T10:01:00Z",
+        },
+        { name: "Lint", state: "COMPLETED", conclusion: "FAILURE" },
+        { name: "Build", state: "IN_PROGRESS", conclusion: "" },
+        { name: "Queued", state: "QUEUED", conclusion: "" },
       ]);
+
+      const args = execFileAsyncMock.mock.calls[0]?.[1] as string[];
+      expect(args).toEqual([
+        "pr",
+        "checks",
+        "feature/x",
+        "--json",
+        "name,state,bucket,link,startedAt,completedAt,workflow",
+      ]);
+      expect(args.join(",")).not.toContain("conclusion");
+    });
+
+    it("maps cancelled and skipped buckets to completed outcomes", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify([
+          { name: "Cancelled", state: "CANCELLED", bucket: "cancel" },
+          { name: "Skipped", state: "SKIPPED", bucket: "skipping" },
+        ]),
+      });
+
+      const result = await new GitHubService().getPrChecks(location, "feature/x");
+
+      expect(result.checks).toEqual([
+        { name: "Cancelled", state: "COMPLETED", conclusion: "CANCELLED" },
+        { name: "Skipped", state: "COMPLETED", conclusion: "SKIPPED" },
+      ]);
+    });
+
+    it("parses pending check JSON returned with gh exit code 8", async () => {
+      const pendingJson = JSON.stringify([{ name: "Build", state: "PENDING", bucket: "pending" }]);
+      execFileAsyncMock.mockRejectedValue(
+        Object.assign(new Error("Command failed with exit code 8"), {
+          code: 8,
+          stdout: pendingJson,
+        }),
+      );
+
+      const result = await new GitHubService().getPrChecks(location, "feature/x");
+
+      expect(result.checks).toEqual([{ name: "Build", state: "PENDING", conclusion: "" }]);
     });
 
     it("returns empty checks when gh returns empty array", async () => {
@@ -1219,6 +1279,14 @@ describe("GitHubService", () => {
       const result = await new GitHubService().getPrChecks(location, "feature/x");
 
       expect(result.checks).toEqual([]);
+    });
+
+    it("keeps unsupported gh field failures observable", async () => {
+      execFileAsyncMock.mockRejectedValue(new Error("Unknown JSON field: futureField"));
+
+      await expect(new GitHubService().getPrChecks(location, "feature/x")).rejects.toThrow(
+        "gh pr checks failed: Unknown JSON field: futureField",
+      );
     });
   });
 
