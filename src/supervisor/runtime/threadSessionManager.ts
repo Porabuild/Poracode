@@ -251,7 +251,7 @@ export class ThreadSessionManager {
    * event the user sees a red icon and nothing else.
    */
   private failStructuredSession(session: SessionRuntime, error: unknown): void {
-    this.structuredFailureReporter.capture(session);
+    this.structuredFailureReporter.capture(session, error);
     const message = error instanceof Error ? error.message : String(error);
     this.outputPipeline.updateState(session, "error", "error", message);
     this.enqueueRuntimeEvent(session.threadId, {

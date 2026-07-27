@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import type { CommandSpec } from "../base";
+import { ExpectedStructuredRuntimeError, type CommandSpec } from "../base";
 import { classifyOpenCodeError } from "./opencodeErrors";
 
 const URL_LINE_PREFIX = "opencode server listening";
@@ -9,7 +9,7 @@ const READY_TIMEOUT_MS = 15_000;
 const POSIX_TERM_GRACE_MS = 1_000;
 
 /** Environmental/provider readiness failure, distinct from runtime defects. */
-export class OpenCodeReadinessTimeoutError extends Error {
+export class OpenCodeReadinessTimeoutError extends ExpectedStructuredRuntimeError {
   override readonly name = "OpenCodeReadinessTimeoutError";
 }
 
