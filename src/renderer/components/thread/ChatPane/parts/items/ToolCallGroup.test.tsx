@@ -120,6 +120,35 @@ describe("ToolCallGroup", () => {
     expect(onHeightChange).toHaveBeenCalledOnce();
   });
 
+  it("auto-collapses and remeasures when it stops being the live tail", () => {
+    const threadId = "thread-1";
+    const items = [makeToolItem("tool-1", "Read file one")];
+    seedThread(threadId, items);
+    let container: HTMLElement | null = null;
+    const onHeightChange = vi.fn<() => void>(() => {
+      expect(container?.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+    });
+    const view = renderToolCallGroup(threadId, [items[0]!.id], true, onHeightChange);
+    container = view.container;
+
+    expect(screen.getByText("Read file one")).toBeInTheDocument();
+
+    view.rerender(
+      <AppProvider>
+        <ToolCallGroup
+          threadId={threadId}
+          itemIds={[items[0]!.id]}
+          isLive={false}
+          onHeightChange={onHeightChange}
+        />
+      </AppProvider>,
+    );
+
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+    expect(screen.queryByText("Read file one")).not.toBeInTheDocument();
+    expect(onHeightChange).toHaveBeenCalledOnce();
+  });
+
   it("renders every row inline when the group fits under the cap", () => {
     const threadId = "thread-1";
     const items = Array.from({ length: 6 }, (_, index) =>
