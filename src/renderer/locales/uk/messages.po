@@ -99,6 +99,11 @@ msgstr "{0, plural, one {# інструмент} few {# інструменти} 
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {Кандидат (#)} few {Кандидати (#)} many {Кандидати (#)} other {Кандидати (#)}}"
 
+#. placeholder {0}: section.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {MCP} other {MCPs}}"
+msgstr "{0, plural, one {MCP} few {MCP} many {MCP} other {MCP}}"
+
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -7226,6 +7231,7 @@ msgid "Pinned"
 msgstr "Закріплено"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"

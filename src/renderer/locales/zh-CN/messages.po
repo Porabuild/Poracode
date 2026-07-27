@@ -99,6 +99,11 @@ msgstr "{0, plural, one {# 个工具} other {# 个工具}}"
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {候选项（# 个）} other {候选项（# 个）}}"
 
+#. placeholder {0}: section.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {MCP} other {MCPs}}"
+msgstr "{0, plural, one {MCP} other {MCP}}"
+
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -7225,6 +7230,7 @@ msgid "Pinned"
 msgstr "已固定"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
