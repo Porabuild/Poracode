@@ -51,7 +51,12 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  useProjectIdsHiddenByWorkspace,
+  useWorkspaceProjectIds,
+} from "@/renderer/state/workspaceSelectors";
 import { useUpdateStore } from "@/renderer/state/updateStore";
+import { SidebarWorkspaceSwitcher } from "./parts/SidebarWorkspaceSwitcher";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
 import { WhatsNewButton } from "./parts/WhatsNewButton";
 import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
@@ -216,11 +221,10 @@ function CollapsedThreadRail() {
 
 export function Sidebar() {
   const { t } = useLingui();
-  const projectIds = useAppStore(
-    useShallow((state) =>
-      state.projects.filter((project) => !isHomeProject(project)).map((project) => project.id),
-    ),
-  );
+  // Only the active workspace's projects; Home is handled separately below and
+  // belongs to every workspace.
+  const projectIds = useWorkspaceProjectIds();
+  const hiddenProjectCount = useProjectIdsHiddenByWorkspace().size;
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
@@ -395,7 +399,13 @@ export function Sidebar() {
           {projectIds.length === 0 && !(homeScopeEnabled && homeProject) ? (
             <div className="pt-4">
               <p className="text-center text-sm text-muted">
-                <Trans>Add a project to start</Trans>
+                {hiddenProjectCount > 0 ? (
+                  // Distinguish "you own no projects" from "this workspace is
+                  // empty but others aren't" — otherwise the sidebar looks broken.
+                  <Trans>No projects in this workspace</Trans>
+                ) : (
+                  <Trans>Add a project to start</Trans>
+                )}
               </p>
             </div>
           ) : (
@@ -447,6 +457,7 @@ export function Sidebar() {
 
         <ProviderUsageRail orientation="row" />
         <div className={sidebarFooterNavClass}>
+          <SidebarWorkspaceSwitcher />
           <UpdateButtons />
           <WhatsNewButton />
           <SidebarButton

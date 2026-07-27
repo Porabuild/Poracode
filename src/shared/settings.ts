@@ -17,6 +17,7 @@ import {
   threadRemoveActionSchema,
   worktreeStorageModeSchema,
   mcpServerListSchema,
+  workspaceListSchema,
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
@@ -379,6 +380,16 @@ export const sharedSettingsSchema = z.object({
    * WebSocket-connected foreground app still shows full detail.
    */
   remotePushRedactContent: z.boolean(),
+  /**
+   * User-defined project groupings ("Work", "Side Hustle", …), newest last.
+   * Which one is *active* is not stored here but per-window (see the renderer's
+   * `workspaceStore`), so switching in one window leaves the others alone.
+   *
+   * Not part of `remoteSettingsSchema`, so paired clients (mobile PWA) receive no
+   * workspace list and therefore show every project — add it to that allowlist if
+   * workspaces should scope remote sessions too.
+   */
+  workspaces: workspaceListSchema,
   /** User-starred (provider, presentation, model) entries surfaced at the top of the model picker. */
   favoriteModels: z.array(modelPickerEntrySchema),
   /**
@@ -528,6 +539,7 @@ export const defaultSharedSettings: SharedSettings = {
   notifyL2Cli: true,
   remotePushEnabled: true,
   remotePushRedactContent: false,
+  workspaces: [],
   favoriteModels: [],
   recentModels: [],
   disableCliHookPlugin: false,

@@ -236,7 +236,7 @@ export function initDatabase(dbPath: string) {
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 27;
+  const SCHEMA_VERSION = 28;
 
   const storedVersion = Number(
     (
@@ -524,6 +524,15 @@ export function initDatabase(dbPath: string) {
           ts INTEGER NOT NULL
         );
       `);
+    }
+
+    if (storedVersion < 28) {
+      // Workspace a project belongs to. Left NULL on upgrade; the renderer's
+      // first-run bootstrap files existing projects into the default workspace.
+      const cols = sqlite.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
+      if (!cols.some((c) => c.name === "workspace_id")) {
+        sqlite.exec("ALTER TABLE projects ADD COLUMN workspace_id TEXT");
+      }
     }
 
     sqlite

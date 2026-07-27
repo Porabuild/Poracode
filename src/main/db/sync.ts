@@ -92,12 +92,12 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
   return sqlite.prepare(`
     INSERT INTO projects (
       id, name, location_kind, location_path, location_distro, location_linux_path,
-      location_unc_path, last_draft_config, scripts, search_settings, mcp_servers, disabled,
-      sort_order, created_at
+      location_unc_path, last_draft_config, scripts, search_settings, mcp_servers, workspace_id,
+      disabled, sort_order, created_at
     ) VALUES (
       @id, @name, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
-      @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @mcpServers, @disabled,
-      @sortOrder, @createdAt
+      @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @mcpServers, @workspaceId,
+      @disabled, @sortOrder, @createdAt
     )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
@@ -110,6 +110,7 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
       scripts = excluded.scripts,
       search_settings = excluded.search_settings,
       mcp_servers = excluded.mcp_servers,
+      workspace_id = excluded.workspace_id,
       disabled = excluded.disabled,
       sort_order = excluded.sort_order
   `);
@@ -124,6 +125,7 @@ function runProjectSync(stmt: SqliteStatement, project: Project, sortOrder: numb
     scripts: project.scripts ? JSON.stringify(project.scripts) : null,
     searchSettings: project.searchSettings ? JSON.stringify(project.searchSettings) : null,
     mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
+    workspaceId: project.workspaceId ?? null,
     disabled: project.disabled ? 1 : 0,
     sortOrder,
     createdAt: project.createdAt,

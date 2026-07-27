@@ -66,6 +66,11 @@ export const projectSchema = z.object({
   worktreeLocation: projectWorktreeLocationSchema.optional(),
   /** Project MCP entries override global entries by name (case-insensitive). */
   mcpServers: mcpServerListSchema.optional(),
+  /**
+   * Workspace this project belongs to (see `./workspace.ts`). Absent or dangling
+   * means "unfiled" — such a project stays visible in every workspace.
+   */
+  workspaceId: z.string().optional(),
   disabled: z.boolean().optional(),
   createdAt: z.string().min(1),
 });

@@ -14,6 +14,7 @@ import {
   Globe,
   Info,
   Keyboard,
+  Layers,
   Megaphone,
   Mic,
   MessageSquare,
@@ -225,6 +226,7 @@ export function SettingsSidebar(props: {
       label: t`Personal`,
       sections: [
         { id: "profile", icon: <UserRound className="size-4" />, label: t`Profile` },
+        { id: "workspaces", icon: <Layers className="size-4" />, label: t`Workspaces` },
         { id: "general", icon: <Settings2 className="size-4" />, label: t`General` },
         { id: "appearance", icon: <Palette className="size-4" />, label: t`Appearance` },
         { id: "audio", icon: <Mic className="size-4" />, label: t`Audio` },
