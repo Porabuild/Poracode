@@ -11,7 +11,7 @@ import {
   type RefObject,
   type WheelEventHandler,
 } from "react";
-import { LegendList, type LegendListRef } from "@legendapp/list/react";
+import { LegendList, type LegendListRef, type LegendListState } from "@legendapp/list/react";
 import { Surface } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import type {
@@ -50,6 +50,7 @@ import {
   readTimelineMeasurements,
   writeTimelineMeasurements,
 } from "./timelineMeasurementCache";
+import { syncFollowingVirtualRowPositions } from "./virtualRowLayout";
 
 export interface CheckpointRevertActions {
   rollbackThreadConversation(input: {
@@ -297,24 +298,26 @@ export function MessageList({
 
   const remeasureRowElement = useCallback(
     (itemKey: string, element: HTMLDivElement | null, liveStreamGrowth = false) => {
-      if (!element) return;
+      const instance = listRef.current;
+      if (!element || !instance) return null;
       const height = element.offsetHeight;
       // A streamed store delta and the live-row ResizeObserver can report the
       // same painted size in either order. Let the first path update LegendList
       // and make the second a no-op instead of starting a redundant anchor /
       // scroll reconciliation cycle.
-      if (liveStreamGrowth && listRef.current?.getState().sizes.get(itemKey) === height) {
-        return;
+      if (liveStreamGrowth && instance.getState().sizes.get(itemKey) === height) {
+        return instance.getState();
       }
       if (liveStreamGrowth) {
         onLiveVirtualizerLayoutChange?.();
       } else {
         onVirtualizerLayoutChange?.();
       }
-      listRef.current?.setItemSize(itemKey, {
+      instance.setItemSize(itemKey, {
         height,
         width: element.offsetWidth,
       });
+      return instance.getState();
     },
     [onLiveVirtualizerLayoutChange, onVirtualizerLayoutChange],
   );
@@ -491,7 +494,7 @@ type VirtualChatListRowProps = {
     itemKey: string,
     element: HTMLDivElement | null,
     liveStreamGrowth?: boolean,
-  ) => void;
+  ) => LegendListState | null;
   onVirtualizerLayoutChange?: () => void;
   suppressInlineTurnAnchorId: string | null;
   canRevertCheckpoints: boolean;
@@ -565,7 +568,8 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
       const nextHeight = element.offsetHeight;
       const nextWidth = element.offsetWidth;
       if (nextHeight === previousHeight && nextWidth === previousWidth) return;
-      const heightDelta = nextHeight - previousHeight;
+      const previousMeasuredHeight = previousHeight;
+      const heightDelta = nextHeight - previousMeasuredHeight;
       previousHeight = nextHeight;
       previousWidth = nextWidth;
       // The smoothed Markdown renderer can grow between provider deltas, and the
@@ -573,19 +577,15 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
       // frames after the store event. The DOM resize is the earliest reliable
       // signal and ResizeObserver runs after layout but before paint, so measure
       // LegendList here rather than waiting for the next stream event or frame.
-      remeasureElement(entry.id, element, true);
-      // LegendList turns that size into new row offsets through a React render,
-      // which lands on the NEXT frame. Nothing sits below the tail, so there it
-      // is invisible — but a row that grows mid-list paints into its neighbour
-      // for that frame. Steering is when that shows: the prompt is appended
-      // under the still-working row, so when the turn closes, the row's final
-      // text plus its "Worked for X" line grow underneath the prompt bubble,
-      // which covers them until the reflow catches up. Shift the rows below by
-      // the same delta here, still before paint; LegendList rewrites the
-      // identical offsets on its own pass, so the two converge. Growth only —
-      // LegendList deliberately defers shrinks, and racing that would jitter.
-      if (!isLastEntryRef.current && heightDelta > 0) {
-        shiftFollowingRows(element, heightDelta);
+      const layout = remeasureElement(entry.id, element, true);
+      // LegendList may commit its position wrappers on this frame or the next.
+      // Nothing sits below the tail, but a growing mid-list row can briefly
+      // paint into its neighbour. Mirror the virtualizer's authoritative
+      // single-column positions before paint; never infer them from DOM deltas.
+      // Shrinks remain entirely LegendList-owned because it deliberately
+      // confirms them on the next animation frame.
+      if (layout && !isLastEntryRef.current && heightDelta > 0) {
+        syncFollowingVirtualRowPositions(element, layout);
       }
     });
     observer.observe(element);
@@ -779,27 +779,6 @@ function getFixedTimelineEntrySize(
     (availableWidth * source.height) / source.width,
   );
   return Math.round(renderedHeight + INLINE_IMAGE_ROW_CHROME_PX);
-}
-
-/**
- * Nudge the virtual rows below `element` by `delta` px, before paint, to cover
- * the frame between a mid-list row growing and LegendList re-rendering the new
- * offsets. Purely transient: LegendList owns `top` and rewrites it (to the same
- * value) on its own pass.
- */
-function shiftFollowingRows(element: HTMLElement, delta: number): void {
-  if (!Number.isFinite(delta) || Math.abs(delta) < 1) return;
-  const container = element.parentElement;
-  const parent = container?.parentElement;
-  if (!container || !parent) return;
-  const ownTop = Number.parseFloat(container.style.top);
-  if (!Number.isFinite(ownTop)) return;
-  for (const sibling of parent.children) {
-    if (!(sibling instanceof HTMLElement) || sibling === container) continue;
-    const top = Number.parseFloat(sibling.style.top);
-    if (!Number.isFinite(top) || top <= ownTop) continue;
-    sibling.style.top = `${top + delta}px`;
-  }
 }
 
 /**

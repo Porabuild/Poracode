@@ -120,6 +120,74 @@ describe("ToolCallGroup", () => {
     expect(onHeightChange).toHaveBeenCalledOnce();
   });
 
+  it("remeasures after every explicit expand and collapse commit", () => {
+    const threadId = "thread-1";
+    const items = [makeToolItem("tool-1", "Read file one")];
+    seedThread(threadId, items);
+    let container: HTMLElement | null = null;
+    const committedLayouts: boolean[] = [];
+    const onHeightChange = vi.fn<() => void>(() => {
+      committedLayouts.push(
+        container?.querySelector(".poracode-tool-call-group-viewport") !== null,
+      );
+    });
+    const beginVirtualizerLayoutChange = vi.fn<() => void>();
+    const view = renderToolCallGroup(
+      threadId,
+      [items[0]!.id],
+      false,
+      onHeightChange,
+      beginVirtualizerLayoutChange,
+    );
+    container = view.container;
+    const trigger = screen.getByRole("button", { name: /1 view/i });
+
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+
+    expect(committedLayouts).toEqual([true, false, true]);
+    expect(onHeightChange).toHaveBeenCalledTimes(3);
+    expect(beginVirtualizerLayoutChange).toHaveBeenCalledTimes(3);
+    for (let index = 0; index < 3; index += 1) {
+      expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[index]!).toBeLessThan(
+        onHeightChange.mock.invocationCallOrder[index]!,
+      );
+    }
+  });
+
+  it("remeasures after Show all and Show less commit their row sets", () => {
+    const threadId = "thread-1";
+    const items = Array.from({ length: 10 }, (_, index) =>
+      makeToolItem(`tool-${index + 1}`, `Read file ${index + 1}`),
+    );
+    seedThread(threadId, items);
+    const committedFirstRows: boolean[] = [];
+    const onHeightChange = vi.fn<() => void>(() => {
+      committedFirstRows.push(screen.queryByText("Read file 1") !== null);
+    });
+    const beginVirtualizerLayoutChange = vi.fn<() => void>();
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      true,
+      onHeightChange,
+      beginVirtualizerLayoutChange,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+
+    expect(committedFirstRows).toEqual([true, false]);
+    expect(onHeightChange).toHaveBeenCalledTimes(2);
+    expect(beginVirtualizerLayoutChange).toHaveBeenCalledTimes(2);
+    for (let index = 0; index < 2; index += 1) {
+      expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[index]!).toBeLessThan(
+        onHeightChange.mock.invocationCallOrder[index]!,
+      );
+    }
+  });
+
   it("auto-collapses and remeasures when it stops being the live tail", () => {
     const threadId = "thread-1";
     const items = [makeToolItem("tool-1", "Read file one")];
