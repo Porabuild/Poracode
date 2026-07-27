@@ -54,6 +54,12 @@ export const prCreateModeOptions = [
   { id: "auto", label: msg`Auto-generate` },
 ] as const satisfies readonly LocalizedOption[];
 
+export const prMergeMethodOptions = [
+  { id: "merge", label: msg`Merge PR: Commit` },
+  { id: "squash", label: msg`Merge PR: Squash` },
+  { id: "rebase", label: msg`Merge PR: Rebase` },
+] as const satisfies readonly LocalizedOption[];
+
 export const worktreeStorageModeOptions = [
   { id: "global", label: msg`Global folder` },
   { id: "project-relative", label: msg`Inside each project` },

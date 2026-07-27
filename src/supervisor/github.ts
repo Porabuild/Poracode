@@ -14,7 +14,7 @@ import {
   type GhCheckAvailableResult,
   type GhGetPrChecksResult,
   type GhGetPrDetailsResult,
-  type GhGetPrReviewCommentsResult,
+  type GhGetPrReviewThreadsResult,
   type GhGetPrFilesResult,
   type GhGetPrDiffResult,
   type GhListAccountsResult,
@@ -25,12 +25,12 @@ import {
 } from "@/shared/contracts";
 import {
   mapGitHubApiRepo,
-  mapPrComment,
   mapPrData,
   mapPrDetails,
   mapPullRequestSummary,
   parseGhAuthAccounts,
 } from "./githubMappers";
+import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThreads";
 
 // Re-export the pure mappers previously defined inline here so the module's
 // public surface stays identical for github.test.ts and bridge consumers.
@@ -776,26 +776,30 @@ export class GitHubService {
     }
   }
 
-  async getPrReviewComments(
+  async getPrReviewThreads(
     location: ProjectLocation,
     prNumber: number,
-  ): Promise<GhGetPrReviewCommentsResult> {
+  ): Promise<GhGetPrReviewThreadsResult> {
     try {
       const stdout = await this.runGh(location, [
         "api",
+        "graphql",
         "--paginate",
-        `repos/{owner}/{repo}/pulls/${prNumber}/comments?per_page=100`,
+        "-F",
+        "owner={owner}",
+        "-F",
+        "name={repo}",
+        "-F",
+        `number=${prNumber}`,
+        "-f",
+        `query=${PR_REVIEW_THREADS_QUERY}`,
         "--jq",
-        ".[] | {id: (.id | tostring), author: {login: .user.login, avatarUrl: .user.avatar_url}, body, createdAt: .created_at, url: .html_url}",
+        ".data.repository.pullRequest.reviewThreads.nodes[]",
       ]);
-      const comments = stdout
-        .split(/\r?\n/u)
-        .filter(Boolean)
-        .map((line) => mapPrComment(JSON.parse(line)))
-        .filter((comment): comment is PrComment => comment !== null);
-      return { comments };
+      const threads = parsePrReviewThreads(stdout);
+      return { comments: threads.flatMap((thread) => thread.comments), threads };
     } catch (err) {
-      throw classifyError(err, "api pull request review comments");
+      throw classifyError(err, "api pull request review threads");
     }
   }
 

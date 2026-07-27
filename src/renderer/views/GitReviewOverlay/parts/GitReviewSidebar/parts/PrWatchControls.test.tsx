@@ -45,24 +45,6 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
-vi.mock("@/renderer/components/common", () => ({
-  ToggleSwitch: (props: {
-    "aria-label": string;
-    isSelected: boolean;
-    isDisabled?: boolean;
-    onChange: (selected: boolean) => void;
-  }) => (
-    <button
-      type="button"
-      role="switch"
-      aria-label={props["aria-label"]}
-      aria-checked={props.isSelected}
-      disabled={props.isDisabled}
-      onClick={() => props.onChange(!props.isSelected)}
-    />
-  ),
-}));
-
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: (selector: (state: { projects: Project[] }) => unknown) =>
     selector({ projects: [project] }),
@@ -134,9 +116,11 @@ describe("PrWatchControls", () => {
     );
     await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
 
-    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByRole("slider", { name: "PR automation" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Watch PR" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.keyUp(slider, { key: "ArrowRight" });
 
     await waitFor(() =>
       expect(bridge.upsertPrWatch).toHaveBeenCalledWith({
@@ -152,20 +136,24 @@ describe("PrWatchControls", () => {
     );
   });
 
-  it("can enable auto-merge without launching an agent", async () => {
+  it("watches and fixes blockers before auto-merging", async () => {
     render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
     await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
 
     fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Auto-merge" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    fireEvent.keyDown(slider, { key: "End" });
+    fireEvent.keyUp(slider, { key: "End" });
 
     await waitFor(() =>
       expect(bridge.upsertPrWatch).toHaveBeenCalledWith({
         projectId: project.id,
         prNumber: 42,
         headBranch: "feature/pr-watch",
-        watchEnabled: false,
+        watchEnabled: true,
         autoMerge: true,
+        agentKind: "codex",
+        config: { model: "gpt-5.7", effort: "high" },
       }),
     );
   });

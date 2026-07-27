@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { PrMergeMethod, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { refreshSinglePr } from "@/renderer/state/gitRefresh";
 import { pullMergedPrBaseIfPossible } from "@/renderer/actions/gitCommandRunner";
 
@@ -32,7 +33,7 @@ export interface UsePrWriteActionsResult {
   pendingAction: PrWriteAction | null;
   /** True while an on-demand PR refresh is in flight (independent of `prLoading`). */
   isRefreshing: boolean;
-  handleMergePr: (method: "merge" | "squash" | "rebase", admin?: boolean) => Promise<void>;
+  handleMergePr: (method: PrMergeMethod, admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
   handleUpdatePrBranch: (rebase?: boolean) => Promise<void>;
@@ -87,12 +88,10 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
     }
   }
 
-  async function handleMergePr(
-    method: "merge" | "squash" | "rebase",
-    admin = false,
-  ): Promise<void> {
+  async function handleMergePr(method: PrMergeMethod, admin = false): Promise<void> {
     const prData = getCurrentPrData();
     if (!prData) return;
+    useSharedSettings.getState().setPrMergeMethod(method);
     setPendingAction("merge");
     try {
       await readBridge().ghMergePr({

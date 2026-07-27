@@ -1248,6 +1248,22 @@ msgstr "自动"
 msgid "Auto Approve"
 msgstr "自动批准"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Fix"
+msgstr "自动修复"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
+#~ msgstr "“自动修复”会等待检查完成并修复合并阻碍。“自动合并”还会在准备就绪后执行压缩合并。"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected merge method when ready."
+msgstr "“自动修复”会等待检查完成并修复合并阻碍。“自动合并”会在准备就绪后使用你选择的合并方式。"
+
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Merge"
+msgstr "自动合并"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -1262,8 +1278,13 @@ msgid "Auto-generate"
 msgstr "自动生成"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Auto-merge"
-msgstr "自动合并"
+#~ msgid "Auto-merge"
+#~ msgstr "自动合并"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Auto-merge new pull requests"
+#~ msgstr "自动合并新的拉取请求"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -1840,6 +1861,11 @@ msgstr "选择父文件夹"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "请选择至少两个候选项并输入提示。"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose how Poracode performs manual merges and automatic PR merges."
+msgstr "选择 Poracode 执行手动合并和 PR 自动合并的方式。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "选择登录 {env} 的方式。"
@@ -1864,6 +1890,11 @@ msgstr "选择 Poracode 界面的显示语言。"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "选择要附加到的线程"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
+msgstr "选择 Poracode 对新拉取请求执行的操作：不执行任何操作、修复合并阻碍，或修复后合并。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2467,6 +2498,7 @@ msgstr "连接"
 #~ msgid "Connect a server"
 #~ msgstr "连接服务器"
 
+#: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
 msgstr "请先连接代理，再监视 PR。"
@@ -3103,6 +3135,11 @@ msgstr "默认新线程"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Default permissions"
 msgstr "默认权限"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Default PR automation"
+msgstr "默认 PR 自动化"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -4262,8 +4299,17 @@ msgid "Fix in Agent"
 msgstr "在代理中修复"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Fix new comments and failed checks, then push updates."
-msgstr "修复新评论和失败的检查，然后推送更新。"
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Fix issues"
+#~ msgstr "修复问题"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix issues waits for checks and repairs merge blockers. Merge PR also squash merges when ready."
+#~ msgstr "“修复问题”会等待检查完成并修复合并阻碍。“合并 PR”还会在准备就绪后执行压缩合并。"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix new comments and failed checks, then push updates."
+#~ msgstr "修复新评论和失败的检查，然后推送更新。"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -5618,6 +5664,8 @@ msgstr "本地合并并删除工作树"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Merge method"
 msgstr "合并方式"
 
@@ -5625,18 +5673,26 @@ msgstr "合并方式"
 msgid "Merge options"
 msgstr "合并选项"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Merge PR"
+#~ msgstr "合并 PR"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Commit"
 msgstr "合并 PR：提交"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Rebase"
 msgstr "合并 PR：Rebase"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Squash"
 msgstr "合并 PR：Squash"
 
@@ -6598,6 +6654,7 @@ msgstr "npx"
 msgid "off"
 msgstr "关闭"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
@@ -7225,6 +7282,7 @@ msgid "Pinned"
 msgstr "已固定"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
@@ -7604,6 +7662,11 @@ msgstr "拉取请求 #{0}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
 msgstr "拉取请求类别"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/prAutomationActions.ts
+msgid "Pull request created, but its default automation could not be enabled: {0}"
+msgstr "拉取请求已创建，但无法启用其默认自动化：{0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
@@ -9255,8 +9318,8 @@ msgid "Split view"
 msgstr "分割视图"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Squash merge when checks and required reviews pass."
-msgstr "检查和必需审核通过后执行 squash 合并。"
+#~ msgid "Squash merge when checks and required reviews pass."
+#~ msgstr "检查和必需审核通过后执行 squash 合并。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
@@ -10373,9 +10436,19 @@ msgstr "信任并连接"
 msgid "Try a different search or project filter."
 msgstr "请尝试其他搜索或项目筛选器。"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+#~ msgstr "为你在 Poracode 中创建的拉取请求自动开启自动合并。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "开启远程访问以显示配对码。"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+#~ msgstr "为你在 Poracode 中创建的拉取请求自动开启监视 PR。"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11044,6 +11117,10 @@ msgstr "语音输入语言"
 msgid "Voice input model"
 msgstr "语音输入模型"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+#~ msgstr "等待检查完成，然后修复失败项、未解决的对话和分支阻塞问题。"
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "请等待所有候选项完成后再清理。"
@@ -11124,9 +11201,14 @@ msgstr "正在预热 shell 环境..."
 msgid "Warming up WSL shell environment…"
 msgstr "正在预热 WSL shell 环境..."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Watch new pull requests"
+#~ msgstr "监视新的拉取请求"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Watch PR"
-msgstr "监视 PR"
+#~ msgid "Watch PR"
+#~ msgstr "监视 PR"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

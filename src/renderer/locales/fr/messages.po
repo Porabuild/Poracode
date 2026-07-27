@@ -1248,6 +1248,22 @@ msgstr "Automatique"
 msgid "Auto Approve"
 msgstr "Approuver automatiquement"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Fix"
+msgstr "Correction auto"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
+#~ msgstr "« Correction auto » attend la fin des vérifications et corrige les blocages de fusion. « Fusion auto » effectue aussi un squash merge lorsque tout est prêt."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected merge method when ready."
+msgstr "« Correction auto » attend la fin des vérifications et corrige les blocages de fusion. « Fusion auto » utilise la méthode de fusion sélectionnée lorsque tout est prêt."
+
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Merge"
+msgstr "Fusion auto"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -1262,8 +1278,13 @@ msgid "Auto-generate"
 msgstr "Générer automatiquement"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Auto-merge"
-msgstr "Fusion automatique"
+#~ msgid "Auto-merge"
+#~ msgstr "Fusion automatique"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Auto-merge new pull requests"
+#~ msgstr "Fusionner automatiquement les nouvelles pull requests"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -1840,6 +1861,11 @@ msgstr "Choisissez un dossier parent"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "Choisissez au moins deux candidats et saisissez une invite."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose how Poracode performs manual merges and automatic PR merges."
+msgstr "Choisissez comment Poracode effectue les fusions manuelles et automatiques des PR."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "Choisissez comment vous connecter à {env}."
@@ -1864,6 +1890,11 @@ msgstr "Choisissez la langue d'affichage de l'interface de Poracode."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Choisissez le fil auquel attacher"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
+msgstr "Choisissez ce que Poracode fait pour les nouvelles pull requests : ne rien faire, corriger les blocages de fusion, ou les corriger puis fusionner."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2467,6 +2498,7 @@ msgstr "Connecter"
 #~ msgid "Connect a server"
 #~ msgstr "Connecter un serveur"
 
+#: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
 msgstr "Connectez un agent avant de surveiller les PR."
@@ -3103,6 +3135,11 @@ msgstr "Nouveau fil de discussion par défaut"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Default permissions"
 msgstr "Autorisations par défaut"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Default PR automation"
+msgstr "Automatisation des PR par défaut"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -4262,8 +4299,17 @@ msgid "Fix in Agent"
 msgstr "Correction dans l'agent"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Fix new comments and failed checks, then push updates."
-msgstr "Corrigez les nouveaux commentaires et les vérifications échouées, puis poussez les mises à jour."
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Fix issues"
+#~ msgstr "Corriger les problèmes"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix issues waits for checks and repairs merge blockers. Merge PR also squash merges when ready."
+#~ msgstr "« Corriger les problèmes » attend la fin des vérifications et corrige les blocages de fusion. « Fusionner la PR » effectue aussi un squash merge lorsqu’elle est prête."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix new comments and failed checks, then push updates."
+#~ msgstr "Corrigez les nouveaux commentaires et les vérifications échouées, puis poussez les mises à jour."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -5618,6 +5664,8 @@ msgstr "Fusionner localement et supprimer Worktree"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Merge method"
 msgstr "Méthode de fusion"
 
@@ -5625,18 +5673,26 @@ msgstr "Méthode de fusion"
 msgid "Merge options"
 msgstr "Options de fusion"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Merge PR"
+#~ msgstr "Fusionner la PR"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Commit"
 msgstr "Fusionner la PR : Commit"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Rebase"
 msgstr "Fusionner PR : Rebase"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Squash"
 msgstr "Fusionner la PR : Squash"
 
@@ -6598,6 +6654,7 @@ msgstr "npx"
 msgid "off"
 msgstr "Désactivé"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
@@ -7225,6 +7282,7 @@ msgid "Pinned"
 msgstr "Épinglé"
 
 #: src/mobile/ComposerInfoChips.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
@@ -7604,6 +7662,11 @@ msgstr "Pull request #{0}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
 msgstr "Catégorie de pull request"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/prAutomationActions.ts
+msgid "Pull request created, but its default automation could not be enabled: {0}"
+msgstr "Pull request créée, mais son automatisation par défaut n’a pas pu être activée : {0}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
@@ -9255,8 +9318,8 @@ msgid "Split view"
 msgstr "Vue fractionnée"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Squash merge when checks and required reviews pass."
-msgstr "Effectuez une fusion squash lorsque les vérifications et les revues requises sont validées."
+#~ msgid "Squash merge when checks and required reviews pass."
+#~ msgstr "Effectuez une fusion squash lorsque les vérifications et les revues requises sont validées."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
@@ -10373,9 +10436,19 @@ msgstr "Faire confiance et se connecter"
 msgid "Try a different search or project filter."
 msgstr "Essayez une autre recherche ou un autre filtre de projet."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+#~ msgstr "Activez automatiquement la fusion automatique pour les pull requests que vous créez dans Poracode."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "Activez l’accès distant pour afficher un code d’association."
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+#~ msgstr "Activez automatiquement Surveiller la PR pour les pull requests que vous créez dans Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11044,6 +11117,10 @@ msgstr "Langue de saisie vocale"
 msgid "Voice input model"
 msgstr "Modèle de saisie vocale"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+#~ msgstr "Attendez la fin des vérifications, puis corrigez les échecs, les conversations non résolues et les blocages de branche."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "Attendez que tous les candidats aient terminé avant de procéder au nettoyage."
@@ -11124,9 +11201,14 @@ msgstr "Préparation des environnements shell…"
 msgid "Warming up WSL shell environment…"
 msgstr "Préparation de l'environnement shell WSL…"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Watch new pull requests"
+#~ msgstr "Surveiller les nouvelles pull requests"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Watch PR"
-msgstr "Surveiller la PR"
+#~ msgid "Watch PR"
+#~ msgstr "Surveiller la PR"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

@@ -10,6 +10,8 @@ import {
   commitDefaultActionSchema,
   newThreadModeSchema,
   notificationFilterSchema,
+  prAutomationModeSchema,
+  prMergeMethodSchema,
   providerDraftConfigSchema,
   terminalPositionSchema,
   themeModeSchema,
@@ -329,6 +331,13 @@ export const sharedSettingsSchema = z.object({
    * sticky last-used choice for the Create PR split-button.
    */
   prCreateMode: prCreateModeSchema,
+  /** Default automation applied to pull requests created from Poracode. */
+  prAutomationDefault: prAutomationModeSchema,
+  /**
+   * Sticky last-used merge method. The PR split-button and automatic PR
+   * merging share this setting so automation matches the user's choice.
+   */
+  prMergeMethod: prMergeMethodSchema,
   /**
    * Sticky last-used primary commit action for the commit split-button,
    * remembered across sessions so it defaults to whatever the user picked last.
@@ -521,6 +530,8 @@ export const defaultSharedSettings: SharedSettings = {
   wslWorktreeBasePath: "",
   gitReviewMode: "panel",
   prCreateMode: "dialog",
+  prAutomationDefault: "off",
+  prMergeMethod: "squash",
   commitDefaultAction: "commit-push",
   providerConfigs: {},
   lastPresentationModeByAgent: {},
@@ -602,6 +613,15 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
   const parsed = z.record(z.string(), z.unknown()).safeParse(value);
   if (!parsed.success) return normalized;
 
+  const hasAutomationMode = prAutomationModeSchema.safeParse(
+    parsed.data.prAutomationDefault,
+  ).success;
+  const legacyAutomationMode =
+    parsed.data.prAutoMergeDefault === true
+      ? "merge"
+      : parsed.data.prWatchDefault === true
+        ? "fix"
+        : "off";
   const usage = z.record(z.string(), z.unknown()).safeParse(parsed.data.usage);
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
@@ -609,6 +629,7 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
 
   return {
     ...normalized,
+    prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
     usage: {
       ...normalized.usage,
       disabledProviders: disabledProviders?.success ? disabledProviders.data : [],

@@ -15,7 +15,9 @@ import type {
   InstalledAcpRegistryAgent,
   NewThreadMode,
   NotificationFilter,
+  PrAutomationMode,
   PrCreateMode,
+  PrMergeMethod,
   ProviderDraftConfig,
   TerminalPosition,
   ThemeMode,
@@ -88,6 +90,8 @@ interface SharedSettingsState extends SharedSettings {
   setWslWorktreeBasePath: (value: string) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
+  setPrAutomationDefault: (value: PrAutomationMode) => void;
+  setPrMergeMethod: (value: PrMergeMethod) => void;
   setCommitDefaultAction: (value: CommitDefaultAction) => void;
   setEditorLspEnabled: (value: boolean) => void;
   setSearchUseIgnoreFiles: (value: boolean) => void;
@@ -482,6 +486,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ prCreateMode });
     persistSettings(selectSharedSettings(get()));
   },
+  setPrAutomationDefault: (prAutomationDefault) => {
+    if (get().prAutomationDefault === prAutomationDefault) return;
+    set({ prAutomationDefault });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrMergeMethod: (prMergeMethod) => {
+    if (get().prMergeMethod === prMergeMethod) return;
+    set({ prMergeMethod });
+    persistSettings(selectSharedSettings(get()));
+  },
   setCommitDefaultAction: (commitDefaultAction) => {
     if (get().commitDefaultAction === commitDefaultAction) return;
     set({ commitDefaultAction });
@@ -805,6 +819,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     wslWorktreeBasePath: state.wslWorktreeBasePath,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,
+    prAutomationDefault: state.prAutomationDefault,
+    prMergeMethod: state.prMergeMethod,
     commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
