@@ -10183,6 +10183,14 @@ msgstr "Не вдалося завантажити маркетплейс нав
 msgid "the target provider"
 msgstr "цільовий провайдер"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "Не вдалося виконати операцію оновлення."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "Служба оновлень тимчасово недоступна."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "користувача Windows"
@@ -10981,6 +10989,10 @@ msgstr "Доступне оновлення"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "Оновити гілку"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "Перевірка оновлень недоступна в режимі розробки."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { UpdateStatus } from "@/shared/ipc";
 
 const autoUpdaterMock = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => void>();
@@ -155,9 +156,11 @@ describe("createAutoUpdaterController", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
-  it("captures one bounded warning after transient check retries are exhausted", async () => {
+  it("logs one bounded warning without capturing exhausted transient retries as errors", async () => {
     const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
-    const controller = createAutoUpdaterController(vi.fn(), "stable", false, reportError);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const sendStatus = vi.fn<(status: UpdateStatus) => void>();
+    const controller = createAutoUpdaterController(sendStatus, "stable", false, reportError);
     controller.initialize();
     const transient = Object.assign(new Error("socket closed"), { code: "EPIPE" });
     autoUpdaterMock.checkForUpdates.mockImplementation(async () => {
@@ -173,10 +176,25 @@ describe("createAutoUpdaterController", () => {
     await second;
 
     expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(6);
-    expect(reportError).toHaveBeenCalledOnce();
-    expect(reportError.mock.calls[0]?.[0]).toMatchObject({
-      name: "UpdateOperationalWarning",
-      message: "Updater check failed: transient-network.",
+    expect(reportError).not.toHaveBeenCalled();
+    expect(sendStatus).toHaveBeenLastCalledWith({
+      type: "error",
+      messageKey: "update.serviceUnavailable",
+    });
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith("[poracode] updater check transient failure after retries.");
+    warn.mockRestore();
+  });
+
+  it("uses a localized message key when update checks are unavailable in development", async () => {
+    const sendStatus = vi.fn<(status: UpdateStatus) => void>();
+    const controller = createAutoUpdaterController(sendStatus, "stable", true);
+
+    await controller.checkForUpdate();
+
+    expect(sendStatus).toHaveBeenCalledWith({
+      type: "error",
+      messageKey: "update.devUnavailable",
     });
   });
 

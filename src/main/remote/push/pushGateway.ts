@@ -81,9 +81,9 @@ export interface CreatePushGatewayOptions {
   /** Per-request timeout; defaults to 10s. */
   readonly timeoutMs?: number;
   /**
-   * Operational-health sink. Receives only bounded, privacy-safe failures with
-   * operation/outcome metadata; raw transport errors and request data are never
-   * forwarded.
+   * Non-transient diagnostic sink. Receives only bounded, privacy-safe
+   * malformed-response failures; raw transport errors, transient operational
+   * outcomes, and request data are never forwarded.
    */
   readonly onError?: (error: unknown) => void;
   /** Injectable clock and reporting window for deterministic tests. */
@@ -105,8 +105,9 @@ class PushGatewayOperationalError extends Error {
     readonly platform: SendPushInput["platform"] | "none",
     readonly status: number,
   ) {
-    super(`Remote push ${operation} warning: ${outcome}.`);
-    this.name = "PushGatewayOperationalWarning";
+    const transient = outcome !== "invalid-response";
+    super(`Remote push ${operation} ${transient ? "warning" : "failed"}: ${outcome}.`);
+    this.name = transient ? "PushGatewayOperationalWarning" : "PushGatewayDiagnosticError";
   }
 }
 
@@ -134,13 +135,17 @@ function createOperationalReporter(options: CreatePushGatewayOptions) {
     platform: SendPushInput["platform"] | "none",
     status: number,
   ): void => {
-    if (!options.onError) return;
     const key = `${operation}:${outcome}:${platform}:${status}`;
     const timestamp = now();
     const lastReport = lastReports.get(key);
     if (lastReport !== undefined && timestamp - lastReport < interval) return;
     lastReports.set(key, timestamp);
-    options.onError(new PushGatewayOperationalError(operation, outcome, platform, status));
+    const diagnostic = new PushGatewayOperationalError(operation, outcome, platform, status);
+    if (outcome === "invalid-response") {
+      options.onError?.(diagnostic);
+      return;
+    }
+    console.warn(`[poracode] ${diagnostic.message}`);
   };
 }
 
@@ -208,6 +213,8 @@ export function createPushGateway(options: CreatePushGatewayOptions = {}): SendP
       });
       if (TRANSIENT_GATEWAY_STATUSES.has(response.status)) {
         reportOperationalIssue("send", "transient-response", input.platform, response.status);
+      } else if (!response.ok && response.status !== 404 && response.status !== 410) {
+        reportOperationalIssue("send", "invalid-response", input.platform, response.status);
       }
       return {
         ok: response.ok,

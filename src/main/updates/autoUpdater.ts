@@ -66,6 +66,8 @@ export function createAutoUpdaterController(
         return;
       }
       transientReportTimes.set(key, now);
+      console.warn(`[poracode] updater ${operation} transient failure after retries.`);
+      return;
     }
     reportError(
       new UpdateDiagnosticError(operation, outcome),
@@ -103,10 +105,10 @@ export function createAutoUpdaterController(
         }
         sendStatus({
           type: "error",
-          message:
+          messageKey:
             failure.kind === "transient-network"
-              ? "The update service is temporarily unavailable."
-              : "The update operation failed.",
+              ? "update.serviceUnavailable"
+              : "update.operationFailed",
         });
         throw error;
       } finally {
@@ -225,7 +227,13 @@ export function createAutoUpdaterController(
       if (failure.kind === "optional-manifest-missing") {
         sendStatus({ type: "update-not-available" });
       } else {
-        sendStatus({ type: "error", message: "The update operation failed." });
+        sendStatus({
+          type: "error",
+          messageKey:
+            failure.kind === "transient-network"
+              ? "update.serviceUnavailable"
+              : "update.operationFailed",
+        });
       }
     });
 
@@ -240,7 +248,7 @@ export function createAutoUpdaterController(
 
   async function checkForUpdate(): Promise<void> {
     if (isDev && !process.env.UPDATE_SERVER_URL) {
-      sendStatus({ type: "error", message: "Update check is not available in dev mode." });
+      sendStatus({ type: "error", messageKey: "update.devUnavailable" });
       return;
     }
     try {

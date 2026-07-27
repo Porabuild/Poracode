@@ -51,8 +51,9 @@ describe("push gateway client", () => {
     await expect(resolve()).resolves.toBe("vapid-key");
   });
 
-  it("aggregates transient 503 delivery failures as privacy-safe operational health", async () => {
+  it("aggregates transient 503 delivery failures without using the error sink", async () => {
     const onError = vi.fn<(error: unknown) => void>();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const send = createPushGateway({
       gatewayUrl: "https://gateway.example.test",
       fetchImpl: vi.fn<GatewayFetch>(async () => ({ ok: false, status: 503 })),
@@ -72,22 +73,18 @@ describe("push gateway client", () => {
     await send(input);
     await send(input);
 
-    expect(onError).toHaveBeenCalledOnce();
-    expect(onError.mock.calls[0]?.[0]).toMatchObject({
-      name: "PushGatewayOperationalWarning",
-      message: "Remote push send warning: transient-response.",
-      operation: "send",
-      outcome: "transient-response",
-      platform: "web",
-      status: 503,
-    });
-    expect(JSON.stringify(onError.mock.calls[0]?.[0])).not.toContain("private");
-    expect(JSON.stringify(onError.mock.calls[0]?.[0])).not.toContain("subscription");
+    expect(onError).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith("[poracode] Remote push send warning: transient-response.");
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("private");
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("subscription");
+    warn.mockRestore();
   });
 
   it("does not forward raw network errors and permits one report per bounded window", async () => {
     let now = 1_000;
     const onError = vi.fn<(error: unknown) => void>();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const rawFailure = Object.assign(
       new Error("request to https://gateway.example.test?token=secret failed"),
       { code: "ETIMEDOUT" },
@@ -116,16 +113,19 @@ describe("push gateway client", () => {
     now += 100;
     await send(input);
 
-    expect(onError).toHaveBeenCalledTimes(2);
-    for (const [reported] of onError.mock.calls) {
-      expect((reported as Error).message).toBe("Remote push send warning: timeout.");
-      expect((reported as Error).message).not.toContain("secret");
+    expect(onError).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(2);
+    for (const [reported] of warn.mock.calls) {
+      expect(reported).toBe("[poracode] Remote push send warning: timeout.");
+      expect(reported).not.toContain("secret");
       expect(reported).not.toBe(rawFailure);
     }
+    warn.mockRestore();
   });
 
   it("bounds repeated Web Push key 503 reports while allowing request retries", async () => {
     const onError = vi.fn<(error: unknown) => void>();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn<GatewayFetch>(async () => ({ ok: false, status: 503 }));
     const resolve = createWebPushPublicKeyResolver({
       gatewayUrl: "https://gateway.example.test",
@@ -137,12 +137,38 @@ describe("push gateway client", () => {
     await expect(resolve()).rejects.toThrow("status 503");
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(onError).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      "[poracode] Remote push resolve-web-key warning: transient-response.",
+    );
+    warn.mockRestore();
+  });
+
+  it("reports malformed non-transient responses as sanitized real errors", async () => {
+    const onError = vi.fn<(error: unknown) => void>();
+    const send = createPushGateway({
+      gatewayUrl: "https://gateway.example.test",
+      fetchImpl: vi.fn<GatewayFetch>(async () => ({ ok: false, status: 400 })),
+      onError,
+    });
+
+    await send({
+      platform: "ios",
+      pushType: "alert",
+      token: "private-token",
+      payload: { private: "request-body" },
+    });
+
     expect(onError).toHaveBeenCalledOnce();
     expect(onError.mock.calls[0]?.[0]).toMatchObject({
-      operation: "resolve-web-key",
-      outcome: "transient-response",
-      platform: "web",
-      status: 503,
+      name: "PushGatewayDiagnosticError",
+      message: "Remote push send failed: invalid-response.",
+      operation: "send",
+      outcome: "invalid-response",
+      platform: "ios",
+      status: 400,
     });
+    expect(JSON.stringify(onError.mock.calls[0]?.[0])).not.toContain("private");
   });
 });

@@ -10183,6 +10183,14 @@ msgstr "Beceri marketplace'i yüklenemedi."
 msgid "the target provider"
 msgstr "hedef sağlayıcı"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "Güncelleme işlemi başarısız oldu."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "Güncelleme hizmeti geçici olarak kullanılamıyor."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "Windows kullanıcısı"
@@ -10981,6 +10989,10 @@ msgstr "Güncelleme mevcut"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "Şubeyi güncelle"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "Geliştirme modunda güncelleme denetimi kullanılamaz."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

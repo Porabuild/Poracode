@@ -113,8 +113,7 @@ export class UpdateDiagnosticError extends Error {
     readonly outcome: UpdateFailureKind,
   ) {
     super(`Updater ${operation} failed: ${outcome}.`);
-    this.name =
-      outcome === "transient-network" ? "UpdateOperationalWarning" : "UpdateDiagnosticError";
+    this.name = "UpdateDiagnosticError";
   }
 }
 

@@ -17,6 +17,7 @@ import type {
 import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
 import type { BrowserLinkPresentationMode } from "../settings";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "./procedureMap";
+import type { MessageKey } from "../messages";
 
 export type SupervisorRequest = {
   [Name in SupervisorProcedureName]: {
@@ -155,4 +156,5 @@ export type UpdateStatus =
       total: number;
     }
   | { type: "downloaded"; version: string }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; messageKey?: never }
+  | { type: "error"; messageKey: MessageKey; message?: never };
