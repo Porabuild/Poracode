@@ -2,12 +2,14 @@ import { dbGetState, dbSetState } from "../db";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
+import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
 import { installSessionPermissions } from "../browser/permissions";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "./windowMaterial";
 import {
   buildRendererAdditionalArguments,
   installAppNavigationGuards,
   installRendererReloadGuard,
+  noteRendererWindowClose,
 } from "./windowHardening";
 import { rectOverlapsWorkArea } from "./windowGeometry";
 
@@ -78,7 +80,10 @@ export interface CreateMainWindowOptions {
   sidebarTranslucency: boolean;
   onClosed(): void;
   onClose?: (event: Electron.Event) => void;
-  onRendererProcessGone?: (details: RenderProcessGoneDetails) => void;
+  onRendererProcessGone?: (
+    details: RenderProcessGoneDetails,
+    intent: RendererProcessGoneIntent | undefined,
+  ) => void;
   devServerUrl?: string;
   openDevTools?: boolean;
   showOnReady?: boolean;
@@ -217,6 +222,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       saveWindowBounds(window, boundsStateKey);
     }
     options.onClose?.(event);
+    noteRendererWindowClose(window, event);
   });
   window.on("closed", options.onClosed);
 

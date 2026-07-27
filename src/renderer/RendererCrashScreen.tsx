@@ -3,6 +3,7 @@ import { Copy, RefreshCw } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { Button } from "./components/common/Button";
+import { readBridge } from "./bridge";
 import { captureRendererException } from "./diagnostics/sentry";
 import { i18n } from "./i18n/i18n";
 
@@ -165,7 +166,11 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button size="sm" variant="secondary" onPress={() => window.location.reload()}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() => void readBridge().reloadRenderer()}
+            >
               <RefreshCw className="size-3.5" />
               {i18n._(msg`Reload`)}
             </Button>

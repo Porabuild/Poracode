@@ -210,6 +210,9 @@ const bridge: PoracodeBridge = {
   notifyQuickComposerMainReady() {
     return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickComposerMainReady);
   },
+  reloadRenderer() {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.rendererReload);
+  },
   onQuickComposerSubmit(listener) {
     const handler = (_event: Electron.IpcRendererEvent, payload: QuickComposerSubmission) => {
       listener(payload);

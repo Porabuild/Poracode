@@ -1,9 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createRendererCrashReport,
   formatRendererCrashReport,
+  RendererCrashScreen,
   RendererErrorBoundary,
 } from "./RendererCrashScreen";
 
@@ -56,5 +57,30 @@ describe("RendererCrashScreen", () => {
     expect(screen.getByText("Renderer crashed")).toBeInTheDocument();
     expect(screen.getByText("Renderer hit a React error")).toBeInTheDocument();
     expect(screen.getByText(/Message: render failed/)).toBeInTheDocument();
+  });
+
+  it("requests a tracked desktop renderer reload", () => {
+    const reloadRenderer = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    Object.assign(window, {
+      poracode: {
+        appVersion: "1.5.4",
+        electronVersion: "43.1.0",
+        platform: "darwin",
+        isDev: false,
+        reloadRenderer,
+      },
+    });
+    render(
+      <RendererCrashScreen
+        report={createRendererCrashReport({
+          kind: "bootstrap",
+          error: new Error("startup failed"),
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
+
+    expect(reloadRenderer).toHaveBeenCalledOnce();
   });
 });

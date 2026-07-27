@@ -67,6 +67,7 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   dismissQuickComposer(): Promise<void>;
   pickQuickComposerFiles(): Promise<string[] | null>;
   notifyQuickComposerMainReady(): Promise<void>;
+  reloadRenderer(): Promise<void>;
   onQuickComposerSubmit(listener: (submission: QuickComposerSubmission) => void): () => void;
   onQuickComposerDismissRequested(listener: () => void): () => void;
 };
@@ -134,4 +135,5 @@ export const IPC_WINDOW_CHANNELS = {
   quickComposerDismiss: createChannel("quickComposerWindowDismiss"),
   quickComposerPickFiles: createChannel("quickComposerWindowPickFiles"),
   quickComposerMainReady: createChannel("quickComposerMainReady"),
+  rendererReload: createChannel("rendererReload"),
 } as const;
