@@ -37,6 +37,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # Release runners are disposable single checkouts; use pnpm's standard local
+  # virtual store so postinstall native rebuilds operate on this checkout.
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
 jobs:
   build:
     strategy:

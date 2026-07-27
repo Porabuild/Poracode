@@ -6,7 +6,14 @@ packages:
 
 # Share the virtual store across worktrees/checkouts via symlinks instead of
 # hardlinking every package into each node_modules/.pnpm (see pnpm.io/git-worktrees).
+# Native build outputs are shared too; worktrees intentionally testing a
+# different Electron ABI should set PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE=false.
 enableGlobalVirtualStore: true
+
+# Node's ESM resolver ignores NODE_PATH, so load pnpm's official resolver bridge
+# when development dependencies live in the shared global virtual store.
+configDependencies:
+  "@pnpm/plugin-esm-node-path": 0.1.2
 
 allowBuilds:
   "@google/genai": false
@@ -27,21 +34,12 @@ onlyBuiltDependencies:
   - esbuild
   - node-pty
 
-# @sentry/electron's main-process bundle eagerly requires @sentry/node, which
-# requires @opentelemetry/* via bare paths. Keep these packages public-hoisted
-# so that development and tests work with pnpm's isolated linker.
+# TypeScript does not use Node's ESM resolver bridge, so keep a root-level
+# compatibility facade for external declaration files and tooling. This masks
+# undeclared transitive imports at the root; first-party imports must still be
+# declared. Entries are symlinks, not duplicate package contents.
 publicHoistPattern:
-  - "@opentelemetry/*"
-  - "@sentry/*"
-  - "@sentry-internal/*"
-  - "@fastify/otel"
-  - "@prisma/instrumentation"
-  - "import-in-the-middle"
-  - "require-in-the-middle"
-  - "acorn"
-  - "acorn-import-attributes"
-  - "cjs-module-lexer"
-  - "module-details-from-path"
+  - "*"
 
 # Declare published packages' direct imports at their package boundaries so
 # resolution still works when the dependency graph lives in pnpm's global
