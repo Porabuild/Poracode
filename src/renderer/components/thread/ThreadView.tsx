@@ -16,7 +16,6 @@ import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/
 import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
-import { setRendererRuntimeDiagnosticContext } from "@/renderer/diagnostics/sentry";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
@@ -174,17 +173,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     (thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal") ===
     "terminal";
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
-
-  useEffect(() => {
-    const presentation =
-      thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
-    setRendererRuntimeDiagnosticContext({
-      provider: thread.agentKind,
-      presentation,
-      runtimeKind: presentation === "terminal" ? "pty" : "structured",
-      featureArea: "thread",
-    });
-  }, [agentStatus?.capabilities.presentationMode, thread.agentKind, thread.presentationMode]);
 
   useLayoutEffect(() => {
     setContinueDialogOpen(false);

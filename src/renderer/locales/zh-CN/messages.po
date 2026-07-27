@@ -846,7 +846,6 @@ msgstr "添加到主屏幕"
 msgid "Add to-do"
 msgstr "添加待办事项"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "添加工作区"
@@ -5515,8 +5514,8 @@ msgstr "管理 Poracode 在启动受支持的代理时添加的 MCP 服务器配
 #~ msgstr "管理 Poracode 向受支持智能体提供的技能。可以在每个项目的设置中管理项目技能。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "管理工作区"
+#~ msgid "Manage workspaces"
+#~ msgstr "管理工作区"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
@@ -10182,6 +10181,14 @@ msgstr "无法加载技能市场。"
 msgid "the target provider"
 msgstr "目标提供商"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "更新操作失败。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "更新服务暂时不可用。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "Windows 用户"
@@ -10980,6 +10987,10 @@ msgstr "可用更新"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "更新分支"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "开发模式下无法检查更新。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

@@ -86,12 +86,12 @@ function reportRootError(
 
   if (kind === "recoverable") {
     console.warn(prefix, error, componentStack ?? "");
-    captureRendererException(error, { featureArea: "react" });
+    captureRendererException(error, { featureArea: "react" }, componentStack);
     return;
   }
 
   console.error(prefix, error, componentStack ?? "");
-  captureRendererException(error, { featureArea: "react" });
+  captureRendererException(error, { featureArea: "react" }, componentStack);
 }
 
 function renderCrashScreen(report: RendererCrashReport): void {
@@ -199,7 +199,7 @@ void Promise.all([appModulePromise, providerBootstrapPromise, localeBootstrapPro
   .then(([{ App }]) => {
     logRendererBootstrap("rendering React app");
     reactRoot?.render(
-      <RendererErrorBoundary>
+      <RendererErrorBoundary captureCaughtErrors={false}>
         <App />
       </RendererErrorBoundary>,
     );

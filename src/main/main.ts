@@ -9,6 +9,7 @@ import {
   Menu,
   nativeTheme,
   session as electronSession,
+  type RenderProcessGoneDetails,
 } from "electron";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { isThreadTurnActive, type RemoteThreadCommand } from "@/shared/contracts";
@@ -53,6 +54,7 @@ import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
 import { createMainWindow } from "./window/createMainWindow";
+import { requestTrackedRendererReload } from "./window/windowHardening";
 import {
   createQuickComposerWindow,
   showQuickComposerWindow,
@@ -79,6 +81,10 @@ import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSetting
 import { remoteProjectCommandResultSchema } from "@/shared/remote";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
+import {
+  classifyRendererProcessGone,
+  type RendererProcessGoneIntent,
+} from "./diagnostics/processGone";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import { createDesktopRemoteAccessController, type DesktopRemoteAccessController } from "./remote";
@@ -210,6 +216,27 @@ let browserExtractWindow: BrowserWindow | null = null;
 let tray: TrayHandle | null = null;
 let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
 let isQuitting = false;
+
+function captureRendererProcessGone(
+  details: RenderProcessGoneDetails,
+  featureArea: "browser" | "quick-composer" | "renderer",
+  intent?: RendererProcessGoneIntent,
+): void {
+  const diagnostic = classifyRendererProcessGone(
+    details,
+    process.platform,
+    isQuitting ? "app-shutdown" : intent,
+  );
+  if (!diagnostic) return;
+  captureMainException(
+    new Error(`Electron renderer process gone (${diagnostic.bucket})`),
+    {
+      "poracode.feature_area": featureArea,
+      "poracode.process": "renderer",
+    },
+    diagnostic.fingerprint,
+  );
+}
 
 function isCloseToTrayEnabled(): boolean {
   if (!poracodePaths) return false;
@@ -377,11 +404,8 @@ function createQuickComposerAppWindow(): BrowserWindow {
     onClosed: () => {
       if (quickComposerWindow === window) quickComposerWindow = null;
     },
-    onRendererProcessGone: (details) => {
-      captureMainException(new Error(`Quick composer renderer gone: ${details.reason}`), {
-        "poracode.feature_area": "quick-composer",
-        "poracode.process": "renderer",
-      });
+    onRendererProcessGone: (details, intent) => {
+      captureRendererProcessGone(details, "quick-composer", intent);
     },
   });
   window.on("blur", () => {
@@ -442,12 +466,9 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
       mainRendererReady = false;
     },
     onClose: handleMainWindowClose,
-    onRendererProcessGone: (details) => {
+    onRendererProcessGone: (details, intent) => {
       mainRendererReady = false;
-      captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
-        "poracode.feature_area": "renderer",
-        "poracode.process": "renderer",
-      });
+      captureRendererProcessGone(details, "renderer", intent);
     },
   });
   window.webContents.on("did-start-loading", () => {
@@ -504,11 +525,8 @@ function createBrowserExtractWindow(): BrowserWindow {
         revealBrowserInMainWindow();
       }
     },
-    onRendererProcessGone: (details) => {
-      captureMainException(new Error(`Browser renderer process gone: ${details.reason}`), {
-        "poracode.feature_area": "browser",
-        "poracode.process": "renderer",
-      });
+    onRendererProcessGone: (details, intent) => {
+      captureRendererProcessGone(details, "browser", intent);
     },
   });
   return window;
@@ -1030,6 +1048,10 @@ if (!hasSingleInstanceLock) {
         mainRendererReady = true;
         flushQuickComposerSubmissions();
         flushTrayThreadOpen();
+      });
+      ipcMain.handle(IPC_WINDOW_CHANNELS.rendererReload, (event) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (window) requestTrackedRendererReload(window);
       });
 
       const initialMainWindow = ensureMainWindow(showMainWindowOnReady);

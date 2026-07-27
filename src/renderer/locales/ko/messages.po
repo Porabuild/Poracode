@@ -846,7 +846,6 @@ msgstr "홈 화면에 추가"
 msgid "Add to-do"
 msgstr "할 일 추가"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "작업 영역 추가"
@@ -5515,8 +5514,8 @@ msgstr "지원되는 에이전트를 시작할 때 Poracode에서 추가하는 M
 #~ msgstr "Poracode가 지원되는 에이전트에 제공하는 스킬을 관리합니다. 프로젝트 스킬은 각 프로젝트의 설정에서 관리할 수 있습니다."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "작업 영역 관리"
+#~ msgid "Manage workspaces"
+#~ msgstr "작업 영역 관리"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
@@ -10183,6 +10182,14 @@ msgstr "스킬 마켓플레이스를 로드할 수 없습니다."
 msgid "the target provider"
 msgstr "대상 공급자"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "업데이트 작업에 실패했습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "업데이트 서비스를 일시적으로 사용할 수 없습니다."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "Windows 사용자"
@@ -10981,6 +10988,10 @@ msgstr "업데이트 가능"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "브랜치 업데이트"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "개발 모드에서는 업데이트를 확인할 수 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

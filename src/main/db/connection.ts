@@ -271,13 +271,11 @@ export function initDatabase(dbPath: string) {
 
   // Bound the durable usage log: drop events older than the retention window so
   // a long-lived install can't accumulate unboundedly (aggregation reads scan
-  // this table). Runs once per startup; cheap on a bounded table.
-  try {
-    const cutoff = Date.now() - USAGE_EVENTS_RETENTION_DAYS * 86_400_000;
-    sqlite.prepare("DELETE FROM usage_events WHERE ts < ?").run(cutoff);
-  } catch {
-    // usage_events may not exist on a partially-migrated db; ignore.
-  }
+  // this table). Runs once per startup; cheap on a bounded table. Migration and
+  // schema validation above guarantee this table exists, so SQLite failures here
+  // must remain observable instead of being mistaken for legacy schema drift.
+  const cutoff = Date.now() - USAGE_EVENTS_RETENTION_DAYS * 86_400_000;
+  sqlite.prepare("DELETE FROM usage_events WHERE ts < ?").run(cutoff);
 
   const receiptCutoff = Date.now() - REMOTE_COMMAND_RECEIPTS_RETENTION_DAYS * 86_400_000;
   sqlite.prepare("DELETE FROM remote_command_receipts WHERE updated_at < ?").run(receiptCutoff);

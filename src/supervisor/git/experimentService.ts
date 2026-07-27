@@ -8,8 +8,8 @@ import {
   type ProjectLocation,
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
-import { execGit, GIT_DIFF_TIMEOUT } from "./exec";
-import { parseDiffNumstat } from "./statusParsing";
+import { execGit, GIT_DIFF_TIMEOUT, toForwardSlash } from "./exec";
+import { LS_FILES_UNTRACKED_ARGS, parseDiffNumstat } from "./statusParsing";
 import { GitStatusService } from "./statusService";
 
 const EXPERIMENT_GIT_READ_CONCURRENCY = 4;
@@ -145,20 +145,33 @@ export class GitExperimentService {
   }
 
   private async getUntrackedFiles(location: ProjectLocation): Promise<GitFileChange[]> {
-    const status = await this.statusService.getStatusSummary(location);
-    if (!status.isRepo) {
-      throw new Error(msg("experiment.candidate.statusFailed"));
-    }
-    const untrackedFiles = status.unstaged.filter((file) => file.status === "?");
-    if (untrackedFiles.length > MAX_EXPERIMENT_UNTRACKED_FILES) {
+    // Porcelain status may collapse an untracked directory to one row when its
+    // companion `ls-files` call fails. Passing that directory to
+    // `git diff --no-index /dev/null <path>` makes Git reinterpret `/dev/null`
+    // beneath the directory (for example `.venv/null`). Resolve actual files at
+    // this boundary instead.
+    const output = await execGit(location, LS_FILES_UNTRACKED_ARGS, {
+      timeout: GIT_DIFF_TIMEOUT,
+    });
+    const paths = output
+      .split("\0")
+      .filter((path) => path.length > 0)
+      .map(toForwardSlash);
+    if (paths.length > MAX_EXPERIMENT_UNTRACKED_FILES) {
       throw new Error(
         msg("experiment.candidate.tooManyUntracked", {
-          count: untrackedFiles.length,
+          count: paths.length,
           maximum: MAX_EXPERIMENT_UNTRACKED_FILES,
         }),
       );
     }
-    return untrackedFiles;
+    return paths.map((path) => ({
+      path,
+      status: "?",
+      staged: false,
+      insertions: 0,
+      deletions: 0,
+    }));
   }
 
   private async getHeadCommit(location: ProjectLocation): Promise<string> {

@@ -2577,8 +2577,8 @@ describe("GitService worktree metadata", () => {
         }
         return { stdout: "main\n" };
       }
-      if (args[0] === "show-ref") {
-        return { stdout: "abc123 refs/heads/poracode/brave-heron\n" };
+      if (args[0] === "rev-parse" && args.includes("refs/heads/poracode/brave-heron")) {
+        return { stdout: `${"a".repeat(40)}\n` };
       }
       if (args[0] === "reflog") {
         return { stdout: "poracode experiment owner experiment-1:candidate-1\n" };

@@ -24,6 +24,35 @@ describe("ipcProcedureMap", () => {
     }
   });
 
+  it("repairs blank legacy thread models at the database persistence boundary", () => {
+    const baseThread = {
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "claude" as const,
+      status: "idle" as const,
+      attention: "none" as const,
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    const parsed = ipcProcedureMap.dbSyncAll.parseArgs(
+      [],
+      [
+        { ...baseThread, config: { model: "", effort: "high" } },
+        { ...baseThread, id: "thread-2", config: { model: "sonnet", effort: "low" } },
+      ],
+      JSON.stringify({ kind: "home" }),
+    );
+
+    expect(parsed.threads[0]?.config).toEqual({ model: "auto", effort: "high" });
+    expect(parsed.threads[1]?.config).toEqual({ model: "sonnet", effort: "low" });
+  });
+
   it("covers every main-local procedure with a local handler", () => {
     const handlers = createLocalIpcHandlers({
       getMainWindow: () => null as never,

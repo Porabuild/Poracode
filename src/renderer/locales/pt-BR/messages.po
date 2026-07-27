@@ -846,7 +846,6 @@ msgstr "Adicionar à tela inicial"
 msgid "Add to-do"
 msgstr "Adicionar tarefa"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Adicionar espaço de trabalho"
@@ -5515,8 +5514,8 @@ msgstr "Gerencie as configurações de servidores MCP que o Poracode adiciona ao
 #~ msgstr "Gerencie as skills que o Poracode disponibiliza para agentes compatíveis. As skills de projeto podem ser gerenciadas nas configurações de cada projeto."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Gerenciar espaços de trabalho"
+#~ msgid "Manage workspaces"
+#~ msgstr "Gerenciar espaços de trabalho"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
@@ -10183,6 +10182,14 @@ msgstr "Não foi possível carregar o marketplace de skills."
 msgid "the target provider"
 msgstr "o provedor alvo"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "A operação de atualização falhou."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "O serviço de atualização está temporariamente indisponível."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "o usuário do Windows"
@@ -10981,6 +10988,10 @@ msgstr "Atualização disponível"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "Atualizar branch"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "As verificações de atualização não estão disponíveis no modo de desenvolvimento."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

@@ -18,7 +18,7 @@ vi.mock("./exec", async () => {
 });
 
 import { GIT_NETWORK_TIMEOUT } from "./exec";
-import { GitWorktreeService } from "./worktreeService";
+import { GitWorktreeService, isValidGitBranchName } from "./worktreeService";
 
 const location: ProjectLocation = {
   kind: "posix",
@@ -51,6 +51,66 @@ describe("GitWorktreeService pull", () => {
     });
   });
 });
+
+describe("GitWorktreeService branch validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(["feature/valid", "poracode/candidate-1", "release/v1.2.3"])(
+    "accepts a valid branch name: %s",
+    (branch) => {
+      expect(isValidGitBranchName(branch)).toBe(true);
+    },
+  );
+
+  it.each(["", "@", "HEAD", "-candidate", "candidate..one", "candidate.lock", "bad\u0000ref"])(
+    "rejects an invalid branch name locally: %s",
+    (branch) => {
+      expect(isValidGitBranchName(branch)).toBe(false);
+    },
+  );
+
+  it("does not invoke Git while resolving an invalid stale branch owner", async () => {
+    const service = new GitWorktreeService();
+
+    await expect(service.getWorktreeOwner(location, "candidate..invalid")).resolves.toEqual({
+      ownerToken: null,
+    });
+    expect(mocks.execGit).not.toHaveBeenCalled();
+  });
+
+  it("probes a missing valid branch without Git's fatal show-ref diagnostic", async () => {
+    mocks.execGit.mockResolvedValue("");
+
+    await expect(serviceOwner("candidate/missing")).resolves.toBeNull();
+    expect(mocks.execGit).toHaveBeenCalledWith(
+      location,
+      ["rev-parse", "--verify", "--quiet", "refs/heads/candidate/missing"],
+      { acceptedExitCodes: [1] },
+    );
+  });
+
+  it("recognizes an existing branch while probing without diagnostics", async () => {
+    mocks.execGit.mockImplementation(async (_location, args) => {
+      if (args[0] === "rev-parse") return `${"a".repeat(40)}\n`;
+      if (args[0] === "reflog") return "poracode experiment owner experiment-1\n";
+      return "";
+    });
+
+    await expect(serviceOwner("candidate/existing")).resolves.toBe("experiment-1");
+    expect(mocks.execGit).toHaveBeenCalledWith(
+      location,
+      ["rev-parse", "--verify", "--quiet", "refs/heads/candidate/existing"],
+      { acceptedExitCodes: [1] },
+    );
+  });
+});
+
+async function serviceOwner(branch: string): Promise<string | null> {
+  const result = await new GitWorktreeService().getWorktreeOwner(location, branch);
+  return result.ownerToken;
+}
 
 describe("GitWorktreeService experiment batches", () => {
   const baseCommit = "a".repeat(40);

@@ -846,7 +846,6 @@ msgstr "Thêm vào màn hình chính"
 msgid "Add to-do"
 msgstr "Thêm việc cần làm"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Thêm không gian làm việc"
@@ -5515,8 +5514,8 @@ msgstr "Quản lý cấu hình máy chủ MCP mà Poracode thêm khi khởi đ�
 #~ msgstr "Quản lý các skill mà Poracode cung cấp cho những tác tử được hỗ trợ. Có thể quản lý skill dự án trong phần cài đặt của từng dự án."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Quản lý không gian làm việc"
+#~ msgid "Manage workspaces"
+#~ msgstr "Quản lý không gian làm việc"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
@@ -10183,6 +10182,14 @@ msgstr "Không thể tải marketplace skill."
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "Thao tác cập nhật không thành công."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "Dịch vụ cập nhật tạm thời không khả dụng."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "người dùng Windows"
@@ -10981,6 +10988,10 @@ msgstr "Đã có bản cập nhật"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "Cập nhật nhánh"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "Không thể kiểm tra bản cập nhật trong chế độ phát triển."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

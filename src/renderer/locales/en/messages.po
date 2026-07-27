@@ -846,7 +846,6 @@ msgstr "Add to Home Screen"
 msgid "Add to-do"
 msgstr "Add to-do"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Add workspace"
@@ -5515,8 +5514,8 @@ msgstr "Manage the MCP server configurations Poracode adds when starting support
 #~ msgstr "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Manage workspaces"
+#~ msgid "Manage workspaces"
+#~ msgstr "Manage workspaces"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
@@ -10183,6 +10182,14 @@ msgstr "The skills marketplace couldn't be loaded."
 msgid "the target provider"
 msgstr "the target provider"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "The update operation failed."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "The update service is temporarily unavailable."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "the Windows user"
@@ -10981,6 +10988,10 @@ msgstr "Update available"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "Update branch"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "Update checks are not available in development mode."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

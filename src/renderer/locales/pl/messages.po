@@ -846,7 +846,6 @@ msgstr "Dodaj do ekranu głównego"
 msgid "Add to-do"
 msgstr "Dodaj zadanie"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Dodaj obszar roboczy"
@@ -5515,8 +5514,8 @@ msgstr "Zarządzaj konfiguracjami serwerów MCP dodawanymi przez Poracode podcza
 #~ msgstr "Zarządzaj umiejętnościami udostępnianymi przez Poracode obsługiwanym agentom. Umiejętnościami projektu można zarządzać w ustawieniach każdego projektu."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-msgid "Manage workspaces"
-msgstr "Zarządzaj obszarami roboczymi"
+#~ msgid "Manage workspaces"
+#~ msgstr "Zarządzaj obszarami roboczymi"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
@@ -10183,6 +10182,14 @@ msgstr "Nie udało się załadować marketplace umiejętności."
 msgid "the target provider"
 msgstr "docelowego dostawcy"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update operation failed."
+msgstr "Operacja aktualizacji nie powiodła się."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The update service is temporarily unavailable."
+msgstr "Usługa aktualizacji jest tymczasowo niedostępna."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "użytkownika Windows"
@@ -10981,6 +10988,10 @@ msgstr "Dostępna aktualizacja"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update branch"
 msgstr "Zaktualizuj gałąź"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update checks are not available in development mode."
+msgstr "Sprawdzanie aktualizacji nie jest dostępne w trybie programistycznym."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

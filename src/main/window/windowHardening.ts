@@ -1,6 +1,7 @@
 import type { BrowserWindow, RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
+import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
 
 interface AppNavigationGuardOptions {
   isDev: boolean;
@@ -46,9 +47,85 @@ export function installAppNavigationGuards(
 
 interface RendererReloadGuardOptions {
   loadRenderer: () => void;
-  onRendererProcessGone?: (details: RenderProcessGoneDetails) => void;
+  onRendererProcessGone?: (
+    details: RenderProcessGoneDetails,
+    intent: RendererProcessGoneIntent | undefined,
+  ) => void;
   /** Log-only surface label (e.g. "quick composer") to distinguish messages. */
   label?: string;
+}
+
+type RendererTerminationState = {
+  intent?: RendererProcessGoneIntent;
+  reloadCleanup?: () => void;
+  reloadToken?: object;
+};
+
+const rendererTerminationStates = new WeakMap<BrowserWindow, RendererTerminationState>();
+
+function terminationStateFor(window: BrowserWindow): RendererTerminationState {
+  const existing = rendererTerminationStates.get(window);
+  if (existing) return existing;
+  const state: RendererTerminationState = {};
+  rendererTerminationStates.set(window, state);
+  return state;
+}
+
+function consumeRendererTerminationIntent(
+  window: BrowserWindow,
+): RendererProcessGoneIntent | undefined {
+  const state = rendererTerminationStates.get(window);
+  if (!state) return undefined;
+  const intent = state.intent;
+  state.reloadCleanup?.();
+  delete state.intent;
+  delete state.reloadCleanup;
+  delete state.reloadToken;
+  return intent;
+}
+
+export function noteRendererWindowClose(window: BrowserWindow, event: Electron.Event): void {
+  const state = terminationStateFor(window);
+  if (event.defaultPrevented) {
+    if (state.intent === "window-close") delete state.intent;
+    return;
+  }
+  state.reloadCleanup?.();
+  delete state.reloadCleanup;
+  delete state.reloadToken;
+  state.intent = "window-close";
+}
+
+export function requestTrackedRendererReload(window: BrowserWindow): boolean {
+  if (window.isDestroyed()) return false;
+  const state = rendererTerminationStates.get(window);
+  if (!state) return false;
+  state.reloadCleanup?.();
+  const reloadToken = {};
+  state.intent = "reload";
+  state.reloadToken = reloadToken;
+
+  const removeReloadListeners = () => {
+    window.webContents.removeListener("did-finish-load", clearReloadIntent);
+    window.webContents.removeListener("did-fail-load", clearReloadIntent);
+  };
+  const clearReloadIntent = () => {
+    removeReloadListeners();
+    if (state.reloadToken !== reloadToken) return;
+    delete state.intent;
+    delete state.reloadCleanup;
+    delete state.reloadToken;
+  };
+  state.reloadCleanup = removeReloadListeners;
+  window.webContents.once("did-finish-load", clearReloadIntent);
+  window.webContents.once("did-fail-load", clearReloadIntent);
+  try {
+    window.webContents.reload();
+    return true;
+  } catch {
+    clearReloadIntent();
+    return false;
+  }
 }
 
 /**
@@ -59,15 +136,17 @@ export function installRendererReloadGuard(
   window: BrowserWindow,
   options: RendererReloadGuardOptions,
 ): void {
+  terminationStateFor(window);
   const prefix = options.label ? `${options.label} ` : "";
   let lastReloadAt = 0;
   let reloadCount = 0;
   window.webContents.on("render-process-gone", (_event, details) => {
+    const intent = consumeRendererTerminationIntent(window);
     if (details.reason === "clean-exit" || window.isDestroyed()) return;
     console.error(
       `[poracode] ${prefix}renderer gone: reason=${details.reason} exitCode=${details.exitCode}`,
     );
-    options.onRendererProcessGone?.(details);
+    options.onRendererProcessGone?.(details, intent);
     const now = Date.now();
     reloadCount = now - lastReloadAt < 5_000 ? reloadCount + 1 : 1;
     lastReloadAt = now;

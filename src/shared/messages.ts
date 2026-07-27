@@ -124,6 +124,9 @@ const messages = {
 
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
+  "update.serviceUnavailable": "The update service is temporarily unavailable.",
+  "update.operationFailed": "The update operation failed.",
+  "update.devUnavailable": "Update checks are not available in development mode.",
 } as const;
 
 // ---------------------------------------------------------------------------

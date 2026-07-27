@@ -7,6 +7,7 @@ const setUserAgent = vi.hoisted(() => vi.fn<(userAgent: string) => void>());
 
 let browserWindowOptions: Record<string, unknown> | null = null;
 let webContentsHandlers: Record<string, (...args: never[]) => void> = {};
+let windowHandlers: Record<string, (...args: never[]) => void> = {};
 
 vi.mock("electron", () => ({
   BrowserWindow: class BrowserWindow {
@@ -26,7 +27,9 @@ vi.mock("electron", () => ({
     }
 
     once = vi.fn<() => void>();
-    on = vi.fn<() => void>();
+    on = vi.fn<(event: string, handler: (...args: never[]) => void) => void>((event, handler) => {
+      windowHandlers[event] = handler;
+    });
     isMaximized = vi.fn<() => boolean>(() => false);
     isDestroyed = vi.fn<() => boolean>(() => false);
     getNormalBounds = vi.fn<() => { x: number; y: number; width: number; height: number }>(() => ({
@@ -63,6 +66,7 @@ describe("createMainWindow", () => {
     vi.clearAllMocks();
     browserWindowOptions = null;
     webContentsHandlers = {};
+    windowHandlers = {};
   });
 
   it("applies the browser user agent to the window and sanitizes attached webviews", async () => {
@@ -104,5 +108,61 @@ describe("createMainWindow", () => {
     expect(webPreferences.preload).toBeUndefined();
     expect(webPreferences.nodeIntegration).toBe(false);
     expect(webPreferences.contextIsolation).toBe(true);
+  });
+
+  it("supplies window-close intent only when the app does not prevent the close", async () => {
+    const { createMainWindow } = await import("./createMainWindow");
+    let preventClose = true;
+    const onRendererProcessGone =
+      vi.fn<
+        (
+          details: Electron.RenderProcessGoneDetails,
+          intent: "app-shutdown" | "reload" | "window-close" | undefined,
+        ) => void
+      >();
+    createMainWindow({
+      title: "Poracode",
+      isDev: false,
+      channel: "stable",
+      preloadPath: "/tmp/preload.cjs",
+      rendererHtmlPath: "/tmp/index.html",
+      appVersion: "1.2.1",
+      posthogEnableDev: false,
+      posthogEnabled: false,
+      posthogHost: "",
+      posthogKey: "",
+      sentryEnabled: false,
+      windowChromeHeight: 32,
+      browserUserAgent: "Poracode",
+      appearance: "dark",
+      sidebarTranslucency: false,
+      onClosed: vi.fn<() => void>(),
+      onClose(event) {
+        if (preventClose) event.preventDefault();
+      },
+      onRendererProcessGone,
+    });
+    const killed = {
+      reason: "killed",
+      exitCode: 9,
+    } satisfies Electron.RenderProcessGoneDetails;
+    const closeEvent = {
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
+      },
+    };
+
+    windowHandlers.close?.(closeEvent as never);
+    webContentsHandlers["render-process-gone"]?.({} as never, killed as never);
+    preventClose = false;
+    closeEvent.defaultPrevented = false;
+    windowHandlers.close?.(closeEvent as never);
+    webContentsHandlers["render-process-gone"]?.({} as never, killed as never);
+
+    expect(onRendererProcessGone.mock.calls).toEqual([
+      [killed, undefined],
+      [killed, "window-close"],
+    ]);
   });
 });

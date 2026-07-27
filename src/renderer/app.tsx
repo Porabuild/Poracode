@@ -274,10 +274,12 @@ function handleUpdateStatus(status: UpdateStatus): void {
     case "downloaded":
       store.setDownloaded(status.version);
       break;
-    case "error":
-      store.setError(status.message);
-      toast.danger(msg("update.error", { detail: status.message }));
+    case "error": {
+      const detail = status.messageKey ? msg(status.messageKey) : status.message;
+      store.setError(detail);
+      toast.danger(msg("update.error", { detail }));
       break;
+    }
   }
 }
 
