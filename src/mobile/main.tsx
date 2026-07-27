@@ -67,6 +67,41 @@ function showCrash(kind: RendererCrashKind, error: unknown, source?: string): vo
   renderCrashScreen(createRendererCrashReport({ kind, error, ...(source ? { source } : {}) }));
 }
 
+// After a deployment the service worker may serve cached HTML that references
+// asset hashes which no longer exist on the server. The server's SPA fallback
+// returns index.html (text/html) for the missing .js chunk, and the browser
+// rejects it as a module script. Detect this and recover by clearing all
+// caches and reloading so the next navigation fetches fresh HTML.
+const STALE_ASSET_RECOVERY_KEY = "poracode-stale-asset-recovery";
+
+function isStaleAssetError(error: unknown): boolean {
+  if (!(error instanceof TypeError)) return false;
+  const message = error.message;
+  return (
+    message.includes("is not a valid JavaScript MIME type") ||
+    message.includes("Failed to fetch dynamically imported module")
+  );
+}
+
+async function recoverFromStaleAssets(): Promise<boolean> {
+  const attempts = Number(sessionStorage.getItem(STALE_ASSET_RECOVERY_KEY) ?? "0");
+  if (attempts >= 1) {
+    sessionStorage.removeItem(STALE_ASSET_RECOVERY_KEY);
+    return false;
+  }
+  sessionStorage.setItem(STALE_ASSET_RECOVERY_KEY, String(attempts + 1));
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((key) => caches.delete(key)));
+    const registration = await navigator.serviceWorker?.getRegistration();
+    await registration?.unregister();
+  } catch {
+    // Best effort — reload regardless.
+  }
+  window.location.reload();
+  return true;
+}
+
 window.addEventListener("error", (event) => {
   if (!(event instanceof ErrorEvent)) return;
   if (isIgnorableWindowError(event)) {
@@ -111,6 +146,7 @@ reactRoot = createRoot(root, {
 // and keeps translated PWA installs from flashing the source locale.
 void Promise.all([import("./bootstrapApp"), bootstrapAppLocaleFromCache()])
   .then(([{ MobileApp, registerServiceWorker }]) => {
+    sessionStorage.removeItem(STALE_ASSET_RECOVERY_KEY);
     reactRoot?.render(
       <RendererErrorBoundary>
         <MobileApp />
@@ -123,5 +159,11 @@ void Promise.all([import("./bootstrapApp"), bootstrapAppLocaleFromCache()])
     registerServiceWorker();
   })
   .catch((error: unknown) => {
+    if (isStaleAssetError(error)) {
+      void recoverFromStaleAssets().then((recovered) => {
+        if (!recovered) showCrash("bootstrap", error);
+      });
+      return;
+    }
     showCrash("bootstrap", error);
   });

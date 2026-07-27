@@ -510,6 +510,12 @@ describe("AcpRegistrySettings", () => {
     expect(entries.get("gemini")?.installCommand(wslProject)).toContain(
       "npm install -g @google/gemini-cli",
     );
+    expect(entries.get("commandcode")?.installCommand(wslProject)).toContain(
+      'prefix="$(npm config get prefix)"',
+    );
+    expect(entries.get("commandcode")?.installCommand(wslProject)).toContain(
+      'ln -sf "$prefix/bin/command-code" "$HOME/.local/bin/command-code"',
+    );
     expect(entries.get("qwen")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash",
     );

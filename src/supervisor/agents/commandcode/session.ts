@@ -15,7 +15,7 @@ export function authJsonHasApiKey(raw: string | undefined): boolean {
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw) as { apiKey?: unknown };
-    return typeof parsed.apiKey === "string" && parsed.apiKey.length > 0;
+    return typeof parsed.apiKey === "string" && parsed.apiKey.trim().length > 0;
   } catch {
     return false;
   }

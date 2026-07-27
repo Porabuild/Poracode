@@ -108,8 +108,13 @@ export class GitService {
     this.statusService.setWslClient(client);
   }
 
-  async getStatus(location: ProjectLocation): Promise<GitStatusResult> {
-    return this.statusService.getStatus(location);
+  async getStatus(
+    location: ProjectLocation,
+    detail: GitStatusDetail = "full",
+  ): Promise<GitStatusResult> {
+    return detail === "summary"
+      ? this.statusService.getStatusSummary(location)
+      : this.statusService.getStatus(location);
   }
 
   /**

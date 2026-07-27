@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CdpSession } from "./cdp/cdpClient";
-import { withCursorOverlayHidden } from "./cursorOverlay";
+import { setCursorOverlayVisible, withCursorOverlayHidden } from "./cursorOverlay";
 
 type RuntimeEvaluateResponse = { result: { type: string; value: boolean } };
 type Send = (method: string, params?: Record<string, unknown>) => Promise<RuntimeEvaluateResponse>;
@@ -104,5 +104,20 @@ describe("withCursorOverlayHidden", () => {
     await vi.advanceTimersByTimeAsync(300);
 
     await expect(result).resolves.toBe("image");
+  });
+});
+
+describe("setCursorOverlayVisible", () => {
+  it("adds and removes the persistent session visibility style", async () => {
+    const expressions: string[] = [];
+    const cdp = createCdp([], expressions);
+
+    await setCursorOverlayVisible(cdp, false);
+    await setCursorOverlayVisible(cdp, true);
+
+    expect(expressions[0]).toContain("__poracode_session_overlay_hide__");
+    expect(expressions[0]).toContain("visibility:hidden");
+    expect(expressions[1]).toContain("__poracode_session_overlay_hide__");
+    expect(expressions[1]).toContain("?.remove()");
   });
 });

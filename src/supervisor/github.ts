@@ -14,6 +14,7 @@ import {
   type GhCheckAvailableResult,
   type GhGetPrChecksResult,
   type GhGetPrDetailsResult,
+  type GhGetPrReviewCommentsResult,
   type GhGetPrFilesResult,
   type GhGetPrDiffResult,
   type GhListAccountsResult,
@@ -24,6 +25,7 @@ import {
 } from "@/shared/contracts";
 import {
   mapGitHubApiRepo,
+  mapPrComment,
   mapPrData,
   mapPrDetails,
   mapPullRequestSummary,
@@ -771,6 +773,29 @@ export class GitHubService {
       return { details: mapPrDetails(raw) };
     } catch (err) {
       throw classifyError(err, "pr view --json (details)");
+    }
+  }
+
+  async getPrReviewComments(
+    location: ProjectLocation,
+    prNumber: number,
+  ): Promise<GhGetPrReviewCommentsResult> {
+    try {
+      const stdout = await this.runGh(location, [
+        "api",
+        "--paginate",
+        `repos/{owner}/{repo}/pulls/${prNumber}/comments?per_page=100`,
+        "--jq",
+        ".[] | {id: (.id | tostring), author: {login: .user.login, avatarUrl: .user.avatar_url}, body, createdAt: .created_at, url: .html_url}",
+      ]);
+      const comments = stdout
+        .split(/\r?\n/u)
+        .filter(Boolean)
+        .map((line) => mapPrComment(JSON.parse(line)))
+        .filter((comment): comment is PrComment => comment !== null);
+      return { comments };
+    } catch (err) {
+      throw classifyError(err, "api pull request review comments");
     }
   }
 

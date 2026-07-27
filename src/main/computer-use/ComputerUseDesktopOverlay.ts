@@ -2,7 +2,9 @@ import { BrowserWindow, globalShortcut, screen, type Display } from "electron";
 import type { ComputerUseActivityEvent } from "./ComputerUseMcpIngress";
 import { isKeyChordToolName } from "./mcp/toolRegistry";
 
-export const COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS = 500;
+// Fallback for agents that have not adopted explicit enable/disable sessions.
+// Long enough to bridge normal reasoning gaps between consecutive actions.
+export const COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS = 5_000;
 
 const ESCAPE_ACCELERATOR = "Escape";
 const OVERLAY_HTML = `<!doctype html>
@@ -15,10 +17,10 @@ const OVERLAY_HTML = `<!doctype html>
       * { box-sizing: border-box; }
       html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
       body {
-        background: rgba(8, 12, 20, 0.08);
+        background: rgba(8, 12, 20, 0.03);
         box-shadow:
-          inset 0 0 0 3px rgba(92, 167, 255, 0.95),
-          inset 0 0 24px rgba(92, 167, 255, 0.2);
+          inset 0 0 0 2px rgba(92, 167, 255, 0.6),
+          inset 0 0 48px rgba(92, 167, 255, 0.08);
       }
       .badge {
         position: fixed;
@@ -54,6 +56,7 @@ export interface ComputerUseDesktopOverlayOptions {
 
 export class ComputerUseDesktopOverlay {
   private readonly activeThreads = new Set<string>();
+  private readonly activeSessions = new Set<string>();
   private readonly activeCalls = new Map<string, number>();
   private escapeSuppressedCalls = 0;
   private readonly releaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -72,6 +75,22 @@ export class ComputerUseDesktopOverlay {
       this.releaseTimers.delete(event.threadId);
     }
 
+    if (event.kind === "session") {
+      if (event.active) {
+        this.activeSessions.add(event.threadId);
+        this.activeThreads.add(event.threadId);
+        this.show();
+      } else {
+        this.activeSessions.delete(event.threadId);
+        if (!this.activeCalls.has(event.threadId)) {
+          this.activeThreads.delete(event.threadId);
+          if (this.activeThreads.size === 0) this.hide();
+        }
+      }
+      this.syncEscapeShortcut();
+      return;
+    }
+
     if (event.active) {
       this.activeCalls.set(event.threadId, (this.activeCalls.get(event.threadId) ?? 0) + 1);
       this.activeThreads.add(event.threadId);
@@ -88,7 +107,13 @@ export class ComputerUseDesktopOverlay {
       this.escapeSuppressedCalls = Math.max(0, this.escapeSuppressedCalls - 1);
     }
     this.syncEscapeShortcut();
-    if (!this.activeThreads.has(event.threadId) || activeCalls > 0) return;
+    if (
+      !this.activeThreads.has(event.threadId) ||
+      this.activeSessions.has(event.threadId) ||
+      activeCalls > 0
+    ) {
+      return;
+    }
     this.releaseTimers.set(
       event.threadId,
       setTimeout(() => {
@@ -200,6 +225,7 @@ export class ComputerUseDesktopOverlay {
     for (const releaseTimer of this.releaseTimers.values()) clearTimeout(releaseTimer);
     this.releaseTimers.clear();
     this.activeThreads.clear();
+    this.activeSessions.clear();
     this.activeCalls.clear();
     this.escapeSuppressedCalls = 0;
     this.hide();

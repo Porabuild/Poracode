@@ -6,6 +6,10 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PrSection } from "./PrSection";
 
+vi.mock("./PrWatchControls", () => ({
+  PrWatchControls: () => null,
+}));
+
 vi.mock("@heroui/react", () => {
   function Wrapper(props: { children?: ReactNode }) {
     return <>{props.children}</>;

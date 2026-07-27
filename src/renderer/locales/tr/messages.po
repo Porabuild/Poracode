@@ -243,7 +243,6 @@ msgstr "{0} iş parçacığı"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{0} tokens"
 msgstr "{0} jeton"
 
@@ -383,11 +382,11 @@ msgstr "{installedCount, plural, one {# aracı hazır} other {# aracı hazır}}"
 #~ msgstr "{judgingLabel}, bir kazanan önermek için her adayın değişikliklerini inceliyor."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "{label} API anahtarı"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} otomatik yenileme aralığı (dakika)"
 
@@ -533,7 +532,6 @@ msgstr "{0} kontrolden <0>{passed}</0> tanesi başarılı oldu"
 
 #. placeholder {0}: snapshot.cost.period
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · tahmini"
 
@@ -1030,6 +1028,10 @@ msgstr "Her zaman"
 msgid "Always excluded"
 msgstr "Her zaman hariç tutuldu"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "An agent is fixing this PR."
+msgstr "Bir ajan bu PR'ı düzeltiyor."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Beklenen çalışma ağacı sahibi bir şube gerektirir"
@@ -1259,10 +1261,14 @@ msgstr "Tamamlanan ileti dizilerini (gün) sonra otomatik olarak arşivle"
 msgid "Auto-generate"
 msgstr "Otomatik oluştur"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto-merge"
+msgstr "Otomatik birleştirme"
+
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh"
-msgstr "Otomatik yenileme"
+#~ msgid "Auto-refresh"
+#~ msgstr "Otomatik yenileme"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -1504,8 +1510,8 @@ msgstr "Tarayıcı ayrı bir pencerede açık"
 #~ msgstr "Tarayıcı MCP'si"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "OpenCode için tarayıcı MCP'si etkinleştirildi"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "OpenCode için tarayıcı MCP'si etkinleştirildi"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1525,7 +1531,7 @@ msgid "Browser pick target for CLI threads"
 msgstr "CLI konuları için tarayıcı seçim hedefi"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "Tarayıcıyla oturum aç"
 
@@ -1608,6 +1614,7 @@ msgstr "Portlar yüklenemedi"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -1922,6 +1929,10 @@ msgstr "Önbelleği Temizle"
 msgid "Clear Cookies"
 msgstr "Çerezleri Temizle"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Clear goal"
+msgstr "Hedefi temizle"
+
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -2004,6 +2015,10 @@ msgstr "Proje eklemeyi kapat"
 msgid "Close browser"
 msgstr "Tarayıcıyı kapat"
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
+msgid "Close changes"
+msgstr "Değişiklikleri kapat"
+
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Close composer"
@@ -2053,7 +2068,7 @@ msgstr "Port yönlendirmeyi kapat"
 msgid "Close forward actions"
 msgstr "Yönlendirme eylemlerini kapat"
 
-#: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "Hedefi kapat"
 
@@ -2451,6 +2466,10 @@ msgstr "Bağlan"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect a server"
 #~ msgstr "Bir sunucuya bağlan"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Connect an agent before watching PRs."
+msgstr "PR'ları izlemeye başlamadan önce bir ajan bağlayın."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Connect an agent to create schedules."
@@ -2922,7 +2941,6 @@ msgstr "Kimlik bilgileri yapılandırıldı."
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "Krediler"
 
@@ -3478,6 +3496,7 @@ msgid "done"
 msgstr "bitti"
 
 #. Notification status: thread is done
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3563,6 +3582,10 @@ msgstr "{serverName} sunucusunu düzenle"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "Dosyayı düzenle"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Edit goal"
+msgstr "Hedefi düzenle"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Edit MCP server"
@@ -3995,6 +4018,10 @@ msgstr "başarısız oldu"
 msgid "Failed"
 msgstr "Başarısız"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to clear goal"
+msgstr "Hedef temizlenemedi"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "Çekme isteği kapatılamadı: {detail}"
@@ -4034,6 +4061,10 @@ msgstr "Dondurulmuş kaynak meta verileri kaydedilemedi: {detail}. Geri alma iş
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "Sahipli şube meta verileri kaydedilemedi: {detail}. Geri alma işlemi {branch} şubesini bıraktı: {rollback}"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to update goal"
+msgstr "Hedef güncellenemedi"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -4229,6 +4260,10 @@ msgstr "Poracode'un yerel terminal ve ACP çalışma zamanlarını kullanan biri
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Aracıda Düzelt"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Fix new comments and failed checks, then push updates."
+msgstr "Yeni yorumları ve başarısız kontrolleri düzeltip güncellemeleri gönderin."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -4525,6 +4560,10 @@ msgstr "Gezinme geçmişinde ileri git"
 msgid "Goal"
 msgstr "Hedef"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Goal objective"
+msgstr "Hedef açıklaması"
+
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #~ msgid "Goals"
@@ -4598,7 +4637,7 @@ msgstr "Gizli devam ettirilebilir konular her 5 dakikada bir taranır ve bu boş
 msgid "Hide"
 msgstr "Gizle"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "{label} dairesini kenar çubuğunda gizle"
 
@@ -5677,7 +5716,7 @@ msgid "Microphone testing is not available in this environment."
 msgstr "Bu ortamda mikrofon testi yapılamaz."
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "min"
 msgstr "dk"
 
@@ -5784,6 +5823,10 @@ msgstr "Daha fazla PR eylemi"
 msgid "More PR options"
 msgstr "Daha fazla PR seçeneği"
 
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More providers"
+msgstr "Diğer sağlayıcılar"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "Daha fazla çekme isteği seçeneği"
@@ -5795,6 +5838,10 @@ msgstr "Diğer zamanlama seçenekleri"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "Daha fazla senkronizasyon seçeneği"
+
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More usage providers — open usage panel"
+msgstr "Diğer kullanım sağlayıcıları — kullanım panelini aç"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Most active hour"
@@ -7066,7 +7113,7 @@ msgid "Paste"
 msgstr "Yapıştır"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "{label} API anahtarını yapıştır"
 
@@ -7090,6 +7137,10 @@ msgstr "SSH özel anahtarını yapıştırın."
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "Duraklat"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Pause goal"
+msgstr "Hedefi duraklat"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -7272,6 +7323,10 @@ msgstr "Portlar"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
 msgstr "PR eylemleri"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation"
+msgstr "PR otomasyonu"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
@@ -7709,7 +7764,6 @@ msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; a
 msgid "Redact notification content"
 msgstr "Bildirim içeriğini gizle"
 
-#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/PortsView.tsx
@@ -8134,6 +8188,10 @@ msgstr "Sonuçlar"
 msgid "Resume"
 msgstr "Sürdür"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Resume goal"
+msgstr "Hedefi sürdür"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -8412,6 +8470,7 @@ msgstr "Çalışma zamanı seçenekleri"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -8829,7 +8888,7 @@ msgstr "Kısayollar"
 msgid "Show {0}"
 msgstr "{0} öğesini göster"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "{label} dairesini kenar çubuğunda göster"
 
@@ -8968,10 +9027,10 @@ msgstr "İlk 4.000 giriş gösteriliyor."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Sidebar"
-msgstr "Kenar çubuğu"
+#~ msgid "Sidebar"
+#~ msgstr "Kenar çubuğu"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "Kenar çubuğu daireleri yukarıda genel olarak kapatılmış"
 
@@ -8981,7 +9040,7 @@ msgid "Sidebar frosting"
 msgstr "Kenar çubuğu buzlu cam efekti"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "Oturum aç"
 
@@ -9003,11 +9062,12 @@ msgid "Sign in with the agent CLI."
 msgstr "Aracı CLI ile oturum açın."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "Oturumu kapat"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "{label} oturumunu kapat"
 
@@ -9041,7 +9101,7 @@ msgid "Signing in"
 msgstr "Oturum açılıyor"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "Oturum açılıyor…"
 
@@ -9194,6 +9254,10 @@ msgstr "Bölünmüş Terminal"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Bölünmüş görünüm"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Squash merge when checks and required reviews pass."
+msgstr "Kontroller ve gerekli incelemeler geçince squash birleştirmesi yapın."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
@@ -10272,7 +10336,7 @@ msgstr "token toplamı"
 msgid "Total tokens"
 msgstr "Token toplamı"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "{label} kullanımını takip edin"
 
@@ -10285,7 +10349,7 @@ msgid "Tracking and display"
 msgstr "İzleme ve görüntüleme"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "Takip kapalı"
 
@@ -11060,6 +11124,10 @@ msgstr "Kabuk ortamları ısınıyor..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "WSL kabuk ortamı ısınıyor…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Watch PR"
+msgstr "PR'ı izle"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

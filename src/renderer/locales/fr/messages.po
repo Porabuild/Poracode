@@ -243,7 +243,6 @@ msgstr "{0} fils"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{0} tokens"
 msgstr "{0} jetons"
 
@@ -383,11 +382,11 @@ msgstr "{installedCount, plural, one {# agent prêt} other {# agents prêts}}"
 #~ msgstr "{judgingLabel} examine les modifications de chaque candidat pour recommander un gagnant."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "Clé API {label}"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "Intervalle de rafraîchissement automatique de {label} en minutes"
 
@@ -533,7 +532,6 @@ msgstr "<0>{passed}</0> sur {0} contrôles réussis"
 
 #. placeholder {0}: snapshot.cost.period
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · est."
 
@@ -1030,6 +1028,10 @@ msgstr "Toujours"
 msgid "Always excluded"
 msgstr "Toujours exclu"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "An agent is fixing this PR."
+msgstr "Un agent corrige cette PR."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Un propriétaire d'arbre de travail attendu nécessite une branche"
@@ -1259,10 +1261,14 @@ msgstr "Archiver automatiquement les discussions terminées après (jours)"
 msgid "Auto-generate"
 msgstr "Générer automatiquement"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto-merge"
+msgstr "Fusion automatique"
+
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh"
-msgstr "Rafraîchissement automatique"
+#~ msgid "Auto-refresh"
+#~ msgstr "Rafraîchissement automatique"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -1504,8 +1510,8 @@ msgstr "Le navigateur est ouvert dans une fenêtre séparée"
 #~ msgstr "Navigateur MCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
-msgid "Browser MCP enabled for OpenCode"
-msgstr "Navigateur MCP activé pour OpenCode"
+#~ msgid "Browser MCP enabled for OpenCode"
+#~ msgstr "Navigateur MCP activé pour OpenCode"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Browser MCP enabled for this thread"
@@ -1525,7 +1531,7 @@ msgid "Browser pick target for CLI threads"
 msgstr "Cible de sélection du navigateur pour les fils CLI"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "Connexion via le navigateur"
 
@@ -1608,6 +1614,7 @@ msgstr "Impossible de charger les ports"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -1922,6 +1929,10 @@ msgstr "Vider le cache"
 msgid "Clear Cookies"
 msgstr "Effacer les cookies"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Clear goal"
+msgstr "Effacer l'objectif"
+
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -2004,6 +2015,10 @@ msgstr "Fermer l'ajout de projet"
 msgid "Close browser"
 msgstr "Fermer le navigateur"
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
+msgid "Close changes"
+msgstr "Fermer les changements"
+
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Close composer"
@@ -2053,7 +2068,7 @@ msgstr "Fermer le transfert de port"
 msgid "Close forward actions"
 msgstr "Fermer les actions du transfert"
 
-#: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "Fermer l'objectif"
 
@@ -2451,6 +2466,10 @@ msgstr "Connecter"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect a server"
 #~ msgstr "Connecter un serveur"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Connect an agent before watching PRs."
+msgstr "Connectez un agent avant de surveiller les PR."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Connect an agent to create schedules."
@@ -2922,7 +2941,6 @@ msgstr "Les informations d'identification sont configurées."
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "Crédits"
 
@@ -3478,6 +3496,7 @@ msgid "done"
 msgstr "fait"
 
 #. Notification status: thread is done
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3563,6 +3582,10 @@ msgstr "Modifier {serverName}"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "Modifier le fichier"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Edit goal"
+msgstr "Modifier l'objectif"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Edit MCP server"
@@ -3995,6 +4018,10 @@ msgstr "échoué"
 msgid "Failed"
 msgstr "Échouée"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to clear goal"
+msgstr "Impossible d'effacer l'objectif"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "Échec de la fermeture de la pull request : {detail}"
@@ -4034,6 +4061,10 @@ msgstr "Échec de l'enregistrement des métadonnées de la source figée : {deta
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "Échec de l'enregistrement des métadonnées de propriété de la branche : {detail}. La restauration a laissé la branche {branch} : {rollback}"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Failed to update goal"
+msgstr "Impossible de mettre à jour l'objectif"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -4229,6 +4260,10 @@ msgstr "Intégration de premier ordre de Qwen Code utilisant les environnements 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Correction dans l'agent"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Fix new comments and failed checks, then push updates."
+msgstr "Corrigez les nouveaux commentaires et les vérifications échouées, puis poussez les mises à jour."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
@@ -4525,6 +4560,10 @@ msgstr "Avancer dans l'historique de navigation"
 msgid "Goal"
 msgstr "Objectif"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Goal objective"
+msgstr "Description de l'objectif"
+
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #~ msgid "Goals"
@@ -4598,7 +4637,7 @@ msgstr "Les fils de discussion masqués pouvant être repris sont nettoyés tout
 msgid "Hide"
 msgstr "Masquer"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "Masquer le cercle de {label} dans la barre latérale"
 
@@ -5676,7 +5715,7 @@ msgid "Microphone testing is not available in this environment."
 msgstr "Les tests de microphone ne sont pas disponibles dans cet environnement."
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "min"
 msgstr "min"
 
@@ -5783,6 +5822,10 @@ msgstr "Plus d'actions PR"
 msgid "More PR options"
 msgstr "Plus d'options PR"
 
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More providers"
+msgstr "Autres fournisseurs"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "Plus d'options de pull request"
@@ -5794,6 +5837,10 @@ msgstr "Plus d'options de planification"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "Plus d'options de synchronisation"
+
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More usage providers — open usage panel"
+msgstr "Autres fournisseurs d'utilisation — ouvrir le panneau d'utilisation"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Most active hour"
@@ -7065,7 +7112,7 @@ msgid "Paste"
 msgstr "Coller"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "Collez la clé API {label}"
 
@@ -7089,6 +7136,10 @@ msgstr "Collez la clé privée SSH."
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "Mettre en pause"
+
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Pause goal"
+msgstr "Mettre l'objectif en pause"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -7271,6 +7322,10 @@ msgstr "Ports"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
 msgstr "Actions de la PR"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation"
+msgstr "Automatisation des PR"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
@@ -7708,7 +7763,6 @@ msgstr "Reconstruit à partir de journaux locaux aux tarifs de l'API publique, i
 msgid "Redact notification content"
 msgstr "Masquer le contenu des notifications"
 
-#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/PortsView.tsx
@@ -8133,6 +8187,10 @@ msgstr "Résultats"
 msgid "Resume"
 msgstr "Reprendre"
 
+#: src/renderer/components/thread/ThreadGoalControls.tsx
+msgid "Resume goal"
+msgstr "Reprendre l'objectif"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -8411,6 +8469,7 @@ msgstr "Options d'exécution"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -8828,7 +8887,7 @@ msgstr "Raccourcis"
 msgid "Show {0}"
 msgstr "Afficher {0}"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Afficher le cercle de {label} dans la barre latérale"
 
@@ -8967,10 +9026,10 @@ msgstr "Affichage des 4 000 premières entrées."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Sidebar"
-msgstr "Barre latérale"
+#~ msgid "Sidebar"
+#~ msgstr "Barre latérale"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "Les cercles de la barre latérale sont désactivés globalement ci-dessus"
 
@@ -8980,7 +9039,7 @@ msgid "Sidebar frosting"
 msgstr "Givrage de la barre latérale"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "Connectez-vous"
 
@@ -9002,11 +9061,12 @@ msgid "Sign in with the agent CLI."
 msgstr "Connectez-vous avec l’agent CLI."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "Se déconnecter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "Déconnexion {label}"
 
@@ -9040,7 +9100,7 @@ msgid "Signing in"
 msgstr "Connexion"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "Connexion…"
 
@@ -9193,6 +9253,10 @@ msgstr "Diviser le terminal"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Vue fractionnée"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Squash merge when checks and required reviews pass."
+msgstr "Effectuez une fusion squash lorsque les vérifications et les revues requises sont validées."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
@@ -10271,7 +10335,7 @@ msgstr "total des tokens"
 msgid "Total tokens"
 msgstr "Total des tokens"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "Suivre l'utilisation de {label}"
 
@@ -10284,7 +10348,7 @@ msgid "Tracking and display"
 msgstr "Suivi et affichage"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "Suivi désactivé"
 
@@ -11059,6 +11123,10 @@ msgstr "Préparation des environnements shell…"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Préparation de l'environnement shell WSL…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Watch PR"
+msgstr "Surveiller la PR"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

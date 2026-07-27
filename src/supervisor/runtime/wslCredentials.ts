@@ -52,6 +52,14 @@ export function readCodexAuthFromWsl(): Promise<string | undefined> {
   return readFromAnyWslDistro("cat $HOME/.codex/auth.json 2>/dev/null");
 }
 
+export function readCommandCodeApiKeyFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro("printenv COMMAND_CODE_API_KEY 2>/dev/null");
+}
+
+export function readCommandCodeAuthFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro("cat $HOME/.commandcode/auth.json 2>/dev/null");
+}
+
 export function readCopilotTokenFromWsl(): Promise<string | undefined> {
   return readFromAnyWslDistro("gh auth token 2>/dev/null");
 }

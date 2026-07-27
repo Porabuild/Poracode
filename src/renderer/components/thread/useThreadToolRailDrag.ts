@@ -17,6 +17,7 @@ interface RailDragState {
 interface ThreadToolRailDrag {
   /** Clamped vertical offset to render at, live while dragging. */
   offset: number;
+  /** True after pointer travel crosses the drag threshold. */
   isDragging: boolean;
   /** Spread onto the rail pill — it is both the grab handle and the tool container. */
   dragHandlers: {

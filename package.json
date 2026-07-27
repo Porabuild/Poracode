@@ -104,6 +104,7 @@
     "@poracode/ssh-bridge": "file:native/ssh-bridge",
     "@sentry/electron": "^7.15.0",
     "@sentry/node": "10.63.0",
+    "@sindresorhus/slugify": "^2.2.1",
     "@tanstack/react-router": "^1.170.17",
     "@tanstack/react-virtual": "^3.14.5",
     "@tiptap/extensions": "^3.27.1",

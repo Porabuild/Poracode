@@ -47,8 +47,8 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
   commandcode: {
     id: "commandcode",
     label: "Command Code",
-    mechanism: "cookie",
-    needsLogin: true,
+    mechanism: "oauth-endpoint",
+    needsLogin: false,
     windowIds: ["monthly"],
   },
   factory: {

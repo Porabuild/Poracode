@@ -226,6 +226,32 @@ describe("RemoteDesktopClient", () => {
     expect(commandId).toBe("user-message-1");
   });
 
+  it("forwards goal controls to the paired desktop", async () => {
+    let requestUrl = "";
+    let requestBody: unknown;
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.controlThreadGoal({
+      threadId: "thread-1",
+      action: "edit",
+      objective: "Ship edited goal",
+    });
+
+    expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-1/goal");
+    expect(requestBody).toEqual({ action: "edit", objective: "Ship edited goal" });
+  });
+
   it("times out requests even when the transport ignores abort signals", async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | undefined;

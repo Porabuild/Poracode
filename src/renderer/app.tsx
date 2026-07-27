@@ -314,6 +314,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
             ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
             ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+            ...(command.prNumber !== undefined ? { prNumber: command.prNumber } : {}),
             ...(command.focus === false ? { focus: false } : {}),
             ...(command.parentThreadId ? { parentThreadId: command.parentThreadId } : {}),
             ...(command.groupId ? { groupId: command.groupId } : {}),

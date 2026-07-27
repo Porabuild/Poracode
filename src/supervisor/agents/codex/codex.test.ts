@@ -1475,6 +1475,99 @@ describe("CodexStructuredSession", () => {
     ]);
   });
 
+  it("controls a goal directly through the app-server lifecycle", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    await structuredSession.controlGoal({ action: "pause" });
+    await structuredSession.controlGoal({ action: "resume" });
+    await structuredSession.controlGoal({ action: "edit", objective: "ship edited goal" });
+    await structuredSession.controlGoal({ action: "clear" });
+
+    expect(requests).toEqual([
+      {
+        method: "thread/goal/set",
+        params: { threadId: "provider-thread", status: "paused" },
+      },
+      {
+        method: "thread/goal/set",
+        params: { threadId: "provider-thread", status: "active" },
+      },
+      {
+        method: "thread/goal/set",
+        params: {
+          threadId: "provider-thread",
+          objective: "ship edited goal",
+          status: "active",
+        },
+      },
+      {
+        method: "thread/goal/clear",
+        params: { threadId: "provider-thread" },
+      },
+    ]);
+  });
+
+  it("hydrates the current goal when resuming a Codex thread", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    structuredSession.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: () => {},
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/goal/get") {
+          return {
+            goal: {
+              threadId: "provider-thread",
+              objective: "finish resumed goal",
+              status: "paused",
+              tokenBudget: null,
+              tokensUsed: 42,
+              timeUsedSeconds: 8,
+              createdAt: 1778570000,
+              updatedAt: 1778570008,
+            },
+          };
+        }
+        if (method === "thread/read") {
+          return { thread: { id: "provider-thread", status: { type: "idle" } } };
+        }
+        return {};
+      },
+    };
+
+    await structuredSession.openThread(
+      { model: "gpt-5.4" },
+      {
+        providerSessionId: "provider-thread",
+        discoveredAt: "2026-05-10T12:00:00.000Z",
+      },
+    );
+
+    expect(requests.slice(0, 2)).toEqual([
+      expect.objectContaining({ method: "thread/resume" }),
+      {
+        method: "thread/goal/get",
+        params: { threadId: "provider-thread" },
+      },
+    ]);
+    expect(runtimeEvents[0]).toMatchObject({
+      type: "item.started",
+      itemType: "goal",
+      payload: {
+        objective: "finish resumed goal",
+        status: "paused",
+        availableActions: ["edit", "resume", "clear"],
+      },
+    });
+  });
+
   it("treats /goal with no args as a no-op acknowledgement", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);

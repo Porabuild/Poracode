@@ -59,6 +59,8 @@ export interface CreateAppThreadRequest {
   fast?: boolean;
   title?: string;
   worktree?: { branch?: string };
+  existingWorktree?: { path: string; branch: string };
+  prNumber?: number;
 }
 
 export interface CreateAppThreadResult {
@@ -93,12 +95,14 @@ export async function createAppThread(
   const settings = deps.getSharedSettings();
 
   // A worktree is created up front so the row and launch both target it.
-  let worktreePath: string | undefined;
-  let branch: string | undefined;
-  if (request.worktree) {
+  let worktreePath = request.existingWorktree?.path;
+  let branch = request.existingWorktree?.branch;
+  let createdWorktree = false;
+  if (!request.existingWorktree && request.worktree) {
     branch = request.worktree.branch?.trim() || generateWorktreeBranch();
     const created = await deps.addWorktree({ location: project.location, branch, settings });
     worktreePath = created.path;
+    createdWorktree = true;
   }
   const threadLocation = worktreePath
     ? buildWorktreeLocation(project.location, worktreePath)
@@ -133,6 +137,7 @@ export async function createAppThread(
     threadStatusSource: "server",
     ...(worktreePath ? { worktreePath } : {}),
     ...(branch ? { worktreeBranch: branch } : {}),
+    ...(request.prNumber !== undefined ? { prNumber: request.prNumber } : {}),
     createdAt: nowIso,
     updatedAt: nowIso,
     activeTurnStartedAt: nowIso,
@@ -156,7 +161,8 @@ export async function createAppThread(
     focus: false,
     ...(worktreePath ? { worktreePath } : {}),
     ...(branch ? { worktreeBranch: branch } : {}),
-    ...(worktreePath ? { isNewWorktree: true } : {}),
+    ...(request.prNumber !== undefined ? { prNumber: request.prNumber } : {}),
+    ...(createdWorktree ? { isNewWorktree: true } : {}),
   });
 
   const startPayload: StartThreadPayload = {
@@ -180,7 +186,7 @@ export async function createAppThread(
       deps.deleteThread(threadId);
       deps.sendThreadCommand({ kind: "delete", threadId });
     }
-    if (worktreePath) {
+    if (createdWorktree && worktreePath) {
       await deps
         .removeWorktree({ location: project.location, path: worktreePath })
         .catch(() => undefined);

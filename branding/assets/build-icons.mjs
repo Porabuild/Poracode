@@ -138,6 +138,44 @@ async function buildTrayVariant(name, svg, dir, accent) {
   console.log(`  ✓ ${name}: 16/20/24/32px .ico`);
 }
 
+// One PWA icon set per release channel. Stable and nightly are installed side
+// by side from separate origins (app.poracode.com / app-nightly.poracode.com),
+// so nightly needs its own art or the two are indistinguishable on a home
+// screen.
+const PWA_VARIANTS = [
+  { suffix: "", svg: "poracode-icon.svg" },
+  { suffix: "-nightly", svg: "poracode-icon-nightly.svg" },
+];
+
+// Maskable and apple-touch icons must be opaque corner to corner: the platform
+// applies its own mask (circle, squircle, rounded rect) and any transparency
+// around our squircle shows through as a notch. Stretch the tile shape to a
+// full-bleed rect and keep every fill — including the nightly sheen overlay —
+// so the backdrop is the tile art itself rather than an approximated flat
+// colour composited behind it, which leaves a visible seam on a gradient.
+// The glyph is already inset well inside the 80% safe zone at this viewBox.
+function fullBleedSvg(source) {
+  return source.replaceAll(
+    /<use xlink:href="#tile" fill="([^"]+)"\s*\/>/g,
+    '<rect width="1024" height="1024" fill="$1"/>',
+  );
+}
+
+async function buildPwaVariant(dir, { suffix, svg }) {
+  const iconSvg = `${HERE}${svg}`;
+  // Plain transparent renders — the tile bg is baked into the SVG.
+  await writeFile(`${dir}/icon${suffix}-192.png`, await png(iconSvg, 192));
+  await writeFile(`${dir}/icon${suffix}-512.png`, await png(iconSvg, 512));
+  const source = await readFile(iconSvg, "utf8");
+  const bleed = Buffer.from(fullBleedSvg(source));
+  if (bleed.equals(Buffer.from(source))) {
+    throw new Error(`${svg}: no #tile <use> to expand for the maskable icon`);
+  }
+  await writeFile(`${dir}/icon${suffix}-maskable-512.png`, await png(bleed, 512));
+  await writeFile(`${dir}/apple-touch-icon${suffix}.png`, await png(bleed, 180));
+  console.log(`  ✓ icon${suffix}: 192 + 512 + maskable-512 + apple-touch`);
+}
+
 async function buildTrayMacTemplate(svg, dir) {
   await mkdir(dir, { recursive: true });
   await writeFile(`${dir}/tray-icon-mac.png`, await trayMacTemplatePng(svg, 22));
@@ -145,68 +183,66 @@ async function buildTrayMacTemplate(svg, dir) {
   console.log("  ✓ tray-icon-mac: 22px + @2x template PNG");
 }
 
+// Optional section filter (`node build-icons.mjs pwa`). The `build` section
+// shells out to macOS `iconutil` for .icns, so contributors on other hosts can
+// still regenerate the `website` and `pwa` sections on their own.
+const SECTIONS = ["build", "website", "pwa"];
+const only = process.argv[2];
+if (only && !SECTIONS.includes(only)) {
+  console.error(`unknown section "${only}"; expected one of ${SECTIONS.join(", ")}`);
+  process.exit(1);
+}
+const wants = (section) => !only || only === section;
+
 async function main() {
-  await rm(OUT, { recursive: true, force: true });
-  console.log("build/ (app icons):");
-  await buildVariant("icon", `${HERE}poracode-icon.svg`, `${OUT}/build`);
-  await buildVariant("icon-nightly", `${HERE}poracode-icon-nightly.svg`, `${OUT}/build`);
-  await buildTrayVariant("tray-icon", `${HERE}poracode-glyph.svg`, `${OUT}/build`, "#8B7BFF");
-  await buildTrayVariant(
-    "tray-icon-nightly",
-    `${HERE}poracode-glyph.svg`,
-    `${OUT}/build`,
-    "#5EE6E0",
-  );
-  await buildTrayMacTemplate(`${HERE}poracode-glyph.svg`, `${OUT}/build`);
+  for (const section of SECTIONS) {
+    if (wants(section)) await rm(`${OUT}/${section}`, { recursive: true, force: true });
+  }
 
-  console.log("website/public (favicons):");
-  const web = `${OUT}/website`;
-  await mkdir(web, { recursive: true });
-  const svg = `${HERE}poracode-icon.svg`;
-  const map = {
-    "favicon-48x48.png": 48,
-    "favicon-96x96.png": 96,
-    "icon-192.png": 192,
-    "icon-512.png": 512,
-    "icon.png": 512,
-  };
-  for (const [file, s] of Object.entries(map)) await writeFile(`${web}/${file}`, await png(svg, s));
-  await writeFile(
-    `${web}/favicon.ico`,
-    buildIco(
-      await Promise.all([48, 32, 16].map(async (s) => ({ size: s, buf: await png(svg, s) }))),
-    ),
-  );
-  console.log("  ✓ favicons + favicon.ico");
+  if (wants("build")) {
+    console.log("build/ (app icons):");
+    await buildVariant("icon", `${HERE}poracode-icon.svg`, `${OUT}/build`);
+    await buildVariant("icon-nightly", `${HERE}poracode-icon-nightly.svg`, `${OUT}/build`);
+    await buildTrayVariant("tray-icon", `${HERE}poracode-glyph.svg`, `${OUT}/build`, "#8B7BFF");
+    await buildTrayVariant(
+      "tray-icon-nightly",
+      `${HERE}poracode-glyph.svg`,
+      `${OUT}/build`,
+      "#5EE6E0",
+    );
+    await buildTrayMacTemplate(`${HERE}poracode-glyph.svg`, `${OUT}/build`);
+  }
 
-  console.log("pwa/ (mobile PWA icons):");
-  const pwa = `${OUT}/pwa`;
-  await mkdir(pwa, { recursive: true });
-  const iconSvg = `${HERE}poracode-icon.svg`;
-  // Plain transparent renders — the tile bg is baked into the SVG.
-  await writeFile(`${pwa}/icon-192.png`, await png(iconSvg, 192));
-  await writeFile(`${pwa}/icon-512.png`, await png(iconSvg, 512));
-  // Maskable: full-bleed opaque tile with the glyph inside the ~80% safe zone.
-  await writeFile(
-    `${pwa}/icon-maskable-512.png`,
-    await sharp({
-      create: { width: 512, height: 512, channels: 4, background: "#0e0e14" },
-    })
-      .composite([{ input: await png(iconSvg, 440), gravity: "centre" }])
-      .png()
-      .toBuffer(),
-  );
-  // Apple touch: iOS applies its own corner mask, so corners must be opaque.
-  await writeFile(
-    `${pwa}/apple-touch-icon.png`,
-    await sharp({
-      create: { width: 180, height: 180, channels: 4, background: "#0e0e14" },
-    })
-      .composite([{ input: await png(iconSvg, 150), gravity: "centre" }])
-      .png()
-      .toBuffer(),
-  );
-  console.log("  ✓ icon-192 + icon-512 + icon-maskable-512 + apple-touch-icon");
+  if (wants("website")) {
+    console.log("website/public (favicons):");
+    const web = `${OUT}/website`;
+    await mkdir(web, { recursive: true });
+    const svg = `${HERE}poracode-icon.svg`;
+    const map = {
+      "favicon-48x48.png": 48,
+      "favicon-96x96.png": 96,
+      "icon-192.png": 192,
+      "icon-512.png": 512,
+      "icon.png": 512,
+    };
+    for (const [file, s] of Object.entries(map)) {
+      await writeFile(`${web}/${file}`, await png(svg, s));
+    }
+    await writeFile(
+      `${web}/favicon.ico`,
+      buildIco(
+        await Promise.all([48, 32, 16].map(async (s) => ({ size: s, buf: await png(svg, s) }))),
+      ),
+    );
+    console.log("  ✓ favicons + favicon.ico");
+  }
+
+  if (wants("pwa")) {
+    console.log("pwa/ (mobile PWA icons):");
+    const pwa = `${OUT}/pwa`;
+    await mkdir(pwa, { recursive: true });
+    for (const variant of PWA_VARIANTS) await buildPwaVariant(pwa, variant);
+  }
 
   console.log(`\nDone → ${OUT}`);
 }

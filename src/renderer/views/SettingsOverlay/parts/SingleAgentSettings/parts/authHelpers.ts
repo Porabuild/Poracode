@@ -1,5 +1,11 @@
 import { msg } from "@lingui/core/macro";
-import type { AgentEnvVarAuthMethod, AgentOwnedAuthMethod, AgentStatus } from "@/shared/contracts";
+import type {
+  AgentEnvVarAuthMethod,
+  AgentOwnedAuthMethod,
+  AgentProviderMetadata,
+  AgentStatus,
+  UsageSnapshot,
+} from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import {
   envLabelForStatus,
@@ -8,15 +14,44 @@ import {
   isTerminalAuthMethod,
 } from "@/renderer/utils/acpRegistryAuth";
 
+/**
+ * Live plan label to show instead of the one carried by `providerMetadata`.
+ *
+ * Detected plans are read out of provider credentials, which snapshot the plan
+ * at sign-in time — Codex, for example, derives its plan from the
+ * `chatgpt_plan_type` claim of the cached OAuth id_token, so an upgrade keeps
+ * rendering the old tier until that token is refreshed. Usage collectors hit
+ * the provider's live quota endpoint on every poll, so their plan is the
+ * authoritative one whenever it describes the same account.
+ *
+ * Returns `undefined` (keep the detected plan) unless the snapshot is a healthy
+ * read for an account that matches the detected identity. Accounts only count
+ * as mismatched when both sides name one and they differ — collectors that
+ * report no account still win, since usage is collected for the signed-in user.
+ */
+export function resolveLivePlanLabel(
+  metadata: AgentProviderMetadata | undefined,
+  usage: UsageSnapshot | undefined,
+): string | undefined {
+  if (usage?.status !== "ok") return undefined;
+  const livePlan = usage.plan?.trim();
+  if (!livePlan) return undefined;
+  const detectedAccount = metadata?.authenticatedAs?.trim().toLowerCase();
+  const liveAccount = usage.authenticatedAs?.trim().toLowerCase();
+  if (detectedAccount && liveAccount && detectedAccount !== liveAccount) return undefined;
+  return livePlan;
+}
+
 export function formatAgentMetadataSummary(
   status: AgentStatus,
-  options?: { includeAuthFallback?: boolean },
+  options?: { includeAuthFallback?: boolean; livePlan?: string | undefined },
 ): string | undefined {
   const metadata = status.providerMetadata;
   const identityParts: string[] = [];
   if (metadata?.authenticatedAs) identityParts.push(metadata.authenticatedAs);
   if (metadata?.organization) identityParts.push(metadata.organization);
-  if (metadata?.plan) identityParts.push(metadata.plan);
+  const plan = options?.livePlan ?? metadata?.plan;
+  if (plan) identityParts.push(plan);
 
   if (identityParts.length > 0) return identityParts.join(" · ");
 

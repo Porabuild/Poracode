@@ -138,7 +138,7 @@ describe("McpServersManager", () => {
     expect(screen.getByRole("button", { name: "Edit memory" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete memory" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Browser" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "44 tools" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "46 tools" })).toBeInTheDocument();
   });
 
   it("shows the built-in tool list from its tool count", () => {

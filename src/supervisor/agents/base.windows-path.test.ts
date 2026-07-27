@@ -153,6 +153,44 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     expect(resolveExecutablePath("claude")).toBe(exePath);
   });
 
+  it("resolves Scoop .exe shims to their executable target", () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-scoop-shim-"));
+    tempDirs.push(root);
+    const shimDir = join(root, "scoop", "shims");
+    const target = join(root, "scoop", "apps", "opencode", "current", "opencode.exe");
+    mkdirSync(shimDir, { recursive: true });
+    mkdirSync(join(target, ".."), { recursive: true });
+    writeFileSync(join(shimDir, "opencode.exe"), "");
+    writeFileSync(join(shimDir, "opencode.shim"), `path = "${target}"\n`);
+    writeFileSync(target, "");
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: `${join(shimDir, "opencode.exe")}\r\n`,
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("opencode")).toBe(target);
+  });
+
+  it("keeps Scoop shims that supply fixed arguments", () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-scoop-args-shim-"));
+    tempDirs.push(root);
+    const shim = join(root, "tool.exe");
+    const target = join(root, "target.exe");
+    writeFileSync(shim, "");
+    writeFileSync(join(root, "tool.shim"), `path = "${target}"\nargs = "--fixed"\n`);
+    writeFileSync(target, "");
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: `${shim}\r\n`,
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("tool")).toBe(shim);
+  });
+
   it("keeps the .cmd path for npm node-shim wrappers (e.g. command-code.cmd → node index.mjs)", () => {
     // Regression: a previous version of resolveWindowsCmdExeTarget greedily
     // matched `"%dp0%\node.exe"` in npm's standard Node-script shim and

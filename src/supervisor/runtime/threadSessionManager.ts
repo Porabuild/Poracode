@@ -7,6 +7,7 @@ import { defaultSharedSettings, normalizeSharedSettings } from "@/shared/setting
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
   type ClearPendingSteerPayload,
+  type ControlThreadGoalPayload,
   type AgentEventEnvelope,
   type AgentKind,
   type CloseThreadPayload,
@@ -608,6 +609,15 @@ export class ThreadSessionManager {
     }
     this.options.crossagentMcp?.cancelAll(payload.threadId);
     await this.structuredInterruptWatchdog.interruptStructuredTurn(session);
+  }
+
+  async controlThreadGoal(payload: ControlThreadGoalPayload): Promise<void> {
+    const { threadId, ...control } = payload;
+    const session = this.requireSession(threadId);
+    if (!session.structuredSession?.controlGoal) {
+      throw new Error(`${session.adapter.label} does not support goal controls.`);
+    }
+    await session.structuredSession.controlGoal(control);
   }
 
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {

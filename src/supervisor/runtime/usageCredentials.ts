@@ -2,6 +2,7 @@ import type { CredentialStore } from "@poracode/agents-usage";
 import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
 import { resolveCodexToken } from "./codexCredentials";
+import { resolveCommandCodeToken } from "./commandCodeCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
 import { resolveCursorToken } from "./cursorCredentials";
 import { resolveFactoryCliToken } from "./factoryCredentials";
@@ -34,6 +35,7 @@ function tokenResolvers(
   return {
     claude: resolveClaudeToken,
     codex: resolveCodexToken,
+    commandcode: resolveCommandCodeToken,
     copilot: resolveCopilotToken,
     cursor: resolveCursorToken,
     grok: resolveFreshGrokToken,

@@ -46,6 +46,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     startThread: (payload) => threads.startThread(payload),
     sendThreadInput: (payload) => threads.sendThreadInput(payload),
     interruptThread: (payload) => threads.interruptThread(payload),
+    controlThreadGoal: (payload) => threads.controlThreadGoal(payload),
     rollbackThreadConversation: (payload) => threads.rollbackThreadConversation(payload),
     setPendingSteer: (payload) => threads.setPendingSteer(payload),
     clearPendingSteer: (payload) => threads.clearPendingSteer(payload),
@@ -91,7 +92,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     restoreFileCheckpoint: async (payload) => {
       await checkpoints.restore(payload);
     },
-    getGitStatus: (payload) => git.getStatus(payload.projectLocation),
+    getGitStatus: (payload) => git.getStatus(payload.projectLocation, payload.detail),
     getGitDiff: (payload) => git.getDiff(payload.projectLocation, payload.filePath, payload.staged),
     getGitDiffBatch: (payload) => git.getDiffBatch(payload.projectLocation, payload.untrackedPaths),
     getGitFileContent: (payload) =>
@@ -208,7 +209,12 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     gitWatchWorktrees: async (payload) => {
       runtime.projectWatcher.watchWorktrees(payload.projectId, payload.worktreePaths);
     },
-    gitUnwatchProject: (payload) => runtime.projectWatcher.unwatch(payload.projectId),
+    gitUnwatchProject: async (payload) => {
+      await runtime.projectWatcher.unwatch(payload.projectId);
+      if (payload.releaseWslDistro) {
+        runtime.releaseWslBridgeIfUnused(payload.releaseWslDistro);
+      }
+    },
     relocateProject: (payload) => runtime.relocateProject(payload),
     searchProjectFiles: (payload) => fileIndex.searchProjectFiles(payload),
     listProjectTree: (payload) => projectTree.listProjectTree(payload),
@@ -255,6 +261,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghUpdatePrBranch: (payload) =>
       github.updatePrBranch(payload.projectLocation, payload.prNumber, payload.rebase),
     ghGetPrDetails: (payload) => github.getPrDetails(payload.projectLocation, payload.prNumber),
+    ghGetPrReviewComments: (payload) =>
+      github.getPrReviewComments(payload.projectLocation, payload.prNumber),
     ghPostPrComment: (payload) =>
       github.postPrComment(payload.projectLocation, payload.prNumber, payload.body),
     ghListAccounts: (payload) => github.listAccounts(payload.runtime),

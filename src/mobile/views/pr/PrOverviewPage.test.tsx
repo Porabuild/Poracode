@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project, ProjectLocation } from "@/shared/contracts";
+import type { GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PrContextProvider, type PrContextValue } from "./prContext";
 import { PrOverviewPage } from "./PrOverviewPage";
@@ -23,6 +23,8 @@ const popoverMock = vi.hoisted(() => ({
 
 const bridgeMock = vi.hoisted(() => ({
   ghMergePr: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  getGitStatus: vi.fn<() => Promise<GitStatusResult>>(),
+  gitPull: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   openExternal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
@@ -91,6 +93,22 @@ describe("PrOverviewPage", () => {
   beforeEach(() => {
     popoverMock.submitReview.mockClear();
     bridgeMock.ghMergePr.mockClear();
+    bridgeMock.getGitStatus.mockReset();
+    bridgeMock.getGitStatus.mockResolvedValue({
+      isRepo: true,
+      branch: "main",
+      tracking: "origin/main",
+      hasRemote: true,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    });
+    bridgeMock.gitPull.mockClear();
+    bridgeMock.gitPull.mockResolvedValue(undefined);
     bridgeMock.openExternal.mockClear();
     bridgeMock.openExternal.mockResolvedValue(undefined);
     toastDangerSpy.mockClear();
@@ -147,6 +165,10 @@ describe("PrOverviewPage", () => {
       });
     });
     expect(useGitStore.getState().prData["project-1#42"]?.state).toBe("merged");
+    expect(bridgeMock.gitPull).toHaveBeenCalledWith({
+      projectLocation,
+      remote: "origin",
+    });
     expect(reload).toHaveBeenCalledOnce();
   });
 

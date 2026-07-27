@@ -1,6 +1,6 @@
 import { detectTerminalStatusFromHints, type TerminalStatusHint } from "../base";
 
-// Heuristics tuned against captured `command-code` v0.37 TUI output.
+// Heuristics verified against captured `command-code` v1.4.1 TUI output.
 //
 // Working: the spinner row reads `· <Gerund>  esc to interrupt • <n>s • ↑ <n>`,
 // where <Gerund> is a RANDOM verb ("Cogitating", "Processing", "Conjuring", …),
