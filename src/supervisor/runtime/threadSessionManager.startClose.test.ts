@@ -192,6 +192,77 @@ describe("ThreadSessionManager provider-session routing", () => {
 });
 
 describe("ThreadSessionManager start guards", () => {
+  it("treats late input, write, and interrupt IPC after known removal as idempotent", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.threadId = "closed-thread";
+    manager.sessions.set(runtime.threadId, runtime);
+    await manager.closeThread({ threadId: runtime.threadId });
+
+    await expect(
+      manager.sendThreadInput({
+        threadId: "closed-thread",
+        prompt: "late",
+        config: { model: "codex/model" },
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      manager.writeTerminal({ threadId: "closed-thread", data: "late" }),
+    ).resolves.toBeUndefined();
+    await expect(manager.interruptThread({ threadId: "closed-thread" })).resolves.toBeUndefined();
+  });
+
+  it("preserves bookkeeping errors for never-known session ids", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+
+    await expect(
+      manager.sendThreadInput({
+        threadId: "never-known",
+        prompt: "late",
+        config: { model: "codex/model" },
+      }),
+    ).rejects.toThrow("Unknown thread session: never-known");
+    await expect(manager.writeTerminal({ threadId: "never-known", data: "late" })).rejects.toThrow(
+      "Unknown thread session: never-known",
+    );
+    await expect(manager.interruptThread({ threadId: "never-known" })).rejects.toThrow(
+      "Unknown thread session: never-known",
+    );
+  });
+
+  it("bounds removal tombstones and clears one when the thread id is reused", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+    const internal = manager as unknown as {
+      recentlyRemovedThreadIds: Set<string>;
+      rememberRemovedThread(threadId: string): void;
+    };
+
+    for (let index = 0; index < 257; index++) {
+      internal.rememberRemovedThread(`removed-${index}`);
+    }
+    expect(internal.recentlyRemovedThreadIds.size).toBe(256);
+    expect(internal.recentlyRemovedThreadIds.has("removed-0")).toBe(false);
+    expect(internal.recentlyRemovedThreadIds.has("removed-256")).toBe(true);
+
+    internal.rememberRemovedThread("reused-thread");
+    await manager.startThread({
+      threadId: "reused-thread",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "codex",
+      config: { model: "codex/model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    expect(internal.recentlyRemovedThreadIds.has("reused-thread")).toBe(false);
+  });
+
   it("passes an empty MCP set to provider-owned structured sessions", async () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("opencode", structuredSession);

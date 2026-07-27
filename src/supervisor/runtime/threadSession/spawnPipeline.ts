@@ -455,10 +455,6 @@ export class SpawnPipeline {
         )
         .catch((error) => {
           console.error("[supervisor] initial turn failed:", error);
-          captureSupervisorException(error, {
-            "poracode.feature_area": "supervisor-runtime",
-            "poracode.provider": payload.agentKind,
-          });
           const activeSession = ctx.sessions.get(payload.threadId);
           if (!activeSession) {
             return;
@@ -1142,9 +1138,11 @@ export class SpawnPipeline {
       });
     } catch (error) {
       console.error("[supervisor] structured session creation failed:", error);
-      captureSupervisorException(error, {
+      captureSupervisorException(new Error("Structured runtime session creation failed."), {
         "poracode.feature_area": "supervisor-runtime",
+        ...(presentationMode ? { "poracode.presentation": presentationMode } : {}),
         "poracode.provider": agentKind,
+        "poracode.runtime_kind": "structured",
       });
       return undefined;
     }

@@ -51,6 +51,7 @@ import {
   type AcquiredOpenCodeServer,
   type AcquireOpenCodeServerInput,
 } from "./sdkClient";
+import { OpenCodeReadinessTimeoutError } from "./sdkServer";
 import { subscribeOpenCodeServerEvents } from "./sdkEventHub";
 import {
   closeOpenItems,
@@ -209,9 +210,11 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       // Surface server-startup failures (sandbox blocks, ENOENT, port races,
       // macOS quarantine) as classified user-facing strings rather than the
       // raw thrown shape. The runtime relays these through `onError`.
-      throw new Error(classifyOpenCodeError({ cause, operation: "start opencode serve" }), {
-        cause,
-      });
+      const message = classifyOpenCodeError({ cause, operation: "start opencode serve" });
+      if (cause instanceof OpenCodeReadinessTimeoutError) {
+        throw new OpenCodeReadinessTimeoutError(message, { cause });
+      }
+      throw new Error(message, { cause });
     }
 
     if (this.isGui) {

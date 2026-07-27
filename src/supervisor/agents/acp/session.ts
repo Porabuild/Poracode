@@ -218,6 +218,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private listener: StructuredSessionListener | undefined;
   private sessionId: string | undefined;
   private isDisposed = false;
+  private transportClosed = false;
+  private transportOutcomeReported = false;
   private currentConfig: ThreadConfig | undefined;
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   private currentStatus: ThreadStatus = "idle";
@@ -563,28 +565,34 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     );
     session.spawnReady = spawnReady;
 
-    // Handle connection close
+    // The process exit is authoritative when available. Defer the connection
+    // close by one turn so an adjacent child exit can provide its exit code.
     void connection.closed.then(() => {
-      if (!session.isDisposed) {
-        session.listener?.onClose();
-      }
+      session.transportClosed = true;
+      setImmediate(() => {
+        if (session.isDisposed || session.transportOutcomeReported) return;
+        const code = child.exitCode;
+        session.reportTransportOutcome(
+          session.isExpectedTransportExit(code)
+            ? undefined
+            : code === null
+              ? "ACP connection closed unexpectedly."
+              : `ACP agent exited unexpectedly (code ${code}).`,
+        );
+      });
     });
 
     child.once("exit", (code) => {
-      // Quiet path: the structured session is one-shot for adapters whose
-      // `liveInputMode === "terminal"` (every adapter today). The runtime
-      // disposes us once `openThread` returns, and some agents (OpenCode)
-      // exit non-zero on stdin close even when everything went fine —
-      // there's nothing actionable to surface in that case.
-      const expected = session.isDisposed || session.sessionId !== undefined;
+      const expected = session.isExpectedTransportExit(code);
       if (expected) {
         console.log(`[acp] child exited (code ${code})`);
       } else {
         console.log(`[acp] child exited unexpectedly (code ${code})`);
       }
-      if (!session.isDisposed) {
-        session.listener?.onClose();
-      }
+      if (session.isDisposed) return;
+      session.reportTransportOutcome(
+        expected ? undefined : `ACP agent exited unexpectedly (code ${code}).`,
+      );
     });
 
     return session;
@@ -955,7 +963,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.pendingPromptInterrupt = true;
       return;
     }
-    await this.connection.cancel({ sessionId: this.sessionId });
+    try {
+      await this.connection.cancel({ sessionId: this.sessionId });
+    } catch (error) {
+      // A close callback owns the root failure. A cancel racing that callback
+      // is derivative noise, but unrelated provider rejections still surface.
+      if (this.isDisposed || this.transportClosed) return;
+      throw error;
+    }
     if (this.orphanTurnId && !this.promptInFlight) {
       this.completeOrphanTurn({ state: "cancelled" });
     }
@@ -994,6 +1009,19 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (!this.child.killed) {
       terminateChildProcessTree(this.child);
     }
+  }
+
+  private reportTransportOutcome(errorMessage: string | undefined): void {
+    if (this.transportOutcomeReported) return;
+    this.transportOutcomeReported = true;
+    if (errorMessage) {
+      this.listener?.onError(errorMessage);
+    }
+    this.listener?.onClose();
+  }
+
+  private isExpectedTransportExit(code: number | null): boolean {
+    return this.isDisposed || this.sessionId !== undefined || code === 0;
   }
 
   // ── Resume artifacts ──────────────────────────────────────────

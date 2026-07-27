@@ -4,6 +4,7 @@ import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contr
 import type { StructuredSessionUpdate } from "../base";
 import { subscribeOpenCodeServerEvents } from "./sdkEventHub";
 import { OpencodeSdkSession, parseOpenCodeQuestionAnswers } from "./sdkSession";
+import { OpenCodeReadinessTimeoutError } from "./sdkServer";
 
 const mocks = vi.hoisted(() => ({
   acquireOpenCodeServer: vi.fn<(input: unknown) => Promise<unknown>>(),
@@ -49,6 +50,23 @@ describe("OpencodeSdkSession", () => {
 
   beforeEach(() => {
     mocks.acquireOpenCodeServer.mockReset();
+  });
+
+  it("preserves a typed, actionable provider readiness timeout", async () => {
+    mocks.acquireOpenCodeServer.mockRejectedValue(
+      new OpenCodeReadinessTimeoutError("opencode serve: OpenCode server did not respond in time."),
+    );
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+
+    await expect(session.activate()).rejects.toMatchObject({
+      name: "OpenCodeReadinessTimeoutError",
+      message: expect.stringContaining("OpenCode server did not respond in time"),
+    });
   });
 
   it("starts the GUI event stream on activation", async () => {
