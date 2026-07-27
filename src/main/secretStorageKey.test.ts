@@ -9,28 +9,26 @@ const safeStorageMock = vi.hoisted(() => ({
   getSelectedStorageBackend: vi.fn<() => string>(),
   isEncryptionAvailable: vi.fn<() => boolean>(),
 }));
-const captureMainException = vi.hoisted(() =>
-  vi.fn<(error: unknown, tags?: Record<string, string>) => void>(),
-);
 
 vi.mock("electron", () => ({ safeStorage: safeStorageMock }));
-vi.mock("./diagnostics/sentry", () => ({ captureMainException }));
 
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 
 describe("readOrCreateSafeStorageSecretKey", () => {
   let dir: string;
+  let consoleWarn: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "poracode-safe-storage-"));
+    consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     safeStorageMock.decryptString.mockReset();
     safeStorageMock.encryptString.mockReset().mockImplementation((value) => Buffer.from(value));
     safeStorageMock.getSelectedStorageBackend.mockReset().mockReturnValue("gnome_libsecret");
     safeStorageMock.isEncryptionAvailable.mockReset().mockReturnValue(true);
-    captureMainException.mockReset();
   });
 
   afterEach(() => {
+    consoleWarn.mockRestore();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -48,11 +46,13 @@ describe("readOrCreateSafeStorageSecretKey", () => {
 
       expect(Buffer.from(first, "base64")).toHaveLength(32);
       expect(Buffer.from(second, "base64")).toHaveLength(32);
-      expect(second).not.toBe(first);
+      expect(second).toBe(first);
       expect(safeStorageMock.encryptString).not.toHaveBeenCalled();
       expect(safeStorageMock.decryptString).not.toHaveBeenCalled();
       expect(() => readFileSync(join(dir, "secret-key.safe"))).toThrow(/ENOENT|no such file/i);
-      expect(captureMainException).not.toHaveBeenCalled();
+      expect(consoleWarn).toHaveBeenCalledWith(
+        "[credential-storage] secure OS encryption is unavailable; credentials are session-only.",
+      );
     },
   );
 
@@ -68,7 +68,7 @@ describe("readOrCreateSafeStorageSecretKey", () => {
     );
   });
 
-  it("recovers from an undecryptable stored key and reports only the typed reason", () => {
+  it("recovers from an undecryptable stored key with only a fixed local warning", () => {
     writeFileSync(join(dir, "secret-key.safe"), Buffer.from("old-sealed-key").toString("base64"));
     safeStorageMock.decryptString.mockImplementation(() => {
       throw new Error("unexpected crypto details");
@@ -77,13 +77,22 @@ describe("readOrCreateSafeStorageSecretKey", () => {
     const key = readOrCreateSafeStorageSecretKey(dir, "linux");
 
     expect(Buffer.from(key, "base64")).toHaveLength(32);
-    expect(captureMainException).toHaveBeenCalledOnce();
-    expect(captureMainException.mock.calls[0]?.[0]).toMatchObject({
-      message: "Stored safeStorage key recovery: decrypt_failed.",
-    });
-    expect(captureMainException.mock.calls[0]?.[1]).toEqual({
-      "poracode.feature_area": "credential-storage",
-    });
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[credential-storage] stored key recovery (decrypt_failed); rotating encrypted key.",
+    );
+    expect(consoleWarn).not.toHaveBeenCalledWith(expect.stringContaining("unexpected crypto"));
+  });
+
+  it("rotates an invalid decrypted key with only a fixed local warning", () => {
+    writeFileSync(join(dir, "secret-key.safe"), Buffer.from("old-sealed-key").toString("base64"));
+    safeStorageMock.decryptString.mockReturnValue(Buffer.alloc(16).toString("base64"));
+
+    const key = readOrCreateSafeStorageSecretKey(dir, "linux");
+
+    expect(Buffer.from(key, "base64")).toHaveLength(32);
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[credential-storage] stored key recovery (invalid_key); rotating encrypted key.",
+    );
   });
 
   it("keeps unexpected encryption failures observable without leaking the key", () => {

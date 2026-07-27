@@ -3,9 +3,9 @@ import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { safeStorage } from "electron";
 import { writeFileAtomic } from "@/shared/atomicFile";
-import { captureMainException } from "./diagnostics/sentry";
 
 const SAFE_STORAGE_KEY_FILE = "secret-key.safe";
+let sessionOnlyKey: string | undefined;
 
 function keyFilePath(baseDir: string): string {
   return join(baseDir, SAFE_STORAGE_KEY_FILE);
@@ -22,9 +22,7 @@ function hasErrorCode(error: unknown, code: string): boolean {
 }
 
 function reportKeyRecovery(reason: "decrypt_failed" | "invalid_key"): void {
-  captureMainException(new Error(`Stored safeStorage key recovery: ${reason}.`), {
-    "poracode.feature_area": "credential-storage",
-  });
+  console.warn(`[credential-storage] stored key recovery (${reason}); rotating encrypted key.`);
 }
 
 function throwSecretStorageError(message: string): never {
@@ -68,7 +66,8 @@ export function readOrCreateSafeStorageSecretKey(
     console.warn(
       "[credential-storage] secure OS encryption is unavailable; credentials are session-only.",
     );
-    return randomBytes(32).toString("base64");
+    sessionOnlyKey ??= randomBytes(32).toString("base64");
+    return sessionOnlyKey;
   }
 
   const path = keyFilePath(baseDir);
