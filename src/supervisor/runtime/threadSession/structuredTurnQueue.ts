@@ -7,6 +7,7 @@ import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 export interface StructuredTurnQueueContext {
   emit(event: SupervisorEvent): void;
   sessions: Map<string, SessionRuntime>;
+  beginFailureEpisode(session: SessionRuntime): void;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
 }
 
@@ -24,6 +25,7 @@ export class StructuredTurnQueue {
     if (!session.structuredSession?.startTurn) {
       return;
     }
+    this.ctx.beginFailureEpisode(session);
     // Optimistic user_message: paint the user's prompt in the chat pane
     // before the structured session's `prompt()` round-trip resolves so the
     // chat doesn't visually stall waiting on the agent. Only meaningful for
@@ -58,6 +60,7 @@ export class StructuredTurnQueue {
     if (!session.pendingLaunchPrompt || !session.structuredSession?.startTurn) {
       return;
     }
+    this.ctx.beginFailureEpisode(session);
     const prompt = session.pendingLaunchPrompt;
     session.pendingLaunchPrompt = undefined;
     void session.structuredSession.startTurn(prompt, session.config).catch((error) => {

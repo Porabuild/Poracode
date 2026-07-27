@@ -1,9 +1,16 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { LspSessionStatus } from "@/shared/lsp";
+
+const captureSupervisorException = vi.hoisted(() =>
+  vi.fn<(error: unknown, tags?: Record<string, string>) => void>(),
+);
+
+vi.mock("../diagnostics/sentry", () => ({ captureSupervisorException }));
+
 import { ServerInstance } from "./serverInstance";
 
 const fakeServerSource = `
@@ -102,5 +109,53 @@ describe("ServerInstance", () => {
 
     expect(statuses).toContain("ready");
     expect(result).toEqual({ items: [{ label: "from-fake-server", kind: 6 }] });
+  });
+
+  it("treats a send rejection from a concurrently closed connection as expected", async () => {
+    const instance = new ServerInstance(
+      "test:lsp-race",
+      { languageId: "fake", commands: [], fileExtensions: [".fake"] },
+      { kind: "posix", path: "/repo" },
+      () => {},
+      () => {},
+    );
+    const connection = {
+      sendNotification: vi.fn<() => Promise<never>>(async () => {
+        (instance as unknown as { connection: unknown }).connection = null;
+        throw new Error("Connection is closed.");
+      }),
+    };
+    (instance as unknown as { connection: unknown }).connection = connection;
+
+    await expect(
+      instance.sendMessage({ jsonrpc: "2.0", method: "textDocument/didOpen", params: {} }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects initialization with a fixed error without self-capturing", () => {
+    const statuses: Array<{ status: LspSessionStatus; error?: string }> = [];
+    const instance = new ServerInstance(
+      "test:lsp-init-failure",
+      { languageId: "fake", commands: [], fileExtensions: [".fake"] },
+      { kind: "posix", path: "/repo" },
+      () => {},
+      (status, error) => statuses.push({ status, ...(error ? { error } : {}) }),
+    );
+    const internal = instance as unknown as {
+      handleInitializationFailure(error: unknown): never;
+    };
+
+    expect(() =>
+      internal.handleInitializationFailure(
+        new Error("provider failed at /private/repo with token=secret"),
+      ),
+    ).toThrow("Language server failed to initialize.");
+    expect(statuses).toEqual([
+      {
+        status: "error",
+        error: "provider failed at /private/repo with token=secret",
+      },
+    ]);
+    expect(captureSupervisorException).not.toHaveBeenCalled();
   });
 });

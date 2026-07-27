@@ -1,6 +1,13 @@
 import type { SessionRuntime } from "../sessionTypes";
 import { STRUCTURED_INTERRUPT_FORCE_STOP_MS } from "./userInterrupt";
 
+const NO_ACTIVE_TURN_TO_INTERRUPT = "no active turn to interrupt";
+
+function isNoActiveTurnToInterrupt(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.message.trim().toLowerCase() === NO_ACTIVE_TURN_TO_INTERRUPT;
+}
+
 export interface StructuredInterruptWatchdogContext {
   sessions: Map<string, SessionRuntime>;
   isDisposed(): boolean;
@@ -29,6 +36,7 @@ export class StructuredInterruptWatchdog {
     } catch (error) {
       session.structuredTurnInterruptRequested = false;
       this.clearStructuredInterruptWatchdog(session);
+      if (isNoActiveTurnToInterrupt(error)) return;
       throw error;
     }
   }

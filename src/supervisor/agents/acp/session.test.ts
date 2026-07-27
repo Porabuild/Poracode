@@ -312,6 +312,55 @@ describe("ACP empty-response provider guard", () => {
   });
 });
 
+describe("ACP transport close lifecycle", () => {
+  it("keeps an established session's nonzero exit reportable", () => {
+    const { session } = makeConfigSyncSession();
+    const internal = session as unknown as {
+      isExpectedTransportExit(code: number | null): boolean;
+    };
+
+    expect(internal.isExpectedTransportExit(0)).toBe(true);
+    expect(internal.isExpectedTransportExit(9)).toBe(false);
+    expect(internal.isExpectedTransportExit(null)).toBe(false);
+
+    (session as unknown as Record<string, unknown>)["isDisposed"] = true;
+    expect(internal.isExpectedTransportExit(9)).toBe(true);
+  });
+
+  it("reports one root error and one derivative close", () => {
+    const { listener, session } = makeConfigSyncSession();
+    const internal = session as unknown as {
+      reportTransportOutcome(message: string | undefined): void;
+    };
+
+    internal.reportTransportOutcome("ACP connection closed unexpectedly.");
+    internal.reportTransportOutcome("duplicate");
+
+    expect(listener.onError).toHaveBeenCalledExactlyOnceWith("ACP connection closed unexpectedly.");
+    expect(listener.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a clean transport close as expected", () => {
+    const { listener, session } = makeConfigSyncSession();
+    const internal = session as unknown as {
+      reportTransportOutcome(message: string | undefined): void;
+    };
+
+    internal.reportTransportOutcome(undefined);
+
+    expect(listener.onError).not.toHaveBeenCalled();
+    expect(listener.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("suppresses cancel rejection only after the close boundary won the race", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    connection.cancel.mockRejectedValueOnce(new Error("ACP connection closed"));
+    (session as unknown as Record<string, unknown>)["transportClosed"] = true;
+
+    await expect(session.interruptTurn()).resolves.toBeUndefined();
+  });
+});
+
 describe("ACP prompt-response usage → usage.spent", () => {
   it("emits cumulative usage.spent from a new session's prompt usage, fresh once", async () => {
     const { connection, listener, session } = makeConfigSyncSession();

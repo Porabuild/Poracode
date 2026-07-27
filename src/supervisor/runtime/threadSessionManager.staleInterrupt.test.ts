@@ -214,6 +214,46 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     expect(session.status).toBe("idle");
   });
 
+  it("treats an exact no-active-turn response as an acknowledged late Stop", async () => {
+    const interruptTurn = vi
+      .fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>()
+      .mockRejectedValue(new Error("no active turn to interrupt"));
+    const structuredSession = createStructuredSession({ interruptTurn });
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await expect(manager.interruptThread({ threadId: THREAD_ID })).resolves.toBeUndefined();
+
+    expect(session.structuredTurnInterruptRequested).toBe(false);
+    expect(session.structuredInterruptWatchdog).toBeUndefined();
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
+    expect(structuredSession.dispose).not.toHaveBeenCalled();
+  });
+
+  it("still rejects other and near-miss interrupt failures", async () => {
+    const errors = [
+      new Error("provider interrupt failed"),
+      new Error("no active turn to interrupt because the provider disconnected"),
+    ];
+
+    for (const error of errors) {
+      const interruptTurn = vi
+        .fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>()
+        .mockRejectedValue(error);
+      const structuredSession = createStructuredSession({ interruptTurn });
+      const adapter = createAdapter(structuredSession);
+      const { manager } = createManager(adapter);
+      const session = createWorkingSession(adapter, structuredSession);
+      manager.sessions.set(THREAD_ID, session);
+
+      await expect(manager.interruptThread({ threadId: THREAD_ID })).rejects.toBe(error);
+      expect(session.structuredTurnInterruptRequested).toBe(false);
+      expect(session.structuredInterruptWatchdog).toBeUndefined();
+    }
+  });
+
   it("ignores a stale session whose interrupt is no longer pending", async () => {
     const structuredSession = createStructuredSession();
     const adapter = createAdapter(structuredSession);

@@ -85,6 +85,7 @@ export type {
   ThreadHistoryEntry,
 } from "./types";
 export * from "./terminalHints";
+export * from "./expectedRuntimeError";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
