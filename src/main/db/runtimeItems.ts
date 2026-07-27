@@ -47,7 +47,7 @@ interface PositionedPersistedRuntimeItemRow extends PersistedRuntimeItemRow {
 
 const RUNTIME_PAGE_BOUNDARY_SCAN_SIZE = 200;
 const RUNTIME_PAGE_MAX_RAW_ITEMS = 5_000;
-const RUNTIME_PAGE_HIDDEN_TYPES = new Set(["plan", "goal", "error"]);
+const RUNTIME_PAGE_HIDDEN_TYPES = new Set(["plan", "goal", "error", RUNTIME_REQUEST_ITEM_TYPE]);
 const RUNTIME_PAGE_NAMED_TOOL_TYPES = new Set([
   "tool_call",
   "mcp_tool_call",
@@ -703,11 +703,13 @@ export function dbGetLatestThreadRuntimeAnchorItemId(threadId: string): string |
     .prepare(
       `SELECT item_id
        FROM thread_runtime_items
-       WHERE thread_id = ? AND type NOT IN ('user_message', 'plan', 'error')
+       WHERE thread_id = ?
+         AND type NOT IN ('user_message', 'plan', 'error')
+         AND type != ?
        ORDER BY position DESC
        LIMIT 1`,
     )
-    .get(threadId) as { item_id: string } | undefined;
+    .get(threadId, RUNTIME_REQUEST_ITEM_TYPE) as { item_id: string } | undefined;
   return row?.item_id ?? null;
 }
 

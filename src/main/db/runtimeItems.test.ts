@@ -9,6 +9,7 @@ import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
   dbGetThreadContextUsage,
+  dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbReplaceThreadRuntimeItems,
@@ -213,7 +214,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
 
     // It must survive the paginated read the narrow PWA uses to open a thread,
     // otherwise snapshot recovery would never see it.
-    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 40);
+    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
     expect(page.items.map((item) => item.id)).toContain("pending_request:req-1");
 
     // Resolving the request retires the item so it is no longer recoverable.
@@ -226,6 +227,75 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
     expect(dbGetThreadRuntimeItems("thread-1")[0]?.state).toBe("completed");
+  });
+
+  it("does not count request items toward the narrow PWA timeline target", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "assistant-0",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Earlier answer" },
+      },
+      ...Array.from({ length: 45 }, (_, index) => ({
+        id: `pending_request:completed-${index}`,
+        type: "pending_request",
+        state: "completed" as const,
+        payload: {
+          requestId: `completed-${index}`,
+          requestType: "tool_user_input",
+          payload: { summary: "Answered question" },
+        },
+        streams: {},
+      })),
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Latest answer" },
+      },
+      {
+        id: "pending_request:active",
+        type: "pending_request",
+        state: "started",
+        payload: {
+          requestId: "active",
+          requestType: "tool_user_input",
+          payload: { summary: "Current question" },
+        },
+        streams: {},
+      },
+    ]);
+
+    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
+    expect(
+      page.items.filter((item) => item.type === "assistant_message").map((item) => item.id),
+    ).toEqual(["assistant-0", "assistant-1"]);
+    expect(page.items.map((item) => item.id)).toContain("pending_request:active");
+  });
+
+  it("does not use a hidden request item as a completed-turn anchor", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Visible answer" },
+      },
+      {
+        id: "pending_request:req-1",
+        type: "pending_request",
+        state: "completed",
+        payload: {
+          requestId: "req-1",
+          requestType: "tool_user_input",
+          payload: { summary: "Interrupted question" },
+        },
+        streams: {},
+      },
+    ]);
+
+    expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
   it("retires a still-open request item when the turn completes", () => {

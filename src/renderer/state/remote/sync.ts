@@ -247,10 +247,10 @@ function syncRuntimeTurnBoundaryFromSnapshot(
 }
 
 /**
- * Requests are ephemeral (never persisted), so after a reload the only trace
- * of a pending approval is its still-open `*_request` runtime item. Seed the
- * store from those when the thread is blocked on the user; clear stale ones
- * once the thread moves on.
+ * Live requests are ephemeral renderer state, so after a reload rebuild them
+ * from their still-open persisted `*_request` runtime items. Seed the store
+ * only while the thread is blocked on the user, and clear stale requests once
+ * the thread moves on.
  */
 function syncRuntimeRequestsFromSnapshot(snapshot: RemoteThreadSnapshot): void {
   const threadId = snapshot.thread.id;
