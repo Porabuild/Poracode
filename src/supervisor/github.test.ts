@@ -12,6 +12,9 @@ const buildAgentCommandMock = vi.hoisted(() =>
     ) => { command: string; args: string[] }
   >(),
 );
+const primeProjectShellEnvMock = vi.hoisted(() =>
+  vi.fn<(cwd: string) => Promise<Record<string, string> | undefined>>(),
+);
 const mkdtempMock = vi.hoisted(() => vi.fn<(prefix: string) => Promise<string>>());
 const rmMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>());
 const writeFileMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>());
@@ -42,6 +45,7 @@ vi.mock("node:fs/promises", () => ({
 
 vi.mock("./agents/base", () => ({
   buildAgentCommand: buildAgentCommandMock,
+  primeProjectShellEnv: primeProjectShellEnvMock,
 }));
 
 import {
@@ -54,6 +58,7 @@ import { mapStatusCheck } from "./githubMappers";
 import { resolveClonedProjectPath } from "./git/exec";
 
 const location = { kind: "windows" as const, path: "C:\\Users\\demo\\repo" };
+const posixLocation = { kind: "posix" as const, path: "/Users/demo/repo" };
 const wslLocation = {
   kind: "wsl" as const,
   distro: "Ubuntu",
@@ -71,6 +76,7 @@ describe("GitHubService", () => {
     mkdtempMock.mockImplementation(async (prefix) => `${prefix}abc123`);
     rmMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue(undefined);
+    primeProjectShellEnvMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -437,6 +443,31 @@ describe("GitHubService", () => {
       expect(execFileAsyncMock.mock.calls[0]?.[0]).toBe("gh");
       expect(execFileAsyncMock.mock.calls[0]?.[1]).toEqual(
         expect.arrayContaining(["pr", "list", "--json"]),
+      );
+    });
+
+    it("captures the login-shell PATH before directly running machine-readable gh", async () => {
+      let primed = false;
+      primeProjectShellEnvMock.mockImplementation(async () => {
+        primed = true;
+        return { PATH: "/opt/homebrew/bin:/usr/bin:/bin" };
+      });
+      buildAgentCommandMock.mockImplementation((_location, command, args) => ({
+        command: "/bin/zsh",
+        args: ["-l", "-i", "-c", command, ...args],
+        ...(primed ? { env: { PATH: "/opt/homebrew/bin:/usr/bin:/bin" } } : {}),
+      }));
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+
+      await new GitHubService().listPrs(posixLocation);
+
+      expect(primeProjectShellEnvMock).toHaveBeenCalledWith(posixLocation.path);
+      expect(execFileAsyncMock).toHaveBeenCalledWith(
+        "gh",
+        expect.arrayContaining(["pr", "list", "--json"]),
+        expect.objectContaining({
+          env: expect.objectContaining({ PATH: "/opt/homebrew/bin:/usr/bin:/bin" }),
+        }),
       );
     });
   });

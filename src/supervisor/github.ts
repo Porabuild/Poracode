@@ -35,7 +35,7 @@ import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThr
 // Re-export the pure mappers previously defined inline here so the module's
 // public surface stays identical for github.test.ts and bridge consumers.
 export { aggregateChecksStatus, mapGitHubApiRepo, parseGhAuthAccounts } from "./githubMappers";
-import { buildAgentCommand } from "./agents/base";
+import { buildAgentCommand, primeProjectShellEnv } from "./agents/base";
 import { resolveClonedProjectPath } from "./git/exec";
 import type { WslBridgeClient, WslProcessExecResult } from "./wsl/bridge/client";
 
@@ -237,6 +237,13 @@ async function runGh(
     throw processResultToError(result);
   }
 
+  // Native desktop launches frequently inherit a minimal PATH that does not
+  // include Homebrew or other user-managed binary directories. Machine-readable
+  // commands must run directly so login-shell startup output cannot corrupt JSON,
+  // but they still need the PATH captured from that shell first.
+  if (machineReadable && location.kind === "posix") {
+    await primeProjectShellEnv(location.path);
+  }
   const spec = buildAgentCommand(location, "gh", args, undefined, options?.env);
   const cwd = spec.cwd ?? location.path;
   const { stdout } = await execFileAsync(
