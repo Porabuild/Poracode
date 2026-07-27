@@ -300,17 +300,17 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "git",
-    anchor: "git.watchNewPullRequests",
-    title: msg`Watch new pull requests`,
-    description: msg`Turn on Watch PR automatically for pull requests you create in Poracode.`,
-    keywords: "pull request github watch default automation comments checks",
+    anchor: "git.defaultPrAutomation",
+    title: msg`Default PR automation`,
+    description: msg`Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge.`,
+    keywords: "pull request github watch fix issues blockers merge squash default automation",
   },
   {
     section: "git",
-    anchor: "git.autoMergeNewPullRequests",
-    title: msg`Auto-merge new pull requests`,
-    description: msg`Turn on Auto-merge automatically for pull requests you create in Poracode.`,
-    keywords: "pull request github merge squash default automation",
+    anchor: "git.mergeMethod",
+    title: msg`Merge method`,
+    description: msg`Choose how Poracode performs manual merges and automatic PR merges.`,
+    keywords: "pull request github merge squash rebase automatic method",
   },
 
   // Worktrees

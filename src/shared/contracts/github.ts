@@ -2,7 +2,8 @@ import { z } from "zod";
 import { projectLocationSchema } from "./common";
 
 export type PrState = "open" | "draft" | "merged" | "closed";
-export type PrMergeMethod = "merge" | "squash" | "rebase";
+export const prMergeMethodSchema = z.enum(["merge", "squash", "rebase"]);
+export type PrMergeMethod = z.infer<typeof prMergeMethodSchema>;
 
 export interface PrData {
   number: number;
@@ -179,7 +180,7 @@ export interface GhListPullRequestsResult {
 export const ghMergePrPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   prNumber: z.number().int().min(1),
-  method: z.enum(["merge", "squash", "rebase"]).default("merge"),
+  method: prMergeMethodSchema.default("merge"),
   admin: z.boolean().default(false),
 });
 export type GhMergePrPayload = z.infer<typeof ghMergePrPayloadSchema>;

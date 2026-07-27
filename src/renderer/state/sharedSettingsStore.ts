@@ -15,7 +15,9 @@ import type {
   InstalledAcpRegistryAgent,
   NewThreadMode,
   NotificationFilter,
+  PrAutomationMode,
   PrCreateMode,
+  PrMergeMethod,
   ProviderDraftConfig,
   TerminalPosition,
   ThemeMode,
@@ -88,8 +90,8 @@ interface SharedSettingsState extends SharedSettings {
   setWslWorktreeBasePath: (value: string) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
-  setPrWatchDefault: (value: boolean) => void;
-  setPrAutoMergeDefault: (value: boolean) => void;
+  setPrAutomationDefault: (value: PrAutomationMode) => void;
+  setPrMergeMethod: (value: PrMergeMethod) => void;
   setCommitDefaultAction: (value: CommitDefaultAction) => void;
   setEditorLspEnabled: (value: boolean) => void;
   setSearchUseIgnoreFiles: (value: boolean) => void;
@@ -484,14 +486,14 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ prCreateMode });
     persistSettings(selectSharedSettings(get()));
   },
-  setPrWatchDefault: (prWatchDefault) => {
-    if (get().prWatchDefault === prWatchDefault) return;
-    set({ prWatchDefault });
+  setPrAutomationDefault: (prAutomationDefault) => {
+    if (get().prAutomationDefault === prAutomationDefault) return;
+    set({ prAutomationDefault });
     persistSettings(selectSharedSettings(get()));
   },
-  setPrAutoMergeDefault: (prAutoMergeDefault) => {
-    if (get().prAutoMergeDefault === prAutoMergeDefault) return;
-    set({ prAutoMergeDefault });
+  setPrMergeMethod: (prMergeMethod) => {
+    if (get().prMergeMethod === prMergeMethod) return;
+    set({ prMergeMethod });
     persistSettings(selectSharedSettings(get()));
   },
   setCommitDefaultAction: (commitDefaultAction) => {
@@ -817,8 +819,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     wslWorktreeBasePath: state.wslWorktreeBasePath,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,
-    prWatchDefault: state.prWatchDefault,
-    prAutoMergeDefault: state.prAutoMergeDefault,
+    prAutomationDefault: state.prAutomationDefault,
+    prMergeMethod: state.prMergeMethod,
     commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,

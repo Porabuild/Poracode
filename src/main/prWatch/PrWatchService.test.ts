@@ -97,6 +97,7 @@ function setup(
     getPrForBranch: async () => pr,
     getPrDetails: async () => details,
     getPrReviewThreads: async () => [],
+    getMergeMethod: () => "squash",
     mergePr,
     createThread,
     isThreadActive: () => false,
@@ -376,14 +377,15 @@ describe("PrWatchService", () => {
     );
   });
 
-  it("auto-merges and removes a green watch", async () => {
+  it("auto-merges with the selected method and removes a green watch", async () => {
     const { service, store, mergePr, createThread } = setup(
       withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
+      { getMergeMethod: () => "merge" },
     );
 
     await service.tick();
 
-    expect(mergePr).toHaveBeenCalledWith(project, pr.number);
+    expect(mergePr).toHaveBeenCalledWith(project, pr.number, "merge");
     expect(createThread).not.toHaveBeenCalled();
     expect(store.get(project.id, pr.number)).toBeNull();
   });

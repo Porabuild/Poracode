@@ -64,22 +64,19 @@ export async function applyDefaultPrAutomation(input: {
   worktreePath?: string | undefined;
 }): Promise<PrWatch | null> {
   const settings = useSharedSettings.getState();
-  if (!settings.prWatchDefault && !settings.prAutoMergeDefault) return null;
+  if (settings.prAutomationDefault === "off") return null;
 
   const statuses = useAgentStatusesStore.getState();
-  const automation = settings.prWatchDefault
-    ? resolvePrAutomationAgent(
-        input.project,
-        statuses.agentStatuses,
-        statuses.wslAgentStatuses,
-        settings,
-      )
-    : undefined;
-  const watchEnabled = settings.prWatchDefault && automation !== undefined;
-  if (settings.prWatchDefault && !automation) {
+  const automation = resolvePrAutomationAgent(
+    input.project,
+    statuses.agentStatuses,
+    statuses.wslAgentStatuses,
+    settings,
+  );
+  if (!automation) {
     toast.warning(i18n._(msg`Connect an agent before watching PRs.`));
+    return null;
   }
-  if (!watchEnabled && !settings.prAutoMergeDefault) return null;
 
   try {
     return await readBridge().upsertPrWatch({
@@ -87,9 +84,10 @@ export async function applyDefaultPrAutomation(input: {
       prNumber: input.prNumber,
       headBranch: input.headBranch,
       ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
-      watchEnabled,
-      autoMerge: settings.prAutoMergeDefault,
-      ...(automation ? { agentKind: automation.agentKind, config: automation.config } : {}),
+      watchEnabled: true,
+      autoMerge: settings.prAutomationDefault === "merge",
+      agentKind: automation.agentKind,
+      config: automation.config,
     });
   } catch (error) {
     toast.warning(

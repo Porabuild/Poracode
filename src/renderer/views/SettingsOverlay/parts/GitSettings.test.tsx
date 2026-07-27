@@ -21,8 +21,12 @@ describe("GitSettings", () => {
     render(<GitSettings />);
 
     expect(screen.getByText("Git review mode")).toBeInTheDocument();
-    expect(screen.getByText("Watch new pull requests")).toBeInTheDocument();
-    expect(screen.getByText("Auto-merge new pull requests")).toBeInTheDocument();
+    expect(screen.getByText("Default PR automation")).toBeInTheDocument();
+    expect(screen.getByText("Merge method")).toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: "Default PR automation" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Merge method/ })).toBeInTheDocument();
+    expect(screen.getByText("Auto Fix")).toBeInTheDocument();
+    expect(screen.getByText("Auto Merge")).toBeInTheDocument();
   });
 
   it("hides desktop git review navigation controls in remote sessions", () => {

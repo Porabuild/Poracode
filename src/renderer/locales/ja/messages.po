@@ -1247,6 +1247,22 @@ msgstr "自動"
 msgid "Auto Approve"
 msgstr "自動承認"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Fix"
+msgstr "自動修正"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
+#~ msgstr "「自動修正」はチェックの完了を待ち、マージの妨げを修正します。「自動マージ」は準備が整うとさらにスカッシュマージします。"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected merge method when ready."
+msgstr "「自動修正」はチェックの完了を待ち、マージの妨げを修正します。「自動マージ」は準備が整うと選択したマージ方法を使用します。"
+
+#: src/renderer/components/git/PrAutomationSlider.tsx
+msgid "Auto Merge"
+msgstr "自動マージ"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -1261,13 +1277,13 @@ msgid "Auto-generate"
 msgstr "自動生成"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Auto-merge"
-msgstr "自動マージ"
+#~ msgid "Auto-merge"
+#~ msgstr "自動マージ"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Auto-merge new pull requests"
-msgstr "新しいプルリクエストを自動マージ"
+#~ msgid "Auto-merge new pull requests"
+#~ msgstr "新しいプルリクエストを自動マージ"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -1844,6 +1860,11 @@ msgstr "親フォルダーを選択"
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "候補を 2 つ以上選択し、プロンプトを入力してください。"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose how Poracode performs manual merges and automatic PR merges."
+msgstr "Poracode が手動マージと PR の自動マージを行う方法を選択します。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "{env}にサインインする方法を選択します。"
@@ -1868,6 +1889,11 @@ msgstr "Poracode のインターフェースの表示言語を選択します。
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "接続するスレッドを選択してください"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
+msgstr "新しいプルリクエストに対するPoracodeの動作を選択します：何もしない、マージの妨げを修正する、または修正してマージする。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3109,6 +3135,11 @@ msgstr "デフォルトの新規スレッド"
 msgid "Default permissions"
 msgstr "デフォルトの権限"
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Default PR automation"
+msgstr "PR自動化のデフォルト"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
@@ -4265,6 +4296,15 @@ msgstr "Poracode のネイティブなターミナルおよび ACP ランタイ�
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "エージェントで修正する"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Fix issues"
+#~ msgstr "問題を修正"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#~ msgid "Fix issues waits for checks and repairs merge blockers. Merge PR also squash merges when ready."
+#~ msgstr "「問題を修正」はチェックの完了を待ち、マージの妨げを修正します。「PRをマージ」は準備が整うとさらにスカッシュマージします。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Fix new comments and failed checks, then push updates."
@@ -5623,6 +5663,8 @@ msgstr "ローカルでマージしてワークツリーを削除"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Merge method"
 msgstr "マージ方法"
 
@@ -5630,18 +5672,26 @@ msgstr "マージ方法"
 msgid "Merge options"
 msgstr "マージオプション"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#~ msgid "Merge PR"
+#~ msgstr "PRをマージ"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Commit"
 msgstr "PR のマージ: コミット"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Rebase"
 msgstr "PR のマージ: リベース"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Merge PR: Squash"
 msgstr "PR のマージ: スカッシュ"
 
@@ -6603,6 +6653,7 @@ msgstr "npx"
 msgid "off"
 msgstr "オフ"
 
+#: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
@@ -9266,8 +9317,8 @@ msgid "Split view"
 msgstr "分割ビュー"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Squash merge when checks and required reviews pass."
-msgstr "チェックと必須レビューに合格したらスカッシュマージします。"
+#~ msgid "Squash merge when checks and required reviews pass."
+#~ msgstr "チェックと必須レビューに合格したらスカッシュマージします。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "SSE (legacy)"
@@ -10386,8 +10437,8 @@ msgstr "別の検索語句またはプロジェクトフィルターを試して
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
-msgstr "Poracode で作成するプルリクエストの自動マージを自動的にオンにします。"
+#~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
+#~ msgstr "Poracode で作成するプルリクエストの自動マージを自動的にオンにします。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
@@ -10395,8 +10446,8 @@ msgstr "リモートアクセスをオンにすると、ペアリングコード
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
-msgstr "Poracode で作成するプルリクエストの「PR を監視」を自動的にオンにします。"
+#~ msgid "Turn on Watch PR automatically for pull requests you create in Poracode."
+#~ msgstr "Poracode で作成するプルリクエストの「PR を監視」を自動的にオンにします。"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
@@ -11066,8 +11117,8 @@ msgid "Voice input model"
 msgstr "音声入力モデル"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
-msgstr "チェックの完了を待ってから、失敗、未解決の会話、ブランチのブロッカーを修正します。"
+#~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
+#~ msgstr "チェックの完了を待ってから、失敗、未解決の会話、ブランチのブロッカーを修正します。"
 
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
@@ -11151,12 +11202,12 @@ msgstr "WSL シェル環境をウォームアップしています…"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Watch new pull requests"
-msgstr "新しいプルリクエストを監視"
+#~ msgid "Watch new pull requests"
+#~ msgstr "新しいプルリクエストを監視"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
-msgid "Watch PR"
-msgstr "PRを監視"
+#~ msgid "Watch PR"
+#~ msgstr "PRを監視"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "We have a winner!"

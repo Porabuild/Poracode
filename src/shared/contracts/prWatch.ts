@@ -7,6 +7,9 @@ export const prWatchKeySchema = z.object({
 });
 export type PrWatchKey = z.infer<typeof prWatchKeySchema>;
 
+export const prAutomationModeSchema = z.enum(["off", "fix", "merge"]);
+export type PrAutomationMode = z.infer<typeof prAutomationModeSchema>;
+
 export const prWatchInputSchema = prWatchKeySchema
   .extend({
     headBranch: z.string().min(1),

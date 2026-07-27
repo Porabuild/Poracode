@@ -32,8 +32,7 @@ const mocks = vi.hoisted(() => ({
     },
   } satisfies AgentStatus,
   settings: {
-    prWatchDefault: true,
-    prAutoMergeDefault: true,
+    prAutomationDefault: "merge" as "off" | "fix" | "merge",
     conflictResolverProvider: "codex",
     conflictResolverModel: "gpt-5.6",
     conflictResolverEffort: "high",
@@ -68,8 +67,7 @@ import { applyDefaultPrAutomation } from "./prAutomationActions";
 describe("applyDefaultPrAutomation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.settings.prWatchDefault = true;
-    mocks.settings.prAutoMergeDefault = true;
+    mocks.settings.prAutomationDefault = "merge";
     mocks.upsertPrWatch.mockImplementation(async (input) => ({
       ...(input as Omit<
         PrWatch,
@@ -109,9 +107,25 @@ describe("applyDefaultPrAutomation", () => {
     });
   });
 
-  it("does nothing when both defaults are off", async () => {
-    mocks.settings.prWatchDefault = false;
-    mocks.settings.prAutoMergeDefault = false;
+  it("watches without merging when fix issues is the default", async () => {
+    mocks.settings.prAutomationDefault = "fix";
+
+    await applyDefaultPrAutomation({
+      project,
+      prNumber: 42,
+      headBranch: "feature/pr-automation",
+    });
+
+    expect(mocks.upsertPrWatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        watchEnabled: true,
+        autoMerge: false,
+      }),
+    );
+  });
+
+  it("does nothing when automation defaults to off", async () => {
+    mocks.settings.prAutomationDefault = "off";
 
     await applyDefaultPrAutomation({
       project,

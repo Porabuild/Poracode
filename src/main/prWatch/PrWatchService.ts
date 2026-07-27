@@ -5,6 +5,7 @@ import {
   type PrCheck,
   type PrData,
   type PrDetails,
+  type PrMergeMethod,
   type PrReviewThread,
   type PrReviewSummary,
   type PrWatch,
@@ -29,7 +30,8 @@ export interface PrWatchServiceOptions {
   getPrForBranch(project: Project, branch: string): Promise<PrData | null>;
   getPrDetails(project: Project, prNumber: number): Promise<PrDetails>;
   getPrReviewThreads(project: Project, prNumber: number): Promise<PrReviewThread[]>;
-  mergePr(project: Project, prNumber: number): Promise<void>;
+  getMergeMethod(): PrMergeMethod;
+  mergePr(project: Project, prNumber: number, method: PrMergeMethod): Promise<void>;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
   isThreadActive(threadId: string): boolean;
   worktreeExists(path: string): boolean;
@@ -199,7 +201,7 @@ export class PrWatchService {
 
       if (current.autoMerge && isReadyForAutoMerge(pr, details.checks)) {
         try {
-          await this.options.mergePr(project, current.prNumber);
+          await this.options.mergePr(project, current.prNumber, this.options.getMergeMethod());
           this.options.store.delete(current.projectId, current.prNumber);
         } catch (error) {
           this.saveError(observed, error);
