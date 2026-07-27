@@ -313,18 +313,18 @@ describe("ACP empty-response provider guard", () => {
 });
 
 describe("ACP transport close lifecycle", () => {
-  it("keeps nonzero exit expected after a provider session is established", () => {
+  it("keeps an established session's nonzero exit reportable", () => {
     const { session } = makeConfigSyncSession();
     const internal = session as unknown as {
       isExpectedTransportExit(code: number | null): boolean;
     };
 
-    expect(internal.isExpectedTransportExit(9)).toBe(true);
-
-    (session as unknown as Record<string, unknown>)["sessionId"] = undefined;
     expect(internal.isExpectedTransportExit(0)).toBe(true);
     expect(internal.isExpectedTransportExit(9)).toBe(false);
     expect(internal.isExpectedTransportExit(null)).toBe(false);
+
+    (session as unknown as Record<string, unknown>)["isDisposed"] = true;
+    expect(internal.isExpectedTransportExit(9)).toBe(true);
   });
 
   it("reports one root error and one derivative close", () => {

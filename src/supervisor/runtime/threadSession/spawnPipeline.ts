@@ -64,6 +64,10 @@ import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { ThreadSessionManagerOptions } from "./managerOptions";
 import type { PtyLifecycle } from "./ptyLifecycle";
 import type { RuntimeEventRouter } from "./runtimeEventRouter";
+import {
+  StructuredRuntimeDiagnosticError,
+  structuredRuntimeFeatureArea,
+} from "./structuredRuntimeDiagnosticError";
 import { describeSpawnFailure, sanitizeEnv, sanitizedProcessEnv } from "./spawnDiagnostics";
 import type { SessionRuntimeLifecycle } from "./sessionRuntimeLifecycle";
 import { getIterm2StatusL2TerminalEnv, resolveTerminalColorEnv } from "./terminalEnv";
@@ -1138,8 +1142,17 @@ export class SpawnPipeline {
       });
     } catch (error) {
       console.error("[supervisor] structured session creation failed:", error);
-      captureSupervisorException(new Error("Structured runtime session creation failed."), {
-        "poracode.feature_area": "supervisor-runtime",
+      const diagnosticError = new StructuredRuntimeDiagnosticError("session-creation", agentKind);
+      if (presentationMode === "gui") {
+        // The startThread IPC boundary owns GUI startup failures. Throw one
+        // privacy-safe classified error instead of capturing here and then
+        // manufacturing a second "does not support GUI" failure below.
+        throw diagnosticError;
+      }
+      // Terminal presentation can safely fall back to its PTY path when the
+      // optional structured helper cannot be created, so report once here.
+      captureSupervisorException(diagnosticError, {
+        "poracode.feature_area": structuredRuntimeFeatureArea("session-creation"),
         ...(presentationMode ? { "poracode.presentation": presentationMode } : {}),
         "poracode.provider": agentKind,
         "poracode.runtime_kind": "structured",

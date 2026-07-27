@@ -1,6 +1,11 @@
 import { ExpectedStructuredRuntimeError } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import type { SessionRuntime } from "../sessionTypes";
+import {
+  StructuredRuntimeDiagnosticError,
+  structuredRuntimeFeatureArea,
+  type StructuredRuntimeFailureClass,
+} from "./structuredRuntimeDiagnosticError";
 
 const EXPECTED_PROVIDER_OUTCOME =
   /\b(?:(?:you(?:['’]ve| have) )(?:reached|hit) your (?:usage|quota) limit|(?:quota|usage|billing)(?:[_ -](?:quota|limit))?[_ -](?:is[_ -])?(?:exhausted|exceeded|reached)|(?:quota|usage|billing)[_ -]credits?[_ -](?:are[_ -])?(?:exhausted|exceeded)|insufficient_quota|auth_required|device authentication failed|user must authenticate)\b/i;
@@ -19,9 +24,18 @@ function isExpectedStructuredFailure(error: unknown): boolean {
   return false;
 }
 
+function failureClassFor(error: unknown): StructuredRuntimeFailureClass {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  return /^(?:ACP connection closed unexpectedly\.|ACP agent exited unexpectedly \(code -?\d+\)\.)$/u.test(
+    message,
+  )
+    ? "transport"
+    : "turn";
+}
+
 /**
- * Reports a non-expected structured runtime failure once per concrete session
- * instance.
+ * Reports a non-expected structured runtime failure once per active failure
+ * episode.
  *
  * The captured exception is deliberately synthetic: provider errors can carry
  * prompts, command output, paths, or credentials. The user-facing failure is
@@ -32,15 +46,28 @@ function isExpectedStructuredFailure(error: unknown): boolean {
 export class StructuredFailureReporter {
   private readonly reported = new WeakSet<SessionRuntime>();
 
+  /**
+   * Opens a new user-visible failure episode. A single turn can surface through
+   * both a rejection and a derivative close callback, but a later turn on the
+   * same provider session must remain independently observable.
+   */
+  beginEpisode(session: SessionRuntime): void {
+    this.reported.delete(session);
+  }
+
   capture(session: SessionRuntime, error: unknown): void {
     if (isExpectedStructuredFailure(error)) return;
     if (this.reported.has(session)) return;
     this.reported.add(session);
-    captureSupervisorException(new Error("Structured runtime session failed."), {
-      "poracode.feature_area": "thread-session-lifecycle",
-      "poracode.presentation": session.presentationMode ?? "terminal",
-      "poracode.provider": session.agentKind,
-      "poracode.runtime_kind": "structured",
-    });
+    const failureClass = failureClassFor(error);
+    captureSupervisorException(
+      new StructuredRuntimeDiagnosticError(failureClass, session.agentKind),
+      {
+        "poracode.feature_area": structuredRuntimeFeatureArea(failureClass),
+        "poracode.presentation": session.presentationMode ?? "terminal",
+        "poracode.provider": session.agentKind,
+        "poracode.runtime_kind": "structured",
+      },
+    );
   }
 }

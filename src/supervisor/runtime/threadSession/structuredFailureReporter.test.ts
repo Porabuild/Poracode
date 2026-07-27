@@ -22,7 +22,7 @@ describe("StructuredFailureReporter", () => {
     captureSupervisorException.mockClear();
   });
 
-  it("captures one privacy-safe failure per concrete session", () => {
+  it("deduplicates one failure episode but captures a later independent episode", () => {
     const reporter = new StructuredFailureReporter();
     const session = createSession();
 
@@ -31,13 +31,37 @@ describe("StructuredFailureReporter", () => {
 
     expect(captureSupervisorException).toHaveBeenCalledTimes(1);
     expect(captureSupervisorException).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Structured runtime session failed." }),
+      expect.objectContaining({
+        message: "Structured runtime turn failed.",
+        name: "StructuredRuntimeDiagnosticError",
+      }),
       {
-        "poracode.feature_area": "thread-session-lifecycle",
+        "poracode.feature_area": "structured-runtime-turn",
         "poracode.presentation": "gui",
         "poracode.provider": "codex",
         "poracode.runtime_kind": "structured",
       },
+    );
+
+    reporter.beginEpisode(session);
+    reporter.capture(session, new Error("a later independent parser failure"));
+
+    expect(captureSupervisorException).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses a stable transport class without retaining the provider message", () => {
+    const reporter = new StructuredFailureReporter();
+
+    reporter.capture(createSession(), "ACP agent exited unexpectedly (code 9).");
+
+    expect(captureSupervisorException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Structured runtime transport failed.",
+        name: "StructuredRuntimeDiagnosticError",
+      }),
+      expect.objectContaining({
+        "poracode.feature_area": "structured-runtime-transport",
+      }),
     );
   });
 

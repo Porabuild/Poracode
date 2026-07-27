@@ -139,6 +139,7 @@ export class ThreadSessionManager {
     this.structuredTurnQueue = new StructuredTurnQueue({
       emit: options.emit,
       sessions: this.sessions,
+      beginFailureEpisode: (session) => this.structuredFailureReporter.beginEpisode(session),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
     });
     this.steerCoordinator = new SteerCoordinator({

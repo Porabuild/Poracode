@@ -6,6 +6,15 @@ import type { AgentKind } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
 
+const captureSupervisorException = vi.hoisted(() =>
+  vi.fn<(error: unknown, tags?: Record<string, string>) => void>(),
+);
+
+vi.mock("../diagnostics/sentry", async (importActual) => {
+  const actual = await importActual<typeof import("../diagnostics/sentry")>();
+  return { ...actual, captureSupervisorException };
+});
+
 vi.mock("../agents/base", async (importActual) => {
   const actual = await importActual<typeof import("../agents/base")>();
   return {
@@ -192,6 +201,63 @@ describe("ThreadSessionManager provider-session routing", () => {
 });
 
 describe("ThreadSessionManager start guards", () => {
+  it("lets the IPC boundary exclusively own a structured GUI factory failure", async () => {
+    captureSupervisorException.mockClear();
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    vi.mocked(adapter.createStructuredSession!).mockRejectedValueOnce(
+      new Error("factory output with private provider details"),
+    );
+    const manager = createManager("codex", adapter);
+
+    await expect(
+      manager.startThread({
+        threadId: "factory-failure",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        agentKind: "codex",
+        config: { model: "codex/model" },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      }),
+    ).rejects.toMatchObject({
+      name: "StructuredRuntimeDiagnosticError",
+      message: "Structured runtime session creation failed.",
+    });
+    expect(captureSupervisorException).not.toHaveBeenCalled();
+  });
+
+  it("reports an optional terminal structured factory failure once and falls back", async () => {
+    captureSupervisorException.mockClear();
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    vi.mocked(adapter.createStructuredSession!).mockRejectedValueOnce(
+      new Error("factory output with private provider details"),
+    );
+    const manager = createManager("codex", adapter);
+
+    await expect(
+      manager.startThread({
+        threadId: "terminal-factory-failure",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        agentKind: "codex",
+        config: { model: "codex/model" },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "terminal",
+      }),
+    ).resolves.toEqual({ threadId: "terminal-factory-failure" });
+    expect(captureSupervisorException).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        name: "StructuredRuntimeDiagnosticError",
+        message: "Structured runtime session creation failed.",
+      }),
+      expect.objectContaining({
+        "poracode.feature_area": "structured-runtime-session-creation",
+      }),
+    );
+  });
+
   it("treats late input, write, and interrupt IPC after known removal as idempotent", async () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("codex", structuredSession);

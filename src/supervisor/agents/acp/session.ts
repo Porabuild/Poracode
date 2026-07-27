@@ -1021,7 +1021,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   private isExpectedTransportExit(code: number | null): boolean {
-    return this.isDisposed || this.sessionId !== undefined || code === 0;
+    return this.isDisposed || code === 0;
   }
 
   // ── Resume artifacts ──────────────────────────────────────────
