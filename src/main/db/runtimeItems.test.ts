@@ -184,6 +184,73 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     ]);
   });
 
+  it("persists an open request so a snapshot can recover it, then retires it on resolve", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "request.opened",
+        threadId: "thread-1",
+        requestId: "req-1",
+        requestType: "tool_user_input",
+        payload: { summary: "Which framework?", multiSelect: false },
+      },
+    ]);
+
+    // The open request is persisted as a non-rendered runtime item keyed by
+    // request id, carrying the payload the recovery path reads back.
+    expect(dbGetThreadRuntimeItems("thread-1")).toEqual([
+      {
+        id: "pending_request:req-1",
+        type: "pending_request",
+        state: "started",
+        payload: {
+          requestId: "req-1",
+          requestType: "tool_user_input",
+          payload: { summary: "Which framework?", multiSelect: false },
+        },
+        streams: {},
+      },
+    ]);
+
+    // It must survive the paginated read the narrow PWA uses to open a thread,
+    // otherwise snapshot recovery would never see it.
+    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 40);
+    expect(page.items.map((item) => item.id)).toContain("pending_request:req-1");
+
+    // Resolving the request retires the item so it is no longer recoverable.
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "request.resolved",
+        threadId: "thread-1",
+        requestId: "req-1",
+        outcome: "answered",
+      },
+    ]);
+    expect(dbGetThreadRuntimeItems("thread-1")[0]?.state).toBe("completed");
+  });
+
+  it("retires a still-open request item when the turn completes", () => {
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "request.opened",
+        threadId: "thread-1",
+        requestId: "req-2",
+        requestType: "command_execution_approval",
+        payload: { summary: "Run the command?" },
+      },
+    ]);
+    expect(dbGetThreadRuntimeItems("thread-1")[0]?.state).toBe("started");
+
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "turn.completed",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        state: "interrupted",
+      },
+    ]);
+    expect(dbGetThreadRuntimeItems("thread-1")[0]?.state).toBe("completed");
+  });
+
   it("pages backward from the transcript tail and truncates by item position", () => {
     dbApplyThreadRuntimeEvents(
       "thread-1",

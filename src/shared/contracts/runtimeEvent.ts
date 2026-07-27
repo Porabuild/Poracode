@@ -40,6 +40,16 @@ export const canonicalRequestTypeSchema = z.enum([
 ]);
 export type CanonicalRequestType = z.infer<typeof canonicalRequestTypeSchema>;
 
+/**
+ * Runtime item type used to persist an open agent request (approval/question)
+ * alongside the transcript. Requests are ephemeral runtime state and never
+ * render as a chat row, but persisting the open one lets a remote client
+ * recover the pending prompt from a thread snapshot after it missed the live
+ * `request.opened` broadcast. The type deliberately contains "request" so the
+ * snapshot recovery path (`requestsFromRuntimeItems`) recognizes it.
+ */
+export const RUNTIME_REQUEST_ITEM_TYPE = "pending_request";
+
 export const runtimeContentStreamKindSchema = z.enum([
   "assistant_text",
   "reasoning_text",

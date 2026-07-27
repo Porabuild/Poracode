@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import { inlineImagePayloadRenders } from "@/shared/inlineImagePayload";
 import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
 import { isSubAgentTool } from "@/shared/toolCallClassification";
@@ -63,6 +64,9 @@ const RUNTIME_PAGE_GROUP_TYPES = new Set([
   "web_search",
   "reasoning",
 ]);
+
+/** Item id for a persisted open request, keyed by its request id. */
+const runtimeRequestItemId = (requestId: string) => `${RUNTIME_REQUEST_ITEM_TYPE}:${requestId}`;
 
 interface ThreadRuntimeSummaryStatementRunner {
   all(...values: string[]): unknown[];
@@ -395,6 +399,10 @@ export function dbApplyThreadRuntimeEvents(
     const deleteItem = sqlite.prepare(
       "DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
     );
+    const completeOpenRequests = sqlite.prepare(
+      `UPDATE thread_runtime_items SET state = 'completed'
+       WHERE thread_id = ? AND type = ? AND state != 'completed'`,
+    );
 
     const readItem = (itemId: string) =>
       getItem.get(threadId, itemId) as
@@ -496,12 +504,56 @@ export function dbApplyThreadRuntimeEvents(
           if (event.state === "interrupted" || event.state === "cancelled") {
             pruneTrailingInterruptedReasoningItems(sqlite, threadId);
           }
+          // A finished turn no longer blocks on an approval/question. Retire any
+          // request items left open (e.g. an interrupted turn that never emitted
+          // `request.resolved`) so a later snapshot cannot resurrect a stale
+          // pending request.
+          completeOpenRequests.run(threadId, RUNTIME_REQUEST_ITEM_TYPE);
           break;
 
         case "usage.spent":
           // Token consumption is not a chat item; the usage ledger persists it
           // (recordUsageSpentFromRuntimeEvents) alongside this function.
           break;
+
+        case "request.opened": {
+          // Persist the open request so a remote client that missed the live
+          // broadcast can recover it from the thread snapshot. The payload shape
+          // mirrors what `requestsFromRuntimeItems` reads back on recovery.
+          const itemId = runtimeRequestItemId(event.requestId);
+          const payload = {
+            requestId: event.requestId,
+            requestType: event.requestType,
+            payload: event.payload,
+          };
+          const row = readItem(itemId);
+          if (row) {
+            updateItem.run(
+              "started",
+              JSON.stringify(payload),
+              row.streams ?? "{}",
+              threadId,
+              itemId,
+            );
+          } else {
+            appendItem({
+              id: itemId,
+              type: RUNTIME_REQUEST_ITEM_TYPE,
+              state: "started",
+              streams: {},
+              payload,
+            });
+          }
+          break;
+        }
+
+        case "request.resolved": {
+          const itemId = runtimeRequestItemId(event.requestId);
+          const row = readItem(itemId);
+          if (!row) break;
+          updateItem.run("completed", row.payload, row.streams ?? "{}", threadId, itemId);
+          break;
+        }
 
         default:
           break;
