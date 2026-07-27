@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import type { SubagentRunManager } from "./SubagentRunManager";
-import { buildSpawnableAgents, classifyModelTier, dispatchTool, TOOLS } from "./toolRegistry";
+import {
+  buildSpawnableAgents,
+  classifyModelTier,
+  CROSSAGENT_MCP_INSTRUCTIONS_BASE,
+  dispatchTool,
+  TOOLS,
+} from "./toolRegistry";
 import type { SubagentToolContext } from "./toolRegistry";
 import type { SpawnableAgent } from "./types";
 
@@ -303,6 +309,12 @@ describe("subagent tool registration", () => {
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
+  });
+
+  it("documents background runs as an explicit join that never injects a message", () => {
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("never injects a new message");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("call wait_for_agent once");
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).not.toContain("delivered back automatically");
   });
 
   it("returns an isError result (not a throw) for removed full-thread tools", async () => {

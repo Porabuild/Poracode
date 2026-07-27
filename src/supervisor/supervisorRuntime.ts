@@ -322,8 +322,6 @@ export class SupervisorRuntime {
           ),
         appendRuntimeEvent: (parentThreadId, event) =>
           this.threadSessionManager.appendSubagentRuntimeEvent(parentThreadId, event),
-        notifyBackgroundCompletion: (parentThreadId, completion) =>
-          this.threadSessionManager.notifyBackgroundSubagentCompletion(parentThreadId, completion),
       },
     });
     this.crossagentMcpIngress = new CrossagentMcpIngress({

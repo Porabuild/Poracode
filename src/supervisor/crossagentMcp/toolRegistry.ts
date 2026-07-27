@@ -49,7 +49,7 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
   "Call list_agents first for the compact provider roster, then call get_agent with the chosen provider id for its models, reasoning options, Fast availability, and permissions preset.",
   "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread, best for search, summarization, bulk edits, and one-off checks.",
-  "Use spawn_agent for delegation: it waits by default, or set background=true to return immediately so the parent can keep working. A background completion is delivered back automatically, so do not call wait_for_agent unless you explicitly need to synchronize sooner; get_status and list_runs remain available for manual inspection.",
+  "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent once for every background result the task requires. Use a bounded timeout and do not repeatedly poll a stalled run; cancel it or continue without it.",
   "Pass tasks=[...] to the same spawn_agent call to launch up to four independent agents in parallel.",
   "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
   "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
@@ -117,7 +117,7 @@ const SUBAGENT_REQUEST_PROPERTIES = {
   background: {
     type: "boolean",
     description:
-      "Return immediately so the parent can continue working; completion is delivered back automatically. Default false waits for completion. Background runs survive parent-turn interruption but stop when the parent thread closes.",
+      "Return immediately with a run_id so the parent can continue useful work. The result is never injected as a message; call wait_for_agent at a synchronization point if it is required. Default false waits for completion. Background runs survive parent-turn interruption but stop when the parent thread closes.",
   },
 } as const;
 
@@ -143,7 +143,7 @@ const BASE_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Spawn one agent and wait for its result by default. Set background=true to return immediately and receive its completion automatically, or pass tasks=[...] to atomically launch several agents in parallel through this same tool.",
+      "Spawn one agent and wait for its result by default. Set background=true to return a run_id immediately for an explicit later wait, or pass tasks=[...] to atomically launch several agents in parallel through this same tool.",
     inputSchema: {
       type: "object",
       properties: {

@@ -17,11 +17,7 @@ import {
   SubagentRunManager,
   SubagentSpawnError,
 } from "./SubagentRunManager";
-import {
-  buildUnrestrictedChildConfig,
-  type BackgroundSubagentCompletion,
-  type SubagentRunHost,
-} from "./types";
+import { buildUnrestrictedChildConfig, type SubagentRunHost } from "./types";
 
 const PARENT = "parent";
 const PROJECT: ProjectLocation = { kind: "posix", path: "/tmp/project" };
@@ -77,7 +73,6 @@ interface Harness {
   handles: FakeHandle[];
   inputs: CreateStructuredSessionInput[];
   appended: Array<{ threadId: string; event: RuntimeEvent }>;
-  notifications: Array<{ threadId: string; completion: BackgroundSubagentCompletion }>;
   mcpTargets: string[];
   releaseCreate: () => void;
 }
@@ -91,10 +86,6 @@ function makeHarness(options?: {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
   const appended: Array<{ threadId: string; event: RuntimeEvent }> = [];
-  const notifications: Array<{
-    threadId: string;
-    completion: BackgroundSubagentCompletion;
-  }> = [];
   const mcpTargets: string[] = [];
   let createFailures = options?.createFailures ?? 0;
   let releaseCreate!: () => void;
@@ -166,8 +157,6 @@ function makeHarness(options?: {
       };
     },
     appendRuntimeEvent: (threadId, event) => appended.push({ threadId, event }),
-    notifyBackgroundCompletion: (threadId, completion) =>
-      notifications.push({ threadId, completion }),
   };
 
   const hasStatusCapabilities = options?.statusCapabilities !== undefined;
@@ -177,7 +166,7 @@ function makeHarness(options?: {
     ...(hasStatusCapabilities ? { getStatusCapabilities: () => statusCapabilities } : {}),
     host,
   });
-  return { manager, handles, inputs, appended, notifications, mcpTargets, releaseCreate };
+  return { manager, handles, inputs, appended, mcpTargets, releaseCreate };
 }
 
 describe("SubagentRunManager", () => {
@@ -393,6 +382,64 @@ describe("SubagentRunManager", () => {
     expect(forwardedTurn).toBeUndefined();
   });
 
+  it("terminalizes provider-native delegated items left running when the child settles", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+
+    for (const itemId of ["explore-github", "explore-git", "explore-misc"]) {
+      handle.emit({
+        type: "item.started",
+        threadId: "child",
+        itemId,
+        itemType: "tool_call",
+        payload: {
+          name: `Agent (explore): ${itemId}`,
+          status: "running",
+          isSubAgent: true,
+        },
+      });
+    }
+    handle.emit({
+      type: "item.started",
+      threadId: "child",
+      itemId: "nested-command",
+      itemType: "command_execution",
+      parentItemId: "explore-github",
+      payload: { command: "gh pr list", status: "running" },
+    });
+    handle.completeTurn("completed");
+    await h.manager.waitFor(runId, 1000);
+
+    const completed = h.appended
+      .map((entry) => entry.event)
+      .filter(
+        (event): event is Extract<RuntimeEvent, { type: "item.completed" }> =>
+          event.type === "item.completed",
+      );
+    const outerIndex = completed.findIndex((event) => event.itemId === `sub:${runId}`);
+    expect(outerIndex).toBeGreaterThanOrEqual(0);
+    const nestedIndex = completed.findIndex(
+      (event) => event.itemId === `${runId}:1:nested-command`,
+    );
+    const nestedParentIndex = completed.findIndex(
+      (event) => event.itemId === `${runId}:1:explore-github`,
+    );
+    expect(nestedIndex).toBeGreaterThanOrEqual(0);
+    expect(nestedIndex).toBeLessThan(nestedParentIndex);
+
+    for (const itemId of ["explore-github", "explore-git", "explore-misc"]) {
+      const childIndex = completed.findIndex((event) => event.itemId === `${runId}:1:${itemId}`);
+      expect(childIndex).toBeGreaterThanOrEqual(0);
+      expect(childIndex).toBeLessThan(outerIndex);
+      expect(completed[childIndex]!.payload).toMatchObject({
+        status: "error",
+        isSubAgent: true,
+      });
+    }
+  });
+
   it("run_agent-style wait returns running on timeout", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
@@ -597,9 +644,8 @@ describe("SubagentRunManager", () => {
     );
   });
 
-  it("notifies the parent when a background run completes without notifying for foreground runs", async () => {
+  it("keeps a background result available for an explicit wait without injecting a message", async () => {
     const h = makeHarness();
-    const foreground = h.manager.spawn(PARENT, { agent: "codex", prompt: "foreground" });
     const background = h.manager.spawn(PARENT, {
       agent: "codex",
       name: "research",
@@ -608,29 +654,24 @@ describe("SubagentRunManager", () => {
     });
     await flush();
 
-    h.handles[0]!.completeTurn("completed");
-    h.handles[1]!.emit({
+    h.handles[0]!.emit({
       type: "content.delta",
       threadId: "child",
       itemId: "answer",
       stream: "assistant_text",
       delta: "background result",
     });
-    h.handles[1]!.completeTurn("completed");
-    await h.manager.waitFor(foreground.runId, 1000);
-    await h.manager.waitFor(background.runId, 1000);
+    h.handles[0]!.completeTurn("completed");
 
-    expect(h.notifications).toEqual([
-      {
-        threadId: PARENT,
-        completion: {
-          runId: background.runId,
-          name: "research — Codex · GPT-5.5",
-          status: "completed",
-          output: "background result",
-        },
-      },
-    ]);
+    await expect(h.manager.waitFor(background.runId, 1000, PARENT)).resolves.toEqual({
+      status: "completed",
+      output: "background result",
+    });
+    expect(
+      h.appended.some(
+        ({ event }) => event.type === "item.started" && event.itemType === "user_message",
+      ),
+    ).toBe(false);
   });
 
   it("scopes status and cancellation to the owning parent thread", async () => {
