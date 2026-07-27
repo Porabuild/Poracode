@@ -898,6 +898,60 @@ describe("chatPaneSelectors", () => {
     expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual(["sub:run-1"]);
   });
 
+  it("keeps provider-native subagents nested inside their Crossagent", () => {
+    const parentItemId = "sub:run-1";
+    const nestedItemIds = ["explore-github", "explore-git", "explore-misc"];
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: [parentItemId, ...nestedItemIds],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          [parentItemId]: {
+            id: parentItemId,
+            type: "tool_call",
+            state: "completed",
+            payload: {
+              name: "Kimi · K2.5",
+              status: "error",
+              isCrossagent: true,
+            },
+            streams: {},
+          },
+          ...Object.fromEntries(
+            nestedItemIds.map((id) => [
+              id,
+              {
+                id,
+                type: "tool_call",
+                state: "started",
+                parentItemId,
+                payload: {
+                  name: `Agent (explore): ${id}`,
+                  status: "running",
+                  isSubAgent: true,
+                },
+                streams: {},
+              },
+            ]),
+          ),
+        },
+      },
+      runtimeStructuralVersionByThread: { t1: 1 },
+    } as unknown as AppStoreState;
+
+    // The parent thread has no active Agent dock/sidebar state after the
+    // Crossagent itself settles, even if an inner provider omitted completion.
+    expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual([]);
+    expect(selectThreadHasActiveNativeSubAgent(state, "t1")).toBe(false);
+    expect(selectActiveNativeSubAgentThreadIds(state, [{ id: "t1" }] as Thread[])).toEqual([]);
+
+    // Internal rows remain available in the Crossagent overlay.
+    expect(selectChildTimelineEntries(state, "t1", parentItemId)).toEqual(
+      nestedItemIds.map((id) => ({ kind: "item", id })),
+    );
+  });
+
   it("groups adjacent edits with the rest of the tool-call run", () => {
     const state = {
       runtimeItemIdsByThread: {

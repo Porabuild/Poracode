@@ -169,18 +169,6 @@ export interface SubagentRunSummary {
   attempt_count: number;
 }
 
-/** Async result delivered back to a parent after a detached run settles. */
-export interface BackgroundSubagentCompletion {
-  runId: string;
-  name: string;
-  status: Extract<SubagentRunStatus, "completed" | "failed">;
-  output: string;
-  error?: {
-    message: string;
-    may_have_side_effects: boolean;
-  };
-}
-
 /**
  * Host surface the run manager needs from the supervisor's thread session
  * manager. Kept minimal so the TSM only exposes thin hooks (no-god-files).
@@ -198,14 +186,6 @@ export interface SubagentRunHost {
   ): Promise<{ mcpServers?: ResolvedMcpServer[] }>;
   /** Append a (re-tagged) runtime event into the parent thread's event stream. */
   appendRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void;
-  /**
-   * Wake or steer the parent with the result of a detached run. The host
-   * queues delivery until doing so will not interrupt an active turn.
-   */
-  notifyBackgroundCompletion?(
-    parentThreadId: string,
-    completion: BackgroundSubagentCompletion,
-  ): void;
 }
 
 /** MCP tool result content shape. */

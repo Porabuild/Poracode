@@ -209,7 +209,6 @@ export class ThreadOutputPipeline {
     session.attention = attention;
     session.lastStatusChangeAt = Date.now();
     this.emitState(session, errorMessage, options);
-    this.options.onSessionStateChanged?.(session);
   }
 
   /**

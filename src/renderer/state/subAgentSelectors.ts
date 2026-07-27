@@ -4,6 +4,11 @@ import type { AppStoreState } from "./slices/shared";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
 
 function classifyActiveSubAgent(item: RuntimeChatItem): "workflow" | "native" | null {
+  // Nested delegated agents belong to their owning Agent/Crossagent overlay.
+  // Only root-level agent rows may affect the parent thread's composer dock or
+  // sidebar liveness. Forwarded requests use a separate request channel and
+  // intentionally remain visible at the parent level.
+  if (item.parentItemId) return null;
   if (item.type !== "tool_call") return null;
   const payload = item.payload as ToolCallPayload | undefined;
   if (!payload || !isDelegatedAgentTool(payload)) return null;

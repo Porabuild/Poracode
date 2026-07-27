@@ -9,6 +9,7 @@ import type {
   ToolCallPayload,
 } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
+import { ForwardedRuntimeItemTracker } from "./ForwardedRuntimeItemTracker";
 import { SubagentAttemptRunner, type AttemptExecutionState } from "./SubagentAttemptRunner";
 import { SubagentSpawnError } from "./errors";
 import { prepareSubagentRun, type PreparedSubagentRun } from "./spawnPlan";
@@ -71,6 +72,7 @@ interface RunRecord extends AttemptExecutionState {
    * events so the parent's request panel doesn't show a stale prompt.
    */
   pendingRequestIds: Set<string>;
+  forwardedRuntimeItems: ForwardedRuntimeItemTracker;
   cancelRequested: boolean;
   turnStarted: boolean;
   turnDispatched: boolean;
@@ -193,6 +195,7 @@ export class SubagentRunManager {
       handle: undefined,
       oneShot: undefined,
       pendingRequestIds: new Set<string>(),
+      forwardedRuntimeItems: new ForwardedRuntimeItemTracker(),
       cancelRequested: false,
       turnStarted: false,
       turnDispatched: false,
@@ -454,18 +457,33 @@ export class SubagentRunManager {
             payload: { progress: { stepCount: record.stepCount } },
           });
         }
-        this.deps.host.appendRuntimeEvent(
-          record.parentThreadId,
-          this.retag(record, attemptIndex, event),
-        );
+        {
+          const forwarded = this.retag(record, attemptIndex, event) as Extract<
+            RuntimeEvent,
+            { type: "item.started" }
+          >;
+          record.forwardedRuntimeItems.start(forwarded);
+          this.deps.host.appendRuntimeEvent(record.parentThreadId, forwarded);
+        }
         return;
-      case "item.updated":
-      case "item.completed":
-        this.deps.host.appendRuntimeEvent(
-          record.parentThreadId,
-          this.retag(record, attemptIndex, event),
-        );
+      case "item.updated": {
+        const forwarded = this.retag(record, attemptIndex, event) as Extract<
+          RuntimeEvent,
+          { type: "item.updated" }
+        >;
+        record.forwardedRuntimeItems.update(forwarded);
+        this.deps.host.appendRuntimeEvent(record.parentThreadId, forwarded);
         return;
+      }
+      case "item.completed": {
+        const forwarded = this.retag(record, attemptIndex, event) as Extract<
+          RuntimeEvent,
+          { type: "item.completed" }
+        >;
+        record.forwardedRuntimeItems.complete(forwarded.itemId);
+        this.deps.host.appendRuntimeEvent(record.parentThreadId, forwarded);
+        return;
+      }
       case "request.opened":
         record.pendingRequestIds.add(event.requestId);
         this.deps.host.appendRuntimeEvent(
@@ -541,6 +559,7 @@ export class SubagentRunManager {
     if (!this.isCurrentAttempt(record, attemptIndex)) return;
     record.attemptSettled = true;
     this.drainPendingRequests(record);
+    this.completeOpenForwardedItems(record);
 
     const attempt = record.plan.attempts[attemptIndex]!;
     record.attemptResults.push({
@@ -596,6 +615,7 @@ export class SubagentRunManager {
     if (record.status === "running") record.status = status;
 
     this.drainPendingRequests(record);
+    this.completeOpenForwardedItems(record);
     if (
       status !== "running" &&
       !record.attemptResults.some((attempt) => attempt.attempt === record.attemptIndex + 1)
@@ -640,18 +660,20 @@ export class SubagentRunManager {
       payload,
     });
 
-    if (record.background && (record.status === "completed" || record.status === "failed")) {
-      this.deps.host.notifyBackgroundCompletion?.(record.parentThreadId, {
-        runId: record.runId,
-        name: record.label,
-        status: record.status,
-        output: record.output,
-        ...(record.error ? { error: record.error } : {}),
-      });
-    }
-
     record.resolveSettled();
     this.pruneSettledRuns(record.parentThreadId);
+  }
+
+  /**
+   * Complete every child item whose provider never emitted a terminal event.
+   * Descendants are closed before ancestors, matching normal nested-tool
+   * teardown and preventing an open child from being stranded under a closed
+   * provider-native Agent row.
+   */
+  private completeOpenForwardedItems(record: RunRecord): void {
+    for (const event of record.forwardedRuntimeItems.drainTerminalEvents(record.parentThreadId)) {
+      this.deps.host.appendRuntimeEvent(record.parentThreadId, event);
+    }
   }
 
   private pruneSettledRuns(parentThreadId: string): void {
