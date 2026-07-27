@@ -50,6 +50,27 @@ function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string
   }
 }
 
+function repairEmptyThreadModels(sqlite: SqliteDatabase): void {
+  const rows = sqlite.prepare("SELECT rowid, config FROM threads").all() as {
+    rowid: number;
+    config: string;
+  }[];
+  const update = sqlite.prepare("UPDATE threads SET config = ? WHERE rowid = ?");
+  for (const row of rows) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.config);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object") continue;
+    const config = parsed as { model?: unknown };
+    if (typeof config.model !== "string" || config.model.trim().length > 0) continue;
+    config.model = "auto";
+    update.run(JSON.stringify(config), row.rowid);
+  }
+}
+
 /**
  * Append-only database history. Never reuse or reorder a version: add the next
  * integer at the end, even when repairing a migration that shipped previously.
@@ -335,6 +356,11 @@ export const DATABASE_MIGRATIONS = [
     version: 29,
     name: "project workspace",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "workspace_id", "TEXT"),
+  },
+  {
+    version: 30,
+    name: "repair empty thread models",
+    migrate: repairEmptyThreadModels,
   },
 ] as const satisfies readonly DatabaseMigration[];
 

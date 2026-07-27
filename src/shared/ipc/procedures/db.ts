@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { projectSchema, threadSchema } from "../../contracts";
+import { projectSchema } from "../../contracts";
 import type { Project, ProjectNotes, Thread, ThreadContextUsage } from "../../contracts";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
@@ -19,6 +19,7 @@ import {
   dbStateKeySchema,
   dbStatePayloadSchema,
   dbSyncAllPayloadSchema,
+  persistedThreadSchema,
   type DbPersistExperimentStatePayload,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
@@ -50,7 +51,7 @@ export const dbProcedures = {
   dbUpsertThread: definePayloadProcedure<Thread, void, "main-local">(
     "dbUpsertThread",
     "main-local",
-    threadSchema,
+    persistedThreadSchema,
   ),
   dbDeleteThread: defineIpcProcedure<
     [string],
