@@ -1,24 +1,3 @@
----
-lockfileVersion: '9.0'
-
-importers:
-
-  .:
-    configDependencies:
-      '@pnpm/plugin-esm-node-path':
-        specifier: 0.1.2
-        version: 0.1.2
-
-packages:
-
-  '@pnpm/plugin-esm-node-path@0.1.2':
-    resolution: {integrity: sha512-KzcFbJpNJHRZ60GpXmc6CoBX/zjy+fKEf/OOYdRbAlxV/Kf/f6pDNUDIVTQU8a5DHt6ODXq5mndwJPlryqMj1A==}
-
-snapshots:
-
-  '@pnpm/plugin-esm-node-path@0.1.2': {}
-
----
 lockfileVersion: '9.0'
 
 settings:
@@ -58,7 +37,7 @@ overrides:
 
 packageExtensionsChecksum: sha256-poYlOieRMgHR4WCooGnRe9Jg6+ydgS+c86SN2RV6EzQ=
 
-pnpmfileChecksum: sha256-HLcFzMEMFrJQT+DTQqNFod0StiZ4dz2U7EFPf6hAaQQ=
+pnpmfileChecksum: sha256-BIchYFv0KpVI2Fu9YSi3hK+ZN/ZSz3O0ksJFvqhaUHI=
 
 importers:
 

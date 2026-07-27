@@ -10,11 +10,6 @@ packages:
 # different Electron ABI should set PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE=false.
 enableGlobalVirtualStore: true
 
-# Node's ESM resolver ignores NODE_PATH, so load pnpm's official resolver bridge
-# when development dependencies live in the shared global virtual store.
-configDependencies:
-  "@pnpm/plugin-esm-node-path": 0.1.2
-
 allowBuilds:
   "@google/genai": false
   "@sentry/cli": true
