@@ -2,7 +2,7 @@ import type { ProjectLocation, PromptSegment, TerminalSize, Thread } from "@/sha
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { captureThreadStarted } from "@/renderer/analytics/posthog";
+import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
@@ -80,14 +80,8 @@ export async function performInitialThreadLaunch(input: {
     ...mcpLaunchSnapshot,
     ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
   });
-  captureThreadStarted(
-    {
-      agentKind: thread.agentKind,
-      config: thread.config,
-      ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-      ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-    },
-    segments,
-  );
+  captureThreadStarted(thread);
+  if (prompt.length > 0 || (segments?.length ?? 0) > 0) {
+    captureThreadPromptSubmitted(thread, prompt, segments, "initial");
+  }
 }

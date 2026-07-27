@@ -57,6 +57,7 @@ import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/B
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
+import { useStandaloneWindowViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
 
 // ── Module-level IPC listeners ──────────────────────────────────
@@ -470,6 +471,7 @@ export function App() {
 
 function BrowserExtractApp() {
   useBrowserSync();
+  useStandaloneWindowViewTracking("browser_extracted");
 
   return (
     <AppProvider contentReady syncWindowChrome={false}>
@@ -482,6 +484,7 @@ function BrowserExtractApp() {
 
 function QuickComposerApp() {
   const { initialLoading } = useAppHydration({ runtimeOwner: false });
+  useStandaloneWindowViewTracking("quick_composer", !initialLoading);
 
   return (
     <AppProvider contentReady={!initialLoading} syncWindowChrome={false}>

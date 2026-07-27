@@ -22,7 +22,7 @@ export function MainGitPanel() {
 
   return (
     <Suspense>
-      <DeferredProjectAuxiliaryPanel includeTerminal={false} />
+      <DeferredProjectAuxiliaryPanel includeTerminal={false} visible={gitPanelOpen} />
     </Suspense>
   );
 }

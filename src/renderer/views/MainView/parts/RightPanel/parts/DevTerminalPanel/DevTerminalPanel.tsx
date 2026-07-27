@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Columns2 } from "lucide-react";
+import {
+  productSurfaceView,
+  useProductViewTracking,
+} from "@/renderer/analytics/useProductViewTracking";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
@@ -52,6 +56,10 @@ export function DevTerminalPanel(props: {
 
   // Cross-fade when switching between project and worktree contexts.
   const isOpen = useDevTerminalStore((s) => s.isOpen);
+  useProductViewTracking(productSurfaceView("terminal", "panel"), "panel", {
+    active: isOpen && !hideHeader,
+    finishWhenInactive: true,
+  });
   const contextKey = `${activeProjectId}:${activeWorktreePath ?? ""}`;
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const prevContextRef = useRef(contextKey);

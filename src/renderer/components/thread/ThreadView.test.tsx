@@ -897,6 +897,10 @@ describe("ThreadView", () => {
         requestId: "perm-plan",
         method: "requestPermission",
         response: { optionId: "default" },
+        analytics: {
+          outcome: "accepted",
+          requestType: "tool_user_input",
+        },
       });
     });
   });

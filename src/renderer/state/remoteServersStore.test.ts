@@ -19,6 +19,11 @@ const bridge = vi.hoisted(() => ({
 }));
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
 
+const analytics = vi.hoisted(() => ({
+  captureThreadPromptSubmitted: vi.fn<() => void>(),
+}));
+vi.mock("@/renderer/analytics/posthog", () => analytics);
+
 // Hydration into the shared runtime store is covered by storeSync's own tests;
 // here we only assert the remote store calls it.
 const sync = vi.hoisted(() => ({
@@ -174,6 +179,7 @@ async function pairIsolated(socketFactory: RemoteSocketFactory): Promise<void> {
 
 describe("useRemoteServersStore", () => {
   beforeEach(() => {
+    analytics.captureThreadPromptSubmitted.mockClear();
     localStorage.clear();
     // Pairing now opens a per-server event socket; fully reset process-local
     // connection state so sockets/timers/seq cursors don't bleed across tests.
@@ -843,6 +849,12 @@ describe("useRemoteServersStore", () => {
       prompt: "hello remote",
       config: { foo: "bar" },
     });
+    expect(analytics.captureThreadPromptSubmitted).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "rt-1" }),
+      "hello remote",
+      undefined,
+      "remote",
+    );
   });
 
   it("starts a thread for a selected remote project and opens it", async () => {
