@@ -64,7 +64,7 @@ describe("GitWorktreeService branch validation", () => {
     },
   );
 
-  it.each(["", "HEAD", "-candidate", "candidate..one", "candidate.lock", "bad\u0000ref"])(
+  it.each(["", "@", "HEAD", "-candidate", "candidate..one", "candidate.lock", "bad\u0000ref"])(
     "rejects an invalid branch name locally: %s",
     (branch) => {
       expect(isValidGitBranchName(branch)).toBe(false);
@@ -86,7 +86,22 @@ describe("GitWorktreeService branch validation", () => {
     await expect(serviceOwner("candidate/missing")).resolves.toBeNull();
     expect(mocks.execGit).toHaveBeenCalledWith(
       location,
-      ["show-ref", "--verify", "--quiet", "refs/heads/candidate/missing"],
+      ["rev-parse", "--verify", "--quiet", "refs/heads/candidate/missing"],
+      { acceptedExitCodes: [1] },
+    );
+  });
+
+  it("recognizes an existing branch while probing without diagnostics", async () => {
+    mocks.execGit.mockImplementation(async (_location, args) => {
+      if (args[0] === "rev-parse") return `${"a".repeat(40)}\n`;
+      if (args[0] === "reflog") return "poracode experiment owner experiment-1\n";
+      return "";
+    });
+
+    await expect(serviceOwner("candidate/existing")).resolves.toBe("experiment-1");
+    expect(mocks.execGit).toHaveBeenCalledWith(
+      location,
+      ["rev-parse", "--verify", "--quiet", "refs/heads/candidate/existing"],
       { acceptedExitCodes: [1] },
     );
   });

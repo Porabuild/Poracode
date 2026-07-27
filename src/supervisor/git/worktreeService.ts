@@ -37,7 +37,7 @@ const WORKTREE_OWNER_REFLOG_PREFIX = "poracode experiment owner ";
 const EXPERIMENT_WORKTREE_CREATE_CONCURRENCY = 2;
 
 export function isValidGitBranchName(branch: string): boolean {
-  if (!branch || branch === "HEAD" || branch.startsWith("-")) return false;
+  if (!branch || branch === "@" || branch === "HEAD" || branch.startsWith("-")) return false;
   if (branch.startsWith("/") || branch.endsWith("/") || branch.endsWith(".")) return false;
   if (branch.includes("//") || branch.includes("..") || branch.includes("@{")) return false;
   for (let index = 0; index < branch.length; index += 1) {
@@ -1105,7 +1105,7 @@ export class GitWorktreeService {
     if (!isValidGitBranchName(branch)) return false;
     const output = await execGit(
       location,
-      ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`],
+      ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`],
       {
         acceptedExitCodes: [1],
       },
