@@ -1,7 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- src/mobile src/renderer src/shared src/main src/supervisor resources/mobile-ssh-runtime scripts vercel.json package.json pnpm-lock.yaml",
+  "git": {
+    "deploymentEnabled": false
+  },
   "installCommand": "pnpm install --frozen-lockfile --ignore-scripts --filter poracode... --config.node-linker=isolated --config.enable-global-virtual-store=false",
   "buildCommand": "node scripts/vercel-build-mobile.mjs",
   "outputDirectory": "dist/mobile",
