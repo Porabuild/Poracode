@@ -472,6 +472,29 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("Install packages · pnpm install")).toBeInTheDocument();
   });
 
+  it("cleans and syntax-highlights batched Codex sed views", async () => {
+    const threadId = "thread-1";
+    const item: RuntimeChatItem = {
+      ...makeCommandItem(
+        "cmd-batched-view",
+        `/bin/zsh -lc "sed -n '1,80p' src/shared/settings.ts; sed -n '570,630p' src/shared/settings.ts"`,
+      ),
+      streams: {
+        command_output: 'import { z } from "zod";\nexport const setting = true;\n',
+      },
+    };
+    seedThread(threadId, [item]);
+
+    const view = renderToolCallGroup(threadId, [item.id]);
+
+    expect(screen.queryByText(";src/shared/settings.ts")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("src/shared/settings.ts"));
+
+    await waitFor(() => {
+      expect(view.container.querySelector(".lc-shiki")).toBeInTheDocument();
+    });
+  });
+
   it("categorizes persisted compacted tool summaries by their labels", () => {
     const threadId = "thread-1";
     const items = [
