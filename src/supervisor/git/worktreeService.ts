@@ -36,6 +36,22 @@ import { parseStatusPorcelainV2 } from "./statusParsing";
 const WORKTREE_OWNER_REFLOG_PREFIX = "poracode experiment owner ";
 const EXPERIMENT_WORKTREE_CREATE_CONCURRENCY = 2;
 
+export function isValidGitBranchName(branch: string): boolean {
+  if (!branch || branch === "HEAD" || branch.startsWith("-")) return false;
+  if (branch.startsWith("/") || branch.endsWith("/") || branch.endsWith(".")) return false;
+  if (branch.includes("//") || branch.includes("..") || branch.includes("@{")) return false;
+  for (let index = 0; index < branch.length; index += 1) {
+    const code = branch.charCodeAt(index);
+    if (code <= 32 || code === 127) return false;
+  }
+  if (/[~^:?*\x5b\\]/u.test(branch)) return false;
+  return branch
+    .split("/")
+    .every(
+      (segment) => segment.length > 0 && !segment.startsWith(".") && !segment.endsWith(".lock"),
+    );
+}
+
 function trimTrailingSeparators(path: string): string {
   const trimmed = path.replace(/[\\/]+$/, "");
   return trimmed || path;
@@ -1053,6 +1069,7 @@ export class GitWorktreeService {
     location: ProjectLocation,
     branch: string,
   ): Promise<string | null> {
+    if (!isValidGitBranchName(branch)) return null;
     const configuredOwner = await execGit(
       location,
       ["config", "--get", `branch.${branch}.poracodeOwner`],
@@ -1085,9 +1102,14 @@ export class GitWorktreeService {
   }
 
   private async branchExists(location: ProjectLocation, branch: string): Promise<boolean> {
-    const output = await execGit(location, ["show-ref", "--verify", `refs/heads/${branch}`], {
-      acceptedExitCodes: [1],
-    });
+    if (!isValidGitBranchName(branch)) return false;
+    const output = await execGit(
+      location,
+      ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`],
+      {
+        acceptedExitCodes: [1],
+      },
+    );
     return output.trim().length > 0;
   }
 

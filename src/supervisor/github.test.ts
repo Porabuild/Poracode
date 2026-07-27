@@ -407,6 +407,38 @@ describe("GitHubService", () => {
 
       expect(result).toEqual({});
     });
+
+    it.each([
+      "failed to run git: fatal: not a git repository (or any parent): .git",
+      "no repository configured for this command",
+    ])("returns an empty map for a non-repository project: %s", async (message) => {
+      execFileAsyncMock.mockRejectedValue(new Error(message));
+
+      await expect(new GitHubService().listPrs(location)).resolves.toEqual({});
+    });
+
+    it("does not hide unrelated gh failures", async () => {
+      execFileAsyncMock.mockRejectedValue(new Error("GraphQL: API rate limit exceeded"));
+
+      await expect(new GitHubService().listPrs(location)).rejects.toThrow(
+        "gh pr list failed: GraphQL: API rate limit exceeded",
+      );
+    });
+
+    it("bypasses login shells so OSC 1337 startup output cannot contaminate JSON", async () => {
+      buildAgentCommandMock.mockReturnValue({
+        command: "/bin/zsh",
+        args: ["-l", "-i", "-c", "\u001b]1337;RemoteHost=test\u0007"],
+      });
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+
+      await new GitHubService().listPrs(location);
+
+      expect(execFileAsyncMock.mock.calls[0]?.[0]).toBe("gh");
+      expect(execFileAsyncMock.mock.calls[0]?.[1]).toEqual(
+        expect.arrayContaining(["pr", "list", "--json"]),
+      );
+    });
   });
 
   describe("listPullRequests", () => {
@@ -976,6 +1008,9 @@ describe("GitHubService", () => {
 
       expect(buildAgentCommandMock.mock.calls[0]![2]).toEqual(["pr", "diff", "42"]);
       expect(result.diff).toBe("diff --git a/x b/x\n");
+      expect(execFileAsyncMock.mock.calls[0]?.[2]).toMatchObject({
+        maxBuffer: 50 * 1024 * 1024,
+      });
     });
   });
 

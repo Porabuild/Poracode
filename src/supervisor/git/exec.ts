@@ -13,6 +13,27 @@ import { mkdir } from "node:fs/promises";
 
 const execFileAsync = promisify(execFile);
 
+function execFileWithInput(
+  command: string,
+  args: string[],
+  options: Parameters<typeof execFile>[2],
+  input: string,
+): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(command, args, options, (error, stdout, stderr) => {
+      const stdoutText = typeof stdout === "string" ? stdout : stdout.toString("utf8");
+      const stderrText = typeof stderr === "string" ? stderr : stderr.toString("utf8");
+      if (error) {
+        Object.assign(error, { stdout: stdoutText, stderr: stderrText });
+        reject(error);
+        return;
+      }
+      resolve({ stdout: stdoutText, stderr: stderrText });
+    });
+    child.stdin?.end(input);
+  });
+}
+
 export const GIT_STATUS_TIMEOUT = 10_000;
 export const GIT_DIFF_TIMEOUT = 15_000;
 export const GIT_NETWORK_TIMEOUT = 30_000;
@@ -102,6 +123,7 @@ export async function execGit(
     allowNonZeroExit?: boolean;
     acceptedExitCodes?: readonly number[];
     env?: Record<string, string>;
+    input?: string;
     maxBuffer?: number;
   },
 ): Promise<string> {
@@ -121,13 +143,17 @@ export async function execGit(
     }
 
     const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...(options?.env ?? {}) };
-    const { stdout } = await execFileAsync("git", withQuotePathDisabled(args), {
+    const execOptions = {
       cwd: location.path,
       env,
       timeout,
       maxBuffer,
       windowsHide: true,
-    });
+    };
+    const { stdout } =
+      options?.input !== undefined
+        ? await execFileWithInput("git", withQuotePathDisabled(args), execOptions, options.input)
+        : await execFileAsync("git", withQuotePathDisabled(args), execOptions);
     return stdout;
   } catch (error: unknown) {
     if (

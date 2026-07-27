@@ -49,6 +49,7 @@ const GH_CLONE_TIMEOUT = 600_000;
 const GH_REPO_PAGE_SIZE = 100;
 const GH_REPO_MAX_PAGES = 5;
 const PULL_REQUEST_LIST_LIMIT = 1_000;
+const PR_DIFF_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
@@ -95,6 +96,7 @@ function isNoGitHubRepositoryError(error: unknown): boolean {
   const lower = msg.toLowerCase();
   return (
     lower.includes("not a git repository") ||
+    lower.includes("no repository configured") ||
     lower.includes("no git remotes") ||
     lower.includes("none of the git remotes") ||
     lower.includes("unable to determine current repository")
@@ -130,7 +132,17 @@ function classifyError(error: unknown, operation: string): Error {
 interface RunGhOptions {
   /** Extra env (e.g. `GH_TOKEN`) merged into the gh invocation. */
   env?: Record<string, string>;
+  maxBufferBytes?: number;
   timeoutMs?: number;
+}
+
+function isMachineReadableGhCommand(args: readonly string[]): boolean {
+  return (
+    args.includes("--json") ||
+    args.includes("--jq") ||
+    args[0] === "api" ||
+    (args[0] === "auth" && (args[1] === "status" || args[1] === "token"))
+  );
 }
 
 /**
@@ -151,6 +163,7 @@ async function runGh(
   options?: RunGhOptions,
 ): Promise<string> {
   const timeoutMs = options?.timeoutMs ?? GH_TIMEOUT;
+  const machineReadable = isMachineReadableGhCommand(args);
   if (location.kind === "wsl") {
     if (!wslClient) {
       throw new Error(`WSL bridge unavailable for GitHub CLI in distro "${location.distro}"`);
@@ -171,12 +184,17 @@ async function runGh(
 
   const spec = buildAgentCommand(location, "gh", args, undefined, options?.env);
   const cwd = spec.cwd ?? location.path;
-  const { stdout } = await execFileAsync(spec.command, spec.args, {
-    windowsHide: true,
-    timeout: timeoutMs,
-    ...(cwd ? { cwd } : {}),
-    env: projectGhEnvironment({ ...spec.env, ...options?.env }),
-  });
+  const { stdout } = await execFileAsync(
+    machineReadable ? "gh" : spec.command,
+    machineReadable ? args : spec.args,
+    {
+      windowsHide: true,
+      timeout: timeoutMs,
+      ...(cwd ? { cwd } : {}),
+      ...(options?.maxBufferBytes ? { maxBuffer: options.maxBufferBytes } : {}),
+      env: projectGhEnvironment({ ...spec.env, ...options?.env }),
+    },
+  );
   return stdout;
 }
 
@@ -580,7 +598,7 @@ export class GitHubService {
       }
       return result;
     } catch (err) {
-      if (isRepoNotFoundError(err)) return {};
+      if (isNoGitHubRepositoryError(err)) return {};
       throw classifyError(err, "pr list");
     }
   }
@@ -735,7 +753,9 @@ export class GitHubService {
 
   async getPrDiff(location: ProjectLocation, prNumber: number): Promise<GhGetPrDiffResult> {
     try {
-      const stdout = await this.runGh(location, ["pr", "diff", String(prNumber)]);
+      const stdout = await this.runGh(location, ["pr", "diff", String(prNumber)], {
+        maxBufferBytes: PR_DIFF_MAX_BUFFER_BYTES,
+      });
       return { diff: stdout };
     } catch (err) {
       throw classifyError(err, "pr diff");
