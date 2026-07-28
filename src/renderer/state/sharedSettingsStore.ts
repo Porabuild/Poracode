@@ -29,6 +29,7 @@ import type {
   Workspace,
 } from "@/shared/contracts";
 import { nextWorkspaceIconId } from "@/shared/contracts";
+import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
 
 const STORAGE_KEY = "poracode-shared-settings";
 
@@ -167,11 +168,12 @@ interface SharedSettingsState extends SharedSettings {
     agentKind: string,
     modelId: string,
     presentationMode: ThreadPresentationMode,
+    effort?: string,
+    fast?: boolean,
   ) => void;
 }
 
 const RECENT_MODELS_LIMIT = 16;
-
 function hasBridge(): boolean {
   return typeof window !== "undefined" && window.poracode !== undefined;
 }
@@ -760,7 +762,7 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ crossagentRoutingGuide });
     persistSettings(selectSharedSettings(get()));
   },
-  pushRecentModel: (agentKind, modelId, presentationMode) => {
+  pushRecentModel: (agentKind, modelId, presentationMode, effort, fast) => {
     const current = get().recentModels;
     const samePresentation = current.filter((m) => m.presentationMode === presentationMode);
     const otherPresentations = current.filter((m) => m.presentationMode !== presentationMode);
@@ -772,18 +774,26 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       RECENT_MODELS_LIMIT,
     );
     const next = [...nextForPresentation, ...otherPresentations].slice(0, RECENT_MODELS_LIMIT * 2);
-    if (
+    const agentSelectionUsage = incrementAgentSelectionUsage(get().agentSelectionUsage, [
+      {
+        agentKind,
+        modelId,
+        ...(effort ? { effort } : {}),
+        fast: fast === true,
+      },
+    ]);
+    const recentsUnchanged =
       current.length === next.length &&
       current.every(
         (m, i) =>
           m.agentKind === next[i]!.agentKind &&
           m.modelId === next[i]!.modelId &&
           m.presentationMode === next[i]!.presentationMode,
-      )
-    ) {
-      return;
-    }
-    set({ recentModels: next });
+      );
+    set({
+      ...(recentsUnchanged ? {} : { recentModels: next }),
+      agentSelectionUsage,
+    });
     persistSettings(selectSharedSettings(get()));
   },
 }));
@@ -883,6 +893,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     workspaces: state.workspaces,
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
+    agentSelectionUsage: state.agentSelectionUsage,
     browser: state.browser,
     audio: state.audio,
     usage: state.usage,

@@ -24,6 +24,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
   const externalMcpDiscovery = runtime.externalMcpDiscoveryService;
   const skills = runtime.skillsService;
   return defineSupervisorIpcHandlers({
+    confirmCrossagentRoutingOverride: (payload) =>
+      runtime.confirmCrossagentRoutingOverride(payload),
+    getCrossagentRouting: () => runtime.getCrossagentRoutingSnapshot(),
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
     refreshAgentStatuses: (payload) => registry.refreshAgentStatuses(payload),

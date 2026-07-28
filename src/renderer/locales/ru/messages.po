@@ -96,6 +96,11 @@ msgstr "{0, plural, one {# инструмент} few {# инструмента} 
 #~ msgid "{0, plural, one {# turn} other {# turns}}"
 #~ msgstr "{0, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}"
 
+#. placeholder {0}: entry.usageCount
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "{0, plural, one {# use} other {# uses}}"
+msgstr "{0, plural, one {# использование} few {# использования} many {# использований} other {# использования}}"
+
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
@@ -905,6 +910,10 @@ msgstr "Размер шрифта терминала агента"
 msgid "Agent update available"
 msgstr "Доступно обновление агента"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agent usage"
+msgstr "Использование агентов"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "Агент: {description}"
@@ -923,6 +932,14 @@ msgstr "Агенты"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Agents · General"
 msgstr "Агенты · Общие"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
+msgstr "Агенты классифицируют делегированную работу с помощью тегов задач. Сначала применяются ручные маршруты задач, затем подходящие изученные маршруты, глобальная статистика использования Crossagents, избранное, обычная статистика использования агентов и встроенный порядок."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
+#~ msgstr "Агенты классифицируют делегированную работу с помощью тегов задач. Сначала ранжируются подходящие изученные маршруты, затем глобальная статистика Crossagents, избранное, обычная статистика агентов и встроенный порядок."
 
 #. Settings section: AI / assistant configuration
 #: src/mobile/settingsSections.ts
@@ -1615,6 +1632,10 @@ msgstr "Встроенный"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in MCP servers"
 msgstr "Встроенные серверы MCP"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Built-in order"
+msgstr "Встроенный порядок"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3031,8 +3052,11 @@ msgstr "Crossagent ({subagent}): {description}"
 msgid "Crossagent Result"
 msgstr "Результат Crossagent"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+msgid "Crossagent routing and ranking"
+msgstr "Маршрутизация и рейтинг Crossagents"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Crossagent routing guide"
 msgstr "Руководство по маршрутизации Crossagents"
 
@@ -3060,6 +3084,10 @@ msgstr "Crossagents"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
 msgstr "Crossagents включены для этого треда"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Crossagents usage"
+msgstr "Использование Crossagents"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crown"
@@ -4154,6 +4182,7 @@ msgstr "Не удалось обновить цель"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "Быстрый"
 
@@ -4169,6 +4198,10 @@ msgstr "Быстрее всего (Whisper tiny)"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "Режим «Быстрее всего» использует Whisper tiny; «Лучше» — Whisper base."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Favorite"
+msgstr "Избранное"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Favorites"
@@ -5540,6 +5573,14 @@ msgstr "Управляется провайдером"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Ручной порядок"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Manual override"
+msgstr "Ручное переопределение"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Manual routes override learned routing whenever all of their task tags match."
+msgstr "Ручные маршруты переопределяют изученную маршрутизацию, когда совпадают все их теги задач."
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -7379,6 +7420,10 @@ msgstr "Закрепить вверху"
 msgid "Pinned"
 msgstr "Закреплено"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Pinned task routes"
+msgstr "Закреплённые маршруты задач"
+
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -7506,6 +7551,10 @@ msgstr "Заголовок PR (оставьте пустым для автоге
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "Сбой хука pre-commit"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Preferred routing order"
+msgstr "Предпочтительный порядок маршрутизации"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -8134,6 +8183,10 @@ msgstr "Удалить с панели"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "Удалить модель"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Remove pinned route for {tagLabel}"
+msgstr "Удалить закреплённый маршрут для {tagLabel}"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9950,6 +10003,10 @@ msgstr "Целевой провайдер"
 msgid "Task"
 msgstr "Задача"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Task match"
+msgstr "Соответствие задаче"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "Вывод задачи"
@@ -10747,6 +10804,10 @@ msgstr "Не удалось обновить профили Claude."
 msgid "Unable to remove {0} credentials."
 msgstr "Не удалось удалить учётные данные {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unable to remove pinned route."
+msgstr "Не удалось удалить закреплённый маршрут."
+
 #: src/renderer/actions/worktreeActions.ts
 msgid "Unable to remove worktree."
 msgstr "Не удалось удалить worktree."
@@ -10866,6 +10927,14 @@ msgstr "Недоступно"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "Недоступный проект"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unavailable provider"
+msgstr "Недоступный провайдер"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
+msgstr "Недоступные провайдеры, модели, уровни рассуждений и режимы Fast автоматически пропускаются."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -11149,6 +11218,10 @@ msgstr "Использовано"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Used by {conflict}"
 msgstr "Используется командой {conflict}"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Used when no provider is specified. Explicit Crossagents usage ranks first, followed by favorites, normal agent usage, and built-in order."
+#~ msgstr "Используется, когда провайдер не указан. На первом месте — явное использование Crossagents, затем избранное, обычное использование агентов и встроенный порядок."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "User"

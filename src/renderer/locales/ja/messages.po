@@ -96,6 +96,11 @@ msgstr "{0, plural, one {# 個のツール} other {# 個のツール}}"
 #~ msgid "{0, plural, one {# turn} other {# turns}}"
 #~ msgstr "{0, plural, other {# ターン}}"
 
+#. placeholder {0}: entry.usageCount
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "{0, plural, one {# use} other {# uses}}"
+msgstr "{0, plural, other {# 回}}"
+
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
@@ -904,6 +909,10 @@ msgstr "エージェント端末のフォントサイズ"
 msgid "Agent update available"
 msgstr "エージェントのアップデートが利用可能"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agent usage"
+msgstr "エージェントの使用"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "エージェント:{description}"
@@ -922,6 +931,14 @@ msgstr "エージェント"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Agents · General"
 msgstr "エージェント · 一般"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
+msgstr "エージェントは委任された作業をタスクタグで分類します。手動のタスクルートが最優先され、次に一致する学習済みルート、Crossagents 全体での使用状況、お気に入り、通常のエージェント使用状況、組み込み順序が続きます。"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
+#~ msgstr "エージェントは委任された作業をタスクタグで分類します。一致する学習済みルートが最優先され、その後に Crossagents 全体の使用状況、お気に入り、通常のエージェント使用状況、組み込み順序が続きます。"
 
 #. Settings section: AI / assistant configuration
 #: src/mobile/settingsSections.ts
@@ -1614,6 +1631,10 @@ msgstr "組み込み"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in MCP servers"
 msgstr "組み込みMCPサーバー"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Built-in order"
+msgstr "組み込み順"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3030,8 +3051,11 @@ msgstr "Crossagent（{subagent}）：{description}"
 msgid "Crossagent Result"
 msgstr "Crossagentの結果"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+msgid "Crossagent routing and ranking"
+msgstr "Crossagents のルーティングと順位"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Crossagent routing guide"
 msgstr "Crossagents ルーティングガイド"
 
@@ -3059,6 +3083,10 @@ msgstr "Crossagents"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
 msgstr "このスレッドに対して Crossagents が有効になっています"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Crossagents usage"
+msgstr "Crossagents の使用"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crown"
@@ -4153,6 +4181,7 @@ msgstr "目標を更新できませんでした"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "速い"
 
@@ -4168,6 +4197,10 @@ msgstr "最速（Whisper tiny）"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "最速は Whisper tiny を使用し、高精度は Whisper base を使用します。"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Favorite"
+msgstr "お気に入り"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Favorites"
@@ -5539,6 +5572,14 @@ msgstr "プロバイダーが管理"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "手動並び替え"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Manual override"
+msgstr "手動オーバーライド"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Manual routes override learned routing whenever all of their task tags match."
+msgstr "すべてのタスクタグが一致する場合、手動ルートが学習済みルーティングより優先されます。"
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -7377,6 +7418,10 @@ msgstr "トップにピン留めする"
 msgid "Pinned"
 msgstr "固定された"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Pinned task routes"
+msgstr "固定されたタスクルート"
+
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -7504,6 +7549,10 @@ msgstr "PR タイトル (自動生成するには空のままにしてくださ�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "コミット前のフックが失敗しました"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Preferred routing order"
+msgstr "優先ルーティング順"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -8132,6 +8181,10 @@ msgstr "パネルから削除"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "モデルを削除"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Remove pinned route for {tagLabel}"
+msgstr "{tagLabel} の固定ルートを削除"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9948,6 +10001,10 @@ msgstr "対象プロバイダー"
 msgid "Task"
 msgstr "タスク"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Task match"
+msgstr "タスク一致"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "タスクの出力"
@@ -10745,6 +10802,10 @@ msgstr "Claude プロファイルを更新できません。"
 msgid "Unable to remove {0} credentials."
 msgstr "{0}資格情報を削除できません。"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unable to remove pinned route."
+msgstr "固定ルートを削除できませんでした。"
+
 #: src/renderer/actions/worktreeActions.ts
 msgid "Unable to remove worktree."
 msgstr "ワークツリーを削除できません。"
@@ -10864,6 +10925,14 @@ msgstr "利用不可"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "利用できないプロジェクト"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unavailable provider"
+msgstr "利用できないプロバイダー"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
+msgstr "利用できないプロバイダー、モデル、推論レベル、Fast モードは自動的にスキップされます。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -11147,6 +11216,10 @@ msgstr "使用済み"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Used by {conflict}"
 msgstr "{conflict}で使用中"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Used when no provider is specified. Explicit Crossagents usage ranks first, followed by favorites, normal agent usage, and built-in order."
+#~ msgstr "プロバイダーが指定されていない場合に使用されます。Crossagents で明示的に使用したもの、 お気に入り、通常のエージェント使用、組み込み順の順に優先されます。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "User"

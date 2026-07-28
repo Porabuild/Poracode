@@ -66,7 +66,7 @@ export function McpServersSettings() {
           builtInSettings={{
             crossagents: {
               title: t`Crossagents`,
-              actionLabel: t`Crossagent routing guide`,
+              actionLabel: t`Crossagent routing and ranking`,
               content: <CrossagentRoutingSection />,
             },
           }}

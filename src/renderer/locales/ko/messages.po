@@ -96,6 +96,11 @@ msgstr "{0, plural, one {도구 #개} other {도구 #개}}"
 #~ msgid "{0, plural, one {# turn} other {# turns}}"
 #~ msgstr "{0, plural, other {# 턴}}"
 
+#. placeholder {0}: entry.usageCount
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "{0, plural, one {# use} other {# uses}}"
+msgstr "{0, plural, other {#회 사용}}"
+
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
@@ -905,6 +910,10 @@ msgstr "에이전트 터미널 글꼴 크기"
 msgid "Agent update available"
 msgstr "에이전트 업데이트 사용 가능"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agent usage"
+msgstr "에이전트 사용"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "에이전트: {description}"
@@ -923,6 +932,14 @@ msgstr "에이전트"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Agents · General"
 msgstr "에이전트 · 일반"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
+msgstr "에이전트는 위임된 작업을 작업 태그로 분류합니다. 수동 작업 경로가 가장 먼저 적용되고, 일치하는 학습된 경로, 전체 Crossagents 사용량, 즐겨찾기, 일반 에이전트 사용량, 기본 제공 순서가 이어집니다."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
+#~ msgstr "에이전트는 위임된 작업을 작업 태그로 분류합니다. 일치하는 학습된 경로가 먼저 순위에 오르고, 전체 Crossagents 사용량, 즐겨찾기, 일반 에이전트 사용량, 기본 순서가 이어집니다."
 
 #. Settings section: AI / assistant configuration
 #: src/mobile/settingsSections.ts
@@ -1615,6 +1632,10 @@ msgstr "기본 제공"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in MCP servers"
 msgstr "기본 제공 MCP 서버"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Built-in order"
+msgstr "기본 제공 순서"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3031,8 +3052,11 @@ msgstr "Crossagent ({subagent}): {description}"
 msgid "Crossagent Result"
 msgstr "Crossagent 결과"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+msgid "Crossagent routing and ranking"
+msgstr "Crossagents 라우팅 및 순위"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Crossagent routing guide"
 msgstr "Crossagents 라우팅 가이드"
 
@@ -3060,6 +3084,10 @@ msgstr "Crossagents"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
 msgstr "이 스레드에 Crossagents가 활성화되었습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Crossagents usage"
+msgstr "Crossagents 사용"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crown"
@@ -4154,6 +4182,7 @@ msgstr "목표를 업데이트하지 못했습니다"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "빠르게"
 
@@ -4169,6 +4198,10 @@ msgstr "가장 빠름 (Whisper tiny)"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "가장 빠름은 Whisper tiny를, 더 좋음은 Whisper base를 사용합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Favorite"
+msgstr "즐겨찾기"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Favorites"
@@ -5540,6 +5573,14 @@ msgstr "제공자가 관리함"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "수동 정렬"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Manual override"
+msgstr "수동 재정의"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Manual routes override learned routing whenever all of their task tags match."
+msgstr "모든 작업 태그가 일치하면 수동 경로가 학습된 라우팅보다 우선합니다."
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
@@ -7379,6 +7420,10 @@ msgstr "상단에 고정"
 msgid "Pinned"
 msgstr "고정됨"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Pinned task routes"
+msgstr "고정된 작업 경로"
+
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -7506,6 +7551,10 @@ msgstr "PR 제목(자동 생성하려면 비워두세요)"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "사전 커밋 후크 실패"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Preferred routing order"
+msgstr "선호 라우팅 순서"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -8134,6 +8183,10 @@ msgstr "패널에서 제거"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "모델 제거"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Remove pinned route for {tagLabel}"
+msgstr "{tagLabel}의 고정 경로 제거"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9950,6 +10003,10 @@ msgstr "대상 공급자"
 msgid "Task"
 msgstr "작업"
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Task match"
+msgstr "작업 일치"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "작업 출력"
@@ -10747,6 +10804,10 @@ msgstr "Claude 프로필을 새로 고칠 수 없습니다."
 msgid "Unable to remove {0} credentials."
 msgstr "{0} 자격 증명을 제거할 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unable to remove pinned route."
+msgstr "고정 경로를 제거할 수 없습니다."
+
 #: src/renderer/actions/worktreeActions.ts
 msgid "Unable to remove worktree."
 msgstr "작업 트리를 제거할 수 없습니다."
@@ -10866,6 +10927,14 @@ msgstr "사용할 수 없음"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "사용할 수 없는 프로젝트"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unavailable provider"
+msgstr "사용할 수 없는 제공자"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
+msgstr "사용할 수 없는 제공자, 모델, 추론 수준 및 Fast 모드는 자동으로 건너뜁니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -11149,6 +11218,10 @@ msgstr "사용됨"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Used by {conflict}"
 msgstr "{conflict}에서 사용 중"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Used when no provider is specified. Explicit Crossagents usage ranks first, followed by favorites, normal agent usage, and built-in order."
+#~ msgstr "제공자를 지정하지 않았을 때 사용합니다. 명시적인 Crossagents 사용, 즐겨찾기, 일반 에이전트 사용, 기본 제공 순서 순으로 우선합니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "User"
