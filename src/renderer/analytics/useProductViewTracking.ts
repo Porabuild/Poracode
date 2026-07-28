@@ -94,9 +94,11 @@ export function useProductViewTracking(
   if (!trackerRef.current) {
     trackerRef.current = createProductViewTracker({
       capture: captureProductEvent,
-      clearTimeout,
+      // Wrap window's timer methods — called detached from `window` they throw
+      // "Illegal invocation" in the browser (Node's timers don't, so tests miss it).
+      clearTimeout: (timer) => clearTimeout(timer),
       now: Date.now,
-      setTimeout,
+      setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
     });
   }
 
@@ -132,9 +134,11 @@ export function useStandaloneWindowViewTracking(surface: string, active = true):
   if (!trackerRef.current) {
     trackerRef.current = createProductViewTracker({
       capture: captureProductEvent,
-      clearTimeout,
+      // Wrap window's timer methods — called detached from `window` they throw
+      // "Illegal invocation" in the browser (Node's timers don't, so tests miss it).
+      clearTimeout: (timer) => clearTimeout(timer),
       now: Date.now,
-      setTimeout,
+      setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
     });
   }
 
