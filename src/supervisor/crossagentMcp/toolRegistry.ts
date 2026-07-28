@@ -189,7 +189,12 @@ const BASE_TOOLS: ToolSpec[] = [
           description: TIMEOUT_S_DESCRIPTION,
         },
       },
-      oneOf: [{ required: ["prompt"] }, { required: ["tasks"] }],
+      // Keep every root union branch explicitly object-typed. Some OpenAI-compatible
+      // providers reject `required`-only branches because they also match non-objects.
+      oneOf: [
+        { type: "object", required: ["prompt"] },
+        { type: "object", required: ["tasks"] },
+      ],
     },
   },
   {
@@ -243,7 +248,11 @@ const BASE_TOOLS: ToolSpec[] = [
           description: TIMEOUT_S_DESCRIPTION,
         },
       },
-      oneOf: [{ required: ["run_id"] }, { required: ["run_ids"] }],
+      // See the spawn_agent schema above for why these branches repeat the root type.
+      oneOf: [
+        { type: "object", required: ["run_id"] },
+        { type: "object", required: ["run_ids"] },
+      ],
     },
   },
   {
