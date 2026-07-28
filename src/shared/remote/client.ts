@@ -50,6 +50,7 @@ import {
   DEFAULT_TERMINAL_SIZE,
   controlThreadGoalPayloadSchema,
   profileIdentitySchema,
+  prWatchSchema,
   projectNotesSchema,
   sendThreadInputPayloadSchema,
   type ProfileCoreStats,
@@ -59,6 +60,9 @@ import {
   type ProfileIdentityResponse,
   type ProfileStatsRequest,
   type ProfileTokenStats,
+  type PrWatch,
+  type PrWatchInput,
+  type PrWatchKey,
   type ProjectNotes,
   type ProjectLocation,
   type PromptSegment,
@@ -238,6 +242,7 @@ const settingsResponseSchema = z.object({ settings: remoteSettingsSchema });
 const browserStateResponseSchema = z.object({ state: remoteBrowserStateSchema });
 const attachmentUploadResponseSchema = z.object({ path: z.string().min(1) });
 const projectNotesResponseSchema = z.object({ notes: projectNotesSchema.nullable() });
+const prWatchResponseSchema = z.object({ watch: prWatchSchema.nullable() });
 
 export class RemoteDesktopClient {
   private readonly fetchImpl: RemoteFetch;
@@ -445,6 +450,33 @@ export class RemoteDesktopClient {
     const schedule = await this.scheduleCommand({ kind: "run", id });
     if (!schedule) throw new Error("The desktop did not return the running schedule.");
     return schedule;
+  }
+
+  async getPrWatch(input: PrWatchKey): Promise<PrWatch | null> {
+    const query = new URLSearchParams({
+      projectId: input.projectId,
+      prNumber: String(input.prNumber),
+    });
+    const result = parseResponse(
+      prWatchResponseSchema,
+      await this.requestJson(`/api/pr-watches?${query.toString()}`),
+      "PR automation",
+    );
+    return result.watch;
+  }
+
+  async upsertPrWatch(input: PrWatchInput): Promise<PrWatch> {
+    const result = parseResponse(
+      prWatchResponseSchema,
+      await this.requestJson("/api/pr-watches", { method: "POST", body: input }),
+      "PR automation",
+    );
+    if (!result.watch) throw new Error("The desktop did not return the PR automation state.");
+    return result.watch;
+  }
+
+  async deletePrWatch(input: PrWatchKey): Promise<void> {
+    await this.requestJson("/api/pr-watches", { method: "DELETE", body: input });
   }
 
   /**
@@ -840,7 +872,7 @@ export class RemoteDesktopClient {
   private async requestJson(
     path: string,
     init: {
-      readonly method?: "GET" | "POST";
+      readonly method?: "GET" | "POST" | "DELETE";
       readonly body?: unknown;
       readonly rawBody?: Uint8Array;
       readonly headers?: Readonly<Record<string, string>>;

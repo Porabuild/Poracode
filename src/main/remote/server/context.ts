@@ -54,6 +54,7 @@ export interface RemoteServerContext {
   requireInfo(): RemoteAccessServerInfo;
   requireSettingsGateway(): NonNullable<RemoteAccessServerOptions["settings"]>;
   requireSchedulesGateway(): NonNullable<RemoteAccessServerOptions["schedules"]>;
+  requirePrWatchesGateway(): NonNullable<RemoteAccessServerOptions["prWatches"]>;
   requireBrowserGateway(): RemoteBrowserGateway;
   requirePortForwardGateway(): RemotePortForwardGateway;
   requirePortProxy(): PortProxy;

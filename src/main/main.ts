@@ -960,6 +960,7 @@ if (!hasSingleInstanceLock) {
         },
         reportError: captureMainException,
         scheduleService,
+        prWatchService,
       });
       remoteAccessController = controller;
 

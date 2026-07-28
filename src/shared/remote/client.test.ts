@@ -138,6 +138,78 @@ describe("RemoteDesktopClient", () => {
     ]);
   });
 
+  it("reads, enables, and deletes PR automation through the remote API", async () => {
+    const requests: Array<{ url: string; method: string; body: unknown }> = [];
+    const watch = {
+      projectId: "project one",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      worktreePath: "/repo/worktree",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    } as const;
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        const method = init?.method ?? "GET";
+        requests.push({
+          url: String(url),
+          method,
+          body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined,
+        });
+        return new Response(JSON.stringify(method === "DELETE" ? { ok: true } : { watch }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    const input = {
+      projectId: watch.projectId,
+      prNumber: watch.prNumber,
+      headBranch: watch.headBranch,
+      worktreePath: watch.worktreePath,
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: watch.agentKind,
+      config: watch.config,
+    };
+    await expect(
+      client.getPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toEqual(watch);
+    await expect(client.upsertPrWatch(input)).resolves.toEqual(watch);
+    await expect(
+      client.deletePrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toBeUndefined();
+
+    expect(requests).toEqual([
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches?projectId=project+one&prNumber=42",
+        method: "GET",
+        body: undefined,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches",
+        method: "POST",
+        body: input,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches",
+        method: "DELETE",
+        body: { projectId: watch.projectId, prNumber: watch.prNumber },
+      },
+    ]);
+  });
+
   it("requests a tail snapshot and encodes older runtime page cursors", async () => {
     const requestedUrls: string[] = [];
     const client = new RemoteDesktopClient(

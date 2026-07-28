@@ -4,6 +4,8 @@ import type {
   ControlThreadGoalPayload,
   RefreshAgentScope,
   InterruptThreadPayload,
+  PrWatchInput,
+  PrWatchKey,
   ProfileIdentity,
   ProfileStatsRequest,
   ProjectNotes,
@@ -242,6 +244,9 @@ const remoteBridge = {
     requireClient().updateSchedule(id, task),
   deleteSchedule: ({ id }: { id: string }) => requireClient().deleteSchedule(id),
   runScheduleNow: ({ id }: { id: string }) => requireClient().runScheduleNow(id),
+  getPrWatch: (input: PrWatchKey) => requireClient().getPrWatch(input),
+  upsertPrWatch: (input: PrWatchInput) => requireClient().upsertPrWatch(input),
+  deletePrWatch: (input: PrWatchKey) => requireClient().deletePrWatch(input),
 
   // Shared settings persist per device via the store's localStorage fallback.
   // Remote-editable keys (including persistent composer MCP enablement) are

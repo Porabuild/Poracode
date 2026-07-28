@@ -7,8 +7,13 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { PrSection } from "./PrSection";
 
+const prWatchControls = vi.hoisted(() => vi.fn<(props: unknown) => void>());
+
 vi.mock("./PrWatchControls", () => ({
-  PrWatchControls: () => null,
+  PrWatchControls: (props: unknown) => {
+    prWatchControls(props);
+    return <div data-testid="pr-watch-controls" />;
+  },
 }));
 
 vi.mock("@heroui/react", () => {
@@ -111,6 +116,7 @@ const baseProps = {
 describe("PrSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prWatchControls.mockClear();
     useGitStore.setState({ prData: { [prKey]: pr }, prDetails: {} });
     useSharedSettings.setState({ prMergeMethod: "squash" });
   });
@@ -130,6 +136,14 @@ describe("PrSection", () => {
     expect(screen.getByText("Lint").parentElement).toHaveTextContent("46s · Passed");
     expect(screen.getByText("Test").parentElement).toHaveTextContent("Running");
     expect(onRefreshPr).not.toHaveBeenCalled();
+    expect(screen.getByTestId("pr-watch-controls")).toBeInTheDocument();
+    expect(prWatchControls).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        prNumber: 42,
+        headBranch: "feature/pr-summary",
+      }),
+    );
   });
 
   it("requests details once when the compact PR data has no details", async () => {

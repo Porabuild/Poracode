@@ -19,6 +19,7 @@ import {
 import type { SharedSettings } from "@/shared/settings";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import type { ScheduleService } from "../schedules/ScheduleService";
+import type { PrWatchService } from "../prWatch";
 import { createPersistentRemoteAuthStore } from "./auth";
 import {
   remoteAccessAdvertisedHost,
@@ -72,6 +73,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly notifyRemoteAccessPairingChanged: (info: RemoteAccessPairingInfo) => void;
   readonly reportError: (error: unknown, tags?: PoracodeDiagnosticTags) => void;
   readonly scheduleService: ScheduleService;
+  readonly prWatchService: PrWatchService;
 }
 
 export interface DesktopRemoteAccessController {
@@ -373,6 +375,7 @@ export function createDesktopRemoteAccessController(
         // `ScheduleService`'s public methods already match the gateway
         // interface, so pass it directly instead of re-wrapping each method.
         schedules: options.scheduleService,
+        prWatches: options.prWatchService,
         pushRegistrations: {
           webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
           upsert: (registration) => pushStore.upsert(registration),

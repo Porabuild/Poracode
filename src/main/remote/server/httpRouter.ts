@@ -23,6 +23,8 @@ import {
   clearPendingSteerPayloadSchema,
   controlThreadGoalPayloadSchema,
   interruptThreadPayloadSchema,
+  prWatchInputSchema,
+  prWatchKeySchema,
   profileIdentitySchema,
   profileStatsRequestSchema,
   projectNotesSchema,
@@ -517,6 +519,30 @@ export async function handleHttp(
             ? schedules.update(command.id, command.task)
             : schedules.runNow(command.id);
       writeJson(res, 200, { schedule, schedules: schedules.list() });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/pr-watches") {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const key = prWatchKeySchema.parse({
+        projectId: url.searchParams.get("projectId"),
+        prNumber: Number(url.searchParams.get("prNumber")),
+      });
+      writeJson(res, 200, {
+        watch: ctx.requirePrWatchesGateway().get(key.projectId, key.prNumber),
+      });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/pr-watches") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const input = prWatchInputSchema.parse(await readJsonBody(req));
+      writeJson(res, 200, { watch: ctx.requirePrWatchesGateway().upsert(input) });
+      return;
+    }
+    if (req.method === "DELETE" && url.pathname === "/api/pr-watches") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const key = prWatchKeySchema.parse(await readJsonBody(req));
+      ctx.requirePrWatchesGateway().delete(key.projectId, key.prNumber);
+      writeJson(res, 200, { ok: true });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/browser/state") {

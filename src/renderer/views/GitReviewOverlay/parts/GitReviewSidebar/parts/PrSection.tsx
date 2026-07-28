@@ -43,7 +43,6 @@ import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksS
 import { countPassedPrChecks, getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
 import { PrWatchControls } from "./PrWatchControls";
-import { isRemoteSession } from "@/renderer/bridge";
 
 const BLOCK_REASON: Record<string, MessageDescriptor> = {
   BLOCKED: msg`Required reviews, conversations, or status checks not met.`,
@@ -171,7 +170,7 @@ export function PrSection(props: {
             <Tooltip.Content placement="top">{t`Refresh`}</Tooltip.Content>
           </Tooltip>
         )}
-        {!isRemoteSession() && canReview && details?.headBranch && (
+        {canReview && details?.headBranch && (
           <PrWatchControls
             projectId={projectId}
             prNumber={number}

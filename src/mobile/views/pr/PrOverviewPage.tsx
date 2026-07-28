@@ -37,6 +37,7 @@ import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { PrHeaderCard } from "@/renderer/views/PrReviewOverlay/parts/PrHeaderCard";
 import { PrMetaRow } from "@/renderer/views/PrReviewOverlay/parts/PrMetaRow";
 import { SubmitReviewPopover } from "@/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover";
+import { PrWatchControls } from "@/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls";
 import { SheetMenu } from "../../components";
 import { usePr } from "./prContext";
 import { PrPageHeader } from "./PrPageHeader";
@@ -194,6 +195,15 @@ export function PrOverviewPage() {
         backLabel={t`Close PR review`}
         actions={
           <>
+            {canReview && details?.headBranch ? (
+              <PrWatchControls
+                projectId={pr.project.id}
+                prNumber={pr.prNumber}
+                headBranch={details.headBranch}
+                {...(pr.worktreePath ? { worktreePath: pr.worktreePath } : {})}
+                onRefreshPr={pr.reload}
+              />
+            ) : null}
             {url ? (
               <button
                 type="button"

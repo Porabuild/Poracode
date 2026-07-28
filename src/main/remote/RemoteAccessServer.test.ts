@@ -13,6 +13,8 @@ import { WebSocket, WebSocketServer } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   Experiment,
+  PrWatch,
+  PrWatchInput,
   Project,
   ProjectNotes,
   ScheduledTask,
@@ -3750,6 +3752,99 @@ describe("RemoteAccessServer", () => {
       schedules: [{ name: "Daily brief" }],
     });
     expect(create).toHaveBeenCalledWith(input);
+  });
+
+  it("reads and modifies PR automation with read and operate scopes", async () => {
+    let stored: PrWatch | null = null;
+    const upsert = vi.fn<(input: PrWatchInput) => PrWatch>((input) => {
+      stored = {
+        ...input,
+        lastCommentCursor: null,
+        lastReviewCommentCursor: null,
+        lastReviewCursor: null,
+        lastCheckKey: null,
+        activeThreadId: null,
+        lastError: null,
+      };
+      return stored;
+    });
+    const remove = vi.fn<(projectId: string, prNumber: number) => void>(() => {
+      stored = null;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      prWatches: {
+        get: () => stored,
+        upsert,
+        delete: remove,
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const readToken = await issueAccessToken(info, ["session:read"]);
+    const readHeaders = {
+      authorization: `Bearer ${readToken}`,
+      "content-type": "application/json",
+    };
+    const emptyResponse = await fetch(
+      new URL("/api/pr-watches?projectId=project-1&prNumber=42", info.httpBaseUrl),
+      { headers: readHeaders },
+    );
+    expect(emptyResponse.status).toBe(200);
+    await expect(emptyResponse.json()).resolves.toEqual({ watch: null });
+
+    const input: PrWatchInput = {
+      projectId: "project-1",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      worktreePath: "/repo/worktree",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol", effort: "high" },
+    };
+    const deniedWrite = await fetch(new URL("/api/pr-watches", info.httpBaseUrl), {
+      method: "POST",
+      headers: readHeaders,
+      body: JSON.stringify(input),
+    });
+    expect(deniedWrite.status).toBe(403);
+
+    const operateToken = await issueAccessToken({ ...info, pairingUrl: server.issuePairingUrl() }, [
+      "session:operate",
+    ]);
+    const operateHeaders = {
+      authorization: `Bearer ${operateToken}`,
+      "content-type": "application/json",
+    };
+    const upsertResponse = await fetch(new URL("/api/pr-watches", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify(input),
+    });
+    expect(upsertResponse.status).toBe(200);
+    await expect(upsertResponse.json()).resolves.toMatchObject({
+      watch: {
+        projectId: "project-1",
+        prNumber: 42,
+        autoMerge: true,
+      },
+    });
+    expect(upsert).toHaveBeenCalledWith(input);
+
+    const deleteResponse = await fetch(new URL("/api/pr-watches", info.httpBaseUrl), {
+      method: "DELETE",
+      headers: operateHeaders,
+      body: JSON.stringify({ projectId: "project-1", prNumber: 42 }),
+    });
+    expect(deleteResponse.status).toBe(200);
+    expect(remove).toHaveBeenCalledWith("project-1", 42);
+    expect(stored).toBeNull();
   });
 
   it("serves profile devices/stats reads and the identity write, gated by scope", async () => {

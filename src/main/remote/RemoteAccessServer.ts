@@ -15,6 +15,8 @@ import {
 } from "@/shared/remote";
 import type {
   McpLaunchSnapshot,
+  PrWatch,
+  PrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
@@ -161,6 +163,12 @@ export interface RemoteAccessServerOptions {
     delete(id: string): void;
     runNow(id: string): ScheduledTask;
   };
+  /** Persistent PR automation owned by the host process. */
+  readonly prWatches?: {
+    get(projectId: string, prNumber: number): PrWatch | null;
+    upsert(input: PrWatchInput): PrWatch;
+    delete(projectId: string, prNumber: number): void;
+  };
   /** Latest per-thread git/PR summaries published by the desktop renderer. */
   gitSummaries?(): RemoteGitSummaries;
   /**
@@ -277,6 +285,7 @@ export class RemoteAccessServer {
       requireInfo: () => this.requireInfo(),
       requireSettingsGateway: () => this.requireSettingsGateway(),
       requireSchedulesGateway: () => this.requireSchedulesGateway(),
+      requirePrWatchesGateway: () => this.requirePrWatchesGateway(),
       requireBrowserGateway: () => this.requireBrowserGateway(),
       requirePortForwardGateway: () => this.requirePortForwardGateway(),
       requirePortProxy: () => this.requirePortProxy(),
@@ -501,7 +510,8 @@ export class RemoteAccessServer {
       | "portProxy"
       | "pushRegistrations"
       | "settings"
-      | "schedules",
+      | "schedules"
+      | "prWatches",
   >(key: K, code: string, message: string): NonNullable<RemoteAccessServerOptions[K]> {
     const value = this.options[key];
     if (!value) {
@@ -555,6 +565,14 @@ export class RemoteAccessServer {
       "schedules",
       "schedules_unavailable",
       "Scheduled tasks are not available on this desktop.",
+    );
+  }
+
+  private requirePrWatchesGateway(): NonNullable<RemoteAccessServerOptions["prWatches"]> {
+    return this.requireOption(
+      "prWatches",
+      "pr_watches_unavailable",
+      "PR automation is not available on this desktop.",
     );
   }
 
