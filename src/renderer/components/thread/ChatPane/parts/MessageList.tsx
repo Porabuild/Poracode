@@ -20,6 +20,8 @@ import type {
   ThreadConfig,
   ToolCallPayload,
 } from "@/shared/contracts";
+import { threadProductProperties } from "@/renderer/analytics/posthog";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -334,6 +336,7 @@ export function MessageList({
           ? countRollbackTurnsAfterCheckpoint(itemIds, itemsById, completedTurns, itemId)
           : 0;
       const revert = checkpointActions ?? readBridge();
+      let providerRollbackSucceeded = rollbackTurns === 0;
       if (rollbackTurns > 0) {
         try {
           await revert.rollbackThreadConversation({
@@ -341,6 +344,7 @@ export function MessageList({
             numTurns: rollbackTurns,
             ...(threadConfig ? { config: threadConfig } : {}),
           });
+          providerRollbackSucceeded = true;
         } catch (error) {
           console.warn(
             "[checkpoint] provider rollback failed; continuing with local revert",
@@ -357,6 +361,13 @@ export function MessageList({
       }
       state.truncateThreadRuntimeAfter(threadId, itemId);
       await readBridge().dbTruncateThreadRuntimeAfter({ threadId, itemId });
+      const thread = state.threads.find((item) => item.id === threadId);
+      captureProductEvent("thread.checkpoint_reverted", {
+        ...(thread ? threadProductProperties(thread) : {}),
+        has_file_checkpoint: Boolean(projectLocation && checkpoint),
+        outcome: providerRollbackSucceeded ? "complete" : "local_only",
+        rollback_turn_count: rollbackTurns,
+      });
       parentActions?.onContentHeightChange();
     },
     [checkpointActions, parentActions, projectLocation, threadConfig, threadId],

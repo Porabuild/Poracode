@@ -2,6 +2,10 @@ import { useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
+import {
+  productSurfaceView,
+  useProductViewTracking,
+} from "@/renderer/analytics/useProductViewTracking";
 import { BrowserDockSlot } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot";
 import {
   extractBrowserToWindow,
@@ -77,7 +81,7 @@ function resolveFilesRootContext(
   };
 }
 
-export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
+export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible: boolean }) {
   const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
@@ -201,6 +205,10 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   }
 
   const activeTab = requestedTabIsAvailable() ? requestedTab : fallbackActiveTab();
+  useProductViewTracking(productSurfaceView(activeTab, "panel"), "panel", {
+    active: props.visible,
+    finishWhenInactive: true,
+  });
 
   const gitScope = scopeFromGitContext(gitPanelContext);
   const filesScope = scopeFromFilesContext(resolvedFilesPanelContext);

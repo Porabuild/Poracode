@@ -418,9 +418,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   function handleInterrupt() {
     if (isInterrupting) return;
     setIsInterrupting(true);
-    captureProductEvent("thread.interrupted", threadProductProperties(thread));
     void readBridge()
       .interruptThread({ threadId: thread.id })
+      .then(() => {
+        captureProductEvent("thread.interrupted", threadProductProperties(thread));
+      })
       .catch((error: unknown) => {
         setIsInterrupting(false);
         console.error("[thread] failed to interrupt turn", error);

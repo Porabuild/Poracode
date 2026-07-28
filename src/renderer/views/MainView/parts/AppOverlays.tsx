@@ -3,6 +3,10 @@ import { AlertDialog } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import {
+  productSurfaceView,
+  useProductViewTracking,
+} from "@/renderer/analytics/useProductViewTracking";
 import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import {
   DeferredBrowserHost as PrewarmedBrowserHost,
@@ -71,6 +75,30 @@ export function AppOverlays() {
     ? projects.find((p) => p.id === prReviewContext.projectId)
     : undefined;
   const prReviewVisible = !!prReviewContext && !!prReviewProject;
+  const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
+  const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
+  const trackedOverlaySurface =
+    fileEditorOverlayMode && fileEditorRootContext
+      ? `editor_${fileEditorOverlayMode}`
+      : prReviewVisible
+        ? "pull_request_review"
+        : gitOverlayVisible
+          ? "git_review"
+          : browserOverlayOpen
+            ? browserOverlayMaximized
+              ? "browser_fullscreen"
+              : "browser_drawer"
+            : remoteThreadOpen
+              ? "remote_thread"
+              : null;
+  useProductViewTracking(
+    productSurfaceView(trackedOverlaySurface ?? "inactive", "overlay"),
+    "overlay",
+    {
+      active: trackedOverlaySurface !== null,
+      finishWhenInactive: true,
+    },
+  );
 
   return (
     <>

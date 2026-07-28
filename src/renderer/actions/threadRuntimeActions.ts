@@ -1,6 +1,7 @@
 import type {
   ProjectLocation,
   PromptSegment,
+  RequestOutcome,
   SendThreadInputPayload,
   Thread,
   ThreadConfig,
@@ -12,7 +13,11 @@ import { friendlyError } from "@/shared/messages";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { readBridge } from "@/renderer/bridge";
-import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
+import {
+  captureThreadPromptSubmitted,
+  threadProductProperties,
+} from "@/renderer/analytics/posthog";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 
@@ -109,7 +114,7 @@ export async function performThreadInputSubmit(input: {
     }
     throw error;
   }
-  captureThreadInputSubmitted(thread, segments);
+  captureThreadPromptSubmitted(thread, prompt, segments);
   store.touchThread(thread.id);
 }
 
@@ -154,6 +159,10 @@ export async function resolveThreadServerRequest(
     requestId: ThreadServerRequestId;
     method: string;
     response: unknown;
+    analytics?: {
+      outcome: RequestOutcome;
+      requestType: string;
+    };
   },
 ): Promise<void> {
   await readBridge().resolveThreadServerRequest({
@@ -162,7 +171,16 @@ export async function resolveThreadServerRequest(
     method: input.method,
     response: input.response,
   });
-  useAppStore.getState().touchThread(threadId);
+  const store = useAppStore.getState();
+  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  if (input.analytics) {
+    captureProductEvent("thread.request_resolved", {
+      ...(thread ? threadProductProperties(thread) : {}),
+      outcome: input.analytics.outcome,
+      request_type: input.analytics.requestType,
+    });
+  }
+  store.touchThread(threadId);
 }
 
 /**
