@@ -26,6 +26,7 @@ import {
 } from "@/shared/remote";
 import type { SshConnectionConfig } from "@/shared/ssh";
 import { readBridge } from "@/renderer/bridge";
+import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { i18n } from "@/renderer/i18n/i18n";
 import {
   applyThreadSnapshot,
@@ -827,6 +828,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             get().runtime[open.desktopId]?.threads.find((t) => t.id === open.threadId) ??
             open.thread;
           await client.sendThreadInput({ threadId: open.threadId, prompt, config: latest.config });
+          captureThreadPromptSubmitted(latest, prompt, undefined, "remote");
         },
 
         writeRemoteTerminal: async (data) => {

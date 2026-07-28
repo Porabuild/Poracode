@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Button, ButtonGroup, Dropdown, Input, Label, TextField } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Bot, CalendarClock, ChevronDown, Clock3, Loader2, Plus, Sparkles } from "lucide-react";
-import type { ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
+import type { AgentCapability, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
+import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
+import { agentConfigProductProperties } from "@/renderer/analytics/threadAnalyticsProperties";
 import { readBridge } from "@/renderer/bridge";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
@@ -30,6 +33,23 @@ type FilterMode = "all" | "active" | "paused";
 
 function replaceTask(tasks: ScheduledTask[], next: ScheduledTask): ScheduledTask[] {
   return tasks.map((task) => (task.id === next.id ? next : task));
+}
+
+function scheduleAnalyticsProperties(
+  task: ScheduledTaskInput,
+  capabilities: AgentCapability | undefined,
+) {
+  return {
+    ...agentConfigProductProperties({
+      agentKind: task.agentKind,
+      config: task.config,
+      ...(capabilities ? { capabilities } : {}),
+    }),
+    enabled: task.enabled,
+    has_project: Boolean(task.projectId),
+    provider: normalizeAnalyticsProvider(task.agentKind),
+    recurrence: task.recurrence.kind,
+  };
 }
 
 export function SchedulesView() {
@@ -166,7 +186,16 @@ export function SchedulesView() {
     setError("");
     void readBridge()
       .runScheduleNow({ id: task.id })
-      .then((next) => setTasks((current) => replaceTask(current, next)))
+      .then((next) => {
+        setTasks((current) => replaceTask(current, next));
+        captureProductEvent("schedule.run_requested", {
+          ...scheduleAnalyticsProperties(
+            task,
+            agents.find((agent) => agent.kind === task.agentKind)?.capabilities,
+          ),
+          source: "manual",
+        });
+      })
       .catch((runError: unknown) =>
         setError(runError instanceof Error ? runError.message : String(runError)),
       );
@@ -205,6 +234,13 @@ export function SchedulesView() {
       } else {
         const next = await readBridge().createSchedule(input);
         setTasks((current) => [...current, next]);
+        captureProductEvent("schedule.created", {
+          ...scheduleAnalyticsProperties(
+            input,
+            agents.find((agent) => agent.kind === input.agentKind)?.capabilities,
+          ),
+          source: "editor",
+        });
       }
       setDraft(null);
     } catch (saveError) {
@@ -218,8 +254,16 @@ export function SchedulesView() {
     setBusy(true);
     setError("");
     try {
-      const next = await readBridge().createSchedule(scheduleDraftInput(preset));
+      const input = scheduleDraftInput(preset);
+      const next = await readBridge().createSchedule(input);
       setTasks((current) => [...current, next]);
+      captureProductEvent("schedule.created", {
+        ...scheduleAnalyticsProperties(
+          input,
+          agents.find((agent) => agent.kind === input.agentKind)?.capabilities,
+        ),
+        source: "preset",
+      });
     } catch (presetError) {
       setError(presetError instanceof Error ? presetError.message : String(presetError));
     } finally {

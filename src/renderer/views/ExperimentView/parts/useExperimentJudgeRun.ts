@@ -134,10 +134,11 @@ export function useExperimentJudgeRun(args: {
           model: selectedConfig.model,
           ...(selectedConfig.effort ? { effort: selectedConfig.effort } : {}),
           fast: selectedConfig.fast,
+          mode: selectedConfig.mode,
         },
         (event) => {
           if (event.kind === "capturing") {
-            append({ kind: "capturing" });
+            append({ kind: "capturing", mode: event.mode });
           } else if (event.kind === "captured") {
             const display = candidateDisplay(event.threadId);
             append({
@@ -146,9 +147,17 @@ export function useExperimentJudgeRun(args: {
               files: event.files,
               insertions: event.insertions,
               deletions: event.deletions,
+              ...(event.omittedFiles ? { omittedFiles: event.omittedFiles } : {}),
+            });
+          } else if (event.kind === "captured-response") {
+            const display = candidateDisplay(event.threadId);
+            append({
+              kind: "captured-response",
+              ...display,
+              characters: event.characters,
             });
           } else if (event.kind === "judging") {
-            append({ kind: "judging", judgeLabel });
+            append({ kind: "judging", judgeLabel, mode: event.mode });
           } else if (event.kind === "winner") {
             setRun((previous) => (previous?.stage === "running" ? winnerRun(event) : previous));
           }

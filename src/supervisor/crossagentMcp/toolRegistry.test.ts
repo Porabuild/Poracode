@@ -472,7 +472,10 @@ describe("subagent tool registration", () => {
   it("declares required fields on the subagent tool schemas", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
-      oneOf: [{ required: ["prompt"] }, { required: ["tasks"] }],
+      oneOf: [
+        { type: "object", required: ["prompt"] },
+        { type: "object", required: ["tasks"] },
+      ],
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
     expect(byName.get("set_routing_preference")!.inputSchema).toMatchObject({
@@ -482,7 +485,10 @@ describe("subagent tool registration", () => {
       required: ["tags"],
     });
     expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({
-      oneOf: [{ required: ["run_id"] }, { required: ["run_ids"] }],
+      oneOf: [
+        { type: "object", required: ["run_id"] },
+        { type: "object", required: ["run_ids"] },
+      ],
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });

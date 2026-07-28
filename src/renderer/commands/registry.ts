@@ -6,7 +6,7 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import type { AgentSlashCommand, Project, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
-import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
+import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { addExistingProject } from "@/renderer/actions/createProjectActions";
 import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
 import {
@@ -469,7 +469,7 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
         prompt: `/${command.id}`,
         config: thread.config,
       });
-      captureThreadInputSubmitted(thread);
+      captureThreadPromptSubmitted(thread, `/${command.id}`, undefined, "command_palette");
       useAppStore.getState().touchThread(thread.id);
     },
   };

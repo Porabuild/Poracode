@@ -24,7 +24,7 @@ export function MainRightPanel() {
       {!isTerminalRight ? (
         <DeferredDevTerminalPanel />
       ) : (
-        <DeferredProjectAuxiliaryPanel includeTerminal />
+        <DeferredProjectAuxiliaryPanel includeTerminal visible={rightPanelOpen} />
       )}
     </Suspense>
   );

@@ -14,6 +14,7 @@ import {
   resolveThreadServerRequest,
   submitThreadInput,
 } from "@/renderer/actions/threadRuntimeActions";
+import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildLcSelectorFence, buildSelectorPlainText } from "@/renderer/state/browserAttachInbox";
@@ -166,6 +167,10 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       requestId: activeRuntimeRequest.requestId,
       method: "requestPermission",
       response: { optionId: approvalDenyOption.optionId },
+      analytics: {
+        outcome: "declined",
+        requestType: activeRuntimeRequest.requestType,
+      },
     }).catch((err) => {
       console.error("[chat] auto-deny on composer submit failed", err);
       rollback();
@@ -182,15 +187,24 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     ctx.onSubmitInput ??
     ((outgoingPrompt: string, outgoingSegments?: PromptSegment[]) =>
       submitThreadInput(thread.id, outgoingPrompt, outgoingSegments));
-  const runSubmission = () =>
-    ctx.usesPendingSteerPath
-      ? readBridge().setPendingSteer({
-          threadId: thread.id,
-          prompt: flat,
-          ...(allSegments.length > 0 ? { segments: allSegments } : {}),
-          config: thread.config,
-        })
-      : submit(flat, allSegments.length > 0 ? allSegments : undefined);
+  const runSubmission = async () => {
+    if (!ctx.usesPendingSteerPath) {
+      await submit(flat, allSegments.length > 0 ? allSegments : undefined);
+      return;
+    }
+    await readBridge().setPendingSteer({
+      threadId: thread.id,
+      prompt: flat,
+      ...(allSegments.length > 0 ? { segments: allSegments } : {}),
+      config: thread.config,
+    });
+    captureThreadPromptSubmitted(
+      thread,
+      flat,
+      allSegments.length > 0 ? allSegments : undefined,
+      "pending_steer",
+    );
+  };
 
   if (!usesTerminalPresentation) {
     clearSubmittedComposer();

@@ -9,6 +9,7 @@ import {
   type RuntimeChoice,
 } from "@/shared/createProject";
 import { getProjectFsPath } from "@/shared/wsl";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -32,7 +33,12 @@ export interface CommitCreateProjectParams {
  * runtime (so the next create/clone starts there), add it to the store, detect
  * its setup script, and open its draft. Shared by the create and clone flows.
  */
-function registerNewProject(location: ProjectLocation, name: string, lastUsedDir: string): void {
+function registerNewProject(
+  location: ProjectLocation,
+  name: string,
+  lastUsedDir: string,
+  source: "clone" | "existing" | "scratch",
+): void {
   useSharedSettings.getState().setLastUsedProjectDir(runtimeKeyForLocation(location), lastUsedDir);
 
   startTransition(() => {
@@ -41,6 +47,10 @@ function registerNewProject(location: ProjectLocation, name: string, lastUsedDir
     const project = useAppStore
       .getState()
       .addProject(location, name || undefined, getActiveWorkspaceId() ?? undefined);
+    captureProductEvent("project.added", {
+      location_kind: location.kind,
+      source,
+    });
     autoDetectSetupScript(project);
     useAppStore.getState().openDraft(project.id);
   });
@@ -69,7 +79,7 @@ export async function commitCreateProject(params: CommitCreateProjectParams): Pr
     lastUsedDir = parentDirOf(params.dir, location.kind);
   }
 
-  registerNewProject(location, name, lastUsedDir);
+  registerNewProject(location, name, lastUsedDir, params.mode);
 }
 
 /**
@@ -146,5 +156,5 @@ export async function commitCloneProject(params: CommitCloneProjectParams): Prom
     source: params.source,
   });
 
-  registerNewProject(deriveLocationFromPath(path, platform), name, params.parentDir);
+  registerNewProject(deriveLocationFromPath(path, platform), name, params.parentDir, "clone");
 }
