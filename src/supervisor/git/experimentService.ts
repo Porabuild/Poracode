@@ -41,20 +41,15 @@ export class GitExperimentService {
       throw new Error(msg("experiment.diff.baseFullCommit"));
     }
 
-    const first = await this.captureCandidateStats(location, baseRef);
-    const second = await this.captureCandidateStats(location, baseRef);
-    if (
-      first.headCommit !== second.headCommit ||
-      first.insertions !== second.insertions ||
-      first.deletions !== second.deletions ||
-      first.files !== second.files
-    ) {
-      throw new Error(msg("experiment.candidate.changedDuringStats"));
-    }
+    // These stats are advisory UI data, unlike the exact diff snapshot used for
+    // judging and merging. A second equality pass makes actively-writing
+    // candidates repeatedly reject and leaves their cards stuck on old cached
+    // values, while also doubling the cost for large untracked directories.
+    const snapshot = await this.captureCandidateStats(location, baseRef);
     return {
-      insertions: second.insertions,
-      deletions: second.deletions,
-      files: second.files,
+      insertions: snapshot.insertions,
+      deletions: snapshot.deletions,
+      files: snapshot.files,
     };
   }
 

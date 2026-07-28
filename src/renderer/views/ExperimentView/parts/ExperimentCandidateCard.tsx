@@ -1,11 +1,8 @@
-import { useEffect, useState } from "react";
 import { ButtonGroup, Dropdown, Label } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { ChevronDown, Crown, GitMerge, GitPullRequest, Loader2 } from "lucide-react";
-import type { ExperimentCandidate, GetExperimentCandidateStatsResult } from "@/shared/contracts";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import type { ExperimentCandidate } from "@/shared/contracts";
 import { showGitReviewPanel } from "@/renderer/actions/panelActions";
-import { readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common/Button";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -13,10 +10,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { useThread } from "@/renderer/state/useThread";
 import { getPrStatusTone, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
-
-type CandidateStatsState = GetExperimentCandidateStatsResult | "loading" | "unavailable";
-
-const candidateStatsCache = new Map<string, GetExperimentCandidateStatsResult | "unavailable">();
+import { useExperimentCandidateStats } from "./useExperimentCandidateStats";
 
 export function ExperimentCandidateCard(props: {
   candidate: ExperimentCandidate;
@@ -57,43 +51,14 @@ export function ExperimentCandidateCard(props: {
   const hasPullRequest = prNumber !== undefined && pullRequest?.state !== "closed";
   const prIconClass =
     PR_TONE_TEXT_CLASS[getPrStatusTone(pullRequest?.state, pullRequest?.checksStatus)];
-  const statsCacheKey = worktreePath ? `${worktreePath}\0${props.baseCommit}` : "";
-  const [stats, setStats] = useState<CandidateStatsState>("loading");
-  useEffect(() => {
-    if (!projectLocation || !worktreePath) {
-      setStats(candidate.worktreeState === "pending" ? "loading" : "unavailable");
-      return;
-    }
-    let cancelled = false;
-    const cached = candidateStatsCache.get(statsCacheKey);
-    if (cached) setStats(cached);
-    void readBridge()
-      .getExperimentCandidateStats({
-        projectLocation: buildWorktreeLocation(projectLocation, worktreePath),
-        baseRef: props.baseCommit,
-      })
-      .then((nextStats) => {
-        candidateStatsCache.set(statsCacheKey, nextStats);
-        if (!cancelled) setStats(nextStats);
-      })
-      .catch(() => {
-        if (!candidateStatsCache.has(statsCacheKey)) {
-          candidateStatsCache.set(statsCacheKey, "unavailable");
-          if (!cancelled) setStats("unavailable");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    candidate.worktreeState,
-    isActive,
+  const { stats, isRefreshing: statsRefreshing } = useExperimentCandidateStats({
     projectLocation,
-    props.baseCommit,
-    statsCacheKey,
     worktreePath,
+    baseCommit: props.baseCommit,
+    worktreeState: candidate.worktreeState,
     worktreeStatus,
-  ]);
+    isActive,
+  });
   const provider = candidate.agentLabel ?? candidate.agentKind;
   const label = props.configLabel || provider;
   const details = props.configLabel ? provider : "";
@@ -146,6 +111,9 @@ export function ExperimentCandidateCard(props: {
           }}
         >
           <span className="flex items-center gap-1 font-medium tabular-nums">
+            {statsRefreshing ? (
+              <Loader2 className="size-2.5 animate-spin text-muted" aria-hidden />
+            ) : null}
             <span className="text-success">+{stats.insertions}</span>
             <span className="text-danger">−{stats.deletions}</span>
           </span>

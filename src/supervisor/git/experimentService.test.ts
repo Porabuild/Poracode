@@ -61,7 +61,7 @@ describe("GitExperimentService", () => {
     const untrackedDiffCalls = execGitMock.mock.calls.filter(([, args]) =>
       args.includes("--no-index"),
     );
-    expect(untrackedDiffCalls).toHaveLength(2);
+    expect(untrackedDiffCalls).toHaveLength(1);
     expect(untrackedDiffCalls.every(([, args]) => args.at(-1) === ".venv/bin/python")).toBe(true);
   });
 });
