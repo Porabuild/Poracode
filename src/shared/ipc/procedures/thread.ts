@@ -67,6 +67,7 @@ import type {
   ResolveAgentAccountResult,
   WriteTerminalPayload,
 } from "../../contracts";
+import type { CrossagentRoutingSnapshotEntry } from "../../crossagentRanking";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
   readThreadPayloadSchema,
@@ -82,6 +83,10 @@ import {
 } from "../schemas";
 
 export const threadProcedures = {
+  getCrossagentRouting: defineNoArgProcedure<CrossagentRoutingSnapshotEntry[], "supervisor">(
+    "getCrossagentRouting",
+    "supervisor",
+  ),
   getAgentStatuses: defineIpcProcedure<
     [string[]?],
     GetAgentStatusesPayload,

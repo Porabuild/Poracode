@@ -68,6 +68,7 @@ import {
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { SharedSettings } from "@/shared/settings";
+import { removeCrossagentRoutingOverride } from "@/shared/crossagentRanking";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
@@ -349,6 +350,15 @@ export function createLocalIpcHandlers(
       writeSharedSettingsFile(settingsPath, merged);
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.(merged);
+    },
+    removeCrossagentRoutingOverride: ({ tags }) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const current = readSharedSettingsFile(settingsPath);
+      const overrides = removeCrossagentRoutingOverride(current.crossagentRoutingOverrides, tags);
+      const settings = { ...current, crossagentRoutingOverrides: overrides };
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return overrides;
     },
     setClaudeProfileEnvironment: (payload) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;

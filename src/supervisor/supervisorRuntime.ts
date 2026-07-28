@@ -24,6 +24,7 @@ import type {
   RelocateProjectResult,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { msg } from "@/shared/messages";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { joinProjectPosixPath } from "@/shared/wsl";
@@ -53,11 +54,12 @@ import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSess
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
 import { CrossagentMcpIngress } from "./crossagentMcp/CrossagentMcpIngress";
 import { SubagentRunManager } from "./crossagentMcp/SubagentRunManager";
+import { RoutingOverridePersistence } from "./crossagentMcp/RoutingOverridePersistence";
 import {
   visibleCrossagentCapabilitiesForAdapter,
   type CrossagentVisibilitySettings,
 } from "./crossagentMcp/availability";
-import { buildSpawnableAgents } from "./crossagentMcp/toolRegistry";
+import { buildSpawnableAgents, crossagentRoutingSnapshot } from "./crossagentMcp/toolRegistry";
 import { dispatchAgentEvent } from "./runtime/agentEventDispatcher";
 import { hookDebugEnvelope, isPoracodeHookDebug } from "./runtime/hookDebug";
 import { SupervisorSharedSettingsCache } from "./runtime/supervisorSharedSettings";
@@ -113,6 +115,7 @@ export class SupervisorRuntime {
   readonly skillsService: SkillsService;
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
+  private readonly routingOverridePersistence: RoutingOverridePersistence;
   private wslHookBridge: WslBridgeServer | undefined;
 
   readonly sessions: Map<string, SessionRuntime>;
@@ -157,6 +160,10 @@ export class SupervisorRuntime {
     this.settingsPath = paths.settingsPath;
     this.acpIconsDir = paths.acpIconsDir;
     this.sharedSettingsCache = new SupervisorSharedSettingsCache(this.settingsPath);
+    this.routingOverridePersistence = new RoutingOverridePersistence({
+      emit,
+      invalidateSettings: () => this.sharedSettingsCache.invalidate(),
+    });
     // The agent/ACP registry cluster. Constructed up front so the initial
     // adapter build below can run before the later-created services exist; those
     // dependencies (status/usage/hook-plugin/sessions) resolve lazily at call
@@ -326,11 +333,7 @@ export class SupervisorRuntime {
     });
     this.crossagentMcpIngress = new CrossagentMcpIngress({
       runManager: this.subagentRunManager,
-      getSpawnableAgents: async () => {
-        const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
-        const settings: CrossagentVisibilitySettings = this.sharedSettingsCache.read();
-        return buildSpawnableAgents(this.adapters, windows, settings);
-      },
+      getSpawnableAgents: (tags) => this.getCrossagentSpawnableAgents(tags),
       resolveProviderSessionThreadId: (sessionId) =>
         this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
       // User-configured routing guidance, read live from shared settings (the
@@ -339,6 +342,37 @@ export class SupervisorRuntime {
       getRoutingGuide: () => {
         const guide = this.sharedSettingsCache.read().crossagentRoutingGuide.trim();
         return guide.length > 0 ? guide : undefined;
+      },
+      recordExplicitSelections: (selections) => {
+        const validSelections = selections.flatMap(({ selection, explicitFields, tags }) =>
+          selection.model
+            ? [
+                {
+                  agentKind: selection.agent,
+                  modelId: selection.model,
+                  ...(selection.effort ? { effort: selection.effort } : {}),
+                  fast: selection.fast === true,
+                  ...(tags.length > 0 ? { tags } : {}),
+                  explicitFields,
+                },
+              ]
+            : [],
+        );
+        if (validSelections.length === 0) return;
+        emit({
+          type: "crossagent-selection-used",
+          selections: validSelections,
+        });
+      },
+      listRoutingOverrides: () => this.sharedSettingsCache.read().crossagentRoutingOverrides,
+      setRoutingOverride: (override) => {
+        return this.routingOverridePersistence.persist({ action: "set", override });
+      },
+      removeRoutingOverride: (tags) => {
+        return this.routingOverridePersistence.persist({
+          action: "remove",
+          tags: [...tags],
+        });
       },
     });
     void this.crossagentMcpIngress.start().catch((error) => {
@@ -424,6 +458,20 @@ export class SupervisorRuntime {
     // through a network round-trip on every start. No-op (no network) once all
     // icons are local. Fire-and-forget — never blocks the window from opening.
     void this.agentRegistryService.cacheLocalAcpIconsOnLaunch();
+  }
+
+  async getCrossagentSpawnableAgents(contextTags: readonly string[] = []) {
+    const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
+    const settings: CrossagentVisibilitySettings = this.sharedSettingsCache.read();
+    return buildSpawnableAgents(this.adapters, windows, settings, contextTags);
+  }
+
+  async getCrossagentRoutingSnapshot() {
+    return crossagentRoutingSnapshot(await this.getCrossagentSpawnableAgents());
+  }
+
+  confirmCrossagentRoutingOverride(payload: ConfirmCrossagentRoutingOverridePayload): void {
+    this.routingOverridePersistence.confirm(payload);
   }
 
   /** Distinct WSL distros hosting a live `antigravity` session (the only
@@ -706,6 +754,7 @@ export class SupervisorRuntime {
   }
 
   async disposeAsync(): Promise<void> {
+    this.routingOverridePersistence.dispose();
     this.usageService.stop();
     this.mcpProbeService.dispose();
     this.mcpOAuthService.dispose();

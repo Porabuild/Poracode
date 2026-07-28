@@ -20,6 +20,8 @@ const PROTECTED_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "agentInstances",
   "acpRegistryInstalledAgents",
   "agentHookSupport",
+  "crossagentSelectionUsage",
+  "crossagentRoutingOverrides",
   "mcpServers",
 ]);
 

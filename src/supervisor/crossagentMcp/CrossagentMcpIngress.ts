@@ -1,10 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
+import type { CrossagentRoutingOverride } from "@/shared/settings";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { buildSubagentInstructions, dispatchTool, isKnownToolName, TOOLS } from "./toolRegistry";
 import { errorResult } from "./toolResult";
-import type { SpawnableAgent } from "./types";
+import type { ExplicitSpawnAgentSelection, SpawnableAgent } from "./types";
 
 export interface CrossagentMcpIngressInfo {
   url: string;
@@ -14,11 +15,17 @@ export interface CrossagentMcpIngressInfo {
 export interface CrossagentMcpIngressDeps {
   runManager: SubagentRunManager;
   /** Catalog of installed + authenticated agents the caller may spawn. */
-  getSpawnableAgents: () => Promise<SpawnableAgent[]>;
+  getSpawnableAgents: (tags?: readonly string[]) => Promise<SpawnableAgent[]>;
   /** Resolve a trusted provider-native session id to its live Poracode parent. */
   resolveProviderSessionThreadId?: (sessionId: string) => string | undefined;
   /** Optional user-provided routing guide appended to the MCP instructions (phase 3). */
   getRoutingGuide?: () => string | undefined;
+  /** Report only caller-explicit selections; auto-ranked choices must not reinforce themselves. */
+  recordExplicitSelections?: (selections: readonly ExplicitSpawnAgentSelection[]) => void;
+  /** Read and mutate only user-explicit persistent task routing preferences. */
+  listRoutingOverrides?: () => readonly CrossagentRoutingOverride[];
+  setRoutingOverride?: (override: CrossagentRoutingOverride) => void | Promise<void>;
+  removeRoutingOverride?: (tags: readonly string[]) => void | Promise<void>;
 }
 
 const MAX_BODY = 1024 * 1024;
@@ -373,6 +380,18 @@ export class CrossagentMcpIngress {
           parentThreadId: threadId,
           runManager: this.deps.runManager,
           listSpawnableAgents: this.deps.getSpawnableAgents,
+          ...(this.deps.recordExplicitSelections
+            ? { recordExplicitSelections: this.deps.recordExplicitSelections }
+            : {}),
+          ...(this.deps.listRoutingOverrides
+            ? { listRoutingOverrides: this.deps.listRoutingOverrides }
+            : {}),
+          ...(this.deps.setRoutingOverride
+            ? { setRoutingOverride: this.deps.setRoutingOverride }
+            : {}),
+          ...(this.deps.removeRoutingOverride
+            ? { removeRoutingOverride: this.deps.removeRoutingOverride }
+            : {}),
         });
         return { jsonrpc: "2.0", id, result };
       }

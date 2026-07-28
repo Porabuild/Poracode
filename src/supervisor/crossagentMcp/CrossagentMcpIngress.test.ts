@@ -28,6 +28,14 @@ const AGENTS: SpawnableAgent[] = [
       default: "full-access",
     },
     execution: "structured",
+    preference: {
+      rank: 1,
+      source: "built-in",
+      usageCount: 0,
+      model: "gpt-5.5",
+      reasoning: "high",
+      fast: false,
+    },
   },
 ];
 
@@ -262,7 +270,10 @@ describe("CrossagentMcpIngress", () => {
       "get_agent",
       "get_status",
       "list_agents",
+      "list_routing_preferences",
       "list_runs",
+      "remove_routing_preference",
+      "set_routing_preference",
       "spawn_agent",
       "wait_for_agent",
     ]);
@@ -296,6 +307,14 @@ describe("CrossagentMcpIngress", () => {
         execution: "structured",
         defaultModel: "gpt-5.5",
         modelCount: 1,
+        rank: 1,
+        preferenceSource: "built-in",
+        usageCount: 0,
+        preferredModel: "gpt-5.5",
+        preferredReasoning: "high",
+        preferredFast: false,
+        matchedTags: [],
+        learnedTags: [],
       },
     ]);
   });

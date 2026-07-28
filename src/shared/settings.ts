@@ -30,6 +30,47 @@ const modelPickerEntrySchema = z.object({
   presentationMode: threadPresentationModeSchema.default("terminal"),
 });
 
+export const agentSelectionUsageEntrySchema = z.object({
+  agentKind: z.string().min(1),
+  modelId: z.string().min(1),
+  effort: z.string().optional(),
+  fast: z.boolean().default(false),
+  count: z.number().int().positive(),
+  lastUsedAt: z.number().int().nonnegative(),
+});
+export type AgentSelectionUsageEntry = z.infer<typeof agentSelectionUsageEntrySchema>;
+
+export const crossagentSelectionUsageEntrySchema = agentSelectionUsageEntrySchema.extend({
+  /** Normalized task classifications supplied by the calling agent. */
+  tags: z.array(z.string().min(1).max(32)).max(5).optional(),
+  /**
+   * Fields the caller actually supplied. Missing on legacy entries, which are
+   * treated as fully explicit to preserve their existing ranking behavior.
+   */
+  explicitFields: z
+    .object({
+      provider: z.boolean(),
+      model: z.boolean(),
+      effort: z.boolean(),
+      fast: z.boolean(),
+    })
+    .optional(),
+});
+export type CrossagentSelectionUsageEntry = z.infer<typeof crossagentSelectionUsageEntrySchema>;
+
+export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
+export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
+
+export const crossagentRoutingOverrideSchema = z.object({
+  tags: z.array(z.string().min(1).max(32)).min(1).max(5),
+  agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+  modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
+  effort: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
+  fast: z.boolean().optional(),
+  updatedAt: z.number().int().nonnegative(),
+});
+export type CrossagentRoutingOverride = z.infer<typeof crossagentRoutingOverrideSchema>;
+
 /**
  * Cache entry recording whether a given agent supports the **CLI hook plugin**
  * path for status detection on this machine. Keyed by `AgentKind` (and for
@@ -412,6 +453,22 @@ export const sharedSettingsSchema = z.object({
    * caps to 5 entries that aren't already in `favoriteModels`.
    */
   recentModels: z.array(modelPickerEntrySchema),
+  /** Popularity of user-launched provider/model configurations used as a Crossagents fallback. */
+  agentSelectionUsage: z.array(agentSelectionUsageEntrySchema).default([]),
+  /**
+   * Popularity of explicit Crossagents selections. Supervisor-managed so an
+   * automatic choice can never reinforce itself and renderer writes cannot
+   * overwrite a selection recorded by the MCP ingress.
+   */
+  crossagentSelectionUsage: z.array(crossagentSelectionUsageEntrySchema).default([]),
+  /**
+   * User-pinned task-tag routes managed by the Crossagents MCP. The most
+   * specific matching tag set wins before learned affinity.
+   */
+  crossagentRoutingOverrides: z
+    .array(crossagentRoutingOverrideSchema)
+    .max(MAX_CROSSAGENT_ROUTING_OVERRIDES)
+    .default([]),
   /**
    * Dev-only: force agents off the CLI hook plugin path (L1) so they fall back
    * to L2 terminal parsing. The UI toggle is only visible in the dev build;
@@ -470,7 +527,10 @@ export type CliPickerTarget = SharedSettings["cliPickerTarget"];
  * supervisor-only fields (`agentHookSupport`) that the renderer never
  * manages and that the main process re-merges from disk on write.
  */
-export type SharedSettingsInput = Omit<SharedSettings, "agentHookSupport">;
+export type SharedSettingsInput = Omit<
+  SharedSettings,
+  "agentHookSupport" | "crossagentSelectionUsage" | "crossagentRoutingOverrides"
+>;
 
 export const defaultSharedSettings: SharedSettings = {
   themeMode: "dark",
@@ -560,6 +620,9 @@ export const defaultSharedSettings: SharedSettings = {
   workspaces: [],
   favoriteModels: [],
   recentModels: [],
+  agentSelectionUsage: [],
+  crossagentSelectionUsage: [],
+  crossagentRoutingOverrides: [],
   disableCliHookPlugin: false,
   dismissedHookInstallProposals: {},
   agentHookSupport: {},

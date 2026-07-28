@@ -7,6 +7,7 @@ import type {
   ResolvedMcpServer,
 } from "@/shared/contracts";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
+import type { CrossagentRankSource } from "@/shared/crossagentRanking";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 
 /** Terminal states a subagent run can settle into. */
@@ -98,6 +99,16 @@ export interface SpawnableAgent {
     default: "full-access";
   };
   execution: SpawnableAgentExecution;
+  preference?: {
+    rank: number;
+    source: CrossagentRankSource;
+    usageCount: number;
+    model: string;
+    reasoning?: string;
+    fast: boolean;
+    matchedTags?: string[];
+    learnedTags?: Array<{ tag: string; count: number }>;
+  };
 }
 
 /** Compact first-stage provider discovery returned by `list_agents`. */
@@ -107,6 +118,14 @@ export interface SpawnableAgentSummary {
   execution: SpawnableAgentExecution;
   defaultModel: string;
   modelCount: number;
+  rank: number;
+  preferenceSource: CrossagentRankSource;
+  usageCount: number;
+  preferredModel: string;
+  preferredReasoning?: string;
+  preferredFast: boolean;
+  matchedTags: string[];
+  learnedTags: Array<{ tag: string; count: number }>;
 }
 
 /** Provider/model selection for one subagent attempt. */
@@ -115,6 +134,17 @@ export interface SpawnAgentSelection {
   model?: string;
   effort?: string;
   fast?: boolean;
+}
+
+export interface ExplicitSpawnAgentSelection {
+  selection: SpawnAgentSelection;
+  tags: string[];
+  explicitFields: {
+    provider: boolean;
+    model: boolean;
+    effort: boolean;
+    fast: boolean;
+  };
 }
 
 /** Arguments accepted by `spawn_agent` / `run_agent`. */

@@ -94,6 +94,8 @@ export function mergeManagedSharedSettings(
       ...supervisorManagedInstances,
     },
     agentHookSupport: onDisk.agentHookSupport,
+    crossagentSelectionUsage: onDisk.crossagentSelectionUsage,
+    crossagentRoutingOverrides: onDisk.crossagentRoutingOverrides,
   };
 }
 

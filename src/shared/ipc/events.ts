@@ -15,7 +15,7 @@ import type {
   UsageSnapshot,
 } from "../contracts";
 import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
-import type { BrowserLinkPresentationMode } from "../settings";
+import type { BrowserLinkPresentationMode, CrossagentRoutingOverride } from "../settings";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "./procedureMap";
 import type { MessageKey } from "../messages";
 
@@ -32,6 +32,29 @@ export type SupervisorReply =
   | { replyTo: string; ok: false; error: string };
 
 export type SupervisorEvent =
+  | {
+      type: "crossagent-routing-override-changed";
+      requestId: string;
+      change:
+        | { action: "set"; override: CrossagentRoutingOverride }
+        | { action: "remove"; tags: string[] };
+    }
+  | {
+      type: "crossagent-selection-used";
+      selections: Array<{
+        agentKind: string;
+        modelId: string;
+        effort?: string;
+        fast: boolean;
+        tags?: string[];
+        explicitFields: {
+          provider: boolean;
+          model: boolean;
+          effort: boolean;
+          fast: boolean;
+        };
+      }>;
+    }
   | {
       type: "experiment-judge-progress";
       experimentId: string;

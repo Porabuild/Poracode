@@ -17,9 +17,28 @@ import {
   reloadAgentMcpServersPayloadSchema,
   type ReloadAgentMcpServersPayload,
 } from "../../contracts";
+import { z } from "zod";
 import { defineNoArgProcedure, definePayloadProcedure } from "../core";
 
+export const confirmCrossagentRoutingOverridePayloadSchema = z.object({
+  requestId: z.string().uuid(),
+  ok: z.boolean(),
+  error: z.string().optional(),
+});
+export type ConfirmCrossagentRoutingOverridePayload = z.infer<
+  typeof confirmCrossagentRoutingOverridePayloadSchema
+>;
+
 export const mcpProcedures = {
+  confirmCrossagentRoutingOverride: definePayloadProcedure<
+    ConfirmCrossagentRoutingOverridePayload,
+    void,
+    "supervisor"
+  >(
+    "confirmCrossagentRoutingOverride",
+    "supervisor",
+    confirmCrossagentRoutingOverridePayloadSchema,
+  ),
   discoverExternalMcpServers: definePayloadProcedure<
     DiscoverExternalMcpServersPayload,
     DiscoverExternalMcpServersResult,

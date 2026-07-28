@@ -13,6 +13,7 @@ import {
 } from "@/shared/settings";
 import {
   applyClaudeProfileEnvironment,
+  mergeManagedSharedSettings,
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "./sharedSettingsFile";
@@ -36,6 +37,43 @@ afterEach(() => {
 });
 
 describe("sharedSettingsFile", () => {
+  it("preserves supervisor-managed Crossagents routing data during renderer writes", () => {
+    const onDisk: SharedSettings = {
+      ...defaultSharedSettings,
+      crossagentSelectionUsage: [
+        {
+          agentKind: "kimi",
+          modelId: "k3",
+          effort: "max",
+          fast: false,
+          tags: ["mobile", "simulator"],
+          count: 4,
+          lastUsedAt: 10,
+        },
+      ],
+      crossagentRoutingOverrides: [
+        {
+          tags: ["frontend", "design"],
+          agentKind: "claude",
+          modelId: "opus",
+          effort: "max",
+          fast: false,
+          updatedAt: 11,
+        },
+      ],
+    };
+    const {
+      agentHookSupport: _agentHookSupport,
+      crossagentSelectionUsage: _crossagentSelectionUsage,
+      crossagentRoutingOverrides: _crossagentRoutingOverrides,
+      ...incoming
+    } = defaultSharedSettings;
+
+    const merged = mergeManagedSharedSettings(onDisk, incoming);
+    expect(merged.crossagentSelectionUsage).toEqual(onDisk.crossagentSelectionUsage);
+    expect(merged.crossagentRoutingOverrides).toEqual(onDisk.crossagentRoutingOverrides);
+  });
+
   it("writes and reads shared settings as readable JSON", () => {
     const settingsPath = join(makeTempDir(), "settings.json");
     writeSharedSettingsFile(settingsPath, {
@@ -128,6 +166,9 @@ describe("sharedSettingsFile", () => {
       workspaces: [],
       favoriteModels: [],
       recentModels: [],
+      agentSelectionUsage: [],
+      crossagentSelectionUsage: [],
+      crossagentRoutingOverrides: [],
       agentHookSupport: {},
       enabledMcpServers: {},
       mcpServers: [],
@@ -251,6 +292,9 @@ describe("sharedSettingsFile", () => {
       workspaces: [],
       favoriteModels: [],
       recentModels: [],
+      agentSelectionUsage: [],
+      crossagentSelectionUsage: [],
+      crossagentRoutingOverrides: [],
       agentHookSupport: {},
       enabledMcpServers: {},
       mcpServers: [],

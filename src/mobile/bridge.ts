@@ -250,6 +250,8 @@ const remoteBridge = {
     pushDesktopSettingsDiff(activeClient, settings);
     return Promise.resolve();
   },
+  removeCrossagentRoutingOverride: () =>
+    Promise.reject(new Error("Manual routing preferences can only be changed on desktop.")),
 
   // Shell conveniences with browser-native equivalents.
   openExternal: (url: string) => {

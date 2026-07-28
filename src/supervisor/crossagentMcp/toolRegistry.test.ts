@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import type { SubagentRunManager } from "./SubagentRunManager";
@@ -201,16 +201,96 @@ describe("buildSpawnableAgents", () => {
     });
     expect(agent?.models.map((model) => model.value)).not.toContain("claude-opus-4");
   });
+
+  it("ranks the live spawnable roster by matching task tags", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "claude" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+      [
+        "kimi" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+    ]);
+    const claude = makeStatus();
+    const kimi = makeStatus({
+      kind: "kimi" as AgentKind,
+      label: "Kimi",
+      capabilities: {
+        ...makeStatus().capabilities,
+        models: [{ id: "k3", label: "K3" }],
+      },
+    });
+    const ranked = buildSpawnableAgents(
+      adapters,
+      [claude, kimi],
+      {
+        disabledAgents: [],
+        hiddenModels: {},
+        favoriteModels: [],
+        agentSelectionUsage: [],
+        crossagentSelectionUsage: [
+          {
+            agentKind: "claude",
+            modelId: "claude-opus-4",
+            fast: false,
+            tags: ["frontend", "design"],
+            count: 3,
+            lastUsedAt: 10,
+          },
+          {
+            agentKind: "kimi",
+            modelId: "k3",
+            fast: false,
+            tags: ["bugfix"],
+            count: 20,
+            lastUsedAt: 20,
+          },
+        ],
+      },
+      ["frontend"],
+    );
+
+    expect(ranked.map((agent) => agent.provider.value)).toEqual(["claude", "kimi"]);
+    expect(ranked[0]?.preference).toMatchObject({
+      source: "tag-affinity",
+      matchedTags: ["frontend"],
+      learnedTags: [
+        { tag: "design", count: 3 },
+        { tag: "frontend", count: 3 },
+      ],
+    });
+  });
 });
 
 function makeToolContext(): {
   ctx: SubagentToolContext;
 } {
+  const provider = (id: string, model: string): SpawnableAgent => ({
+    provider: { value: id, label: id },
+    models: [{ value: model, label: model, reasoning: { values: ["high"], default: "high" } }],
+    reasoningOptions: [{ value: "high", label: "High" }],
+    defaultModel: model,
+    permissions: {
+      options: [{ value: "full-access", label: "Full access" }],
+      default: "full-access",
+    },
+    execution: "structured",
+    preference: {
+      rank: id === "codex" ? 1 : 2,
+      source: "built-in",
+      usageCount: 0,
+      model,
+      reasoning: "high",
+      fast: false,
+    },
+  });
   return {
     ctx: {
       parentThreadId: "parent-1",
       runManager: {} as unknown as SubagentRunManager,
-      listSpawnableAgents: async () => [],
+      listSpawnableAgents: async () => [provider("codex", "gpt-5.5"), provider("claude", "sonnet")],
     },
   };
 }
@@ -236,6 +316,14 @@ describe("provider discovery", () => {
       default: "full-access",
     },
     execution: "structured",
+    preference: {
+      rank: 1,
+      source: "built-in",
+      usageCount: 0,
+      model: "gpt-5.5",
+      reasoning: "high",
+      fast: false,
+    },
   };
 
   it("lists compact summaries and resolves full options by id", async () => {
@@ -250,6 +338,14 @@ describe("provider discovery", () => {
         execution: "structured",
         defaultModel: "gpt-5.5",
         modelCount: 1,
+        rank: 1,
+        preferenceSource: "built-in",
+        usageCount: 0,
+        preferredModel: "gpt-5.5",
+        preferredReasoning: "high",
+        preferredFast: false,
+        matchedTags: [],
+        learnedTags: [],
       },
     ]);
 
@@ -266,6 +362,78 @@ describe("provider discovery", () => {
   });
 });
 
+describe("manual routing preference tools", () => {
+  it("normalizes, validates, lists, and removes user-pinned routes", async () => {
+    const { ctx } = makeToolContext();
+    let overrides: NonNullable<ReturnType<NonNullable<typeof ctx.listRoutingOverrides>>> = [];
+    ctx.listRoutingOverrides = () => overrides;
+    ctx.setRoutingOverride = (override) => {
+      overrides = [override];
+    };
+    ctx.removeRoutingOverride = (tags) => {
+      overrides = overrides.filter((override) => override.tags.join("\0") !== tags.join("\0"));
+    };
+
+    const saved = await dispatchTool(
+      "set_routing_preference",
+      {
+        tags: ["User Interface", "FE"],
+        provider: "claude",
+        model: "sonnet",
+        reasoning: "high",
+        fast: false,
+      },
+      ctx,
+    );
+    expect(JSON.parse(resultText(saved))).toMatchObject({
+      status: "saved",
+      override: {
+        tags: ["frontend", "ui"],
+        agentKind: "claude",
+        modelId: "sonnet",
+        effort: "high",
+        fast: false,
+      },
+    });
+
+    const listed = await dispatchTool("list_routing_preferences", {}, ctx);
+    expect(JSON.parse(resultText(listed))).toEqual(overrides);
+
+    const removed = await dispatchTool(
+      "remove_routing_preference",
+      { tags: ["front-end", "ui"] },
+      ctx,
+    );
+    expect(JSON.parse(resultText(removed))).toEqual({
+      status: "removed",
+      tags: ["frontend", "ui"],
+    });
+    expect(overrides).toEqual([]);
+  });
+
+  it("rejects a pinned route that is not currently available", async () => {
+    const { ctx } = makeToolContext();
+    const saved: unknown[] = [];
+    ctx.setRoutingOverride = (override) => {
+      saved.push(override);
+    };
+
+    const result = await dispatchTool(
+      "set_routing_preference",
+      {
+        tags: ["frontend"],
+        provider: "claude",
+        model: "missing",
+      },
+      ctx,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("not currently available");
+    expect(saved).toEqual([]);
+  });
+});
+
 describe("subagent tool registration", () => {
   it("registers the ephemeral subagent-run tools and no full-thread tools", () => {
     const names = new Set(TOOLS.map((tool) => tool.name));
@@ -273,6 +441,9 @@ describe("subagent tool registration", () => {
       "list_agents",
       "get_agent",
       "spawn_agent",
+      "list_routing_preferences",
+      "set_routing_preference",
+      "remove_routing_preference",
       "wait_for_agent",
       "get_status",
       "list_runs",
@@ -301,9 +472,15 @@ describe("subagent tool registration", () => {
   it("declares required fields on the subagent tool schemas", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
-      oneOf: [{ required: ["provider", "prompt"] }, { required: ["tasks"] }],
+      oneOf: [{ required: ["prompt"] }, { required: ["tasks"] }],
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
+    expect(byName.get("set_routing_preference")!.inputSchema).toMatchObject({
+      required: ["tags", "provider"],
+    });
+    expect(byName.get("remove_routing_preference")!.inputSchema).toMatchObject({
+      required: ["tags"],
+    });
     expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({
       oneOf: [{ required: ["run_id"] }, { required: ["run_ids"] }],
     });
@@ -362,13 +539,40 @@ describe("subagent tool registration", () => {
       {
         agent: "codex",
         model: "gpt-5.5",
+        effort: "high",
         prompt: "inspect",
         background: true,
         retryMode: "any-failure",
         fallbacks: [{ agent: "claude", model: "sonnet", effort: "high" }],
       },
-      { agent: "claude", prompt: "review", background: true },
+      {
+        agent: "claude",
+        model: "sonnet",
+        effort: "high",
+        prompt: "review",
+        background: true,
+      },
     ]);
+  });
+
+  it("rejects oversized task batches before resolving their providers", async () => {
+    const { ctx } = makeToolContext();
+    const listSpawnableAgents = vi.fn<typeof ctx.listSpawnableAgents>(ctx.listSpawnableAgents);
+    ctx.listSpawnableAgents = listSpawnableAgents;
+
+    const result = await dispatchTool(
+      "spawn_agent",
+      {
+        tasks: Array.from({ length: 5 }, (_, index) => ({
+          prompt: `task ${index}`,
+        })),
+      },
+      ctx,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("at most 4");
+    expect(listSpawnableAgents).not.toHaveBeenCalled();
   });
 
   it("returns immediately when spawn_agent is explicitly backgrounded", async () => {
@@ -418,6 +622,194 @@ describe("subagent tool registration", () => {
       status: "completed",
       output: "done",
     });
+  });
+
+  it("uses the highest-ranked available selection when provider details are omitted", async () => {
+    const { ctx } = makeToolContext();
+    let spawnedRequest: unknown;
+    const recorded: unknown[] = [];
+    ctx.runManager = {
+      spawn: (_parentThreadId: string, request: unknown) => {
+        spawnedRequest = request;
+        return { runId: "run-ranked" };
+      },
+      waitFor: async () => ({ status: "completed" as const, output: "done" }),
+    } as unknown as SubagentRunManager;
+    ctx.recordExplicitSelections = (selections) => recorded.push(...selections);
+
+    await dispatchTool("spawn_agent", { prompt: "choose for me" }, ctx);
+
+    expect(spawnedRequest).toMatchObject({
+      agent: "codex",
+      model: "gpt-5.5",
+      effort: "high",
+      prompt: "choose for me",
+    });
+    expect(recorded).toEqual([]);
+  });
+
+  it("records which selection fields were explicit without promoting filled defaults", async () => {
+    const { ctx } = makeToolContext();
+    const recorded: unknown[] = [];
+    ctx.runManager = {
+      spawn: () => ({ runId: "run-explicit" }),
+      waitFor: async () => ({ status: "completed" as const, output: "done" }),
+    } as unknown as SubagentRunManager;
+    ctx.recordExplicitSelections = (selections) => recorded.push(...selections);
+
+    await dispatchTool("spawn_agent", { provider: "claude", prompt: "use Claude" }, ctx);
+
+    expect(recorded).toEqual([
+      {
+        selection: expect.objectContaining({
+          agent: "claude",
+          model: "sonnet",
+          effort: "high",
+        }),
+        explicitFields: {
+          provider: true,
+          model: false,
+          effort: false,
+          fast: false,
+        },
+        tags: [],
+      },
+    ]);
+  });
+
+  it("honors an explicit model by choosing the highest-ranked provider that offers it", async () => {
+    const { ctx } = makeToolContext();
+    let spawnedRequest: unknown;
+    ctx.runManager = {
+      spawn: (_parentThreadId: string, request: unknown) => {
+        spawnedRequest = request;
+        return { runId: "run-model" };
+      },
+      waitFor: async () => ({ status: "completed" as const, output: "done" }),
+    } as unknown as SubagentRunManager;
+
+    await dispatchTool(
+      "spawn_agent",
+      { model: "sonnet", reasoning: "high", prompt: "use this model" },
+      ctx,
+    );
+
+    expect(spawnedRequest).toMatchObject({
+      agent: "claude",
+      model: "sonnet",
+      effort: "high",
+    });
+  });
+
+  it("normalizes task tags for contextual discovery and learned selections", async () => {
+    const { ctx } = makeToolContext();
+    const rosterTags: string[][] = [];
+    const recorded: unknown[] = [];
+    const originalList = ctx.listSpawnableAgents;
+    ctx.listSpawnableAgents = async (tags) => {
+      rosterTags.push([...(tags ?? [])]);
+      return originalList();
+    };
+    ctx.runManager = {
+      spawn: () => ({ runId: "run-tags" }),
+      waitFor: async () => ({ status: "completed" as const, output: "done" }),
+    } as unknown as SubagentRunManager;
+    ctx.recordExplicitSelections = (selections) => recorded.push(...selections);
+
+    await dispatchTool("list_agents", { tags: ["FE", "User Interface"] }, ctx);
+    await dispatchTool(
+      "spawn_agent",
+      {
+        provider: "claude",
+        model: "sonnet",
+        prompt: "fix the component",
+        tags: ["User Interface", "front-end", "FE"],
+      },
+      ctx,
+    );
+
+    expect(rosterTags).toEqual([
+      ["frontend", "ui"],
+      ["frontend", "ui"],
+    ]);
+    expect(recorded).toEqual([
+      expect.objectContaining({
+        tags: ["frontend", "ui"],
+      }),
+    ]);
+  });
+
+  it("searches an implicitly selected provider's models for explicit constraints", async () => {
+    const { ctx } = makeToolContext();
+    let spawnedRequest: unknown;
+    ctx.listSpawnableAgents = async () => [
+      {
+        provider: { value: "codex", label: "Codex" },
+        models: [
+          {
+            value: "preferred",
+            label: "Preferred",
+            reasoning: { values: ["high"], default: "high" },
+          },
+          {
+            value: "capable",
+            label: "Capable",
+            reasoning: { values: ["high", "max"], default: "high" },
+            fast: { available: true },
+          },
+        ],
+        reasoningOptions: [
+          { value: "high", label: "High" },
+          { value: "max", label: "Max" },
+        ],
+        defaultModel: "preferred",
+        permissions: {
+          options: [{ value: "full-access", label: "Full access" }],
+          default: "full-access",
+        },
+        execution: "structured",
+        preference: {
+          rank: 1,
+          source: "crossagent-usage",
+          usageCount: 3,
+          model: "preferred",
+          reasoning: "high",
+          fast: false,
+        },
+      },
+    ];
+    ctx.runManager = {
+      spawn: (_parentThreadId: string, request: unknown) => {
+        spawnedRequest = request;
+        return { runId: "run-capable" };
+      },
+      waitFor: async () => ({ status: "completed" as const, output: "done" }),
+    } as unknown as SubagentRunManager;
+
+    await dispatchTool(
+      "spawn_agent",
+      { reasoning: "max", fast: true, prompt: "use a capable model" },
+      ctx,
+    );
+
+    expect(spawnedRequest).toMatchObject({
+      agent: "codex",
+      model: "capable",
+      effort: "max",
+      fast: true,
+    });
+  });
+
+  it("rejects an explicit provider that is not in the live spawnable roster", async () => {
+    const { ctx } = makeToolContext();
+    const result = await dispatchTool(
+      "spawn_agent",
+      { provider: "removed", prompt: "do not launch" },
+      ctx,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("not currently available");
   });
 
   it("waits for parallel tasks through the same spawn_agent call", async () => {

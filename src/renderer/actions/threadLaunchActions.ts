@@ -20,7 +20,13 @@ export async function performInitialThreadLaunch(input: {
   if (thread.config.model) {
     useSharedSettings
       .getState()
-      .pushRecentModel(thread.agentKind, thread.config.model, presentation);
+      .pushRecentModel(
+        thread.agentKind,
+        thread.config.model,
+        presentation,
+        thread.config.effort,
+        thread.config.fast,
+      );
   }
 
   let optimisticUserMessageItemId: string | undefined;
