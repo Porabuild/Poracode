@@ -1047,7 +1047,10 @@
     /* Matches --composer-surface so chat bubbles (user message) and the
        composer read as one surface. */
     --surface-tertiary: #17171d;
-    --overlay: #19191c;
+    /* Floating chrome (modals, menus, popovers, tooltips) sits just above the
+       panel surfaces. Fields/controls are lighter than this, so they read as
+       raised cards on overlays instead of blending into them. */
+    --overlay: #121216;
     /* Neutral cool-grey for secondary text — deliberately low chroma so it
        reads as grey (not the old blue/violet cast). Kept a step below the
        bright foreground so idle/secondary rows recede clearly from active
