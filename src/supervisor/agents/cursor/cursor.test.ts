@@ -57,6 +57,29 @@ describe("createCursorAdapter capabilities", () => {
     expect(adapter.capabilities.presentationModes).toEqual(["terminal", "gui"]);
     expect(adapter.createStructuredSession).toBeTypeOf("function");
   });
+
+  it("does not pass SDK-local session ids to cursor-agent context extraction", () => {
+    const adapter = createCursorAdapter();
+    const location = { kind: "posix" as const, path: "/repo" };
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        {
+          providerSessionId: "sdk:agent-123",
+          discoveredAt: "2026-07-27T00:00:00.000Z",
+        },
+        location,
+      ),
+    ).toBeUndefined();
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        {
+          providerSessionId: "cli-chat-123",
+          discoveredAt: "2026-07-27T00:00:00.000Z",
+        },
+        location,
+      )?.args,
+    ).toContain("--resume=cli-chat-123");
+  });
 });
 
 describe("rewriteCursorLoadSessionError", () => {

@@ -658,12 +658,15 @@ async function skillsSectionDeepDive(client) {
 async function mcpServersSectionDeepDive(client, mcpFixture) {
   const mcpState = await evaluate(
     client,
-    `(() => ({
-      builtInsVisible: document.body.innerText.includes("Built-in MCP servers"),
-      builtInToolCount: document.body.innerText.includes("44 tools"),
-      addButton: Boolean([...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Add MCP server")),
-      browserSwitch: Boolean(document.querySelector('[role="switch"][aria-label="Disable Browser"]')),
-    }))()`,
+    `(() => {
+      const browserRow = document.querySelector('[data-built-in-mcp-server="browser"]');
+      return {
+        builtInsVisible: document.body.innerText.includes("Built-in MCP servers"),
+        builtInToolCount: /\\b\\d+ tools?\\b/.test(browserRow?.textContent ?? ""),
+        addButton: Boolean([...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Add MCP server")),
+        browserSwitch: Boolean(document.querySelector('[role="switch"][aria-label="Disable Browser"]')),
+      };
+    })()`,
   );
   assert(mcpState.builtInsVisible, "MCP settings did not render built-in servers");
   assert(mcpState.builtInToolCount, "MCP settings did not render built-in tool counts");
@@ -1512,20 +1515,36 @@ async function installWindowErrorCollector(client) {
 
 async function waitForTarget() {
   const started = Date.now();
+  let cdpRespondedWithPages = false;
+  let lastPageUrls = [];
   while (Date.now() - started < timeoutMs) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json/list`);
       if (response.ok) {
         const targets = await response.json();
-        const target = targets.find(
-          (candidate) => candidate.type === "page" && candidate.url === appUrl,
-        );
+        const pageTargets = targets.filter((t) => t.type === "page");
+        const target = pageTargets.find((candidate) => candidate.url === appUrl);
         if (target) return target;
+        // CDP is up with page targets but none match — the renderer loaded
+        // on a different URL than expected. Fail fast instead of polling.
+        if (pageTargets.length > 0) {
+          cdpRespondedWithPages = true;
+          lastPageUrls = pageTargets.map((t) => t.url);
+        }
       }
     } catch {
       // Electron is still starting.
     }
+    // Once CDP serves page targets that don't match, the URL won't change.
+    if (cdpRespondedWithPages) break;
     await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+  }
+  if (cdpRespondedWithPages) {
+    throw new Error(
+      `no Poracode CDP target matching ${appUrl} on port ${port}. ` +
+        `Available page targets: ${lastPageUrls.join(", ")}. ` +
+        `Check PORACODE_APP_URL / port allocation.`,
+    );
   }
   throw new Error(`no Poracode CDP target at ${appUrl} on port ${port}`);
 }

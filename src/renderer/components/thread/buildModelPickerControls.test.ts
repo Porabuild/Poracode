@@ -5,6 +5,7 @@ import type { AgentCapability, AgentStatus } from "@/shared/contracts";
 import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
+  expandAgentToVisibilityProviders,
   patchConfigForModelChange,
 } from "./buildModelPickerControls";
 
@@ -181,6 +182,48 @@ describe("buildProviderModelMenuProviders", () => {
     });
     expect(guiProviders[0]?.capabilities.models.map((model) => model.id)).toEqual([
       "composer-2.5[context=default,reasoning=medium,fast=false]",
+    ]);
+  });
+
+  it("exposes independently installed Cursor ACP and SDK model surfaces", () => {
+    const guiCapabilities = {
+      ...cursorStatus.capabilities,
+      presentationMode: "gui" as const,
+      presentationModes: ["gui" as const],
+      liveInputMode: "server" as const,
+    };
+    const providers = expandAgentToVisibilityProviders({
+      ...cursorStatus,
+      runtimeVariants: {
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: {
+            ...guiCapabilities,
+            runtimeLabel: "ACP",
+            models: [{ id: "acp-model", label: "ACP Model" }],
+          },
+        },
+        sdk: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: false,
+          capabilities: {
+            ...guiCapabilities,
+            runtimeLabel: "SDK",
+            models: [{ id: "sdk-model", label: "SDK Model" }],
+          },
+        },
+      },
+    });
+
+    expect(providers.map(({ label, hiddenModelsKey }) => ({ label, hiddenModelsKey }))).toEqual([
+      { label: "Cursor CLI", hiddenModelsKey: "cursor" },
+      { label: "Cursor ACP", hiddenModelsKey: "cursor-acp" },
+      { label: "Cursor SDK", hiddenModelsKey: "cursor-sdk" },
     ]);
   });
 });

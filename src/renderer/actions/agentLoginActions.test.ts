@@ -466,4 +466,21 @@ describe("runAgentLoginCommand", () => {
     expect(innerScript).toContain("printf '\\033]777;poracode-login-complete=lc_");
     expect(innerScript).toContain('"$__lc_exit"');
   });
+
+  it("opens update commands with update-specific terminal state", () => {
+    runAgentInstallCommand({
+      label: "Update Cursor SDK",
+      command: "npm install -g '@cursor/sdk@^1.0.24'",
+      project: posixProject,
+      purpose: "update",
+    });
+
+    expect(loginTerminalStore.open).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Update Cursor SDK",
+        purpose: "update",
+        shellId: expect.stringMatching(/^update:/u),
+      }),
+    );
+  });
 });

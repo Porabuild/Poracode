@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Thread } from "@/shared/contracts";
+import "@/renderer/components/providers/bootstrap";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
@@ -178,6 +179,18 @@ const claudeTerminalStatus: AgentStatus = {
   },
 };
 
+function typeComposerText(editor: HTMLElement, text: string) {
+  const textNode = document.createTextNode(text);
+  editor.replaceChildren(textNode);
+  const range = document.createRange();
+  range.setStart(textNode, text.length);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  fireEvent.input(editor);
+}
+
 describe("ThreadComposerSection", () => {
   beforeEach(() => {
     useSharedSettings.setState({ collapseTerminalComposer: false });
@@ -286,6 +299,51 @@ describe("ThreadComposerSection", () => {
     });
 
     expect(screen.getByTestId("control-kinds")).toBeEmptyDOMElement();
+  });
+
+  it("uses GUI presentation capabilities for slash commands and /fast submission", () => {
+    const divergentStatus: AgentStatus = {
+      ...codexGuiStatus,
+      capabilities: {
+        ...codexGuiStatus.capabilities,
+        models: [{ id: "cli-model", label: "CLI model" }],
+        efforts: [],
+        modelEfforts: {},
+        fastModels: [],
+        liveInputMode: "terminal",
+        presentationMode: "terminal",
+        presentationModes: ["terminal", "gui"],
+        presentationCapabilities: {
+          gui: {
+            models: [{ id: "gpt-5.4", label: "5.4" }],
+            efforts: ["high"],
+            defaultEffort: "high",
+            modelEfforts: { "gpt-5.4": ["high"] },
+            fastModels: ["gpt-5.4"],
+            modes: ["agent"],
+            approvalPolicies: [{ id: "on-request", label: "On Request" }],
+            sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
+            supportsResume: true,
+            supportsDirectInput: true,
+            liveInputMode: "server",
+            presentationMode: "gui",
+            settingDefs: [],
+          },
+        },
+      },
+    };
+    renderComposer({ agentStatus: divergentStatus });
+
+    const input = screen.getByRole("textbox");
+    typeComposerText(input, "/fast");
+
+    expect(screen.getByRole("option", { name: /\/fast/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(guiThread.id, {
+      model: "gpt-5.4",
+      fast: true,
+    });
   });
 
   it("hides the terminal composer collapse button in remote sessions", () => {

@@ -8,7 +8,7 @@ import type {
 } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
-  capabilitiesForPresentation,
+  agentStatusForPresentation,
   modelSelectionFor,
   resolveModelSelection,
   resolveReasoningSelection,
@@ -196,10 +196,7 @@ export function agentWithCapabilities(
   agent: AgentStatus,
   presentationMode: ThreadPresentationMode,
 ): AgentStatus {
-  return {
-    ...agent,
-    capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
-  };
+  return agentStatusForPresentation(agent, presentationMode);
 }
 
 export function formatAgentList(names: string[]): string {

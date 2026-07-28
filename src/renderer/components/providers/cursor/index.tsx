@@ -3,6 +3,7 @@ export * from "./CursorIcon";
 import { CursorIcon } from "./CursorIcon";
 import providerManifest from "./manifest";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
+import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
 import { fullAccessToggle, planWorkToggle } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
 import { registerComposerControls } from "../providerComposer";
@@ -38,9 +39,23 @@ registerConflictResolverDefaults(PROVIDER_KIND, {
 registerComposerControls(PROVIDER_KIND, ({ capabilities, config, isDisabled, onConfigChange }) => {
   const hasPlanMode = capabilities.modes.includes("plan");
   const isPlanMode = config.mode === "plan";
-  const isFullAccess = (config.approvalPolicy ?? "default") === "never";
+  const unrestricted = resolveUnrestrictedPermissionConfig(capabilities);
+  const isFullAccess =
+    (unrestricted.approvalPolicy === undefined ||
+      config.approvalPolicy === unrestricted.approvalPolicy) &&
+    (unrestricted.sandboxMode === undefined || config.sandboxMode === unrestricted.sandboxMode);
 
   const controls: ComposerControl[] = [
+    ...(capabilities.runtimeLabel
+      ? [
+          {
+            kind: "static" as const,
+            value: capabilities.runtimeLabel,
+            hideLabelOnWrap: true,
+            tier: 6,
+          },
+        ]
+      : []),
     ...(hasPlanMode
       ? [
           planWorkToggle({
@@ -55,8 +70,23 @@ registerComposerControls(PROVIDER_KIND, ({ capabilities, config, isDisabled, onC
           fullAccessToggle({
             isFullAccess,
             isDisabled,
-            onChange: (isSelected) =>
-              onConfigChange({ approvalPolicy: isSelected ? "never" : "default" }),
+            onChange: (isSelected) => {
+              if (isSelected) {
+                onConfigChange(unrestricted);
+                return;
+              }
+              onConfigChange({
+                approvalPolicy: "default",
+                ...(capabilities.sandboxModes.length > 0
+                  ? {
+                      sandboxMode:
+                        capabilities.defaultSandboxMode ??
+                        capabilities.sandboxModes[0]?.id ??
+                        "workspace-write",
+                    }
+                  : {}),
+              });
+            },
           }),
         ]
       : []),

@@ -47,6 +47,57 @@ export function buildClaudeMcpServers(
   );
 }
 
+export type CursorSdkMcpServerConfig =
+  | {
+      type: "stdio";
+      command: string;
+      args?: string[];
+      env?: Record<string, string>;
+      cwd?: string;
+    }
+  | {
+      type: "http" | "sse";
+      url: string;
+      headers?: Record<string, string>;
+    };
+
+/**
+ * Project Poracode's provider-neutral MCP descriptors into the public
+ * `@cursor/sdk` shape. Cursor has no per-server timeout field, so timeoutMs is
+ * intentionally not forwarded. OAuth client configuration is likewise absent
+ * here: Poracode resolves remote authorization before the provider boundary
+ * and supplies the resulting headers.
+ */
+export function buildCursorSdkMcpServers(
+  servers: readonly ResolvedMcpServer[],
+): Record<string, CursorSdkMcpServerConfig> {
+  return Object.fromEntries(
+    servers.map((server) => {
+      const transport = server.transport;
+      if (transport.type === "stdio") {
+        return [
+          server.name,
+          {
+            type: "stdio" as const,
+            command: transport.command,
+            ...(transport.args.length > 0 ? { args: transport.args } : {}),
+            ...(Object.keys(transport.env).length > 0 ? { env: transport.env } : {}),
+            ...(transport.cwd ? { cwd: transport.cwd } : {}),
+          },
+        ];
+      }
+      return [
+        server.name,
+        {
+          type: transport.type,
+          url: transport.url,
+          ...(Object.keys(transport.headers).length > 0 ? { headers: transport.headers } : {}),
+        },
+      ];
+    }),
+  );
+}
+
 export interface GeminiMcpServerConfig {
   command?: string;
   args?: string[];

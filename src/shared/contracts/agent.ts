@@ -153,6 +153,8 @@ const bypassPermissionsSchema = z.object({
 
 const agentPresentationCapabilityOverrideSchema = z
   .object({
+    /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
+    runtimeLabel: z.string().min(1).optional(),
     models: z.array(labeledOptionSchema),
     efforts: z.array(z.string().min(1)),
     defaultEffort: z.string().optional(),
@@ -211,6 +213,8 @@ export const composerMcpScopesSchema = z.object({
 export type ComposerMcpScopes = z.infer<typeof composerMcpScopesSchema>;
 
 export const agentCapabilitySchema = z.object({
+  /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
+  runtimeLabel: z.string().min(1).optional(),
   models: z.array(labeledOptionSchema).default([]),
   efforts: z.array(z.string().min(1)).default([]),
   defaultEffort: z.string().optional(),
@@ -333,6 +337,38 @@ export const agentCapabilitySchema = z.object({
 });
 export type AgentCapability = z.infer<typeof agentCapabilitySchema>;
 
+/**
+ * One independently detected runtime behind a provider tile.
+ *
+ * `capabilities` is deliberately the complete, already-resolved capability
+ * surface for this runtime rather than a presentation override. That lets an
+ * existing thread stay pinned to its original runtime when the provider's
+ * default changes later.
+ */
+export const agentRuntimeVariantSchema = z.object({
+  presentationMode: threadPresentationModeSchema,
+  installed: z.boolean(),
+  /** Runtime-specific package version when the provider exposes one. */
+  version: z.string().min(1).optional(),
+  /** Provider-owned installation source used to explain lifecycle ownership. */
+  installationSource: z.string().min(1).optional(),
+  authState: authStateSchema,
+  authUsesProviderLogin: z.boolean(),
+  capabilities: agentCapabilitySchema,
+});
+export type AgentRuntimeVariant = z.infer<typeof agentRuntimeVariantSchema>;
+
+/**
+ * Provider-owned mapping from opaque provider session ids to named runtime
+ * variants. Shared consumers only apply the generic prefix/fallback rules;
+ * provider-specific discriminators stay at the provider boundary.
+ */
+export const agentSessionRuntimeRoutingSchema = z.object({
+  prefixes: z.record(z.string().min(1), z.string().min(1)),
+  fallbackRuntime: z.string().min(1).optional(),
+});
+export type AgentSessionRuntimeRouting = z.infer<typeof agentSessionRuntimeRoutingSchema>;
+
 export const agentStatusSchema = z.object({
   kind: agentKindSchema,
   label: z.string().min(1),
@@ -342,6 +378,31 @@ export const agentStatusSchema = z.object({
   version: z.string().optional(),
   update: agentUpdateInfoSchema.optional(),
   authState: authStateSchema,
+  /**
+   * Authentication can differ between presentation runtimes even when they
+   * share one provider tile. For example, Cursor's terminal/ACP surfaces use
+   * the installed CLI login while its SDK GUI surface requires
+   * `CURSOR_API_KEY`. Consumers fall back to `authState` when no override is
+   * present.
+   */
+  presentationAuthStates: z
+    .object({
+      terminal: authStateSchema.optional(),
+      gui: authStateSchema.optional(),
+    })
+    .optional(),
+  /**
+   * Whether the provider's ordinary login command / ACP auth methods apply to
+   * a presentation-specific auth state. Set false for runtimes that require
+   * external credentials (such as Cursor SDK API keys) so the UI does not
+   * offer a misleading CLI login action.
+   */
+  presentationAuthUsesProviderLogin: z
+    .object({
+      terminal: z.boolean().optional(),
+      gui: z.boolean().optional(),
+    })
+    .optional(),
   loginCommand: z.string().min(1).optional(),
   /**
    * Prefer the terminal `loginCommand` over agent-owned/browser auth methods
@@ -353,6 +414,10 @@ export const agentStatusSchema = z.object({
   authMethods: z.array(agentAuthMethodSchema).optional(),
   authLogoutSupported: z.boolean().optional(),
   capabilities: agentCapabilitySchema,
+  /** Named, independently detected runtimes available behind this provider. */
+  runtimeVariants: z.record(z.string().min(1), agentRuntimeVariantSchema).optional(),
+  /** Session-id routing into `runtimeVariants` for existing threads. */
+  sessionRuntimeRouting: agentSessionRuntimeRoutingSchema.optional(),
   envKind: z.enum(["windows", "wsl", "posix"]).optional(),
   envDistro: z.string().optional(),
 });
@@ -632,6 +697,43 @@ export function areAgentProviderMetadataEqual(
     left.plan === right.plan &&
     left.authMethod === right.authMethod &&
     areAgentConnectedProvidersEqual(left.connectedProviders, right.connectedProviders)
+  );
+}
+
+/**
+ * Compare the presentation- and runtime-scoped status fields that carry nested
+ * provider-owned shapes (per-presentation auth, named runtime variants, session
+ * runtime routing). Structural equality via `JSON.stringify` is intentional:
+ * these payloads are adapter-produced, key-order-stable, and cheap to serialize,
+ * and every consumer only needs "did the provider report something different".
+ *
+ * Shared by the renderer status store and the status slice so their change
+ * detection cannot drift apart.
+ */
+export function areAgentPresentationRuntimeFieldsEqual(
+  left: Pick<
+    AgentStatus,
+    | "presentationAuthStates"
+    | "presentationAuthUsesProviderLogin"
+    | "runtimeVariants"
+    | "sessionRuntimeRouting"
+  >,
+  right: Pick<
+    AgentStatus,
+    | "presentationAuthStates"
+    | "presentationAuthUsesProviderLogin"
+    | "runtimeVariants"
+    | "sessionRuntimeRouting"
+  >,
+): boolean {
+  return (
+    JSON.stringify(left.presentationAuthStates ?? {}) ===
+      JSON.stringify(right.presentationAuthStates ?? {}) &&
+    JSON.stringify(left.presentationAuthUsesProviderLogin ?? {}) ===
+      JSON.stringify(right.presentationAuthUsesProviderLogin ?? {}) &&
+    JSON.stringify(left.runtimeVariants ?? {}) === JSON.stringify(right.runtimeVariants ?? {}) &&
+    JSON.stringify(left.sessionRuntimeRouting ?? {}) ===
+      JSON.stringify(right.sessionRuntimeRouting ?? {})
   );
 }
 

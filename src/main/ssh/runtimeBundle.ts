@@ -180,7 +180,12 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     }
   }
 
-  const requiredFiles = ["server.cjs", "supervisor.cjs", "claudeSdkProbeWorker.mjs"];
+  const requiredFiles = [
+    "server.cjs",
+    "supervisor.cjs",
+    "claudeSdkProbeWorker.mjs",
+    "cursorSdkWorker.mjs",
+  ];
   for (const file of requiredFiles) {
     const source = join(options.mainBundleDir, file);
     if (!existsSync(source)) {

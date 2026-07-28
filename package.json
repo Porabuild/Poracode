@@ -25,7 +25,7 @@
     "dev:renderer": "node scripts/free-port.mjs && vite",
     "dev:mobile": "node scripts/free-port.mjs 3100 && cross-env PORACODE_BUILD_TARGET=mobile vite",
     "dev:electron": "tsdown --watch",
-    "dev:app": "pnpm run setup:native && wait-on dist/main/main.cjs dist/main/mcpProbeWorker.mjs && pnpm run prepare:package-assets && node scripts/wait-dev-server.mjs && node scripts/dev-launch.mjs",
+    "dev:app": "pnpm run setup:native && wait-on dist/main/main.cjs dist/main/mcpProbeWorker.mjs dist/main/cursorSdkWorker.mjs && pnpm run prepare:package-assets && node scripts/wait-dev-server.mjs && node scripts/dev-launch.mjs",
     "build": "pnpm run build:renderer && pnpm run build:electron",
     "build:renderer": "vite build",
     "build:mobile": "pnpm run prepare:mobile:ssh && cross-env PORACODE_BUILD_TARGET=mobile vite build && node scripts/finalize-mobile-build.mjs",

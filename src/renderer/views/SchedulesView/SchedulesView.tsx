@@ -3,6 +3,7 @@ import { Button, ButtonGroup, Dropdown, Input, Label, TextField } from "@heroui/
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Bot, CalendarClock, ChevronDown, Clock3, Loader2, Plus, Sparkles } from "lucide-react";
 import type { AgentCapability, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { agentConfigProductProperties } from "@/renderer/analytics/threadAnalyticsProperties";
@@ -69,13 +70,21 @@ export function SchedulesView() {
    */
   const hiddenProjectIds = useProjectIdsHiddenByWorkspace();
   const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
-  const agents = agentStatuses.filter(
-    (agent) =>
-      agent.installed &&
-      agent.authState !== "missing" &&
-      agent.capabilities.supportsOneShot === true &&
-      agent.capabilities.models.length > 0,
-  );
+  const agents = agentStatuses
+    .filter((agent) => {
+      const presentationModes = agent.capabilities.presentationModes ?? [
+        agent.capabilities.presentationMode,
+      ];
+      return presentationModes.includes("gui");
+    })
+    .map((agent) => agentStatusForPresentation(agent, "gui"))
+    .filter(
+      (agent) =>
+        agent.installed &&
+        agent.authState !== "missing" &&
+        agent.capabilities.supportsOneShot === true &&
+        agent.capabilities.models.length > 0,
+    );
 
   useEffect(() => {
     let cancelled = false;

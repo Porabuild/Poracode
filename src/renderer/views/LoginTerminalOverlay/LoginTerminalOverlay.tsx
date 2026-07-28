@@ -97,7 +97,8 @@ export function LoginTerminalOverlay() {
   if (!renderedSession) return null;
 
   const isInstall = renderedSession.purpose === "install";
-  const purposeNoun = isInstall ? t`install` : t`login`;
+  const isUpdate = renderedSession.purpose === "update";
+  const purposeNoun = isInstall ? t`install` : isUpdate ? t`update` : t`login`;
 
   return (
     <div className="fixed inset-0 z-[60]">
@@ -134,7 +135,9 @@ export function LoginTerminalOverlay() {
                 ? t`Exited with code ${renderedSession.failedExitCode}. Close to retry.`
                 : isInstall
                   ? t`Installing in this terminal. Closes when finished.`
-                  : t`Complete the prompts in this terminal. Closes when finished.`}
+                  : isUpdate
+                    ? t`Updating in this terminal. Closes when finished.`
+                    : t`Complete the prompts in this terminal. Closes when finished.`}
             </p>
           </div>
           <Button
