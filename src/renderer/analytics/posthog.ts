@@ -100,9 +100,11 @@ function installStoreSubscriptions(): () => void {
   const disposers: Array<() => void> = [];
   const appViewTracker = createProductViewTracker({
     capture: captureProductEvent,
-    clearTimeout,
+    // Wrap window's timer methods — called detached from `window` they throw
+    // "Illegal invocation" in the browser (Node's timers don't, so tests miss it).
+    clearTimeout: (timer) => clearTimeout(timer),
     now: Date.now,
-    setTimeout,
+    setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
   });
   const syncAppView = () => {
     appViewTracker.setView(appViewDefinition(useAppStore.getState().view));
