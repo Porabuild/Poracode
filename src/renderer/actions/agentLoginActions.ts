@@ -154,10 +154,15 @@ export function runAgentInstallCommand(input: {
   env?: Record<string, string>;
   onCommandComplete?: (exitCode: number) => void;
   project?: Project;
+  purpose?: "install" | "update";
 }): boolean {
   const project = input.project ?? resolveLoginProject();
   if (!project) {
-    toast.warning(i18n._(msg`Add a project before installing an agent.`));
+    toast.warning(
+      input.purpose === "update"
+        ? i18n._(msg`Add a project before updating an agent.`)
+        : i18n._(msg`Add a project before installing an agent.`),
+    );
     return false;
   }
 
@@ -170,7 +175,7 @@ export function runAgentInstallCommand(input: {
       .catch(() => undefined);
   }
 
-  const shellId = `install:${crypto.randomUUID()}`;
+  const shellId = `${input.purpose ?? "install"}:${crypto.randomUUID()}`;
   const command = buildTerminalCommand({
     command: typeof input.command === "function" ? input.command(project) : input.command,
     env: input.env,
@@ -200,7 +205,7 @@ export function runAgentInstallCommand(input: {
     shellId,
     label: input.label,
     projectLocation: project.location,
-    purpose: "install",
+    purpose: input.purpose ?? "install",
     onForceClose: () => {
       stopWatching();
       fireOnce(-1);

@@ -26,6 +26,7 @@ import {
 } from "../base";
 import { dedupeAcpAuthMethods, probeAcpCapabilities } from "../acp";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
+import { cursorModelGrouping } from "./modelGrouping";
 
 export const cursorDefaultCapabilities: AgentCapability = {
   models: [],
@@ -241,6 +242,8 @@ export function buildCursorModelPickerCapabilities(
   | "efforts"
   | "defaultEffort"
   | "modelEfforts"
+  | "subProviders"
+  | "modelSubProvider"
   | "contextSizes"
   | "modelContextSizes"
   | "defaultContextSize"
@@ -343,6 +346,7 @@ export function buildCursorModelPickerCapabilities(
 
   return {
     models: displayModels,
+    ...cursorModelGrouping(displayModels),
     efforts: sortCursorEffortIds([...effortIds]),
     ...(effortIds.has("medium") ? { defaultEffort: "medium" } : {}),
     modelEfforts,
@@ -362,7 +366,10 @@ function formatCursorAcpModelLabel(model: LabeledOption): string {
 
 export function buildCursorAcpModelPickerCapabilities(
   models: LabeledOption[],
-): Pick<AgentCapability, "models" | "efforts" | "modelEfforts"> {
+): Pick<
+  AgentCapability,
+  "models" | "efforts" | "modelEfforts" | "subProviders" | "modelSubProvider"
+> {
   const displayModels = models.map((model) => ({
     id: model.id,
     label: formatCursorAcpModelLabel(model),
@@ -371,6 +378,7 @@ export function buildCursorAcpModelPickerCapabilities(
 
   return {
     models: sortedModels,
+    ...cursorModelGrouping(sortedModels),
     efforts: [],
     modelEfforts: Object.fromEntries(sortedModels.map((model) => [model.id, []])),
   };

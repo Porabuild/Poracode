@@ -4,7 +4,10 @@ import type { MessageDescriptor } from "@lingui/core";
 import type { AgentKind, AgentProviderMetadata, AgentStatus, Project } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
 import { ClaudeAgentSettingsPanel } from "./ClaudeProfileSettings";
+import { CursorProviderSettings } from "./CursorProviderSettings";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
+import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
+import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 
 /**
  * Props handed to a provider's `settingsPanel`. Panels may consume any
@@ -28,6 +31,13 @@ export interface NativeAgentRegistryEntry {
   description: MessageDescriptor;
   installCommand: (project: Project) => string;
   docsUrl: string;
+  /**
+   * Providers whose tile hosts several independently installed runtimes declare
+   * them here. The registry card then renders install targets, installed tags,
+   * versions and update actions generically from these slots plus the detected
+   * `AgentStatus.runtimeVariants`, instead of a single all-or-nothing install.
+   */
+  runtimeSlots?: NativeAgentRuntimeSlots;
   /**
    * ACP registry ids that belong to this built-in provider family. Registry
    * cards use these aliases to resolve native installs and hide redundant ACP
@@ -256,15 +266,11 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "cursor",
     acpRegistryAliases: [{ id: "cursor", nativeSupport: true }],
-    description: msg`First-class Cursor Agent integration using Poracode's native runtime.`,
+    description: msg`First-class Cursor integration using ACP or the public SDK runtime.`,
     docsUrl: "https://cursor.com/docs/cli/installation",
-    installCommand: (project) =>
-      posixOrWindows(
-        project,
-        "if command -v curl >/dev/null 2>&1; then curl https://cursor.com/install -fsS | bash; " +
-          "else printf 'curl is required to install Cursor. Install curl, then refresh detected agents.\\n'; fi",
-        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm 'https://cursor.com/install?win32=true' | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
-      ),
+    installCommand: cursorAgentInstallCommand,
+    runtimeSlots: cursorRuntimeSlots,
+    settingsPanel: CursorProviderSettings,
   },
   {
     id: "gemini",

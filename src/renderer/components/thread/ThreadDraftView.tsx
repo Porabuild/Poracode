@@ -597,7 +597,13 @@ export function ThreadDraftView(props: {
 
   const hiddenModelIds = useSharedSettings((s) =>
     selectedAgent
-      ? s.hiddenModels[modelVisibilityKey(selectedAgent.kind, presentationMode)]
+      ? s.hiddenModels[
+          modelVisibilityKey(
+            selectedAgent.kind,
+            presentationMode,
+            selectedAgentForConfig?.capabilities.runtimeLabel,
+          )
+        ]
       : undefined,
   );
   const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
@@ -1024,7 +1030,7 @@ export function ThreadDraftView(props: {
             {...(props.restoreWorktreeSelectionToken !== undefined
               ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
               : {})}
-            selectedAgent={selectedAgent}
+            selectedAgent={selectedAgentForConfig ?? selectedAgent}
             controls={draftControls}
             config={{
               model,

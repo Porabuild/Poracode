@@ -12,6 +12,7 @@ import { ChevronDown, GitFork, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -216,6 +217,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [contextDockOpen, setContextDockOpen] = useState(false);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
+  const effectiveAgentStatus = agentStatus
+    ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
+    : undefined;
   const usesTerminalPresentation = presentationMode === "terminal";
   // Composer MCP servers are bound at session-create time for the active
   // thread, so the "+" menu shows this run's bindings read-only: the enabled
@@ -227,11 +231,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // settings page instead of per-thread, so their composer carries no MCP
   // display at all — no built-in rows, no custom servers, and no read-only
   // "none for this run" fallback.
-  const providerOwnsMcp = agentStatus ? providerOwnsMcpConfig(agentStatus.capabilities) : false;
+  const providerOwnsMcp = effectiveAgentStatus
+    ? providerOwnsMcpConfig(effectiveAgentStatus.capabilities)
+    : false;
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
-    enabled: thread.config[descriptor.configKey] === true,
-    visible: !providerOwnsMcp && thread.config[descriptor.configKey] === true,
+    enabled: thread.config?.[descriptor.configKey] === true,
+    visible: !providerOwnsMcp && thread.config?.[descriptor.configKey] === true,
     onToggle: () => {},
   }));
   const launchCustomMcpNames = useAppStore(
@@ -246,7 +252,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       }));
   const mcpMentions: McpMentionItem[] = [
     ...composerMcpServers
-      .filter((descriptor) => thread.config[descriptor.configKey] === true)
+      .filter((descriptor) => thread.config?.[descriptor.configKey] === true)
       .map((descriptor) => ({
         id: descriptor.id,
         name: t(descriptor.label),
@@ -254,7 +260,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         detail: t`MCP server`,
         enabled: true,
       })),
-    ...(thread.config.computerUse === true
+    ...(thread.config?.computerUse === true
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
@@ -269,23 +275,23 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind);
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
-    agentStatus?.capabilities.slashCommands,
+    effectiveAgentStatus?.capabilities.slashCommands,
     {
       agentKind: thread.agentKind,
       presentationMode,
       hasEffort:
         ((
-          agentStatus?.capabilities.modelEfforts?.[thread.config.model] ??
-          agentStatus?.capabilities.efforts ??
+          effectiveAgentStatus?.capabilities.modelEfforts?.[thread.config?.model ?? ""] ??
+          effectiveAgentStatus?.capabilities.efforts ??
           []
         ).length ?? 0) > 0,
-      supportsFast: agentStatus
-        ? supportsUsableFastMode(agentStatus.capabilities, thread.config.model)
+      supportsFast: effectiveAgentStatus
+        ? supportsUsableFastMode(effectiveAgentStatus.capabilities, thread.config?.model ?? "")
         : false,
       skillCommands,
-      disabledSkillNames: agentStatus?.capabilities.disabledSkillNames,
+      disabledSkillNames: effectiveAgentStatus?.capabilities.disabledSkillNames,
       skillCatalogAuthoritative:
-        agentStatus?.capabilities.reportsSkillCatalog === true &&
+        effectiveAgentStatus?.capabilities.reportsSkillCatalog === true &&
         presentationMode === "gui" &&
         thread.slashCommands !== undefined,
     },
@@ -293,14 +299,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
   const showCommandPanel = filteredCommands.length > 0;
   const { authRequired, hasRuntimeAuthError } = resolveThreadAuthState({
-    authState: agentStatus?.authState,
+    authState: effectiveAgentStatus?.authState,
     errorDockStates,
   });
   const canShowRuntimeChrome = !usesTerminalPresentation || isRemote;
   const isServerControlled =
-    agentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
-  const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
-  const needsFocusBeforeInput = agentStatus?.capabilities.requiresTerminalFocusBeforeInput === true;
+    effectiveAgentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
+  const isTerminalInput = effectiveAgentStatus?.capabilities.liveInputMode === "terminal";
+  const needsFocusBeforeInput =
+    effectiveAgentStatus?.capabilities.requiresTerminalFocusBeforeInput === true;
   const canQueueServerInput =
     isServerControlled &&
     !usesTerminalPresentation &&
@@ -357,9 +364,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         : s.statuses[thread.projectId]?.branch),
   );
   const hiddenModelIds = useSharedSettings(
-    (s) => s.hiddenModels[modelVisibilityKey(thread.agentKind, presentationMode)],
+    (s) =>
+      s.hiddenModels[
+        modelVisibilityKey(
+          thread.agentKind,
+          presentationMode,
+          effectiveAgentStatus?.capabilities.runtimeLabel,
+        )
+      ],
   );
-  const controls = buildControls(thread, agentStatus, hiddenModelIds, (config) =>
+  const controls = buildControls(thread, effectiveAgentStatus, hiddenModelIds, (config) =>
     changeThreadConfig(thread.id, config),
   );
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
@@ -395,7 +409,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const contextSummary = resolveThreadContextUsageSummary({
     thread,
-    agentStatus,
+    agentStatus: effectiveAgentStatus,
     reportedUsage: reportedContextUsage,
   });
   const showContextIndicator =
@@ -464,7 +478,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
       thread,
-      agentStatus,
+      agentStatus: effectiveAgentStatus,
       presentationMode,
       usesTerminalPresentation,
       canSubmit,
@@ -667,7 +681,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         threadConfig={thread.config}
                         worktreePath={thread.worktreePath}
                         branchName={branchName}
-                        agentStatus={agentStatus}
+                        agentStatus={effectiveAgentStatus}
                         project={project}
                         contextSummary={contextSummary}
                         errorDockStates={errorDockStates}
@@ -723,7 +737,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           ? t`Deny and tell the agent what to do differently…`
                           : isServerControlled
                             ? (props.composerPlaceholder ??
-                              t`Ask ${agentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
+                              t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
                             : t`Send a message...`
                       }
                       projectLocation={projectLocation}
@@ -838,8 +852,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           customMcpServers={customMcpServers}
                           readOnly={!providerOwnsMcp}
                           computerUse={{
-                            enabled: thread.config.computerUse === true,
-                            visible: !providerOwnsMcp && thread.config.computerUse === true,
+                            enabled: thread.config?.computerUse === true,
+                            visible: !providerOwnsMcp && thread.config?.computerUse === true,
                             onToggle: () => {},
                           }}
                           showFileOption

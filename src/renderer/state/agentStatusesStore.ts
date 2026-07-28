@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   areAgentSlashCommandsEqual,
+  areAgentPresentationRuntimeFieldsEqual,
   areAgentProviderMetadataEqual,
   type AgentStatus,
   type ProjectLocation,
@@ -59,6 +60,12 @@ function capabilitiesEqual(
   a: AgentStatus["capabilities"],
   b: AgentStatus["capabilities"],
 ): boolean {
+  if (
+    JSON.stringify(a.presentationCapabilities ?? {}) !==
+    JSON.stringify(b.presentationCapabilities ?? {})
+  ) {
+    return false;
+  }
   if (a.models.length !== b.models.length) return false;
   if (a.efforts.length !== b.efforts.length) return false;
   for (let i = 0; i < a.models.length; i++) {
@@ -86,6 +93,7 @@ function statusesEqual(a: AgentStatus[], b: AgentStatus[]): boolean {
       x.icon === b[i]!.icon &&
       x.version === b[i]!.version &&
       x.authState === b[i]!.authState &&
+      areAgentPresentationRuntimeFieldsEqual(x, b[i]!) &&
       x.loginCommand === b[i]!.loginCommand &&
       x.envKind === b[i]!.envKind &&
       x.envDistro === b[i]!.envDistro &&
@@ -238,9 +246,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 3,
-      // v3 adds structured skill command metadata. Drop older cached statuses
-      // so enabled skills are not hidden until the next manual provider refresh.
+      version: 5,
+      // v5 adds independently cached runtime variants. Drop older cached
+      // statuses so an existing thread cannot inherit whichever GUI runtime is
+      // currently the provider default.
       // Mirrors the supervisor STATUS_CACHE_VERSION bump, which only invalidates
       // the supervisor's on-disk cache, not this renderer localStorage copy.
       migrate: (persisted) => {

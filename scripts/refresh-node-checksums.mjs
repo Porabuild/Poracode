@@ -6,7 +6,7 @@
  *
  * Run after bumping `PORACODE_PINNED_NODE_VERSION` in that file:
  *
- *   pnpm tsx scripts/refresh-node-checksums.mjs
+ *   node scripts/refresh-node-checksums.mjs
  *
  * Covers every target poracode ships a managed-runtime install for:
  *   - linux-x64 / linux-arm64        (.tar.xz)   — WSL + native Linux

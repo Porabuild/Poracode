@@ -1,4 +1,4 @@
-import type { AgentCapability, PromptSegment } from "@/shared/contracts";
+import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
@@ -30,6 +30,13 @@ import {
 } from "./plugin/install";
 import { createCursorChatSync } from "./session";
 import { CURSOR_IDLE_RE, CURSOR_WORKING_RE, detectCursorTerminalStatus } from "./terminal";
+import { applyCursorSdkProbe, probeCursorSdkRuntime } from "./sdkDetection";
+import { CursorSdkSession } from "./sdkSession";
+import {
+  configuredCursorStructuredRuntime,
+  CURSOR_SDK_SESSION_PREFIX,
+  resolveCursorStructuredRuntime,
+} from "./structuredRuntime";
 
 export {
   buildCursorAcpModelPickerCapabilities,
@@ -68,8 +75,6 @@ export function rewriteCursorLoadSessionError(error: unknown, _sessionId: string
 }
 
 export function createCursorAdapter(): AgentAdapter {
-  let capabilities: AgentCapability = cursorDefaultCapabilities;
-
   return {
     kind: cursorDetectionSpec.kind,
     label: cursorDetectionSpec.label,
@@ -117,9 +122,11 @@ export function createCursorAdapter(): AgentAdapter {
       },
     },
     ...(cursorDetectionSpec.update ? { update: cursorDetectionSpec.update } : {}),
-    get capabilities() {
-      return capabilities;
-    },
+    // Detection returns environment-scoped capabilities through AgentStatus.
+    // Keep the adapter's process-wide fallback immutable: native and WSL
+    // probes run concurrently, and a mutable singleton lets the last probe
+    // change routing for every other environment.
+    capabilities: cursorDefaultCapabilities,
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
     pluginId: "poracode-status@cursor",
     pluginVersion: CURSOR_PLUGIN_VERSION,
@@ -143,9 +150,15 @@ export function createCursorAdapter(): AgentAdapter {
     },
 
     detectInstall: async (ctx) => {
-      const status = await detectAgentInstall(ctx, cursorDetectionSpec);
-      capabilities = status.capabilities;
-      return status;
+      const [cliStatus, sdkProbe] = await Promise.all([
+        detectAgentInstall(ctx, cursorDetectionSpec),
+        probeCursorSdkRuntime(ctx),
+      ]);
+      return applyCursorSdkProbe(
+        cliStatus,
+        sdkProbe,
+        configuredCursorStructuredRuntime(ctx?.agentSettings),
+      );
     },
     // Cursor CLI has no documented per-launch MCP config or isolated config
     // home. Do not project launchOptions.mcpServers into the user's persistent
@@ -167,6 +180,12 @@ export function createCursorAdapter(): AgentAdapter {
       return undefined;
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      if (input.presentationMode === "gui") {
+        const resolved = resolveCursorStructuredRuntime(input.agentSettings, input.sessionRef);
+        if (resolved.runtime === "sdk") {
+          return CursorSdkSession.create(input);
+        }
+      }
       const command = buildAgentCommand(
         input.projectLocation,
         "cursor-agent",
@@ -226,6 +245,10 @@ export function createCursorAdapter(): AgentAdapter {
       return { command: "cursor-agent", args };
     },
     buildContextExtractionCommand(sessionRef, _location, model) {
+      // `sdk:` identifies Cursor's SDK-local Agent store, not a cursor-agent
+      // CLI chat. Passing it to `cursor-agent --resume` can open the wrong
+      // conversation or fail with an invalid session id.
+      if (sessionRef.providerSessionId.startsWith(CURSOR_SDK_SESSION_PREFIX)) return undefined;
       const args = [
         "--print",
         "--force",

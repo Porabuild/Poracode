@@ -3,30 +3,29 @@ import { Button, Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Loader2, Play, Server } from "lucide-react";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
-import type { RemoteAgentStatuses } from "@/shared/remote";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  buildRemoteThreadConfig,
+  remoteProjectAgentStatuses,
+  remoteProjectPresentationModes,
+  resolveRemoteProjectPresentationMode,
+} from "./remoteProjectSelection";
 
 const FIELD_CLASS =
   "w-full rounded-lg border border-default-200 bg-default-50 px-2.5 py-1.5 text-sm text-foreground outline-none transition-colors focus:border-default-400";
-
-function statusesForProject(
-  statuses: RemoteAgentStatuses | undefined,
-  locationKind: "windows" | "wsl" | "posix",
-): AgentStatus[] {
-  if (!statuses) return [];
-  const source = locationKind === "wsl" ? statuses.wsl : statuses.windows;
-  return source.filter((status) => status.installed && status.capabilities.models.length > 0);
-}
 
 function availableEfforts(agent: AgentStatus | undefined, model: string): string[] {
   if (!agent) return [];
   return agent.capabilities.modelEfforts[model] ?? agent.capabilities.efforts;
 }
 
-function presentationModesFor(agent: AgentStatus | undefined): ThreadPresentationMode[] {
-  if (!agent) return [];
-  return agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
+function resolveEffort(agent: AgentStatus | undefined, model: string, preferred: string): string {
+  const efforts = availableEfforts(agent, model);
+  if (efforts.includes(preferred)) return preferred;
+  const defaultEffort = agent?.capabilities.defaultEffort;
+  return defaultEffort && efforts.includes(defaultEffort) ? defaultEffort : (efforts[0] ?? "");
 }
 
 export function RemoteProjectModal() {
@@ -44,61 +43,57 @@ export function RemoteProjectModal() {
     ? serverRuntime?.projects.find((entry) => entry.id === draft.projectId)
     : undefined;
   const agents = project
-    ? statusesForProject(serverRuntime?.agentStatuses, project.location.kind)
+    ? remoteProjectAgentStatuses(serverRuntime?.agentStatuses, project.location)
     : [];
   const [agentKind, setAgentKind] = useState("");
-  const selectedAgent = agents.find((agent) => agent.kind === agentKind) ?? agents[0];
+  const selectedBaseAgent = agents.find((agent) => agent.kind === agentKind) ?? agents[0];
   const [model, setModel] = useState("");
   const [effort, setEffort] = useState("");
   const [presentationMode, setPresentationMode] = useState<ThreadPresentationMode>("gui");
   const [prompt, setPrompt] = useState("");
+  const activePresentationMode = resolveRemoteProjectPresentationMode(
+    selectedBaseAgent,
+    presentationMode,
+  );
+  const selectedAgent = selectedBaseAgent
+    ? agentStatusForPresentation(selectedBaseAgent, activePresentationMode)
+    : undefined;
+  const selectedModel =
+    selectedAgent?.capabilities.models.some((option) => option.id === model) === true
+      ? model
+      : (selectedAgent?.capabilities.models[0]?.id ?? "");
+  const efforts = availableEfforts(selectedAgent, selectedModel);
+  const selectedEffort = resolveEffort(selectedAgent, selectedModel, effort);
 
   useEffect(() => {
-    if (!selectedAgent) {
+    if (!selectedBaseAgent) {
       setAgentKind("");
-      setModel("");
       return;
     }
-    if (agentKind !== selectedAgent.kind) setAgentKind(selectedAgent.kind);
-    const nextModel = selectedAgent.capabilities.models[0]?.id ?? "";
-    if (!selectedAgent.capabilities.models.some((option) => option.id === model)) {
-      setModel(nextModel);
+    if (agentKind !== selectedBaseAgent.kind) setAgentKind(selectedBaseAgent.kind);
+    if (presentationMode !== activePresentationMode) {
+      setPresentationMode(activePresentationMode);
     }
-    const modes = presentationModesFor(selectedAgent);
-    if (!modes.includes(presentationMode)) setPresentationMode(modes[0] ?? "terminal");
-  }, [agentKind, model, presentationMode, selectedAgent]);
+  }, [activePresentationMode, agentKind, presentationMode, selectedBaseAgent]);
 
-  const efforts = availableEfforts(selectedAgent, model);
   useEffect(() => {
-    const nextEfforts = availableEfforts(selectedAgent, model);
-    if (nextEfforts.length === 0) {
-      setEffort("");
-      return;
-    }
-    if (!nextEfforts.includes(effort)) {
-      setEffort(selectedAgent?.capabilities.defaultEffort ?? nextEfforts[0] ?? "");
-    }
-  }, [effort, model, selectedAgent]);
+    if (model !== selectedModel) setModel(selectedModel);
+  }, [model, selectedModel]);
+
+  useEffect(() => {
+    if (effort !== selectedEffort) setEffort(selectedEffort);
+  }, [effort, selectedEffort]);
 
   const start = () => {
-    if (!draft || !selectedAgent || !model || !prompt.trim()) return;
+    if (!draft || !selectedAgent || !selectedModel || !prompt.trim()) return;
     run(() =>
       startRemoteThread({
         desktopId: draft.desktopId,
         projectId: draft.projectId,
         agentKind: selectedAgent.kind,
-        config: {
-          model,
-          ...(effort ? { effort } : {}),
-          ...(selectedAgent.capabilities.defaultApprovalPolicy
-            ? { approvalPolicy: selectedAgent.capabilities.defaultApprovalPolicy }
-            : {}),
-          ...(selectedAgent.capabilities.defaultSandboxMode
-            ? { sandboxMode: selectedAgent.capabilities.defaultSandboxMode }
-            : {}),
-        },
+        config: buildRemoteThreadConfig(selectedAgent, selectedModel, selectedEffort),
         prompt: prompt.trim(),
-        presentationMode,
+        presentationMode: activePresentationMode,
       }),
     );
   };
@@ -142,19 +137,26 @@ export function RemoteProjectModal() {
                     value={selectedAgent?.kind ?? ""}
                     onChange={(event) => setAgentKind(event.currentTarget.value)}
                   >
-                    {agents.map((agent) => (
-                      <option key={agent.kind} value={agent.kind}>
-                        {agent.label}
-                        {agent.authState === "missing" ? ` — ${t`sign-in required`}` : ""}
-                      </option>
-                    ))}
+                    {agents.map((agent) => {
+                      const optionMode = resolveRemoteProjectPresentationMode(
+                        agent,
+                        presentationMode,
+                      );
+                      const optionStatus = agentStatusForPresentation(agent, optionMode);
+                      return (
+                        <option key={agent.kind} value={agent.kind}>
+                          {agent.label}
+                          {optionStatus.authState === "missing" ? ` — ${t`sign-in required`}` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
                 <label className="flex flex-col gap-1 text-xs text-muted">
                   <Trans>Model</Trans>
                   <select
                     className={FIELD_CLASS}
-                    value={model}
+                    value={selectedModel}
                     onChange={(event) => setModel(event.currentTarget.value)}
                   >
                     {selectedAgent?.capabilities.models.map((option) => (
@@ -169,7 +171,7 @@ export function RemoteProjectModal() {
                     <Trans>Effort</Trans>
                     <select
                       className={FIELD_CLASS}
-                      value={effort}
+                      value={selectedEffort}
                       onChange={(event) => setEffort(event.currentTarget.value)}
                     >
                       {efforts.map((option) => (
@@ -180,12 +182,12 @@ export function RemoteProjectModal() {
                     </select>
                   </label>
                 ) : null}
-                {presentationModesFor(selectedAgent).length > 1 ? (
+                {remoteProjectPresentationModes(selectedBaseAgent).length > 1 ? (
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     <Trans>Presentation</Trans>
                     <select
                       className={FIELD_CLASS}
-                      value={presentationMode}
+                      value={activePresentationMode}
                       onChange={(event) =>
                         setPresentationMode(event.currentTarget.value as ThreadPresentationMode)
                       }
@@ -218,7 +220,7 @@ export function RemoteProjectModal() {
             </Button>
             <Button
               variant="primary"
-              isDisabled={busy || !selectedAgent || !model || !prompt.trim()}
+              isDisabled={busy || !selectedAgent || !selectedModel || !prompt.trim()}
               onPress={start}
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
