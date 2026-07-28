@@ -44,8 +44,13 @@ const mocks = vi.hoisted(() => ({
       }>
     >(),
     gitAddWorktree: vi.fn<(payload: unknown) => Promise<{ path: string }>>(),
-    getExperimentCandidateDiff:
-      vi.fn<(payload: unknown) => Promise<{ diff: string; headCommit: string }>>(),
+    getExperimentCandidateDiff: vi.fn<
+      (payload: unknown) => Promise<{
+        diff: string;
+        headCommit: string;
+        omittedFiles?: number;
+      }>
+    >(),
     judgeExperiment: vi.fn<
       (payload: unknown) => Promise<{
         winnerThreadId: string;
@@ -86,6 +91,7 @@ const mocks = vi.hoisted(() => ({
     dbUpsertThread: vi.fn<(thread: Thread) => Promise<void>>(),
     dbDeleteThread: vi.fn<(threadId: string) => Promise<void>>(),
     dbPersistExperimentState: vi.fn<(payload: any) => Promise<void>>(),
+    dbGetThreadRuntimeItems: vi.fn<(threadId: string) => Promise<any[]>>(),
   },
   performInitialThreadLaunch: vi.fn<(input: unknown) => Promise<void>>(),
   performWorktreeRemoval:
@@ -301,6 +307,7 @@ describe("experimentActions", () => {
     mocks.bridge.dbSetState.mockResolvedValue(undefined);
     mocks.bridge.dbUpsertThread.mockResolvedValue(undefined);
     mocks.bridge.dbDeleteThread.mockResolvedValue(undefined);
+    mocks.bridge.dbGetThreadRuntimeItems.mockReset().mockResolvedValue([]);
     mocks.bridge.dbPersistExperimentState.mockImplementation(async (payload) => {
       for (const item of payload.upsertThreads) await mocks.bridge.dbUpsertThread(item.thread);
       for (const threadId of payload.deletedThreadIds) {
@@ -344,6 +351,7 @@ describe("experimentActions", () => {
             files: result.diff ? 1 : 0,
             insertions: result.diff ? 1 : 0,
             deletions: 0,
+            ...(result.omittedFiles ? { omittedFiles: result.omittedFiles } : {}),
           };
         }),
       );
@@ -359,6 +367,7 @@ describe("experimentActions", () => {
                 files: snapshot.files,
                 insertions: snapshot.insertions,
                 deletions: snapshot.deletions,
+                ...(snapshot.omittedFiles ? { omittedFiles: snapshot.omittedFiles } : {}),
               },
             });
           }
@@ -793,7 +802,9 @@ describe("experimentActions", () => {
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
-    const pending: Array<(result: { diff: string; headCommit: string }) => void> = [];
+    const pending: Array<
+      (result: { diff: string; headCommit: string; omittedFiles?: number }) => void
+    > = [];
     mocks.bridge.getExperimentCandidateDiff.mockReset().mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -804,17 +815,25 @@ describe("experimentActions", () => {
       winnerThreadId: "thread-1",
       rationale: "Solution 1 is safer.",
     });
-    const capturedThreadIds: string[] = [];
+    const captured: Array<{ threadId: string; omittedFiles?: number }> = [];
 
     const judging = crownExperiment("experiment-1", undefined, (event) => {
-      if (event.kind === "captured") capturedThreadIds.push(event.threadId);
+      if (event.kind === "captured") {
+        captured.push({
+          threadId: event.threadId,
+          ...(event.omittedFiles ? { omittedFiles: event.omittedFiles } : {}),
+        });
+      }
     });
     await vi.waitFor(() => expect(pending).toHaveLength(2));
     pending[1]!({ diff: "second", headCommit: CANDIDATE_COMMIT });
-    pending[0]!({ diff: "first", headCommit: CANDIDATE_COMMIT });
+    pending[0]!({ diff: "first", headCommit: CANDIDATE_COMMIT, omittedFiles: 83 });
 
     await expect(judging).resolves.toBe(true);
-    expect(capturedThreadIds).toEqual(["thread-1", "thread-2"]);
+    expect(captured).toEqual([
+      { threadId: "thread-1", omittedFiles: 83 },
+      { threadId: "thread-2" },
+    ]);
   });
 
   it("uses an installed one-shot judge even when it is not a candidate provider", async () => {
@@ -891,6 +910,68 @@ describe("experimentActions", () => {
         effort: "low",
         fast: false,
       }),
+    );
+  });
+
+  it("compares chat responses without capturing candidate files", async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [
+        thread("thread-1", "/repo/one", "poracode/one"),
+        thread("thread-2", "/repo/two", "poracode/two"),
+      ],
+    }));
+    useExperimentStore.getState().addExperiment(experiment());
+    mocks.bridge.dbGetThreadRuntimeItems.mockImplementation(async (threadId) => [
+      {
+        id: `${threadId}-answer`,
+        type: "assistant_message",
+        state: "completed",
+        payload: {
+          content: [
+            { kind: "text", text: threadId === "thread-1" ? "First answer" : "Second answer" },
+          ],
+        },
+        streams: {},
+      },
+    ]);
+    mocks.bridge.judgeExperimentSnapshot.mockResolvedValueOnce({
+      hash: "response-hash",
+      winnerThreadId: "thread-2",
+      rationale: "The second answer is more complete.",
+      assessments: [
+        { threadId: "thread-1", rationale: "Brief." },
+        { threadId: "thread-2", rationale: "Complete." },
+      ],
+    });
+
+    await expect(
+      crownExperiment("experiment-1", {
+        agentKind: "codex",
+        model: "gpt-5-mini",
+        effort: "low",
+        fast: false,
+        mode: "responses",
+      }),
+    ).resolves.toBe(true);
+
+    expect(mocks.bridge.judgeExperimentSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "responses",
+        responses: [
+          { threadId: "thread-1", response: "Assistant:\nFirst answer" },
+          { threadId: "thread-2", response: "Assistant:\nSecond answer" },
+        ],
+      }),
+    );
+    expect(mocks.bridge.getExperimentCandidateDiff).not.toHaveBeenCalled();
+    expect(useExperimentStore.getState().experiments["experiment-1"]?.crown).toMatchObject({
+      threadId: "thread-2",
+      source: "ai",
+      comparisonMode: "responses",
+    });
+    expect(useExperimentStore.getState().experiments["experiment-1"]?.crown).not.toHaveProperty(
+      "snapshotHash",
     );
   });
 

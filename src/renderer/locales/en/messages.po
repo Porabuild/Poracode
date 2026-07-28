@@ -37,10 +37,20 @@ msgstr "(no message)"
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# candidate} other {# candidates}}"
 
+#. placeholder {0}: entry.characters
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "{0, plural, one {# character} other {# characters}}"
+msgstr "{0, plural, one {# character} other {# characters}}"
+
 #. placeholder {0}: state.iterations ?? 0
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{0, plural, one {# check} other {# checks}}"
 msgstr "{0, plural, one {# check} other {# checks}}"
+
+#. placeholder {0}: entry.omittedFiles
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "{0, plural, one {# file listed without contents} other {# files listed without contents}}"
+msgstr "{0, plural, one {# file listed without contents} other {# files listed without contents}}"
 
 #. placeholder {0}: details.changedFiles
 #. placeholder {0}: entry.files
@@ -197,6 +207,11 @@ msgstr "{0} hooks removed for {envName}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} is already up to date."
 msgstr "{0} is already up to date."
+
+#. placeholder {0}: entry.judgeLabel
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "{0} is comparing the anonymized chat responses…"
+msgstr "{0} is comparing the anonymized chat responses…"
 
 #. placeholder {0}: entry.judgeLabel
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
@@ -1774,6 +1789,7 @@ msgstr "Changelog"
 #: src/mobile/views/pr/PrChangesPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
@@ -1809,6 +1825,7 @@ msgstr "Channel"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Chat"
@@ -5915,6 +5932,7 @@ msgstr "Mirroring is unavailable."
 msgid "Mobile push notifications"
 msgstr "Mobile push notifications"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
@@ -6391,6 +6409,10 @@ msgstr "No changes to display"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "No changes yet"
 msgstr "No changes yet"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No chat response is available for experiment candidate {threadId}."
+msgstr "No chat response is available for experiment candidate {threadId}."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
@@ -7930,6 +7952,10 @@ msgstr "Re-pair this connection to grant access to port forwarding."
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "Reading each candidate's changes…"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "Reading each candidate's chat response…"
+msgstr "Reading each candidate's chat response…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -10190,6 +10216,10 @@ msgstr "The repository location on disk. Update it if you moved the folder."
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #~ msgid "The selected model compares anonymized snapshots of each candidate's changes. It recommends a winner without merging anything."
 #~ msgstr "The selected model compares anonymized snapshots of each candidate's changes. It recommends a winner without merging anything."
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+msgid "The selected model compares each candidate's chat response under anonymous labels. Files in their worktrees are ignored."
+msgstr "The selected model compares each candidate's chat response under anonymous labels. Files in their worktrees are ignored."
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."

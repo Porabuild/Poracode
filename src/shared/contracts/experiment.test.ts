@@ -4,6 +4,7 @@ import {
   experimentSchema,
   getExperimentCandidateDiffPayloadSchema,
   judgeExperimentPayloadSchema,
+  judgeExperimentSnapshotPayloadSchema,
 } from "./experiment";
 
 const BASE_COMMIT = "a".repeat(40);
@@ -213,6 +214,40 @@ describe("judgeExperimentPayloadSchema", () => {
           { threadId: "thread-1", diff: "one" },
           { threadId: "thread-1", diff: "two" },
         ],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("judgeExperimentSnapshotPayloadSchema", () => {
+  const snapshotPayload = {
+    experimentId: "exp-1",
+    projectLocation: { kind: "posix" as const, path: "/repo" },
+    baseCommit: BASE_COMMIT,
+    agentKind: "codex",
+    prompt: "Research the question",
+    candidates: [
+      { threadId: "thread-1", branch: "one", ownerToken: "owner-1" },
+      { threadId: "thread-2", branch: "two", ownerToken: "owner-2" },
+    ],
+  };
+
+  it("requires one matching chat response entry per candidate in response mode", () => {
+    expect(
+      judgeExperimentSnapshotPayloadSchema.safeParse({
+        ...snapshotPayload,
+        mode: "responses",
+        responses: [
+          { threadId: "thread-1", response: "First answer" },
+          { threadId: "thread-2", response: "" },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      judgeExperimentSnapshotPayloadSchema.safeParse({
+        ...snapshotPayload,
+        mode: "responses",
+        responses: [{ threadId: "thread-1", response: "First answer" }],
       }).success,
     ).toBe(false);
   });

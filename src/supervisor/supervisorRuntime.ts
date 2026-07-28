@@ -72,6 +72,7 @@ import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 import { SkillsService } from "./skills/SkillsService";
+import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
 
@@ -515,6 +516,41 @@ export class SupervisorRuntime {
   async judgeExperimentSnapshot(
     payload: JudgeExperimentSnapshotPayload,
   ): Promise<JudgeExperimentSnapshotResult> {
+    if (payload.mode === "responses") {
+      const snapshot = captureExperimentResponseSnapshot(
+        payload,
+        (threadId) => this.threadSessionManager.readTerminalScrollback(threadId),
+        (candidate) => {
+          this.emit({
+            type: "experiment-judge-progress",
+            experimentId: payload.experimentId,
+            progress: {
+              kind: "captured-response",
+              threadId: candidate.threadId,
+              characters: candidate.characters,
+            },
+          });
+        },
+      );
+      this.emit({
+        type: "experiment-judge-progress",
+        experimentId: payload.experimentId,
+        progress: { kind: "judging" },
+      });
+      const judgement = await this.generationService.judgeExperiment({
+        experimentId: payload.experimentId,
+        projectLocation: payload.projectLocation,
+        agentKind: payload.agentKind,
+        ...(payload.model ? { model: payload.model } : {}),
+        ...(payload.effort ? { effort: payload.effort } : {}),
+        ...(payload.fast !== undefined ? { fast: payload.fast } : {}),
+        mode: "responses",
+        prompt: payload.prompt,
+        candidates: snapshot.candidates,
+      });
+      return { hash: snapshot.hash, ...judgement };
+    }
+
     const snapshot = await this.gitService.captureExperimentSnapshot(payload, (candidate) => {
       this.emit({
         type: "experiment-judge-progress",
@@ -525,6 +561,7 @@ export class SupervisorRuntime {
           files: candidate.files,
           insertions: candidate.insertions,
           deletions: candidate.deletions,
+          ...(candidate.omittedFiles ? { omittedFiles: candidate.omittedFiles } : {}),
         },
       });
     });
@@ -543,10 +580,12 @@ export class SupervisorRuntime {
       ...(payload.model ? { model: payload.model } : {}),
       ...(payload.effort ? { effort: payload.effort } : {}),
       ...(payload.fast !== undefined ? { fast: payload.fast } : {}),
+      mode: "changes",
       prompt: payload.prompt,
       candidates: snapshot.candidates.map((candidate) => ({
         threadId: candidate.threadId,
         diff: candidate.diff,
+        ...(candidate.omittedFiles ? { omittedFiles: candidate.omittedFiles } : {}),
       })),
     });
     return { ...toPublicExperimentSnapshot(snapshot), ...judgement };
