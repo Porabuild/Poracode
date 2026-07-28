@@ -462,6 +462,7 @@ export class GitStatusService {
         ...(maxBuffer ? { maxBuffer } : {}),
       }).catch((error) => {
         console.warn(`[git] diff --no-index for ${filePath} failed:`, error);
+        if (maxBuffer) throw error;
         return "";
       });
     }

@@ -65,6 +65,12 @@ export type SupervisorEvent =
             files: number;
             insertions: number;
             deletions: number;
+            omittedFiles?: number;
+          }
+        | {
+            kind: "captured-response";
+            threadId: string;
+            characters: number;
           }
         | { kind: "judging" };
     }

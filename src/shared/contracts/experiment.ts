@@ -7,8 +7,13 @@ export const EXPERIMENT_STORE_KEY = "poracode-experiments-v1";
 export const EXPERIMENT_STORE_VERSION = 1;
 export const MAX_EXPERIMENT_CANDIDATES = 8;
 export const MAX_EXPERIMENT_DIFF_LENGTH = 2_000_000;
+export const MAX_EXPERIMENT_RESPONSE_LENGTH = 200_000;
 export const MAX_EXPERIMENT_PROMPT_LENGTH = 100_000;
+// Contents are captured for at most this many code-like untracked files.
+// Additional files remain visible to the judge as a path list.
 export const MAX_EXPERIMENT_UNTRACKED_FILES = 200;
+export const experimentJudgeModeSchema = z.enum(["changes", "responses"]);
+export type ExperimentJudgeMode = z.infer<typeof experimentJudgeModeSchema>;
 
 const nonBlankPromptSchema = z
   .string()
@@ -46,6 +51,7 @@ export const experimentCrownSchema = z.discriminatedUnion("source", [
   z.object({
     ...experimentCrownCommon,
     source: z.literal("ai"),
+    comparisonMode: experimentJudgeModeSchema.optional(),
     rationale: z
       .string()
       .min(1)
@@ -156,6 +162,7 @@ function uniqueCandidateIds(
 export const judgeExperimentCandidateSchema = z.object({
   threadId: z.string().min(1),
   diff: z.string().max(MAX_EXPERIMENT_DIFF_LENGTH),
+  omittedFiles: z.number().int().nonnegative().optional(),
 });
 export type JudgeExperimentCandidate = z.infer<typeof judgeExperimentCandidateSchema>;
 
@@ -167,6 +174,7 @@ export const judgeExperimentPayloadSchema = z
     model: z.string().min(1).optional(),
     effort: z.string().min(1).optional(),
     fast: z.boolean().optional(),
+    mode: experimentJudgeModeSchema.optional(),
     prompt: nonBlankPromptSchema,
     candidates: z.array(judgeExperimentCandidateSchema).min(2).max(MAX_EXPERIMENT_CANDIDATES),
   })
@@ -250,6 +258,7 @@ export interface ExperimentSnapshotCandidateResult {
   files: number;
   insertions: number;
   deletions: number;
+  omittedFiles?: number;
 }
 
 export interface CaptureExperimentSnapshotResult {
@@ -257,18 +266,49 @@ export interface CaptureExperimentSnapshotResult {
   candidates: ExperimentSnapshotCandidateResult[];
 }
 
-export const judgeExperimentSnapshotPayloadSchema = captureExperimentSnapshotPayloadSchema.and(
-  z.object({
-    agentKind: agentKindSchema,
-    model: z.string().min(1).optional(),
-    effort: z.string().min(1).optional(),
-    fast: z.boolean().optional(),
-    prompt: nonBlankPromptSchema,
-  }),
-);
+const experimentResponseCandidateSchema = z.object({
+  threadId: z.string().min(1),
+  response: z.string().max(MAX_EXPERIMENT_RESPONSE_LENGTH),
+});
+
+export const judgeExperimentSnapshotPayloadSchema = captureExperimentSnapshotPayloadSchema
+  .and(
+    z.object({
+      agentKind: agentKindSchema,
+      model: z.string().min(1).optional(),
+      effort: z.string().min(1).optional(),
+      fast: z.boolean().optional(),
+      mode: experimentJudgeModeSchema.optional(),
+      responses: z.array(experimentResponseCandidateSchema).optional(),
+      prompt: nonBlankPromptSchema,
+    }),
+  )
+  .superRefine(({ candidates, mode, responses }, ctx) => {
+    if (mode !== "responses") return;
+    if (!responses || responses.length !== candidates.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Chat response candidates must match experiment candidates",
+        path: ["responses"],
+      });
+      return;
+    }
+    const responseIds = new Set(responses.map((candidate) => candidate.threadId));
+    if (
+      responseIds.size !== responses.length ||
+      candidates.some((candidate) => !responseIds.has(candidate.threadId))
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Chat response candidates must match experiment candidates",
+        path: ["responses"],
+      });
+    }
+  });
 export type JudgeExperimentSnapshotPayload = z.infer<typeof judgeExperimentSnapshotPayloadSchema>;
 
-export interface JudgeExperimentSnapshotResult extends CaptureExperimentSnapshotResult {
+export interface JudgeExperimentSnapshotResult {
+  hash: string;
   winnerThreadId: string;
   rationale: string;
   assessments: ExperimentJudgeAssessment[];
@@ -290,6 +330,7 @@ export type GetExperimentCandidateDiffPayload = z.infer<
 export interface GetExperimentCandidateDiffResult {
   diff: string;
   headCommit: string;
+  omittedFiles?: number;
 }
 
 export type GetExperimentCandidateStatsPayload = GetExperimentCandidateDiffPayload;

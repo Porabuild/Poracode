@@ -154,6 +154,51 @@ describe("judgeExperiment", () => {
     expect(adapter.runTextOnlyOneShot).not.toHaveBeenCalled();
   });
 
+  it("uses response-quality criteria and response frames in chat mode", async () => {
+    let prompt = "";
+    const adapter = adapterReturning(
+      judgementJson(2, "The second response is more accurate."),
+      (input) => {
+        prompt = input.prompt;
+      },
+    );
+    const responseCandidates: JudgeExperimentCandidate[] = [
+      { threadId: "thread-a", diff: "Assistant:\nA vague answer." },
+      { threadId: "thread-b", diff: "Assistant:\nA complete, sourced answer." },
+    ];
+
+    const result = await judgeExperiment(
+      location,
+      adapter,
+      "Research the question",
+      responseCandidates,
+      undefined,
+      undefined,
+      undefined,
+      { mode: "responses" },
+    );
+
+    expect(result.winnerThreadId).toBe("thread-b");
+    expect(prompt).toContain("candidate responses to the same user request");
+    expect(prompt).toContain("UNTRUSTED_SOLUTION_1_RESPONSE");
+    expect(prompt).toContain("A complete, sourced answer.");
+    expect(prompt).not.toContain("specific files or hunks");
+  });
+
+  it("tells the judge when untracked file contents were omitted", async () => {
+    let prompt = "";
+    const adapter = adapterReturning(judgementJson(1, "The first solution is safer."), (input) => {
+      prompt = input.prompt;
+    });
+
+    await judgeExperiment(location, adapter, "Implement it", [
+      { ...candidates[0]!, omittedFiles: 83 },
+      candidates[1]!,
+    ]);
+
+    expect(prompt).toContain("83 files listed without contents");
+  });
+
   it("keeps delimiter-like prompt injection inside a randomized untrusted frame", async () => {
     let judgePrompt = "";
     const injectedPrompt =
