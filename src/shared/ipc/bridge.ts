@@ -2,6 +2,7 @@ import type { PoracodeChannel } from "../channel";
 import type { RemoteThreadCommand } from "../contracts";
 import type { RemoteAccessPairingInfo } from "../remote";
 import type { SharedSettings } from "../settings";
+import type { GitStatePatch } from "../gitState";
 import { createChannel } from "./core";
 import {
   ipcProcedureMap,
@@ -62,6 +63,7 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
   onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
   onProjectStateChanged(listener: (event: ProjectStateChangedEvent) => void): () => void;
+  onGitStateChanged(listener: (patch: GitStatePatch) => void): () => void;
   onThreadOpenRequested(listener: (event: ThreadOpenRequestedEvent) => void): () => void;
   submitQuickComposer(submission: QuickComposerSubmission): Promise<void>;
   dismissQuickComposer(): Promise<void>;
@@ -125,6 +127,7 @@ export const IPC_EVENT_CHANNELS = {
   remoteAccessPairingChanged: createChannel("remoteAccessPairingChanged"),
   sharedSettingsChanged: createChannel("sharedSettingsChanged"),
   projectStateChanged: createChannel("projectStateChanged"),
+  gitStateChanged: createChannel("gitStateChanged"),
   threadOpenRequested: createChannel("threadOpenRequested"),
   quickComposerSubmit: createChannel("quickComposerSubmit"),
   quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),

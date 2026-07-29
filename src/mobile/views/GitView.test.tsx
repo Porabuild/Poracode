@@ -5,6 +5,7 @@ import type {
   GitProjectSnapshotResult,
   GitStatusResult,
   PrData,
+  PrDetails,
   Project,
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -18,6 +19,7 @@ const bridge = vi.hoisted(() => ({
   gitFetch: vi.fn<(payload: unknown) => Promise<void>>(),
   gitProjectSnapshot: vi.fn<(payload: unknown) => Promise<GitProjectSnapshotResult>>(),
   ghGetPrForBranch: vi.fn<(payload: unknown) => Promise<PrData | null>>(),
+  ghGetPrDetails: vi.fn<(payload: unknown) => Promise<{ details: PrDetails }>>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -114,6 +116,8 @@ describe("GitView", () => {
     bridge.gitFetch.mockReset();
     bridge.gitProjectSnapshot.mockReset();
     bridge.ghGetPrForBranch.mockReset();
+    bridge.ghGetPrDetails.mockReset();
+    bridge.ghGetPrDetails.mockRejectedValue(new Error("details unavailable"));
     bridge.getGitStatus.mockResolvedValue(status);
     bridge.gitFetch.mockResolvedValue(undefined);
     bridge.ghGetPrForBranch.mockResolvedValue(null);

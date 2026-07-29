@@ -420,9 +420,10 @@ export async function refreshSinglePr(params: {
   projectLocation: ProjectLocation;
   prKey: string;
   branch: string;
+  projectId?: string;
   detailsCacheKey?: string;
   prNumber?: number;
-}): Promise<void> {
+}): Promise<PrData | null | undefined> {
   const bridge = readBridge();
   const prPromise = bridge
     .ghGetPrForBranch({ projectLocation: params.projectLocation, branch: params.branch })
@@ -440,6 +441,17 @@ export async function refreshSinglePr(params: {
   if (params.detailsCacheKey && details) {
     useGitStore.getState().setPrDetails(params.detailsCacheKey, details.details);
   }
+  if (!params.detailsCacheKey && params.projectId && pr && pr.number !== params.prNumber) {
+    const discoveredDetails = await bridge
+      .ghGetPrDetails({ projectLocation: params.projectLocation, prNumber: pr.number })
+      .catch(() => undefined);
+    if (discoveredDetails) {
+      useGitStore
+        .getState()
+        .setPrDetails(`${params.projectId}#${pr.number}`, discoveredDetails.details);
+    }
+  }
+  return pr;
 }
 
 async function refreshPendingPr(key: string): Promise<void> {

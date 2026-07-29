@@ -233,9 +233,12 @@ function createController(
     notifyRemoteAccessPairingChanged:
       notifyRemoteAccessPairingChanged ??
       vi.fn<DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"]>(),
+    notifyProjectStateChanged:
+      vi.fn<DesktopRemoteAccessControllerOptions["notifyProjectStateChanged"]>(),
     reportError,
     scheduleService: {} as never,
     prWatchService: {} as never,
+    gitStateService: {} as never,
   });
 }
 

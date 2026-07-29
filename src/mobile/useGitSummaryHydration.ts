@@ -1,13 +1,14 @@
 import { useEffect } from "react";
 import { readBridge } from "@/renderer/bridge";
+import { refreshSinglePr } from "@/renderer/state/gitRefresh";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useGitReadModelStore } from "@/renderer/state/gitReadModelStore";
 import type { GitStatusResult, PrData, Project, ProjectLocation, Thread } from "@/shared/contracts";
 import type { RemoteThreadGitSummary } from "@/shared/remote";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { useGitSummariesStore } from "./gitSummaries";
 
-const pendingPrFetches = new Map<string, Promise<PrData | null>>();
 const GIT_STATUS_BRIDGE_RETRY_DELAY_MS = 250;
 const GIT_STATUS_BRIDGE_RETRY_LIMIT = 40;
 
@@ -23,34 +24,35 @@ function prSummaryFromData(pr: PrData | null): RemoteThreadGitSummary["pr"] {
   };
 }
 
-function fetchPrForBranch(projectLocation: ProjectLocation, branch: string) {
-  const key = `${JSON.stringify(projectLocation)}\0${branch}`;
-  const existing = pendingPrFetches.get(key);
-  if (existing) return existing;
-
-  const pending = readBridge()
-    .ghGetPrForBranch({ projectLocation, branch })
-    .finally(() => {
-      if (pendingPrFetches.get(key) === pending) pendingPrFetches.delete(key);
-    });
-  pendingPrFetches.set(key, pending);
-  return pending;
-}
-
 /**
  * Fetch the authoritative PR for a mobile thread from its paired host and
  * hydrate both caches used by the PWA: the reused desktop Git panel reads
  * gitStore, while thread/workspace badges read gitSummariesStore.
  */
 export async function refreshMobilePrData(input: {
+  readonly projectId: string;
   readonly projectLocation: ProjectLocation;
   readonly branch: string;
   readonly prKey: string;
+  readonly prNumber?: number | undefined;
   readonly threadId?: string | undefined;
 }): Promise<PrData | null | undefined> {
   try {
-    const pr = await fetchPrForBranch(input.projectLocation, input.branch);
-    useGitStore.getState().setPrData(input.prKey, pr);
+    const currentPrNumber = useGitStore.getState().prData[input.prKey]?.number;
+    const prNumber = input.prNumber ?? currentPrNumber;
+    const pr = await refreshSinglePr({
+      projectId: input.projectId,
+      projectLocation: input.projectLocation,
+      branch: input.branch,
+      prKey: input.prKey,
+      ...(prNumber
+        ? {
+            prNumber,
+            detailsCacheKey: `${input.projectId}#${prNumber}`,
+          }
+        : {}),
+    });
+    if (pr === undefined) return undefined;
     if (input.threadId) {
       useGitSummariesStore.getState().setThreadPr(input.threadId, prSummaryFromData(pr));
     }
@@ -102,9 +104,15 @@ export function useGitSummaryHydration(
   const cached = useGitSummariesStore((s) => (thread ? s.byThread[thread.id] : undefined));
   const cachedBranch = cached?.isRepo ? cached.branch : undefined;
   const hasKnownPr = Boolean(cached?.pr || thread?.prNumber);
+  const prKey = thread ? resolvePrKey(thread.projectId, thread.worktreePath) : undefined;
+  const hydratedPr = useGitStore((state) => (prKey ? state.prData[prKey] : undefined));
+  const hostGitStateAvailable = useGitReadModelStore((state) => state.hostAvailable);
+  const cachedPrFingerprint = JSON.stringify(cached?.pr ?? null);
+  const cachedPrNumber = cached?.pr?.number;
+  const hydratedPrFingerprint = JSON.stringify(prSummaryFromData(hydratedPr ?? null));
 
   useEffect(() => {
-    if (!thread || !project || cached) return;
+    if (!thread || !project || cached || hostGitStateAvailable) return;
     const currentThread = thread;
     const currentProject = project;
     let cancelled = false;
@@ -147,19 +155,31 @@ export function useGitSummaryHydration(
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [thread, project, cached]);
+  }, [thread, project, cached, hostGitStateAvailable]);
 
   // The compact desktop summary powers the thread header, but the reused Git
   // panel reads full PR data from gitStore. Refresh known PRs on the phone so a
   // worktree panel does not fall back to "Create PR" or retain stale checks.
   useEffect(() => {
-    if (!thread || !project || !cachedBranch || !hasKnownPr) return;
+    if (hostGitStateAvailable || !thread || !project || !cachedBranch || !hasKnownPr) return;
+    if (cachedPrFingerprint === hydratedPrFingerprint) return;
     useGitStore.getState().setGhAvailable(project.id, true);
     void refreshMobilePrData({
+      projectId: project.id,
       projectLocation: project.location,
       branch: cachedBranch,
       prKey: resolvePrKey(thread.projectId, thread.worktreePath),
+      ...(cachedPrNumber ? { prNumber: cachedPrNumber } : {}),
       threadId: thread.id,
     });
-  }, [cachedBranch, hasKnownPr, project, thread]);
+  }, [
+    cachedBranch,
+    cachedPrFingerprint,
+    cachedPrNumber,
+    hasKnownPr,
+    hostGitStateAvailable,
+    hydratedPrFingerprint,
+    project,
+    thread,
+  ]);
 }

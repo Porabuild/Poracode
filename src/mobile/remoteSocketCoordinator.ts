@@ -1,4 +1,5 @@
 import { reconnectBackoffDelay } from "@/shared/remote/backoff";
+import type { GitStateInterest } from "@/shared/gitState";
 import { handleBrowserServerMessage, setBrowserSocketSender } from "./browserMirror";
 import { RemoteClientError, type RemoteDesktopClient } from "./remoteClient";
 import { createRemoteSocketSender } from "./remoteSocketSender";
@@ -50,6 +51,9 @@ export interface RemoteSocketCoordinator {
   start(): void;
   getLastSeenSeq(): number;
   advanceLastSeenSeq(seq: number): void;
+  setGitStateInterests(interests: readonly GitStateInterest[]): void;
+  /** Threads to receive live transcript content for; others send lifecycle only. */
+  setThreadItemInterests(threadIds: readonly string[]): void;
   dispose(): void;
 }
 
@@ -103,6 +107,30 @@ export function createRemoteSocketCoordinator(
   let pendingPingId: string | null = null;
   let connectWatchdog = 0;
   let heartbeat = 0;
+  let gitStateInterests: readonly GitStateInterest[] = [];
+  let threadItemInterests: readonly string[] = [];
+
+  function publishThreadItemInterests(): void {
+    const socket = ws;
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    socket.send(
+      JSON.stringify({
+        type: "thread-item-interests",
+        threadIds: threadItemInterests,
+      }),
+    );
+  }
+
+  function publishGitStateInterests(): void {
+    const socket = ws;
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    socket.send(
+      JSON.stringify({
+        type: "git-state-interests",
+        interests: gitStateInterests,
+      }),
+    );
+  }
 
   function scheduleRefresh(
     request: {
@@ -197,6 +225,8 @@ export function createRemoteSocketCoordinator(
           const socketSender = createRemoteSocketSender(socket);
           setBrowserSocketSender(socketSender);
           setTerminalSocketSender(socketSender);
+          publishGitStateInterests();
+          publishThreadItemInterests();
           scheduleRefresh({ recovery: true });
         });
 
@@ -336,6 +366,14 @@ export function createRemoteSocketCoordinator(
     },
     advanceLastSeenSeq(seq) {
       if (Number.isInteger(seq) && seq >= 0) lastSeenSeq = Math.max(lastSeenSeq, seq);
+    },
+    setGitStateInterests(interests) {
+      gitStateInterests = interests;
+      publishGitStateInterests();
+    },
+    setThreadItemInterests(threadIds) {
+      threadItemInterests = threadIds;
+      publishThreadItemInterests();
     },
     dispose() {
       if (closed) return;

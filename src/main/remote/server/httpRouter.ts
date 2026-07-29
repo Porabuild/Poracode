@@ -38,6 +38,7 @@ import {
   startThreadPayloadSchema,
   writeTerminalPayloadSchema,
 } from "@/shared/contracts";
+import { dbTruncateRuntimeItemsPayloadSchema } from "@/shared/ipc/schemas";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
@@ -46,6 +47,7 @@ import {
   dbGetProjectNotes,
   dbGetThread,
   dbSetProjectNotes,
+  dbTruncateThreadRuntimeAfter,
 } from "../../db";
 import {
   getProfileCoreStats,
@@ -67,8 +69,15 @@ import {
 } from "../pairingPage";
 import { tryServeBuiltMobileApp } from "../staticMobileApp";
 import type { RemoteServerContext } from "./context";
-import { writeError, writeHtml, writeJson, writeText } from "./httpResponses";
+import {
+  writeError,
+  writeHtml,
+  writeJson,
+  writeNegotiatedJsonResponse,
+  writeText,
+} from "./httpResponses";
 import { writeLocalImageFile } from "./localImageFile";
+import { parseImageRefPath, resolveImageRef } from "./imageRefProjection";
 import {
   buildForwardSessionCookieHeader,
   isReservedForwardProxyPath,
@@ -376,12 +385,12 @@ export async function handleHttp(
     }
     if (req.method === "GET" && url.pathname === "/api/snapshot") {
       ctx.security.requireBearer(req, ["session:read"]);
-      writeJson(res, 200, buildShellSnapshot(ctx));
+      await writeNegotiatedJsonResponse(req, res, 200, buildShellSnapshot(ctx));
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/agent-statuses") {
       ctx.security.requireBearer(req, ["session:read"]);
-      writeJson(res, 200, await buildAgentStatuses(ctx));
+      await writeNegotiatedJsonResponse(req, res, 200, await buildAgentStatuses(ctx));
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/provider-usage") {
@@ -430,6 +439,45 @@ export async function handleHttp(
       }
       ctx.auth.authenticateBearerToken(token, ["session:read"]);
       await writeLocalImageFile(res, url.searchParams.get("path"));
+      return;
+    }
+    // Resolves a host-minted image reference back to bytes. Unlike
+    // `/api/files/image` this takes NO caller-supplied filesystem path: it
+    // addresses a location inside the thread's own persisted runtime payload and
+    // re-verifies that the addressed value really is an inline image, so a
+    // prompt-injected tool result cannot steer it at the filesystem or network.
+    // Shares the `access_token` query-param affordance because <img> tags cannot
+    // send an Authorization header.
+    const refImageMatch = /^\/api\/threads\/([^/]+)\/items\/([^/]+)\/image$/.exec(url.pathname);
+    if (req.method === "GET" && refImageMatch) {
+      const header = Array.isArray(req.headers.authorization)
+        ? req.headers.authorization[0]
+        : req.headers.authorization;
+      const token = parseBearerAuthorizationHeader(header) ?? url.searchParams.get("access_token");
+      if (!token) {
+        throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
+      }
+      ctx.auth.authenticateBearerToken(token, ["session:read"]);
+      const path = parseImageRefPath(url.searchParams.get("path"));
+      if (!path) {
+        throw new RemoteHttpError("invalid_path", "An image reference path is required.", 400);
+      }
+      const resolved = resolveImageRef(
+        decodeURIComponent(refImageMatch[1]!),
+        decodeURIComponent(refImageMatch[2]!),
+        path,
+      );
+      if (!resolved) {
+        throw new RemoteHttpError("image_not_found", "No inline image at that reference.", 404);
+      }
+      res.writeHead(200, {
+        "content-type": resolved.mime,
+        "content-length": resolved.data.length,
+        // Immutable: a runtime item's image bytes never change under the same
+        // id, so the client can reuse it for the life of the transcript.
+        "cache-control": "private, max-age=31536000, immutable",
+      });
+      res.end(resolved.data);
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/files/attachment") {
@@ -615,6 +663,7 @@ export async function handleHttp(
         type: "remote-projects-changed",
         projects: result.projects,
       });
+      ctx.options.onProjectsChanged?.(result.projects);
       writeJson(res, 200, result);
       return;
     }
@@ -654,14 +703,15 @@ export async function handleHttp(
           ? { targetTimelineEntryCount: Number(targetTimelineEntryCount) }
           : {}),
       });
-      writeJson(res, 200, buildThreadRuntimeItemsPage(input));
+      await writeNegotiatedJsonResponse(req, res, 200, buildThreadRuntimeItemsPage(input));
       return;
     }
     const historyThreadId = threadIdFromPath(url.pathname, "/history");
     if (req.method === "GET" && historyThreadId) {
       ctx.security.requireBearer(req, ["session:read"]);
       const targetTimelineEntryCount = url.searchParams.get("targetTimelineEntryCount");
-      writeJson(
+      await writeNegotiatedJsonResponse(
+        req,
         res,
         200,
         await buildThreadSnapshot(ctx, historyThreadId, {
@@ -710,6 +760,19 @@ export async function handleHttp(
       return;
     }
     const commandThreadId = threadIdFromPath(url.pathname, "/command");
+    const truncateThreadId = threadIdFromPath(url.pathname, "/runtime/truncate");
+    if (req.method === "POST" && truncateThreadId) {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const body = await readJsonBody(req);
+      const payload = dbTruncateRuntimeItemsPayloadSchema.parse({
+        ...(typeof body === "object" && body !== null ? body : {}),
+        threadId: truncateThreadId,
+      });
+      dbTruncateThreadRuntimeAfter(payload.threadId, payload.itemId);
+      ctx.publishThreadsChanged([payload.threadId]);
+      writeJson(res, 200, { ok: true });
+      return;
+    }
     if (req.method === "POST" && commandThreadId) {
       ctx.security.requireBearer(req, ["session:operate"]);
       const body = await readJsonBody(req);
@@ -719,6 +782,34 @@ export async function handleHttp(
       });
       assertRemoteThreadCommandExperimentSafe(command);
       const dispatch = async () => {
+        if (command.kind === "delete-worktree-group") {
+          if (ctx.options.dispatchThreadCommand?.(command) !== true) {
+            throw new RemoteHttpError(
+              "desktop_unavailable",
+              "The desktop app is not available to apply this change.",
+              503,
+            );
+          }
+          await applyRemoteThreadCommand(ctx, command);
+          ctx.publishThreadsChanged(command.threadIds);
+          return { ok: true };
+        }
+        if (command.kind === "start" && command.isNewWorktree && command.worktreePath) {
+          const prepared =
+            ctx.options.dispatchThreadCommand?.({
+              kind: "prepare-worktree",
+              threadId: command.threadId,
+              projectId: command.projectId,
+              worktreePath: command.worktreePath,
+            }) ?? false;
+          if (!prepared) {
+            throw new RemoteHttpError(
+              "desktop_unavailable",
+              "The desktop app is not available to prepare the worktree.",
+              503,
+            );
+          }
+        }
         const requiresRenderer = await applyRemoteThreadCommand(ctx, command);
         if (requiresRenderer && ctx.options.dispatchThreadCommand?.(command) !== true) {
           throw new RemoteHttpError(
@@ -728,8 +819,11 @@ export async function handleHttp(
           );
         }
         if (!requiresRenderer) {
-          const rendererCommand =
-            command.kind === "start" ? { ...command, launchRuntime: false } : command;
+          const rendererCommand = (() => {
+            if (command.kind !== "start") return command;
+            const { isNewWorktree: _isNewWorktree, ...startCommand } = command;
+            return { ...startCommand, launchRuntime: false };
+          })();
           ctx.options.dispatchThreadCommand?.(rendererCommand);
           if (command.kind === "acknowledge") {
             ctx.publishSupervisorEvent({
