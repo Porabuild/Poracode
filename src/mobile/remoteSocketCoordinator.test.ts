@@ -232,6 +232,41 @@ describe("remoteSocketCoordinator", () => {
     });
   });
 
+  it("publishes current Git interests on open and whenever they change", async () => {
+    const harness = track(createHarness());
+    const socket = await start(harness);
+    harness.coordinator.setGitStateInterests([
+      {
+        kind: "target",
+        projectId: "project-1",
+        worktreePath: "/repo/worktree",
+        includePrDetails: true,
+      },
+    ]);
+    expect(socket.sent).toEqual([]);
+
+    socket.open();
+    expect(socket.sent.map((message) => JSON.parse(message))).toContainEqual({
+      type: "git-state-interests",
+      interests: [
+        {
+          kind: "target",
+          projectId: "project-1",
+          worktreePath: "/repo/worktree",
+          includePrDetails: true,
+        },
+      ],
+    });
+
+    harness.coordinator.setGitStateInterests([
+      { kind: "project-pull-requests", projectId: "project-1" },
+    ]);
+    expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
+      type: "git-state-interests",
+      interests: [{ kind: "project-pull-requests", projectId: "project-1" }],
+    });
+  });
+
   it("advances to an authoritative snapshot sequence and ignores covered replay events", async () => {
     const harness = track(createHarness({ initialLastSeenSeq: 2 }));
     const socket = await start(harness);
@@ -460,7 +495,13 @@ describe("remoteSocketCoordinator", () => {
     const firstSocket = await start(harness);
     firstSocket.open();
     document.dispatchEvent(new Event("visibilitychange"));
-    expect(firstSocket.sent).toHaveLength(1);
+    // On open the coordinator declares its Git and transcript-content interests;
+    // the visibility change then adds a health ping.
+    expect(firstSocket.sent.map((raw) => (JSON.parse(raw) as { type: string }).type)).toEqual([
+      "git-state-interests",
+      "thread-item-interests",
+      "ping",
+    ]);
     firstSocket.beginClosing();
 
     window.dispatchEvent(new Event("online"));
@@ -469,7 +510,10 @@ describe("remoteSocketCoordinator", () => {
     expect(secondSocket).not.toBe(firstSocket);
     secondSocket?.open();
     document.dispatchEvent(new Event("visibilitychange"));
-    expect(secondSocket?.sent).toHaveLength(1);
+    // Same three as the first socket: both interest declarations, then the ping.
+    expect(
+      (secondSocket?.sent ?? []).map((raw) => (JSON.parse(raw) as { type: string }).type),
+    ).toEqual(["git-state-interests", "thread-item-interests", "ping"]);
 
     harness.onConnectionChange.mockClear();
     harness.onMessageChange.mockClear();

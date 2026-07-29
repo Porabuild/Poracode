@@ -420,6 +420,82 @@ describe("startRelayHost", () => {
     handle.dispose();
   });
 
+  it("never forwards a content-encoding for a body fetch already decoded", async () => {
+    const control = fakeSocket();
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => control,
+      // `fetch` transparently inflates a gzip response but leaves the header in
+      // place. Echoing it would label these plaintext bytes as gzip and the
+      // visitor would fail to decode them.
+      fetchImpl: async () =>
+        new Response('{"ok":true}', {
+          headers: {
+            "content-type": "application/json",
+            "content-encoding": "gzip",
+            "content-length": "999",
+            etag: '"abc"',
+          },
+        }),
+    });
+
+    control.onopen?.();
+    control.onmessage?.(
+      frame({ t: "req", id: "req-1", method: "GET", path: "/api/snapshot", headers: {} }),
+    );
+
+    await vi.waitFor(() => {
+      const response = control.sent
+        .map((data) => JSON.parse(data) as { t: string; headers?: Record<string, string> })
+        .find((message) => message.t === "res");
+      expect(response).toBeDefined();
+      expect(response!.headers).not.toHaveProperty("content-encoding");
+      // Stale once the body is re-encoded for the tunnel.
+      expect(response!.headers).not.toHaveProperty("content-length");
+      // Validators must still survive so conditional GETs keep working.
+      expect(response!.headers).toMatchObject({ etag: '"abc"' });
+    });
+    handle.dispose();
+  });
+
+  it("does not ask the local server to compress a loopback response", async () => {
+    const control = fakeSocket();
+    let forwarded: Record<string, string> | undefined;
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => control,
+      fetchImpl: async (_url, init) => {
+        forwarded = init?.headers as Record<string, string>;
+        return new Response('{"ok":true}');
+      },
+    });
+
+    control.onopen?.();
+    control.onmessage?.(
+      frame({
+        t: "req",
+        id: "req-1",
+        method: "GET",
+        path: "/api/snapshot",
+        headers: { "accept-encoding": "gzip, br", "if-none-match": '"abc"' },
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(forwarded).toBeDefined();
+      expect(forwarded).not.toHaveProperty("accept-encoding");
+      // Conditional-request headers must still reach the origin.
+      expect(forwarded).toMatchObject({ "if-none-match": '"abc"' });
+    });
+    handle.dispose();
+  });
+
   it("rejects local HTTP responses that exceed the relay body limit", async () => {
     const control = fakeSocket();
     const handle = startRelayHost({

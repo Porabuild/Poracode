@@ -21,6 +21,7 @@ const {
   quickComposerSubmitListeners,
   projectStateChangedListeners,
   remoteThreadCommandListeners,
+  runWorktreeSetupScript,
   supervisorEventListeners,
   threadOpenRequestedListeners,
 } = vi.hoisted(() => {
@@ -31,6 +32,7 @@ const {
   const projectListeners: Array<(event: { projects: unknown[] }) => void> = [];
   return {
     remoteThreadCommandListeners: listeners,
+    runWorktreeSetupScript: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     quickComposerSubmitListeners: quickListeners,
     supervisorEventListeners: supervisorListeners,
     threadOpenRequestedListeners: threadOpenListeners,
@@ -185,6 +187,7 @@ const {
         projectListeners.push(listener);
         return () => undefined;
       }),
+      onGitStateChanged: vi.fn<() => () => void>(() => () => undefined),
       onThreadOpenRequested: vi.fn<
         (listener: (event: ThreadOpenRequestedEvent) => void) => () => void
       >((listener) => {
@@ -212,6 +215,14 @@ vi.mock("./bridge", () => ({
   isWindows: () => false,
   isMac: () => false,
 }));
+
+vi.mock("@/renderer/actions/worktreeLaunchActions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/actions/worktreeLaunchActions")>();
+  return {
+    ...actual,
+    runWorktreeSetupScript,
+  };
+});
 
 vi.mock("./components/ui/provider", () => ({
   AppProvider: (props: { children: ReactNode }) => props.children,
@@ -684,6 +695,77 @@ describe("App", () => {
       { kind: "text", content: "start from phone" },
     ]);
     expect(bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("runs setup once and headlessly for a worktree newly created from the PWA", () => {
+    const project = {
+      id: "project-1",
+      name: "Repo",
+      location: {
+        kind: "windows" as const,
+        path: "C:\\repo",
+      },
+      scripts: {
+        actions: [],
+        setupScript: "direnv allow\npnpm ci",
+        worktreeCopyPatterns: [".envrc", ".env.*"],
+      },
+      createdAt: "2026-03-22T00:00:00.000Z",
+    };
+    useAppStore.setState({ projects: [project], view: { kind: "home" } });
+    render(<App />);
+
+    act(() => {
+      remoteThreadCommandListeners.at(-1)?.({
+        kind: "prepare-worktree",
+        threadId: "remote-new-worktree",
+        projectId: project.id,
+        worktreePath: "C:\\worktrees\\mobile-fix",
+      });
+    });
+
+    expect(runWorktreeSetupScript).toHaveBeenCalledTimes(1);
+    expect(runWorktreeSetupScript).toHaveBeenCalledWith(
+      project,
+      "C:\\worktrees\\mobile-fix",
+      "direnv allow\npnpm ci",
+      { openTerminalPanel: false },
+    );
+  });
+
+  it("does not run setup when the PWA reuses an existing worktree", () => {
+    const project = {
+      id: "project-1",
+      name: "Repo",
+      location: {
+        kind: "windows" as const,
+        path: "C:\\repo",
+      },
+      scripts: {
+        actions: [],
+        setupScript: "direnv allow\npnpm ci",
+      },
+      createdAt: "2026-03-22T00:00:00.000Z",
+    };
+    useAppStore.setState({ projects: [project], view: { kind: "home" } });
+    render(<App />);
+
+    act(() => {
+      remoteThreadCommandListeners.at(-1)?.({
+        kind: "start",
+        threadId: "remote-existing-worktree",
+        projectId: project.id,
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        prompt: "continue from phone",
+        presentationMode: "gui",
+        worktreePath: "C:\\worktrees\\existing",
+        worktreeBranch: "feature/existing",
+        launchRuntime: false,
+      });
+    });
+
+    expect(runWorktreeSetupScript).not.toHaveBeenCalled();
   });
 
   it("adopts project changes made outside the renderer before the next store sync", () => {

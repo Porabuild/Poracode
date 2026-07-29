@@ -11,6 +11,7 @@ import {
   threadSchema,
 } from "../contracts";
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
+import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 1;
@@ -181,6 +182,12 @@ export const remoteGitSummariesEventSchema = z.object({
   summaries: remoteGitSummariesSchema,
 });
 export type RemoteGitSummariesEvent = z.infer<typeof remoteGitSummariesEventSchema>;
+
+export const remoteGitStateEventSchema = z.object({
+  type: z.literal("remote-git-state"),
+  patch: gitStatePatchSchema,
+});
+export type RemoteGitStateEvent = z.infer<typeof remoteGitStateEventSchema>;
 
 /**
  * Remote project management. Lets a paired client add/clone/remove projects on
@@ -496,6 +503,8 @@ export const remoteShellSnapshotSchema = z.object({
   runtimeSummariesByThread: z.record(z.string(), remoteRuntimeSummarySchema),
   /** Absent on desktops that predate git summaries. */
   gitSummariesByThread: remoteGitSummariesSchema.optional(),
+  /** Normalized host-owned Git/PR state. Absent on legacy hosts. */
+  gitState: gitStateSnapshotSchema.optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteShellSnapshot = z.infer<typeof remoteShellSnapshotSchema>;
@@ -749,6 +758,29 @@ export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
   // they only stream to clients that opted in via terminal-watch.
   z.object({ type: z.literal("terminal-watch"), id: z.string().min(1) }),
   z.object({ type: z.literal("terminal-unwatch"), id: z.string().min(1) }),
+  z.object({
+    type: z.literal("git-state-interests"),
+    interests: z.array(gitStateInterestSchema).max(500),
+  }),
+  /**
+   * Threads this client wants live transcript *content* for. Runtime item and
+   * text-delta events for any other thread are withheld — a phone viewing one
+   * thread otherwise downloads every other thread's tool payloads too.
+   *
+   * Scoped to bulk content ONLY. Lifecycle and interaction events
+   * (`request.opened`/`request.resolved`, `turn.*`, `session.*`, warnings,
+   * errors, context/usage) always reach every client regardless of this list:
+   * a permission prompt on a thread the user is not looking at must still
+   * surface, and `RemoteThreadSnapshot` carries no open-requests field to
+   * recover it from later.
+   *
+   * A client that never sends this message keeps receiving everything, so older
+   * clients are unaffected.
+   */
+  z.object({
+    type: z.literal("thread-item-interests"),
+    threadIds: z.array(z.string().min(1)).max(200),
+  }),
 ]);
 export type RemoteWebSocketClientMessage = z.infer<typeof remoteWebSocketClientMessageSchema>;
 

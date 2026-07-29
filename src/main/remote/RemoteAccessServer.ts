@@ -13,8 +13,10 @@ import {
   type RemoteSettingsPatch,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
+import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type {
   McpLaunchSnapshot,
+  Project,
   PrWatch,
   PrWatchInput,
   RemoteThreadCommand,
@@ -42,12 +44,22 @@ import {
   DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES,
   DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES,
   handleUpgrade,
+  REMOTE_PER_MESSAGE_DEFLATE,
   WebSocketHeartbeat,
 } from "./server/wsConnections";
 import { handleHttp } from "./server/httpRouter";
 import { persistSupervisorEvent } from "./server/runtimePersistence";
+import { projectGitStatePatchForInterests } from "./server/gitStateProjection";
+import { filterEventForItemInterests } from "./server/itemInterestFilter";
+import {
+  capBroadcastEvent,
+  DEFAULT_EVENT_BUFFER_MAX_BYTES,
+  maxBroadcastEventBytes,
+  trimEventBuffer,
+} from "./server/eventSizeGuard";
 
 const EVENT_BUFFER_LIMIT = 500;
+const EVENT_BUFFER_MAX_BYTES = DEFAULT_EVENT_BUFFER_MAX_BYTES;
 const DEFAULT_LISTEN_RETRY_ATTEMPTS = 5;
 const DEFAULT_LISTEN_RETRY_DELAY_MS = 500;
 
@@ -118,6 +130,12 @@ export interface RemoteAccessServerOptions {
    * desktop servers opt out because desktop main persists before broadcasting.
    */
   readonly ownsSupervisorPersistence?: boolean;
+  /**
+   * Notified when an event could not be shrunk enough to ride the live stream
+   * and clients were told to resync instead. Diagnostics only — the transport
+   * self-heals either way.
+   */
+  readonly onOversizedEventDropped?: (info: { type: string; bytes: number }) => void;
   callSupervisor<Name extends SupervisorProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
@@ -171,6 +189,24 @@ export interface RemoteAccessServerOptions {
   };
   /** Latest per-thread git/PR summaries published by the desktop renderer. */
   gitSummaries?(): RemoteGitSummaries;
+  /** Canonical Git/PR read model owned by the host process. */
+  readonly gitState?: {
+    getSnapshot(): GitStateSnapshot;
+    setInterests(ownerId: string, interests: readonly GitStateInterest[]): void;
+    clearInterests(ownerId: string): void;
+    refreshTarget(input: {
+      projectId: string;
+      worktreePath?: string | undefined;
+      branch?: string | undefined;
+      includePrDetails?: boolean | undefined;
+    }): Promise<void>;
+    refreshPullRequestReviewBundle(input: {
+      projectId: string;
+      prNumber: number;
+      branch?: string | undefined;
+    }): Promise<void>;
+    refreshProjectPullRequests(projectId: string): Promise<void>;
+  };
   /**
    * Push-notification registration sink. The server stays pure — the store and
    * `PushCoordinator` live in the wiring layer (`main.ts` / headless host) and
@@ -183,6 +219,8 @@ export interface RemoteAccessServerOptions {
   };
   /** Notifies the desktop shell after the active pairing code rotates. */
   readonly onPairingChanged?: () => void;
+  /** Keeps a live desktop renderer in sync with project mutations made over HTTP. */
+  readonly onProjectsChanged?: (projects: readonly Project[]) => void;
 }
 
 /**
@@ -221,6 +259,7 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
   "wsl-agent-statuses",
   // Out-of-band remote events.
   "remote-git-summaries",
+  "remote-git-state",
   "remote-projects-changed",
   "remote-threads-changed",
 ]);
@@ -235,6 +274,10 @@ export class RemoteAccessServer {
   private readonly clientLiveness = new Map<WebSocket, boolean>();
   /** Per-connection terminal ids the client opted into live `terminal-output` for. */
   private readonly terminalWatches = new Map<WebSocket, Set<string>>();
+  /** Per-connection Git interests, so PR bodies only reach clients that asked. */
+  private readonly gitStateInterests = new Map<WebSocket, readonly GitStateInterest[]>();
+  /** Per-connection transcript-content scoping; absent = receives everything. */
+  private readonly itemInterests = new Map<WebSocket, ReadonlySet<string>>();
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
   private readonly context: RemoteServerContext;
   private seq = 0;
@@ -252,6 +295,7 @@ export class RemoteAccessServer {
     this.wss = new WebSocketServer({
       noServer: true,
       maxPayload: options.maxWebSocketPayloadBytes ?? DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES,
+      perMessageDeflate: REMOTE_PER_MESSAGE_DEFLATE,
     });
     this.heartbeat = new WebSocketHeartbeat({
       intervalMs: options.webSocketHeartbeatIntervalMs,
@@ -277,6 +321,8 @@ export class RemoteAccessServer {
       clients: this.clients,
       clientLiveness: this.clientLiveness,
       terminalWatches: this.terminalWatches,
+      gitStateInterests: this.gitStateInterests,
+      itemInterests: this.itemInterests,
       eventBuffer: this.eventBuffer,
       get seq() {
         return server.seq;
@@ -429,16 +475,81 @@ export class RemoteAccessServer {
       return;
     }
     const seq = ++this.seq;
-    const entry = { seq, event };
-    this.eventBuffer.push(entry);
-    if (this.eventBuffer.length > EVENT_BUFFER_LIMIT) {
-      this.eventBuffer.splice(0, this.eventBuffer.length - EVENT_BUFFER_LIMIT);
-    }
-    this.broadcast({
-      type: "event",
-      seq,
+    // An event larger than the per-event budget would make `sendRaw` terminate
+    // every connected client, and would do it again on replay after they
+    // reconnect. Withhold its largest payload fields so the live stream stays
+    // deliverable; the full payload was persisted above and reaches clients on
+    // the next HTTP history fetch.
+    const capped = capBroadcastEvent(
       event,
-    });
+      maxBroadcastEventBytes(
+        this.options.maxWebSocketOutboundBufferBytes ?? DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES,
+      ),
+    );
+    if (capped.kind === "undeliverable") {
+      // Nothing about this event can ride the socket. `seq` has still advanced,
+      // so leaving it out of the replay buffer makes both currently-connected
+      // and later-reconnecting clients converge on the same self-healing path:
+      // refetch authoritative state over HTTP.
+      this.options.onOversizedEventDropped?.({ type: event.type, bytes: capped.bytes });
+      this.broadcast({
+        type: "resync-required",
+        seq,
+        reason: "Event too large for the live stream; request a fresh snapshot.",
+      });
+      return;
+    }
+    this.eventBuffer.push({ seq, event: capped.event, bytes: capped.bytes });
+    trimEventBuffer(this.eventBuffer, EVENT_BUFFER_LIMIT, EVENT_BUFFER_MAX_BYTES);
+    // Some events are tailored per connection: pull-request bodies go only to the
+    // client reviewing that PR, and transcript content only to clients watching
+    // that thread. Every client still receives an event for every seq — only the
+    // content differs — which keeps the replay contiguity check valid.
+    if (this.needsPerClientScoping(capped.event)) {
+      for (const client of this.clients.keys()) {
+        const scoped = this.scopeEventForClient(capped.event, client);
+        this.sendRaw(
+          client,
+          scoped === capped.event
+            ? `{"type":"event","seq":${seq},"event":${capped.json}}`
+            : JSON.stringify({ type: "event", seq, event: scoped }),
+        );
+      }
+      return;
+    }
+    // The wrapper is assembled by concatenation so a multi-megabyte event body
+    // is serialized exactly once per publish rather than once here and again in
+    // `broadcast`.
+    this.broadcastRaw(`{"type":"event","seq":${seq},"event":${capped.json}}`);
+  }
+
+  /** True for event types whose content varies per connection. */
+  private needsPerClientScoping(event: RemoteBroadcastEvent): boolean {
+    return (
+      event.type === "remote-git-state" ||
+      event.type === "thread-runtime-event" ||
+      event.type === "thread-runtime-events" ||
+      event.type === "thread-runtime-events-multi"
+    );
+  }
+
+  /** Applies every per-connection projection for `client`. */
+  private scopeEventForClient(
+    event: RemoteBroadcastEvent,
+    client: WebSocket,
+  ): RemoteBroadcastEvent {
+    if (event.type === "remote-git-state") return this.scopeGitStateEvent(event, client);
+    return filterEventForItemInterests(event, this.itemInterests.get(client) ?? null);
+  }
+
+  /** Narrows a git-state patch to what `client` declared an interest in. */
+  private scopeGitStateEvent(
+    event: Extract<RemoteBroadcastEvent, { type: "remote-git-state" }>,
+    client: WebSocket,
+  ): RemoteBroadcastEvent {
+    const interests = this.gitStateInterests.get(client) ?? [];
+    const patch = projectGitStatePatchForInterests(event.patch, interests);
+    return patch === event.patch ? event : { ...event, patch };
   }
 
   private publishThreadsChanged(threadIds: readonly string[]): void {
@@ -577,7 +688,12 @@ export class RemoteAccessServer {
   }
 
   private broadcast(message: RemoteWebSocketServerMessage): void {
-    const data = JSON.stringify(message);
+    this.broadcastRaw(JSON.stringify(message));
+  }
+
+  /** Fans an already-serialized message out to every client. Lets the caller
+   * serialize a large body once instead of per send. */
+  private broadcastRaw(data: string): void {
     for (const client of this.clients.keys()) {
       this.sendRaw(client, data);
     }

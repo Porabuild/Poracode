@@ -108,6 +108,8 @@ export async function applyRemoteThreadCommand(
   command: RemoteThreadCommand,
 ): Promise<boolean> {
   switch (command.kind) {
+    case "prepare-worktree":
+      return true;
     case "start":
       await startRemoteThread(ctx, command);
       return false;
@@ -182,6 +184,8 @@ export async function applyRemoteThreadCommand(
       dbDeleteThread(command.threadId);
       return false;
     case "delete-worktree-group":
+      await Promise.all(command.threadIds.map((threadId) => closeThreadBestEffort(ctx, threadId)));
+      for (const threadId of command.threadIds) dbDeleteThread(threadId);
       return true;
   }
 }

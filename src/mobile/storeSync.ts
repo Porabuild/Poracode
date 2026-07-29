@@ -9,6 +9,8 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { resetDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { resetGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
+import { useGitReadModelStore } from "@/renderer/state/gitReadModelStore";
+import { projectGitReadModelIntoLegacyStore } from "@/renderer/state/gitReadModelLegacyProjection";
 import { resetGitStoreCache } from "@/renderer/state/gitStore";
 import { useNotesStore } from "@/renderer/state/notesStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
@@ -87,6 +89,10 @@ export function applyShellSnapshot(snapshot: RemoteShellSnapshot): void {
   if (snapshot.gitSummariesByThread) {
     useGitSummariesStore.getState().setAll(snapshot.gitSummariesByThread);
   }
+  if (snapshot.gitState) {
+    useGitReadModelStore.getState().replaceSnapshot(snapshot.gitState);
+    projectGitReadModelIntoLegacyStore(snapshot.gitState);
+  }
 }
 
 /** Drop everything tied to the previous desktop when switching/unpairing. */
@@ -104,6 +110,7 @@ export function resetRemoteStores(): void {
   resetDevTerminalStore();
   useDesktopPanelStore.getState().reset();
   useGitSummariesStore.getState().reset();
+  useGitReadModelStore.getState().reset();
   useProviderUsageStore.getState().setSnapshots([]);
   useAppStore.setState({
     projects: [],
@@ -158,6 +165,11 @@ const mobileDispatchHooks: RemoteDispatchHooks = {
   onThreadReset: (threadId) => emitTerminalReset(threadId),
   onThreadExited: ({ threadId, exitCode }) => emitTerminalExited(threadId, exitCode),
   onGitSummaries: (summaries) => useGitSummariesStore.getState().setAll(summaries),
+  onGitState: (patch) => {
+    const store = useGitReadModelStore.getState();
+    store.applyPatch(patch);
+    projectGitReadModelIntoLegacyStore(useGitReadModelStore.getState());
+  },
 };
 
 export function dispatchRemoteSupervisorEvent(value: unknown): void {

@@ -10,7 +10,7 @@ import {
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
-import { floatingChromeSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 import { useAppStore } from "@/renderer/state/appStore";
 import { isPanelResizing, subscribePanelResize } from "@/renderer/state/panelResizeSignal";
 import {
@@ -761,7 +761,7 @@ export const ChatScrollControls = forwardRef<
       /* Centered via a negative margin, not `-translate-x-1/2`: HeroUI's pressed
          state animates `transform`, which would fight a translate and snap the
          button sideways on click. */
-      className={`${floatingChromeSurfaceClass} absolute bottom-4 left-1/2 z-10 -ml-3.5 size-7 min-w-0 rounded-full transition-opacity duration-200 ease-out ${
+      className={`${floatingGlassSurfaceClass} absolute bottom-4 left-1/2 z-10 -ml-3.5 size-7 min-w-0 rounded-full transition-opacity duration-200 ease-out ${
         showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
       }`}
     >

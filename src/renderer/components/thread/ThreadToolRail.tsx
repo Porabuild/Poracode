@@ -15,7 +15,7 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePanelVisibility } from "@/renderer/views/MainView/parts/AppShell/parts/usePanelVisibility";
-import { floatingChromeSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 import { useThreadToolRailDrag } from "./useThreadToolRailDrag";
 
 const railPillClass = "flex flex-col items-center gap-0.5 rounded-full p-1";
@@ -231,7 +231,7 @@ export function ThreadToolRail(props: {
                   ref={pillRef}
                   data-poracode-thread-tool-rail=""
                   data-placement="side"
-                  className={`${floatingChromeSurfaceClass} ${railPillClass} ${
+                  className={`${floatingGlassSurfaceClass} ${railPillClass} ${
                     isDragging ? "cursor-grabbing" : "cursor-default"
                   } touch-none select-none`}
                   {...dragHandlers}
@@ -277,7 +277,7 @@ export function ThreadToolRail(props: {
             }`}
           >
             <div className="pt-1">
-              <div className={`${floatingChromeSurfaceClass} ${railPillClass}`}>{toolButtons}</div>
+              <div className={`${floatingGlassSurfaceClass} ${railPillClass}`}>{toolButtons}</div>
             </div>
           </div>
         </div>

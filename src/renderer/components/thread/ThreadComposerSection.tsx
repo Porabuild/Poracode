@@ -7,8 +7,8 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { Tooltip, toast } from "@heroui/react";
-import { ChevronDown, GitFork, Monitor } from "lucide-react";
+import { toast } from "@heroui/react";
+import { ChevronDown, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -17,7 +17,6 @@ import {
   changeThreadConfig,
   clearThreadPendingSteer,
 } from "@/renderer/actions/threadRuntimeActions";
-import { BranchSelector, type BranchSelection } from "../common/BranchSelector/BranchSelector";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
@@ -444,38 +443,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       });
   }
 
-  function handleSwitchBranch(branch: string, createNew: boolean) {
-    readBridge()
-      .gitSwitchBranch({
-        projectLocation,
-        branch,
-        createNew,
-      })
-      .then((result) => {
-        const store = useGitStore.getState();
-        const status = store.statuses[thread.projectId];
-        if (status) {
-          store.setStatus(thread.projectId, {
-            ...status,
-            branch: result.branch,
-            tracking: result.tracking,
-            ahead: result.ahead,
-            behind: result.behind,
-          });
-        }
-      })
-      .catch((err: unknown) => {
-        console.error("[git] switch branch failed", err);
-        toast.danger(friendlyError(err));
-      });
-  }
-
-  function handleBranchSelect(selection: BranchSelection) {
-    if (!selection.isWorktree && selection.branch !== branchName) {
-      handleSwitchBranch(selection.branch, false);
-    }
-  }
-
   function submitPrompt(segments: PromptSegment[]) {
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
@@ -630,6 +597,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           <ThreadChangesBubble
             projectId={thread.projectId}
             {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+            {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
           />
           <div
             className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
@@ -655,9 +623,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   toolbarLayoutKey={[
                     isCliThread ? "cli" : "chat",
                     showContextIndicator ? "ctx" : "no-ctx",
-                    branchName ?? "",
-                    thread.worktreePath ? "wt" : "br",
-                    thread.prNumber ? `pr=${thread.prNumber}` : "",
                     authRequired ? "auth-required" : "auth-ready",
                   ].join("|")}
                   fixedContent={
@@ -868,53 +833,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               .catch((error: unknown) => toast.danger(friendlyError(error)));
                           }}
                         />
-                        {branchName ? (
-                          // Marker span so the mobile stylesheet can drop the
-                          // branch affordance (the PWA has its own git entry).
-                          <span className="contents" data-composer-branch="">
-                            {thread.worktreePath ? (
-                              <Tooltip delay={0}>
-                                <Tooltip.Trigger tabIndex={-1} role="none">
-                                  <div className="poracode-composer-static poracode-composer-worktree min-w-0 max-w-48 px-2.5">
-                                    <GitFork className="size-3.5 text-muted" />
-                                    <span
-                                      data-collapse-tier={3}
-                                      className="poracode-composer-label-hideable truncate"
-                                    >
-                                      {branchName}
-                                    </span>
-                                    {thread.prNumber ? (
-                                      <span
-                                        data-collapse-tier={3}
-                                        className="poracode-composer-label-hideable shrink-0 text-muted/60"
-                                      >
-                                        PR #{thread.prNumber}
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                </Tooltip.Trigger>
-                                <Tooltip.Content placement="top">{branchName}</Tooltip.Content>
-                              </Tooltip>
-                            ) : (
-                              <BranchSelector
-                                projectId={thread.projectId}
-                                currentBranch={branchName}
-                                value={branchName}
-                                onSelect={handleBranchSelect}
-                                onSwitchBranch={handleSwitchBranch}
-                                hideWorktreeToggle
-                                showMoveBranchAction
-                                {...(project?.scripts?.worktreeCopyPatterns
-                                  ? {
-                                      moveBranchCopyIgnoredPatterns:
-                                        project.scripts.worktreeCopyPatterns,
-                                    }
-                                  : {})}
-                                collapseTier={3}
-                              />
-                            )}
-                          </span>
-                        ) : null}
                       </>
                     );
                     const renderVoiceInput = () => (

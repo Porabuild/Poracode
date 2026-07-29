@@ -3,6 +3,7 @@ import { type PoracodeChannel, normalizeChannel } from "@/shared/channel";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { RemoteAccessPairingInfo } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { GitStatePatch } from "@/shared/gitState";
 import {
   createInvokeBridge,
   IPC_EVENT_CHANNELS,
@@ -187,6 +188,15 @@ const bridge: PoracodeBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.projectStateChanged, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.projectStateChanged, handler);
+    };
+  },
+  onGitStateChanged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, patch: GitStatePatch) => {
+      listener(patch);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.gitStateChanged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.gitStateChanged, handler);
     };
   },
   onThreadOpenRequested(listener) {

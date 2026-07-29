@@ -12,6 +12,7 @@ import {
   type ThreadStatus,
 } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import type { SshConnectionConfig } from "@/shared/ssh";
 import {
@@ -23,6 +24,7 @@ import {
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
 import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeActions";
+import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { seedOlderThreadRuntimeItemsCursor } from "@/renderer/state/chatRuntimePersister";
 import { readBridge } from "@/renderer/bridge";
@@ -360,6 +362,38 @@ export function useRemoteDesktop() {
     reconnectNonce,
   ]);
 
+  useEffect(() => {
+    const coordinator = socketCoordinatorRef.current;
+    if (!coordinator || coordinator.desktopId !== activeDesktopId) return;
+    coordinator.coordinator.setGitStateInterests(
+      threads.map((thread) => ({
+        kind: "target" as const,
+        projectId: thread.projectId,
+        ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+        includePrDetails: true,
+      })),
+    );
+  }, [activeDesktopId, threads]);
+
+  // Live transcript content is only needed for the thread on screen; every other
+  // thread still delivers lifecycle events (status, permission prompts), so
+  // badges and approvals keep working. The selected thread's history is fetched
+  // over HTTP on selection, so nothing is missing when the user switches.
+  //
+  // `selectThread` publishes eagerly; this effect is the backstop that covers
+  // every other way the selection can change (restore, first snapshot, desktop
+  // switch, reconnect).
+  useEffect(() => {
+    publishSelectedThreadItemInterest(selectedThreadId);
+  }, [activeDesktopId, selectedThreadId]);
+
+  /** Tells the host which thread's live transcript content this client wants. */
+  function publishSelectedThreadItemInterest(threadId: string | null): void {
+    const coordinator = socketCoordinatorRef.current;
+    if (!coordinator || coordinator.desktopId !== activeDesktopIdRef.current) return;
+    coordinator.coordinator.setThreadItemInterests(threadId ? [threadId] : []);
+  }
+
   async function reloadDesktops(nextActive?: string) {
     const stored = await listStoredDesktops();
     setDesktops(stored);
@@ -646,6 +680,13 @@ export function useRemoteDesktop() {
     // compares against it and must not read the previous thread while the
     // re-render that would update it is still pending.
     selectedThreadIdRef.current = thread.id;
+    // Declare this thread's content interest before any history request goes
+    // out. The effect that watches `selectedThreadId` would only run a render
+    // later — and much later under load — and until the host has the new
+    // interest, this thread's live deltas are filtered out. Publishing first
+    // keeps the window closed: the host learns what we want before we ask what
+    // we missed.
+    publishSelectedThreadItemInterest(thread.id);
     setThreadSnapshot((current) => (current?.thread.id === thread.id ? current : null));
     const desktop = activeDesktop;
     if (!desktop) return;
@@ -832,10 +873,8 @@ export function useRemoteDesktop() {
 
   /**
    * The desktop's submit core with the remote client as transport: optimistic
-   * user_message paint, working flip, rollback, and touch all come from
-   * `performThreadInputSubmit`. No checkpoint capture — checkpoints are a
-   * desktop-local concern. Rejects on transport failure so callers (the
-   * mobile composer dock collapse) only react to successful sends.
+   * user_message paint, working flip, checkpoint capture, rollback, and touch
+   * all follow the same lifecycle as a local prompt.
    */
   async function sendPrompt(prompt: string, segments?: PromptSegment[]) {
     const desktop = activeDesktop;
@@ -846,6 +885,16 @@ export function useRemoteDesktop() {
       prompt,
       ...(segments ? { segments } : {}),
       transport: clientFor(desktop),
+      captureCheckpoint: async (checkpointItemId) => {
+        if (isHomeProjectId(thread.projectId)) return;
+        const projectLocation = resolveThreadProjectLocation(thread);
+        if (!projectLocation) return;
+        await captureFileCheckpoint({
+          threadId: thread.id,
+          checkpointItemId,
+          projectLocation,
+        });
+      },
     });
   }
 
@@ -919,6 +968,12 @@ export function useRemoteDesktop() {
     // off the ref, which otherwise still points at the previous thread until
     // the next render.
     selectedThreadIdRef.current = threadId;
+    // Declare the new thread's content interest HERE rather than leaving it to
+    // the effect below. The effect runs a render later — and much later under
+    // load — and until the host has the new interest, this thread's live deltas
+    // are filtered out. Publishing before the history fetch is issued keeps the
+    // window closed: the host learns what we want before we ask what we missed.
+    publishSelectedThreadItemInterest(threadId);
     void loadThreadSnapshot(threadId, desktop, { preferCache: false });
     return threadId;
   }

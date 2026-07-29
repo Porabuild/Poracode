@@ -4,6 +4,21 @@ import { describe, expect, it } from "vitest";
 const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
 
 describe("mobile navigation transition styles", () => {
+  it("frosts the sticky desktop-sidebar search row with the sidebar surface", () => {
+    expect(css).toMatch(
+      /\.m-sidebar\s*\{[^}]*--m-sidebar-surface:\s*color-mix\([^}]*--m-sidebar-picker-alpha:\s*78%;[^}]*--m-sidebar-picker-backdrop:\s*saturate\(140%\) blur\(16px\);[^}]*background:\s*var\(--m-sidebar-surface\);/s,
+    );
+    expect(css).toMatch(
+      /html\[data-mobile-platform="macos"\] \.m-sidebar\s*\{[^}]*--m-sidebar-picker-alpha:\s*68%;[^}]*--m-sidebar-picker-backdrop:\s*saturate\(165%\) blur\(20px\);/s,
+    );
+    expect(css).toMatch(
+      /html\[data-mobile-platform="windows"\] \.m-sidebar\s*\{[^}]*--m-sidebar-picker-alpha:\s*88%;[^}]*--m-sidebar-picker-backdrop:\s*saturate\(135%\) blur\(20px\) brightness\(1\.04\);/s,
+    );
+    expect(css).toMatch(
+      /\.m-sidebar \.m-threads__picker\s*\{[^}]*background:\s*color-mix\([^}]*var\(--m-sidebar-surface\) var\(--m-sidebar-picker-alpha\),[^}]*transparent[^}]*\);[^}]*backdrop-filter:\s*var\(--m-sidebar-picker-backdrop\);/s,
+    );
+  });
+
   it("only compacts the desktop tool rail when it materially overlaps the thread column", () => {
     expect(css).toMatch(
       /\.m-wide-content\s*\{[^}]*container-name:\s*m-wide-content;[^}]*container-type:\s*inline-size;/s,

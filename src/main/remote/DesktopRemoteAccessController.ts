@@ -1,3 +1,4 @@
+import { nativeImage } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { dbGetProject, dbGetProjects, dbGetThreads } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
@@ -17,9 +18,11 @@ import {
   type RemoteGitSummaries,
 } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { Project } from "@/shared/contracts";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import type { ScheduleService } from "../schedules/ScheduleService";
 import type { PrWatchService } from "../prWatch";
+import type { GitStateService } from "../gitState";
 import { createPersistentRemoteAuthStore } from "./auth";
 import {
   remoteAccessAdvertisedHost,
@@ -28,6 +31,7 @@ import {
   resolveRemoteAccessPort,
 } from "./config";
 import { readOrCreateRemoteAccessIdentity } from "./identity";
+import { setImagePreviewGenerator } from "./server/imagePreview";
 import { getRemoteAccessPairingInfo } from "./pairingInfo";
 import { createPortForwarding, type PortForwarding } from "./portForward/portForwarding";
 import {
@@ -71,9 +75,11 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly getBrowserPanelManager: () => BrowserPanelManager | null;
   readonly notifySharedSettingsChanged: (settings: SharedSettings) => void;
   readonly notifyRemoteAccessPairingChanged: (info: RemoteAccessPairingInfo) => void;
+  readonly notifyProjectStateChanged: (projects: readonly Project[]) => void;
   readonly reportError: (error: unknown, tags?: PoracodeDiagnosticTags) => void;
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
+  readonly gitStateService: GitStateService;
 }
 
 export interface DesktopRemoteAccessController {
@@ -332,11 +338,35 @@ export function createDesktopRemoteAccessController(
       });
       attempt.coordinator = coordinator;
       pushCoordinator = coordinator;
+      // Blurred placeholders for referenced images. `nativeImage` is Electron-only,
+      // which is why this is injected rather than imported by the projector: the
+      // headless server has no resizer and simply ships references without a
+      // preview. Kept to ~24px so the inline cost stays a few hundred bytes.
+      setImagePreviewGenerator(({ data }) => {
+        const image = nativeImage.createFromBuffer(data);
+        if (image.isEmpty()) return null;
+        const { width, height } = image.getSize();
+        if (width <= 0 || height <= 0) return null;
+        const preview = image.resize({
+          width: 24,
+          height: Math.max(1, Math.round((24 * height) / width)),
+          quality: "good",
+        });
+        // JPEG at low quality is the smallest useful encoding for a blurred
+        // stand-in; transparency is irrelevant once it is blurred behind the card.
+        const url = preview.toJPEG(40).toString("base64");
+        return url.length > 0 ? `data:image/jpeg;base64,${url}` : null;
+      });
       const server = new RemoteAccessServer({
         appVersion: options.appVersion,
         identity,
         isDev: Boolean(options.devServerUrl),
         ownsSupervisorPersistence: false,
+        onOversizedEventDropped: ({ type, bytes }) => {
+          console.warn(
+            `[remote] ${type} event of ${bytes} bytes exceeded the live stream budget; clients asked to resync`,
+          );
+        },
         authStore,
         host: remoteHost,
         port,
@@ -360,6 +390,7 @@ export function createDesktopRemoteAccessController(
         portForward: portForwarding.gateway,
         portProxy: portForwarding.proxy,
         gitSummaries: () => remoteGitSummaries,
+        gitState: options.gitStateService,
         settings: {
           read: () => pickRemoteSettings(readSharedSettingsFile(options.paths.settingsPath)),
           update: (patch) => {
@@ -384,6 +415,7 @@ export function createDesktopRemoteAccessController(
         onPairingChanged: () => {
           options.notifyRemoteAccessPairingChanged(getRemoteAccessPairingInfo(server));
         },
+        onProjectsChanged: options.notifyProjectStateChanged,
       });
       attempt.server = server;
       remoteAccessServer = server;
