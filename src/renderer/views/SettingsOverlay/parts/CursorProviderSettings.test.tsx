@@ -8,26 +8,80 @@ const toastMock = vi.hoisted(() => ({
   success: vi.fn<(message: string) => void>(),
 }));
 
-vi.mock("@heroui/react", () => ({
-  Button: (props: {
+vi.mock("@heroui/react", async () => {
+  const React = await import("react");
+  const RadioGroupContext = React.createContext<{
+    isDisabled: boolean | undefined;
+    onChange: ((value: string) => void) | undefined;
+    value: string | undefined;
+  }>({
+    isDisabled: undefined,
+    onChange: undefined,
+    value: undefined,
+  });
+
+  function RadioGroup(props: {
     children?: ReactNode;
     "aria-label"?: string;
     isDisabled?: boolean;
-    isPending?: boolean;
-    onPress?: () => void;
-  }) => (
-    <button
-      type="button"
-      aria-label={props["aria-label"]}
-      disabled={props.isDisabled}
-      data-pending={props.isPending || undefined}
-      onClick={props.onPress}
-    >
-      {props.children}
-    </button>
-  ),
-  toast: toastMock,
-}));
+    onChange?: (value: string) => void;
+    value?: string;
+  }) {
+    return (
+      <RadioGroupContext.Provider
+        value={{
+          isDisabled: props.isDisabled,
+          onChange: props.onChange,
+          value: props.value,
+        }}
+      >
+        <div role="radiogroup" aria-label={props["aria-label"]}>
+          {props.children}
+        </div>
+      </RadioGroupContext.Provider>
+    );
+  }
+
+  function Radio(props: { children?: ReactNode; value: string }) {
+    const group = React.useContext(RadioGroupContext);
+    return (
+      <label>
+        <input
+          type="radio"
+          checked={group.value === props.value}
+          disabled={group.isDisabled}
+          value={props.value}
+          onChange={() => group.onChange?.(props.value)}
+        />
+        {props.children}
+      </label>
+    );
+  }
+  Radio.Content = (props: { children?: ReactNode }) => <span>{props.children}</span>;
+
+  return {
+    Button: (props: {
+      children?: ReactNode;
+      "aria-label"?: string;
+      isDisabled?: boolean;
+      isPending?: boolean;
+      onPress?: () => void;
+    }) => (
+      <button
+        type="button"
+        aria-label={props["aria-label"]}
+        disabled={props.isDisabled}
+        data-pending={props.isPending || undefined}
+        onClick={props.onPress}
+      >
+        {props.children}
+      </button>
+    ),
+    Radio,
+    RadioGroup,
+    toast: toastMock,
+  };
+});
 
 vi.mock("@/renderer/components/common", () => ({
   Input: (props: {
@@ -44,26 +98,6 @@ vi.mock("@/renderer/components/common", () => ({
       placeholder={props.placeholder}
       onChange={props.onChange}
     />
-  ),
-  Select: (props: {
-    "aria-label"?: string;
-    value: string;
-    isDisabled?: boolean;
-    options: readonly { id: string; label: string }[];
-    onChange: (value: string) => void;
-  }) => (
-    <select
-      aria-label={props["aria-label"]}
-      value={props.value}
-      disabled={props.isDisabled}
-      onChange={(event) => props.onChange(event.currentTarget.value)}
-    >
-      {props.options.map((option) => (
-        <option key={option.id} value={option.id}>
-          {option.label}
-        </option>
-      ))}
-    </select>
   ),
 }));
 
@@ -161,12 +195,17 @@ describe("CursorProviderSettings", () => {
   it("defaults to ACP and stages a runtime change until Save", () => {
     render(<CursorProviderSettings agentKind="cursor" wslDistros={[]} />);
 
-    const runtime = screen.getByRole("combobox", { name: "Structured runtime" });
+    const acpRuntime = screen.getByRole("radio", { name: /ACP/ });
+    const sdkRuntime = screen.getByRole("radio", { name: /SDK/ });
     const save = screen.getByRole("button", { name: "Save Cursor GUI runtime" });
-    expect(runtime).toHaveValue("acp");
+    expect(screen.getByRole("radiogroup", { name: "Structured runtime" })).toBeTruthy();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(acpRuntime).toBeChecked();
+    expect(sdkRuntime).not.toBeChecked();
     expect(save).toBeDisabled();
 
-    fireEvent.change(runtime, { target: { value: "sdk" } });
+    fireEvent.click(sdkRuntime);
+    expect(sdkRuntime).toBeChecked();
     expect(save).toBeEnabled();
     expect(setAgentSettingMock).not.toHaveBeenCalled();
     expect(
@@ -186,7 +225,7 @@ describe("CursorProviderSettings", () => {
 
     render(<CursorProviderSettings agentKind="cursor" wslDistros={[]} />);
 
-    expect(screen.getByRole("combobox", { name: "Structured runtime" })).toHaveValue("sdk");
+    expect(screen.getByRole("radio", { name: /SDK/ })).toBeChecked();
     expect(screen.getByRole("textbox", { name: "SDK package path" })).toHaveValue(
       "/opt/cursor-sdk/node_modules/@cursor/sdk",
     );
@@ -213,9 +252,7 @@ describe("CursorProviderSettings", () => {
   it("persists both staged values, flushes, then refreshes Cursor status", async () => {
     render(<CursorProviderSettings agentKind="cursor" wslDistros={["Ubuntu"]} />);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Structured runtime" }), {
-      target: { value: "sdk" },
-    });
+    fireEvent.click(screen.getByRole("radio", { name: /SDK/ }));
     fireEvent.change(screen.getByRole("textbox", { name: "SDK package path" }), {
       target: { value: "  /opt/cursor-sdk/node_modules/@cursor/sdk  " },
     });
@@ -244,9 +281,7 @@ describe("CursorProviderSettings", () => {
     flushSharedSettingsMock.mockRejectedValueOnce(new Error("write failed"));
     render(<CursorProviderSettings agentKind="cursor" wslDistros={[]} />);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Structured runtime" }), {
-      target: { value: "sdk" },
-    });
+    fireEvent.click(screen.getByRole("radio", { name: /SDK/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save Cursor GUI runtime" }));
 
     await act(async () => {

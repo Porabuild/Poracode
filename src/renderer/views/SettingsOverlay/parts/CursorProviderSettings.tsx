@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Button, toast } from "@heroui/react";
+import { Button, Radio, RadioGroup, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
-import { Input, Select } from "@/renderer/components/common";
+import { Input } from "@/renderer/components/common";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { AgentCapability, AgentStatus } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -53,10 +53,6 @@ export function CursorProviderSettings(props: {
   const dirty =
     structuredRuntime !== baseline.structuredRuntime ||
     normalizedPackagePath !== baseline.sdkPackagePath;
-  const runtimeOptions = [
-    { id: "acp", label: t`ACP` },
-    { id: "sdk", label: t`SDK` },
-  ];
   const firstStatus = statuses?.[0];
   const installState = cursorRuntimeInstallState(firstStatus);
   const runtimeCards: Array<{
@@ -142,7 +138,13 @@ export function CursorProviderSettings(props: {
       </div>
 
       <div className="space-y-0.5">
-        <div className="grid gap-2 py-1.5 sm:grid-cols-2">
+        <RadioGroup
+          aria-label={t`Structured runtime`}
+          className="!grid gap-2 py-1.5 sm:grid-cols-2 [&_[data-slot=radio]]:!mt-0"
+          isDisabled={saving}
+          value={structuredRuntime}
+          onChange={(value) => setStructuredRuntime(value === "sdk" ? "sdk" : "acp")}
+        >
           {runtimeCards.map((runtime) => {
             const controls = [
               runtime.capabilities?.modelContextSizes &&
@@ -157,64 +159,48 @@ export function CursorProviderSettings(props: {
               mode === "agent" ? t`Work` : mode === "plan" ? t`Plan` : t`Autopilot`,
             );
             return (
-              <div
+              <Radio
                 key={runtime.id}
-                className={`rounded-lg border px-3 py-2 ${
-                  structuredRuntime === runtime.id
-                    ? "border-accent/50 bg-accent/5"
-                    : "border-border/40 bg-surface-secondary/35"
-                }`}
+                className="group w-full cursor-pointer rounded-lg border border-border/40 bg-surface-secondary/35 transition-colors hover:bg-surface-secondary/55 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent data-[selected=true]:border-accent/50 data-[selected=true]:bg-accent/5"
+                value={runtime.id}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-foreground">{runtime.label}</span>
-                  <span className="text-[10px] font-medium text-muted">
-                    {structuredRuntime === runtime.id ? t`Default` : null}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-muted">
-                  {runtime.installed ? t`Installed` : t`Not installed`}
-                  {runtime.installed && runtime.authState === "missing"
-                    ? runtime.id === "sdk"
-                      ? ` · ${t`API key required`}`
-                      : ` · ${t`Sign in required`}`
-                    : null}
-                </p>
-                {runtime.capabilities ? (
-                  <>
-                    <p className="mt-1 text-[11px] text-muted">
-                      {t`${runtime.capabilities.models.length} models`}
-                      {modes?.length ? ` · ${t`Modes`}: ${modes.join(", ")}` : null}
-                    </p>
-                    {controls.length ? (
+                <Radio.Content className="block w-full cursor-pointer px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-foreground">{runtime.label}</span>
+                    <span className="text-[10px] font-medium text-muted">
+                      {structuredRuntime === runtime.id ? t`Default` : null}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    {runtime.installed ? t`Installed` : t`Not installed`}
+                    {runtime.installed && runtime.authState === "missing"
+                      ? runtime.id === "sdk"
+                        ? ` · ${t`API key required`}`
+                        : ` · ${t`Sign in required`}`
+                      : null}
+                  </p>
+                  {runtime.capabilities ? (
+                    <>
                       <p className="mt-1 text-[11px] text-muted">
-                        {t`Model controls`}: {controls.join(", ")}
+                        {t`${runtime.capabilities.models.length} models`}
+                        {modes?.length ? ` · ${t`Modes`}: ${modes.join(", ")}` : null}
                       </p>
-                    ) : null}
-                  </>
-                ) : null}
-              </div>
+                      {controls.length ? (
+                        <p className="mt-1 text-[11px] text-muted">
+                          {t`Model controls`}: {controls.join(", ")}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
+                </Radio.Content>
+              </Radio>
             );
           })}
-        </div>
+        </RadioGroup>
 
-        <SettingRow
-          title={t`Structured runtime`}
-          description={
-            <Trans>
-              ACP uses the Cursor Agent login. SDK uses @cursor/sdk with CURSOR_API_KEY.
-            </Trans>
-          }
-          className="py-1.5"
-        >
-          <Select
-            aria-label={t`Structured runtime`}
-            className="w-[210px] shrink-0"
-            isDisabled={saving}
-            options={runtimeOptions}
-            value={structuredRuntime}
-            onChange={(value) => setStructuredRuntime(value === "sdk" ? "sdk" : "acp")}
-          />
-        </SettingRow>
+        <p className="py-1.5 text-xs text-muted">
+          <Trans>ACP uses the Cursor Agent login. SDK uses @cursor/sdk with CURSOR_API_KEY.</Trans>
+        </p>
 
         {structuredRuntime === "sdk" ? (
           <>
