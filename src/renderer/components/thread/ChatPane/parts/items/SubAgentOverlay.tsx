@@ -4,15 +4,21 @@ import { Bot, X } from "lucide-react";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { readBridge } from "@/renderer/bridge";
+import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
+import {
+  getRuntimeItemPayload,
+  type RuntimeChatItem,
+} from "@/renderer/state/slices/runtimeEventSlice";
 import { guiChatFontCssVars } from "../../chatFontVars";
 import {
   getChildTimelineEntriesStoreSelector,
   getRuntimeItemStoreSelector,
   type ChatTimelineEntry,
 } from "../../chatPaneSelectors";
+import { ChatScrollControls, type ChatScrollControlsHandle } from "../../ChatScrollControls";
+import { ChatTurnElapsedFooter, type TurnTiming } from "../../ChatTurnElapsed";
 import { MessageList } from "../MessageList";
 import { buildSubAgentProgressParts } from "./subAgentProgressMeta";
 import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
@@ -133,6 +139,7 @@ export function SubAgentContent({
         isRunning,
       }
     : null;
+  const turn = resolveSubAgentTurnTiming(item, payload, isRunning);
 
   const renderWorkflow = !!(workflow && workflow.manifestPath);
   return (
@@ -155,8 +162,10 @@ export function SubAgentContent({
       ) : (
         <ChildList
           threadId={threadId}
+          parentItemId={parentItemId}
           entries={childEntries}
           stickToBottom={isRunning}
+          turn={turn}
           workflow={workflow}
           workflowProgress={workflowProgress}
         />
@@ -319,40 +328,100 @@ function Shell({
 
 function ChildList({
   threadId,
+  parentItemId,
   entries,
   stickToBottom,
+  turn,
   workflow,
   workflowProgress,
 }: {
   threadId: string;
+  parentItemId: string;
   entries: readonly ChatTimelineEntry[];
   stickToBottom: boolean;
+  turn: TurnTiming | null;
   workflow: WorkflowInfo | null;
   workflowProgress: WorkflowOverlayProgress | null;
 }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollControlsRef = useRef<ChatScrollControlsHandle>(null);
+  const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
+  const { setScrollContainer, scrollRef, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
+    contentRef,
+  });
+
   return (
-    <MessageList
-      threadId={threadId}
-      entries={entries}
-      isTurnActive={stickToBottom}
-      markTailAsLive={stickToBottom}
-      canRevertCheckpoints={false}
-      scrollClassName="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]"
-      contentClassName="poracode-subagent-list-content min-h-full px-3 pt-3"
-      header={
-        workflow ? <WorkflowOverlayHeader workflow={workflow} progress={workflowProgress} /> : null
-      }
-      emptyContent={
-        workflow ? (
-          <WorkflowEmptyState progress={workflowProgress} />
-        ) : (
-          <p className="text-sm text-foreground-muted">
-            <Trans>Working…</Trans>
-          </p>
-        )
-      }
-    />
+    <div className="relative min-h-0 flex-1">
+      <MessageList
+        threadId={threadId}
+        entries={entries}
+        isTurnActive={stickToBottom}
+        markTailAsLive={stickToBottom}
+        canRevertCheckpoints={false}
+        setScrollContainer={setScrollContainer}
+        scrollContentRef={contentRef}
+        onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
+        onVirtualizerLayoutChange={() => scrollControlsRef.current?.beginVirtualizerLayoutChange()}
+        onLiveVirtualizerLayoutChange={() =>
+          scrollControlsRef.current?.beginLiveVirtualizerLayoutChange()
+        }
+        registerVirtualScrollToBottom={(handler) => {
+          virtualScrollToBottomRef.current = handler;
+        }}
+        scrollClassName="h-full min-h-0 overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+        scrollStyle={scrollFadeStyle}
+        contentClassName="poracode-subagent-list-content min-h-full px-3 pt-3"
+        header={
+          workflow ? (
+            <WorkflowOverlayHeader workflow={workflow} progress={workflowProgress} />
+          ) : null
+        }
+        footer={turn ? <ChatTurnElapsedFooter turn={turn} /> : null}
+        emptyContent={
+          workflow ? (
+            <WorkflowEmptyState progress={workflowProgress} />
+          ) : (
+            <p className="text-sm text-foreground-muted">
+              <Trans>Working…</Trans>
+            </p>
+          )
+        }
+        onWheelCapture={(event) => {
+          if (event.deltaY >= 0) return;
+          scrollControlsRef.current?.markUserScrollIntent();
+          scrollControlsRef.current?.disableStickToBottom();
+        }}
+      />
+      <ChatScrollControls
+        ref={scrollControlsRef}
+        scrollRef={scrollRef}
+        contentRef={contentRef}
+        layoutChangeToken={null}
+        tailEntryId={entries.at(-1)?.id ?? null}
+        threadId={`${threadId}:subagent:${parentItemId}`}
+        tailLoaderVisible={turn !== null}
+        initialScrollSettled
+        initialScrollRevealDelayMs={0}
+        virtualScrollToBottomRef={virtualScrollToBottomRef}
+        onInitialScrollSettled={() => undefined}
+      />
+    </div>
   );
+}
+
+function resolveSubAgentTurnTiming(
+  item: RuntimeChatItem,
+  payload: ToolCallPayload | undefined,
+  isRunning: boolean,
+): TurnTiming | null {
+  if (isRunning) {
+    return item.startedAt === undefined ? null : { startedAt: item.startedAt, endedAt: null };
+  }
+  const durationMs =
+    item.startedAt !== undefined && item.completedAt !== undefined
+      ? item.completedAt - item.startedAt
+      : payload?.progress?.durationMs;
+  return durationMs === undefined ? null : { startedAt: 0, endedAt: Math.max(0, durationMs) };
 }
 
 function WorkflowOverlayHeader({

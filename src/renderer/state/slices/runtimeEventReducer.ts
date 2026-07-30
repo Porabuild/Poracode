@@ -1,4 +1,5 @@
-import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
+import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import type { AppStoreState } from "./shared";
 import {
   type CompletedTurnRecord,
@@ -243,6 +244,9 @@ function applyRuntimeEventToRuntimeState(
         id: event.itemId,
         type: event.itemType,
         state: "started",
+        ...(isDelegatedAgentTool(event.payload as ToolCallPayload | undefined)
+          ? { startedAt: Date.now() }
+          : {}),
         payload: event.payload,
         streams: {},
         observedLive: true,
@@ -264,10 +268,15 @@ function applyRuntimeEventToRuntimeState(
       const items = state.runtimeItemsByIdByThread[threadId];
       const prev = items?.[event.itemId];
       if (!prev || !items) return {};
+      const payload = mergePayload(prev.payload, event.payload);
       const next: RuntimeChatItem = {
         ...prev,
         state: prev.state === "completed" ? "completed" : "updated",
-        payload: mergePayload(prev.payload, event.payload),
+        ...(prev.startedAt === undefined &&
+        isDelegatedAgentTool(payload as ToolCallPayload | undefined)
+          ? { startedAt: Date.now() }
+          : {}),
+        payload,
       };
       return {
         runtimeItemsByIdByThread: {
@@ -284,6 +293,7 @@ function applyRuntimeEventToRuntimeState(
       const next: RuntimeChatItem = {
         ...prev,
         state: "completed",
+        ...(prev.startedAt !== undefined ? { completedAt: Date.now() } : {}),
         payload:
           event.payload !== undefined ? mergePayload(prev.payload, event.payload) : prev.payload,
       };
