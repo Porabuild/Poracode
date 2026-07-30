@@ -13,7 +13,11 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
-function automationMode(watch: PrWatch | null): PrAutomationMode {
+function automationMode(
+  watch: PrWatch | null | undefined,
+  loadingMode: PrAutomationMode,
+): PrAutomationMode {
+  if (watch === undefined) return loadingMode;
   if (watch?.autoMerge) return "merge";
   return watch?.watchEnabled ? "fix" : "off";
 }
@@ -31,11 +35,12 @@ export function PrWatchControls(props: {
   );
   const windowsAgents = useAgentStatusesStore((state) => state.agentStatuses);
   const wslAgents = useAgentStatusesStore((state) => state.wslAgentStatuses);
-  const [watch, setWatch] = useState<PrWatch | null>(null);
+  const defaultMode = useSharedSettings((state) => state.prAutomationDefault);
+  const [watch, setWatch] = useState<PrWatch | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const watchPresentRef = useRef(false);
   const refreshPrRef = useRef(props.onRefreshPr);
-  const mode = automationMode(watch);
+  const mode = automationMode(watch, defaultMode);
   const enabled = mode !== "off";
 
   useEffect(() => {
@@ -167,7 +172,7 @@ export function PrWatchControls(props: {
             <PrAutomationSlider
               ariaLabel={t`PR automation`}
               className="mx-auto w-[200px] px-2"
-              isDisabled={busy}
+              isDisabled={busy || watch === undefined}
               value={mode}
               onChange={update}
             />

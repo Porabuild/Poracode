@@ -41,6 +41,20 @@ const bridge = vi.hoisted(() => ({
   deletePrWatch: vi.fn<() => Promise<void>>(),
 }));
 
+const settings = vi.hoisted(() => ({
+  prAutomationDefault: "merge" as const,
+  conflictResolverProvider: "codex",
+  conflictResolverModel: "gpt-5.7",
+  conflictResolverEffort: "high",
+  conflictResolverFast: false,
+  conflictResolverPresentationMode: "gui" as const,
+  wslConflictResolverProvider: "auto",
+  wslConflictResolverModel: "",
+  wslConflictResolverEffort: "",
+  wslConflictResolverFast: false,
+  wslConflictResolverPresentationMode: "gui" as const,
+}));
+
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
@@ -51,7 +65,12 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/state/agentStatusesStore", () => {
-  const getState = () => ({ agentStatuses: [agent], wslAgentStatuses: [] });
+  let state: { agentStatuses: AgentStatus[]; wslAgentStatuses: AgentStatus[] } | undefined;
+  const getState = () =>
+    (state ??= {
+      agentStatuses: [agent],
+      wslAgentStatuses: [],
+    });
   const useAgentStatusesStore = Object.assign(
     (selector: (state: ReturnType<typeof getState>) => unknown) => selector(getState()),
     { getState },
@@ -60,18 +79,7 @@ vi.mock("@/renderer/state/agentStatusesStore", () => {
 });
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => {
-  const getState = () => ({
-    conflictResolverProvider: "codex",
-    conflictResolverModel: "gpt-5.7",
-    conflictResolverEffort: "high",
-    conflictResolverFast: false,
-    conflictResolverPresentationMode: "gui" as const,
-    wslConflictResolverProvider: "auto",
-    wslConflictResolverModel: "",
-    wslConflictResolverEffort: "",
-    wslConflictResolverFast: false,
-    wslConflictResolverPresentationMode: "gui" as const,
-  });
+  const getState = () => settings;
   const useSharedSettings = Object.assign(
     (selector: (state: ReturnType<typeof getState>) => unknown) => selector(getState()),
     { getState },
@@ -103,6 +111,17 @@ describe("PrWatchControls", () => {
       lastError: null,
     }));
     bridge.deletePrWatch.mockResolvedValue(undefined);
+  });
+
+  it("shows the configured default while the initial automation state loads", () => {
+    bridge.getPrWatch.mockReturnValue(new Promise(() => undefined));
+
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    expect(slider).toHaveValue("2");
+    expect(slider).toBeDisabled();
   });
 
   it("enables watching with the AI Helpers conflict resolver model", async () => {
