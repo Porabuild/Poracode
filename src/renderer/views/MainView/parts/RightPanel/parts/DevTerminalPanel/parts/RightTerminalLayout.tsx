@@ -1,7 +1,7 @@
 import { PanelRightClose, Plus, Trash2 } from "lucide-react";
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import type { Project, TerminalSize } from "@/shared/contracts";
+import type { TerminalSize } from "@/shared/contracts";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
@@ -14,7 +14,7 @@ import { TerminalSurfaces } from "./TerminalSurfaces";
 export function RightTerminalLayout(props: {
   tabs: DevTerminalTab[];
   projectTabs: DevTerminalTab[];
-  activeProject: Project | undefined;
+  activeScopeLabel: string | undefined;
   selectedTabId: string;
   activeTab: DevTerminalTab | undefined;
   focusRequestId: number;
@@ -32,7 +32,7 @@ export function RightTerminalLayout(props: {
   const {
     tabs,
     projectTabs,
-    activeProject,
+    activeScopeLabel,
     selectedTabId,
     activeTab,
     focusRequestId,
@@ -49,9 +49,9 @@ export function RightTerminalLayout(props: {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]" style={fadeStyle}>
-      {!hideHeader && activeProject && (
+      {!hideHeader && activeScopeLabel && (
         <div className={panelHeaderRowClass}>
-          <PanelHeaderProjectName name={activeProject.name} maxWidthClass="max-w-[100px]" />
+          <PanelHeaderProjectName name={activeScopeLabel} maxWidthClass="max-w-[100px]" />
           <div className="flex-1" />
           <button
             type="button"
