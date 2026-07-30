@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { PrWatch } from "@/shared/contracts";
 
 /**
  * Per-(project, worktree) working state for the git review panel: in-progress
@@ -52,6 +53,8 @@ export interface GitReviewActionState {
   prGen: GeneratedDraftMeta | null;
   /** Draft PR target branch (null = use the resolved source branch). */
   prTargetBranch: string | null;
+  /** Automation record returned while creating the newest PR in this panel. */
+  createdPrWatch: { prNumber: number; watch: PrWatch | null } | null;
   /** A commit-message generation is in flight (supervisor one-shot LLM call). */
   isGenerating: boolean;
   /** A PR-summary generation is in flight. */
@@ -83,6 +86,7 @@ const EMPTY_STATE: GitReviewActionState = Object.freeze({
   prBody: "",
   prGen: null,
   prTargetBranch: null,
+  createdPrWatch: null,
   isGenerating: false,
   isGeneratingPr: false,
   isCommitting: false,

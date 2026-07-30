@@ -13,11 +13,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
-function automationMode(
-  watch: PrWatch | null | undefined,
-  loadingMode: PrAutomationMode,
-): PrAutomationMode {
-  if (watch === undefined) return loadingMode;
+function automationMode(watch: PrWatch | null | undefined): PrAutomationMode {
   if (watch?.autoMerge) return "merge";
   return watch?.watchEnabled ? "fix" : "off";
 }
@@ -28,24 +24,30 @@ export function PrWatchControls(props: {
   headBranch: string;
   worktreePath?: string | undefined;
   onRefreshPr?: (() => void | Promise<void>) | undefined;
+  initialWatch?: PrWatch | null | undefined;
+  onInitialWatchUsed?: (() => void) | undefined;
 }) {
+  const { initialWatch, onInitialWatchUsed } = props;
   const { t } = useLingui();
   const project = useAppStore((state) =>
     state.projects.find((candidate) => candidate.id === props.projectId),
   );
   const windowsAgents = useAgentStatusesStore((state) => state.agentStatuses);
   const wslAgents = useAgentStatusesStore((state) => state.wslAgentStatuses);
-  const defaultMode = useSharedSettings((state) => state.prAutomationDefault);
-  const [watch, setWatch] = useState<PrWatch | null | undefined>(undefined);
+  const [watch, setWatch] = useState<PrWatch | null | undefined>(initialWatch);
   const [busy, setBusy] = useState(false);
   const watchPresentRef = useRef(false);
   const refreshPrRef = useRef(props.onRefreshPr);
-  const mode = automationMode(watch, defaultMode);
+  const mode = automationMode(watch);
   const enabled = mode !== "off";
 
   useEffect(() => {
     refreshPrRef.current = props.onRefreshPr;
   }, [props.onRefreshPr]);
+
+  useEffect(() => {
+    if (initialWatch !== undefined) onInitialWatchUsed?.();
+  }, [initialWatch, onInitialWatchUsed]);
 
   useEffect(() => {
     let cancelled = false;

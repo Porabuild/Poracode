@@ -108,6 +108,7 @@ export const ChatScrollControls = forwardRef<
   const threadOpenCoalesceUntilRef = useRef(0);
   const atBottomCachedUntilRef = useRef(0);
   const lastPinnedScrollHeightRef = useRef(0);
+  const lastPinnedClientHeightRef = useRef(0);
   const lastSeenScrollHeightRef = useRef(0);
   const lastSeenClientHeightRef = useRef(0);
   const previousInitialScrollSettledRef = useRef(initialScrollSettled);
@@ -165,6 +166,7 @@ export const ChatScrollControls = forwardRef<
     threadOpenCoalesceUntilRef.current = 0;
     atBottomCachedUntilRef.current = 0;
     lastPinnedScrollHeightRef.current = 0;
+    lastPinnedClientHeightRef.current = 0;
     stickToBottomRef.current = false;
     const el = scrollRef.current;
     setShowScrollDown(!el || !isElementAtBottom(el));
@@ -207,6 +209,7 @@ export const ChatScrollControls = forwardRef<
   function writeBottomPin(el: HTMLElement) {
     writeScrollTop(el, el.scrollHeight);
     lastPinnedScrollHeightRef.current = el.scrollHeight;
+    lastPinnedClientHeightRef.current = el.clientHeight;
     lastScrollTopRef.current = el.scrollTop;
     stickToBottomRef.current = true;
     setShowScrollDown(false);
@@ -236,6 +239,7 @@ export const ChatScrollControls = forwardRef<
       pinHoldoffUntilRef.current = 0;
     }
     const scrollHeight = el.scrollHeight;
+    const clientHeight = el.clientHeight;
     const reconcileVirtualizer = options.reconcileVirtualizer === true;
     // Stick-to-bottom storms (thread switch / row measure) call this many times
     // per frame. If we are already pinned at the same content height, skip
@@ -249,6 +253,8 @@ export const ChatScrollControls = forwardRef<
         cachedUntil: atBottomCachedUntilRef.current,
         scrollHeight,
         lastPinnedScrollHeight: lastPinnedScrollHeightRef.current,
+        clientHeight,
+        lastPinnedClientHeight: lastPinnedClientHeightRef.current,
         reconcileVirtualizer,
       })
     ) {
@@ -265,6 +271,8 @@ export const ChatScrollControls = forwardRef<
         coalesceUntil: threadOpenCoalesceUntilRef.current,
         scrollHeight,
         lastPinnedScrollHeight: lastPinnedScrollHeightRef.current,
+        clientHeight,
+        lastPinnedClientHeight: lastPinnedClientHeightRef.current,
       })
     ) {
       atBottomCachedUntilRef.current = nextAtBottomCacheUntil({
@@ -281,7 +289,7 @@ export const ChatScrollControls = forwardRef<
       shouldSkipScrollToBottomWrite({
         scrollHeight,
         scrollTop: el.scrollTop,
-        clientHeight: el.clientHeight,
+        clientHeight,
         lastPinnedScrollHeight: lastPinnedScrollHeightRef.current,
       })
     ) {
@@ -293,6 +301,7 @@ export const ChatScrollControls = forwardRef<
         coalesceUntil: threadOpenCoalesceUntilRef.current,
       });
       lastPinnedScrollHeightRef.current = scrollHeight;
+      lastPinnedClientHeightRef.current = clientHeight;
       lastScrollTopRef.current = el.scrollTop;
       stickToBottomRef.current = true;
       setShowScrollDown(false);
@@ -338,11 +347,14 @@ export const ChatScrollControls = forwardRef<
 
   const syncLayoutNowAndAfterPaint = useEffectEvent(() => {
     const el = scrollRef.current;
-    const contentHeightChanged = !!el && el.scrollHeight !== lastPinnedScrollHeightRef.current;
+    const layoutHeightChanged =
+      !!el &&
+      (el.scrollHeight !== lastPinnedScrollHeightRef.current ||
+        el.clientHeight !== lastPinnedClientHeightRef.current);
 
     // Height-driven sticky pins must run in this frame. Cancel any pending
     // coalesce so an earlier open-storm schedule cannot defer the write.
-    if (contentHeightChanged && stickToBottomRef.current) {
+    if (layoutHeightChanged && stickToBottomRef.current) {
       cancelScheduledLayoutSync();
       syncLayoutNow();
       return;
@@ -521,6 +533,7 @@ export const ChatScrollControls = forwardRef<
     threadOpenCoalesceUntilRef.current = performance.now() + THREAD_OPEN_COALESCE_MS;
     atBottomCachedUntilRef.current = 0;
     lastPinnedScrollHeightRef.current = 0;
+    lastPinnedClientHeightRef.current = 0;
     lastSeenScrollHeightRef.current = scrollRef.current?.scrollHeight ?? 0;
     lastSeenClientHeightRef.current = scrollRef.current?.clientHeight ?? 0;
     scrollToBottom({ reconcileVirtualizer: true });
