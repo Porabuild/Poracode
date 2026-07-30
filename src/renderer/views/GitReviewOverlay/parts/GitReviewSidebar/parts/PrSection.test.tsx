@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PrData, PrDetails } from "@/shared/contracts";
+import type { PrData, PrDetails, PrWatch } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -124,8 +124,31 @@ describe("PrSection", () => {
   it("shows target branch, diff totals, and passed checks", () => {
     useGitStore.getState().setPrDetails(`${projectId}#${pr.number}`, details);
     const onRefreshPr = vi.fn<() => Promise<void>>(async () => undefined);
+    const onInitialWatchUsed = vi.fn<() => void>();
+    const initialWatch = {
+      projectId,
+      prNumber: pr.number,
+      headBranch: details.headBranch,
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.7" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    } satisfies PrWatch;
 
-    render(<PrSection {...baseProps} onRefreshPr={onRefreshPr} />);
+    render(
+      <PrSection
+        {...baseProps}
+        onRefreshPr={onRefreshPr}
+        initialWatch={initialWatch}
+        onInitialWatchUsed={onInitialWatchUsed}
+      />,
+    );
 
     const branch = screen.getByLabelText("Target branch: main");
     expect(branch).toHaveTextContent("main");
@@ -142,6 +165,8 @@ describe("PrSection", () => {
         projectId,
         prNumber: 42,
         headBranch: "feature/pr-summary",
+        initialWatch,
+        onInitialWatchUsed,
       }),
     );
   });

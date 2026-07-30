@@ -331,6 +331,8 @@ describe("chatScrollGeometry", () => {
         cachedUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(true);
     expect(
@@ -339,6 +341,8 @@ describe("chatScrollGeometry", () => {
         cachedUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(false);
     expect(
@@ -347,6 +351,8 @@ describe("chatScrollGeometry", () => {
         cachedUntil: 400,
         scrollHeight: 1200,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(false);
     expect(
@@ -355,7 +361,19 @@ describe("chatScrollGeometry", () => {
         cachedUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
         reconcileVirtualizer: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldTrustCachedAtBottom({
+        now: 100,
+        cachedUntil: 400,
+        scrollHeight: 1000,
+        lastPinnedScrollHeight: 1000,
+        clientHeight: 240,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(false);
   });
@@ -365,7 +383,7 @@ describe("chatScrollGeometry", () => {
     expect(nextAtBottomCacheUntil({ now: 100, frameCacheMs: 16, coalesceUntil: 50 })).toBe(116);
   });
 
-  it("only re-pins during open storm when scrollHeight grows", () => {
+  it("only re-pins during open storm when content or viewport height changes", () => {
     expect(
       shouldRepinForContentGrowth({
         stickToBottom: true,
@@ -373,6 +391,8 @@ describe("chatScrollGeometry", () => {
         coalesceUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(false);
     expect(
@@ -382,6 +402,19 @@ describe("chatScrollGeometry", () => {
         coalesceUntil: 400,
         scrollHeight: 1100,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRepinForContentGrowth({
+        stickToBottom: true,
+        now: 100,
+        coalesceUntil: 400,
+        scrollHeight: 1000,
+        lastPinnedScrollHeight: 1000,
+        clientHeight: 240,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(true);
     expect(
@@ -391,6 +424,8 @@ describe("chatScrollGeometry", () => {
         coalesceUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(true);
     expect(
@@ -400,6 +435,8 @@ describe("chatScrollGeometry", () => {
         coalesceUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(true);
   });

@@ -29,6 +29,7 @@ import {
   useCommitsAhead,
   useHasPr,
   usePrBaseBranch,
+  usePrNumber,
   usePrState,
   useSourceAhead,
   useSourceBranch,
@@ -138,6 +139,7 @@ export function GitReviewSidebar(props: {
   const effectivePrKey =
     worktreePath ?? (gitStatus?.branch ? buildBranchPrKey(project.id) : undefined);
   const hasPr = useHasPr(effectivePrKey);
+  const prNumber = usePrNumber(effectivePrKey);
   const prState = usePrState(effectivePrKey);
   const prBaseBranch = usePrBaseBranch(effectivePrKey);
   const sourceBranch = useSourceBranch(effectivePrKey) ?? null;
@@ -174,6 +176,8 @@ export function GitReviewSidebar(props: {
     setPrBody,
     prTargetBranch,
     setPrTargetBranch,
+    createdPrWatch,
+    clearCreatedPrWatch,
     prLoading,
     prPendingAction,
     isGeneratingPr,
@@ -288,6 +292,7 @@ export function GitReviewSidebar(props: {
       {isAutoPrMode ? <Trans>Create PR (Auto)</Trans> : <Trans>Create PR</Trans>}
     </>
   );
+  const initialPrWatch = createdPrWatch?.prNumber === prNumber ? createdPrWatch : undefined;
   const [isInitializingRepo, setIsInitializingRepo] = useState(false);
   const [addRemoteOpen, setAddRemoteOpen] = useState(false);
   const [remoteName, setRemoteName] = useState("origin");
@@ -548,6 +553,12 @@ export function GitReviewSidebar(props: {
               handleUpdatePrBranch={handleUpdatePrBranch}
               onRefreshPr={handleRefreshPr}
               isRefreshingPr={isRefreshingPr}
+              {...(initialPrWatch
+                ? {
+                    initialWatch: initialPrWatch.watch,
+                    onInitialWatchUsed: clearCreatedPrWatch,
+                  }
+                : {})}
             />
           )}
 

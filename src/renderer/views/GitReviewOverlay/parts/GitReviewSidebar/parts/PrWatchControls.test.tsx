@@ -42,7 +42,6 @@ const bridge = vi.hoisted(() => ({
 }));
 
 const settings = vi.hoisted(() => ({
-  prAutomationDefault: "merge" as const,
   conflictResolverProvider: "codex",
   conflictResolverModel: "gpt-5.7",
   conflictResolverEffort: "high",
@@ -113,15 +112,40 @@ describe("PrWatchControls", () => {
     bridge.deletePrWatch.mockResolvedValue(undefined);
   });
 
-  it("shows the configured default while the initial automation state loads", () => {
+  it("shows a newly created PR's automation immediately while reconciling it", () => {
     bridge.getPrWatch.mockReturnValue(new Promise(() => undefined));
+    const onInitialWatchUsed = vi.fn<() => void>();
+    const initialWatch: PrWatch = {
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.7", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    };
 
-    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    render(
+      <PrWatchControls
+        projectId={project.id}
+        prNumber={42}
+        headBranch="feature/pr-watch"
+        initialWatch={initialWatch}
+        onInitialWatchUsed={onInitialWatchUsed}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
     const slider = screen.getByRole("slider", { name: "PR automation" });
     expect(slider).toHaveValue("2");
-    expect(slider).toBeDisabled();
+    expect(slider).not.toBeDisabled();
+    expect(onInitialWatchUsed).toHaveBeenCalledOnce();
   });
 
   it("enables watching with the AI Helpers conflict resolver model", async () => {
