@@ -36,6 +36,8 @@ const ghGetPrDetailsMock =
       prNumber: number;
     }) => Promise<{ details: PrDetails }>
   >();
+const checkPrWatchMock =
+  vi.fn<(payload: { projectId: string; prNumber: number }) => Promise<void>>();
 
 const location: ProjectLocation = { kind: "posix", path: "/repo" };
 const wslLocation: ProjectLocation = {
@@ -133,6 +135,8 @@ describe("pending PR refresh", () => {
     vi.useFakeTimers();
     ghGetPrForBranchMock.mockReset();
     ghGetPrDetailsMock.mockReset();
+    checkPrWatchMock.mockReset();
+    checkPrWatchMock.mockResolvedValue(undefined);
     Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
@@ -142,6 +146,7 @@ describe("pending PR refresh", () => {
           .mockResolvedValue(undefined),
         ghGetPrForBranch: ghGetPrForBranchMock,
         ghGetPrDetails: ghGetPrDetailsMock,
+        checkPrWatch: checkPrWatchMock,
       },
     });
     useGitStore.setState({
@@ -274,6 +279,8 @@ describe("pending PR refresh", () => {
     expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 42 });
     expect(useGitStore.getState().prData[prKey]?.checksStatus).toBe("SUCCESS");
     expect(useGitStore.getState().prDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
+    expect(checkPrWatchMock).toHaveBeenCalledOnce();
+    expect(checkPrWatchMock).toHaveBeenCalledWith({ projectId: "p1", prNumber: 42 });
 
     ghGetPrForBranchMock.mockClear();
     ghGetPrDetailsMock.mockClear();
@@ -281,6 +288,7 @@ describe("pending PR refresh", () => {
 
     expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
     expect(ghGetPrDetailsMock).not.toHaveBeenCalled();
+    expect(checkPrWatchMock).toHaveBeenCalledOnce();
   });
 
   it("polls when the PR summary is stale failed but loaded check details are pending", async () => {

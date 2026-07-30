@@ -468,6 +468,8 @@ export function createLocalIpcHandlers(
     runScheduleNow: ({ id }) => options.scheduleService.runNow(id),
     getScheduleRuns: ({ id }) => dbListScheduleRuns(id),
     getPrWatch: ({ projectId, prNumber }) => options.prWatchService.get(projectId, prNumber),
+    checkPrWatch: ({ projectId, prNumber }) =>
+      options.prWatchService.requestCheck(projectId, prNumber),
     upsertPrWatch: (watch) => options.prWatchService.upsert(watch),
     deletePrWatch: ({ projectId, prNumber }) => options.prWatchService.delete(projectId, prNumber),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),

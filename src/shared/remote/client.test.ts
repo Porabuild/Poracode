@@ -138,7 +138,7 @@ describe("RemoteDesktopClient", () => {
     ]);
   });
 
-  it("reads, enables, and deletes PR automation through the remote API", async () => {
+  it("reads, checks, enables, and deletes PR automation through the remote API", async () => {
     const requests: Array<{ url: string; method: string; body: unknown }> = [];
     const watch = {
       projectId: "project one",
@@ -186,6 +186,9 @@ describe("RemoteDesktopClient", () => {
     await expect(
       client.getPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
     ).resolves.toEqual(watch);
+    await expect(
+      client.checkPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toBeUndefined();
     await expect(client.upsertPrWatch(input)).resolves.toEqual(watch);
     await expect(
       client.deletePrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
@@ -196,6 +199,11 @@ describe("RemoteDesktopClient", () => {
         url: "https://relay.example.test/s/server-1/api/pr-watches?projectId=project+one&prNumber=42",
         method: "GET",
         body: undefined,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches/check",
+        method: "POST",
+        body: { projectId: watch.projectId, prNumber: watch.prNumber },
       },
       {
         url: "https://relay.example.test/s/server-1/api/pr-watches",

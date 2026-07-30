@@ -250,6 +250,7 @@ const remoteBridge = {
   deleteSchedule: ({ id }: { id: string }) => requireClient().deleteSchedule(id),
   runScheduleNow: ({ id }: { id: string }) => requireClient().runScheduleNow(id),
   getPrWatch: (input: PrWatchKey) => requireClient().getPrWatch(input),
+  checkPrWatch: (input: PrWatchKey) => requireClient().checkPrWatch(input),
   upsertPrWatch: (input: PrWatchInput) => requireClient().upsertPrWatch(input),
   deletePrWatch: (input: PrWatchKey) => requireClient().deletePrWatch(input),
 

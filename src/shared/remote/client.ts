@@ -466,6 +466,10 @@ export class RemoteDesktopClient {
     return result.watch;
   }
 
+  async checkPrWatch(input: PrWatchKey): Promise<void> {
+    await this.requestJson("/api/pr-watches/check", { method: "POST", body: input });
+  }
+
   async upsertPrWatch(input: PrWatchInput): Promise<PrWatch> {
     const result = parseResponse(
       prWatchResponseSchema,

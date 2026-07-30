@@ -184,6 +184,7 @@ export interface RemoteAccessServerOptions {
   /** Persistent PR automation owned by the host process. */
   readonly prWatches?: {
     get(projectId: string, prNumber: number): PrWatch | null;
+    requestCheck(projectId: string, prNumber: number): void;
     upsert(input: PrWatchInput): PrWatch;
     delete(projectId: string, prNumber: number): void;
   };
