@@ -143,6 +143,7 @@ describe("SSH runtime bundle", () => {
     writeFileSync(join(mainBundleDir, "server.cjs"), 'require("electron");', "utf8");
     writeFileSync(join(mainBundleDir, "supervisor.cjs"), "", "utf8");
     writeFileSync(join(mainBundleDir, "claudeSdkProbeWorker.mjs"), "", "utf8");
+    writeFileSync(join(mainBundleDir, "cursorSdkWorker.mjs"), "", "utf8");
 
     expect(() =>
       ensureSshRuntimeBundle({
