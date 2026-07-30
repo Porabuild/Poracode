@@ -47,7 +47,13 @@ function appSummaryProperties(): ProductAnalyticsProperties {
 function segmentProperties(
   segments: readonly PromptSegment[] | undefined,
 ): ProductAnalyticsProperties {
-  const counts = { text: 0, file: 0, attachment: 0, skill: 0 };
+  const counts: Record<PromptSegment["kind"], number> = {
+    text: 0,
+    file: 0,
+    attachment: 0,
+    skill: 0,
+    diff_comment: 0,
+  };
   for (const segment of segments ?? []) {
     counts[segment.kind] += 1;
   }

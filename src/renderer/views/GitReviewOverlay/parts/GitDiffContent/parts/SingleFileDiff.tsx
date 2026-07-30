@@ -10,6 +10,7 @@ import {
   getLang,
   useDiffTheme,
 } from "../../diffBuildClient";
+import { DiffAnnotationView } from "../../DiffAnnotationView";
 
 export function SingleFileDiff(props: {
   project: Project;
@@ -18,6 +19,7 @@ export function SingleFileDiff(props: {
   diffMode: number;
   refreshKey: number;
   containerRef: RefObject<HTMLDivElement | null>;
+  annotationTarget?: { projectId: string; worktreePath: string | undefined };
 }) {
   const { project, filePath, staged, diffMode, refreshKey } = props;
   const theme = useDiffTheme();
@@ -81,14 +83,29 @@ export function SingleFileDiff(props: {
       {diffFile && (
         <div className="space-y-4">
           <div className="rounded border border-border">
-            <DiffView
-              diffFile={diffFile}
-              diffViewMode={diffMode}
-              diffViewTheme={theme}
-              diffViewFontSize={12}
-              diffViewHighlight={true}
-              diffViewWrap={false}
-            />
+            {props.annotationTarget ? (
+              <DiffAnnotationView
+                diffFile={diffFile}
+                filePath={filePath}
+                projectId={props.annotationTarget.projectId}
+                staged={staged}
+                worktreePath={props.annotationTarget.worktreePath}
+                diffViewMode={diffMode}
+                diffViewTheme={theme}
+                diffViewFontSize={12}
+                diffViewHighlight={true}
+                diffViewWrap={false}
+              />
+            ) : (
+              <DiffView
+                diffFile={diffFile}
+                diffViewMode={diffMode}
+                diffViewTheme={theme}
+                diffViewFontSize={12}
+                diffViewHighlight={true}
+                diffViewWrap={false}
+              />
+            )}
           </div>
         </div>
       )}

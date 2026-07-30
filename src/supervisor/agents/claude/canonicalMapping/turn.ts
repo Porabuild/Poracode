@@ -24,6 +24,10 @@ export function buildPromptContentBlocks(
       if (segment.content.length > 0) blocks.push({ kind: "text", text: segment.content });
       continue;
     }
+    if (segment.kind === "diff_comment") {
+      blocks.push({ ...segment });
+      continue;
+    }
     blocks.push({
       kind: "file",
       path: segment.path,

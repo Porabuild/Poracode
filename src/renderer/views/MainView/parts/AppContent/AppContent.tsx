@@ -25,6 +25,7 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { getProjectActiveWorktreePaths, refreshGitProject } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -150,6 +151,11 @@ export async function startThreadFromDraft(
     ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
     ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
   });
+  const composerInputInbox = useComposerInputInbox.getState();
+  const draftInboxKey = options.replacePaneId ?? `draft:${project.id}`;
+  for (const pendingSegments of composerInputInbox.drain(draftInboxKey)) {
+    composerInputInbox.enqueue(thread.id, pendingSegments);
+  }
   store.queueThreadLaunch(thread.id, prompt, segments);
   generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
   if (worktreePath) {

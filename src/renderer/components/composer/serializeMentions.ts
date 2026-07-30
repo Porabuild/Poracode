@@ -55,8 +55,8 @@ function isLikelyInlineFilePath(path: string): boolean {
 
 /**
  * Walk a contentEditable container and produce structured prompt segments.
- * Text content becomes `{ kind: "text" }` segments, file mention chips
- * and inline `@path` tokens become `{ kind: "file", path }` segments.
+ * Text content becomes `{ kind: "text" }` segments, while file mentions,
+ * skills, and diff-comment chips retain their structured metadata.
  * Each adapter then formats these segments its own way (Claude: @path,
  * Codex: structured API, etc.).
  */
@@ -89,6 +89,25 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
     if (el.dataset.mentionPath) {
       flushText();
       segments.push({ kind: "file", path: el.dataset.mentionPath });
+      return;
+    }
+
+    if (
+      el.dataset.diffCommentPath &&
+      el.dataset.diffCommentLineNumber &&
+      (el.dataset.diffCommentSide === "old" || el.dataset.diffCommentSide === "new") &&
+      (el.dataset.diffCommentStaged === "true" || el.dataset.diffCommentStaged === "false") &&
+      el.dataset.diffCommentBody
+    ) {
+      flushText();
+      segments.push({
+        kind: "diff_comment",
+        path: el.dataset.diffCommentPath,
+        lineNumber: Number(el.dataset.diffCommentLineNumber),
+        side: el.dataset.diffCommentSide,
+        staged: el.dataset.diffCommentStaged === "true",
+        body: el.dataset.diffCommentBody,
+      });
       return;
     }
 

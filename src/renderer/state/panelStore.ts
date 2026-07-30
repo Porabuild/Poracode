@@ -6,6 +6,7 @@ import { useFileEditorStore } from "./fileEditorStore";
 export interface GitReviewContext {
   projectId: string;
   worktreePath?: string;
+  originComposerId?: string;
 }
 
 export interface PrReviewContext {
@@ -160,7 +161,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
       (prev !== null &&
         ctx !== null &&
         prev.projectId === ctx.projectId &&
-        prev.worktreePath === ctx.worktreePath)
+        prev.worktreePath === ctx.worktreePath &&
+        prev.originComposerId === ctx.originComposerId)
     ) {
       return;
     }
@@ -319,7 +321,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
 // readPersistedSlice so the restored git panel and drawer width are present
 // before first paint.
 persistStoreSlice(usePanelStore, PERSIST_KEY, (state) => ({
-  gitReviewContext: state.gitReviewContext,
+  gitReviewContext: state.gitReviewContext
+    ? {
+        projectId: state.gitReviewContext.projectId,
+        ...(state.gitReviewContext.worktreePath
+          ? { worktreePath: state.gitReviewContext.worktreePath }
+          : {}),
+      }
+    : null,
   browserOverlayDrawerWidth: state.browserOverlayDrawerWidth,
 }));
 

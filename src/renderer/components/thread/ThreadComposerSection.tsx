@@ -36,6 +36,10 @@ import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
+import {
+  useComposerInputInbox,
+  worktreeComposerInboxKey,
+} from "@/renderer/state/composerInputInbox";
 import { useComposerUiStore } from "@/renderer/state/composerUiStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -458,6 +462,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // so defer until the editor mounts; the effect re-runs when `editorMounted`
   // flips, at which point `mentionRef` is attached.
   const editorMounted = !usesTerminalPresentation || thread.status !== "launching";
+  const pendingComposerInputs = useComposerInputInbox((s) => s.itemsByComposer[thread.id]);
+  const fallbackComposerInboxKey = thread.worktreePath
+    ? worktreeComposerInboxKey(thread.projectId, thread.worktreePath)
+    : `draft:${thread.projectId}`;
+  const pendingFallbackComposerInputs = useComposerInputInbox(
+    (s) => s.itemsByComposer[fallbackComposerInboxKey],
+  );
   useLayoutEffect(() => {
     if (preparedThreadIdRef.current !== thread.id) {
       preparedThreadIdRef.current = thread.id;
@@ -489,6 +500,36 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     clearThreadDraftContent(thread.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/restore is keyed to the active thread and editor mount; attachment/editor methods are read from this render
   }, [editorMounted, thread.id]);
+
+  useEffect(() => {
+    const composer = mentionRef.current;
+    if (
+      isSubmitting ||
+      !editorMounted ||
+      !composer ||
+      (!pendingComposerInputs?.length && !pendingFallbackComposerInputs?.length)
+    ) {
+      return;
+    }
+    let composerHasContent = composer.serializeSegments().length > 0;
+    for (const key of [fallbackComposerInboxKey, thread.id]) {
+      const items = useComposerInputInbox.getState().drain(key);
+      for (const segments of items) {
+        const separator: PromptSegment[] = composerHasContent
+          ? [{ kind: "text", content: "\n\n" }]
+          : [];
+        composer.insertSegments([...separator, ...segments], { atEnd: true, focus: false });
+        composerHasContent = true;
+      }
+    }
+  }, [
+    editorMounted,
+    fallbackComposerInboxKey,
+    isSubmitting,
+    pendingComposerInputs,
+    pendingFallbackComposerInputs,
+    thread.id,
+  ]);
 
   useEffect(() => {
     setComposerCollapsed(collapseTerminalComposerSetting);

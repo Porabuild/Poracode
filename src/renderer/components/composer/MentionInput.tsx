@@ -7,6 +7,7 @@ import type {
   PromptSegment,
 } from "@/shared/contracts";
 import { fileNameFromPath, skillSegmentFromSlashCommand } from "@/shared/promptContent";
+import { createDiffCommentChipElement } from "./DiffCommentChip";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
@@ -62,7 +63,7 @@ export interface MentionInputHandle {
   focus(): void;
   clear(): void;
   insertText(text: string): void;
-  insertSegments(segments: PromptSegment[]): void;
+  insertSegments(segments: PromptSegment[], options?: { atEnd?: boolean; focus?: boolean }): void;
   previewVoiceTranscript(text: string): void;
   commitVoiceTranscript(text: string): void;
   clearVoiceTranscriptPreview(): void;
@@ -153,7 +154,9 @@ function detectTriggerRange(triggerChar: string): Range | null {
 }
 
 function hasEditorContent(editor: HTMLDivElement): boolean {
-  if (editor.querySelector("[data-mention-path], [data-slash-command]")) return true;
+  if (editor.querySelector("[data-mention-path], [data-slash-command], [data-diff-comment-path]")) {
+    return true;
+  }
   return (editor.textContent ?? "").trim().length > 0;
 }
 
@@ -212,6 +215,8 @@ function appendPromptSegments(parent: Node, segments: PromptSegment[]): void {
       parent.appendChild(
         createSlashCommandChipElement({ id: segment.name, ...skillChipDataset(segment) }),
       );
+    } else if (segment.kind === "diff_comment") {
+      parent.appendChild(createDiffCommentChipElement(segment));
     }
   }
 }
@@ -355,14 +360,14 @@ export const MentionInput = forwardRef<
     insertText(text: string) {
       insertPlainText(text);
     },
-    insertSegments(segments: PromptSegment[]) {
+    insertSegments(segments: PromptSegment[], options?: { atEnd?: boolean; focus?: boolean }) {
       const editor = editorRef.current;
       if (!editor || segments.length === 0) return;
 
-      editor.focus();
+      if (options?.focus !== false) editor.focus();
       const selection = window.getSelection();
       const selectionInsideEditor =
-        selection?.rangeCount && selection.anchorNode
+        !options?.atEnd && selection?.rangeCount && selection.anchorNode
           ? editor.contains(selection.anchorNode)
           : false;
       const range = selectionInsideEditor ? selection!.getRangeAt(0) : placeCaretAtEnd(editor);
@@ -372,7 +377,14 @@ export const MentionInput = forwardRef<
       precedingRange.selectNodeContents(editor);
       precedingRange.setEnd(range.startContainer, range.startOffset);
       const fragment = document.createDocumentFragment();
-      if (precedingRange.toString().length > 0 && !/\s$/.test(precedingRange.toString())) {
+      const firstSegment = segments[0];
+      const hasExplicitLeadingWhitespace =
+        firstSegment?.kind === "text" && /^\s/.test(firstSegment.content);
+      if (
+        precedingRange.toString().length > 0 &&
+        !/\s$/.test(precedingRange.toString()) &&
+        !hasExplicitLeadingWhitespace
+      ) {
         fragment.appendChild(document.createTextNode(" "));
       }
       appendPromptSegments(fragment, segments);
@@ -383,8 +395,10 @@ export const MentionInput = forwardRef<
       range.insertNode(fragment);
       range.setStartAfter(lastNode);
       range.collapse(true);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
+      if (options?.focus !== false) {
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
       checkMentionState();
       notifyTextChange();
     },
@@ -662,7 +676,11 @@ export const MentionInput = forwardRef<
 
         if (node.nodeType === Node.TEXT_NODE && offset === 0) {
           const prev = node.previousSibling as HTMLElement | null;
-          if (prev?.dataset?.mentionPath || prev?.dataset?.slashCommand) {
+          if (
+            prev?.dataset?.mentionPath ||
+            prev?.dataset?.slashCommand ||
+            prev?.dataset?.diffCommentPath
+          ) {
             e.preventDefault();
             prev.remove();
             notifyTextChange();
@@ -672,7 +690,11 @@ export const MentionInput = forwardRef<
 
         if (node.nodeType === Node.ELEMENT_NODE && offset > 0) {
           const child = node.childNodes[offset - 1] as HTMLElement | undefined;
-          if (child?.dataset?.mentionPath || child?.dataset?.slashCommand) {
+          if (
+            child?.dataset?.mentionPath ||
+            child?.dataset?.slashCommand ||
+            child?.dataset?.diffCommentPath
+          ) {
             e.preventDefault();
             child.remove();
             notifyTextChange();

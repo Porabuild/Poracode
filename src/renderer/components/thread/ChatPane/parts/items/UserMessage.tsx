@@ -1,12 +1,16 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageSquareText, Sparkles } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
 import type { Attachment } from "@/renderer/components/composer/useAttachments";
-import { fileNameFromPath } from "@/shared/promptContent";
+import {
+  diffCommentTarget,
+  fileNameFromPath,
+  formatDiffCommentPrompt,
+} from "@/shared/promptContent";
 import { isRemoteSession } from "@/renderer/bridge";
 import {
   getRuntimeItemPayload,
@@ -67,7 +71,10 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   const text = body;
   const commandPrefixLength = slashCommand ? rawText.length - body.length : 0;
   const hasInlineContent = content.some(
-    (block) => block.kind === "skill" || (block.kind === "file" && block.source !== "attachment"),
+    (block) =>
+      block.kind === "skill" ||
+      block.kind === "diff_comment" ||
+      (block.kind === "file" && block.source !== "attachment"),
   );
   const attachments = enrichWithSelectorPayloads(
     buildUserPromptAttachments(content),
@@ -290,6 +297,7 @@ function buildUserPromptText(content: CanonicalContentBlock[]): string {
     .map((block) => {
       if (block.kind === "text") return block.text;
       if (block.kind === "skill") return block.invocation;
+      if (block.kind === "diff_comment") return formatDiffCommentPrompt(block);
       if (block.kind === "file" && block.source !== "attachment") return block.path;
       return "";
     })
@@ -333,6 +341,24 @@ function renderUserMessageInlineContent(
       return;
     }
 
+    if (block.kind === "diff_comment") {
+      const promptText = formatDiffCommentPrompt(block);
+      if (remainingSkip >= promptText.length) {
+        remainingSkip -= promptText.length;
+        return;
+      }
+      remainingSkip = 0;
+      nodes.push(
+        <UserMessageSlashChip
+          key={`diff-comment-${index}-${block.path}-${block.lineNumber}`}
+          icon={<MessageSquareText aria-hidden="true" />}
+          label={diffCommentTarget(block, true)}
+          title={`${diffCommentTarget(block)}\n${block.body}`}
+        />,
+      );
+      return;
+    }
+
     if (block.kind === "file") {
       if (block.source === "attachment") return;
       if (remainingSkip >= block.path.length) {
@@ -360,14 +386,17 @@ function UserMessageSlashChip({
   icon,
   label,
   skillName,
+  title,
 }: {
   icon: ReactNode;
   label: string;
   skillName?: string;
+  title?: string;
 }) {
   return (
     <span
       className="poracode-slash-chip mr-1.5"
+      title={title}
       {...(skillName ? { "data-skill-name": skillName } : {})}
     >
       <span className="poracode-slash-chip__slash">{icon}</span>

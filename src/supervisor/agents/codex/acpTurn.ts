@@ -1,4 +1,5 @@
 import type { PromptSegment, ThreadConfig } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 
 // Codex's `turn/start` requires a non-empty `developer_instructions` string
 // inside `collaborationMode.settings`. We send these on every turn so that
@@ -62,7 +63,11 @@ export function buildCodexTurnInput(
 
   const text = hasSkillSegment
     ? (segments ?? [])
-        .flatMap((segment) => (segment.kind === "text" ? [segment.content] : []))
+        .flatMap((segment) =>
+          segment.kind === "text" || segment.kind === "diff_comment"
+            ? [inlinePromptSegmentText(segment)]
+            : [],
+        )
         .join("")
         .trim()
     : prompt;

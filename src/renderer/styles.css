@@ -2553,6 +2553,35 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   white-space: nowrap;
 }
 
+.poracode-diff-comment-chip {
+  gap: 0.25em;
+}
+
+.poracode-diff-comment-chip__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0;
+  height: 1em;
+  overflow: hidden;
+  color: var(--muted);
+  opacity: 0;
+  transition:
+    width 120ms ease,
+    opacity 120ms ease;
+  cursor: var(--interactive-cursor, pointer);
+}
+
+.poracode-diff-comment-chip:hover .poracode-diff-comment-chip__delete {
+  width: 1em;
+  opacity: 1;
+}
+
+.poracode-diff-comment-chip__delete svg {
+  width: 0.8em;
+  height: 0.8em;
+}
+
 .poracode-user-message-inline-content .poracode-inline-path-chip {
   background: var(--surface-secondary);
 }

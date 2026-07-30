@@ -191,12 +191,21 @@ export function showFilesPanel(projectId: string, worktreePath?: string): void {
   applyFilesPanel(projectId, worktreePath, { toggleCloseIfActive: false });
 }
 
-export function openGitReview(projectId: string, worktreePath?: string): void {
+export function openGitReview(
+  projectId: string,
+  worktreePath?: string,
+  originComposerId?: string,
+): void {
   const mode = useSharedSettings.getState().gitReviewMode;
   const panelStore = usePanelStore.getState();
   const gitReviewContext = panelStore.gitReviewContext;
   const gitPanelOpen = !!gitReviewContext && panelStore.gitReviewAsPanel;
   const rightPanelTab = panelStore.rightPanelTab;
+  const nextContext = {
+    projectId,
+    ...(worktreePath ? { worktreePath } : {}),
+    ...(originComposerId ? { originComposerId } : {}),
+  };
 
   if (mode === "panel") {
     const isSameContext =
@@ -208,11 +217,13 @@ export function openGitReview(projectId: string, worktreePath?: string): void {
       closeAllPanels();
       return;
     }
-    panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
+  }
+
+  panelStore.setGitReviewContext(nextContext);
+  if (mode === "panel") {
     panelStore.setGitReviewAsPanel(true);
     panelStore.setRightPanelTab("git");
   } else {
-    panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
     panelStore.setGitReviewAsPanel(false);
     panelStore.setGitOverlayOpen(true);
   }

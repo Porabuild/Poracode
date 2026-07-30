@@ -37,6 +37,21 @@ export function fileNameFromPath(path: string): string {
   return lastSep >= 0 ? path.slice(lastSep + 1) : path;
 }
 
+export type DiffCommentSegment = Extract<PromptSegment, { kind: "diff_comment" }>;
+
+export function diffCommentTarget(
+  comment: Pick<DiffCommentSegment, "lineNumber" | "path" | "side">,
+  compact = false,
+): string {
+  const path = compact ? fileNameFromPath(comment.path) : comment.path;
+  return `${path}:${comment.side === "old" ? "-" : "+"}${comment.lineNumber}`;
+}
+
+export function formatDiffCommentPrompt(comment: DiffCommentSegment): string {
+  const state = comment.staged ? "staged" : "unstaged";
+  return `Review comment on ${diffCommentTarget(comment)} (${state}):\n${comment.body.trim()}`;
+}
+
 export function isImagePath(path: string, mimeType?: string): boolean {
   return mimeType?.startsWith("image/") === true || IMAGE_EXTENSIONS.has(getExtension(path));
 }
@@ -69,6 +84,8 @@ export function inlinePromptSegmentText(segment: PromptSegment): string {
       return `@${segment.path}`;
     case "skill":
       return segment.invocation;
+    case "diff_comment":
+      return formatDiffCommentPrompt(segment);
     case "text":
       return segment.content;
   }
@@ -115,6 +132,11 @@ export function buildPromptContentBlocks(
 
     if (segment.kind === "skill") {
       content.push({ kind: "skill", name: segment.name, invocation: segment.invocation });
+      continue;
+    }
+
+    if (segment.kind === "diff_comment") {
+      content.push({ ...segment });
       continue;
     }
 

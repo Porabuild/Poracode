@@ -75,7 +75,7 @@ export function ThreadItemSuffix(props: {
             projectId={thread.projectId}
             projectName={thread.worktreeBranch ?? ""}
             worktreePath={thread.worktreePath}
-            onPress={() => openGitReview(thread.projectId, thread.worktreePath)}
+            onPress={() => openGitReview(thread.projectId, thread.worktreePath, thread.id)}
             isActive={isGitActive}
             fallbackToWorktreeIcon
           />

@@ -335,7 +335,8 @@ function baseCommands(): AppCommand[] {
       when: "hasProject",
       run: () => {
         const active = resolveActiveContext();
-        if (active.project) openGitReview(active.project.id, active.worktreePath);
+        if (active.project)
+          openGitReview(active.project.id, active.worktreePath, active.thread?.id);
       },
     },
     {

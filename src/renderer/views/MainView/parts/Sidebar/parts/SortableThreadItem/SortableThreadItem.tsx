@@ -231,7 +231,7 @@ export function SortableThreadItem(props: {
                   thread.worktreeBranch,
                 ) ?? thread.worktreePath,
             });
-          if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath);
+          if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath, thread.id);
           if (key === "git-sync" && thread.worktreePath)
             gitSync(thread.projectId, thread.worktreePath);
           if (key === "git-push" && thread.worktreePath)
@@ -248,7 +248,7 @@ export function SortableThreadItem(props: {
             const pr = useGitStore.getState().prData[thread.worktreePath];
             if (pr?.url) void readBridge().openExternal(pr.url);
           }
-          if (key === "create-pr") openGitReview(thread.projectId, thread.worktreePath);
+          if (key === "create-pr") openGitReview(thread.projectId, thread.worktreePath, thread.id);
           if (key === "continue-in") continueInProvider(thread.id);
           if (key === "group-open-threads") {
             const state = useAppStore.getState();

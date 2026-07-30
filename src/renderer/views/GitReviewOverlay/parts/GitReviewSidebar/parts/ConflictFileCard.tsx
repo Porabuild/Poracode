@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, FileEdit, Plus } from "lucide-react";
-import { DiffFile, DiffView, highlighter } from "@git-diff-view/react";
+import { DiffFile, highlighter } from "@git-diff-view/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -16,6 +16,7 @@ import {
 } from "../../diffBuildClient";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { reconcileStagingStatus } from "./reconcileStagingStatus";
+import { DiffAnnotationView } from "../../DiffAnnotationView";
 
 const LARGE_DIFF_THRESHOLD = 500;
 const COMPOSER_FILE_DRAG_TYPE = "application/poracode-composer-file";
@@ -213,8 +214,12 @@ export function ConflictFileCard(props: {
             </div>
           )}
           {diffFile && (
-            <DiffView
+            <DiffAnnotationView
               diffFile={diffFile}
+              filePath={file.path}
+              projectId={project.id}
+              staged={false}
+              worktreePath={worktreePath}
               diffViewMode={4}
               diffViewTheme={theme}
               diffViewFontSize={12}

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { PromptSegment } from "@/shared/contracts";
+import { formatDiffCommentPrompt } from "@/shared/promptContent";
 
 function isImageAttachment(segment: PromptSegment): boolean {
   return (
@@ -53,6 +54,10 @@ export async function buildSdkUserMessage(
   for (const segment of segments) {
     if (segment.kind === "text") {
       textParts.push(segment.content);
+      continue;
+    }
+    if (segment.kind === "diff_comment") {
+      textParts.push(formatDiffCommentPrompt(segment));
       continue;
     }
     if (segment.kind === "attachment" && isImageAttachment(segment)) {

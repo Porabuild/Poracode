@@ -53,6 +53,14 @@ export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), text: z.string() }),
   z.object({ kind: z.literal("skill"), name: z.string(), invocation: z.string() }),
   z.object({
+    kind: z.literal("diff_comment"),
+    path: z.string(),
+    lineNumber: z.number().int().positive(),
+    side: z.enum(["old", "new"]),
+    staged: z.boolean(),
+    body: z.string(),
+  }),
+  z.object({
     kind: z.literal("image"),
     mimeType: z.string(),
     dataUrl: z.string(),
