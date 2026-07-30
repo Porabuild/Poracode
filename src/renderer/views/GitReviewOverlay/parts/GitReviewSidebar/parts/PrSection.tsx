@@ -23,7 +23,7 @@ import {
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import type { PrMergeMethod } from "@/shared/contracts";
+import type { PrMergeMethod, PrWatch } from "@/shared/contracts";
 import { PixelLoader, PrCheckStatusText } from "@/renderer/components/common";
 import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
@@ -67,6 +67,8 @@ export function PrSection(props: {
   /** Refetch live PR data, hydrate missing details once, and power the refresh icon. */
   onRefreshPr?: (() => void | Promise<void>) | undefined;
   isRefreshingPr?: boolean | undefined;
+  initialWatch?: PrWatch | null | undefined;
+  onInitialWatchUsed?: (() => void) | undefined;
 }) {
   const {
     prKey,
@@ -81,6 +83,8 @@ export function PrSection(props: {
     handleUpdatePrBranch,
     onRefreshPr,
     isRefreshingPr,
+    initialWatch,
+    onInitialWatchUsed,
   } = props;
   const { t } = useLingui();
   const state = usePrState(prKey);
@@ -177,6 +181,8 @@ export function PrSection(props: {
             headBranch={details.headBranch}
             {...(worktreePath ? { worktreePath } : {})}
             {...(onRefreshPr ? { onRefreshPr } : {})}
+            {...(initialWatch !== undefined ? { initialWatch } : {})}
+            {...(onInitialWatchUsed ? { onInitialWatchUsed } : {})}
           />
         )}
         {canReview && (
