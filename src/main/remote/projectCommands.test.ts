@@ -13,11 +13,17 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
     const index = projects.findIndex((project) => project.id === id);
     if (index !== -1) projects.splice(index, 1);
   });
+  const updateProject = vi.fn<RemoteProjectCommandDeps["updateProject"]>((project) => {
+    const index = projects.findIndex((candidate) => candidate.id === project.id);
+    if (index !== -1) projects[index] = project;
+  });
   const deps: RemoteProjectCommandDeps = {
     getProjects: () => [...projects],
     hasProjectExperiment: () => false,
+    hasRunningProjectThread: () => false,
     listProjectThreadIds: () => [],
     upsertProject,
+    updateProject,
     deleteProject,
     closeThread: vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {}),
     cloneRepo: vi.fn<RemoteProjectCommandDeps["cloneRepo"]>(async () => ({
@@ -28,7 +34,7 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
     now: () => NOW,
     ...overrides,
   };
-  return { deps, projects, upsertProject, deleteProject };
+  return { deps, projects, upsertProject, updateProject, deleteProject };
 }
 
 describe("applyRemoteProjectCommand", () => {
@@ -123,6 +129,96 @@ describe("applyRemoteProjectCommand", () => {
 
     expect(closeThread).toHaveBeenCalledTimes(2);
     expect(result.projects).toHaveLength(0);
+  });
+
+  it("updates project settings without replacing its location or identity", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    projects.push({
+      id: "p1",
+      name: "Before",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    });
+
+    const result = await applyRemoteProjectCommand(
+      {
+        kind: "update",
+        projectId: "p1",
+        patch: {
+          name: "After",
+          scripts: { actions: [], setupScript: "pnpm install" },
+          disabled: true,
+        },
+      },
+      deps,
+    );
+
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "p1",
+        name: "After",
+        location: { kind: "posix", path: "/work/app" },
+        disabled: true,
+      }),
+    );
+    expect(result.project?.scripts?.setupScript).toBe("pnpm install");
+  });
+
+  it("clears optional project settings when the patch uses null", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    projects.push({
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      scripts: { actions: [], setupScript: "pnpm install" },
+      searchSettings: { useIgnoreFiles: false },
+      mcpServers: [],
+      createdAt: NOW,
+    });
+
+    const result = await applyRemoteProjectCommand(
+      {
+        kind: "update",
+        projectId: "p1",
+        patch: { scripts: null, searchSettings: null, mcpServers: null },
+      },
+      deps,
+    );
+
+    expect(updateProject).toHaveBeenCalledWith({
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    });
+    expect(result.project).not.toHaveProperty("scripts");
+    expect(result.project).not.toHaveProperty("searchSettings");
+    expect(result.project).not.toHaveProperty("mcpServers");
+  });
+
+  it("relocates an idle project and rejects relocation while a thread is running", async () => {
+    const baseProject: Project = {
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    };
+    const idle = makeDeps();
+    idle.projects.push(baseProject);
+    await expect(
+      applyRemoteProjectCommand({ kind: "relocate", projectId: "p1", path: "/srv/app" }, idle.deps),
+    ).resolves.toMatchObject({
+      project: { location: { kind: "posix", path: "/srv/app" } },
+    });
+
+    const running = makeDeps({ hasRunningProjectThread: () => true });
+    running.projects.push(baseProject);
+    await expect(
+      applyRemoteProjectCommand(
+        { kind: "relocate", projectId: "p1", path: "/srv/app" },
+        running.deps,
+      ),
+    ).rejects.toMatchObject({ code: "project_has_running_threads", status: 409 });
   });
 
   it("rejects removing an unknown project", async () => {

@@ -1,13 +1,23 @@
 import { useShallow } from "zustand/shallow";
 import { parseDraftProjectId } from "@/shared/paneId";
-import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  Project,
+  ProjectLocation,
+  PromptSegment,
+  Thread,
+} from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import {
+  isDetectingAgentsForLocation,
+  useAgentStatusesStore,
+} from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { createArrayKeyedMap } from "@/renderer/state/derivations";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   selectActiveNativeSubAgentThreadIds,
@@ -20,6 +30,7 @@ import {
 
 const EMPTY_STRINGS: string[] = [];
 const EMPTY_THREADS: Thread[] = [];
+const EMPTY_AGENT_STATUSES: AgentStatus[] = [];
 
 function selectCurrentProjectId(s: ReturnType<typeof useAppStore.getState>) {
   const v = s.view;
@@ -223,6 +234,49 @@ export function useProjectAgentStatuses(
         : [],
     ),
   );
+}
+
+export function useDraftEnvironment(project: Project | undefined): {
+  agentStatuses: AgentStatus[];
+  isDetectingAgents: boolean;
+  pickFiles?: () => Promise<string[] | null>;
+} {
+  const localAgentStatuses = useAgentStatusesStore(
+    useShallow((state) =>
+      project
+        ? getProjectAgentStatuses(project.location, state.agentStatuses, state.wslAgentStatuses)
+        : EMPTY_AGENT_STATUSES,
+    ),
+  );
+  const localIsDetectingAgents = useAgentStatusesStore((state) =>
+    project ? isDetectingAgentsForLocation(state, project.location) : false,
+  );
+  const remoteAgentStatuses = useRemoteServersStore(
+    useShallow((state) => {
+      if (!project?.remoteServerId) return EMPTY_AGENT_STATUSES;
+      const statuses = state.runtime[project.remoteServerId]?.agentStatuses;
+      const source = project.location.kind === "wsl" ? statuses?.wsl : statuses?.windows;
+      return source?.filter((status) => status.installed) ?? EMPTY_AGENT_STATUSES;
+    }),
+  );
+  const remoteStatus = useRemoteServersStore((state) =>
+    project?.remoteServerId ? state.runtime[project.remoteServerId]?.status : undefined,
+  );
+  const remoteServerId = project?.remoteServerId;
+  const remoteProjectId = project?.remoteId;
+
+  return {
+    agentStatuses: remoteServerId ? remoteAgentStatuses : localAgentStatuses,
+    isDetectingAgents: remoteServerId ? remoteStatus === "connecting" : localIsDetectingAgents,
+    ...(remoteServerId && remoteProjectId
+      ? {
+          pickFiles: () =>
+            useRemoteServersStore
+              .getState()
+              .pickAndUploadFiles(remoteServerId, `draft-${remoteProjectId}`),
+        }
+      : {}),
+  };
 }
 
 /** Non-archived threads for a given project, ordered as in the store. */

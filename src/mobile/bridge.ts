@@ -30,6 +30,7 @@ import {
 import { setRemoteLocalImageResolver } from "@/shared/localImageDisplay";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import type { SharedSettingsInput } from "@/shared/settings";
+import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
 import { useBrowserMirrorStore } from "./browserMirror";
 import type { RemoteDesktopClient } from "./remoteClient";
 import { pushDesktopSettingsDiff } from "./settingsSync";
@@ -139,39 +140,12 @@ async function pickBrowserFiles(options?: {
   if (!options?.attachmentThreadId) {
     throw new Error("Remote file selection requires an attachment destination.");
   }
-  const attachmentThreadId = options.attachmentThreadId;
-  const input = document.createElement("input");
-  input.type = "file";
-  input.multiple = true;
-  const extensions = options.filters?.flatMap((filter) => filter.extensions) ?? [];
-  if (extensions.length > 0) {
-    input.accept = extensions.map((extension) => `.${extension.replace(/^\./, "")}`).join(",");
-  }
-
-  const files = await new Promise<File[]>((resolve) => {
-    let settled = false;
-    const finish = (selected: File[]) => {
-      if (settled) return;
-      settled = true;
-      input.remove();
-      resolve(selected);
-    };
-    input.addEventListener("change", () => finish(Array.from(input.files ?? [])), { once: true });
-    input.addEventListener("cancel", () => finish([]), { once: true });
-    input.click();
-  });
-  if (files.length === 0) return null;
-
   const client = requireClient();
-  return Promise.all(
-    files.map(async (file) =>
-      client.uploadAttachment({
-        threadId: attachmentThreadId,
-        fileName: file.name,
-        data: new Uint8Array(await file.arrayBuffer()),
-      }),
-    ),
-  );
+  return pickAndUploadBrowserFiles({
+    attachmentThreadId: options.attachmentThreadId,
+    ...(options.filters ? { filters: options.filters } : {}),
+    upload: (input) => client.uploadAttachment(input),
+  });
 }
 
 const remoteBridge = {

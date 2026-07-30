@@ -94,9 +94,6 @@ export function useProductViewTracking(
   if (!trackerRef.current) {
     trackerRef.current = createProductViewTracker({
       capture: captureProductEvent,
-      clearTimeout,
-      now: Date.now,
-      setTimeout,
     });
   }
 
@@ -132,9 +129,6 @@ export function useStandaloneWindowViewTracking(surface: string, active = true):
   if (!trackerRef.current) {
     trackerRef.current = createProductViewTracker({
       capture: captureProductEvent,
-      clearTimeout,
-      now: Date.now,
-      setTimeout,
     });
   }
 

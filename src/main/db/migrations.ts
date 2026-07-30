@@ -362,6 +362,11 @@ export const DATABASE_MIGRATIONS = [
     name: "repair empty thread models",
     migrate: repairEmptyThreadModels,
   },
+  {
+    version: 31,
+    name: "project worktree location",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "worktree_location", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -417,6 +422,7 @@ export function runDatabaseMigrations(sqlite: SqliteDatabase, storedVersion: num
 
 const SAFE_COLUMN_REPAIRS = [
   ["projects", "search_settings", "TEXT"],
+  ["projects", "worktree_location", "TEXT"],
   ["projects", "mcp_servers", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
@@ -461,6 +467,7 @@ const REQUIRED_COLUMNS = {
     "last_draft_config",
     "scripts",
     "search_settings",
+    "worktree_location",
     "mcp_servers",
     "workspace_id",
     "disabled",

@@ -7,6 +7,7 @@ import {
   validateProjectName,
 } from "@/shared/createProject";
 import type { RemoteProjectCommand, RemoteProjectCommandResult } from "@/shared/remote";
+import { msg } from "@/shared/messages";
 import { parseWslUncPath } from "@/shared/wsl";
 import { RemoteHttpError } from "./auth";
 
@@ -17,9 +18,11 @@ import { RemoteHttpError } from "./auth";
 export interface RemoteProjectCommandDeps {
   getProjects(): Project[];
   hasProjectExperiment(projectId: string): boolean;
+  hasRunningProjectThread(projectId: string): boolean;
   /** Thread ids belonging to a project, closed best-effort before removal. */
   listProjectThreadIds(projectId: string): readonly string[];
   upsertProject(project: Project, sortOrder: number): void;
+  updateProject(project: Project): void;
   deleteProject(projectId: string): void;
   /** Best-effort PTY/session teardown for a thread; failures are ignored. */
   closeThread(threadId: string): Promise<void>;
@@ -46,7 +49,7 @@ function nameFromPath(path: string): string {
 function assertValidName(name: string): void {
   const error = validateProjectName(name);
   if (error) {
-    throw new RemoteHttpError("invalid_project_name", error, 400);
+    throw new RemoteHttpError("invalid_project_name", msg("remote.project.invalidName"), 400);
   }
 }
 
@@ -61,11 +64,7 @@ function assertValidName(name: string): void {
 function assertNoTraversal(path: string): void {
   const segments = path.split(/[\\/]+/);
   if (segments.includes("..")) {
-    throw new RemoteHttpError(
-      "invalid_project_path",
-      'A project path may not contain ".." segments.',
-      400,
-    );
+    throw new RemoteHttpError("invalid_project_path", msg("remote.project.invalidPath"), 400);
   }
 }
 
@@ -74,7 +73,7 @@ function assertAbsolutePath(path: string, platform: NodeJS.Platform): void {
     parseWslUncPath(path) !== null ||
     (platform === "win32" ? win32.isAbsolute(path) : posix.isAbsolute(path));
   if (!isAbsolute) {
-    throw new RemoteHttpError("invalid_project_path", "A project path must be absolute.", 400);
+    throw new RemoteHttpError("invalid_project_path", msg("remote.project.invalidPath"), 400);
   }
 }
 
@@ -98,35 +97,31 @@ const SCP_LIKE_URL = /^[^/\\:]+@[^/\\:]+:.+$/;
 
 function assertSafeCloneUrl(rawUrl: string): void {
   const url = rawUrl.trim();
-  const reject = (detail: string): never => {
-    throw new RemoteHttpError(
-      "invalid_clone_url",
-      `Refusing to clone from an unsafe repository URL: ${detail}`,
-      400,
-    );
+  const reject = (): never => {
+    throw new RemoteHttpError("invalid_clone_url", msg("remote.project.invalidCloneUrl"), 400);
   };
   if (!url) {
-    reject("the URL is empty.");
+    reject();
   }
   // Argument injection: git would parse a leading-dash URL as a flag.
   if (url.startsWith("-")) {
-    reject("a URL may not begin with '-'.");
+    reject();
   }
   // Remote-helper transports (`ext::`, `fd::`, any `<helper>::…`) run external
   // programs; `ext::` in particular executes an arbitrary shell command.
   // Reject the whole `<helper>::` family, including a bare leading `::`.
   if (/^[a-z0-9+.-]*::/i.test(url)) {
-    reject("remote-helper transports (e.g. 'ext::') are not allowed.");
+    reject();
   }
   // A `scheme://…` URL: the scheme must be an allowlisted network transport.
   const schemeMatch = /^([a-z][a-z0-9+.-]*):\/\//i.exec(url);
   if (schemeMatch) {
     const scheme = (schemeMatch[1] ?? "").toLowerCase();
     if (scheme === "file") {
-      reject("the 'file:' transport is not allowed.");
+      reject();
     }
     if (!SAFE_CLONE_URL_SCHEMES.has(scheme)) {
-      reject(`the '${scheme}:' transport is not allowed.`);
+      reject();
     }
     return;
   }
@@ -134,11 +129,11 @@ function assertSafeCloneUrl(rawUrl: string): void {
   // isn't scp-style shorthand.
   const bareSchemeMatch = /^([a-z][a-z0-9+.-]*):/i.exec(url);
   if (bareSchemeMatch && !SCP_LIKE_URL.test(url)) {
-    reject(`the '${(bareSchemeMatch[1] ?? "").toLowerCase()}:' transport is not allowed.`);
+    reject();
   }
   // Otherwise it must be scp-style `user@host:path`.
   if (!SCP_LIKE_URL.test(url)) {
-    reject("the URL is not a recognized git transport.");
+    reject();
   }
 }
 
@@ -176,10 +171,10 @@ export async function applyRemoteProjectCommand(
       );
       try {
         deps.makeDirectory(targetPath);
-      } catch (error) {
+      } catch {
         throw new RemoteHttpError(
           "project_directory_failed",
-          error instanceof Error ? error.message : "Could not create the project folder.",
+          msg("remote.project.directoryFailed"),
           400,
         );
       }
@@ -204,17 +199,59 @@ export async function applyRemoteProjectCommand(
       const location = deriveLocationFromPath(path, deps.platform);
       return register(deps, location, command.name);
     }
+    case "update": {
+      const projects = deps.getProjects();
+      const project = projects.find((candidate) => candidate.id === command.projectId);
+      if (!project) {
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+      }
+      if (command.patch.name !== undefined) assertValidName(command.patch.name);
+      let updated: Project = {
+        ...project,
+        ...Object.fromEntries(Object.entries(command.patch).filter(([, value]) => value !== null)),
+      };
+      for (const key of ["scripts", "searchSettings", "worktreeLocation", "mcpServers"] as const) {
+        if (command.patch[key] !== null) continue;
+        const { [key]: _, ...rest } = updated;
+        updated = rest;
+      }
+      deps.updateProject(updated);
+      return {
+        projects: projects.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+        project: updated,
+      };
+    }
+    case "relocate": {
+      assertValidProjectPath(command.path, deps.platform);
+      const projects = deps.getProjects();
+      const project = projects.find((candidate) => candidate.id === command.projectId);
+      if (!project) {
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+      }
+      if (deps.hasRunningProjectThread(project.id)) {
+        throw new RemoteHttpError(
+          "project_has_running_threads",
+          msg("remote.project.runningThreads"),
+          409,
+        );
+      }
+      const updated = {
+        ...project,
+        location: deriveLocationFromPath(command.path, deps.platform),
+      };
+      deps.updateProject(updated);
+      return {
+        projects: projects.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+        project: updated,
+      };
+    }
     case "remove": {
       const exists = deps.getProjects().some((project) => project.id === command.projectId);
       if (!exists) {
-        throw new RemoteHttpError("project_not_found", "Project not found.", 404);
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
       }
       if (deps.hasProjectExperiment(command.projectId)) {
-        throw new RemoteHttpError(
-          "experiment_owned",
-          "Remove the project's experiments before removing the project.",
-          409,
-        );
+        throw new RemoteHttpError("experiment_owned", msg("remote.project.experimentsOwned"), 409);
       }
       // Tear down running sessions before the cascade drops their rows.
       for (const threadId of deps.listProjectThreadIds(command.projectId)) {

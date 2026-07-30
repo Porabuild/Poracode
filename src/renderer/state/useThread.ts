@@ -42,6 +42,8 @@ export function useProject(projectId: string | undefined) {
 function withoutDraftConfig(project: Project): Project {
   return {
     id: project.id,
+    ...(project.remoteServerId ? { remoteServerId: project.remoteServerId } : {}),
+    ...(project.remoteId ? { remoteId: project.remoteId } : {}),
     name: project.name,
     location: project.location,
     createdAt: project.createdAt,

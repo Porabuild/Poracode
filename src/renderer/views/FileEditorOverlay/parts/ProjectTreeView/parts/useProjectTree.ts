@@ -23,6 +23,7 @@ export function useProjectTree(props: {
   onSelectFile: (path: string) => void;
   onPinFile?: (path: string) => void;
 }) {
+  const remoteServerId = props.rootContext.remoteServerId;
   const refreshToken = useFileEditorStore((state) => state.refreshToken);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -259,6 +260,7 @@ export function useProjectTree(props: {
   async function handleEntryAction(entry: ProjectTreeEntry, action: string) {
     try {
       if (action === "reveal") {
+        if (remoteServerId) return;
         await readBridge().revealProjectEntry({
           projectLocation: props.rootContext.projectLocation,
           path: entry.path,
@@ -318,6 +320,7 @@ export function useProjectTree(props: {
   async function handleRootAction(action: string) {
     try {
       if (action === "reveal-root") {
+        if (remoteServerId) return;
         await readBridge().revealProjectEntry({
           projectLocation: props.rootContext.projectLocation,
           path: "",

@@ -89,6 +89,7 @@ vi.mock("../db", () => {
     dbGetThread: vi.fn<(threadId: string) => unknown>(() => null),
     dbGetThreads: vi.fn<() => unknown[]>(() => []),
     dbReplaceThreadRuntimeSnapshot: vi.fn<(...args: unknown[]) => void>(),
+    dbUpdateProject: vi.fn<(project: unknown) => void>(),
     dbUpsertProject: vi.fn<(project: unknown, sortOrder: number) => void>(),
     dbDeleteProject: vi.fn<(projectId: string) => void>(),
     dbUpsertThread: vi.fn<(thread: unknown, sortOrder: number) => void>(),
@@ -767,6 +768,7 @@ describe("RemoteAccessServer", () => {
     );
     expect(descriptorResponse.status).toBe(200);
     await expect(descriptorResponse.json()).resolves.toMatchObject({
+      hostMode: "desktop",
       desktopId: "desktop-test",
       label: "Test Desktop",
       appVersion: "1.0.0",
@@ -2854,6 +2856,37 @@ describe("RemoteAccessServer", () => {
           },
         ],
       },
+    });
+
+    const createdProject = projects[0]!;
+    const projectWithMcp: Project = {
+      ...createdProject,
+      mcpServers: [
+        {
+          id: "memory-id",
+          name: "memory",
+          description: "Memory tools",
+          enabled: true,
+          timeoutMs: 30_000,
+          transport: { type: "stdio", command: "node", args: ["server.js"], env: {} },
+        },
+      ],
+    };
+    vi.mocked(dbGetProject).mockReturnValue(projectWithMcp);
+    const settingsUrl = new URL(
+      `/api/projects/${encodeURIComponent(createdProject.id)}/settings`,
+      info.httpBaseUrl,
+    );
+    const forbiddenSettings = await fetch(settingsUrl, {
+      headers: { authorization: `Bearer ${readOnlyToken}` },
+    });
+    expect(forbiddenSettings.status).toBe(403);
+    const settingsResponse = await fetch(settingsUrl, {
+      headers: { authorization: `Bearer ${manageToken}` },
+    });
+    expect(settingsResponse.status).toBe(200);
+    await expect(settingsResponse.json()).resolves.toMatchObject({
+      mcpServers: [{ id: "memory-id", name: "memory" }],
     });
     ws.close();
   });

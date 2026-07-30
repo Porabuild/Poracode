@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
+msgid "…"
+msgstr "…"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "(Draft)"
 msgstr "(Bản nháp)"
@@ -535,8 +539,8 @@ msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} trong số {totalCount} hiển thị"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "/absolute/path/to/project"
-msgstr "/absolute/path/to/project"
+#~ msgid "/absolute/path/to/project"
+#~ msgstr "/absolute/path/to/project"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "/skill-creator Create a new managed skill for {destination}."
@@ -860,7 +864,6 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. Để trống để dùng tự động."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
@@ -1707,8 +1710,8 @@ msgstr "Không thể tải danh sách cổng"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -1809,7 +1812,6 @@ msgstr "Kênh"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Chat"
 msgstr "Trò chuyện"
@@ -1894,12 +1896,15 @@ msgid "Checks pending"
 msgstr "Kiểm tra đang chờ"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "Chọn một thư mục"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder…"
 msgstr "Chọn một thư mục…"
 
@@ -2084,7 +2089,6 @@ msgstr "Nhân bản…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Đóng"
 
@@ -2252,8 +2256,8 @@ msgid "Close tab switcher"
 msgstr "Đóng bộ chuyển thẻ"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Close thread"
-msgstr "Đóng luồng"
+#~ msgid "Close thread"
+#~ msgstr "Đóng luồng"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -2826,6 +2830,10 @@ msgstr "Không thể hủy việc hợp nhất: {detail}"
 msgid "Could not complete the merge"
 msgstr "Không thể hoàn tất việc hợp nhất"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Could not create the project folder."
+msgstr "Không thể tạo thư mục dự án."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
@@ -2868,7 +2876,7 @@ msgstr "Không thể lưu dữ liệu ngoại tuyến vào bộ nhớ đệm."
 msgid "Couldn't clone the repository."
 msgstr "Không thể sao chép kho lưu trữ."
 
-#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+#: src/renderer/actions/threadLaunchActions.ts
 msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
 msgstr "Không thể sao chép những thay đổi chưa được cam kết của bạn vào cây làm việc mới - chúng vẫn còn trên nhánh hiện tại."
 
@@ -3658,6 +3666,7 @@ msgid "Drag to reorder; double-click to edit"
 msgstr "Kéo để sắp xếp lại; nhấp đúp để chỉnh sửa"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "Ổ đĩa"
 
@@ -3745,8 +3754,8 @@ msgid "Edits the paired desktop and syncs back to it."
 msgstr "Chỉnh sửa desktop đã ghép đôi và đồng bộ lại về đó."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Effort"
-msgstr "Mức độ nỗ lực"
+#~ msgid "Effort"
+#~ msgstr "Mức độ nỗ lực"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
@@ -3855,6 +3864,14 @@ msgstr "Nhập cổng từ 1 đến 65535."
 msgid "Enter a repository URL."
 msgstr "Nhập URL kho lưu trữ."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
+msgstr "Nhập URL kho lưu trữ an toàn sử dụng HTTPS, HTTP, SSH, Git, FTP, FTPS hoặc cú pháp scp."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a valid absolute project path."
+msgstr "Nhập đường dẫn tuyệt đối hợp lệ cho dự án."
+
 #: src/mobile/routeComponents.tsx
 msgid "Enter a valid desktop endpoint."
 msgstr "Nhập endpoint desktop hợp lệ."
@@ -3862,6 +3879,10 @@ msgstr "Nhập endpoint desktop hợp lệ."
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter a valid HTTP or HTTPS URL."
 msgstr "Nhập URL HTTP hoặc HTTPS hợp lệ."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a valid project name."
+msgstr "Nhập tên dự án hợp lệ."
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
@@ -4839,6 +4860,7 @@ msgid "Home"
 msgstr "Trang chủ"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
 msgstr "Thư mục chính"
 
@@ -5128,8 +5150,8 @@ msgstr "Hướng dẫn mà các tác nhân tuân theo khi chọn tác nhân ho�
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Interrupt"
-msgstr "Ngắt"
+#~ msgid "Interrupt"
+#~ msgstr "Ngắt"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Interrupted"
@@ -5409,6 +5431,7 @@ msgstr "Đang tải luồng"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "Đang tải…"
 
@@ -5513,8 +5536,8 @@ msgstr "Làm thanh bên trong suốt — hiệu ứng làm mờ của hệ thố
 #~ msgstr "Quản lý skill tác tử toàn cục và theo dự án, bao gồm cả skill được nhập từ nhà cung cấp khác."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Manage remote environments"
-msgstr "Quản lý môi trường từ xa"
+#~ msgid "Manage remote environments"
+#~ msgstr "Quản lý môi trường từ xa"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote servers"
@@ -5849,8 +5872,8 @@ msgid "Message actions"
 msgstr "Thao tác tin nhắn"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Message the remote agent…"
-msgstr "Nhắn cho tác nhân từ xa…"
+#~ msgid "Message the remote agent…"
+#~ msgstr "Nhắn cho tác nhân từ xa…"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
@@ -5921,8 +5944,8 @@ msgid "Mode"
 msgstr "Chế độ"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Model"
-msgstr "Mô hình"
+#~ msgid "Model"
+#~ msgstr "Mô hình"
 
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
@@ -6575,7 +6598,6 @@ msgid "No phases yet."
 msgstr "Chưa có giai đoạn nào."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "No projects"
 msgstr "Không có dự án"
 
@@ -6669,8 +6691,8 @@ msgid "No staged changes"
 msgstr "Không có thay đổi nào được đưa vào staging"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
-msgstr "Không có tác tử được hỗ trợ nào được cài đặt trên máy từ xa này. Hãy cài đặt và đăng nhập vào tác tử từ xa trước khi bắt đầu một luồng."
+#~ msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
+#~ msgstr "Không có tác tử được hỗ trợ nào được cài đặt trên máy từ xa này. Hãy cài đặt và đăng nhập vào tác tử từ xa trước khi bắt đầu một luồng."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -6869,8 +6891,8 @@ msgstr "Mở"
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Open {0}"
-msgstr "Mở {0}"
+#~ msgid "Open {0}"
+#~ msgstr "Mở {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -7286,8 +7308,8 @@ msgid "Parent folder on the server"
 msgstr "Thư mục cha trên máy chủ"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Parent folder, e.g. /home/me/projects"
-msgstr "Thư mục cha, ví dụ /home/me/projects"
+#~ msgid "Parent folder, e.g. /home/me/projects"
+#~ msgstr "Thư mục cha, ví dụ /home/me/projects"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
@@ -7470,6 +7492,18 @@ msgstr "Poracode và các tác tử chạy trên máy từ xa. SSH chỉ đượ
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode không lưu thông tin xác thực marketplace dưới dạng văn bản thuần trong phần cài đặt. Mở danh mục để duyệt các skill đã được quét bảo mật."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine."
+msgstr "Không thể khởi động Poracode Helper. Hãy kiểm tra Node 24.10 trở lên và npm đã được cài đặt trên máy từ xa."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper is not ready yet (HTTP {status})."
+msgstr "Poracode Helper chưa sẵn sàng (HTTP {status})."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper returned an invalid response."
+msgstr "Poracode Helper đã trả về phản hồi không hợp lệ."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode có thể đang chờ dữ liệu đã lưu hoặc một dịch vụ nền. Bạn có thể tiếp tục chờ, khởi động lại hoặc cài đặt bản cập nhật hiện có."
@@ -7561,8 +7595,8 @@ msgid "Preparing remote environment…"
 msgstr "Đang chuẩn bị môi trường từ xa…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Presentation"
-msgstr "Cách trình bày"
+#~ msgid "Presentation"
+#~ msgstr "Cách trình bày"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Presets"
@@ -7659,6 +7693,10 @@ msgstr "Đã cập nhật thư mục dự án. Hãy mở lại bất kỳ termin
 msgid "Project name"
 msgstr "Tên dự án"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Project not found."
+msgstr "Không tìm thấy dự án."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "ghi chú dự án"
@@ -7701,7 +7739,6 @@ msgstr "Dự án nằm trên máy tính đã kết nối. Hãy thêm một dự 
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "Lời nhắc"
 
@@ -8068,12 +8105,12 @@ msgid "Remote access port {occupiedPort} is already in use. Stop the other serve
 msgstr "Cổng truy cập từ xa {occupiedPort} đang được sử dụng. Hãy dừng máy chủ kia rồi thử lại."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Remote environment unavailable."
-msgstr "Môi trường từ xa không khả dụng."
+#~ msgid "Remote environment unavailable."
+#~ msgstr "Môi trường từ xa không khả dụng."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Remote environments"
-msgstr "Môi trường từ xa"
+#~ msgid "Remote environments"
+#~ msgstr "Môi trường từ xa"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8085,12 +8122,16 @@ msgid "Remote name"
 msgstr "Tên từ xa"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Remote project"
-msgstr "Dự án từ xa"
+#~ msgid "Remote project"
+#~ msgstr "Dự án từ xa"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Remote project not found."
+msgstr "Không tìm thấy dự án từ xa."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Remote server"
-msgstr "Máy chủ từ xa"
+#~ msgid "Remote server"
+#~ msgstr "Máy chủ từ xa"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Remote server not found."
@@ -8205,6 +8246,10 @@ msgstr "Xóa phím tắt"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Remove the linked skill “{0}”? Its source folder will not be deleted."
 msgstr "Gỡ skill đã liên kết “{0}”? Thư mục nguồn sẽ không bị xóa."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Remove the project's experiments before removing the project."
+msgstr "Hãy xóa các thử nghiệm của dự án trước khi xóa dự án."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -8597,8 +8642,8 @@ msgstr "Chạy {loginCommand} để đăng nhập."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Run a new thread on {0}."
-msgstr "Chạy luồng mới trên {0}."
+#~ msgid "Run a new thread on {0}."
+#~ msgstr "Chạy luồng mới trên {0}."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -9045,8 +9090,8 @@ msgstr "Chọn…"
 #~ msgstr "Dự án đã chọn"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Send"
-msgstr "Gửi"
+#~ msgid "Send"
+#~ msgstr "Gửi"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -9256,6 +9301,7 @@ msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Đang hiển thị {0, plural, other {# skill}}"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "Đang hiển thị 4.000 mục đầu tiên."
 
@@ -9315,8 +9361,8 @@ msgid "Sign out of {serverName}"
 msgstr "Đăng xuất khỏi {serverName}"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "sign-in required"
-msgstr "cần đăng nhập"
+#~ msgid "sign-in required"
+#~ msgstr "cần đăng nhập"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
@@ -9617,8 +9663,8 @@ msgid "Start minimized"
 msgstr "Khởi động thu nhỏ"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Start remote thread"
-msgstr "Bắt đầu luồng từ xa"
+#~ msgid "Start remote thread"
+#~ msgstr "Bắt đầu luồng từ xa"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
@@ -9667,8 +9713,8 @@ msgid "Starting mirror…"
 msgstr "Đang khởi động phản chiếu…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Starting remotely…"
-msgstr "Đang khởi động từ xa…"
+#~ msgid "Starting remotely…"
+#~ msgstr "Đang khởi động từ xa…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -9733,6 +9779,7 @@ msgid "Stop task"
 msgstr "Dừng tác vụ"
 
 #: src/renderer/actions/projectActions.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Stop the project's running threads before changing its folder."
 msgstr "Dừng các luồng đang chạy của dự án trước khi thay đổi thư mục của nó."
 
@@ -10027,7 +10074,6 @@ msgstr "Cho nhà cung cấp mục tiêu biết phải làm gì tiếp theo..."
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal"
@@ -10235,6 +10281,10 @@ msgstr "Skill luôn được đồng bộ hóa với nguồn và sẽ ngừng ho
 msgid "The skills marketplace couldn't be loaded."
 msgstr "Không thể tải marketplace skill."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The SSH tunnel reached an incompatible Poracode server."
+msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode không tương thích."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
@@ -10326,6 +10376,7 @@ msgid "This file uses an unsupported encoding."
 msgstr "Tệp này sử dụng mã hóa không được hỗ trợ."
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "Thư mục này trống."
 
@@ -10360,8 +10411,8 @@ msgid "this project"
 msgstr "dự án này"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "This remote project is unavailable. Reconnect the environment and try again."
-msgstr "Dự án từ xa này không khả dụng. Hãy kết nối lại môi trường rồi thử lại."
+#~ msgid "This remote project is unavailable. Reconnect the environment and try again."
+#~ msgstr "Dự án từ xa này không khả dụng. Hãy kết nối lại môi trường rồi thử lại."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
@@ -10481,6 +10532,10 @@ msgstr "Các luồng được đánh dấu hoàn thành mà không được đ�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "Thời gian"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Timed out waiting for Poracode Helper."
+msgstr "Đã hết thời gian chờ Poracode Helper."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
@@ -11037,6 +11092,7 @@ msgid "Unsupported"
 msgstr "Không được hỗ trợ"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "Lên một cấp"
 
@@ -11203,6 +11259,7 @@ msgid "Use this account for usage tracking, or change users in the browser befor
 msgstr "Sử dụng tài khoản này để theo dõi việc sử dụng hoặc thay đổi người dùng trong trình duyệt trước khi tiếp tục."
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "Sử dụng thư mục này"
 
@@ -11467,8 +11524,8 @@ msgstr "Đánh giá hằng tuần"
 #~ msgstr "Tác nhân nên làm gì?"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "What should the remote agent work on?"
-msgstr "Tác tử từ xa nên làm gì?"
+#~ msgid "What should the remote agent work on?"
+#~ msgstr "Tác tử từ xa nên làm gì?"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

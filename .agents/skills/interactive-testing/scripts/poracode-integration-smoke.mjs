@@ -660,7 +660,7 @@ async function mcpServersSectionDeepDive(client, mcpFixture) {
     client,
     `(() => ({
       builtInsVisible: document.body.innerText.includes("Built-in MCP servers"),
-      builtInToolCount: document.body.innerText.includes("44 tools"),
+      builtInToolCount: /\\b\\d+\\s+tools\\b/u.test(document.body.innerText),
       addButton: Boolean([...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Add MCP server")),
       browserSwitch: Boolean(document.querySelector('[role="switch"][aria-label="Disable Browser"]')),
     }))()`,

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { sshConnectionConfigSchema } from "@/shared/ssh";
+import { waitForRemoteEndpoint } from "@/shared/sshBootstrap";
 import { buildScpArgs, buildSshBaseArgs, parseSshConfigHosts } from "./SshConnectionManager";
 import { ensureSshRuntimeBundle } from "./runtimeBundle";
 
@@ -126,5 +127,71 @@ describe("SSH runtime bundle", () => {
       ws: expect.any(String),
     });
     expect(readFileSync(bundle.archivePath).byteLength).toBeGreaterThan(0);
+  });
+
+  it("rejects an Electron-bound standalone helper bundle", () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-ssh-electron-bundle-test-"));
+    tempDirs.push(root);
+    const mainBundleDir = join(root, "main");
+    const agentPluginsDir = join(root, "agent-plugins");
+    const wslHelpersDir = join(root, "wsl-helpers");
+    mkdirSync(mainBundleDir, { recursive: true });
+    mkdirSync(agentPluginsDir, { recursive: true });
+    mkdirSync(wslHelpersDir, { recursive: true });
+    writeFileSync(join(mainBundleDir, "server.cjs"), 'require("electron");', "utf8");
+    writeFileSync(join(mainBundleDir, "supervisor.cjs"), "", "utf8");
+    writeFileSync(join(mainBundleDir, "claudeSdkProbeWorker.mjs"), "", "utf8");
+
+    expect(() =>
+      ensureSshRuntimeBundle({
+        mainBundleDir,
+        agentPluginsDir,
+        wslHelpersDir,
+        cacheDir: join(root, "cache"),
+      }),
+    ).toThrow("Poracode Helper cannot include Electron");
+  });
+});
+
+describe("SSH helper readiness", () => {
+  function descriptor(hostMode: "desktop" | "helper") {
+    return {
+      protocolVersion: 1,
+      hostMode,
+      desktopId: "remote-test",
+      label: "Remote test",
+      appVersion: "test",
+      platform: "linux",
+      auth: {
+        policy: "remote-reachable",
+        bootstrapMethods: ["one-time-token"],
+        sessionMethods: ["bearer-access-token"],
+        scopes: ["session:read"],
+      },
+      endpoints: {
+        httpBaseUrl: "http://127.0.0.1:49152/",
+        wsBaseUrl: "ws://127.0.0.1:49152/",
+      },
+    };
+  }
+
+  function endpoint(hostMode: "desktop" | "helper"): typeof fetch {
+    return (async () =>
+      new Response(JSON.stringify(descriptor(hostMode)), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })) as typeof fetch;
+  }
+
+  it("accepts the shared server in helper mode", async () => {
+    await expect(
+      waitForRemoteEndpoint(endpoint("helper"), "http://127.0.0.1:49152/"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("does not mistake a desktop-hosted server for the SSH helper", async () => {
+    await expect(
+      waitForRemoteEndpoint(endpoint("desktop"), "http://127.0.0.1:49152/", 1),
+    ).rejects.toThrow("Timed out waiting for Poracode Helper");
   });
 });

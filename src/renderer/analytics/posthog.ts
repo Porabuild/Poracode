@@ -100,9 +100,6 @@ function installStoreSubscriptions(): () => void {
   const disposers: Array<() => void> = [];
   const appViewTracker = createProductViewTracker({
     capture: captureProductEvent,
-    clearTimeout,
-    now: Date.now,
-    setTimeout,
   });
   const syncAppView = () => {
     appViewTracker.setView(appViewDefinition(useAppStore.getState().view));

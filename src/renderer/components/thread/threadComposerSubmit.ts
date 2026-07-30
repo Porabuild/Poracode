@@ -12,10 +12,10 @@ import { friendlyError } from "@/shared/messages";
 import {
   changeThreadConfig,
   resolveThreadServerRequest,
+  setThreadPendingSteer,
   submitThreadInput,
 } from "@/renderer/actions/threadRuntimeActions";
 import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
-import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildLcSelectorFence, buildSelectorPlainText } from "@/renderer/state/browserAttachInbox";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
@@ -192,12 +192,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       await submit(flat, allSegments.length > 0 ? allSegments : undefined);
       return;
     }
-    await readBridge().setPendingSteer({
-      threadId: thread.id,
-      prompt: flat,
-      ...(allSegments.length > 0 ? { segments: allSegments } : {}),
-      config: thread.config,
-    });
+    await setThreadPendingSteer(thread, flat, allSegments.length > 0 ? allSegments : undefined);
     captureThreadPromptSubmitted(
       thread,
       flat,

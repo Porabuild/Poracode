@@ -52,12 +52,6 @@ export const DeferredBrowserHost = preloadable(() =>
   ),
 );
 
-export const DeferredRemoteThreadView = preloadable(() =>
-  import("@/renderer/views/RemoteThreadView/RemoteThreadView").then(
-    (module) => module.RemoteThreadView,
-  ),
-);
-
 export const DeferredLoginTerminalOverlay = preloadable(() =>
   import("@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay").then(
     (module) => module.LoginTerminalOverlay,
@@ -113,7 +107,6 @@ const prewarmTasks = [
   DeferredCloneProjectModal.preload,
   DeferredProjectSettingsOverlay.preload,
   DeferredBrowserHost.preload,
-  DeferredRemoteThreadView.preload,
   DeferredLoginTerminalOverlay.preload,
   DeferredFileEditorPanel.preload,
   DeferredFileEditorOverlay.preload,

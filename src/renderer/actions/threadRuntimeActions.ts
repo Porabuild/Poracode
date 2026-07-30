@@ -20,6 +20,7 @@ import {
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 /** Resolve a thread and its on-disk project location from the store. */
 function resolveThreadProjectLocation(
@@ -133,6 +134,25 @@ export async function submitThreadInput(
   const resolved = resolveThreadProjectLocation(threadId);
   if (!resolved) return;
   const { thread, projectLocation } = resolved;
+  if (thread.remoteServerId && thread.remoteId) {
+    await performThreadInputSubmit({
+      thread,
+      prompt,
+      ...(segments ? { segments } : {}),
+      transport: {
+        sendThreadInput: (payload) =>
+          useRemoteServersStore.getState().sendThreadInput({
+            desktopId: thread.remoteServerId!,
+            threadId: thread.remoteId!,
+            prompt: payload.prompt,
+            config: payload.config,
+            ...(payload.segments ? { segments: payload.segments } : {}),
+            ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
+          }),
+      },
+    });
+    return;
+  }
   await performThreadInputSubmit({
     thread,
     prompt,
@@ -165,14 +185,24 @@ export async function resolveThreadServerRequest(
     };
   },
 ): Promise<void> {
-  await readBridge().resolveThreadServerRequest({
-    threadId,
-    requestId: input.requestId,
-    method: input.method,
-    response: input.response,
-  });
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId);
+  if (thread?.remoteServerId && thread.remoteId) {
+    await useRemoteServersStore.getState().resolveThreadRequest({
+      desktopId: thread.remoteServerId,
+      threadId: thread.remoteId,
+      requestId: input.requestId,
+      method: input.method,
+      response: input.response,
+    });
+  } else {
+    await readBridge().resolveThreadServerRequest({
+      threadId,
+      requestId: input.requestId,
+      method: input.method,
+      response: input.response,
+    });
+  }
   if (input.analytics) {
     captureProductEvent("thread.request_resolved", {
       ...(thread ? threadProductProperties(thread) : {}),
@@ -210,10 +240,36 @@ export function changeThreadConfig(threadId: string, config: ThreadConfig): void
  * outside the compact composer.
  */
 export function clearThreadPendingSteer(threadId: string): void {
-  void readBridge()
-    .clearPendingSteer({ threadId })
-    .catch((error: unknown) => {
-      console.error("[thread] failed to clear pending steer", error);
-      toast.danger(friendlyError(error));
+  const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
+  const clear =
+    thread?.remoteServerId && thread.remoteId
+      ? useRemoteServersStore.getState().clearPendingSteer(thread.remoteServerId, thread.remoteId)
+      : readBridge().clearPendingSteer({ threadId });
+  void clear.catch((error: unknown) => {
+    console.error("[thread] failed to clear pending steer", error);
+    toast.danger(friendlyError(error));
+  });
+}
+
+export async function setThreadPendingSteer(
+  thread: Thread,
+  prompt: string,
+  segments: PromptSegment[] | undefined,
+): Promise<void> {
+  if (thread.remoteServerId && thread.remoteId) {
+    await useRemoteServersStore.getState().setPendingSteer({
+      desktopId: thread.remoteServerId,
+      threadId: thread.remoteId,
+      prompt,
+      ...(segments ? { segments } : {}),
+      config: thread.config,
     });
+    return;
+  }
+  await readBridge().setPendingSteer({
+    threadId: thread.id,
+    prompt,
+    ...(segments ? { segments } : {}),
+    config: thread.config,
+  });
 }

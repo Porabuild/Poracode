@@ -8,6 +8,7 @@ import {
   remotePortUnforwardRequestSchema,
   remotePortsStateSchema,
   remoteProjectCommandSchema,
+  remoteProjectSettingsSchema,
   remotePushRegistrationSchema,
   remotePushUnregisterSchema,
   remoteRuntimeItemsPageRequestSchema,
@@ -38,6 +39,7 @@ import {
   startThreadPayloadSchema,
   writeTerminalPayloadSchema,
 } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
@@ -101,8 +103,8 @@ export function threadIdFromPath(pathname: string, suffix: string): string | nul
   }
 }
 
-function projectNotesIdFromPath(pathname: string): string | null {
-  const match = /^\/api\/projects\/([^/]+)\/notes$/.exec(pathname);
+function projectIdFromPath(pathname: string, suffix: string): string | null {
+  const match = new RegExp(`^/api/projects/([^/]+)/${suffix}$`).exec(pathname);
   if (!match?.[1]) return null;
   try {
     const projectId = decodeURIComponent(match[1]);
@@ -389,11 +391,11 @@ export async function handleHttp(
       writeJson(res, 200, await ctx.options.callSupervisor("getProviderUsage", {}));
       return;
     }
-    const notesProjectId = projectNotesIdFromPath(url.pathname);
+    const notesProjectId = projectIdFromPath(url.pathname, "notes");
     if (notesProjectId && req.method === "GET") {
       ctx.security.requireBearer(req, ["session:read"]);
       if (!dbGetProject(notesProjectId)) {
-        throw new RemoteHttpError("project_not_found", "Project not found.", 404);
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
       }
       writeJson(res, 200, { notes: dbGetProjectNotes(notesProjectId) });
       return;
@@ -401,7 +403,7 @@ export async function handleHttp(
     if (notesProjectId && req.method === "POST") {
       ctx.security.requireBearer(req, ["session:operate"]);
       if (!dbGetProject(notesProjectId)) {
-        throw new RemoteHttpError("project_not_found", "Project not found.", 404);
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
       }
       const notes = projectNotesSchema.parse(await readJsonBody(req));
       if (notes.projectId !== notesProjectId) {
@@ -616,6 +618,22 @@ export async function handleHttp(
         projects: result.projects,
       });
       writeJson(res, 200, result);
+      return;
+    }
+    const projectSettingsId = projectIdFromPath(url.pathname, "settings");
+    if (req.method === "GET" && projectSettingsId) {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const project = dbGetProject(projectSettingsId);
+      if (!project) {
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+      }
+      writeJson(
+        res,
+        200,
+        remoteProjectSettingsSchema.parse({
+          ...(project.mcpServers ? { mcpServers: project.mcpServers } : {}),
+        }),
+      );
       return;
     }
     // Push config/registration is gated on session:operate (no separate push scope),

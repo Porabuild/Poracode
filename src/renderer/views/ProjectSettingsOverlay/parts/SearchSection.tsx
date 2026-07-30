@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useAppStore } from "@/renderer/state/appStore";
+import { updateProjectSearchSettings } from "@/renderer/actions/projectActions";
 import { useProject } from "@/renderer/state/useThread";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { DEFAULT_SEARCH_EXCLUDE } from "@/shared/searchExclude";
@@ -8,7 +8,6 @@ import { SearchExcludeBody } from "@/renderer/views/SettingsOverlay/parts/Search
 export function SearchSection(props: { projectId: string }) {
   const { t } = useLingui();
   const project = useProject(props.projectId);
-  const updateProjectSearchSettings = useAppStore((s) => s.updateProjectSearchSettings);
   const globalUseIgnoreFiles = useSharedSettings((s) => s.searchUseIgnoreFiles);
   const globalExclude = useSharedSettings((s) => s.searchExclude);
 

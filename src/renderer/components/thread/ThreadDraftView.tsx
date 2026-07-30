@@ -1020,6 +1020,7 @@ export function ThreadDraftView(props: {
           </div>
           <ThreadDraftComposerArea
             project={project}
+            isRemote={project.remoteServerId !== undefined}
             {...(props.paneId ? { paneId: props.paneId } : {})}
             {...(props.restoreWorktreeSelectionToken !== undefined
               ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }

@@ -11,6 +11,7 @@ export const projects = sqliteTable("projects", {
   lastDraftConfig: text("last_draft_config"), // JSON
   scripts: text("scripts"), // JSON
   searchSettings: text("search_settings"), // JSON
+  worktreeLocation: text("worktree_location"), // JSON
   mcpServers: text("mcp_servers"), // JSON
   workspaceId: text("workspace_id"),
   disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),

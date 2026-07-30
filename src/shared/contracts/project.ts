@@ -58,6 +58,9 @@ export type ProjectSearchSettings = z.infer<typeof projectSearchSettingsSchema>;
 
 export const projectSchema = z.object({
   id: z.string().min(1),
+  /** Server-owned identity for a transient project mirrored into a desktop client. */
+  remoteServerId: z.string().min(1).optional(),
+  remoteId: z.string().min(1).optional(),
   name: z.string().min(1),
   location: projectLocationSchema,
   lastDraftConfig: projectDraftConfigSchema.optional(),

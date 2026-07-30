@@ -23,6 +23,14 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   subagentUnsubscribe: "session:read",
   workflowGetRun: "session:read",
   workflowAgentChat: "session:read",
+  scanSkills: "session:read",
+  listSkillMarketplace: "session:read",
+  setSkillEnabled: "session:operate",
+  deleteSkill: "session:operate",
+  importSkills: "session:operate",
+  installMarketplaceSkill: "session:operate",
+  discoverExternalMcpServers: "session:read",
+  probeMcpServer: "session:operate",
 
   // Project files
   searchProjectFiles: "session:read",

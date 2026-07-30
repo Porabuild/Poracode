@@ -17,14 +17,12 @@ import {
   DeferredLoginTerminalOverlay as PrewarmedLoginTerminalOverlay,
   DeferredPrReviewOverlay,
   DeferredProjectSettingsOverlay,
-  DeferredRemoteThreadView,
   DeferredSettingsOverlay,
 } from "@/renderer/deferredFeatures";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -37,7 +35,6 @@ import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import type { UsageLoginConfirmationAction } from "@/shared/contracts";
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
-import { RemoteProjectModal } from "@/renderer/views/RemoteProjectModal/RemoteProjectModal";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 
@@ -52,7 +49,6 @@ function useEverEnabled(active: boolean): boolean {
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
-  const remoteThreadOpen = useRemoteServersStore((s) => s.openThread !== null);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
@@ -88,9 +84,7 @@ export function AppOverlays() {
             ? browserOverlayMaximized
               ? "browser_fullscreen"
               : "browser_drawer"
-            : remoteThreadOpen
-              ? "remote_thread"
-              : null;
+            : null;
   useProductViewTracking(
     productSurfaceView(trackedOverlaySurface ?? "inactive", "overlay"),
     "overlay",
@@ -107,14 +101,6 @@ export function AppOverlays() {
       <OverlayShell open={settingsOpen} onExited={() => usePanelStore.getState().closeSettings()}>
         <Suspense fallback={<OverlayLoader />}>
           <DeferredSettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
-        </Suspense>
-      </OverlayShell>
-      <OverlayShell
-        open={remoteThreadOpen}
-        onExited={() => useRemoteServersStore.getState().closeRemoteThread()}
-      >
-        <Suspense fallback={<OverlayLoader />}>
-          <DeferredRemoteThreadView />
         </Suspense>
       </OverlayShell>
       <OverlayShell
@@ -238,7 +224,6 @@ export function AppOverlays() {
       </OverlayShell>
       <DeferredBrowserHost />
       <UsageLoginConfirmationDialog />
-      <RemoteProjectModal />
       <DeferredLoginTerminalOverlay />
       <DeferredCreateProjectModal />
       <DeferredCloneProjectModal />

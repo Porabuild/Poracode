@@ -61,6 +61,9 @@ export function filterKnownRemoteAccessScopes(scopes: readonly string[]): Remote
  */
 export const advertisedRemoteAccessScopesSchema = z.array(z.string().min(1));
 
+export const remoteHostModeSchema = z.enum(["desktop", "helper"]);
+export type RemoteHostMode = z.infer<typeof remoteHostModeSchema>;
+
 /** Derive the WebSocket base URL for a remote desktop's HTTP endpoint. */
 export function toWebSocketUrl(httpUrl: string | URL): URL {
   const url = new URL(httpUrl);
@@ -77,6 +80,11 @@ export type RemoteClientMetadata = z.infer<typeof remoteClientMetadataSchema>;
 
 export const remoteEnvironmentDescriptorSchema = z.object({
   protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
+  /**
+   * Process hosting the shared remote-access server. Optional on the wire for
+   * protocol-v1 servers released before standalone helpers advertised it.
+   */
+  hostMode: remoteHostModeSchema.optional(),
   desktopId: z.string().min(1),
   label: z.string().min(1),
   appVersion: z.string().min(1),
@@ -211,8 +219,23 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     name: z.string().min(1),
     source: cloneRepoSourceSchema,
   }),
-  // Remove a project. Edits that reorder/cascade (rename, disable) still flow
-  // through the renderer store on the desktop; see Phase 2 in the design doc.
+  z.object({
+    kind: z.literal("update"),
+    projectId: z.string().min(1),
+    patch: z.object({
+      name: projectSchema.shape.name.optional(),
+      scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
+      searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
+      worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),
+      mcpServers: projectSchema.shape.mcpServers.unwrap().nullable().optional(),
+      disabled: projectSchema.shape.disabled,
+    }),
+  }),
+  z.object({
+    kind: z.literal("relocate"),
+    projectId: z.string().min(1),
+    path: z.string().min(1),
+  }),
   z.object({ kind: z.literal("remove"), projectId: z.string().min(1) }),
 ]);
 export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
@@ -220,6 +243,10 @@ export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
 /** Project metadata safe to expose remotely; MCP definitions may contain secrets. */
 export const remoteProjectSchema = projectSchema.omit({ mcpServers: true });
 export type RemoteProject = z.infer<typeof remoteProjectSchema>;
+
+/** Sensitive project settings are fetched separately behind `projects:manage`. */
+export const remoteProjectSettingsSchema = projectSchema.pick({ mcpServers: true });
+export type RemoteProjectSettings = z.infer<typeof remoteProjectSettingsSchema>;
 
 /** Result of a project command: the full updated list plus the affected row. */
 export const remoteProjectCommandResultSchema = z.object({

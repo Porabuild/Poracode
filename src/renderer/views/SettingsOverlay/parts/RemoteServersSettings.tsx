@@ -4,6 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ChevronRight,
   Folder,
+  FolderOpen,
   FolderPlus,
   GitBranch,
   Link2,
@@ -16,13 +17,14 @@ import {
 import type { Project } from "@/shared/contracts";
 import { cloneFolderNameFromUrl } from "@/shared/createProject";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import {
   remoteServerStatusDotClass,
-  useRemoteServersStore,
   type RemoteServerRecord,
   type RemoteServerStatus,
-} from "@/renderer/state/remoteServersStore";
+} from "@/renderer/state/remoteServers/types";
 import { SettingsPage } from "./SettingsForm";
+import { RemoteHostFolderPicker } from "./RemoteHostFolderPicker";
 import { SshConnectionForm } from "./SshConnectionForm";
 
 const INPUT_CLASS =
@@ -88,6 +90,7 @@ function ManageProjects({ desktopId }: { readonly desktopId: string }) {
   const [folderPath, setFolderPath] = useState("");
   const [cloneParent, setCloneParent] = useState("");
   const [cloneUrl, setCloneUrl] = useState("");
+  const [pickerTarget, setPickerTarget] = useState<"folder" | "clone" | null>(null);
   const cloneName = cloneFolderNameFromUrl(cloneUrl);
 
   const reset = () => {
@@ -132,13 +135,18 @@ function ManageProjects({ desktopId }: { readonly desktopId: string }) {
     <div className="flex flex-col gap-1.5 pl-5 pt-1">
       {mode === "folder" ? (
         <div className="flex items-center gap-1.5">
-          <CompactInput
-            value={folderPath}
-            ariaLabel={t`Folder path on the server`}
-            placeholder={t`/absolute/path/to/project`}
-            onChange={setFolderPath}
-            onEnter={addFolder}
-          />
+          <Button
+            variant="ghost"
+            fullWidth
+            className={`${INPUT_CLASS} h-auto min-w-0 justify-start gap-2 text-left font-normal`}
+            aria-label={t`Folder path on the server`}
+            onPress={() => setPickerTarget("folder")}
+          >
+            <FolderOpen className="size-4 shrink-0 text-muted" />
+            <span className={`min-w-0 flex-1 truncate ${folderPath ? "" : "text-muted/50"}`}>
+              {folderPath || t`Choose a folder…`}
+            </span>
+          </Button>
           <Button
             variant="tertiary"
             size="sm"
@@ -153,12 +161,18 @@ function ManageProjects({ desktopId }: { readonly desktopId: string }) {
         </div>
       ) : (
         <>
-          <CompactInput
-            value={cloneParent}
-            ariaLabel={t`Parent folder`}
-            placeholder={t`Parent folder, e.g. /home/me/projects`}
-            onChange={setCloneParent}
-          />
+          <Button
+            variant="ghost"
+            fullWidth
+            className={`${INPUT_CLASS} h-auto min-w-0 justify-start gap-2 text-left font-normal`}
+            aria-label={t`Parent folder`}
+            onPress={() => setPickerTarget("clone")}
+          >
+            <FolderOpen className="size-4 shrink-0 text-muted" />
+            <span className={`min-w-0 flex-1 truncate ${cloneParent ? "" : "text-muted/50"}`}>
+              {cloneParent || t`Choose a folder…`}
+            </span>
+          </Button>
           <div className="flex items-center gap-1.5">
             <CompactInput
               value={cloneUrl}
@@ -183,6 +197,15 @@ function ManageProjects({ desktopId }: { readonly desktopId: string }) {
         </>
       )}
       {error ? <p className="text-xs text-danger">{error}</p> : null}
+      {pickerTarget ? (
+        <RemoteHostFolderPicker
+          desktopId={desktopId}
+          title={t`Choose a folder`}
+          initialPath={pickerTarget === "folder" ? folderPath : cloneParent}
+          onClose={() => setPickerTarget(null)}
+          onSelect={pickerTarget === "folder" ? setFolderPath : setCloneParent}
+        />
+      ) : null}
     </div>
   );
 }
