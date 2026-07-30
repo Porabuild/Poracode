@@ -184,11 +184,12 @@ function applyWorktreeStatusBatch(
 type ActiveGitProject = { id: string; location: ProjectLocation };
 
 interface PendingPrRefreshTarget {
+  projectId: string;
   projectLocation: ProjectLocation;
   prKey: string;
   branch: string;
-  detailsCacheKey?: string;
-  prNumber?: number;
+  detailsCacheKey: string;
+  prNumber: number;
 }
 
 interface PendingPrRefreshEntry {
@@ -376,17 +377,18 @@ function buildPendingPrRefreshTargets(
   function visitBranchPr(project: ActiveGitProject, prKey: string, branch: string) {
     const pr = gitState.prData[prKey];
     if (!pr) return;
-    const detailsCacheKey = pr.number ? `${project.id}#${pr.number}` : undefined;
-    const details = detailsCacheKey ? gitState.prDetails[detailsCacheKey] : undefined;
+    const detailsCacheKey = `${project.id}#${pr.number}`;
+    const details = gitState.prDetails[detailsCacheKey];
     const detailsStatus = aggregatePrChecksStatus(details?.checks);
     const checksStatus = combineChecksStatus(detailsStatus, pr.checksStatus);
     if (pr.state !== "open" || checksStatus !== "PENDING") return;
-    targets.set(detailsCacheKey ?? prKey, {
+    targets.set(detailsCacheKey, {
+      projectId: project.id,
       projectLocation: project.location,
       prKey,
       branch,
-      ...(detailsCacheKey ? { detailsCacheKey } : {}),
-      ...(pr.number ? { prNumber: pr.number } : {}),
+      detailsCacheKey,
+      prNumber: pr.number,
     });
   }
 
@@ -406,6 +408,22 @@ function buildPendingPrRefreshTargets(
   }
 
   return targets;
+}
+
+function didPendingPrSettle(target: PendingPrRefreshTarget): boolean {
+  const gitState = useGitStore.getState();
+  const pr = gitState.prData[target.prKey];
+  if (pr === null) return true;
+  if (!pr || pr.number !== target.prNumber) return false;
+  const detailsStatus = aggregatePrChecksStatus(gitState.prDetails[target.detailsCacheKey]?.checks);
+  const checksStatus = combineChecksStatus(detailsStatus, pr.checksStatus);
+  return checksStatus === "SUCCESS" || checksStatus === "FAILURE";
+}
+
+function requestSettledPrCheck(target: PendingPrRefreshTarget): void {
+  void readBridge()
+    .checkPrWatch({ projectId: target.projectId, prNumber: target.prNumber })
+    .catch(() => undefined);
 }
 
 /**
@@ -552,6 +570,12 @@ export function syncPendingPrRefreshProjects(activeProjects: readonly ActiveGitP
     if (!target) {
       clearInterval(entry.intervalId);
       pendingPrRefreshEntries.delete(key);
+      if (
+        activeProjects.some((project) => project.id === entry.target.projectId) &&
+        didPendingPrSettle(entry.target)
+      ) {
+        requestSettledPrCheck(entry.target);
+      }
       continue;
     }
     entry.target = target;

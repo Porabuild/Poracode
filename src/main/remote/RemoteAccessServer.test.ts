@@ -4356,6 +4356,7 @@ describe("RemoteAccessServer", () => {
     const remove = vi.fn<(projectId: string, prNumber: number) => void>(() => {
       stored = null;
     });
+    const requestCheck = vi.fn<(projectId: string, prNumber: number) => void>();
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
@@ -4364,6 +4365,7 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       prWatches: {
         get: () => stored,
+        requestCheck,
         upsert,
         delete: remove,
       },
@@ -4421,6 +4423,14 @@ describe("RemoteAccessServer", () => {
       },
     });
     expect(upsert).toHaveBeenCalledWith(input);
+
+    const checkResponse = await fetch(new URL("/api/pr-watches/check", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify({ projectId: "project-1", prNumber: 42 }),
+    });
+    expect(checkResponse.status).toBe(200);
+    expect(requestCheck).toHaveBeenCalledWith("project-1", 42);
 
     const deleteResponse = await fetch(new URL("/api/pr-watches", info.httpBaseUrl), {
       method: "DELETE",
