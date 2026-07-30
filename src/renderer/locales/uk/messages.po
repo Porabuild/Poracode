@@ -11806,7 +11806,7 @@ msgstr "Робота"
 msgid "Work in the current checkout"
 msgstr "Працювати в поточному checkout"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Worked for {elapsed}"
 msgstr "Працював {elapsed}"
@@ -11849,7 +11849,7 @@ msgstr "Робочі процеси"
 msgid "Working"
 msgstr "Працює"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
 msgstr "Працює {elapsed}"
 

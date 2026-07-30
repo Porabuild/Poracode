@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Surface } from "@heroui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Trans } from "@lingui/react/macro";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { resolveGrokSessionDir } from "@/shared/grokSessionMedia";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { chatMessageSurfaceClass } from "./parts/items/chatMessageSurface";
 import { readBridge } from "@/renderer/bridge";
-import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -24,7 +21,6 @@ import {
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
-import { formatElapsed } from "@/renderer/utils/formatTime";
 import {
   buildFileEditorContext,
   openFileInEditor,
@@ -34,6 +30,7 @@ import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
+import { ChatTurnElapsedFooter, type TurnTiming } from "./ChatTurnElapsed";
 import { selectVisibleThreadTimelineEntries, type ChatTimelineEntry } from "./chatPaneSelectors";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { normalizeChatProjectPath } from "./chatPathUtils";
@@ -369,7 +366,7 @@ export function ChatPane(props: ChatPaneProps) {
             }
             footer={
               showTailLoader && tailTurn ? (
-                <ChatTailLoader turn={tailTurn} isPaused={isTurnPaused} />
+                <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
               ) : null
             }
             onWheelCapture={(event) => {
@@ -457,11 +454,6 @@ export function ChatPane(props: ChatPaneProps) {
   );
 }
 
-interface TurnTiming {
-  startedAt: number;
-  endedAt: number | null;
-}
-
 interface CompletedTurnTiming extends TurnTiming {
   anchorItemId: string | null;
   endedAt: number;
@@ -512,91 +504,6 @@ function selectMostRecentDisplayableCompletedTurn(
     if (record.endedAt - record.startedAt >= 1000) return record;
   }
   return null;
-}
-
-function ChatTailLoader({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {
-  return (
-    <div className="mx-auto w-full max-w-[920px]">
-      <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <WorkingFor turn={turn} isPaused={isPaused} />
-        </div>
-      </Surface>
-    </div>
-  );
-}
-
-/**
- * Self-ticking elapsed-time label. While `turn.endedAt` is null, ticks every
- * second as "Working for N"; once set, freezes as "Worked for N". When
- * `isPaused` is true (e.g. the runtime is blocked on a user-input prompt) the
- * counter freezes at its current value and the paused interval is excluded
- * from the elapsed total once it resumes. Mutates `textContent` directly via
- * a ref instead of calling `setState` so the per-second tick produces zero
- * React commits — important while the rest of the chat is potentially
- * streaming.
- */
-function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {
-  const { t } = useLingui();
-  const textRef = useRef<HTMLSpanElement>(null);
-  const pauseStateRef = useRef<{ accumulatedPauseMs: number; pausedSinceMs: number | null }>({
-    accumulatedPauseMs: 0,
-    pausedSinceMs: null,
-  });
-
-  useEffect(() => {
-    pauseStateRef.current = { accumulatedPauseMs: 0, pausedSinceMs: null };
-  }, [turn.startedAt, turn.endedAt]);
-
-  useEffect(() => {
-    const update = () => {
-      const node = textRef.current;
-      if (!node) return;
-      if (turn.endedAt !== null) {
-        const elapsedSeconds = Math.max(0, Math.floor((turn.endedAt - turn.startedAt) / 1000));
-        const elapsed = formatElapsed(elapsedSeconds);
-        const text = elapsedSeconds < 1 ? "" : t`Worked for ${elapsed}`;
-        node.textContent = text;
-        node.dataset.poracodeShimmerText = text;
-        return;
-      }
-      const pauseState = pauseStateRef.current;
-      const now = Date.now();
-      const currentPauseMs =
-        pauseState.pausedSinceMs !== null ? Math.max(0, now - pauseState.pausedSinceMs) : 0;
-      const elapsedMs = now - turn.startedAt - pauseState.accumulatedPauseMs - currentPauseMs;
-      const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-      const elapsed = formatElapsed(elapsedSeconds);
-      const text = elapsedSeconds < 1 ? "" : t`Working for ${elapsed}`;
-      node.textContent = text;
-      node.dataset.poracodeShimmerText = text;
-    };
-
-    if (isPaused) {
-      if (pauseStateRef.current.pausedSinceMs === null) {
-        pauseStateRef.current.pausedSinceMs = Date.now();
-      }
-      update();
-      return;
-    }
-
-    if (pauseStateRef.current.pausedSinceMs !== null) {
-      pauseStateRef.current.accumulatedPauseMs += Math.max(
-        0,
-        Date.now() - pauseStateRef.current.pausedSinceMs,
-      );
-      pauseStateRef.current.pausedSinceMs = null;
-    }
-    update();
-    if (turn.endedAt !== null) return;
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [turn.startedAt, turn.endedAt, isPaused, t]);
-
-  const isThinking = !isPaused && turn.endedAt === null;
-  useShimmerRef(textRef, isThinking);
-  const className = isThinking ? "poracode-thinking-text" : "text-muted";
-  return <span ref={textRef} className={className} aria-live="polite" />;
 }
 
 function isScrollNavigationKey(key: string): boolean {

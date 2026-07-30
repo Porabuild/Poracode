@@ -11804,7 +11804,7 @@ msgstr "作業"
 msgid "Work in the current checkout"
 msgstr "現在のチェックアウトでの作業"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Worked for {elapsed}"
 msgstr "{elapsed}稼働しました"
@@ -11847,7 +11847,7 @@ msgstr "ワークフロー"
 msgid "Working"
 msgstr "実行中"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
 msgstr "{elapsed}稼働中"
 
