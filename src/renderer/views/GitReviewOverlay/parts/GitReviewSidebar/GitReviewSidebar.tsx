@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -112,7 +112,9 @@ export function GitReviewSidebar(props: {
   const isWorktreeStatus = Boolean(statusKey);
   const { isCollapsed, collapse, expand } = useSidebar();
   const diffTheme = useDiffTheme();
-  const { setScrollContainer, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
+  const scrollContentRef = useRef<HTMLDivElement>(null);
+  const { setScrollContainer, scrollEl, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
+    contentRef: scrollContentRef,
     maxFadePx: 10,
   });
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
@@ -365,121 +367,129 @@ export function GitReviewSidebar(props: {
             className={gitReviewSidebarListScrollClass()}
             style={scrollFadeStyle}
           >
-            {mergeConflicting && mergeConflictFiles.length > 0 && (
-              <ConflictGroup
-                files={mergeConflictFiles}
-                project={project}
-                selectedFile={selectedFile}
-                worktreePath={worktreePath}
-                worktreeBranch={worktreeBranch}
-                onSelectFile={onSelectFile}
-                onRefresh={onRefresh}
-                storeKey={storeKey}
-                isWorktree={isWorktreeStatus}
-                mode={mode}
-                diffTheme={diffTheme}
-                wrapLines={wrapLines}
-              />
-            )}
-            {gitStatus && gitStatus.staged.length > 0 && (
-              <FileGroup
-                title={t`Staged`}
-                count={gitStatus.staged.length}
-                staged
-                files={gitStatus.staged}
-                project={project}
-                selectedFile={selectedStaged ? selectedFile : null}
-                onSelectFile={onSelectFile}
-                onRefresh={onRefresh}
-                storeKey={storeKey}
-                isWorktree={isWorktreeStatus}
-                worktreePath={worktreePath}
-                worktreeBranch={worktreeBranch}
-                mode={mode}
-                diffTheme={diffTheme}
-                wrapLines={wrapLines}
-              />
-            )}
-            {gitStatus && gitStatus.unstaged.length > 0 && (
-              <FileGroup
-                title={t`Changes`}
-                count={gitStatus.unstaged.length}
-                staged={false}
-                files={gitStatus.unstaged}
-                project={project}
-                selectedFile={!selectedStaged ? selectedFile : null}
-                onSelectFile={onSelectFile}
-                onRefresh={onRefresh}
-                storeKey={storeKey}
-                isWorktree={isWorktreeStatus}
-                worktreePath={worktreePath}
-                worktreeBranch={worktreeBranch}
-                mode={mode}
-                diffTheme={diffTheme}
-                wrapLines={wrapLines}
-              />
-            )}
-            {gitStatus && !gitStatus.isRepo && (
-              <div
-                className={`flex min-h-full flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
-              >
-                <span>
-                  <Trans>Not a git repository</Trans>
-                </span>
-                {onInitRepository && (
-                  <Button
-                    size="sm"
-                    variant="tertiary"
-                    className="justify-center text-white [&_svg]:text-white"
-                    isDisabled={isInitializingRepo}
-                    isPending={isInitializingRepo}
-                    onPress={() => void handleInitRepository()}
-                  >
-                    {({ isPending }) =>
-                      isPending ? (
-                        <PixelLoader size="xs" />
-                      ) : (
-                        <>
-                          <GitBranchPlus className="size-3.5" />
-                          <Trans>Initialize Repository</Trans>
-                        </>
-                      )
-                    }
-                  </Button>
-                )}
-              </div>
-            )}
-            {gitStatus &&
-              gitStatus.isRepo &&
-              gitStatus.staged.length === 0 &&
-              gitStatus.unstaged.length === 0 &&
-              !mergeConflicting && (
+            <div ref={scrollContentRef} className="min-h-full space-y-2">
+              {mergeConflicting && mergeConflictFiles.length > 0 && (
+                <ConflictGroup
+                  files={mergeConflictFiles}
+                  project={project}
+                  selectedFile={selectedFile}
+                  worktreePath={worktreePath}
+                  worktreeBranch={worktreeBranch}
+                  onSelectFile={onSelectFile}
+                  onRefresh={onRefresh}
+                  storeKey={storeKey}
+                  isWorktree={isWorktreeStatus}
+                  mode={mode}
+                  diffTheme={diffTheme}
+                  wrapLines={wrapLines}
+                  scrollElement={scrollEl}
+                  scrollContentElement={scrollContentRef.current}
+                />
+              )}
+              {gitStatus && gitStatus.staged.length > 0 && (
+                <FileGroup
+                  title={t`Staged`}
+                  count={gitStatus.staged.length}
+                  staged
+                  files={gitStatus.staged}
+                  project={project}
+                  selectedFile={selectedStaged ? selectedFile : null}
+                  onSelectFile={onSelectFile}
+                  onRefresh={onRefresh}
+                  storeKey={storeKey}
+                  isWorktree={isWorktreeStatus}
+                  worktreePath={worktreePath}
+                  worktreeBranch={worktreeBranch}
+                  mode={mode}
+                  diffTheme={diffTheme}
+                  wrapLines={wrapLines}
+                  scrollElement={scrollEl}
+                  scrollContentElement={scrollContentRef.current}
+                />
+              )}
+              {gitStatus && gitStatus.unstaged.length > 0 && (
+                <FileGroup
+                  title={t`Changes`}
+                  count={gitStatus.unstaged.length}
+                  staged={false}
+                  files={gitStatus.unstaged}
+                  project={project}
+                  selectedFile={!selectedStaged ? selectedFile : null}
+                  onSelectFile={onSelectFile}
+                  onRefresh={onRefresh}
+                  storeKey={storeKey}
+                  isWorktree={isWorktreeStatus}
+                  worktreePath={worktreePath}
+                  worktreeBranch={worktreeBranch}
+                  mode={mode}
+                  diffTheme={diffTheme}
+                  wrapLines={wrapLines}
+                  scrollElement={scrollEl}
+                  scrollContentElement={scrollContentRef.current}
+                />
+              )}
+              {gitStatus && !gitStatus.isRepo && (
                 <div
-                  className={`flex min-h-full flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
+                  className={`flex min-h-full flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
                 >
-                  <span className="text-foreground/80">
-                    <Trans>Working tree clean</Trans>
-                  </span>
                   <span>
-                    {hasRemote ? (
-                      <Trans>File changes will appear here.</Trans>
-                    ) : (
-                      <Trans>No remote configured. Add a remote to enable push and pull.</Trans>
-                    )}
+                    <Trans>Not a git repository</Trans>
                   </span>
-                  {!hasRemote && onAddRemote && (
+                  {onInitRepository && (
                     <Button
                       size="sm"
                       variant="tertiary"
-                      className="mt-2 justify-center text-white [&_svg]:text-white"
-                      onPress={() => setAddRemoteOpen(true)}
+                      className="justify-center text-white [&_svg]:text-white"
+                      isDisabled={isInitializingRepo}
+                      isPending={isInitializingRepo}
+                      onPress={() => void handleInitRepository()}
                     >
-                      <Link2 className="size-3.5" />
-                      <Trans>Add Remote</Trans>
+                      {({ isPending }) =>
+                        isPending ? (
+                          <PixelLoader size="xs" />
+                        ) : (
+                          <>
+                            <GitBranchPlus className="size-3.5" />
+                            <Trans>Initialize Repository</Trans>
+                          </>
+                        )
+                      }
                     </Button>
                   )}
                 </div>
               )}
+              {gitStatus &&
+                gitStatus.isRepo &&
+                gitStatus.staged.length === 0 &&
+                gitStatus.unstaged.length === 0 &&
+                !mergeConflicting && (
+                  <div
+                    className={`flex min-h-full flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
+                  >
+                    <span className="text-foreground/80">
+                      <Trans>Working tree clean</Trans>
+                    </span>
+                    <span>
+                      {hasRemote ? (
+                        <Trans>File changes will appear here.</Trans>
+                      ) : (
+                        <Trans>No remote configured. Add a remote to enable push and pull.</Trans>
+                      )}
+                    </span>
+                    {!hasRemote && onAddRemote && (
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        className="mt-2 justify-center text-white [&_svg]:text-white"
+                        onPress={() => setAddRemoteOpen(true)}
+                      >
+                        <Link2 className="size-3.5" />
+                        <Trans>Add Remote</Trans>
+                      </Button>
+                    )}
+                  </div>
+                )}
+            </div>
           </div>
 
           {mergeConflicting && mergeConflictFiles.length > 0 && (

@@ -145,6 +145,7 @@ export function FileRow(props: {
         <FileIcon path={path} />
         <PathDisplay
           path={path}
+          measureOverflow={false}
           className="flex-1"
           trailing={
             <>
@@ -221,18 +222,20 @@ export function FileRow(props: {
         )}
       </button>
 
-      <ConfirmDialog
-        isOpen={revertOpen}
-        title={t`Revert changes`}
-        body={
-          <Trans>
-            Are you sure you want to revert <strong>{path}</strong>? This cannot be undone.
-          </Trans>
-        }
-        confirmLabel={t`Revert`}
-        onConfirm={() => void handleRevert()}
-        onClose={() => setRevertOpen(false)}
-      />
+      {revertOpen && (
+        <ConfirmDialog
+          isOpen
+          title={t`Revert changes`}
+          body={
+            <Trans>
+              Are you sure you want to revert <strong>{path}</strong>? This cannot be undone.
+            </Trans>
+          }
+          confirmLabel={t`Revert`}
+          onConfirm={() => void handleRevert()}
+          onClose={() => setRevertOpen(false)}
+        />
+      )}
     </>
   );
 }
