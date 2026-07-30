@@ -1070,21 +1070,23 @@ async function githubActionsScenario(client) {
     })()`,
   );
   assert(opened, "isolated fixture project was not available for GitHub Actions");
+  await evaluate(client, "new Promise((resolve) => setTimeout(resolve, 300))", true);
   const actionsState = await waitForValue(
     () =>
       evaluate(
         client,
         `(() => ({
-          viewKind: window.__poracodeDev.stores.app.getState().view.kind,
-          heading: [...document.querySelectorAll("h1")].some(
-            (element) => element.textContent?.trim() === "GitHub Actions",
+          overlayOpen:
+            window.__poracodeDev.stores.panel.getState().githubActionsContext !== null,
+          heading: [...document.querySelectorAll("[data-overlay-surface]")].some(
+            (element) => element.textContent?.includes("GitHub Actions"),
           ),
           projectPicker: Boolean(document.querySelector('[aria-label="Project"]')),
           crash: /renderer crash|rendered more hooks/i.test(document.body?.innerText ?? ""),
         }))()`,
       ),
-    (state) => state.viewKind === "githubActions" && state.heading && state.projectPicker,
-    "GitHub Actions main view",
+    (state) => state.overlayOpen && state.heading && state.projectPicker,
+    "GitHub Actions overlay",
   );
   assert(!actionsState.crash, "GitHub Actions view rendered a crash state");
   const screenshotPath = join(outDir, "smoke-02c-github-actions.png");

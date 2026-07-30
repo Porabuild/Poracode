@@ -12,6 +12,7 @@ function resetPanelStore() {
     gitReviewAsPanel: false,
     gitOverlayOpen: false,
     prReviewContext: null,
+    githubActionsContext: null,
     filesPanelContext: null,
     subAgentPanelContext: null,
     subAgentPanelOpen: false,
@@ -63,6 +64,11 @@ describe("selectAnyObstructingOverlayOpen", () => {
     usePanelStore.setState({
       prReviewContext: { projectId: "p", prNumber: 1 },
     });
+    expect(selectAnyObstructingOverlayOpen()).toBe(true);
+  });
+
+  it("returns true when GitHub Actions is open", () => {
+    usePanelStore.setState({ githubActionsContext: { projectId: "p" } });
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 

@@ -2104,6 +2104,10 @@ msgstr "Đóng chuyển tiếp cổng"
 msgid "Close forward actions"
 msgstr "Đóng các thao tác chuyển tiếp"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Close GitHub Actions"
+#~ msgstr "Đóng GitHub Actions"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Đóng mục tiêu"
@@ -4072,7 +4076,7 @@ msgstr "thất bại"
 msgid "Failed"
 msgstr "Thất bại"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "Các công việc thất bại đã được xếp hàng để chạy lại."
 
@@ -4739,6 +4743,7 @@ msgstr "Ẩn bảng điều khiển"
 msgid "Hide runtime debug panel"
 msgstr "Ẩn bảng gỡ lỗi thời gian chạy"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -6243,7 +6248,7 @@ msgstr "Không có phiên hoạt động"
 #~ msgid "No active workflows"
 #~ msgstr "Không có quy trình đang hoạt động"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "Không tìm thấy workflow đang hoạt động."
 
@@ -7351,6 +7356,10 @@ msgstr "Bộ chọn không trả về tệp đính kèm nào"
 msgid "Pin to top"
 msgstr "Ghim lên đầu"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Pin workflow"
+msgstr "Ghim quy trình làm việc"
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
@@ -7925,7 +7934,6 @@ msgstr "Ẩn nội dung thông báo"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7970,6 +7978,10 @@ msgstr "Làm mới skill"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflow runs"
 msgstr "Làm mới lượt chạy workflow"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Refresh workflows"
+msgstr "Làm mới quy trình làm việc"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8305,6 +8317,10 @@ msgstr "Thay đổi kích thước bảng bên phải"
 msgid "Resize row"
 msgstr "Thay đổi kích thước hàng"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Resize run details"
+msgstr "Thay đổi kích thước chi tiết lượt chạy"
+
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
@@ -8383,6 +8399,7 @@ msgid "Retry with admin"
 msgstr "Thử lại với quản trị viên"
 
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -8591,6 +8608,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "Tự động chạy lịch này theo lịch bên dưới."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
 msgstr "Chạy quy trình"
@@ -9179,6 +9197,7 @@ msgstr "Hiển thị bảng gỡ lỗi thời gian chạy"
 msgid "Show Schedules in the sidebar footer."
 msgstr "Hiển thị lịch biểu ở chân thanh bên."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -9608,8 +9627,12 @@ msgid "Start Without Context"
 msgstr "Bắt đầu không có bối cảnh"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "Start workflows and monitor their runs for each project."
-msgstr "Khởi chạy quy trình và theo dõi các lần chạy cho từng dự án."
+#~ msgid "Start workflows and monitor their runs for each project."
+#~ msgstr "Khởi chạy quy trình và theo dõi các lần chạy cho từng dự án."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Start workflows and monitor their runs."
+#~ msgstr "Khởi chạy quy trình làm việc và theo dõi các lượt chạy."
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
@@ -10960,6 +10983,10 @@ msgstr "Không phân giai đoạn:"
 msgid "Unpin"
 msgstr "Bỏ ghim"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Unpin workflow"
+msgstr "Bỏ ghim quy trình làm việc"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11514,7 +11541,7 @@ msgstr "Đã làm việc trong {elapsed}"
 msgid "Workflow"
 msgstr "Quy trình làm việc"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."
 msgstr "Đã yêu cầu chạy quy trình."
 
@@ -11530,7 +11557,7 @@ msgstr "Quy trình làm việc đang chạy ở chế độ nền. Các tác nh�
 msgid "Workflow phases"
 msgstr "Các giai đoạn của quy trình làm việc"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow queued to run again."
 msgstr "Workflow đã được xếp hàng để chạy lại."
 
@@ -11543,7 +11570,7 @@ msgstr "Kết quả quy trình làm việc"
 msgid "Workflow run"
 msgstr "Lần chạy quy trình"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow run deleted."
 msgstr "Đã xóa lượt chạy workflow."
 
@@ -11558,7 +11585,7 @@ msgstr "Quy trình làm việc: {description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "Quy trình làm việc"
 

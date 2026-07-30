@@ -2104,6 +2104,10 @@ msgstr "Zamknij przekierowywanie portu"
 msgid "Close forward actions"
 msgstr "Zamknij akcje przekierowania"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Close GitHub Actions"
+#~ msgstr "Zamknij GitHub Actions"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Zamknij cel"
@@ -4072,7 +4076,7 @@ msgstr "nie powiodło się"
 msgid "Failed"
 msgstr "Niepowodzenie"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "Nieudane zadania zostały dodane do kolejki ponownego uruchomienia."
 
@@ -4739,6 +4743,7 @@ msgstr "Ukryj panel"
 msgid "Hide runtime debug panel"
 msgstr "Ukryj panel debugowania środowiska wykonawczego"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -6243,7 +6248,7 @@ msgstr "Brak aktywnej sesji"
 #~ msgid "No active workflows"
 #~ msgstr "Brak aktywnych przepływów pracy"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "Nie znaleziono aktywnych workflow."
 
@@ -7351,6 +7356,10 @@ msgstr "Selektor nie zwrócił żadnego załącznika"
 msgid "Pin to top"
 msgstr "Przypnij do góry"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Pin workflow"
+msgstr "Przypnij przepływ pracy"
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
@@ -7925,7 +7934,6 @@ msgstr "Ukryj treść powiadomień"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7970,6 +7978,10 @@ msgstr "Odśwież umiejętności"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflow runs"
 msgstr "Odśwież uruchomienia workflow"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Refresh workflows"
+msgstr "Odśwież przepływy pracy"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8305,6 +8317,10 @@ msgstr "Zmień rozmiar prawego panelu"
 msgid "Resize row"
 msgstr "Zmień rozmiar wiersza"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Resize run details"
+msgstr "Zmień rozmiar szczegółów uruchomienia"
+
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
@@ -8383,6 +8399,7 @@ msgid "Retry with admin"
 msgstr "Spróbuj ponownie z administratorem"
 
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -8591,6 +8608,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "Automatycznie uruchamiaj ten harmonogram według poniższego harmonogramu."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
 msgstr "Uruchom przepływ pracy"
@@ -9179,6 +9197,7 @@ msgstr "Pokaż panel debugowania środowiska wykonawczego"
 msgid "Show Schedules in the sidebar footer."
 msgstr "Pokaż harmonogramy w stopce paska bocznego."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -9608,8 +9627,12 @@ msgid "Start Without Context"
 msgstr "Zacznij bez kontekstu"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "Start workflows and monitor their runs for each project."
-msgstr "Uruchamiaj przepływy pracy i monitoruj ich wykonanie dla każdego projektu."
+#~ msgid "Start workflows and monitor their runs for each project."
+#~ msgstr "Uruchamiaj przepływy pracy i monitoruj ich wykonanie dla każdego projektu."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Start workflows and monitor their runs."
+#~ msgstr "Uruchamiaj przepływy pracy i monitoruj ich wykonania."
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
@@ -10960,6 +10983,10 @@ msgstr "Bez fazy:"
 msgid "Unpin"
 msgstr "Odepnij"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Unpin workflow"
+msgstr "Odepnij przepływ pracy"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11514,7 +11541,7 @@ msgstr "Pracował przez {elapsed}"
 msgid "Workflow"
 msgstr "Przepływ pracy"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."
 msgstr "Zażądano uruchomienia przepływu pracy."
 
@@ -11530,7 +11557,7 @@ msgstr "Przepływ pracy działa w tle. Agenci podrzędni działają w oddzielnym
 msgid "Workflow phases"
 msgstr "Fazy przepływu pracy"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow queued to run again."
 msgstr "Workflow został dodany do kolejki ponownego uruchomienia."
 
@@ -11543,7 +11570,7 @@ msgstr "Wyniki przepływu pracy"
 msgid "Workflow run"
 msgstr "Uruchomienie przepływu pracy"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow run deleted."
 msgstr "Uruchomienie workflow zostało usunięte."
 
@@ -11558,7 +11585,7 @@ msgstr "Przepływ pracy: {description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "Przepływy pracy"
 

@@ -2104,6 +2104,10 @@ msgstr "Fermer le transfert de port"
 msgid "Close forward actions"
 msgstr "Fermer les actions du transfert"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Close GitHub Actions"
+#~ msgstr "Fermer GitHub Actions"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Fermer l'objectif"
@@ -4072,7 +4076,7 @@ msgstr "échoué"
 msgid "Failed"
 msgstr "Échouée"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "Les tâches en échec ont été remises en file d’attente."
 
@@ -4739,6 +4743,7 @@ msgstr "Masquer le panneau"
 msgid "Hide runtime debug panel"
 msgstr "Masquer le panneau de débogage d'exécution"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -6242,7 +6247,7 @@ msgstr "Aucune session active"
 #~ msgid "No active workflows"
 #~ msgstr "Aucun workflow actif"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "Aucun workflow actif trouvé."
 
@@ -7350,6 +7355,10 @@ msgstr "Le sélecteur n'a renvoyé aucune pièce jointe"
 msgid "Pin to top"
 msgstr "Épingler en haut"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Pin workflow"
+msgstr "Épingler le workflow"
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
@@ -7924,7 +7933,6 @@ msgstr "Masquer le contenu des notifications"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7969,6 +7977,10 @@ msgstr "Actualiser les compétences"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflow runs"
 msgstr "Actualiser les exécutions du workflow"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Refresh workflows"
+msgstr "Actualiser les workflows"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8304,6 +8316,10 @@ msgstr "Redimensionner le panneau droit"
 msgid "Resize row"
 msgstr "Redimensionner la ligne"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Resize run details"
+msgstr "Redimensionner les détails de l’exécution"
+
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
@@ -8382,6 +8398,7 @@ msgid "Retry with admin"
 msgstr "Réessayer en tant qu'administrateur"
 
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -8590,6 +8607,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "Exécuter cette planification automatiquement selon la planification ci-dessous."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
 msgstr "Exécuter le workflow"
@@ -9178,6 +9196,7 @@ msgstr "Afficher le panneau de débogage d'exécution"
 msgid "Show Schedules in the sidebar footer."
 msgstr "Afficher les planifications dans le pied de la barre latérale."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -9607,8 +9626,12 @@ msgid "Start Without Context"
 msgstr "Démarrer sans contexte"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "Start workflows and monitor their runs for each project."
-msgstr "Démarrez des workflows et suivez leurs exécutions pour chaque projet."
+#~ msgid "Start workflows and monitor their runs for each project."
+#~ msgstr "Démarrez des workflows et suivez leurs exécutions pour chaque projet."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Start workflows and monitor their runs."
+#~ msgstr "Démarrez des workflows et surveillez leurs exécutions."
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
@@ -10959,6 +10982,10 @@ msgstr "Sans phase :"
 msgid "Unpin"
 msgstr "Désépingler"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Unpin workflow"
+msgstr "Désépingler le workflow"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11513,7 +11540,7 @@ msgstr "A travaillé pendant {elapsed}"
 msgid "Workflow"
 msgstr "Flux de travail"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."
 msgstr "Demande d’exécution du workflow envoyée."
 
@@ -11529,7 +11556,7 @@ msgstr "Le workflow s'exécute en arrière-plan. Les agents enfants s'exécutent
 msgid "Workflow phases"
 msgstr "Phases du flux de travail"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow queued to run again."
 msgstr "Le workflow a été remis en file d’attente."
 
@@ -11542,7 +11569,7 @@ msgstr "Résultats du flux de travail"
 msgid "Workflow run"
 msgstr "Exécution du workflow"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow run deleted."
 msgstr "Exécution du workflow supprimée."
 
@@ -11557,7 +11584,7 @@ msgstr "Flux de travail : {description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "Flux de travail"
 

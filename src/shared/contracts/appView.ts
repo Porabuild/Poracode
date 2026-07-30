@@ -3,7 +3,6 @@ import type { PaneLayout } from "../paneLayout";
 export type AppView =
   | { kind: "home" }
   | { kind: "pullRequests" }
-  | { kind: "githubActions"; projectId?: string; runId?: number }
   | { kind: "schedules" }
   | { kind: "draft"; projectId: string }
   | { kind: "experiment"; experimentId: string; projectId: string }

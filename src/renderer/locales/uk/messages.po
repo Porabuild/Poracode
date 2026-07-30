@@ -2104,6 +2104,10 @@ msgstr "Закрити переспрямування порту"
 msgid "Close forward actions"
 msgstr "Закрити дії переспрямування"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Close GitHub Actions"
+#~ msgstr "Закрити GitHub Actions"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Закрити ціль"
@@ -4072,7 +4076,7 @@ msgstr "не вдалося"
 msgid "Failed"
 msgstr "Помилка"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "Невдалі завдання поставлено в чергу на повторний запуск."
 
@@ -4739,6 +4743,7 @@ msgstr "Сховати панель"
 msgid "Hide runtime debug panel"
 msgstr "Сховати панель налагодження середовища виконання"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -6243,7 +6248,7 @@ msgstr "Немає активної сесії"
 #~ msgid "No active workflows"
 #~ msgstr "Немає активних робочих процесів"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "Активних workflow не знайдено."
 
@@ -7351,6 +7356,10 @@ msgstr "Вибір не повернув вкладення"
 msgid "Pin to top"
 msgstr "Закріпити вгорі"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Pin workflow"
+msgstr "Закріпити робочий процес"
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
@@ -7925,7 +7934,6 @@ msgstr "Приховувати вміст сповіщень"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7970,6 +7978,10 @@ msgstr "Оновити навички"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflow runs"
 msgstr "Оновити запуски workflow"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Refresh workflows"
+msgstr "Оновити робочі процеси"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8305,6 +8317,10 @@ msgstr "Змінити розмір правої панелі"
 msgid "Resize row"
 msgstr "Змінити розмір рядка"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Resize run details"
+msgstr "Змінити розмір відомостей про запуск"
+
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
@@ -8383,6 +8399,7 @@ msgid "Retry with admin"
 msgstr "Повторити з правами адміністратора"
 
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -8591,6 +8608,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "Автоматично запускати цей розклад за розкладом нижче."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
 msgstr "Запустити робочий процес"
@@ -9179,6 +9197,7 @@ msgstr "Показати панель налагодження середови�
 msgid "Show Schedules in the sidebar footer."
 msgstr "Показувати розклади унизу бічної панелі."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -9608,8 +9627,12 @@ msgid "Start Without Context"
 msgstr "Запустити без контексту"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "Start workflows and monitor their runs for each project."
-msgstr "Запускайте робочі процеси та відстежуйте їх виконання для кожного проєкту."
+#~ msgid "Start workflows and monitor their runs for each project."
+#~ msgstr "Запускайте робочі процеси та відстежуйте їх виконання для кожного проєкту."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Start workflows and monitor their runs."
+#~ msgstr "Запускайте робочі процеси та відстежуйте їх виконання."
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
@@ -10960,6 +10983,10 @@ msgstr "Без фази:"
 msgid "Unpin"
 msgstr "Відкріпити"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Unpin workflow"
+msgstr "Відкріпити робочий процес"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11514,7 +11541,7 @@ msgstr "Працював {elapsed}"
 msgid "Workflow"
 msgstr "Робочий процес"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."
 msgstr "Запуск робочого процесу запитано."
 
@@ -11530,7 +11557,7 @@ msgstr "Робочий процес виконується у фоні. Дочі
 msgid "Workflow phases"
 msgstr "Фази робочого процесу"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow queued to run again."
 msgstr "Workflow поставлено в чергу на повторний запуск."
 
@@ -11543,7 +11570,7 @@ msgstr "Результати робочого процесу"
 msgid "Workflow run"
 msgstr "Запуск робочого процесу"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow run deleted."
 msgstr "Запуск workflow видалено."
 
@@ -11558,7 +11585,7 @@ msgstr "Робочий процес: {description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "Робочі процеси"
 

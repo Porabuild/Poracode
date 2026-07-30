@@ -236,6 +236,7 @@ export function Sidebar() {
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
+  const githubActionsOpen = usePanelStore((s) => s.githubActionsContext !== null);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
@@ -375,7 +376,9 @@ export function Sidebar() {
                 iconOnly
                 icon={shortcut.icon}
                 label={shortcut.label}
-                isActive={appView.kind === shortcut.id}
+                isActive={
+                  shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id
+                }
                 onPress={shortcut.onPress}
               />
             ))}
@@ -473,7 +476,9 @@ export function Sidebar() {
               key={shortcut.id}
               icon={shortcut.icon}
               label={shortcut.label}
-              isActive={appView.kind === shortcut.id}
+              isActive={
+                shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id
+              }
               onPress={shortcut.onPress}
             />
           ))}

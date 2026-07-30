@@ -2104,6 +2104,10 @@ msgstr "关闭转发端口"
 msgid "Close forward actions"
 msgstr "关闭转发操作"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Close GitHub Actions"
+#~ msgstr "关闭 GitHub Actions"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "关闭目标"
@@ -4072,7 +4076,7 @@ msgstr "失败了"
 msgid "Failed"
 msgstr "失败"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "失败的作业已排队等待重新运行。"
 
@@ -4739,6 +4743,7 @@ msgstr "隐藏面板"
 msgid "Hide runtime debug panel"
 msgstr "隐藏运行时调试面板"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -6242,7 +6247,7 @@ msgstr "没有活动会话"
 #~ msgid "No active workflows"
 #~ msgstr "没有活动的工作流"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "未找到活动的工作流。"
 
@@ -7350,6 +7355,10 @@ msgstr "选择器未返回任何附件"
 msgid "Pin to top"
 msgstr "固定到顶部"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Pin workflow"
+msgstr "固定工作流"
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
@@ -7924,7 +7933,6 @@ msgstr "隐藏通知内容"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7969,6 +7977,10 @@ msgstr "刷新技能"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflow runs"
 msgstr "刷新工作流运行"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Refresh workflows"
+msgstr "刷新工作流"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8304,6 +8316,10 @@ msgstr "调整右侧面板大小"
 msgid "Resize row"
 msgstr "调整行大小"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Resize run details"
+msgstr "调整运行详情大小"
+
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
@@ -8382,6 +8398,7 @@ msgid "Retry with admin"
 msgstr "使用管理员重试"
 
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -8590,6 +8607,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "按照下方的计划自动运行此计划。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
 msgstr "运行工作流"
@@ -9178,6 +9196,7 @@ msgstr "显示运行时调试面板"
 msgid "Show Schedules in the sidebar footer."
 msgstr "在侧边栏底部显示计划。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -9607,8 +9626,12 @@ msgid "Start Without Context"
 msgstr "在没有上下文的情况下开始"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "Start workflows and monitor their runs for each project."
-msgstr "启动工作流并监控每个项目的运行状态。"
+#~ msgid "Start workflows and monitor their runs for each project."
+#~ msgstr "启动工作流并监控每个项目的运行状态。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Start workflows and monitor their runs."
+#~ msgstr "启动工作流并监控其运行。"
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
@@ -10959,6 +10982,10 @@ msgstr "未分阶段："
 msgid "Unpin"
 msgstr "取消固定"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Unpin workflow"
+msgstr "取消固定工作流"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11513,7 +11540,7 @@ msgstr "已工作 {elapsed}"
 msgid "Workflow"
 msgstr "工作流程"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."
 msgstr "已请求运行工作流。"
 
@@ -11529,7 +11556,7 @@ msgstr "工作流正在后台运行。子代理在单独的进程中运行，尚
 msgid "Workflow phases"
 msgstr "工作流程阶段"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow queued to run again."
 msgstr "工作流已排队等待重新运行。"
 
@@ -11542,7 +11569,7 @@ msgstr "工作流程结果"
 msgid "Workflow run"
 msgstr "工作流运行"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow run deleted."
 msgstr "工作流运行已删除。"
 
@@ -11557,7 +11584,7 @@ msgstr "工作流程：{description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "工作流程"
 

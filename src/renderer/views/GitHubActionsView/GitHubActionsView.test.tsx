@@ -36,6 +36,8 @@ const bridge = vi.hoisted(() => ({
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
   isRemoteSession: () => false,
+  isMac: () => false,
+  isWindows: () => false,
 }));
 
 import { buildWorkflowDispatchInputs } from "./GitHubActionsDispatchPopover";
@@ -154,7 +156,7 @@ describe("GitHubActionsView", () => {
   });
 
   it("filters runs by workflow and leaves details collapsed", async () => {
-    render(<GitHubActionsView projectId={project.id} />);
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
 
     expect(await screen.findByText(run.title)).toBeInTheDocument();
     expect(bridge.ghListWorkflowRuns).toHaveBeenCalledWith({
@@ -163,7 +165,7 @@ describe("GitHubActionsView", () => {
     });
     expect(bridge.ghGetWorkflowRun).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(run.title) }));
+    fireEvent.click(screen.getByRole("link", { name: new RegExp(run.title) }));
     expect(await screen.findByText("Typecheck")).toBeInTheDocument();
     expect(bridge.ghGetWorkflowRun).toHaveBeenCalledWith({
       projectLocation: project.location,
@@ -172,7 +174,7 @@ describe("GitHubActionsView", () => {
   });
 
   it("deep-links directly to a PR check run", async () => {
-    render(<GitHubActionsView projectId={project.id} runId={run.id} />);
+    render(<GitHubActionsView projectId={project.id} runId={run.id} onClose={() => {}} />);
 
     expect(await screen.findByText("Typecheck")).toBeInTheDocument();
     await waitFor(() =>
@@ -184,7 +186,7 @@ describe("GitHubActionsView", () => {
   });
 
   it("shows workflow-declared controls instead of a JSON field", async () => {
-    render(<GitHubActionsView projectId={project.id} />);
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
     await screen.findByText(run.title);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Run workflow" })[1]!);

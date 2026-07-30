@@ -110,6 +110,11 @@ function isNoGitHubRepositoryError(error: unknown): boolean {
   );
 }
 
+function isWorkflowDefinitionUnavailable(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.toLowerCase().includes("could not find workflow file");
+}
+
 function classifyError(error: unknown, operation: string): Error {
   const msg = error instanceof Error ? error.message : String(error);
   const lower = msg.toLowerCase();
@@ -966,28 +971,43 @@ export class GitHubService {
     ref?: string,
   ): Promise<GhGetWorkflowDefinitionResult> {
     try {
-      const [defaultBranch, yaml] = await Promise.all([
-        this.runGh(location, [
-          "repo",
-          "view",
-          "--json",
-          "defaultBranchRef",
-          "--jq",
-          ".defaultBranchRef.name",
-        ]),
-        this.runGh(location, [
+      const defaultBranch = await this.runGh(location, [
+        "repo",
+        "view",
+        "--json",
+        "defaultBranchRef",
+        "--jq",
+        ".defaultBranchRef.name",
+      ]);
+      const defaultBranchName = defaultBranch.trim();
+      const resolvedRef = ref ?? defaultBranchName;
+      let yaml: string;
+      try {
+        yaml = await this.runGh(location, [
           "workflow",
           "view",
           String(workflowId),
           "--yaml",
-          ...(ref ? ["--ref", ref] : []),
-        ]),
-      ]);
-      const defaultBranchName = defaultBranch.trim();
+          "--ref",
+          resolvedRef,
+        ]);
+      } catch (error) {
+        if (!isWorkflowDefinitionUnavailable(error)) throw error;
+        return {
+          definition: {
+            workflowId,
+            ref: resolvedRef,
+            defaultBranch: defaultBranchName,
+            dispatchable: false,
+            triggers: [],
+            inputs: [],
+          },
+        };
+      }
       return {
         definition: {
           workflowId,
-          ref: ref ?? defaultBranchName,
+          ref: resolvedRef,
           defaultBranch: defaultBranchName,
           ...parseGitHubActionsWorkflowYaml(yaml),
         },

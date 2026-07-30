@@ -10,6 +10,7 @@ import {
   DeferredCreateProjectModal as PrewarmedCreateProjectModal,
   DeferredFileEditorOverlay,
   DeferredGitReviewOverlay,
+  DeferredGitHubActionsView,
   DeferredLoginTerminalOverlay as PrewarmedLoginTerminalOverlay,
   DeferredPrReviewOverlay,
   DeferredProjectSettingsOverlay,
@@ -71,6 +72,8 @@ export function AppOverlays() {
     ? projects.find((p) => p.id === prReviewContext.projectId)
     : undefined;
   const prReviewVisible = !!prReviewContext && !!prReviewProject;
+  const githubActionsContext = usePanelStore((s) => s.githubActionsContext);
+  const githubActionsVisible = githubActionsContext !== null;
 
   return (
     <>
@@ -194,6 +197,22 @@ export function AppOverlays() {
                   }
                 : {})}
               onClose={() => usePanelStore.getState().setPrReviewContext(null)}
+            />
+          </Suspense>
+        )}
+      </OverlayShell>
+      <OverlayShell
+        open={githubActionsVisible}
+        onExited={() => usePanelStore.getState().setGitHubActionsContext(null)}
+      >
+        {githubActionsContext && (
+          <Suspense fallback={<OverlayLoader />}>
+            <DeferredGitHubActionsView
+              {...(githubActionsContext.projectId
+                ? { projectId: githubActionsContext.projectId }
+                : {})}
+              {...(githubActionsContext.runId ? { runId: githubActionsContext.runId } : {})}
+              onClose={() => usePanelStore.getState().setGitHubActionsContext(null)}
             />
           </Suspense>
         )}

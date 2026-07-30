@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button, Checkbox, Description, Input, Label, Popover, TextField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { LoaderCircle, Play } from "lucide-react";
+import { ChevronDown, GitBranch, LoaderCircle, Play } from "lucide-react";
 import type { GitHubActionsWorkflow, GitHubActionsWorkflowDefinition } from "@/shared/contracts";
-import { Select } from "@/renderer/components/common";
+import { BranchSelector, Select } from "@/renderer/components/common";
 
 type InputValues = Record<string, string | boolean>;
 
@@ -44,14 +44,16 @@ export function buildWorkflowDispatchInputs(
 export function GitHubActionsDispatchPopover(props: {
   workflow: GitHubActionsWorkflow;
   definition: GitHubActionsWorkflowDefinition;
-  refs: readonly { id: string; label: string }[];
+  projectId: string;
+  currentBranch: string;
+  isOpen: boolean;
   isDefinitionLoading: boolean;
   isPending: boolean;
+  onOpenChange: (open: boolean) => void;
   onRefChange: (ref: string) => void;
   onRun: (ref: string, inputs: Record<string, string>) => Promise<boolean>;
 }) {
   const { t } = useLingui();
-  const [isOpen, setIsOpen] = useState(false);
   const [ref, setRef] = useState(props.definition.ref);
   const [values, setValues] = useState<InputValues>(() => defaultInputValues(props.definition));
   const [missing, setMissing] = useState<string[]>([]);
@@ -66,11 +68,11 @@ export function GitHubActionsDispatchPopover(props: {
     const result = buildWorkflowDispatchInputs(props.definition, values);
     setMissing(result.missing);
     if (result.missing.length > 0) return;
-    if (await props.onRun(ref, result.inputs)) setIsOpen(false);
+    if (await props.onRun(ref, result.inputs)) props.onOpenChange(false);
   }
 
   return (
-    <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
+    <Popover isOpen={props.isOpen} onOpenChange={props.onOpenChange}>
       <Popover.Trigger>
         <Button variant="primary">
           <Play className="size-4" />
@@ -86,13 +88,29 @@ export function GitHubActionsDispatchPopover(props: {
             </p>
           </div>
           <div className="max-h-[min(520px,70vh)] space-y-4 overflow-y-auto px-4 py-4">
-            <Select
-              aria-label={t`Branch or tag`}
-              options={props.refs}
+            <BranchSelector
+              projectId={props.projectId}
+              currentBranch={props.currentBranch}
               value={ref}
-              onChange={(value) => {
-                setRef(value);
-                props.onRefChange(value);
+              selectionOnly
+              hideWorktreeToggle
+              popoverPlacement="bottom"
+              className="w-full"
+              trigger={
+                <Button
+                  fullWidth
+                  variant="secondary"
+                  className="justify-start px-3"
+                  aria-label={t`Branch or tag`}
+                >
+                  <GitBranch className="size-3.5 text-muted" />
+                  <span className="min-w-0 flex-1 truncate text-left">{ref}</span>
+                  <ChevronDown className="size-3.5 text-muted" />
+                </Button>
+              }
+              onSelect={({ branch }) => {
+                setRef(branch);
+                props.onRefChange(branch);
               }}
             />
             {props.isDefinitionLoading ? (
@@ -111,7 +129,7 @@ export function GitHubActionsDispatchPopover(props: {
                     }
                   >
                     <Checkbox.Content className="items-start">
-                      <Checkbox.Control className="mt-0.5">
+                      <Checkbox.Control className="mt-0.5 border border-[var(--hairline-strong)] bg-surface-secondary shadow-none">
                         <Checkbox.Indicator />
                       </Checkbox.Control>
                       <span>
@@ -168,7 +186,11 @@ export function GitHubActionsDispatchPopover(props: {
             ) : null}
           </div>
           <div className="flex justify-end gap-2 border-t border-[var(--hairline)] px-4 py-3">
-            <Button variant="ghost" isDisabled={props.isPending} onPress={() => setIsOpen(false)}>
+            <Button
+              variant="ghost"
+              isDisabled={props.isPending}
+              onPress={() => props.onOpenChange(false)}
+            >
               <Trans>Cancel</Trans>
             </Button>
             <Button

@@ -38,7 +38,7 @@ export function GitHubActionsRunDetail(props: {
   const failed = props.run.conclusion.toLowerCase() === "failure";
 
   return (
-    <section className="min-w-0 border-t border-[var(--hairline)] xl:border-t-0 xl:border-l">
+    <section className="h-full min-w-0 overflow-y-auto [scrollbar-gutter:stable]">
       <div className="flex items-start gap-3 border-b border-[var(--hairline)] px-4 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

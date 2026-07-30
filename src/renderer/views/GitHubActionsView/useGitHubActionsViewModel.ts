@@ -11,7 +11,6 @@ import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useGitStore } from "@/renderer/state/gitStore";
 
 const POLL_INTERVAL_MS = 5_000;
 const DISPATCH_DISCOVERY_TIMEOUT_MS = 30_000;
@@ -31,9 +30,6 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   const selectedProject =
     activeProjects.find((project) => project.id === props.projectId) ?? activeProjects[0];
   const selectedProjectId = selectedProject?.id;
-  const branchList = useGitStore((state) =>
-    selectedProjectId ? state.branches[selectedProjectId] : undefined,
-  );
   const [workflows, setWorkflows] = useState<GitHubActionsWorkflow[]>([]);
   const [runs, setRuns] = useState<GitHubActionsRun[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
@@ -233,13 +229,6 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     id: project.id,
     label: project.name,
   }));
-  const refNames = [
-    definition?.defaultBranch,
-    ...(branchList?.branches ?? [])
-      .filter((branch) => !branch.isRemote)
-      .map((branch) => branch.name),
-  ].filter((ref): ref is string => Boolean(ref));
-  const refOptions = [...new Set(refNames)].map((ref) => ({ id: ref, label: ref }));
 
   function selectWorkflow(workflowId: number) {
     setSelectedWorkflowId(workflowId);
@@ -335,7 +324,6 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     openGitHubActions,
     pendingRunId,
     projectOptions,
-    refOptions,
     runs,
     selectedProject,
     selectedRun,

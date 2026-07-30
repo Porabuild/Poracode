@@ -28,6 +28,7 @@ import {
 } from "./helpers";
 import type { SavedGroupLayout } from "./types";
 import type { SliceCreator } from "./shared";
+import { usePanelStore } from "../panelStore";
 
 export interface ViewSlice {
   view: AppView;
@@ -163,12 +164,9 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   openHome: () => set({ view: { kind: "home" } }),
   openPullRequests: () => set({ view: { kind: "pullRequests" } }),
   openGitHubActions: (projectId, runId) =>
-    set({
-      view: {
-        kind: "githubActions",
-        ...(projectId ? { projectId } : {}),
-        ...(runId ? { runId } : {}),
-      },
+    usePanelStore.getState().setGitHubActionsContext({
+      ...(projectId ? { projectId } : {}),
+      ...(runId ? { runId } : {}),
     }),
   openSchedules: () => set({ view: { kind: "schedules" } }),
   openExperiment: (experimentId, projectId) =>

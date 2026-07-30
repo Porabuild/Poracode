@@ -1290,6 +1290,40 @@ on:
       ]);
     });
 
+    it("uses the default branch when loading a workflow definition without a ref", async () => {
+      execFileAsyncMock.mockResolvedValueOnce({ stdout: "main\n" }).mockResolvedValueOnce({
+        stdout: "name: CI\non: push\n",
+      });
+
+      await new GitHubService().getWorkflowDefinition(location, 11);
+
+      expect(execFileAsyncMock.mock.calls[1]![1]).toEqual([
+        "workflow",
+        "view",
+        "11",
+        "--yaml",
+        "--ref",
+        "main",
+      ]);
+    });
+
+    it("treats dynamic workflows without a repository file as non-dispatchable", async () => {
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: "main\n" })
+        .mockRejectedValueOnce(new Error("could not find workflow file dependabot-updates"));
+
+      const result = await new GitHubService().getWorkflowDefinition(location, 44);
+
+      expect(result.definition).toEqual({
+        workflowId: 44,
+        ref: "main",
+        defaultBranch: "main",
+        dispatchable: false,
+        triggers: [],
+        inputs: [],
+      });
+    });
+
     it("loads jobs and steps for one workflow run", async () => {
       execFileAsyncMock.mockResolvedValue({
         stdout: JSON.stringify({

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrDetails } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { PrChecksTab } from "./PrChecksTab";
 
 const cacheKey = "project-1#42";
@@ -84,13 +84,12 @@ describe("PrChecksTab", () => {
         },
       },
     });
-    useAppStore.setState({ view: { kind: "home" } });
+    usePanelStore.getState().setGitHubActionsContext(null);
     render(<PrChecksTab cacheKey={cacheKey} loading={false} projectId="project-1" />);
 
     fireEvent.click(screen.getByRole("link", { name: "Open run in GitHub Actions" }));
 
-    expect(useAppStore.getState().view).toEqual({
-      kind: "githubActions",
+    expect(usePanelStore.getState().githubActionsContext).toEqual({
       projectId: "project-1",
       runId: 501,
     });

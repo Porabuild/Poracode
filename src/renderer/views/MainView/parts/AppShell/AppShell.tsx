@@ -365,6 +365,9 @@ export function AppShell(props: {
   contentHeader?: ReactNode;
   rightPanel?: ReactNode;
   gitPanel?: ReactNode;
+  rightPanelOpen?: boolean;
+  rightPanelPlacement?: "right" | "bottom";
+  rightPanelResizeLabel?: string;
   forceSidebarExpanded?: boolean;
   onRequestClosePanels?: () => void;
   onDismissRightOverlay?: () => void;
@@ -441,8 +444,15 @@ export function AppShell(props: {
   }, []);
   const layoutMetricsReady = shellWidth > 0;
 
-  const { rightPanelOpen, gitPanelOpen, sidePanelOpen } = usePanelVisibility();
-  const isBottom = terminalPosition === "bottom";
+  const panelVisibility = usePanelVisibility();
+  const rightPanelOpen = props.rightPanelOpen ?? panelVisibility.rightPanelOpen;
+  const gitPanelOpen = props.rightPanelOpen === undefined ? panelVisibility.gitPanelOpen : false;
+  const sidePanelOpen =
+    props.rightPanelOpen === undefined ? panelVisibility.sidePanelOpen : rightPanelOpen;
+  const isBottom =
+    props.rightPanelPlacement !== undefined
+      ? props.rightPanelPlacement === "bottom"
+      : terminalPosition === "bottom";
   const hasHeaders = sidebarHeader != null || contentHeader != null;
   const hasContentHeader = contentHeader != null;
 
@@ -652,7 +662,7 @@ export function AppShell(props: {
                 }
                 panelRef={panelRef}
                 panelInnerRef={panelInnerRef}
-                ariaLabel={t`Resize terminal panel`}
+                ariaLabel={props.rightPanelResizeLabel ?? t`Resize terminal panel`}
                 overlay={rightPanelAsOverlay}
                 overlayReady={rightOverlayReadyForDisplay}
                 overlayTop={rightOverlayTop}

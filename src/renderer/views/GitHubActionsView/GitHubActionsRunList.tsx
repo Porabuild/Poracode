@@ -1,11 +1,9 @@
-import { Button, Dropdown, Label } from "@heroui/react";
+import { Button, Dropdown, Label, Link } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   CheckCircle2,
   CircleDot,
   Clock3,
-  ChevronDown,
-  ChevronRight,
   ExternalLink,
   LoaderCircle,
   MoreHorizontal,
@@ -34,7 +32,11 @@ function runTone(run: Pick<GitHubActionsRun | GitHubActionsJob, "status" | "conc
   return run.status.toLowerCase() === "in_progress" ? "accent" : "warning";
 }
 
-export function StatusIndicator(props: { status: string; conclusion: string }) {
+export function StatusIndicator(props: {
+  status: string;
+  conclusion: string;
+  showLabel?: boolean;
+}) {
   const { t } = useLingui();
   const tone = runTone(props);
   const normalizedConclusion = props.conclusion.toLowerCase();
@@ -83,9 +85,12 @@ export function StatusIndicator(props: { status: string; conclusion: string }) {
       <CircleDot className={iconClass} />
     );
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted">
+    <span
+      className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted"
+      title={label}
+    >
       {icon}
-      {label}
+      {props.showLabel === false ? <span className="sr-only">{label}</span> : label}
     </span>
   );
 }
@@ -118,94 +123,117 @@ export function GitHubActionsRunList(props: {
   return (
     <div className="divide-y divide-[var(--hairline)] border-y border-[var(--hairline)]">
       {props.runs.map((run) => (
-        <div key={run.id} className="flex items-center gap-1 py-1">
-          <Button
-            variant="ghost"
-            className="h-auto min-w-0 flex-1 justify-start rounded-md px-2 py-2 text-left"
-            onPress={() => props.onSelectRun(props.selectedRunId === run.id ? null : run.id)}
-          >
-            <span className="flex min-w-0 flex-1 items-center gap-3">
-              <StatusIndicator status={run.status} conclusion={run.conclusion} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium text-foreground">
-                  {run.title || run.workflowName || run.name || t`Workflow run`}
-                </span>
-                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted">
-                  <span>{run.workflowName || run.name}</span>
-                  {run.headBranch ? <span className="font-mono">{run.headBranch}</span> : null}
-                  <span>#{run.number}</span>
-                  {run.createdAt ? <RelativeTime iso={run.createdAt} /> : null}
-                </span>
-              </span>
-              {props.selectedRunId === run.id ? (
-                <ChevronDown className="size-3.5 shrink-0 text-muted" />
-              ) : (
-                <ChevronRight className="size-3.5 shrink-0 text-muted" />
-              )}
-            </span>
-          </Button>
-          {run.url ? (
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              aria-label={t`Open on GitHub`}
-              onPress={() => openExternalWithFeedback(run.url)}
-            >
-              <ExternalLink className="size-3.5" />
-            </Button>
+        <div
+          key={run.id}
+          className={`relative grid min-h-14 w-full grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-3 px-2 py-2 transition-colors md:grid-cols-[24px_minmax(180px,2fr)_minmax(100px,1fr)_auto] xl:grid-cols-[24px_minmax(220px,2fr)_minmax(140px,1fr)_minmax(120px,1fr)_minmax(100px,0.8fr)_minmax(90px,0.7fr)_auto] ${
+            props.selectedRunId === run.id ? "bg-surface-secondary" : "hover:bg-[var(--row-hover)]"
+          }`}
+        >
+          {props.selectedRunId === run.id ? (
+            <span aria-hidden className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-accent" />
           ) : null}
-          <Dropdown>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              aria-label={t`Run actions`}
-              isDisabled={props.pendingRunId === run.id}
+
+          <StatusIndicator status={run.status} conclusion={run.conclusion} showLabel={false} />
+
+          <div className="min-w-0">
+            <Link
+              className="block max-w-full truncate text-xs font-medium text-foreground underline-offset-2"
+              onPress={() => props.onSelectRun(run.id)}
             >
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-            <Dropdown.Popover placement="bottom end">
-              <Dropdown.Menu
-                aria-label={t`Run actions`}
-                onAction={(key) => {
-                  if (key === "rerun") props.onRerun(run, false);
-                  if (key === "rerun-failed") props.onRerun(run, true);
-                  if (key === "delete") props.onDelete(run);
-                }}
+              {run.title || run.workflowName || run.name || t`Workflow run`}
+            </Link>
+            <div className="mt-0.5 flex min-w-0 items-center gap-2 text-[11px] text-muted md:hidden">
+              {run.headBranch ? <span className="truncate font-mono">{run.headBranch}</span> : null}
+              <span className="shrink-0">#{run.number}</span>
+              {run.createdAt ? <RelativeTime iso={run.createdAt} /> : null}
+            </div>
+          </div>
+
+          <div className="hidden min-w-0 md:block">
+            <p className="truncate text-[11px] text-muted">
+              {(run.workflowName || run.name) ===
+              (run.title || run.workflowName || run.name || t`Workflow run`)
+                ? "—"
+                : run.workflowName || run.name}
+            </p>
+          </div>
+          <div className="hidden min-w-0 xl:block">
+            <p className="truncate font-mono text-[11px] text-muted">{run.headBranch || "—"}</p>
+          </div>
+          <div className="hidden min-w-0 xl:block">
+            <p className="truncate text-[11px] text-muted">{run.event || "—"}</p>
+          </div>
+          <div className="hidden min-w-0 flex-col text-[11px] text-muted xl:flex">
+            <span>#{run.number}</span>
+            {run.createdAt ? <RelativeTime iso={run.createdAt} /> : null}
+          </div>
+
+          <div className="flex items-center justify-end gap-0.5">
+            {run.url ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-7 min-w-0"
+                aria-label={t`Open on GitHub`}
+                onPress={() => openExternalWithFeedback(run.url)}
               >
-                <Dropdown.Item
-                  id="rerun"
-                  textValue={t`Re-run all jobs`}
-                  isDisabled={run.status.toLowerCase() !== "completed"}
+                <ExternalLink className="size-3.5" />
+              </Button>
+            ) : null}
+            <Dropdown>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-7 min-w-0"
+                aria-label={t`Run actions`}
+                isDisabled={props.pendingRunId === run.id}
+              >
+                <MoreHorizontal className="size-3.5" />
+              </Button>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu
+                  aria-label={t`Run actions`}
+                  onAction={(key) => {
+                    if (key === "rerun") props.onRerun(run, false);
+                    if (key === "rerun-failed") props.onRerun(run, true);
+                    if (key === "delete") props.onDelete(run);
+                  }}
                 >
-                  <RotateCcw className="size-3.5" />
-                  <Label>
-                    <Trans>Re-run all jobs</Trans>
-                  </Label>
-                </Dropdown.Item>
-                {run.conclusion.toLowerCase() === "failure" ? (
-                  <Dropdown.Item id="rerun-failed" textValue={t`Re-run failed jobs`}>
+                  <Dropdown.Item
+                    id="rerun"
+                    textValue={t`Re-run all jobs`}
+                    isDisabled={run.status.toLowerCase() !== "completed"}
+                  >
                     <RotateCcw className="size-3.5" />
                     <Label>
-                      <Trans>Re-run failed jobs</Trans>
+                      <Trans>Re-run all jobs</Trans>
                     </Label>
                   </Dropdown.Item>
-                ) : null}
-                <Dropdown.Item
-                  id="delete"
-                  textValue={t`Delete workflow run`}
-                  variant="danger"
-                  isDisabled={run.status.toLowerCase() !== "completed"}
-                >
-                  <Trash2 className="size-3.5" />
-                  <Label>
-                    <Trans>Delete workflow run</Trans>
-                  </Label>
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
+                  {run.conclusion.toLowerCase() === "failure" ? (
+                    <Dropdown.Item id="rerun-failed" textValue={t`Re-run failed jobs`}>
+                      <RotateCcw className="size-3.5" />
+                      <Label>
+                        <Trans>Re-run failed jobs</Trans>
+                      </Label>
+                    </Dropdown.Item>
+                  ) : null}
+                  <Dropdown.Item
+                    id="delete"
+                    textValue={t`Delete workflow run`}
+                    variant="danger"
+                    isDisabled={run.status.toLowerCase() !== "completed"}
+                  >
+                    <Trash2 className="size-3.5" />
+                    <Label>
+                      <Trans>Delete workflow run</Trans>
+                    </Label>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </div>
         </div>
       ))}
     </div>

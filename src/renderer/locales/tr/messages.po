@@ -2104,6 +2104,10 @@ msgstr "Port yönlendirmeyi kapat"
 msgid "Close forward actions"
 msgstr "Yönlendirme eylemlerini kapat"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Close GitHub Actions"
+#~ msgstr "GitHub Actions'ı kapat"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Hedefi kapat"
@@ -4072,7 +4076,7 @@ msgstr "başarısız oldu"
 msgid "Failed"
 msgstr "Başarısız"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "Başarısız işler yeniden çalıştırılmak üzere sıraya alındı."
 
@@ -4739,6 +4743,7 @@ msgstr "Paneli gizle"
 msgid "Hide runtime debug panel"
 msgstr "Çalışma zamanı hata ayıklama panelini gizle"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -6243,7 +6248,7 @@ msgstr "Aktif oturum yok"
 #~ msgid "No active workflows"
 #~ msgstr "Etkin iş akışı yok"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "No active workflows found."
 msgstr "Etkin workflow bulunamadı."
 
@@ -7351,6 +7356,10 @@ msgstr "Seçici hiçbir ek döndürmedi"
 msgid "Pin to top"
 msgstr "En üste sabitle"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Pin workflow"
+msgstr "İş akışını sabitle"
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
@@ -7925,7 +7934,6 @@ msgstr "Bildirim içeriğini gizle"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -7970,6 +7978,10 @@ msgstr "Becerileri yenile"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflow runs"
 msgstr "Workflow çalıştırmalarını yenile"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Refresh workflows"
+msgstr "İş akışlarını yenile"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8305,6 +8317,10 @@ msgstr "Sağ paneli yeniden boyutlandır"
 msgid "Resize row"
 msgstr "Satırı yeniden boyutlandır"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Resize run details"
+msgstr "Çalıştırma ayrıntılarını yeniden boyutlandır"
+
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
@@ -8383,6 +8399,7 @@ msgid "Retry with admin"
 msgstr "Yönetici ile tekrar dene"
 
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -8591,6 +8608,7 @@ msgid "Run this schedule automatically on the schedule below."
 msgstr "Bu zamanlamayı aşağıdaki zamanlamaya göre otomatik olarak çalıştır."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Run workflow"
 msgstr "İş akışını çalıştır"
@@ -9179,6 +9197,7 @@ msgstr "Çalışma zamanı hata ayıklama panelini göster"
 msgid "Show Schedules in the sidebar footer."
 msgstr "Zamanlamaları kenar çubuğu alt kısmında göster."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -9608,8 +9627,12 @@ msgid "Start Without Context"
 msgstr "Bağlam Olmadan Başlayın"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "Start workflows and monitor their runs for each project."
-msgstr "Her proje için iş akışlarını başlatın ve çalıştırmaları izleyin."
+#~ msgid "Start workflows and monitor their runs for each project."
+#~ msgstr "Her proje için iş akışlarını başlatın ve çalıştırmaları izleyin."
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Start workflows and monitor their runs."
+#~ msgstr "İş akışlarını başlatın ve çalıştırmalarını izleyin."
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
@@ -10960,6 +10983,10 @@ msgstr "Aşamasız:"
 msgid "Unpin"
 msgstr "Sabitlemeyi kaldır"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Unpin workflow"
+msgstr "İş akışının sabitlemesini kaldır"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11514,7 +11541,7 @@ msgstr "{elapsed} boyunca çalıştı"
 msgid "Workflow"
 msgstr "İş akışı"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."
 msgstr "İş akışı çalıştırma isteği gönderildi."
 
@@ -11530,7 +11557,7 @@ msgstr "Arka planda iş akışı çalışıyor. Alt aracılar ayrı bir süreçt
 msgid "Workflow phases"
 msgstr "İş akışı aşamaları"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow queued to run again."
 msgstr "Workflow yeniden çalıştırılmak üzere sıraya alındı."
 
@@ -11543,7 +11570,7 @@ msgstr "İş akışı sonuçları"
 msgid "Workflow run"
 msgstr "İş akışı çalıştırması"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow run deleted."
 msgstr "Workflow çalıştırması silindi."
 
@@ -11558,7 +11585,7 @@ msgstr "İş akışı: {description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "İş akışları"
 
