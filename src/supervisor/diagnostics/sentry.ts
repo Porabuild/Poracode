@@ -13,6 +13,7 @@ import {
 import {
   readBuildSentryDsn,
   readBuildSentryEnvironment,
+  shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
 
 type SupervisorSentryModule = typeof import("@sentry/node");
@@ -221,7 +222,7 @@ function buildBaseTags(options: SupervisorSentryOptions): PoracodeDiagnosticTags
 
 export function initializeSupervisorSentry(options: SupervisorSentryOptions): boolean {
   const dsn = readSentryDsn();
-  if (!dsn) {
+  if (!dsn || !shouldEnableSentryReporting(dsn, options.isDev)) {
     return false;
   }
 

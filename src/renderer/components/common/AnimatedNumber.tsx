@@ -61,6 +61,10 @@ export function AnimatedNumber({
 
   return (
     <NumberFlow
+      // Keep scroll anchoring, virtualizer corrections, and sibling layout
+      // changes in the same React commit out of the number's FLIP measurement.
+      // NumberFlowGroup ignores this and still coordinates intentional pairs.
+      isolate
       value={value}
       className={className}
       format={resolvedFormat}

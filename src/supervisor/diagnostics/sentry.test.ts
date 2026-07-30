@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { classifySupervisorFailure, classifySupervisorIpcFailure } from "./sentry";
+import {
+  classifySupervisorFailure,
+  classifySupervisorIpcFailure,
+  initializeSupervisorSentry,
+} from "./sentry";
 
 type ClassificationCase = {
   operation: string;
@@ -210,6 +214,20 @@ function expectTransient(operation: string, error: Error, errorClass: string): v
 }
 
 describe("supervisor Sentry policy", () => {
+  it("does not initialize reporting in local development", () => {
+    const originalDsn = process.env.SENTRY_DSN;
+    process.env.SENTRY_DSN = "https://public@example.test/1";
+    try {
+      expect(initializeSupervisorSentry({ appVersion: "test", isDev: true })).toBe(false);
+    } finally {
+      if (originalDsn === undefined) {
+        delete process.env.SENTRY_DSN;
+      } else {
+        process.env.SENTRY_DSN = originalDsn;
+      }
+    }
+  });
+
   it.each([
     ["Structured runtime session creation failed.", "session-creation-failed"],
     ["Structured runtime transport failed.", "transport-failed"],

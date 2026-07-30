@@ -4,6 +4,7 @@ import type { PoracodeDiagnosticTags, SentryEventLike } from "@/shared/diagnosti
 import {
   readBuildSentryDsn,
   readBuildSentryEnvironment,
+  shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
 import { prepareMainSentryEvent } from "./mainEvent";
 
@@ -59,9 +60,7 @@ function readSentryEnvironment(options: MainSentryOptions): string {
 }
 
 function shouldEnableSentry(options: MainSentryOptions): boolean {
-  if (!readSentryDsn()) return false;
-  if (!options.isDev) return true;
-  return process.env.SENTRY_ENABLE_DEV === "1";
+  return shouldEnableSentryReporting(readSentryDsn(), options.isDev);
 }
 
 function buildBaseTags(options: MainSentryOptions): PoracodeDiagnosticTags {

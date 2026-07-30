@@ -14,3 +14,7 @@ export function readBuildSentryEnvironment(): string | null {
     typeof __BUILD_SENTRY_ENVIRONMENT__ === "undefined" ? null : __BUILD_SENTRY_ENVIRONMENT__,
   );
 }
+
+export function shouldEnableSentryReporting(dsn: string | null, isDev: boolean): boolean {
+  return Boolean(dsn) && !isDev;
+}
