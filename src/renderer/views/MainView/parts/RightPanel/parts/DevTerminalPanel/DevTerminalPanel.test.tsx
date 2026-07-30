@@ -22,22 +22,30 @@ vi.mock("@/renderer/bridge", () => ({
 vi.mock("./parts/RightTerminalLayout", () => ({
   RightTerminalLayout: (props: {
     projectTabs: DevTerminalTab[];
+    activeScopeLabel: string | undefined;
     handleCloseTab: (tab: DevTerminalTab) => void;
   }) => (
-    <button type="button" onClick={() => props.handleCloseTab(props.projectTabs[0]!)}>
-      close right tab
-    </button>
+    <>
+      <span>{props.activeScopeLabel}</span>
+      <button type="button" onClick={() => props.handleCloseTab(props.projectTabs[0]!)}>
+        close right tab
+      </button>
+    </>
   ),
 }));
 
 vi.mock("./parts/BottomTerminalLayout", () => ({
   BottomTerminalLayout: (props: {
     projectTabs: DevTerminalTab[];
+    activeScopeLabel: string | undefined;
     handleCloseTab: (tab: DevTerminalTab) => void;
   }) => (
-    <button type="button" onClick={() => props.handleCloseTab(props.projectTabs[0]!)}>
-      close bottom tab
-    </button>
+    <>
+      <span>{props.activeScopeLabel}</span>
+      <button type="button" onClick={() => props.handleCloseTab(props.projectTabs[0]!)}>
+        close bottom tab
+      </button>
+    </>
   ),
 }));
 
@@ -107,6 +115,19 @@ describe("DevTerminalPanel", () => {
     expect(useDevTerminalStore.getState().isOpen).toBe(false);
     expect(usePanelStore.getState().gitReviewContext).toEqual({ projectId: project.id });
     expect(usePanelStore.getState().filesPanelContext?.projectId).toBe(project.id);
+  });
+
+  it("shows the project and worktree in the terminal scope label", () => {
+    const worktreePath = "/repo/.poracode/worktrees/feature";
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    useDevTerminalStore.setState({
+      activeWorktreePath: worktreePath,
+      tabs: [{ ...tab, worktreePath }],
+    });
+
+    render(<DevTerminalPanel hideHeader />);
+
+    expect(screen.getByText("Poracode / feature")).toBeInTheDocument();
   });
 
   it("can force the right layout for an embedded host without changing saved settings", () => {

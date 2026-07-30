@@ -8633,6 +8633,7 @@ msgstr "调整行大小"
 
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 msgid "Resize sidebar"
 msgstr "调整侧边栏大小"
 
