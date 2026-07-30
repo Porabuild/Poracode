@@ -57,7 +57,7 @@ export function ThreadChangesBubble(props: {
       aria-pressed={isOpen}
       /* Sized to a 28px pill — same height as the scroll-to-bottom circle and the
          rail's icon buttons, so the floating chrome shares one scale. */
-      className={`${floatingGlassSurfaceClass} absolute bottom-full right-3 z-10 mb-1.5 flex h-7 items-center gap-1.5 rounded-full text-xs font-medium transition-colors ${
+      className={`${floatingGlassSurfaceClass} flex h-7 items-center gap-1.5 rounded-full text-xs font-medium transition-colors ${
         hasChanges ? "px-3" : "w-7 justify-center px-0"
       } ${isOpen ? floatingGlassActiveClass : "hover:border-border/30"}`}
       onClick={() => {
@@ -74,12 +74,18 @@ export function ThreadChangesBubble(props: {
     </button>
   );
 
-  if (!worktreeName) return bubble;
-
   return (
-    <Tooltip delay={0}>
-      <Tooltip.Trigger>{bubble}</Tooltip.Trigger>
-      <Tooltip.Content placement="top">{worktreeName}</Tooltip.Content>
-    </Tooltip>
+    // Position an out-of-flow wrapper, not the tooltip trigger. HeroUI's trigger
+    // then measures the real button without adding a line box above the composer.
+    <div className="absolute right-3 bottom-full z-10 mb-1.5">
+      {worktreeName ? (
+        <Tooltip delay={0}>
+          <Tooltip.Trigger>{bubble}</Tooltip.Trigger>
+          <Tooltip.Content placement="top">{worktreeName}</Tooltip.Content>
+        </Tooltip>
+      ) : (
+        bubble
+      )}
+    </div>
   );
 }

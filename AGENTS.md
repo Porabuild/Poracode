@@ -26,6 +26,7 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 ## Working Rules
 
 - For UI changes, follow existing app patterns first. Prefer shared variants and local component conventions over raw library defaults or new visual treatments.
+- For absolutely positioned HeroUI tooltips, put positioning on an out-of-flow wrapper and keep `Tooltip.Trigger` normally positioned inside it. `Tooltip.Trigger` renders an `inline-block`; wrapping an absolute child directly can add layout space and anchor the tooltip to the wrong box.
 - Keep visual scope tight. Do not add layout stabilizers, decorative styling, or state treatments unless they are part of the request.
 - For runtime/chat bugs, trace the real state path before changing the display layer. Timer, notification, resume, and launch symptoms usually come from thread runtime state.
 - For performance complaints, investigate render invalidation, measurement loops, and sync I/O before applying cosmetic workarounds.

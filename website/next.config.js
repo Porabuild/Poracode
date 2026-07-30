@@ -11,6 +11,11 @@ const path = require("path");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Two pnpm workspace roots exist (this repo's, and website/'s standalone one
+  // that Vercel installs from), so Next cannot infer which is the tracing root.
+  // Name it explicitly: pages here import ../../../branding/contact.json, so the
+  // repo root is the correct answer.
+  outputFileTracingRoot: path.resolve(__dirname, ".."),
   images: {
     formats: ["image/avif", "image/webp"],
     qualities: [50, 75],
@@ -25,6 +30,13 @@ const nextConfig = {
   },
   // Acknowledge the webpack config above so Turbopack builds (the default
   // since Next 16) don't error; Turbopack needs no alias configuration.
+  //
+  // Both `dev` and `build` pass `--webpack` on purpose. The workspace sets
+  // `enableGlobalVirtualStore: true`, so every dependency's real path lives in
+  // ~/Library/pnpm/store — outside the repo. Turbopack refuses to compile
+  // anything whose realpath falls outside its root, so it cannot resolve `next`
+  // itself here and no in-repo `turbopack.root` can fix that. Webpack follows
+  // the symlinks fine. Revisit if the global virtual store is ever disabled.
   turbopack: {},
   async headers() {
     return [

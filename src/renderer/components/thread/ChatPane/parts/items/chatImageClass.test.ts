@@ -27,9 +27,13 @@ describe("reserveInlineImageSlot", () => {
     expect(reserveInlineImageSlot(-1, 800)).toBeUndefined();
   });
 
-  it("stays in step with the class that caps the height", () => {
+  it("keeps the height cap as a statically discoverable Tailwind utility", () => {
     // If these drift, the reserved box and the painted box disagree and the
-    // transcript reflows on load — the exact bug this guards.
-    expect(chatInlineImageClass).toContain(`max-h-[${chatInlineImageMaxHeight}]`);
+    // transcript reflows on load. Keep the whole class literal static in source
+    // as well: Tailwind does not discover an arbitrary utility assembled by
+    // template interpolation in the renderer build.
+    expect(chatInlineImageClass).toBe(
+      `block max-h-[${chatInlineImageMaxHeight}] w-auto max-w-full object-contain`,
+    );
   });
 });

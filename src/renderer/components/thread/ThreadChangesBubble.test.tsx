@@ -65,6 +65,8 @@ describe("ThreadChangesBubble", () => {
     const bubble = screen.getByRole("button", { name: "Review changes" });
 
     expect(bubble).toHaveClass("poracode-floating-chrome", "w-7");
+    expect(bubble).not.toHaveClass("absolute");
+    expect(bubble.parentElement).toHaveClass("absolute", "right-3", "bottom-full");
     expect(bubble.querySelector(".lucide-git-fork")).not.toBeNull();
     expect(screen.getByRole("tooltip")).toHaveTextContent("poracode/fix-pwa-worktree-setup");
   });

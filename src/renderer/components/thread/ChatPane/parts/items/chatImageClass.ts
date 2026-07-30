@@ -2,7 +2,13 @@
  * slot below has to compute the same box the loaded image will occupy. */
 export const chatInlineImageMaxHeight = "min(18rem,40vh)";
 
-export const chatInlineImageClass = `block max-h-[${chatInlineImageMaxHeight}] w-auto max-w-full object-contain`;
+// Keep the arbitrary Tailwind utility as a static literal. The renderer build's
+// scanner does not evaluate template interpolation, so constructing this from
+// `chatInlineImageMaxHeight` drops the max-height rule from the desktop CSS.
+// LegendList still reserves the capped height, which then lets the uncapped
+// image paint through every following virtual row.
+export const chatInlineImageClass =
+  "block max-h-[min(18rem,40vh)] w-auto max-w-full object-contain";
 
 /**
  * Inline style that reserves an inline image's exact final box *before* it loads.
