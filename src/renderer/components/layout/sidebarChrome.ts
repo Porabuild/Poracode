@@ -92,10 +92,10 @@ export function gitReviewColumnClass(mode: "panel" | "overlay") {
  * Main scroll/split region: horizontal inset is on the column; scroll handles scrollbar margin.
  * Matches the primary app `Sidebar` scroll area (incl. non-Windows `pr-2` / `-mr-2` gutter).
  */
-export function sidebarBodyScrollClass() {
-  return `min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-0 -mr-2 [scrollbar-gutter:stable] ${
-    !isWindows() ? "pr-2" : ""
-  }`.trim();
+export function sidebarBodyScrollClass(options?: { scrollbarInside?: boolean }) {
+  return `min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-0 ${
+    options?.scrollbarInside ? "" : "-mr-2"
+  } [scrollbar-gutter:stable] ${!isWindows() ? "pr-2" : ""}`.trim();
 }
 
 /**
@@ -103,7 +103,7 @@ export function sidebarBodyScrollClass() {
  * @see {sidebarBodyScrollClass}
  */
 export function gitReviewSidebarListScrollClass() {
-  return `${sidebarBodyScrollClass()} space-y-2`;
+  return `${sidebarBodyScrollClass({ scrollbarInside: true })} space-y-2`;
 }
 
 /**

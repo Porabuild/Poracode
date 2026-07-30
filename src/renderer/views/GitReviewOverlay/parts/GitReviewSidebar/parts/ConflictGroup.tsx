@@ -12,6 +12,7 @@ import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { useGitTouch } from "../gitTouchContext";
 import { ConflictFileCard } from "./ConflictFileCard";
 import { reconcileStagingStatus } from "./reconcileStagingStatus";
+import { VirtualizedFileRows } from "./VirtualizedFileRows";
 
 const COMPOSER_FILE_DRAG_TYPE = "application/poracode-composer-file";
 
@@ -28,6 +29,8 @@ export function ConflictGroup(props: {
   mode?: "overlay" | "panel";
   diffTheme?: "light" | "dark";
   wrapLines?: boolean;
+  scrollElement: HTMLDivElement | null;
+  scrollContentElement: HTMLDivElement | null;
 }) {
   const {
     files,
@@ -42,9 +45,13 @@ export function ConflictGroup(props: {
     mode,
     diffTheme,
     wrapLines,
+    scrollElement,
+    scrollContentElement,
   } = props;
   const rowPadX = useGitReviewRowPadX();
   const [expanded, setExpanded] = useState(true);
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(() => new Set());
+  const touch = useGitTouch();
   const inlineDiffs = mode === "panel";
 
   const handleOpenInEditor = (path: string) =>
@@ -84,37 +91,49 @@ export function ConflictGroup(props: {
           {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
         </span>
       </div>
-      {expanded && inlineDiffs && (
-        <div className="min-w-0 divide-y divide-border">
-          {sorted.map((file) => (
-            <ConflictFileCard
-              key={file.path}
-              file={file}
-              project={project}
-              worktreePath={worktreePath}
-              worktreeBranch={worktreeBranch}
-              onRefresh={onRefresh}
-              storeKey={storeKey}
-              isWorktree={isWorktree}
-              theme={diffTheme ?? "dark"}
-              wrapLines={wrapLines ?? false}
-            />
-          ))}
-        </div>
-      )}
-      {expanded && !inlineDiffs && (
-        <div className="space-y-px">
-          {sorted.map((file) => (
-            <ConflictFileRow
-              key={file.path}
-              file={file}
-              isSelected={selectedFile === file.path}
-              onSelect={() => onSelectFile(file.path, false)}
-              onStage={() => void handleStageConflict(file.path)}
-              onOpenInEditor={() => void handleOpenInEditor(file.path)}
-            />
-          ))}
-        </div>
+      {expanded && (
+        <VirtualizedFileRows
+          items={sorted}
+          getKey={(file) => file.path}
+          scrollElement={scrollElement}
+          scrollContentElement={scrollContentElement}
+          estimateSize={touch ? 44 : 24}
+          gap={inlineDiffs ? 0 : 1}
+          divided={inlineDiffs}
+          persistentKeys={expandedFiles}
+          renderItem={(file) =>
+            inlineDiffs ? (
+              <ConflictFileCard
+                file={file}
+                project={project}
+                worktreePath={worktreePath}
+                worktreeBranch={worktreeBranch}
+                onRefresh={onRefresh}
+                storeKey={storeKey}
+                isWorktree={isWorktree}
+                theme={diffTheme ?? "dark"}
+                wrapLines={wrapLines ?? false}
+                isExpanded={expandedFiles.has(file.path)}
+                onExpandedChange={(isExpanded) => {
+                  setExpandedFiles((current) => {
+                    const next = new Set(current);
+                    if (isExpanded) next.add(file.path);
+                    else next.delete(file.path);
+                    return next;
+                  });
+                }}
+              />
+            ) : (
+              <ConflictFileRow
+                file={file}
+                isSelected={selectedFile === file.path}
+                onSelect={() => onSelectFile(file.path, false)}
+                onStage={() => void handleStageConflict(file.path)}
+                onOpenInEditor={() => void handleOpenInEditor(file.path)}
+              />
+            )
+          }
+        />
       )}
     </div>
   );
@@ -172,6 +191,7 @@ function ConflictFileRow(props: {
       <FileIcon path={file.path} />
       <PathDisplay
         path={file.path}
+        measureOverflow={false}
         className="flex-1"
         trailing={<FileStatusBadge status={file.status} />}
       />

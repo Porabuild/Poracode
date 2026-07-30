@@ -302,6 +302,139 @@ describe("GitReviewSidebar", () => {
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
   });
 
+  it("virtualizes long staged and unstaged file lists independently", async () => {
+    const clientHeightSpy = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(240);
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        const height = this.classList.contains("overflow-y-auto") ? 240 : 24;
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          right: 320,
+          bottom: height,
+          left: 0,
+          width: 320,
+          height,
+          toJSON: () => ({}),
+        };
+      });
+
+    try {
+      const project: Project = {
+        id: "project-1",
+        name: "Poracode",
+        createdAt: new Date().toISOString(),
+        location: { kind: "windows", path: "C:\\repo" },
+      };
+      const gitStatus: GitStatusResult = {
+        isRepo: true,
+        branch: "feature",
+        tracking: "",
+        hasRemote: false,
+        remoteInfo: null,
+        ahead: 0,
+        behind: 0,
+        staged: Array.from({ length: 100 }, (_, index) => ({
+          path: `src/staged-${index.toString().padStart(3, "0")}.ts`,
+          status: "M",
+          staged: true,
+          insertions: 1,
+          deletions: 0,
+        })),
+        unstaged: Array.from({ length: 100 }, (_, index) => ({
+          path: `src/unstaged-${index.toString().padStart(3, "0")}.ts`,
+          status: "M",
+          staged: false,
+          insertions: 1,
+          deletions: 0,
+        })),
+        totalInsertions: 200,
+        totalDeletions: 0,
+      };
+
+      const { container } = render(
+        <GitReviewSidebar
+          project={project}
+          gitStatus={gitStatus}
+          selectedFile={null}
+          selectedStaged={false}
+          refreshKey={0}
+          onSelectFile={() => undefined}
+          onClose={() => undefined}
+          onRefresh={() => undefined}
+          mode="panel"
+        />,
+      );
+
+      await waitFor(() =>
+        expect(container.querySelectorAll('[style*="height: 2500px"]')).toHaveLength(2),
+      );
+      expect(screen.queryByText("src/staged-099.ts")).not.toBeInTheDocument();
+      expect(screen.queryByText("src/unstaged-099.ts")).not.toBeInTheDocument();
+    } finally {
+      clientHeightSpy.mockRestore();
+      rectSpy.mockRestore();
+    }
+  });
+
+  it("mounts panel row actions only while the row is hovered or focused", () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [
+        {
+          path: "src/actions.ts",
+          status: "M",
+          staged: false,
+          insertions: 1,
+          deletions: 0,
+        },
+      ],
+      totalInsertions: 1,
+      totalDeletions: 0,
+    };
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        mode="panel"
+      />,
+    );
+
+    const row = screen.getByText("actions.ts").closest('[role="button"]');
+    expect(row).not.toBeNull();
+    expect(screen.queryByTitle("Open in editor")).not.toBeInTheDocument();
+    fireEvent.pointerMove(row!);
+    expect(screen.getByTitle("Open in editor")).toBeInTheDocument();
+    fireEvent.pointerLeave(row!);
+    expect(screen.queryByTitle("Open in editor")).not.toBeInTheDocument();
+    fireEvent.focus(row!);
+    expect(screen.getByTitle("Open in editor")).toBeInTheDocument();
+  });
+
   it("uses Git's merge message as an editable commit template", async () => {
     const project: Project = {
       id: "merge-project",
