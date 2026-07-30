@@ -2547,6 +2547,12 @@ describe("GitService worktree metadata", () => {
         Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "rev-list",
     );
     expect(revListCall![1]).toContain("origin/master...poracode/brave-heron");
+    expect(
+      execFileMock.mock.calls.some(
+        (call: unknown[]) =>
+          Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "fetch",
+      ),
+    ).toBe(false);
   });
 
   it("returns the durable worktree owner marker", async () => {

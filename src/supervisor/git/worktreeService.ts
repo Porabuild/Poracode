@@ -808,7 +808,7 @@ export class GitWorktreeService {
     let sourceAhead = 0;
     if (sourceBranch) {
       try {
-        const sourceRef = await this.resolveFetchedSourceRef(location, sourceBranch);
+        const sourceRef = await this.resolveSourceRef(location, sourceBranch);
         const output = await execGit(location, [
           "rev-list",
           "--left-right",
@@ -881,6 +881,15 @@ export class GitWorktreeService {
 
   async resolveFetchedSourceRef(location: ProjectLocation, sourceBranch: string): Promise<string> {
     await this.fetch(location, "origin", true);
+    return this.resolveSourceRef(location, sourceBranch);
+  }
+
+  /**
+   * Resolve against already-fetched refs for passive status reads. Periodic
+   * project fetches keep these refs current; a status query must not start its
+   * own network operation for every historical worktree.
+   */
+  private async resolveSourceRef(location: ProjectLocation, sourceBranch: string): Promise<string> {
     if (sourceBranch.startsWith("origin/")) return sourceBranch;
 
     const remoteRef = `origin/${sourceBranch}`;

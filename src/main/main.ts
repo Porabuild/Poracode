@@ -1180,15 +1180,9 @@ if (!hasSingleInstanceLock) {
       scheduleService.start();
       prWatchService.start();
       gitStateService.start();
-      gitStateService.setInterests(
-        "desktop-renderer",
-        dbGetThreads().map((thread) => ({
-          kind: "target",
-          projectId: thread.projectId,
-          ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-          includePrDetails: true,
-        })),
-      );
+      // Remote clients register their visible Git targets when they connect.
+      // Prewarming every persisted desktop thread here turns launch and each
+      // host poll into an unbounded sweep of historical worktrees.
 
       void controller.startIfEnabled();
 
