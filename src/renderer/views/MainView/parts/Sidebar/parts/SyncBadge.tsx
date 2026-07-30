@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -120,8 +121,8 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
               <PixelLoader size="xs" />
             ) : (
               <>
-                {behind > 0 && <span className="text-accent">↓{behind}</span>}
-                {ahead > 0 && <span className="text-accent">↑{ahead}</span>}
+                {behind > 0 && <AnimatedNumber className="text-accent" value={behind} prefix="↓" />}
+                {ahead > 0 && <AnimatedNumber className="text-accent" value={ahead} prefix="↑" />}
               </>
             )}
           </span>

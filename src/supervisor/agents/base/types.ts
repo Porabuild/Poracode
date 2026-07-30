@@ -41,6 +41,12 @@ export interface AgentEnvContext {
   envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
   /**
+   * Provider-global settings for this adapter. Detection receives the same
+   * snapshot launch receives, allowing a provider with multiple structured
+   * runtimes to probe only the selected runtime.
+   */
+  agentSettings?: Record<string, boolean | string>;
+  /**
    * Poracode data base dir for native (non-WSL) plugin staging. Populated by
    * the supervisor so dev runs (`~/.poracode-dev`) stage plugins separately
    * from prod (`~/.poracode`). WSL plugin installs ignore this and stage
@@ -232,6 +238,7 @@ export interface DetectProbeCtx {
   location: ProjectLocation;
   executablePath: string | undefined;
   version?: string | undefined;
+  agentSettings?: Record<string, boolean | string>;
   /** {@link DetectionSpec.probeEnv}, so `capabilitiesProbe`/`statusProbe` can forward it. */
   probeEnv?: Record<string, string> | undefined;
 }

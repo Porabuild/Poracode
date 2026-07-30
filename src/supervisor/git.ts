@@ -311,6 +311,7 @@ export class GitService {
           threadId: candidate.threadId,
           headCommit: snapshot.headCommit,
           ...countUnifiedDiffStats(snapshot.diff),
+          ...(snapshot.omittedFiles ? { omittedFiles: snapshot.omittedFiles } : {}),
           diff: snapshot.diff,
         };
         candidates[index] = result;
@@ -330,6 +331,8 @@ export class GitService {
       hash.update(candidate.threadId);
       hash.update("\0");
       hash.update(candidate.diff);
+      hash.update("\0");
+      hash.update(String(candidate.omittedFiles ?? 0));
       hash.update("\0");
     }
     return { hash: hash.digest("hex"), candidates };

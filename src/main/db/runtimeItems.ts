@@ -190,6 +190,25 @@ export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[
   return rows.map(mapRuntimeItemRow);
 }
 
+/**
+ * Reads one runtime item by id. Exists so the remote image endpoint can resolve
+ * a single inline image without loading a whole thread's payloads — a
+ * screenshot-heavy transcript is hundreds of megabytes, so
+ * `dbGetThreadRuntimeItems` is not an option on that path.
+ */
+export function dbGetThreadRuntimeItem(
+  threadId: string,
+  itemId: string,
+): PersistedRuntimeItem | null {
+  const sqlite = getSqlite();
+  const row = sqlite
+    .prepare(
+      "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
+    )
+    .get(threadId, itemId) as PersistedRuntimeItemRow | undefined;
+  return row ? mapRuntimeItemRow(row) : null;
+}
+
 export function dbGetThreadRuntimeItemsPage(
   threadId: string,
   beforePosition: number | undefined,

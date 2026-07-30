@@ -976,6 +976,13 @@
        a set, tinted like the sidebar (side chrome) rather than the pane beneath
        it. Derived, so it follows --sidebar-background in every theme. */
     --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 82%, transparent);
+    /* Selected floating chrome stays dark: make the glass denser with the
+       sidebar tone instead of brightening it with the foreground color. */
+    --floating-chrome-active-surface: color-mix(
+      in oklab,
+      var(--floating-chrome-surface) 84%,
+      var(--sidebar-background) 16%
+    );
     --window-header-background: var(--sidebar-background);
     --window-overlay-background: rgba(0, 0, 0, 0);
     --composer-surface: var(--surface);
@@ -1048,7 +1055,10 @@
     /* Matches --composer-surface so chat bubbles (user message) and the
        composer read as one surface. */
     --surface-tertiary: #17171d;
-    --overlay: #19191c;
+    /* Floating chrome (modals, menus, popovers, tooltips) sits just above the
+       panel surfaces. Fields/controls are lighter than this, so they read as
+       raised cards on overlays instead of blending into them. */
+    --overlay: #121216;
     /* Neutral cool-grey for secondary text — deliberately low chroma so it
        reads as grey (not the old blue/violet cast). Kept a step below the
        bright foreground so idle/secondary rows recede clearly from active
@@ -1451,35 +1461,46 @@ html[data-platform="win32"][data-native-material="on"][data-theme="dark"] {
   --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 85%, transparent);
 }
 
-/* Windows frosting for the *floating chrome* (thread tool rail, changes bubble,
+/* Platform frosting for the *floating chrome* (thread tool rail, changes bubble,
    chat + terminal scroll-to-bottom). These pills sit over the opaque
-   conversation pane, not over the OS material, so their glass is entirely ours
-   to author — and on Windows, where there is no vibrancy softening them, the
-   shared 82% tint reads as a flat plate stamped on the chat.
+   conversation pane, not over the OS window material, so their glass is
+   entirely ours to author.
 
-   Thinning the tint alone does not fix it: --sidebar-background and
-   --content-background are close in value (dark: #0e0e14 over #070709), so the
-   pill's *fill* composites to nearly the same color either way. What sells the
-   glass is the backdrop — hence a `brightness()` lift alongside the blur, so
-   the sampled conversation reads as lit frosting rather than a faded patch.
-   Dark leans on brightness (it has room to lift); light instead settles the
-   backdrop slightly, where a lift would blow out to white.
-
-   macOS keeps the base token — vibrancy already carries this. Unlayered so both
-   the token and `backdrop-filter` beat Tailwind's utilities, but deliberately
-   *not* `box-shadow`, which carries the pill's `shadow-lg`. */
+   The dark treatment stays deliberately low-alpha with a short blur: underlying
+   transcript shapes remain perceptible instead of being homogenized into a
+   bright frosted patch. A faint edge and shallow shadow separate the control
+   without the specular gradients or inset highlights of a raised glossy button.
+   Windows remains slightly denser because Chromium's blur is visually weaker. */
+html[data-platform="darwin"] {
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 38%, transparent);
+  --floating-chrome-backdrop: blur(12px) saturate(140%);
+}
+html[data-platform="darwin"].dark,
+html[data-platform="darwin"][data-theme="dark"] {
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 24%, transparent);
+  --floating-chrome-backdrop: blur(10px) saturate(135%);
+}
 html[data-platform="win32"] {
-  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 55%, transparent);
-  --floating-chrome-backdrop: blur(20px) saturate(150%) brightness(0.97);
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 44%, transparent);
+  --floating-chrome-backdrop: blur(12px) saturate(135%);
 }
 html[data-platform="win32"].dark,
 html[data-platform="win32"][data-theme="dark"] {
-  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 45%, transparent);
-  --floating-chrome-backdrop: blur(20px) saturate(160%) brightness(1.35);
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 30%, transparent);
+  --floating-chrome-backdrop: blur(10px) saturate(130%);
 }
-html[data-platform="win32"] .poracode-floating-chrome {
+html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-chrome {
+  border-color: color-mix(in oklab, var(--foreground) 8%, transparent);
+  background-image: none;
   backdrop-filter: var(--floating-chrome-backdrop);
   -webkit-backdrop-filter: var(--floating-chrome-backdrop);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+}
+.poracode-floating-chrome--active {
+  background-color: var(--floating-chrome-active-surface);
+}
+html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-chrome--active {
+  border-color: color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 
 /* 2. In-app fallback: opaque window, faux-translucent gradient sidebar. */
@@ -1551,13 +1572,12 @@ html[data-native-material="on"]
     backdrop-filter: none;
     box-shadow: none;
   }
-  /* The Windows floating chrome leans hard on backdrop blur (see the win32 block
-     above), so it needs its own opt-out: paint the pills solid and drop the
-     filter so the diff counts and rail icons keep full contrast. Set on the
-     element rather than the token — the dark-theme token override carries more
-     specificity than a bare html[data-platform] rule would here. */
-  html[data-platform="win32"] .poracode-floating-chrome {
+  /* Floating chrome leans hard on backdrop blur, so paint the pills solid when
+     reduced transparency is requested. Set this on the element rather than the
+     token so it wins over the platform-specific dark-theme overrides above. */
+  .poracode-floating-chrome {
     background: var(--sidebar-background);
+    background-image: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -2432,10 +2452,6 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-}
-
-.poracode-composer-worktree {
-  font-size: 0.75rem;
 }
 
 .poracode-context-indicator {

@@ -36,6 +36,7 @@ export { onProjectThreadDataChanged } from "./db/projectThreadChanges";
 export {
   dbReadThreadRuntimeSummaries,
   dbGetThreadRuntimeSummaries,
+  dbGetThreadRuntimeItem,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbTruncateThreadRuntimeAfter,

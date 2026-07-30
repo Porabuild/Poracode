@@ -106,6 +106,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "revealProjectEntry",
   "getSharedSettings",
   "setSharedSettings",
+  "setAgentSecretSetting",
   "removeCrossagentRoutingOverride",
   "setClaudeProfileEnvironment",
   "setWindowChrome",
@@ -184,6 +185,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "runScheduleNow",
   "getScheduleRuns",
   "getPrWatch",
+  "checkPrWatch",
   "upsertPrWatch",
   "deletePrWatch",
 ] as const satisfies readonly IpcProcedureName[];

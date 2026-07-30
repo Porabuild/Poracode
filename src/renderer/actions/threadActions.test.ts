@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
-import type { Thread } from "@/shared/contracts";
+import type { Thread, Workspace } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   deleteThread,
@@ -74,7 +75,9 @@ describe("threadActions", () => {
     useSharedSettings.setState({
       homeScopeEnabled: false,
       newThreadMode: "page",
+      workspaces: [],
     });
+    useWorkspaceStore.setState({ activeWorkspaceId: null });
   });
 
   it("discards the replaced draft when starting a sidebar draft for another project", () => {
@@ -159,6 +162,28 @@ describe("threadActions", () => {
       expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
     });
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBeNull();
+  });
+
+  it("switches to the thread project's workspace when requested", async () => {
+    const { thread, threadWorkspace } = configureCrossWorkspaceThread();
+
+    openThread(thread.id, { switchWorkspace: true });
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe(threadWorkspace.id);
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+    });
+  });
+
+  it("keeps the active workspace for ordinary thread navigation", async () => {
+    const { currentWorkspace, thread } = configureCrossWorkspaceThread();
+
+    openThread(thread.id);
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe(currentWorkspace.id);
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+    });
   });
 
   it("does not let an older GUI hydration override a newer thread open", async () => {
@@ -589,4 +614,31 @@ function makeThread(input: Partial<Thread> = {}): Thread {
     updatedAt: now,
     ...input,
   };
+}
+
+function configureCrossWorkspaceThread(): {
+  currentWorkspace: Workspace;
+  threadWorkspace: Workspace;
+  thread: Thread;
+} {
+  const currentWorkspace: Workspace = {
+    id: "workspace-current",
+    name: "Current",
+    createdAt: "2026-07-29T00:00:00.000Z",
+    icon: "briefcase",
+  };
+  const threadWorkspace: Workspace = {
+    id: "workspace-thread",
+    name: "Thread workspace",
+    createdAt: "2026-07-29T00:00:00.000Z",
+    icon: "rocket",
+  };
+  useSharedSettings.setState({ workspaces: [currentWorkspace, threadWorkspace] });
+  useWorkspaceStore.setState({ activeWorkspaceId: currentWorkspace.id });
+  const project = useAppStore
+    .getState()
+    .addProject({ kind: "posix", path: "/repo" }, undefined, threadWorkspace.id);
+  const thread = makeThread({ projectId: project.id });
+  useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+  return { currentWorkspace, threadWorkspace, thread };
 }

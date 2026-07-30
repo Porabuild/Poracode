@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Modal } from "@heroui/react";
 import { Plural, Trans } from "@lingui/react/macro";
 import { Check, Crown, Loader2 } from "lucide-react";
+import type { ExperimentJudgeMode } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import { useShimmer } from "@/renderer/thinkingAnimator";
 
@@ -72,7 +73,7 @@ function WinnerRationale(props: {
 }
 
 export type JudgeTranscriptEntryInput =
-  | { kind: "capturing" }
+  | { kind: "capturing"; mode: ExperimentJudgeMode }
   | {
       kind: "captured";
       label: string;
@@ -80,8 +81,15 @@ export type JudgeTranscriptEntryInput =
       files: number;
       insertions: number;
       deletions: number;
+      omittedFiles?: number;
     }
-  | { kind: "judging"; judgeLabel: string };
+  | {
+      kind: "captured-response";
+      label: string;
+      details: string;
+      characters: number;
+    }
+  | { kind: "judging"; judgeLabel: string; mode: ExperimentJudgeMode };
 
 export type JudgeTranscriptEntry = JudgeTranscriptEntryInput & { id: number };
 
@@ -100,7 +108,8 @@ export type JudgeRunState =
 
 function TranscriptLine(props: { entry: JudgeTranscriptEntry; isCurrent: boolean }) {
   const { entry, isCurrent } = props;
-  const shimmerActive = isCurrent && entry.kind !== "captured";
+  const shimmerActive =
+    isCurrent && entry.kind !== "captured" && entry.kind !== "captured-response";
   const shimmerRef = useShimmer<HTMLSpanElement>(shimmerActive);
   return (
     <div className="flex items-start gap-2 text-sm">
@@ -116,9 +125,25 @@ function TranscriptLine(props: { entry: JudgeTranscriptEntry; isCurrent: boolean
         }
       >
         {entry.kind === "capturing" ? (
-          <Trans>Reading each candidate's changes…</Trans>
+          entry.mode === "responses" ? (
+            <Trans>Reading each candidate's chat response…</Trans>
+          ) : (
+            <Trans>Reading each candidate's changes…</Trans>
+          )
         ) : entry.kind === "judging" ? (
-          <Trans>{entry.judgeLabel} is comparing the anonymized diffs…</Trans>
+          entry.mode === "responses" ? (
+            <Trans>{entry.judgeLabel} is comparing the anonymized chat responses…</Trans>
+          ) : (
+            <Trans>{entry.judgeLabel} is comparing the anonymized diffs…</Trans>
+          )
+        ) : entry.kind === "captured-response" ? (
+          <>
+            {entry.label}
+            {entry.details ? <span className="text-muted/80"> · {entry.details}</span> : null} —{" "}
+            <span className="text-muted">
+              <Plural value={entry.characters} one="# character" other="# characters" />
+            </span>
+          </>
         ) : (
           <>
             {entry.label}
@@ -128,6 +153,17 @@ function TranscriptLine(props: { entry: JudgeTranscriptEntry; isCurrent: boolean
             <span className="text-muted">
               (<Plural value={entry.files} one="# file" other="# files" />)
             </span>
+            {entry.omittedFiles ? (
+              <span className="text-warning">
+                {" "}
+                ·{" "}
+                <Plural
+                  value={entry.omittedFiles}
+                  one="# file listed without contents"
+                  other="# files listed without contents"
+                />
+              </span>
+            ) : null}
           </>
         )}
       </span>

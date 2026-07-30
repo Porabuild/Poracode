@@ -1,6 +1,7 @@
 import { memo, useState, type ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
+import { DiffStat } from "@/renderer/components/common/DiffStat";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit } from "lucide-react";
 import type { FileChangePayload } from "@/shared/contracts";
@@ -213,17 +214,25 @@ function enrichLanguage(part: ExtractedPart, path: string): ExtractedPart {
   return part;
 }
 
+/**
+ * Callers keep getting `undefined` for an empty summary so they can drop the
+ * whole label slot. Pass `animated` only for aggregated group headers, whose
+ * totals grow as more edits stream into the group — a single tool-call row
+ * mounts with its final value and has nothing to animate.
+ */
 export function formatDiffSummaryLabel(
   diffSummary: FileChangePayload["diffSummary"],
+  options?: { animated?: boolean },
 ): ReactNode | undefined {
   if (!diffSummary || (diffSummary.added === 0 && diffSummary.removed === 0)) {
     return undefined;
   }
   return (
-    <span className="inline-flex items-center gap-0.5">
-      {diffSummary.added > 0 ? <span className="text-success">+{diffSummary.added}</span> : null}
-      {diffSummary.removed > 0 ? <span className="text-danger">-{diffSummary.removed}</span> : null}
-    </span>
+    <DiffStat
+      {...(options?.animated ? { animated: true } : {})}
+      insertions={diffSummary.added}
+      deletions={diffSummary.removed}
+    />
   );
 }
 

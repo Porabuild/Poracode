@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
 import { FileDiff, FolderOpen, NotebookPen, PanelRightOpen, TerminalSquare } from "lucide-react";
@@ -15,7 +15,7 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePanelVisibility } from "@/renderer/views/MainView/parts/AppShell/parts/usePanelVisibility";
-import { floatingChromeSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 import { useThreadToolRailDrag } from "./useThreadToolRailDrag";
 
 const railPillClass = "flex flex-col items-center gap-0.5 rounded-full p-1";
@@ -27,6 +27,7 @@ const railPillClass = "flex flex-col items-center gap-0.5 rounded-full p-1";
  * each side — 920 + 2 × 44.
  */
 const ALWAYS_OPEN_MIN_PANE_WIDTH = 1008;
+const HEADER_MENU_CLOSE_DELAY_MS = 250;
 
 interface RailTool {
   id: string;
@@ -84,14 +85,32 @@ export function ThreadToolRail(props: {
 
   const paneAnchorRef = useRef<HTMLSpanElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
+  const headerMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [paneElement, setPaneElement] = useState<HTMLElement | null>(null);
   const [paneWidth, setPaneWidth] = useState<number | null>(null);
   const [paneHeight, setPaneHeight] = useState<number | null>(null);
   const [railHeight, setRailHeight] = useState<number | null>(null);
   const [headerMenuPhase, setHeaderMenuPhase] = useState<HeaderMenuPhase>("ready");
+  const [headerMenuPointerOpen, setHeaderMenuPointerOpen] = useState(false);
+  const [headerMenuFocusOpen, setHeaderMenuFocusOpen] = useState(false);
   const alwaysOpen =
     paneCount === 1 && paneWidth !== null && paneWidth >= ALWAYS_OPEN_MIN_PANE_WIDTH;
   const sideRailVisible = alwaysOpen && paneElement !== null && !sidePanelOpen;
+  const headerMenuOpen =
+    headerMenuPhase === "ready" && (headerMenuPointerOpen || headerMenuFocusOpen);
+
+  const cancelHeaderMenuClose = () => {
+    if (headerMenuCloseTimerRef.current === null) return;
+    clearTimeout(headerMenuCloseTimerRef.current);
+    headerMenuCloseTimerRef.current = null;
+  };
+
+  useEffect(
+    () => () => {
+      cancelHeaderMenuClose();
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     if (paneCount !== 1 || sidePanelOpen) return;
@@ -188,6 +207,9 @@ export function ThreadToolRail(props: {
   if (!primaryTool) return null;
 
   const suppressHeaderMenu = () => {
+    cancelHeaderMenuClose();
+    setHeaderMenuPointerOpen(false);
+    setHeaderMenuFocusOpen(false);
     setHeaderMenuPhase("suppressed");
   };
 
@@ -231,7 +253,7 @@ export function ThreadToolRail(props: {
                   ref={pillRef}
                   data-poracode-thread-tool-rail=""
                   data-placement="side"
-                  className={`${floatingChromeSurfaceClass} ${railPillClass} ${
+                  className={`${floatingGlassSurfaceClass} ${railPillClass} ${
                     isDragging ? "cursor-grabbing" : "cursor-default"
                   } touch-none select-none`}
                   {...dragHandlers}
@@ -247,14 +269,38 @@ export function ThreadToolRail(props: {
         <div
           data-poracode-thread-tool-rail=""
           data-placement="header"
-          className="poracode-overlay-header__controls group/thread-tools relative shrink-0"
+          className="poracode-overlay-header__controls relative shrink-0"
           onPointerLeave={() => {
-            setHeaderMenuPhase((phase) => (phase === "suppressed" ? "awaiting-reentry" : phase));
+            if (headerMenuPhase === "suppressed") {
+              setHeaderMenuPhase("awaiting-reentry");
+              return;
+            }
+            cancelHeaderMenuClose();
+            headerMenuCloseTimerRef.current = setTimeout(() => {
+              headerMenuCloseTimerRef.current = null;
+              setHeaderMenuPointerOpen(false);
+            }, HEADER_MENU_CLOSE_DELAY_MS);
           }}
           onPointerEnter={() => {
-            setHeaderMenuPhase((phase) => (phase === "awaiting-reentry" ? "ready" : phase));
+            cancelHeaderMenuClose();
+            if (headerMenuPhase === "suppressed") return;
+            setHeaderMenuPointerOpen(true);
+            if (headerMenuPhase === "awaiting-reentry") setHeaderMenuPhase("ready");
           }}
-          onFocusCapture={() => setHeaderMenuPhase("ready")}
+          onFocusCapture={() => {
+            cancelHeaderMenuClose();
+            setHeaderMenuPhase("ready");
+            setHeaderMenuFocusOpen(true);
+          }}
+          onBlurCapture={(event) => {
+            if (
+              event.relatedTarget instanceof Node &&
+              event.currentTarget.contains(event.relatedTarget)
+            ) {
+              return;
+            }
+            setHeaderMenuFocusOpen(false);
+          }}
         >
           <button
             type="button"
@@ -271,13 +317,11 @@ export function ThreadToolRail(props: {
           <div
             data-poracode-thread-tool-menu=""
             className={`pointer-events-none invisible absolute left-1/2 top-full z-30 w-9 -translate-x-1/2 opacity-0 transition-opacity duration-150 ${
-              headerMenuPhase !== "ready"
-                ? ""
-                : "group-hover/thread-tools:pointer-events-auto group-hover/thread-tools:visible group-hover/thread-tools:opacity-100 group-focus-within/thread-tools:pointer-events-auto group-focus-within/thread-tools:visible group-focus-within/thread-tools:opacity-100"
+              headerMenuOpen ? "pointer-events-auto visible opacity-100" : ""
             }`}
           >
             <div className="pt-1">
-              <div className={`${floatingChromeSurfaceClass} ${railPillClass}`}>{toolButtons}</div>
+              <div className={`${floatingGlassSurfaceClass} ${railPillClass}`}>{toolButtons}</div>
             </div>
           </div>
         </div>

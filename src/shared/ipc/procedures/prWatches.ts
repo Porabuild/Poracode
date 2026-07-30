@@ -13,6 +13,11 @@ export const prWatchProcedures = {
     "main-local",
     prWatchKeySchema,
   ),
+  checkPrWatch: definePayloadProcedure<PrWatchKey, void, "main-local">(
+    "checkPrWatch",
+    "main-local",
+    prWatchKeySchema,
+  ),
   upsertPrWatch: definePayloadProcedure<PrWatchInput, PrWatch, "main-local">(
     "upsertPrWatch",
     "main-local",

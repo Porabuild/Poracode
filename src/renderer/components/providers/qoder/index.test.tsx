@@ -2,7 +2,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
-import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
+import { resolveProviderDraftConfig } from "@/renderer/components/thread/threadDraftViewHelpers";
+import type { AgentCapability, AgentStatus, ThreadConfig } from "@/shared/contracts";
 import { getComposerControls } from "../providerComposer";
 import "./index";
 
@@ -22,7 +23,7 @@ const capabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
-  defaultApprovalPolicy: "default",
+  defaultApprovalPolicy: "bypassPermissions",
   settingDefs: [],
 };
 
@@ -37,11 +38,22 @@ function isModeControl(control: ComposerControl): boolean {
 }
 
 describe("Qoder composer controls", () => {
-  it("shows Work mode with Default permissions by default", () => {
+  it("resolves a fresh draft to Bypass Permissions", () => {
+    const agent = {
+      kind: "qoder",
+      label: "Qoder",
+      installed: true,
+      capabilities,
+    } as AgentStatus;
+
+    expect(resolveProviderDraftConfig(agent).approvalPolicy).toBe("bypassPermissions");
+  });
+
+  it("shows Work mode with Bypass Permissions by default", () => {
     const onConfigChange = vi.fn<(patch: Partial<ThreadConfig>) => void>();
     const controls = getComposerControls("qoder")?.({
       capabilities,
-      config: { model: "auto", mode: "agent", approvalPolicy: "default" },
+      config: { model: "auto", mode: "agent", approvalPolicy: "bypassPermissions" },
       isDisabled: false,
       onConfigChange,
       presentationMode: "gui",
@@ -53,7 +65,7 @@ describe("Qoder composer controls", () => {
     });
     expect(
       controls?.find((control) => isMenuControl(control) && control.iconKind === "permission"),
-    ).toMatchObject({ value: "default" });
+    ).toMatchObject({ value: "bypassPermissions" });
   });
 
   it("keeps Plan as the alternate mode", () => {

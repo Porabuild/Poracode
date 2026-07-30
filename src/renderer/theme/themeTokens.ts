@@ -122,7 +122,11 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--surface": surface,
     "--surface-secondary": mix(surface, 92, fg),
     "--surface-tertiary": mix(surface, 85, fg),
-    "--overlay": mix(surface, 93, fg),
+    // Floating chrome (modals, menus, popovers). In dark themes it drops to
+    // just above the surface so fields (mixed toward fg, below) read as raised
+    // cards on it; in light themes it dims below the surface, where the
+    // barely-lighter field fill already reads as a card.
+    "--overlay": mode === "light" ? mix(surface, 93, fg) : mix(surface, 98, fg),
     "--muted": muted.hex,
     "--scrollbar": fade(muted.hex, 60),
     // Neutral fill for secondary/tertiary buttons, selects, chips, toggle and
@@ -133,6 +137,8 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--default": mix(surface, mode === "light" ? 82 : 86, fg),
     "--accent": accent,
     "--accent-foreground": accentFg,
+    // Fields sit a step lighter than the surface/overlay (below) so they read
+    // as raised cards on panels and floating chrome in both modes.
     "--field-background": mix(surface, 95, fg),
     "--field-foreground": fg,
     "--field-placeholder": placeholder,

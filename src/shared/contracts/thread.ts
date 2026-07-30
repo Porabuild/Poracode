@@ -211,6 +211,18 @@ export interface PendingSteerState {
  * through the regular thread actions instead of writing to the DB directly.
  */
 export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
+  /**
+   * Host lifecycle preflight for a freshly-created worktree. The paired
+   * desktop enqueues setup before the host launches the thread. Keeping this
+   * separate from `start` prevents the post-launch metadata mirror from
+   * enqueueing setup a second time.
+   */
+  z.object({
+    kind: z.literal("prepare-worktree"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    worktreePath: z.string().min(1),
+  }),
   z.object({
     kind: z.literal("start"),
     threadId: z.string().min(1),

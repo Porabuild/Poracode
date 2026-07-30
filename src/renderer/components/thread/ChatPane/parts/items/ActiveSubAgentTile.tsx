@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Fragment, useEffect, type ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
@@ -17,6 +17,7 @@ import {
   type WorkflowRun,
 } from "@/shared/contracts";
 import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
+import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import {
@@ -160,7 +161,7 @@ function ActiveAgentSection({
       <ThreadDockHeader
         icon={kind === "workflow" ? GitBranch : Bot}
         title={title}
-        countLabel={`${completedCount}/${ids.length}`}
+        countLabel={<AnimatedFraction value={completedCount} total={ids.length} />}
         actions={
           <Tooltip delay={0}>
             <Tooltip.Trigger>
@@ -347,13 +348,23 @@ export function ThreadLiveWorkflowTracker(props: {
 
 function WorkflowDockStats({ run }: { run: WorkflowRun }) {
   const completed = countDoneWorkflowAgents(run);
-  const parts: string[] = [];
-  if (run.agentCount > 0) parts.push(`${completed}/${run.agentCount}`);
+  // The done/total pair animates because it ticks up while the run streams; the
+  // token and duration strings stay plain text — they are pre-formatted labels,
+  // not bare numbers.
+  const parts: ReactNode[] = [];
+  if (run.agentCount > 0) {
+    parts.push(<AnimatedFraction key="progress" value={completed} total={run.agentCount} />);
+  }
   if (run.totalTokens !== undefined) parts.push(`${formatTokenCount(run.totalTokens)} tok`);
   if (run.durationMs !== undefined) parts.push(formatDockDuration(run.durationMs));
   return (
-    <span className="shrink-0 tabular-nums text-foreground-muted opacity-80">
-      {parts.join(" · ")}
+    <span className="flex shrink-0 items-center gap-1 tabular-nums text-foreground-muted opacity-80">
+      {parts.map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 ? <span aria-hidden="true">·</span> : null}
+          {part}
+        </Fragment>
+      ))}
     </span>
   );
 }

@@ -20,6 +20,7 @@ type ClientMock = {
   startThread: Mock<(...a: unknown[]) => Promise<void>>;
   startNewThread: Mock<(...a: unknown[]) => Promise<unknown>>;
   sendThreadCommand: Mock<(...a: unknown[]) => Promise<void>>;
+  sendThreadInput: Mock<(...a: unknown[]) => Promise<void>>;
 };
 
 // ── Hoisted mock state ──────────────────────────────────────────────
@@ -77,6 +78,10 @@ const h = vi.hoisted(() => {
         );
       },
     ),
+    gitAddWorktree: vi.fn<(...a: unknown[]) => Promise<{ path: string }>>(async () => ({
+      path: "/repo/.poracode/worktrees/mobile-fix",
+    })),
+    captureFileCheckpoint: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
   };
 });
 
@@ -163,6 +168,7 @@ function clientFor(desktopId: string): ClientMock {
         threadId: crypto.randomUUID(),
       })),
       sendThreadCommand: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+      sendThreadInput: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
     };
     h.clients.set(desktopId, client);
   }
@@ -193,6 +199,7 @@ vi.mock("./remoteClient", () => ({
     startThread = (...a: unknown[]) => this.#c().startThread(...a);
     startNewThread = (...a: unknown[]) => this.#c().startNewThread(...a);
     sendThreadCommand = (...a: unknown[]) => this.#c().sendThreadCommand(...a);
+    sendThreadInput = (...a: unknown[]) => this.#c().sendThreadInput(...a);
   },
 }));
 
@@ -237,10 +244,16 @@ vi.mock("./storeSync", () => ({
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
   seedOlderThreadRuntimeItemsCursor: (...a: unknown[]) => h.seedOlderThreadRuntimeItemsCursor(...a),
 }));
+vi.mock("@/renderer/state/fileCheckpointActions", () => ({
+  captureFileCheckpoint: (...args: unknown[]) => h.captureFileCheckpoint(...args),
+}));
 
 vi.mock("./settingsSync", () => ({
   applyDesktopSettings: (...a: unknown[]) => h.applyDesktopSettings(...a),
   resetDesktopSettings: (...a: unknown[]) => h.resetDesktopSettings(...a),
+}));
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => ({ gitAddWorktree: h.gitAddWorktree }),
 }));
 vi.mock("./bridge", () => ({ setRemoteBridgeClient: vi.fn<(...a: unknown[]) => void>() }));
 vi.mock("./browserMirror", () => ({
@@ -359,6 +372,8 @@ describe("useRemoteDesktop", () => {
       h.getSshCredential,
       h.deleteSshCredential,
       h.updateDesktopEndpoint,
+      h.gitAddWorktree,
+      h.captureFileCheckpoint,
     ]) {
       fn.mockClear();
     }
@@ -553,6 +568,112 @@ describe("useRemoteDesktop", () => {
     await act(async () => {
       await Promise.resolve();
     });
+  });
+
+  it("marks a newly created PWA worktree for desktop setup and forwards copy patterns", async () => {
+    const desktop = makeDesktop("d1");
+    const client = clientFor("d1");
+    let createdThreadId = "";
+    client.startNewThread.mockImplementation(async (input) => {
+      createdThreadId = (input as { threadId: string }).threadId;
+      return { threadId: createdThreadId };
+    });
+    client.snapshot.mockImplementation(async () =>
+      snapshotFor("d1", createdThreadId ? [createdThreadId] : []),
+    );
+    h.applyShellSnapshot.mockImplementation((value) => {
+      const snapshot = value as RemoteShellSnapshot;
+      useAppStore.setState({ threads: snapshot.threads });
+    });
+    const view = await mountWith([desktop], "d1");
+    const project = {
+      id: "p",
+      name: "Repo",
+      location: { kind: "posix" as const, path: "/repo" },
+      scripts: {
+        actions: [],
+        setupScript: "direnv allow\npnpm ci",
+        worktreeCopyPatterns: [".envrc", ".env.*"],
+      },
+      worktreeLocation: { mode: "project-relative" as const },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    await act(async () => {
+      await view.result.current.startThread(project, {
+        agentKind: "codex",
+        config: { model: "m" },
+        prompt: "Fix it",
+        presentationMode: "gui",
+        worktreeBranch: "poracode/mobile-fix",
+        worktreeBaseBranch: "main",
+        worktreeIsNewBranch: true,
+      });
+    });
+
+    expect(h.gitAddWorktree).toHaveBeenCalledTimes(1);
+    expect(h.gitAddWorktree).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      branch: "poracode/mobile-fix",
+      createBranch: true,
+      startPoint: "main",
+      copyIgnoredPatterns: [".envrc", ".env.*"],
+      worktreeRoot: "/repo/.poracode/worktrees",
+      worktreeOmitRepoDir: true,
+      transferUncommitted: false,
+      keepChangesInSource: false,
+    });
+    expect(client.startNewThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: project.id,
+        worktreePath: "/repo/.poracode/worktrees/mobile-fix",
+        worktreeBranch: "poracode/mobile-fix",
+        isNewWorktree: true,
+      }),
+    );
+  });
+
+  it("captures a pre-turn file checkpoint for a PWA prompt", async () => {
+    const desktop = makeDesktop("d1");
+    const project = {
+      id: "p",
+      name: "Repo",
+      location: { kind: "posix" as const, path: "/repo" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const thread = {
+      id: "thread-1",
+      projectId: project.id,
+      title: "Thread",
+      agentKind: "codex",
+      config: { model: "m" },
+      status: "idle" as const,
+      attention: "none" as const,
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui" as const,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    useAppStore.setState({
+      projects: [project],
+      threads: [thread],
+    });
+    const view = await mountWith([desktop], "d1");
+
+    await act(async () => {
+      await view.result.current.sendPrompt("continue remotely");
+    });
+
+    expect(h.captureFileCheckpoint).toHaveBeenCalledTimes(1);
+    expect(h.captureFileCheckpoint).toHaveBeenCalledWith({
+      threadId: thread.id,
+      checkpointItemId: expect.stringMatching(/^user-/),
+      projectLocation: project.location,
+    });
+    expect(clientFor("d1").sendThreadInput).toHaveBeenCalledTimes(1);
   });
 
   it("restores an SSH tunnel before refreshing the active desktop", async () => {
@@ -1026,6 +1147,59 @@ describe("useRemoteDesktop", () => {
     });
     expect(view.result.current.connection).toBe("online");
     expect(view.result.current.message).toBe("http blip");
+  });
+
+  it("[#7b] declares the new thread's content interest before asking for its history", async () => {
+    // Live transcript content is scoped per thread on the host. If the interest
+    // for a newly selected thread landed AFTER the history fetch, deltas arriving
+    // in between would be filtered out and the transcript could show a gap. So
+    // `selectThread` must publish the interest before it requests history.
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    const view = await mountWith([d], "d1");
+
+    await waitFor(() => expect(FakeWebSocket.instances.length).toBeGreaterThan(0));
+    const socket = FakeWebSocket.instances[0]!;
+    client.parseSocketMessage.mockReturnValue({ type: "ready", seq: 0 });
+    await act(async () => {
+      socket.readyState = 1;
+      for (const cb of socket.listeners.get("open") ?? []) cb({});
+    });
+    await waitFor(() => expect(view.result.current.connection).toBe("online"));
+
+    // Record the order of the two observable effects.
+    const order: string[] = [];
+    const realSend = socket.send.bind(socket);
+    socket.send = (raw: string) => {
+      const parsed = JSON.parse(raw) as { type: string; threadIds?: string[] };
+      if (parsed.type === "thread-item-interests" && parsed.threadIds?.includes("t-new")) {
+        order.push("interests");
+      }
+      realSend(raw);
+    };
+    client.threadHistory.mockImplementation(async () => {
+      order.push("history");
+      return {
+        snapshotSeq: 1,
+        thread: { id: "t-new", status: "idle", presentationMode: "gui" },
+        runtimeItems: [],
+        completedTurns: [],
+        contextUsage: null,
+        updatedAt: "",
+      };
+    });
+
+    await act(async () => {
+      await view.result.current.openThread({
+        id: "t-new",
+        projectId: "p1",
+        status: "working",
+        presentationMode: "gui",
+      } as never);
+    });
+
+    await waitFor(() => expect(order).toContain("history"));
+    expect(order[0]).toBe("interests");
   });
 
   it("[#8] does not claim offline while cached data renders during the first boot refresh", async () => {

@@ -93,6 +93,8 @@ import {
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import { createDesktopRemoteAccessController, type DesktopRemoteAccessController } from "./remote";
+import { readOrCreateRemoteAccessIdentity } from "./remote/identity";
+import { createGitStateExecutor, GitStateService } from "./gitState";
 import { SshConnectionManager } from "./ssh/SshConnectionManager";
 import {
   createDeviceScheduleService,
@@ -718,6 +720,7 @@ if (!hasSingleInstanceLock) {
       // fires once the supervisor is started, by which point it is set.
       let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
       let prWatchService: PrWatchService | null = null;
+      let gitStateService: GitStateService | null = null;
       const supervisorClient = new SupervisorClient({
         appVersion: app.getVersion(),
         isDev,
@@ -789,6 +792,7 @@ if (!hasSingleInstanceLock) {
           appControlsMcpIngress?.observeSupervisorEvent(event);
           scheduleRunCoordinator?.observeSupervisorEvent(event);
           prWatchService?.observeSupervisorEvent(event);
+          gitStateService?.observeSupervisorEvent(event);
           remoteAccessController?.handleSupervisorEvent(event);
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
           forwardAgentStatusEventToQuickComposer(event);
@@ -870,6 +874,18 @@ if (!hasSingleInstanceLock) {
           return status !== undefined && isThreadTurnActive(status);
         },
         worktreeExists: existsSync,
+      });
+      gitStateService = new GitStateService({
+        hostId: readOrCreateRemoteAccessIdentity(paths.baseDir).desktopId,
+        executor: createGitStateExecutor((name, payload) => supervisorClient.call(name, payload)),
+        getProject: dbGetProject,
+        onPatch: (patch) => {
+          remoteAccessController?.getServer()?.publishSupervisorEvent({
+            type: "remote-git-state",
+            patch,
+          });
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, patch);
+        },
       });
       // Latest updater status, captured from the auto-updater's status stream so
       // the app-controls `check_for_update` tool can report the most recent
@@ -1025,9 +1041,13 @@ if (!hasSingleInstanceLock) {
         notifyRemoteAccessPairingChanged: (info) => {
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.remoteAccessPairingChanged, info);
         },
+        notifyProjectStateChanged: (projects) => {
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, { projects });
+        },
         reportError: captureMainException,
         scheduleService,
         prWatchService,
+        gitStateService,
       });
       remoteAccessController = controller;
 
@@ -1159,6 +1179,16 @@ if (!hasSingleInstanceLock) {
       supervisorClient.start(paths.baseDir);
       scheduleService.start();
       prWatchService.start();
+      gitStateService.start();
+      gitStateService.setInterests(
+        "desktop-renderer",
+        dbGetThreads().map((thread) => ({
+          kind: "target",
+          projectId: thread.projectId,
+          ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+          includePrDetails: true,
+        })),
+      );
 
       void controller.startIfEnabled();
 
@@ -1206,6 +1236,7 @@ if (!hasSingleInstanceLock) {
         pendingQuickComposerSubmissions.length = 0;
         scheduleService.dispose();
         prWatchService.dispose();
+        gitStateService.dispose();
         supervisorClient.dispose();
         windowsJobObjectManager?.dispose();
         windowsJobObjectManager = null;

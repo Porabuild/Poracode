@@ -41,10 +41,20 @@ msgstr "(mesaj yok)"
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# aday} other {# aday}}"
 
+#. placeholder {0}: entry.characters
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "{0, plural, one {# character} other {# characters}}"
+msgstr "{0, plural, one {# karakter} other {# karakter}}"
+
 #. placeholder {0}: state.iterations ?? 0
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{0, plural, one {# check} other {# checks}}"
 msgstr "{0, plural, one {# kontrol} other {# kontrol}}"
+
+#. placeholder {0}: entry.omittedFiles
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "{0, plural, one {# file listed without contents} other {# files listed without contents}}"
+msgstr "{0, plural, one {İçeriği olmadan listelenen # dosya} other {İçeriği olmadan listelenen # dosya}}"
 
 #. placeholder {0}: details.changedFiles
 #. placeholder {0}: entry.files
@@ -109,6 +119,11 @@ msgstr "{0, plural, other {# kullanım}}"
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {Aday (#)} other {Adaylar (#)}}"
+
+#. placeholder {0}: summary.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {edit} other {edits}}"
+msgstr "{0, plural, one {düzenleme} other {düzenleme}}"
 
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
@@ -204,6 +219,11 @@ msgstr "{0} zaten güncel."
 
 #. placeholder {0}: entry.judgeLabel
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "{0} is comparing the anonymized chat responses…"
+msgstr "{0}, anonimleştirilmiş sohbet yanıtlarını karşılaştırıyor…"
+
+#. placeholder {0}: entry.judgeLabel
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "{0} is comparing the anonymized diffs…"
 msgstr "{0} anonimleştirilmiş farkları karşılaştırıyor…"
 
@@ -217,6 +237,11 @@ msgstr "{0} sınırı"
 msgid "{0} logged out."
 msgstr "{0} oturumu kapatıldı."
 
+#. placeholder {0}: capabilities.models.length
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "{0} models"
+msgstr "{0} model"
+
 #. placeholder {0}: agent.name
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "{0} needs authentication."
@@ -229,8 +254,8 @@ msgstr "{0} giriş gerektiriyor."
 
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
-msgid "{0} of {matchCount}"
-msgstr "{0} / {matchCount}"
+#~ msgid "{0} of {matchCount}"
+#~ msgstr "{0} / {matchCount}"
 
 #. placeholder {0}: projectCount(workspace.id)
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -319,8 +344,8 @@ msgstr "{0}/{1} seçildi"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
-msgid "{0}% Full"
-msgstr "%{0} Dolu"
+#~ msgid "{0}% Full"
+#~ msgstr "%{0} Dolu"
 
 #. placeholder {0}: Math.floor(days / 30)
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
@@ -538,9 +563,17 @@ msgstr "{usedLabel} jeton"
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount} öğeden {visibleCount} tanesi görünür"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "@cursor/sdk is not installed."
+msgstr "@cursor/sdk kurulu değil."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "/absolute/path/to/project"
 #~ msgstr "/absolute/path/to/project"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "/path/to/node_modules/@cursor/sdk"
+#~ msgstr "/yol/node_modules/@cursor/sdk"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "/skill-creator Create a new managed skill for {destination}."
@@ -553,6 +586,14 @@ msgstr "/skill-creator {destinationLabel} için yeni bir yönetilen beceri oluş
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Tüm hakları saklıdır."
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "<0/> of <1/>"
+msgstr "<0/> / <1/>"
+
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "<0/>% Full"
+msgstr "%<0/> Dolu"
 
 #. placeholder {0}: checks.length
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
@@ -645,9 +686,33 @@ msgstr "Hesaplar"
 msgid "ACP"
 msgstr "ACP"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "ACP (installed Cursor Agent)"
+#~ msgstr "ACP (yüklü Cursor Agent)"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP Agents"
 msgstr "ACP Temsilcileri"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "ACP authentication"
+#~ msgstr "ACP kimlik doğrulaması"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "ACP installed"
+msgstr "ACP yüklü"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "ACP not installed"
+msgstr "ACP yüklü değil"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "ACP uses the Cursor Agent login. SDK uses @cursor/sdk with CURSOR_API_KEY."
+#~ msgstr "ACP, Cursor Agent oturumunu kullanır. SDK, CURSOR_API_KEY ile @cursor/sdk kullanır."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "ACP uses the installed Cursor Agent. SDK loads an external @cursor/sdk package."
+#~ msgstr "ACP, yüklü Cursor Agent'ı kullanır. SDK, harici bir @cursor/sdk paketi yükler."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Action command"
@@ -731,6 +796,10 @@ msgstr "Bir aracıyı yüklemeden önce bir proje ekleyin."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before signing in."
 msgstr "Oturum açmadan önce bir proje ekleyin."
+
+#: src/renderer/actions/agentLoginActions.ts
+msgid "Add a project before updating an agent."
+msgstr "Bir aracıyı güncellemeden önce proje ekleyin."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
@@ -1110,6 +1179,14 @@ msgstr "Bu deney için başka bir işlem hâlâ devam ediyor."
 msgid "Antigravity"
 msgstr "Antigravity"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "API key"
+msgstr "API anahtarı"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "API key required"
+msgstr "API anahtarı gerekli"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
 msgstr "API_KEY=value"
@@ -1217,7 +1294,7 @@ msgstr "Aşamalandırılmamış tüm değişiklikleri geri almak istediğinizden
 msgid "Arguments"
 msgstr "Bağımsız değişkenler"
 
-#. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#. placeholder {0}: effectiveAgentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -1273,6 +1350,10 @@ msgstr "Ses"
 msgid "Authenticate"
 msgstr "Kimlik doğrula"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Authenticated"
+msgstr "Kimlik doğrulandı"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Kimlik doğrulama"
@@ -1285,6 +1366,10 @@ msgstr "Kimlik doğrulama gerekli"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Authentication setup cannot be imported"
 msgstr "Kimlik doğrulama ayarları içe aktarılamaz"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Authentication unavailable"
+msgstr "Kimlik doğrulama kullanılamıyor"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Authored"
@@ -1350,6 +1435,7 @@ msgid "Auto-refresh interval in minutes, 0 to turn off"
 msgstr "Dakika cinsinden otomatik yenileme aralığı, kapatmak için 0"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/cursor/index.tsx
 msgid "Auto-review"
 msgstr "Otomatik inceleme"
 
@@ -1362,6 +1448,10 @@ msgstr "Terminal panelini otomatik göster"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Komutları çalıştırırken veya çalışma ağaçları oluştururken terminal panelini otomatik olarak gösterin."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Autopilot"
+msgstr "Otomatik pilot"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Availability"
@@ -1777,6 +1867,7 @@ msgstr "Değişiklik günlüğü"
 #: src/mobile/views/pr/PrChangesPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
@@ -1812,6 +1903,7 @@ msgstr "Kanal"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Chat"
 msgstr "Sohbet"
@@ -1949,6 +2041,14 @@ msgstr "SSH kimlik dosyasını seç"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose the display language for Poracode's interface."
 msgstr "Poracode'un arayüzü için görüntüleme dilini seçin."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
+#~ msgstr "Yeni Cursor GUI sohbetleri için çalışma zamanını seçin. SDK, paketi algılandıktan ve API anahtarı doğrulandıktan sonra kullanılabilir."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Choose the structured runtime for new Cursor GUI threads. Running threads keep their current runtime."
+#~ msgstr "Yeni Cursor GUI iş parçacıkları için yapılandırılmış çalışma zamanını seçin. Çalışan iş parçacıkları mevcut çalışma zamanını korur."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -3115,6 +3215,7 @@ msgstr "Kazanan seçildi"
 #~ msgstr "MCP Market tarafından yönetilen seçilmiş ücretsiz ve premium beceriler."
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
 msgstr "Güncel"
 
@@ -3134,6 +3235,58 @@ msgstr "Güncel seri"
 msgid "Cursor"
 msgstr "Cursor"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Cursor ACP"
+#~ msgstr "Cursor ACP"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Cursor ACP authentication refreshed."
+#~ msgstr "Cursor ACP kimlik doğrulaması yenilendi."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Cursor ACP logged out."
+#~ msgstr "Cursor ACP oturumu kapatıldı."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Cursor CLI (ACP)"
+msgstr "Cursor CLI (ACP)"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Cursor GUI runtime updated."
+#~ msgstr "Cursor GUI çalışma zamanı güncellendi."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Cursor SDK"
+msgstr "Cursor SDK"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Cursor SDK (external package)"
+#~ msgstr "Cursor SDK (harici paket)"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Cursor SDK API key"
+msgstr "Cursor SDK API anahtarı"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Cursor SDK API key removed."
+msgstr "Cursor SDK API anahtarı kaldırıldı."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Cursor SDK API key saved."
+msgstr "Cursor SDK API anahtarı kaydedildi."
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Cursor SDK is up to date."
+msgstr "Cursor SDK güncel."
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Cursor SDK update targets"
+msgstr "Cursor SDK güncelleme hedefleri"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Cursor SDK updated to v{nextVersion}."
+msgstr "Cursor SDK v{nextVersion} sürümüne güncellendi."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -3145,6 +3298,10 @@ msgstr "Özel"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Proje içerik menüsünden erişilebilen özel komutlar (sağ tıklama)."
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "custom path"
+msgstr "özel yol"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -3888,6 +4045,10 @@ msgstr "Geçerli bir proje adı girin."
 msgid "Enter a valid SSH target and port."
 msgstr "Geçerli bir SSH hedefi ve bağlantı noktası girin."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
+#~ msgstr "@cursor/sdk paketi için mutlak bir yol girin veya otomatik keşif için bu alanı boş bırakın."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter one MCP server configuration."
 msgstr "Bir MCP sunucusu yapılandırması girin."
@@ -4207,6 +4368,7 @@ msgstr "Hedef güncellenemedi"
 msgid "Fast"
 msgstr "Hızlı"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "Hızlı mod"
@@ -4353,8 +4515,12 @@ msgid "First-class Command Code CLI integration using Poracode's native runtime.
 msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Command Code CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Cursor Agent integration using Poracode's native runtime."
-msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Cursor Agent entegrasyonu."
+#~ msgid "First-class Cursor Agent integration using Poracode's native runtime."
+#~ msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Cursor Agent entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor integration using ACP or the public SDK runtime."
+msgstr "ACP veya genel SDK çalışma zamanını kullanan birinci sınıf Cursor entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Factory Droid integration using Poracode's ACP runtime."
@@ -4667,6 +4833,10 @@ msgstr "Ana projeden her yeni çalışma ağacına kopyalanacak Git yok sayılan
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (isteğe bağlı etiket)"
 
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "global"
+msgstr "genel"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -4694,6 +4864,14 @@ msgstr "Genel (Windows)"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "Genel klasör"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "global npm"
+msgstr "genel npm"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "global pnpm"
+msgstr "genel pnpm"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Go back in navigation history"
@@ -4754,6 +4932,10 @@ msgstr "Projeleri gruplayın; böylece kenar çubuğu, zamanlamalar ve çekme is
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "GUI chat font size"
 msgstr "GUI sohbet yazı tipi boyutu"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "GUI runtime"
+msgstr "GUI çalışma zamanı"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "handle"
@@ -5048,6 +5230,7 @@ msgstr "yükle"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Install"
@@ -5072,13 +5255,51 @@ msgstr "{0} yükleyin."
 msgid "Install {env}"
 msgstr "{env}'i yükleyin"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Install @cursor/sdk to configure its API key."
+#~ msgstr "API anahtarını yapılandırmak için @cursor/sdk paketini yükleyin."
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Install ACP + SDK"
+msgstr "ACP + SDK'yı yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Install ACP + SDK in {environment}"
+msgstr "ACP + SDK'yı {environment} ortamına yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
+#~ msgstr "ACP'yi, SDK'yı veya her ikisini yükleyin, ardından yeni Cursor GUI sohbetlerini hangi çalışma zamanının başlatacağını seçin. Mevcut sohbetler, onları oluşturan çalışma zamanına bağlı kalır."
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "CLI kancalarını yükle"
 
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Install Cursor Agent (ACP)"
+msgstr "Cursor Agent'ı (ACP) yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Install Cursor Agent (ACP) in {environment}"
+msgstr "Cursor Agent'ı (ACP) {environment} ortamına yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Install Cursor SDK"
+msgstr "Cursor SDK'yı yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Install Cursor SDK in {environment}"
+msgstr "Cursor SDK'yı {environment} ortamına yükle"
+
+#. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in WSL: {distro}"
-msgstr "WSL'ye yükleyin: {distro}"
+msgid "Install in {0}"
+msgstr "{0} ortamına yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#~ msgid "Install in WSL: {distro}"
+#~ msgstr "WSL'ye yükleyin: {distro}"
 
 #. placeholder {0}: props.targetLabel
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -5105,6 +5326,10 @@ msgstr "Tailscale'i yükle"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "MagicDNS üzerinden HTTPS erişimini etkinleştirmek için Tailscale'i yükleyin."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Install the package to add its API key."
+msgstr "API anahtarını eklemek için paketi yükleyin."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -5121,6 +5346,7 @@ msgid "Install v{version}"
 msgstr "v{version} sürümünü yükle"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
@@ -5938,6 +6164,7 @@ msgstr "Yansıtma kullanılamıyor."
 msgid "Mobile push notifications"
 msgstr "Mobil push bildirimleri"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
@@ -5950,6 +6177,10 @@ msgstr "Mod"
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
 msgstr "Model favorilere eklendi"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Model controls"
+#~ msgstr "Model denetimleri"
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
@@ -5983,6 +6214,7 @@ msgstr "Model kullanımı"
 msgid "Models"
 msgstr "Modeller"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Modes"
 msgstr "Modlar"
@@ -6415,6 +6647,10 @@ msgstr "Görüntülenecek değişiklik yok"
 msgid "No changes yet"
 msgstr "Henüz değişiklik yok"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No chat response is available for experiment candidate {threadId}."
+msgstr "{threadId} deney adayı için kullanılabilir sohbet yanıtı yok."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
@@ -6758,6 +6994,7 @@ msgstr "Git deposu değil"
 msgid "Not found"
 msgstr "Bulunamadı"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Not installed"
@@ -7221,6 +7458,10 @@ msgstr "{conflict} kısayolunu geçersiz kılar"
 msgid "Overriding the global setting for this project."
 msgstr "Bu proje için genel ayar geçersiz kılınıyor."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Package"
+msgstr "Paket"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Package config"
 msgstr "Paket yapılandırması"
@@ -7339,6 +7580,10 @@ msgstr "{label} API anahtarını yapıştır"
 msgid "Paste <0>{0}</0> here. Click to copy."
 msgstr "<0>{0}</0> öğesini buraya yapıştırın. Kopyalamak için tıklayın."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Paste Cursor API key"
+msgstr "Cursor API anahtarını yapıştırın"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Paste either a named server object or an object wrapped in an mcpServers key."
 msgstr "Adlandırılmış bir sunucu nesnesi veya mcpServers anahtarı içine alınmış bir nesne yapıştırın."
@@ -7422,6 +7667,10 @@ msgstr "Öğeyi seç"
 msgid "Pick icon"
 msgstr "Simge seç"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
+msgstr "Yeni Cursor GUI sohbetlerinde kullanılacak çalışma zamanını seçin. Her çalışma zamanı ayrı ayrı yüklenir ve kimlik doğrulaması yapar; açık sohbetler başladıkları çalışma zamanını korur."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Picker failed"
 msgstr "Seçici başarısız oldu"
@@ -7450,6 +7699,7 @@ msgstr "Sabitlenmiş görev rotaları"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Plan"
 msgstr "Plan"
 
@@ -7687,6 +7937,10 @@ msgstr "Proje klasörü"
 #: src/renderer/actions/projectActions.ts
 msgid "Project folder updated. Reopen any terminals in this project."
 msgstr "Proje klasörü güncellendi. Bu projedeki terminalleri yeniden açın."
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "project managed"
+msgstr "proje tarafından yönetiliyor"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
@@ -7968,6 +8222,10 @@ msgstr "Port yönlendirmeye erişim izni vermek için bu bağlantıyı yeniden e
 msgid "Reading each candidate's changes…"
 msgstr "Her adayın değişiklikleri okunuyor…"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "Reading each candidate's chat response…"
+msgstr "Her adayın sohbet yanıtı okunuyor…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "Hazır"
@@ -8205,6 +8463,10 @@ msgstr "Claude profilini kaldır"
 msgid "Remove connection"
 msgstr "Bağlantıyı kaldır"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Remove Cursor SDK API key"
+msgstr "Cursor SDK API anahtarını kaldır"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Ortam değişkenini kaldır"
@@ -8417,6 +8679,7 @@ msgstr "Satırı yeniden boyutlandır"
 
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 msgid "Resize sidebar"
 msgstr "Kenar çubuğunu yeniden boyutlandır"
 
@@ -8732,6 +8995,10 @@ msgstr "Erken tükeniyor"
 msgid "Runs out in {runOut}"
 msgstr "{runOut} içinde biter"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Runs through the Cursor CLI. Install it, update it, and sign in from the environment rows above."
+#~ msgstr "Cursor CLI üzerinden çalışır. Yukarıdaki ortam satırlarından yükleyin, güncelleyin ve oturum açın."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Runtime"
@@ -8771,6 +9038,14 @@ msgstr "Değişiklikleri kaydet"
 msgid "Save Claude profile"
 msgstr "Claude profilini kaydet"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Save Cursor GUI runtime"
+#~ msgstr "Cursor GUI çalışma zamanını kaydet"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Save Cursor SDK API key"
+msgstr "Cursor SDK API anahtarını kaydet"
+
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "Dosyayı Kaydet"
@@ -8782,6 +9057,10 @@ msgstr "MCP sunucularını kaydet"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Save shortcut"
 msgstr "Kısayolu kaydet"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+#~ msgid "Saved API key"
+#~ msgstr "Kaydedilmiş API anahtarı"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
@@ -8862,6 +9141,34 @@ msgstr "Terminal geri kaydırma arabelleği için kaydırma hızı çarpanı."
 #: src/renderer/components/thread/ChatPane/ChatScrollControls.tsx
 msgid "Scroll to bottom"
 msgstr "Aşağıya doğru kaydır"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "SDK"
+#~ msgstr "SDK"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "SDK authentication"
+#~ msgstr "SDK kimlik doğrulaması"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "SDK installed"
+msgstr "SDK yüklü"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "SDK mode requires a separately installed @cursor/sdk package and CURSOR_API_KEY. It does not use the Cursor Agent CLI login."
+#~ msgstr "SDK modu, ayrı olarak yüklenmiş bir @cursor/sdk paketi ve CURSOR_API_KEY gerektirir. Cursor Agent CLI oturumunu kullanmaz."
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "SDK not installed"
+msgstr "SDK yüklü değil"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "SDK package path"
+#~ msgstr "SDK paket yolu"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "SDK package path (optional)"
+#~ msgstr "SDK paket yolu (isteğe bağlı)"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -9334,6 +9641,7 @@ msgstr "Eşleştirilmiş masaüstünde oturum açın, ardından bu durumu yenile
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Sign in required"
 msgstr "Oturum açmanız gerekiyor"
 
@@ -9808,6 +10116,10 @@ msgstr "Bu cihazda saklanır; masaüstü kendi değerlerini korur."
 #~ msgid "Stored on this phone; the desktop keeps its own values."
 #~ msgstr "Bu telefonda saklanır; masaüstü kendi değerlerini korur."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Structured runtime"
+msgstr "Yapılandırılmış çalışma zamanı"
+
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
@@ -9895,6 +10207,8 @@ msgid "Support:"
 msgstr "Destek:"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Supports Fast mode"
 msgstr "Hızlı modu destekler"
 
@@ -10236,6 +10550,10 @@ msgstr "Deponun diskteki konumu. Klasörü taşıdıysanız güncelleyin."
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #~ msgid "The selected model compares anonymized snapshots of each candidate's changes. It recommends a winner without merging anything."
 #~ msgstr "Seçilen model, her adayın değişikliklerinin anonimleştirilmiş anlık görüntülerini karşılaştırır. Hiçbir şeyi birleştirmeden bir kazanan önerir."
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+msgid "The selected model compares each candidate's chat response under anonymous labels. Files in their worktrees are ignored."
+msgstr "Seçilen model, her adayın sohbet yanıtını anonim etiketlerle karşılaştırır. Worktree’lerindeki dosyalar yok sayılır."
 
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
@@ -11096,7 +11414,12 @@ msgstr "Desteklenmiyor"
 msgid "Up one level"
 msgstr "Bir seviye yukarı"
 
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+msgid "update"
+msgstr "güncelleme"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "Güncelleme"
@@ -11118,6 +11441,15 @@ msgstr "Şubeyi güncelle"
 msgid "Update checks are not available in development mode."
 msgstr "Geliştirme modunda güncelleme denetimi kullanılamaz."
 
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Update Cursor SDK"
+msgstr "Cursor SDK'yı güncelle"
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Update Cursor SDK in {environment}"
+msgstr "{environment} ortamındaki Cursor SDK'yı güncelle"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
 msgstr "Güncelleme hatası: {detail}"
@@ -11129,6 +11461,10 @@ msgstr "Güncelleme yöntemi"
 #: src/mobile/views/PortsView.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
 msgstr "Port yönlendirmeyi kullanmak için masaüstünüzdeki Poracode'u güncelleyin."
+
+#: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+msgid "Update SDK"
+msgstr "SDK'yı güncelle"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
@@ -11183,6 +11519,10 @@ msgstr "{0} güncelleniyor"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0} ({env})"
 msgstr "{0} ({env}) güncelleniyor"
+
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+msgid "Updating in this terminal. Closes when finished."
+msgstr "Bu terminalde güncelleniyor. Tamamlandığında kapanır."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "URL"
@@ -11614,6 +11954,7 @@ msgstr "Kazanan birleştirildi."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Work"
 msgstr "İş"
 
@@ -11621,7 +11962,7 @@ msgstr "İş"
 msgid "Work in the current checkout"
 msgstr "Mevcut çalışma kopyasında çalışın"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Worked for {elapsed}"
 msgstr "{elapsed} boyunca çalıştı"
@@ -11664,7 +12005,7 @@ msgstr "İş akışları"
 msgid "Working"
 msgstr "Çalışıyor"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
 msgstr "{elapsed} boyunca çalışıyor"
 
@@ -11801,6 +12142,10 @@ msgstr "WSL temel klasörü"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "WSL user"
 #~ msgstr "WSL kullanıcısı"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "WSL: {distro}"
+msgstr "WSL: {distro}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Your local changes are stashed and will be re-applied when you commit or abort this merge."

@@ -41,6 +41,15 @@ function lastWrite(): string {
   return bridge.writeTerminal.mock.calls.at(-1)?.[0].data ?? "";
 }
 
+function unwrapBashScript(script: string): string {
+  const prefix = "command bash -c ";
+  expect(script.startsWith(prefix)).toBe(true);
+  const quoted = script.slice(prefix.length).replace(/ && exit\r$/u, "");
+  expect(quoted.startsWith("'")).toBe(true);
+  expect(quoted.endsWith("'")).toBe(true);
+  return quoted.slice(1, -1).replaceAll("'\\''", "'");
+}
+
 describe("appendExitOnSuccess", () => {
   it("uses `&& exit` for posix shells (exit is a command)", () => {
     expect(appendExitOnSuccess("npm ci", "posix")).toBe("npm ci && exit");
@@ -256,7 +265,11 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
     const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
     expect(token).toBeTruthy();
-    expect(lastWrite()).toContain('if [ "$__poracode_setup_exit" -eq 0 ]; then exit; fi');
+    expect(lastWrite()).toMatch(/^command bash -c /u);
+    expect(lastWrite()).toMatch(/ && exit\r$/u);
+    const innerScript = unwrapBashScript(lastWrite());
+    expect(innerScript).toContain("__poracode_setup_exit=$?");
+    expect(innerScript).toContain('exit "$__poracode_setup_exit"');
 
     const marker = `\u001B]777;poracode-shell-complete=${token}:1\u0007`;
     emit({ type: "thread-output", threadId: "shell:1", data: marker, outputLength: marker.length });
@@ -264,6 +277,20 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     expect(onCommandComplete).toHaveBeenCalledWith(1);
     expect(onExit).not.toHaveBeenCalled();
     expect(supervisorHandlers).toHaveLength(1);
+  });
+
+  it("quotes setup scripts before handing completion tracking to bash", () => {
+    writeScriptToShellThenExitOnSuccess(
+      "shell:1",
+      'printf "it\'s ready"',
+      "posix",
+      () => {},
+      () => {},
+    );
+
+    emit({ type: "thread-output", threadId: "shell:1", data: "> ", outputLength: 2 });
+
+    expect(unwrapBashScript(lastWrite())).toContain('printf "it\'s ready"');
   });
 
   it("reports command completion only once when a successful shell exits", () => {

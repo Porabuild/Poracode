@@ -22,8 +22,14 @@ import type {
   Thread,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
-import { pickRemoteSettings, type RemoteSettings } from "@/shared/remote";
+import {
+  isRemoteOmittedField,
+  pickRemoteSettings,
+  readRemoteImageRef,
+  type RemoteSettings,
+} from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
+import { emptyGitStateSnapshot } from "@/shared/gitState";
 import type { BrowserPanelManager } from "../browser";
 import {
   dbAppendThreadCompletedTurn,
@@ -47,6 +53,7 @@ import {
   dbReplaceThreadRuntimeSnapshot,
   dbSetState,
   dbSetProjectNotes,
+  dbTruncateThreadRuntimeAfter,
   dbUpsertProject,
   dbUpsertThread,
 } from "../db";
@@ -98,6 +105,7 @@ vi.mock("../db", () => {
       appState.set(key, value);
     }),
     dbSetProjectNotes: vi.fn<(notes: unknown) => void>(),
+    dbTruncateThreadRuntimeAfter: vi.fn<(...args: unknown[]) => void>(),
     dbGetAllUsageEvents: vi.fn<() => unknown[]>(() => []),
     getProfileDataGeneration: vi.fn<() => number>(() => profileDataGeneration),
     bumpProfileDataGeneration: vi.fn<() => void>(() => {
@@ -161,6 +169,7 @@ afterEach(async () => {
   dbSetState("poracode-experiments-v1", "");
   vi.mocked(dbSetState).mockClear();
   vi.mocked(dbSetProjectNotes).mockReset();
+  vi.mocked(dbTruncateThreadRuntimeAfter).mockReset();
 });
 
 function createTestProject(overrides: Partial<Project> = {}): Project {
@@ -1027,6 +1036,118 @@ describe("RemoteAccessServer", () => {
     expect(dbGetThreadContextUsage).not.toHaveBeenCalled();
   });
 
+  it("serves host Git state and owns WebSocket interest lifetimes", async () => {
+    type GitStateGateway = NonNullable<RemoteAccessServerOptions["gitState"]>;
+    const setInterests = vi.fn<GitStateGateway["setInterests"]>();
+    const clearInterests = vi.fn<GitStateGateway["clearInterests"]>();
+    const gitState: GitStateGateway = {
+      getSnapshot: () => ({ ...emptyGitStateSnapshot(), revision: 7 }),
+      setInterests,
+      clearInterests,
+      refreshTarget: vi.fn<GitStateGateway["refreshTarget"]>(async () => {}),
+      refreshPullRequestReviewBundle: vi.fn<GitStateGateway["refreshPullRequestReviewBundle"]>(
+        async () => {},
+      ),
+      refreshProjectPullRequests: vi.fn<GitStateGateway["refreshProjectPullRequests"]>(
+        async () => {},
+      ),
+    };
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+        async () => undefined as never,
+      ),
+      gitState,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const snapshotResponse = await fetch(new URL("/api/snapshot", info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    await expect(snapshotResponse.json()).resolves.toMatchObject({
+      gitState: { revision: 7 },
+    });
+
+    const ticket = await issueWebSocketTicket(info, token);
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket);
+    const ws = new WebSocket(wsUrl);
+    // Register the reader before awaiting `open`: the server sends `ready`
+    // immediately on connection, so a listener attached after the open event can
+    // miss a frame delivered in the same tick.
+    const readyPromise = readWsMessage(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", resolve);
+      ws.once("error", reject);
+    });
+    await readyPromise;
+    ws.send(
+      JSON.stringify({
+        type: "git-state-interests",
+        interests: [
+          {
+            kind: "target",
+            projectId: "project-1",
+            worktreePath: "/repo/worktree",
+            includePrDetails: true,
+          },
+        ],
+      }),
+    );
+    await vi.waitFor(() => expect(setInterests).toHaveBeenCalledTimes(1));
+    const ownerId = setInterests.mock.calls[0]![0] as string;
+    expect(setInterests).toHaveBeenCalledWith(ownerId, [
+      {
+        kind: "target",
+        projectId: "project-1",
+        worktreePath: "/repo/worktree",
+        includePrDetails: true,
+      },
+    ]);
+
+    const closed = new Promise<void>((resolve) => ws.once("close", () => resolve()));
+    ws.close();
+    await closed;
+    await vi.waitFor(() => expect(clearInterests).toHaveBeenCalledWith(ownerId));
+  });
+
+  it("serves and guards the image-reference endpoint", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+
+    const refUrl = (path: string, threadId = "thread-1", itemId = "item-1") => {
+      const url = new URL(`/api/threads/${threadId}/items/${itemId}/image`, info.httpBaseUrl);
+      url.searchParams.set("path", path);
+      url.searchParams.set("access_token", token);
+      return url;
+    };
+
+    // Unauthenticated requests are rejected before any lookup happens.
+    const noToken = new URL("/api/threads/thread-1/items/item-1/image", info.httpBaseUrl);
+    noToken.searchParams.set("path", '["images",0]');
+    expect((await fetch(noToken)).status).toBe(401);
+
+    // A malformed reference path is a client error, not a lookup.
+    expect((await fetch(refUrl("not-json"))).status).toBe(400);
+    expect((await fetch(refUrl("[]"))).status).toBe(400);
+
+    // These tests have no DB attached, so a well-formed reference resolves to
+    // nothing — which must be a clean 404 rather than a crash.
+    expect((await fetch(refUrl('["images",0]'))).status).toBe(404);
+  });
+
   it("serves local image files over the authenticated image endpoint", async () => {
     const dir = createTempDir();
     const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -1185,6 +1306,324 @@ describe("RemoteAccessServer", () => {
     expect(terminate).toHaveBeenCalled();
     expect(clients.has(serverSocket!)).toBe(false);
     await closed;
+  });
+
+  it("scopes transcript content per connection without breaking approvals or replay", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      ownsSupervisorPersistence: false,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    // One client watches thread-A; the other never declares interests at all,
+    // standing in for an older client that must keep receiving everything. Both
+    // ride one access token because a pairing credential is single-use.
+    const token = await issueAccessToken(info, ["session:read"]);
+    const openSocket = async () => {
+      const ticket = await issueWebSocketTicket(info, token);
+      const url = new URL("/ws", info.wsBaseUrl);
+      url.searchParams.set("ticket", ticket);
+      const ws = new WebSocket(url);
+      // Reader before `open`: `ready` can arrive in the same tick.
+      const next = createWsReader(ws);
+      await new Promise<void>((resolve, reject) => {
+        ws.once("open", resolve);
+        ws.once("error", reject);
+      });
+      expect(await next()).toMatchObject({ type: "ready" });
+      return { ws, next };
+    };
+    const watcher = await openSocket();
+    const legacy = await openSocket();
+    const watcherNext = watcher.next;
+    const legacyNext = legacy.next;
+    watcher.ws.send(JSON.stringify({ type: "thread-item-interests", threadIds: ["thread-A"] }));
+    await vi.waitFor(() => {
+      const interests = (server as unknown as { itemInterests: Map<unknown, ReadonlySet<string>> })
+        .itemInterests;
+      expect(interests.size).toBe(1);
+    });
+
+    const itemEventFor = (threadId: string) =>
+      ({
+        type: "thread-runtime-event",
+        threadId,
+        event: {
+          type: "item.completed",
+          threadId,
+          itemId: `${threadId}-item`,
+          payload: { name: "bash", result: "R".repeat(5_000) },
+        },
+      }) as const;
+
+    // Content for the watched thread arrives intact.
+    server.publishSupervisorEvent(itemEventFor("thread-A"));
+    const watchedFrame = (await watcherNext()) as {
+      seq: number;
+      event: { event: { payload: { result: string } } };
+    };
+    expect(watchedFrame.seq).toBe(1);
+    expect(watchedFrame.event.event.payload.result).toHaveLength(5_000);
+    expect(await legacyNext()).toMatchObject({ seq: 1 });
+
+    // Content for an unwatched thread is emptied for the watcher...
+    server.publishSupervisorEvent(itemEventFor("thread-B"));
+    const scoped = (await watcherNext()) as {
+      seq: number;
+      event: { type: string; threadId: string; events: unknown[] };
+    };
+    expect(scoped.seq).toBe(2);
+    expect(scoped.event).toEqual({
+      type: "thread-runtime-events",
+      threadId: "thread-B",
+      events: [],
+    });
+    // ...while the client that never declared interests still gets it in full.
+    const legacyFrame = (await legacyNext()) as {
+      seq: number;
+      event: { event: { payload: { result: string } } };
+    };
+    expect(legacyFrame.seq).toBe(2);
+    expect(legacyFrame.event.event.payload.result).toHaveLength(5_000);
+
+    // A permission request on an UNWATCHED thread must still reach the watcher,
+    // or a background thread would block on an approval nobody can see.
+    server.publishSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: "thread-B",
+      event: {
+        type: "request.opened",
+        threadId: "thread-B",
+        requestId: "req-1",
+        requestType: "tool_call_approval",
+        payload: { summary: "Allow this tool?" },
+      },
+    });
+    expect(await watcherNext()).toMatchObject({
+      seq: 3,
+      event: { event: { type: "request.opened", requestId: "req-1" } },
+    });
+
+    // Every seq was delivered to both clients, so the replay contiguity check
+    // still holds and neither client is forced into a spurious resync.
+    const buffer = (server as unknown as { eventBuffer: unknown[] }).eventBuffer;
+    expect(buffer).toHaveLength(3);
+  });
+
+  it("replaces inline images with references on the live event stream", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      ownsSupervisorPersistence: false,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const { ws, ready } = await openPairedSocket(info);
+    expect(ready).toMatchObject({ type: "ready", seq: 0 });
+    const nextMessage = createWsReader(ws);
+
+    const clients = (server as unknown as { clients: Map<WebSocket, unknown> }).clients;
+    const serverSocket = [...clients.keys()][0];
+
+    // 3 MB of inline PNG, prefixed with a real 1x1 PNG header so the host can
+    // read its intrinsic size. Before the projection this rode the socket in full
+    // and was the dominant source of remote traffic.
+    const pngHeader =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8AABAwMDAwMDAAAAP//AwABAAEAAQABAAEA";
+    const inline = `data:image/png;base64,${pngHeader}${"A".repeat(3_000_000)}`;
+    server.publishSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: "thread-1",
+      event: {
+        type: "item.completed",
+        threadId: "thread-1",
+        itemId: "image_view-1",
+        payload: { name: "imageView", status: "success", images: [inline] },
+      },
+    });
+
+    const message = (await nextMessage()) as {
+      type: string;
+      event: { event: { payload: { images: unknown[]; name: string } } };
+    };
+    expect(message.type).toBe("event");
+    const payload = message.event.event.payload;
+    const ref = readRemoteImageRef(payload.images[0]);
+    expect(ref).toMatchObject({
+      threadId: "thread-1",
+      itemId: "image_view-1",
+      path: ["images", 0],
+      mime: "image/png",
+    });
+    // Intrinsic size rides along even on the LIVE path, so a streaming image
+    // lands in a slot the timeline already reserved instead of shoving the
+    // transcript down when its bytes arrive.
+    expect(ref?.width).toBe(1);
+    expect(ref?.height).toBe(1);
+    expect(payload.name).toBe("imageView");
+    // The frame is now tiny, so the size cap never had to withhold anything.
+    expect(JSON.stringify(message).length).toBeLessThan(4000);
+    expect(clients.has(serverSocket!)).toBe(true);
+  });
+
+  it("gzips and revalidates the shell snapshot", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+
+    const first = await fetch(new URL("/api/snapshot", info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${token}`, "accept-encoding": "gzip" },
+    });
+    expect(first.status).toBe(200);
+    expect(first.headers.get("vary")).toBe("Accept-Encoding");
+    const etag = first.headers.get("etag");
+    expect(etag).toBeTruthy();
+    // The snapshot still parses through the transparent gzip decode.
+    await expect(first.json()).resolves.toMatchObject({ threads: expect.any(Array) });
+
+    // Unchanged content revalidates to a bodyless 304 instead of resending the
+    // whole snapshot — this is the refetch-on-every-status-event path.
+    const second = await fetch(new URL("/api/snapshot", info.httpBaseUrl), {
+      headers: {
+        authorization: `Bearer ${token}`,
+        "accept-encoding": "gzip",
+        "if-none-match": etag!,
+      },
+    });
+    expect(second.status).toBe(304);
+    expect(await second.text()).toBe("");
+
+    // A stale tag from a different body must not be honored.
+    const third = await fetch(new URL("/api/snapshot", info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${token}`, "if-none-match": '"stale-tag"' },
+    });
+    expect(third.status).toBe(200);
+    await third.arrayBuffer();
+  });
+
+  it("keeps clients connected when a runtime event exceeds the outbound budget", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      ownsSupervisorPersistence: false,
+      maxWebSocketOutboundBufferBytes: 200_000,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const { ws, ready } = await openPairedSocket(info);
+    expect(ready).toMatchObject({ type: "ready", seq: 0 });
+    const nextMessage = createWsReader(ws);
+
+    const clients = (server as unknown as { clients: Map<WebSocket, unknown> }).clients;
+    const serverSocket = [...clients.keys()][0];
+    expect(serverSocket).toBeDefined();
+
+    // A 400 KB tool result against a 200 KB socket budget: before the size guard
+    // this terminated every connected client. Inline images take the lossless
+    // reference path instead (covered separately), so this exercises the cap with
+    // the payload shape that genuinely cannot be referenced — bulk text.
+    server.publishSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: "thread-1",
+      event: {
+        type: "item.completed",
+        threadId: "thread-1",
+        itemId: "tool_call-1",
+        payload: {
+          name: "bash",
+          args: { command: "cat huge.log" },
+          status: "success",
+          result: "R".repeat(400_000),
+        },
+      },
+    });
+
+    const message = (await nextMessage()) as {
+      type: string;
+      seq: number;
+      event: { event: { payload: Record<string, unknown> } };
+    };
+    expect(message.type).toBe("event");
+    expect(message.seq).toBe(1);
+    // Descriptive fields survive; only the bulk field is withheld.
+    const payload = message.event.event.payload;
+    expect(payload.name).toBe("bash");
+    expect(payload.args).toEqual({ command: "cat huge.log" });
+    expect(isRemoteOmittedField(payload.result)).toBe(true);
+
+    // The client is still connected and still on the live stream.
+    expect(clients.has(serverSocket!)).toBe(true);
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+
+    server.publishSupervisorEvent({
+      type: "thread-state",
+      threadId: "thread-1",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+    expect(await nextMessage()).toMatchObject({ type: "event", seq: 2 });
+    expect(clients.has(serverSocket!)).toBe(true);
+  });
+
+  it("asks clients to resync when an event cannot be shrunk to fit", async () => {
+    const onOversizedEventDropped =
+      vi.fn<NonNullable<RemoteAccessServerOptions["onOversizedEventDropped"]>>();
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      ownsSupervisorPersistence: false,
+      maxWebSocketOutboundBufferBytes: 200_000,
+      onOversizedEventDropped,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const { ws, ready } = await openPairedSocket(info);
+    expect(ready).toMatchObject({ type: "ready", seq: 0 });
+    const nextMessage = createWsReader(ws);
+
+    const clients = (server as unknown as { clients: Map<WebSocket, unknown> }).clients;
+    const serverSocket = [...clients.keys()][0];
+
+    // `remote-git-state` carries no runtime payload the guard can strip, so an
+    // oversized patch must degrade to a resync rather than a disconnect.
+    server.publishSupervisorEvent({
+      type: "remote-git-state",
+      patch: { revision: 1, pullRequests: { pr: { diff: "d".repeat(300_000) } } } as never,
+    });
+
+    expect(await nextMessage()).toMatchObject({ type: "resync-required", seq: 1 });
+    expect(onOversizedEventDropped).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "remote-git-state" }),
+    );
+    expect(clients.has(serverSocket!)).toBe(true);
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+
+    // The undeliverable event is not buffered, so a client reconnecting from an
+    // older cursor is told to resync instead of being fed it again.
+    const eventBuffer = (server as unknown as { eventBuffer: unknown[] }).eventBuffer;
+    expect(eventBuffer).toHaveLength(0);
   });
 
   it("drops websocket clients before outbound buffers grow without bound", async () => {
@@ -2305,6 +2744,148 @@ describe("RemoteAccessServer", () => {
     ]);
   });
 
+  it("enqueues a new worktree setup exactly once before launching the remote thread", async () => {
+    const project = createTestProject();
+    vi.mocked(dbGetProjects).mockReturnValue([project]);
+    mockThreadDb();
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => ({ threadId: "thread-worktree" }) as never,
+    );
+    const dispatchThreadCommand = vi.fn<
+      NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
+    >(() => true);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+      dispatchThreadCommand,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(
+      new URL("/api/threads/thread-worktree/command", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          kind: "start",
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "gpt-5" },
+          prompt: "start from the PWA",
+          worktreePath: "/repo/worktrees/mobile-fix",
+          worktreeBranch: "mobile-fix",
+          isNewWorktree: true,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dispatchThreadCommand).toHaveBeenNthCalledWith(1, {
+      kind: "prepare-worktree",
+      threadId: "thread-worktree",
+      projectId: project.id,
+      worktreePath: "/repo/worktrees/mobile-fix",
+    });
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "startThread",
+      expect.objectContaining({ threadId: "thread-worktree" }),
+    );
+    expect(dispatchThreadCommand).toHaveBeenCalledTimes(2);
+    expect(dispatchThreadCommand).toHaveBeenNthCalledWith(
+      2,
+      expect.not.objectContaining({ isNewWorktree: true }),
+    );
+    expect(dispatchThreadCommand.mock.invocationCallOrder[0]).toBeLessThan(
+      callSupervisor.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("does not enqueue setup when a remote thread reuses an existing worktree", async () => {
+    const project = createTestProject();
+    vi.mocked(dbGetProjects).mockReturnValue([project]);
+    mockThreadDb();
+    const dispatchThreadCommand = vi.fn<
+      NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
+    >(() => true);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+        async () => ({ threadId: "thread-existing" }) as never,
+      ),
+      dispatchThreadCommand,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(
+      new URL("/api/threads/thread-existing/command", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          kind: "start",
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "gpt-5" },
+          prompt: "reuse from the PWA",
+          worktreePath: "/repo/worktrees/existing",
+          worktreeBranch: "existing",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dispatchThreadCommand).toHaveBeenCalledTimes(1);
+    expect(dispatchThreadCommand).not.toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "prepare-worktree" }),
+    );
+  });
+
+  it("truncates durable remote runtime history during a PWA checkpoint revert", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+        async () => undefined as never,
+      ),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+
+    const response = await fetch(
+      new URL("/api/threads/thread-1/runtime/truncate", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ itemId: "user-2" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledWith("thread-1", "user-2");
+  });
+
   it("only restarts existing remote threads through the legacy start endpoint", async () => {
     mockThreadDb([createTestThread()]);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
@@ -2534,6 +3115,7 @@ describe("RemoteAccessServer", () => {
       worktreePath: "/repo/wt",
       threadIds: ["thread-1", "thread-2"],
     });
+    expect(db.threads()).toEqual([]);
 
     rendererAvailable = false;
     const unavailableResponse = await fetch(
@@ -2761,6 +3343,7 @@ describe("RemoteAccessServer", () => {
 
   it("applies project commands only for projects:manage tokens and broadcasts changes", async () => {
     let projects: Project[] = [];
+    const onProjectsChanged = vi.fn<(projects: readonly Project[]) => void>();
     vi.mocked(dbGetProjects).mockImplementation(() => projects);
     vi.mocked(dbUpsertProject).mockImplementation((project) => {
       const parsed = project as Project;
@@ -2772,6 +3355,7 @@ describe("RemoteAccessServer", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      onProjectsChanged,
     });
     servers.push(server);
     const info = await server.start();
@@ -2845,6 +3429,7 @@ describe("RemoteAccessServer", () => {
       expect.objectContaining({ name: "new-app" }),
       expect.any(Number),
     );
+    expect(onProjectsChanged).toHaveBeenCalledWith([expect.objectContaining({ name: "new-app" })]);
     expect(await read()).toMatchObject({
       type: "event",
       event: {
@@ -3804,6 +4389,7 @@ describe("RemoteAccessServer", () => {
     const remove = vi.fn<(projectId: string, prNumber: number) => void>(() => {
       stored = null;
     });
+    const requestCheck = vi.fn<(projectId: string, prNumber: number) => void>();
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
@@ -3812,6 +4398,7 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       prWatches: {
         get: () => stored,
+        requestCheck,
         upsert,
         delete: remove,
       },
@@ -3869,6 +4456,14 @@ describe("RemoteAccessServer", () => {
       },
     });
     expect(upsert).toHaveBeenCalledWith(input);
+
+    const checkResponse = await fetch(new URL("/api/pr-watches/check", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify({ projectId: "project-1", prNumber: 42 }),
+    });
+    expect(checkResponse.status).toBe(200);
+    expect(requestCheck).toHaveBeenCalledWith("project-1", 42);
 
     const deleteResponse = await fetch(new URL("/api/pr-watches", info.httpBaseUrl), {
       method: "DELETE",

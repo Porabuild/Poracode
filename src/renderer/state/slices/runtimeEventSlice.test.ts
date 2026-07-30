@@ -50,6 +50,30 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
+  it("records a local completion timestamp without replacing the start timestamp", () => {
+    const startedBefore = Date.now();
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i1",
+      itemType: "tool_call",
+      payload: { name: "spawnAgent", status: "running", isSubAgent: true },
+    });
+    const startedAt = store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.startedAt;
+    expect(startedAt).toBeGreaterThanOrEqual(startedBefore);
+
+    apply("t1", {
+      type: "item.completed",
+      threadId: "t1",
+      itemId: "i1",
+      payload: { status: "success" },
+    });
+
+    const item = store.getState().runtimeItemsByIdByThread["t1"]?.["i1"];
+    expect(item?.startedAt).toBe(startedAt);
+    expect(item?.completedAt).toBeGreaterThanOrEqual(startedAt ?? 0);
+  });
+
   it("is idempotent for repeated item.started with the same id", () => {
     apply("t1", {
       type: "item.started",

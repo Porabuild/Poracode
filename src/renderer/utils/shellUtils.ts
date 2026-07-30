@@ -59,6 +59,10 @@ function shellCompletionMarker(token: string): string {
   return `\u001B]777;poracode-shell-complete=${token}:`;
 }
 
+function quotePosixShellArg(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
 function buildScriptWithCompletion(
   script: string,
   locationKind: ProjectLocation["kind"],
@@ -84,12 +88,17 @@ function buildScriptWithCompletion(
   }
 
   const exitCode = "__poracode_setup_exit";
-  return [
+  const bashCommand = [
     lines.join(" && "),
     `${exitCode}=$?`,
     `printf '\\033]777;poracode-shell-complete=${token}:%s\\007' "$${exitCode}"`,
-    `if [ "$${exitCode}" -eq 0 ]; then exit; fi`,
+    `exit "$${exitCode}"`,
   ].join("; ");
+  // The interactive POSIX shell may be fish, whose assignment and conditional
+  // syntax differs from bash. Keep completion bookkeeping in bash, then let
+  // the outer shell exit only when the child reports success. On failure the
+  // interactive shell remains open for inspection.
+  return `command bash -c ${quotePosixShellArg(bashCommand)} && exit`;
 }
 
 export function buildScriptWithExitOnSuccess(

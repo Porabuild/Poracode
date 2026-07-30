@@ -5,6 +5,7 @@ import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts"
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ChatPane } from "./ChatPane";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 const {
   hydrateThreadRuntimeItems,
@@ -1450,7 +1451,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    const trigger = screen.getByText(/^2 commands$/).closest("button");
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     fireEvent.click(trigger!);
@@ -1468,7 +1469,7 @@ describe("ChatPane", () => {
     const { container } = renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    const trigger = screen.getByText(/^2 commands$/).closest("button");
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
     const groupRow = trigger?.closest<HTMLElement>("[data-chat-virtual-row='true']");
     const assistantRow = container.querySelector<HTMLElement>(
       "[data-chat-virtual-row='true'][data-item-id='assistant-after-group']",
@@ -1511,7 +1512,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    const trigger = screen.getByText(/^2 commands$/).closest("button");
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     act(() => {

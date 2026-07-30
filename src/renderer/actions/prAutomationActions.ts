@@ -1,6 +1,7 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { authStateForPresentation } from "@/shared/agentSelection";
 import type { AgentStatus, PrWatch, Project, ScheduledTaskConfig } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
 import { friendlyError } from "@/shared/messages";
@@ -33,7 +34,11 @@ export function resolvePrAutomationAgent(
   const agents = getProjectAgentStatuses(project.location, windowsAgents, wslAgents)
     .filter((agent) => {
       const modes = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-      return agent.installed && agent.authState !== "missing" && modes.includes("gui");
+      return (
+        agent.installed &&
+        authStateForPresentation(agent, "gui") !== "missing" &&
+        modes.includes("gui")
+      );
     })
     .map((agent) => agentWithCapabilities(agent, "gui"))
     .filter((agent) => agent.capabilities.models.length > 0);

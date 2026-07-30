@@ -47,6 +47,7 @@ import {
   setProfileIdentityResponse,
 } from "../profile";
 import {
+  applyAgentSecretSetting,
   applyClaudeProfileEnvironment,
   mergeManagedSharedSettings,
   readSharedSettingsFile,
@@ -351,6 +352,17 @@ export function createLocalIpcHandlers(
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.(merged);
     },
+    setAgentSecretSetting: (payload) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const { settings, storedValue } = applyAgentSecretSetting(
+        readSharedSettingsFile(settingsPath),
+        payload,
+        dirname(settingsPath),
+      );
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return { storedValue };
+    },
     removeCrossagentRoutingOverride: ({ tags }) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
       const current = readSharedSettingsFile(settingsPath);
@@ -456,6 +468,8 @@ export function createLocalIpcHandlers(
     runScheduleNow: ({ id }) => options.scheduleService.runNow(id),
     getScheduleRuns: ({ id }) => dbListScheduleRuns(id),
     getPrWatch: ({ projectId, prNumber }) => options.prWatchService.get(projectId, prNumber),
+    checkPrWatch: ({ projectId, prNumber }) =>
+      options.prWatchService.requestCheck(projectId, prNumber),
     upsertPrWatch: (watch) => options.prWatchService.upsert(watch),
     deletePrWatch: ({ projectId, prNumber }) => options.prWatchService.delete(projectId, prNumber),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),

@@ -150,6 +150,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "experiment.judge.noChanges": msg({
     message: "The candidates have not made any changes yet.",
   }),
+  "experiment.judge.noResponse": msg({
+    message: "No chat response is available for experiment candidate {threadId}.",
+  }),
   "experiment.judge.promptBlank": msg({ message: "Experiment prompt must not be blank" }),
   "experiment.judge.uniqueThreadIds": msg({
     message: "Experiment candidate thread ids must be unique",

@@ -75,6 +75,45 @@ describe("threadContextUsage", () => {
     expect(summary.breakdown).toEqual([{ id: "input", label: "Input", tokens: 71_000 }]);
   });
 
+  it("uses the session-pinned runtime's context catalog", () => {
+    const sdkCapabilities = {
+      ...baseAgent.capabilities,
+      models: [{ id: "sdk-model", label: "Pinned SDK model" }],
+      contextSizes: [{ id: "272k", label: "272K" }],
+      modelContextSizes: { "sdk-model": ["272k"] },
+      defaultContextSize: "272k",
+    };
+    const summary = resolveThreadContextUsageSummary({
+      thread: {
+        ...baseThread,
+        agentKind: "cursor",
+        config: { model: "sdk-model" },
+        sessionRef: {
+          providerSessionId: "sdk:session-1",
+          discoveredAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+      agentStatus: {
+        ...baseAgent,
+        kind: "cursor",
+        runtimeVariants: {
+          sdk: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "authenticated",
+            authUsesProviderLogin: false,
+            capabilities: sdkCapabilities,
+          },
+        },
+        sessionRuntimeRouting: { prefixes: { "sdk:": "sdk" } },
+      },
+      reportedUsage: { usedTokens: 68_000 },
+    });
+
+    expect(summary.maxTokens).toBe(272_000);
+    expect(summary.percent).toBe(25);
+  });
+
   it("keeps provider-reported max authoritative over the selected context intent", () => {
     const summary = resolveThreadContextUsageSummary({
       thread: { ...baseThread, config: { model: "claude-opus-4-7", contextSize: "1m" } },

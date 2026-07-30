@@ -1,7 +1,8 @@
 import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
-import { remoteGitSummariesEventSchema } from "@/shared/remote";
+import { remoteGitStateEventSchema, remoteGitSummariesEventSchema } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { handleThreadStateNotification } from "@/renderer/notifications";
@@ -429,6 +430,8 @@ export interface RemoteDispatchHooks {
    * these events out before dispatch and so supplies no hook.
    */
   readonly onGitSummaries?: (summaries: RemoteGitSummaries) => void;
+  /** Applies the host-owned normalized Git/PR read model on remote clients. */
+  readonly onGitState?: (patch: GitStatePatch) => void;
 }
 
 export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
@@ -447,6 +450,11 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
     // the core does not own. Mobile attaches its hydration hook here; desktop
     // never reaches this branch (its event filter drops desktop-global events).
     hooks?.onGitSummaries?.(gitSummaries.data.summaries);
+    return;
+  }
+  const gitState = remoteGitStateEventSchema.safeParse(value);
+  if (gitState.success) {
+    hooks?.onGitState?.(gitState.data.patch);
     return;
   }
 

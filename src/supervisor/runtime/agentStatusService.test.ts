@@ -1,9 +1,10 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { encryptSecret } from "@/shared/secretStorage";
 import type { AgentAdapter } from "../agents/base";
 
 vi.mock("../agents/base", async (importActual) => {
@@ -94,18 +95,20 @@ function makeService(detectInstall: AgentAdapter["detectInstall"]): {
 function makeMultiAdapterService(adapters: AgentAdapter[]): {
   service: AgentStatusService;
   statusCachePath: string;
+  settingsPath: string;
   emit: ReturnType<typeof vi.fn<(event: SupervisorEvent) => void>>;
 } {
   const dir = makeTempDir();
   const statusCachePath = join(dir, "agent-statuses.json");
+  const settingsPath = join(dir, "settings.json");
   const emit = vi.fn<(event: SupervisorEvent) => void>();
   const service = new AgentStatusService({
     adapters: new Map(adapters.map((a) => [a.kind, a])),
-    settingsPath: join(dir, "settings.json"),
+    settingsPath,
     statusCachePath,
     emit,
   });
-  return { service, statusCachePath, emit };
+  return { service, statusCachePath, settingsPath, emit };
 }
 
 describe("AgentStatusService", () => {
@@ -293,5 +296,62 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detected).toContainEqual(
       expect.objectContaining({ kind: "codex", envKind: "wsl", envDistro: "Ubuntu" }),
     );
+  });
+
+  it("passes provider settings to native, WSL, and scoped detection", async () => {
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
+    const adapter = makeAdapter("cursor", "Cursor", detectInstall);
+    const { service, settingsPath } = makeMultiAdapterService([adapter]);
+    const initialSettings = {
+      structuredRuntime: "sdk",
+      sdkApiKey: "sdk-key",
+    };
+    const storedInitialSettings = {
+      ...initialSettings,
+      sdkApiKey: encryptSecret(dirname(settingsPath), initialSettings.sdkApiKey),
+    };
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ agentSettings: { cursor: storedInitialSettings } }),
+      "utf8",
+    );
+
+    await service.refreshAgentStatuses({ wslDistros: ["Ubuntu"] });
+
+    expect(detectInstall).toHaveBeenCalledWith({
+      envKind: process.platform === "win32" ? "windows" : "posix",
+      agentSettings: initialSettings,
+    });
+    expect(detectInstall).toHaveBeenCalledWith({
+      envKind: "wsl",
+      wslDistro: "Ubuntu",
+      agentSettings: initialSettings,
+    });
+
+    const updatedSettings = {
+      structuredRuntime: "acp",
+      sdkApiKey: "updated-sdk-key",
+    };
+    const storedUpdatedSettings = {
+      ...updatedSettings,
+      sdkApiKey: encryptSecret(dirname(settingsPath), updatedSettings.sdkApiKey),
+    };
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ agentSettings: { cursor: storedUpdatedSettings } }),
+      "utf8",
+    );
+    detectInstall.mockClear();
+
+    await service.refreshAgentStatuses({
+      wslDistros: ["Ubuntu"],
+      scope: { agentKinds: ["cursor"], envs: [{ kind: "wsl", distro: "Ubuntu" }] },
+    });
+
+    expect(detectInstall).toHaveBeenCalledExactlyOnceWith({
+      envKind: "wsl",
+      wslDistro: "Ubuntu",
+      agentSettings: updatedSettings,
+    });
   });
 });

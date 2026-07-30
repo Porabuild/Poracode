@@ -15,7 +15,11 @@ vi.mock("@/renderer/components/thread/ThreadComposer", () => ({
   },
 }));
 
-import { ExperimentJudgeDialog, resolveExperimentJudgeConfig } from "./ExperimentJudgeDialog";
+import {
+  ExperimentJudgeDialog,
+  resolveExperimentJudgeConfig,
+  type ExperimentJudgeConfig,
+} from "./ExperimentJudgeDialog";
 import { isEligibleExperimentJudgeAgent } from "@/renderer/actions/experimentActions";
 
 function agent(kind: string, models: string[], defaultEffort = "high"): AgentStatus {
@@ -55,6 +59,7 @@ describe("resolveExperimentJudgeConfig", () => {
       model: "opus",
       effort: "low",
       fast: false,
+      mode: "changes",
     });
 
     expect(result).toEqual({
@@ -62,6 +67,7 @@ describe("resolveExperimentJudgeConfig", () => {
       model: "opus",
       effort: "low",
       fast: false,
+      mode: "changes",
     });
   });
 
@@ -78,6 +84,7 @@ describe("resolveExperimentJudgeConfig", () => {
       model: "gpt-5.6",
       effort: "high",
       fast: false,
+      mode: "changes",
     });
   });
 });
@@ -85,11 +92,18 @@ describe("resolveExperimentJudgeConfig", () => {
 describe("ExperimentJudgeDialog", () => {
   it("renders the shared model, effort, and Fast controls before judging", () => {
     const onConfirm = vi.fn<() => void>();
+    const onChange = vi.fn<(config: ExperimentJudgeConfig) => void>();
     render(
       <ExperimentJudgeDialog
         agents={[agent("claude", ["sonnet", "opus"])]}
-        config={{ agentKind: "claude", model: "sonnet", effort: "high", fast: false }}
-        onChange={() => undefined}
+        config={{
+          agentKind: "claude",
+          model: "sonnet",
+          effort: "high",
+          fast: false,
+          mode: "changes",
+        }}
+        onChange={onChange}
         onConfirm={onConfirm}
         onClose={() => undefined}
       />,
@@ -104,6 +118,8 @@ describe("ExperimentJudgeDialog", () => {
     expect(
       screen.getByText(/compares snapshots of each candidate's changes under anonymous labels/i),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Chat" }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ mode: "responses" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Crown with AI" }));
     expect(onConfirm).toHaveBeenCalledOnce();

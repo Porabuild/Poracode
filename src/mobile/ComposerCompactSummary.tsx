@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { AgentStatus, Thread } from "@/shared/contracts";
-import { capabilitiesForPresentation } from "@/shared/agentSelection";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getComposerControls } from "@/renderer/components/providers/providerComposer";
 import {
@@ -26,22 +26,23 @@ export function ComposerCompactSummary(props: {
   const ref = useRef<HTMLDivElement | null>(null);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
-  const presentationCapabilities = agentStatus
-    ? capabilitiesForPresentation(agentStatus.capabilities, presentationMode)
+  const effectiveAgentStatus = agentStatus
+    ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
+  const presentationCapabilities = effectiveAgentStatus?.capabilities;
   const modelLabel =
     presentationCapabilities?.models.find((model) => model.id === thread.config.model)?.label ??
     thread.config.model;
   const effortLabel = thread.config.effort ? formatEffortLabel(thread.config.effort) : undefined;
   let controls: ComposerControl[] = [];
-  if (agentStatus) {
+  if (effectiveAgentStatus) {
     if (presentationMode === "gui") {
-      controls = buildControls(thread, agentStatus, undefined, () => undefined);
+      controls = buildControls(thread, effectiveAgentStatus, undefined, () => undefined);
     } else {
       const buildProviderControls = getComposerControls(thread.agentKind);
       if (buildProviderControls) {
         controls = buildProviderControls({
-          capabilities: capabilitiesForPresentation(agentStatus.capabilities, presentationMode),
+          capabilities: effectiveAgentStatus.capabilities,
           config: thread.config,
           isDisabled: true,
           onConfigChange: () => undefined,
@@ -87,16 +88,16 @@ export function ComposerCompactSummary(props: {
     };
   }, [agentStatus, effortLabel, fastEnabled, modeKey, modelLabel, permissionKey]);
 
-  if (!agentStatus) return null;
+  if (!effectiveAgentStatus) return null;
 
   return (
     <div ref={ref} className="m-compose-summary" aria-hidden="true">
       <ProviderIcon
         kind={thread.agentKind}
         tone="active"
-        fallbackLabel={agentStatus.label}
+        fallbackLabel={effectiveAgentStatus.label}
         className="size-3.5 shrink-0"
-        {...(agentStatus.icon ? { icon: agentStatus.icon } : {})}
+        {...(effectiveAgentStatus.icon ? { icon: effectiveAgentStatus.icon } : {})}
       />
       <span className="m-compose-summary__model">{modelLabel}</span>
       {effortLabel ? <span className="m-compose-summary__effort">{effortLabel}</span> : null}

@@ -18,6 +18,7 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { useGitReadModelStore } from "./state/gitReadModelStore";
 import {
   acknowledgeThread,
   archiveThread,
@@ -300,6 +301,20 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           deleteWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
           return;
         }
+        if (command.kind === "prepare-worktree") {
+          const project = useAppStore
+            .getState()
+            .projects.find((entry) => entry.id === command.projectId);
+          if (!project) return;
+          void primeWorktreeGitState(project, command.worktreePath);
+          const setupScript = project.scripts?.setupScript;
+          if (setupScript) {
+            void runWorktreeSetupScript(project, command.worktreePath, setupScript, {
+              openTerminalPanel: false,
+            });
+          }
+          return;
+        }
         if (command.kind === "start") {
           const store = useAppStore.getState();
           if (store.threads.some((t) => t.id === command.threadId)) return;
@@ -341,12 +356,6 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           }
           if (command.worktreePath) {
             void primeWorktreeGitState(project, command.worktreePath);
-            if (command.isNewWorktree) {
-              const setupScript = project.scripts?.setupScript;
-              if (setupScript) {
-                void runWorktreeSetupScript(project, command.worktreePath, setupScript);
-              }
-            }
           }
           return;
         }
@@ -391,7 +400,9 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
                 void primeWorktreeGitState(project, command.worktreePath);
                 const setupScript = project.scripts?.setupScript;
                 if (setupScript) {
-                  void runWorktreeSetupScript(project, command.worktreePath, setupScript);
+                  void runWorktreeSetupScript(project, command.worktreePath, setupScript, {
+                    openTerminalPanel: false,
+                  });
                 }
               }
             }
@@ -419,8 +430,14 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onProjectStateChanged(({ projects }) => {
         useAppStore.setState({ projects });
       }),
-      readBridge().onThreadOpenRequested(({ threadId }) => {
-        openThread(threadId, { focusComposer: true });
+      readBridge().onGitStateChanged((patch) => {
+        useGitReadModelStore.getState().applyPatch(patch);
+      }),
+      readBridge().onThreadOpenRequested(({ threadId, source }) => {
+        openThread(threadId, {
+          focusComposer: true,
+          ...(source === "notification" ? { switchWorkspace: true } : {}),
+        });
       }),
       readBridge().onQuickComposerSubmit((submission) => {
         void (async () => {

@@ -1,7 +1,7 @@
 /**
  * Stages every Node helper that we run *inside* a WSL distro into
  * `resources/wsl-helpers/` so electron-builder can bundle them as
- * extraResources. Two artefacts ride this pipeline:
+ * extraResources. Five artefacts ride this pipeline:
  *
  *   1. `watcher.node` — @parcel/watcher Linux x64 native binding,
  *      downloaded via `npm pack`. Loaded by `bridge.mjs` for watch
@@ -11,6 +11,8 @@
  *   3. `mcp-probe.mjs` — self-contained MCP client used to verify workspace
  *      servers in the same distro where providers run.
  *   4. `mcp-filter.mjs` — same-environment MCP proxy that removes disabled tools.
+ *   5. `cursor-sdk-worker.mjs` — isolated transport shell that dynamically
+ *      imports a Cursor SDK installed inside the target distro.
  *
  * Idempotency: presence + non-zero size on `watcher.node` skips the
  * `npm pack` download. `bridge.mjs` is always copied — the copy is <1ms
@@ -45,6 +47,7 @@ stageWatcherBinary();
 stageHookBridge();
 stageMcpProbe();
 stageMcpFilter();
+stageCursorSdkWorker();
 
 function stageWatcherBinary() {
   const dest = join(destDir, "watcher.node");
@@ -117,12 +120,23 @@ function stageMcpFilter() {
   console.log(`[prepare-wsl-helpers] mcpToolFilterWorker.mjs -> ${dest}`);
 }
 
-function assertSelfContainedWorker(path) {
+function stageCursorSdkWorker() {
+  const src = join(repoRoot, "dist", "main", "cursorSdkWorker.mjs");
+  if (!existsSync(src)) {
+    throw new Error(`Cursor SDK worker missing; run build:electron first: ${src}`);
+  }
+  assertSelfContainedWorker(src, "Cursor SDK worker");
+  const dest = join(destDir, "cursor-sdk-worker.mjs");
+  copyFileSync(src, dest);
+  console.log(`[prepare-wsl-helpers] cursorSdkWorker.mjs -> ${dest}`);
+}
+
+function assertSelfContainedWorker(path, label = "MCP probe worker") {
   const source = readFileSync(path, "utf8");
   const imports = source.matchAll(/^import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["'];?$/gm);
   const builtins = new Set([...builtinModules, ...builtinModules.map((name) => `node:${name}`)]);
   const external = [...imports].map((match) => match[1]).filter((name) => !builtins.has(name));
   if (external.length > 0) {
-    throw new Error(`MCP probe worker is not self-contained: ${[...new Set(external)].join(", ")}`);
+    throw new Error(`${label} is not self-contained: ${[...new Set(external)].join(", ")}`);
   }
 }

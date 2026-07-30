@@ -186,6 +186,54 @@ export function getNpmPackageNameForUpdate(
 }
 
 /**
+ * A supported release window for a package the app installs on the user's
+ * behalf. Consumers declare the window once (see `cursorSdkPackage.ts`) and
+ * both the runtime compatibility check and the registry "is there a newer
+ * release?" probe read it from there.
+ */
+export interface VersionWindow {
+  /** Inclusive lower bound; versions below it are unsupported. */
+  minVersion?: string;
+  /** First major version the consumer has not been validated against. */
+  maxExclusiveMajor?: number;
+}
+
+/** Stable `1`, `1.2`, or `1.2.3` (optionally `v`-prefixed) — no pre-releases. */
+const STABLE_VERSION_PATTERN = /^v?\d+(?:\.\d+){0,2}$/;
+
+/**
+ * True when `version` is a stable release inside `window`. Pre-release and
+ * non-numeric versions are always rejected: the app never installs them on the
+ * user's behalf.
+ */
+export function isVersionInWindow(version: string, window: VersionWindow): boolean {
+  const trimmed = version.trim();
+  if (!STABLE_VERSION_PATTERN.test(trimmed)) return false;
+  const major = Number.parseInt(trimmed.replace(/^v/, ""), 10);
+  if (window.maxExclusiveMajor !== undefined && major >= window.maxExclusiveMajor) return false;
+  if (window.minVersion && isNewerVersion(window.minVersion, trimmed)) return false;
+  return true;
+}
+
+/**
+ * Greatest stable version in `versions` that falls inside `window`, or
+ * undefined when none qualifies (e.g. the only newer release is a major the
+ * consumer does not support yet).
+ */
+export function pickLatestVersionInWindow(
+  versions: Iterable<string>,
+  window: VersionWindow,
+): string | undefined {
+  let best: string | undefined;
+  for (const version of versions) {
+    if (!isVersionInWindow(version, window)) continue;
+    const candidate = version.trim();
+    if (!best || isNewerVersion(candidate, best)) best = candidate;
+  }
+  return best;
+}
+
+/**
  * Compare two semver-ish strings (e.g. "0.130.0"). Returns true when `latest`
  * is strictly newer than `installed`. Pre-release suffixes (`-alpha.1`) are
  * compared lexicographically as a tiebreaker; non-semver inputs fall back to

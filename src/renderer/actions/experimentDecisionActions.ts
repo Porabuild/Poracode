@@ -4,6 +4,7 @@ import {
   type CaptureExperimentSnapshotResult,
   type Experiment,
   type ExperimentCandidate,
+  type ExperimentJudgeMode,
   type Project,
   type ProjectLocation,
 } from "@/shared/contracts";
@@ -37,12 +38,14 @@ import {
 } from "./experimentWorktreeActions";
 import { runGitMergeToSource, showGitOperationFailure } from "./gitCommandRunner";
 import { applyDefaultPrAutomation } from "./prAutomationActions";
+import { buildExperimentResponseTranscript } from "./experimentResponseTranscript";
 
 export interface ExperimentJudgeSelection {
   agentKind: string;
   model: string;
   effort?: string;
   fast: boolean;
+  mode?: ExperimentJudgeMode;
 }
 
 function experimentSnapshotCandidates(experiment: Experiment) {
@@ -105,9 +108,17 @@ async function commitCandidateChanges(
 }
 
 export type ExperimentJudgeProgressEvent =
-  | { kind: "capturing" }
-  | { kind: "captured"; threadId: string; files: number; insertions: number; deletions: number }
-  | { kind: "judging" }
+  | { kind: "capturing"; mode: ExperimentJudgeMode }
+  | {
+      kind: "captured";
+      threadId: string;
+      files: number;
+      insertions: number;
+      deletions: number;
+      omittedFiles?: number;
+    }
+  | { kind: "captured-response"; threadId: string; characters: number }
+  | { kind: "judging"; mode: ExperimentJudgeMode }
   | {
       kind: "winner";
       threadId: string;
@@ -157,14 +168,28 @@ export async function crownExperiment(
     const judgeModel = selection?.model ?? judgeThread?.config.model;
     const judgeEffort = selection?.effort ?? judgeThread?.config.effort;
     const judgeFast = selection?.fast ?? judgeThread?.config.fast;
-    onProgress?.({ kind: "capturing" });
+    const judgeMode = selection?.mode ?? "changes";
+    onProgress?.({ kind: "capturing", mode: judgeMode });
     const unsubscribeProgress = readBridge().onSupervisorEvent((event) => {
       if (event.type !== "experiment-judge-progress" || event.experimentId !== experimentId) {
         return;
       }
-      onProgress?.(event.progress);
+      onProgress?.(
+        event.progress.kind === "judging" ? { kind: "judging", mode: judgeMode } : event.progress,
+      );
     });
     try {
+      const responses =
+        judgeMode === "responses"
+          ? await Promise.all(
+              experiment.candidates.map(async (candidate) => ({
+                threadId: candidate.threadId,
+                response: buildExperimentResponseTranscript(
+                  await readBridge().dbGetThreadRuntimeItems(candidate.threadId),
+                ),
+              })),
+            )
+          : undefined;
       const result = await readBridge().judgeExperimentSnapshot({
         experimentId,
         projectLocation: project.location,
@@ -173,6 +198,8 @@ export async function crownExperiment(
         ...(judgeModel ? { model: judgeModel } : {}),
         ...(judgeEffort ? { effort: judgeEffort } : {}),
         ...(judgeFast !== undefined ? { fast: judgeFast } : {}),
+        mode: judgeMode,
+        ...(responses ? { responses } : {}),
         prompt: experiment.prompt,
         candidates: experimentSnapshotCandidates(experiment),
       });
@@ -182,8 +209,9 @@ export async function crownExperiment(
         rationale: result.rationale,
         assessments: result.assessments,
         source: "ai",
+        comparisonMode: judgeMode,
         modelLabel: judgeLabel,
-        snapshotHash: result.hash,
+        ...(judgeMode === "changes" ? { snapshotHash: result.hash } : {}),
         createdAt: new Date().toISOString(),
       });
       captureProductEvent("experiment.winner_selected", {
@@ -199,6 +227,7 @@ export async function crownExperiment(
         candidate_count: experiment.candidates.length,
         provider: normalizeAnalyticsProvider(judgeAgent.kind),
         source: "ai",
+        comparison_mode: judgeMode,
       });
       onProgress?.({
         kind: "winner",

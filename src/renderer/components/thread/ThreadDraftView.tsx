@@ -402,8 +402,8 @@ export function ThreadDraftView(props: {
       model: nextModel,
       effort: nextEffort,
       ...(nextContext ? { contextSize: nextContext } : {}),
-      ...(nextFast ? { fast: nextFast } : {}),
-      ...(nextThinking ? { thinking: nextThinking } : {}),
+      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
       mode: nextMode,
       approvalPolicy: nextApproval,
       approvalsReviewer: nextReviewer,
@@ -453,8 +453,8 @@ export function ThreadDraftView(props: {
         model: nextModel,
         effort: nextEffort,
         ...(nextContext ? { contextSize: nextContext } : {}),
-        ...(nextFast ? { fast: nextFast } : {}),
-        ...(nextThinking ? { thinking: nextThinking } : {}),
+        fast: nextFast,
+        thinking: nextThinking,
       };
       providerConfigsRef.current[effectiveAgentKind] = corrected;
       if (!isHomeScope) {
@@ -465,8 +465,8 @@ export function ThreadDraftView(props: {
         model: nextModel,
         effort: nextEffort,
         ...(nextContext ? { contextSize: nextContext } : {}),
-        ...(nextFast ? { fast: nextFast } : {}),
-        ...(nextThinking ? { thinking: nextThinking } : {}),
+        fast: nextFast,
+        thinking: nextThinking,
         mode,
         approvalPolicy,
         approvalsReviewer,
@@ -566,8 +566,8 @@ export function ThreadDraftView(props: {
       model: nextModel,
       effort: nextEffort,
       ...(nextContext ? { contextSize: nextContext } : {}),
-      ...(nextFast ? { fast: nextFast } : {}),
-      ...(nextThinking ? { thinking: nextThinking } : {}),
+      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
       mode: nextMode,
       approvalPolicy: nextApproval,
       approvalsReviewer: nextReviewer,
@@ -597,7 +597,13 @@ export function ThreadDraftView(props: {
 
   const hiddenModelIds = useSharedSettings((s) =>
     selectedAgent
-      ? s.hiddenModels[modelVisibilityKey(selectedAgent.kind, presentationMode)]
+      ? s.hiddenModels[
+          modelVisibilityKey(
+            selectedAgent.kind,
+            presentationMode,
+            selectedAgentForConfig?.capabilities.runtimeLabel,
+          )
+        ]
       : undefined,
   );
   const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
@@ -686,8 +692,8 @@ export function ThreadDraftView(props: {
         model: resolved.model,
         effort: resolved.effort,
         ...(resolved.contextSize ? { contextSize: resolved.contextSize } : {}),
-        ...(resolved.fast ? { fast: resolved.fast } : {}),
-        ...(resolved.thinking ? { thinking: resolved.thinking } : {}),
+        ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+        ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
         mode: resolved.mode,
         approvalPolicy: resolved.approvalPolicy,
         approvalsReviewer: resolved.approvalsReviewer,
@@ -719,8 +725,8 @@ export function ThreadDraftView(props: {
           model,
           effort,
           ...(contextSize ? { contextSize } : {}),
-          ...(fast ? { fast } : {}),
-          ...(thinking ? { thinking } : {}),
+          fast,
+          thinking,
           mode,
           approvalPolicy,
           approvalsReviewer,
@@ -750,8 +756,8 @@ export function ThreadDraftView(props: {
         model: resolved.model,
         effort: resolved.effort,
         ...(resolved.contextSize ? { contextSize: resolved.contextSize } : {}),
-        ...(resolved.fast ? { fast: resolved.fast } : {}),
-        ...(resolved.thinking ? { thinking: resolved.thinking } : {}),
+        ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+        ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
         mode: resolved.mode,
         approvalPolicy: resolved.approvalPolicy,
         approvalsReviewer: resolved.approvalsReviewer,
@@ -1025,7 +1031,7 @@ export function ThreadDraftView(props: {
             {...(props.restoreWorktreeSelectionToken !== undefined
               ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
               : {})}
-            selectedAgent={selectedAgent}
+            selectedAgent={selectedAgentForConfig ?? selectedAgent}
             controls={draftControls}
             config={{
               model,

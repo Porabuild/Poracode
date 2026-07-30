@@ -53,6 +53,7 @@ import {
   createAppControlsSupervisorCaller,
 } from "@/main/app-controls";
 import { createDevicePrWatchService, type PrWatchService } from "@/main/prWatch";
+import { createGitStateExecutor, GitStateService } from "@/main/gitState";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
 /**
@@ -181,6 +182,7 @@ export async function createHeadlessRemoteHost(
   let serverRef: RemoteAccessServer | null = null;
   let appControlsMcpIngress: AppControlsMcpIngress | null = null;
   let prWatchService: PrWatchService | null = null;
+  let gitStateService: GitStateService | null = null;
   // Assigned right after the supervisor client below; the `onEvent` tap only
   // fires once the supervisor is started, by which point it is set.
   let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
@@ -205,6 +207,7 @@ export async function createHeadlessRemoteHost(
       options.onSupervisorEvent?.(event);
       appControlsMcpIngress?.observeSupervisorEvent(event);
       prWatchService?.observeSupervisorEvent(event);
+      gitStateService?.observeSupervisorEvent(event);
       scheduleRunCoordinator?.observeSupervisorEvent(event);
       serverRef?.publishSupervisorEvent(event);
       pushCoordinator.handleSupervisorEvent(event);
@@ -280,6 +283,14 @@ export async function createHeadlessRemoteHost(
     },
     worktreeExists: existsSync,
   });
+  gitStateService = new GitStateService({
+    hostId: identity.desktopId,
+    executor: createGitStateExecutor((name, payload) => supervisorClient.call(name, payload)),
+    getProject: dbGetProject,
+    onPatch: (patch) => {
+      serverRef?.publishSupervisorEvent({ type: "remote-git-state", patch });
+    },
+  });
   appControlsMcpIngress = new AppControlsMcpIngress({
     scheduleService,
     getThread: dbGetThread,
@@ -344,6 +355,11 @@ export async function createHeadlessRemoteHost(
     identity,
     isDev,
     authStore,
+    onOversizedEventDropped: ({ type, bytes }) => {
+      console.warn(
+        `[remote] ${type} event of ${bytes} bytes exceeded the live stream budget; clients asked to resync`,
+      );
+    },
     host,
     port,
     advertisedHost,
@@ -362,6 +378,7 @@ export async function createHeadlessRemoteHost(
     // so pass it directly instead of re-wrapping each method.
     schedules: scheduleService,
     prWatches: prWatchService,
+    gitState: gitStateService,
     pushRegistrations: {
       webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
       upsert: (registration) => pushStore.upsert(registration),
@@ -382,6 +399,7 @@ export async function createHeadlessRemoteHost(
         supervisorClient.start(paths.baseDir);
         scheduleService.start();
         prWatchService?.start();
+        gitStateService?.start();
         started = true;
       }
       const info = await server.start();
@@ -415,6 +433,8 @@ export async function createHeadlessRemoteHost(
       scheduleService.dispose();
       prWatchService?.dispose();
       prWatchService = null;
+      gitStateService?.dispose();
+      gitStateService = null;
       appControlsMcpIngress?.dispose();
       appControlsMcpIngress = null;
       portForwarding.dispose();

@@ -4,6 +4,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadContextDock } from "./ThreadContextDock";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 const summary: ThreadContextUsageSummary = {
   usedTokens: 71_000,
@@ -43,7 +44,7 @@ describe("ThreadContextIndicator", () => {
     render(<ThreadContextDock summary={summary} onClose={() => undefined} />);
 
     expect(screen.getByRole("region", { name: "Thread context usage" })).toBeVisible();
-    expect(screen.getByText("36% Full")).toBeVisible();
+    expect(screen.getByText(byTextContent("36% Full"))).toBeVisible();
     expect(screen.getByText("71K used")).toBeVisible();
     expect(screen.getByText("200K limit")).toBeVisible();
     expect(screen.getByText("Input")).toBeVisible();

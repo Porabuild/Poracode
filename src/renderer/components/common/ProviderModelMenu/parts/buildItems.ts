@@ -27,6 +27,7 @@ export interface ProviderModelMenuProvider {
   label: string;
   icon?: string;
   presentationMode?: ThreadPresentationMode;
+  runtimeVariant?: string;
   /** Unique UI identity when one adapter exposes multiple model surfaces. */
   modelPickerKey?: string;
   /** Settings key used for hidden-model persistence. */

@@ -94,6 +94,8 @@ const messages = {
   "experiment.judge.winnerRange": "Experiment judge winner must be between 1 and {candidateCount}",
   "experiment.judge.emptyRationale": "Experiment judge returned an empty rationale",
   "experiment.judge.noChanges": "The candidates have not made any changes yet.",
+  "experiment.judge.noResponse":
+    "No chat response is available for experiment candidate {threadId}.",
   "experiment.judge.promptBlank": "Experiment prompt must not be blank",
   "experiment.judge.uniqueThreadIds": "Experiment candidate thread ids must be unique",
   "experiment.judge.noDefaultModel": "No default one-shot model configured for {provider}",

@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { Button, Popover } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Check, Minus, Search } from "lucide-react";
+import { Check, Minus, Search, Zap } from "lucide-react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import {
@@ -9,6 +9,7 @@ import {
   type ProviderModelItem,
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu";
+import { resolveHiddenModelIds } from "@/shared/agentSelection";
 
 export function ModelVisibilityDropdown(props: {
   settingsKey: string;
@@ -31,7 +32,7 @@ export function ModelVisibilityDropdown(props: {
 
   const allModels = provider.capabilities.models.filter((m) => m.id !== "auto");
   const totalCount = allModels.length;
-  const hiddenSet = new Set(hiddenIds ?? []);
+  const hiddenSet = new Set(resolveHiddenModelIds(provider.capabilities, hiddenIds));
   const visibleCount = totalCount - allModels.filter((m) => hiddenSet.has(m.id)).length;
 
   useEffect(() => {
@@ -270,6 +271,14 @@ function ModelVisibilityRow(props: {
       />
       <span className="ml-1 flex min-w-0 flex-1 items-center gap-1.5">
         <span className="min-w-0 truncate">{name}</span>
+        {/* Same Fast marker the composer's model menu uses. */}
+        {item.supportsFast ? (
+          <Zap
+            role="img"
+            aria-label={t`Supports Fast mode`}
+            className="size-3 shrink-0 text-muted/60"
+          />
+        ) : null}
         {mutedHint ? (
           <span className="shrink-0 text-[10px] leading-none text-muted/60">· {mutedHint}</span>
         ) : null}

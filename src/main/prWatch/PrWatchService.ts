@@ -51,6 +51,7 @@ export class PrWatchService {
   private timer: ReturnType<typeof setInterval> | null = null;
   private disposed = false;
   private readonly checking = new Set<string>();
+  private readonly recheckRequested = new Set<string>();
 
   constructor(private readonly options: PrWatchServiceOptions) {}
 
@@ -69,6 +70,7 @@ export class PrWatchService {
     this.disposed = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    this.recheckRequested.clear();
   }
 
   get(projectId: string, prNumber: number): PrWatch | null {
@@ -92,12 +94,25 @@ export class PrWatchService {
       lastError: null,
     };
     this.options.store.upsert(watch);
-    void this.checkWatch(watch);
+    this.requestCheck(watch.projectId, watch.prNumber);
     return watch;
   }
 
   delete(projectId: string, prNumber: number): void {
+    this.recheckRequested.delete(watchKey({ projectId, prNumber }));
     this.options.store.delete(projectId, prNumber);
+  }
+
+  requestCheck(projectId: string, prNumber: number): void {
+    if (this.disposed) return;
+    const watch = this.options.store.get(projectId, prNumber);
+    if (!watch) return;
+    const key = watchKey(watch);
+    if (this.checking.has(key)) {
+      this.recheckRequested.add(key);
+      return;
+    }
+    void this.checkWatch(watch);
   }
 
   async tick(): Promise<void> {
@@ -121,7 +136,7 @@ export class PrWatchService {
             : null,
       };
       this.options.store.upsert(settled);
-      if (!settled.lastError) void this.checkWatch(settled);
+      if (!settled.lastError) this.requestCheck(settled.projectId, settled.prNumber);
     }
   }
 
@@ -214,6 +229,10 @@ export class PrWatchService {
       this.saveError(snapshot, error);
     } finally {
       this.checking.delete(key);
+      if (this.recheckRequested.delete(key) && !this.disposed) {
+        const latest = this.options.store.get(snapshot.projectId, snapshot.prNumber);
+        if (latest) void this.checkWatch(latest);
+      }
     }
   }
 

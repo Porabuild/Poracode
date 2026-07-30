@@ -96,6 +96,7 @@ describe("SSH runtime bundle", () => {
       "server.cjs",
       "supervisor.cjs",
       "claudeSdkProbeWorker.mjs",
+      "cursorSdkWorker.mjs",
       "transcriptReader-generated.cjs",
     ]) {
       writeFileSync(join(mainBundleDir, file), file, "utf8");
@@ -117,6 +118,7 @@ describe("SSH runtime bundle", () => {
     const archiveName = basename(bundle.archivePath);
     const entries = execFileSync(tar, ["-tzf", archiveName], { cwd: archiveDir }).toString("utf8");
     expect(entries).toContain("transcriptReader-generated.cjs");
+    expect(entries).toContain("cursorSdkWorker.mjs");
     const packageEntry = execFileSync(tar, ["-xOf", archiveName, "./package.json"], {
       cwd: archiveDir,
     }).toString("utf8");

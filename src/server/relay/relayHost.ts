@@ -206,7 +206,13 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
           lower === "host" ||
           lower === "content-length" ||
           lower === "connection" ||
-          lower === "x-forwarded-for"
+          lower === "x-forwarded-for" ||
+          // The hop to the local server is loopback, and `fetch` transparently
+          // decodes whatever comes back — so forwarding the visitor's
+          // `accept-encoding` would only make the origin spend CPU compressing
+          // bytes this process immediately decompresses. The visitor's own hop
+          // is compressed by the relay/WS transport instead.
+          lower === "accept-encoding"
         )
           continue;
         requestHeaders[key] = value;
@@ -246,6 +252,13 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
       // the one API that returns every value intact.
       const responseHeaders = headersToRecord(response.headers);
       delete responseHeaders["set-cookie"];
+      // `readBoundedResponseBody` reads the DECODED body (`fetch` undoes any
+      // `content-encoding` transparently), so echoing the origin's
+      // `content-encoding` would label plaintext bytes as gzip and the visitor
+      // would fail to parse them. `content-length` describes the encoded body
+      // and is equally stale. Both must go now that the origin can compress.
+      delete responseHeaders["content-encoding"];
+      delete responseHeaders["content-length"];
       const setCookies = response.headers.getSetCookie();
       if (control === sourceControl) {
         sendOn(sourceControl, {

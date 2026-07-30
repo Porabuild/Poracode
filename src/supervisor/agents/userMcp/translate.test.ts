@@ -4,6 +4,7 @@ import {
   buildAcpMcpServers,
   buildClaudeMcpServers,
   buildCodexMcp,
+  buildCursorSdkMcpServers,
   buildGeminiMcpServers,
   buildOpenCodeMcp,
   buildOpenCodeMcpLaunchConfig,
@@ -48,10 +49,25 @@ const servers: McpServer[] = [
 ];
 
 describe("custom MCP translators", () => {
-  it("maps Claude, Gemini, OpenCode, and ACP transport shapes", () => {
+  it("maps Claude, Cursor SDK, Gemini, OpenCode, and ACP transport shapes", () => {
     expect(buildClaudeMcpServers(servers)).toMatchObject({
       "local.tools": { type: "stdio", command: "node", timeout: 45_000 },
       remote: { type: "http", url: "https://example.test/mcp", timeout: 12_500 },
+      events: { type: "sse", url: "https://example.test/sse" },
+    });
+    expect(buildCursorSdkMcpServers(servers)).toEqual({
+      "local.tools": {
+        type: "stdio",
+        command: "node",
+        args: ["server.js"],
+        env: { MODE: "test" },
+        cwd: "/repo",
+      },
+      remote: {
+        type: "http",
+        url: "https://example.test/mcp",
+        headers: { Authorization: "Bearer secret", "X-Test": "yes" },
+      },
       events: { type: "sse", url: "https://example.test/sse" },
     });
     expect(buildGeminiMcpServers(servers)).toMatchObject({

@@ -41,6 +41,11 @@ export function isImagePath(path: string, mimeType?: string): boolean {
   return mimeType?.startsWith("image/") === true || IMAGE_EXTENSIONS.has(getExtension(path));
 }
 
+/** The image MIME type implied by a path's extension, when it is a known one. */
+export function mimeForImagePath(path: string): string | undefined {
+  return MIME_BY_EXT[getExtension(path)];
+}
+
 export function isPdfPath(path: string, mimeType?: string): boolean {
   return mimeType === "application/pdf" || getExtension(path) === "pdf";
 }

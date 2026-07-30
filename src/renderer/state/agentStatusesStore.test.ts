@@ -69,6 +69,92 @@ describe("setAgentStatuses", () => {
     );
   });
 
+  it("replaces the array when only a presentation capability catalog changes", () => {
+    const cached = makeStatus({
+      capabilities: {
+        ...makeStatus().capabilities,
+        presentationCapabilities: {
+          gui: {
+            models: [{ id: "old-gui-model", label: "Old GUI model" }],
+          },
+        },
+      },
+    });
+    const fresh = makeStatus({
+      capabilities: {
+        ...cached.capabilities,
+        presentationCapabilities: {
+          gui: {
+            models: [{ id: "new-gui-model", label: "New GUI model" }],
+          },
+        },
+      },
+    });
+
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [cached], wsl: [] });
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+
+    expect(
+      useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.presentationCapabilities?.gui
+        ?.models,
+    ).toEqual([{ id: "new-gui-model", label: "New GUI model" }]);
+  });
+
+  it("replaces the array when only a pinned runtime variant changes", () => {
+    const base = makeStatus();
+    const cached = makeStatus({
+      runtimeVariants: {
+        sdk: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: false,
+          capabilities: {
+            ...base.capabilities,
+            models: [{ id: "old-sdk-model", label: "Old SDK model" }],
+          },
+        },
+      },
+      sessionRuntimeRouting: { prefixes: { "sdk:": "sdk" } },
+    });
+    const fresh = makeStatus({
+      ...cached,
+      runtimeVariants: {
+        sdk: {
+          ...cached.runtimeVariants!.sdk!,
+          capabilities: {
+            ...cached.runtimeVariants!.sdk!.capabilities,
+            models: [{ id: "new-sdk-model", label: "New SDK model" }],
+          },
+        },
+      },
+    });
+
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [cached], wsl: [] });
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+
+    expect(
+      useAgentStatusesStore.getState().agentStatuses[0]?.runtimeVariants?.sdk?.capabilities.models,
+    ).toEqual([{ id: "new-sdk-model", label: "New SDK model" }]);
+  });
+
+  it("replaces the array when only session runtime routing changes", () => {
+    const cached = makeStatus({
+      sessionRuntimeRouting: { prefixes: { "sdk:": "sdk" }, fallbackRuntime: "acp" },
+    });
+    const fresh = makeStatus({
+      ...cached,
+      sessionRuntimeRouting: { prefixes: { "sdk:": "sdk", "acp:": "acp" } },
+    });
+
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [cached], wsl: [] });
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+
+    expect(useAgentStatusesStore.getState().agentStatuses[0]?.sessionRuntimeRouting).toEqual({
+      prefixes: { "sdk:": "sdk", "acp:": "acp" },
+    });
+  });
+
   it("replaces the array when only supportsOneShot flips (post-upgrade flag backfill)", () => {
     // A status persisted before the flag existed lacks supportsOneShot; the
     // freshly-detected one sets it. The store must adopt the fresh status so the

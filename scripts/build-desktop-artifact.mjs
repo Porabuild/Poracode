@@ -562,6 +562,7 @@ asarUnpack:
   - node_modules/node-pty/**/*
   - node_modules/better-sqlite3/**/*
   - dist/main/claudeSdkProbeWorker.mjs
+  - dist/main/cursorSdkWorker.mjs
   - node_modules/@anthropic-ai/claude-agent-sdk/**/*
 
 afterPack: build/after-pack.cjs

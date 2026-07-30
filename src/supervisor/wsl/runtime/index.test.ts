@@ -138,6 +138,97 @@ describe("resolveNodeForDistro", () => {
     expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts a user-installed node that meets a consumer semver floor", async () => {
+    setProbe("Ubuntu", [
+      { ok: true, stdout: "/home/u/.nvm/versions/node/v22.13.0/bin/node" },
+      { ok: true, stdout: "v22.13.0" },
+    ]);
+    const { resolveNodeForDistro } = await loadRuntime();
+
+    await expect(
+      resolveNodeForDistro("Ubuntu", { minimumVersion: "22.13.0" }),
+    ).resolves.toMatchObject({
+      nodePath: "/home/u/.nvm/versions/node/v22.13.0/bin/node",
+      nodeVersion: "22.13.0",
+      source: "user-installed",
+    });
+  });
+
+  it("falls back to managed node when the user node is below a consumer semver floor", async () => {
+    resolveWslHomeDirectoryMock.mockReturnValue("/home/u");
+    resolveWslHomeDirectoryAsyncMock.mockResolvedValue("/home/u");
+    setProbe(
+      "Ubuntu",
+      [
+        { ok: true, stdout: "/home/u/.nvm/versions/node/v22.12.9/bin/node" },
+        { ok: true, stdout: "v22.12.9" },
+      ],
+      [{ ok: true, stdout: "x86_64" }],
+    );
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("network down")));
+    const { resolveNodeForDistro } = await loadRuntime();
+
+    const events: string[] = [];
+    await expect(
+      resolveNodeForDistro("Ubuntu", {
+        minimumVersion: "22.13.0",
+        onProgress: (event) =>
+          events.push(
+            event.kind === "probe-result" ? `${event.kind}:${event.resolved}` : event.kind,
+          ),
+      }),
+    ).rejects.toThrow("network down");
+    expect(events).toContain("probe-result:too-old");
+  });
+
+  it("does not reuse a cached user node that is below a later stricter floor", async () => {
+    resolveWslHomeDirectoryMock.mockReturnValue("/home/u");
+    resolveWslHomeDirectoryAsyncMock.mockResolvedValue("/home/u");
+    setProbe(
+      "Ubuntu",
+      [
+        { ok: true, stdout: "/home/u/.nvm/versions/node/v22.4.0/bin/node" },
+        { ok: true, stdout: "v22.4.0" },
+      ],
+      [
+        { ok: true, stdout: "/home/u/.nvm/versions/node/v22.4.0/bin/node" },
+        { ok: true, stdout: "v22.4.0" },
+      ],
+      [{ ok: true, stdout: "x86_64" }],
+    );
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("network down")));
+    const { resolveNodeForDistro } = await loadRuntime();
+
+    await expect(resolveNodeForDistro("Ubuntu")).resolves.toMatchObject({
+      nodeVersion: "22.4.0",
+    });
+    await expect(resolveNodeForDistro("Ubuntu", { minimumVersion: "22.13.0" })).rejects.toThrow(
+      "network down",
+    );
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects a malformed consumer semver floor before probing", async () => {
+    const { resolveNodeForDistro } = await loadRuntime();
+
+    await expect(resolveNodeForDistro("Ubuntu", { minimumVersion: "twenty-two" })).rejects.toThrow(
+      /invalid minimum Node version/,
+    );
+    expect(batchWslCommandsAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it("fails before downloading when the requested floor exceeds the managed runtime", async () => {
+    setProbe("Ubuntu", [
+      { ok: false, stdout: "" },
+      { ok: false, stdout: "" },
+    ]);
+    const { resolveNodeForDistro, PORACODE_PINNED_NODE_VERSION } = await loadRuntime();
+
+    await expect(resolveNodeForDistro("Ubuntu", { minimumVersion: "23.0.0" })).rejects.toThrow(
+      `Poracode-managed Node ${PORACODE_PINNED_NODE_VERSION} does not satisfy the requested minimum 23.0.0.`,
+    );
+  });
+
   it("falls back to install when probed node is too old", async () => {
     resolveWslHomeDirectoryMock.mockReturnValue("/home/u");
     resolveWslHomeDirectoryAsyncMock.mockResolvedValue("/home/u");

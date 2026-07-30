@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_COMMAND_ID_HEADER,
@@ -467,6 +468,10 @@ export class RemoteDesktopClient {
     return result.watch;
   }
 
+  async checkPrWatch(input: PrWatchKey): Promise<void> {
+    await this.requestJson("/api/pr-watches/check", { method: "POST", body: input });
+  }
+
   async upsertPrWatch(input: PrWatchInput): Promise<PrWatch> {
     const result = parseResponse(
       prWatchResponseSchema,
@@ -652,6 +657,16 @@ export class RemoteDesktopClient {
   async closeThread(threadId: string): Promise<void> {
     await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/close`, {
       method: "POST",
+    });
+  }
+
+  async truncateThreadRuntimeAfter(input: {
+    readonly threadId: string;
+    readonly itemId: string;
+  }): Promise<void> {
+    await this.requestJson(`/api/threads/${encodeURIComponent(input.threadId)}/runtime/truncate`, {
+      method: "POST",
+      body: { itemId: input.itemId },
     });
   }
 
@@ -873,6 +888,20 @@ export class RemoteDesktopClient {
     return url.toString();
   }
 
+  /**
+   * Absolute URL for a host-minted image reference. Like {@link localImageUrl}
+   * the token rides in the query string because <img> tags can't send an
+   * Authorization header — but unlike it, the location is addressed inside the
+   * host's own stored payload rather than by a filesystem path, so nothing the
+   * agent wrote can influence what gets served. Returns "" without a token.
+   */
+  imageRefUrl(ref: RemoteImageRefValue): string {
+    if (!this.accessToken) return "";
+    const url = endpointUrl(this.endpoint, remoteImageRefPath(ref));
+    url.searchParams.set("access_token", this.accessToken);
+    return url.toString();
+  }
+
   parseSocketMessage(value: string): RemoteWebSocketServerMessage {
     return remoteWebSocketServerMessageSchema.parse(JSON.parse(value) as unknown);
   }
@@ -925,6 +954,20 @@ export class RemoteDesktopClient {
         }),
         timeoutPromise,
       ]);
+      // The large read endpoints send a revalidating `ETag`. Browser clients
+      // (PWA, Electron renderer) resolve `304` against their own HTTP cache and
+      // surface it as a `200` with the stored body, so this is unreachable
+      // there. A non-browser `fetchImpl` — or an intermediary that revalidates
+      // on its own — could still surface a bare `304`, whose empty body would
+      // otherwise parse to `{}` and fail schema validation with a confusing
+      // error. Fail loudly instead.
+      if (response.status === 304) {
+        throw new RemoteClientError(
+          "Remote request returned 304 without a cached body.",
+          304,
+          "not_modified",
+        );
+      }
       const body = await Promise.race([
         readBoundedResponseBody(response, this.maxResponseBodyBytes),
         timeoutPromise,

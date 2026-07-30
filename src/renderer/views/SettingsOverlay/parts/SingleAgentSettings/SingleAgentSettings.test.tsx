@@ -74,6 +74,24 @@ vi.mock("@heroui/react", () => {
   Switch.Control = (props: { children?: ReactNode }) => <span>{props.children}</span>;
   Switch.Thumb = () => <span />;
 
+  function RadioGroup(props: { children?: ReactNode; "aria-label"?: string }) {
+    return (
+      <div role="radiogroup" aria-label={props["aria-label"]}>
+        {props.children}
+      </div>
+    );
+  }
+
+  function Radio(props: { children?: ReactNode; value: string }) {
+    return (
+      <label>
+        <input type="radio" value={props.value} />
+        {props.children}
+      </label>
+    );
+  }
+  Radio.Content = (props: { children?: ReactNode }) => <span>{props.children}</span>;
+
   function Wrapper(props: { children?: ReactNode }) {
     return <div>{props.children}</div>;
   }
@@ -106,6 +124,8 @@ vi.mock("@heroui/react", () => {
     ListBox,
     ListLayout: () => null,
     Popover,
+    Radio,
+    RadioGroup,
     Switch,
     Tooltip,
     toast: toastMock,

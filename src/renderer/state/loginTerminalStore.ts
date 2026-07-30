@@ -16,7 +16,7 @@ export interface LoginTerminalSession {
   label: string;
   projectLocation: ProjectLocation;
   /** Drives the overlay header copy. Defaults to "login". */
-  purpose?: "login" | "install";
+  purpose?: "login" | "install" | "update";
   onForceClose?: () => void;
   /** Set when the command exits non-zero so the overlay can render a failed state. */
   failedExitCode?: number;

@@ -65,6 +65,12 @@ export type SupervisorEvent =
             files: number;
             insertions: number;
             deletions: number;
+            omittedFiles?: number;
+          }
+        | {
+            kind: "captured-response";
+            threadId: string;
+            characters: number;
           }
         | { kind: "judging" };
     }
@@ -160,6 +166,8 @@ export type BrowserEvent =
 /** Emitted by the main process when a native app surface requests opening a thread. */
 export type ThreadOpenRequestedEvent = {
   threadId: string;
+  /** Present for OS notification clicks; omitted by tray and app-control opens. */
+  source?: "notification";
 };
 
 /** Project rows changed outside the renderer's persisted app-store snapshot. */

@@ -28,6 +28,7 @@ import {
   type RemoteRuntimeItemsPageRequest,
 } from "@/shared/remote";
 import { setRemoteLocalImageResolver } from "@/shared/localImageDisplay";
+import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import type { SharedSettingsInput } from "@/shared/settings";
 import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
@@ -64,6 +65,10 @@ export function setRemoteBridgeClient(
   // shell; in the PWA, swap them for the desktop's authenticated HTTP image
   // endpoint at render time (see shared/localImageDisplay.ts).
   setRemoteLocalImageResolver(client ? (url) => remoteLocalImageUrl(client, url) : null);
+  // The host strips inline image bytes out of remote transcripts and sends a
+  // reference instead; resolve those to its authenticated image endpoint (see
+  // shared/imageRefDisplay.ts).
+  setRemoteImageRefResolver(client ? (ref) => client.imageRefUrl(ref) : null);
 }
 
 /**
@@ -219,6 +224,7 @@ const remoteBridge = {
   deleteSchedule: ({ id }: { id: string }) => requireClient().deleteSchedule(id),
   runScheduleNow: ({ id }: { id: string }) => requireClient().runScheduleNow(id),
   getPrWatch: (input: PrWatchKey) => requireClient().getPrWatch(input),
+  checkPrWatch: (input: PrWatchKey) => requireClient().checkPrWatch(input),
   upsertPrWatch: (input: PrWatchInput) => requireClient().upsertPrWatch(input),
   deletePrWatch: (input: PrWatchKey) => requireClient().deletePrWatch(input),
 
@@ -295,7 +301,8 @@ const remoteBridge = {
     payload.beforePosition === undefined
       ? Promise.resolve({ items: [], nextCursor: null })
       : requireClient().threadRuntimeItemsPage(payload),
-  dbTruncateThreadRuntimeAfter: () => Promise.resolve(),
+  dbTruncateThreadRuntimeAfter: (payload: { threadId: string; itemId: string }) =>
+    requireClient().truncateThreadRuntimeAfter(payload),
   dbGetThreadCompletedTurns: () => Promise.resolve([]),
   dbGetThreadContextUsage: () => Promise.resolve(null),
 
@@ -356,6 +363,7 @@ const remoteBridge = {
 
   // Event subscriptions: remote events arrive over the WebSocket instead.
   onSupervisorEvent: () => () => undefined,
+  onGitStateChanged: () => () => undefined,
   onUpdateStatus: () => () => undefined,
   onBrowserEvent: () => () => undefined,
   onRemoteThreadCommand: () => () => undefined,

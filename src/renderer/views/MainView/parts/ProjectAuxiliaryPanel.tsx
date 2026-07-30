@@ -46,6 +46,7 @@ import {
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
 import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
 import { buildFileEditorContext } from "@/renderer/utils/gitHelpers";
+import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import { GitReviewPanelContent } from "./RightPanel/parts/GitReviewPanelContent";
 
 interface PanelProjectScope {
@@ -248,6 +249,12 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
         return t`Usage`;
       case "notes":
         return notesProjectId ? projectNameForScope({ projectId: notesProjectId }) : t`Notes`;
+      case "terminal": {
+        const terminalProjectName = projectNameForScope(terminalScope);
+        return terminalProjectName
+          ? formatProjectScopeLabel(terminalProjectName, terminalWorktreePath ?? undefined)
+          : undefined;
+      }
       case "subagent":
       case "plan":
         return undefined;

@@ -4,6 +4,7 @@ import { isHomeProject } from "@/shared/homeScope";
 import { getBasename } from "@/shared/pathUtils";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
+import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { isFullscreenScreenPath } from "./fullscreenScreenPath";
 import { useGitSummariesStore } from "./gitSummaries";
@@ -34,6 +35,7 @@ export function buildGitAddWorktreePayload(
     ...(project.scripts?.worktreeCopyPatterns
       ? { copyIgnoredPatterns: project.scripts.worktreeCopyPatterns }
       : {}),
+    ...worktreePlacementPayload(project),
     transferUncommitted: input.worktreeTransferUncommitted ?? false,
     // "Worktree + changes" copies (keeps on source); a plain move clears it.
     keepChangesInSource: input.worktreeTransferUncommitted ?? false,

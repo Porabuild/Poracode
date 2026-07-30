@@ -7,16 +7,16 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { Tooltip, toast } from "@heroui/react";
-import { ChevronDown, GitFork, Monitor } from "lucide-react";
+import { toast } from "@heroui/react";
+import { ChevronDown, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
 } from "@/renderer/actions/threadRuntimeActions";
-import { BranchSelector, type BranchSelection } from "../common/BranchSelector/BranchSelector";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
@@ -220,6 +220,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [contextDockOpen, setContextDockOpen] = useState(false);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
+  const effectiveAgentStatus = agentStatus
+    ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
+    : undefined;
   const usesTerminalPresentation = presentationMode === "terminal";
   // Composer MCP servers are bound at session-create time for the active
   // thread, so the "+" menu shows this run's bindings read-only: the enabled
@@ -231,11 +234,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // settings page instead of per-thread, so their composer carries no MCP
   // display at all — no built-in rows, no custom servers, and no read-only
   // "none for this run" fallback.
-  const providerOwnsMcp = agentStatus ? providerOwnsMcpConfig(agentStatus.capabilities) : false;
+  const providerOwnsMcp = effectiveAgentStatus
+    ? providerOwnsMcpConfig(effectiveAgentStatus.capabilities)
+    : false;
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
-    enabled: thread.config[descriptor.configKey] === true,
-    visible: !providerOwnsMcp && thread.config[descriptor.configKey] === true,
+    enabled: thread.config?.[descriptor.configKey] === true,
+    visible: !providerOwnsMcp && thread.config?.[descriptor.configKey] === true,
     onToggle: () => {},
   }));
   const launchCustomMcpNames = useAppStore(
@@ -250,7 +255,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       }));
   const mcpMentions: McpMentionItem[] = [
     ...composerMcpServers
-      .filter((descriptor) => thread.config[descriptor.configKey] === true)
+      .filter((descriptor) => thread.config?.[descriptor.configKey] === true)
       .map((descriptor) => ({
         id: descriptor.id,
         name: t(descriptor.label),
@@ -258,7 +263,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         detail: t`MCP server`,
         enabled: true,
       })),
-    ...(thread.config.computerUse === true
+    ...(thread.config?.computerUse === true
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
@@ -273,23 +278,23 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind);
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
-    agentStatus?.capabilities.slashCommands,
+    effectiveAgentStatus?.capabilities.slashCommands,
     {
       agentKind: thread.agentKind,
       presentationMode,
       hasEffort:
         ((
-          agentStatus?.capabilities.modelEfforts?.[thread.config.model] ??
-          agentStatus?.capabilities.efforts ??
+          effectiveAgentStatus?.capabilities.modelEfforts?.[thread.config?.model ?? ""] ??
+          effectiveAgentStatus?.capabilities.efforts ??
           []
         ).length ?? 0) > 0,
-      supportsFast: agentStatus
-        ? supportsUsableFastMode(agentStatus.capabilities, thread.config.model)
+      supportsFast: effectiveAgentStatus
+        ? supportsUsableFastMode(effectiveAgentStatus.capabilities, thread.config?.model ?? "")
         : false,
       skillCommands,
-      disabledSkillNames: agentStatus?.capabilities.disabledSkillNames,
+      disabledSkillNames: effectiveAgentStatus?.capabilities.disabledSkillNames,
       skillCatalogAuthoritative:
-        agentStatus?.capabilities.reportsSkillCatalog === true &&
+        effectiveAgentStatus?.capabilities.reportsSkillCatalog === true &&
         presentationMode === "gui" &&
         thread.slashCommands !== undefined,
     },
@@ -297,14 +302,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
   const showCommandPanel = filteredCommands.length > 0;
   const { authRequired, hasRuntimeAuthError } = resolveThreadAuthState({
-    authState: agentStatus?.authState,
+    authState: effectiveAgentStatus?.authState,
     errorDockStates,
   });
   const canShowRuntimeChrome = !usesTerminalPresentation || usesRemoteTransport;
   const isServerControlled =
-    agentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
-  const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
-  const needsFocusBeforeInput = agentStatus?.capabilities.requiresTerminalFocusBeforeInput === true;
+    effectiveAgentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
+  const isTerminalInput = effectiveAgentStatus?.capabilities.liveInputMode === "terminal";
+  const needsFocusBeforeInput =
+    effectiveAgentStatus?.capabilities.requiresTerminalFocusBeforeInput === true;
   const canQueueServerInput =
     isServerControlled &&
     !usesTerminalPresentation &&
@@ -361,9 +367,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         : s.statuses[thread.projectId]?.branch),
   );
   const hiddenModelIds = useSharedSettings(
-    (s) => s.hiddenModels[modelVisibilityKey(thread.agentKind, presentationMode)],
+    (s) =>
+      s.hiddenModels[
+        modelVisibilityKey(
+          thread.agentKind,
+          presentationMode,
+          effectiveAgentStatus?.capabilities.runtimeLabel,
+        )
+      ],
   );
-  const controls = buildControls(thread, agentStatus, hiddenModelIds, (config) =>
+  const controls = buildControls(thread, effectiveAgentStatus, hiddenModelIds, (config) =>
     changeThreadConfig(thread.id, config),
   );
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
@@ -399,7 +412,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const contextSummary = resolveThreadContextUsageSummary({
     thread,
-    agentStatus,
+    agentStatus: effectiveAgentStatus,
     reportedUsage: reportedContextUsage,
   });
   const showContextIndicator =
@@ -441,43 +454,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     return readBridge().writeTerminal({ threadId: thread.id, data });
   }
 
-  function handleSwitchBranch(branch: string, createNew: boolean) {
-    readBridge()
-      .gitSwitchBranch({
-        projectLocation,
-        branch,
-        createNew,
-      })
-      .then((result) => {
-        const store = useGitStore.getState();
-        const status = store.statuses[thread.projectId];
-        if (status) {
-          store.setStatus(thread.projectId, {
-            ...status,
-            branch: result.branch,
-            tracking: result.tracking,
-            ahead: result.ahead,
-            behind: result.behind,
-          });
-        }
-      })
-      .catch((err: unknown) => {
-        console.error("[git] switch branch failed", err);
-        toast.danger(friendlyError(err));
-      });
-  }
-
-  function handleBranchSelect(selection: BranchSelection) {
-    if (!selection.isWorktree && selection.branch !== branchName) {
-      handleSwitchBranch(selection.branch, false);
-    }
-  }
-
   function submitPrompt(segments: PromptSegment[]) {
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
       thread,
-      agentStatus,
+      agentStatus: effectiveAgentStatus,
       presentationMode,
       usesTerminalPresentation,
       canSubmit,
@@ -627,6 +608,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           <ThreadChangesBubble
             projectId={thread.projectId}
             {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+            {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
           />
           <div
             className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
@@ -652,9 +634,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   toolbarLayoutKey={[
                     isCliThread ? "cli" : "chat",
                     showContextIndicator ? "ctx" : "no-ctx",
-                    branchName ?? "",
-                    thread.worktreePath ? "wt" : "br",
-                    thread.prNumber ? `pr=${thread.prNumber}` : "",
                     authRequired ? "auth-required" : "auth-ready",
                   ].join("|")}
                   fixedContent={
@@ -680,7 +659,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         threadConfig={thread.config}
                         worktreePath={thread.worktreePath}
                         branchName={branchName}
-                        agentStatus={agentStatus}
+                        agentStatus={effectiveAgentStatus}
                         project={project}
                         contextSummary={contextSummary}
                         errorDockStates={errorDockStates}
@@ -736,7 +715,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           ? t`Deny and tell the agent what to do differently…`
                           : isServerControlled
                             ? (props.composerPlaceholder ??
-                              t`Ask ${agentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
+                              t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
                             : t`Send a message...`
                       }
                       projectLocation={projectLocation}
@@ -841,8 +820,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           customMcpServers={customMcpServers}
                           readOnly={!providerOwnsMcp}
                           computerUse={{
-                            enabled: thread.config.computerUse === true,
-                            visible: !providerOwnsMcp && thread.config.computerUse === true,
+                            enabled: thread.config?.computerUse === true,
+                            visible: !providerOwnsMcp && thread.config?.computerUse === true,
                             onToggle: () => {},
                           }}
                           showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
@@ -858,53 +837,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               .catch((error: unknown) => toast.danger(friendlyError(error)));
                           }}
                         />
-                        {branchName ? (
-                          // Marker span so the mobile stylesheet can drop the
-                          // branch affordance (the PWA has its own git entry).
-                          <span className="contents" data-composer-branch="">
-                            {thread.worktreePath ? (
-                              <Tooltip delay={0}>
-                                <Tooltip.Trigger tabIndex={-1} role="none">
-                                  <div className="poracode-composer-static poracode-composer-worktree min-w-0 max-w-48 px-2.5">
-                                    <GitFork className="size-3.5 text-muted" />
-                                    <span
-                                      data-collapse-tier={3}
-                                      className="poracode-composer-label-hideable truncate"
-                                    >
-                                      {branchName}
-                                    </span>
-                                    {thread.prNumber ? (
-                                      <span
-                                        data-collapse-tier={3}
-                                        className="poracode-composer-label-hideable shrink-0 text-muted/60"
-                                      >
-                                        PR #{thread.prNumber}
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                </Tooltip.Trigger>
-                                <Tooltip.Content placement="top">{branchName}</Tooltip.Content>
-                              </Tooltip>
-                            ) : (
-                              <BranchSelector
-                                projectId={thread.projectId}
-                                currentBranch={branchName}
-                                value={branchName}
-                                onSelect={handleBranchSelect}
-                                onSwitchBranch={handleSwitchBranch}
-                                hideWorktreeToggle
-                                showMoveBranchAction
-                                {...(project?.scripts?.worktreeCopyPatterns
-                                  ? {
-                                      moveBranchCopyIgnoredPatterns:
-                                        project.scripts.worktreeCopyPatterns,
-                                    }
-                                  : {})}
-                                collapseTier={3}
-                              />
-                            )}
-                          </span>
-                        ) : null}
                       </>
                     );
                     const renderVoiceInput = () => (

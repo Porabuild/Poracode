@@ -8,7 +8,7 @@ import type {
 } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
-  capabilitiesForPresentation,
+  agentStatusForPresentation,
   modelSelectionFor,
   resolveModelSelection,
   resolveReasoningSelection,
@@ -168,8 +168,21 @@ export function resolveProviderDraftConfig(
   const nextModel = resolveModelValue(agent, normalizedPreferred?.model);
   const nextEffort = resolveEffortValue(agent, nextModel, normalizedPreferred?.effort);
   const nextContext = resolveContextSizeValue(agent, nextModel, normalizedPreferred?.contextSize);
-  const nextFast = resolveFastValue(agent, nextModel, normalizedPreferred?.fast);
-  const nextThinking = resolveThinkingValue(agent, nextModel, normalizedPreferred?.thinking);
+  const supportsFast = supportsUsableFastMode(agent.capabilities, nextModel);
+  // Fast mode is the composer's default for every model that can actually use
+  // it; only an explicitly saved `false` keeps it off. AI helpers (title/commit
+  // generation, schedules, PR automation) call `resolveFastValue` directly and
+  // keep their opt-in default, so background work doesn't silently spend fast
+  // requests.
+  const nextFast = resolveFastValue(agent, nextModel, normalizedPreferred?.fast ?? true);
+  // Thinking starts enabled for every model that offers the toggle. An
+  // explicitly saved `false` remains authoritative.
+  const nextThinking = resolveThinkingValue(
+    agent,
+    nextModel,
+    normalizedPreferred?.thinking ?? true,
+  );
+  const supportsThinking = agent.capabilities.thinkingModels?.includes(nextModel) === true;
   const nextMode = resolveModeValue(agent, normalizedPreferred?.mode) as
     | "agent"
     | "plan"
@@ -183,8 +196,8 @@ export function resolveProviderDraftConfig(
     model: nextModel,
     effort: nextEffort,
     ...(nextContext ? { contextSize: nextContext } : {}),
-    ...(nextFast ? { fast: nextFast } : {}),
-    ...(nextThinking ? { thinking: nextThinking } : {}),
+    ...(supportsFast ? { fast: nextFast } : {}),
+    ...(supportsThinking ? { thinking: nextThinking } : {}),
     mode: nextMode,
     approvalPolicy: nextApproval,
     ...(nextReviewer !== undefined ? { approvalsReviewer: nextReviewer } : {}),
@@ -196,10 +209,7 @@ export function agentWithCapabilities(
   agent: AgentStatus,
   presentationMode: ThreadPresentationMode,
 ): AgentStatus {
-  return {
-    ...agent,
-    capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
-  };
+  return agentStatusForPresentation(agent, presentationMode);
 }
 
 export function formatAgentList(names: string[]): string {

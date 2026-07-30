@@ -406,6 +406,59 @@ describe("PrWatchService", () => {
     expect(store.get(project.id, pr.number)).not.toBeNull();
   });
 
+  it("checks immediately when pending checks settle", async () => {
+    let currentPr = { ...pr, checksStatus: "PENDING" };
+    let currentDetails: PrDetails = {
+      ...details,
+      checks: [{ name: "Test", state: "IN_PROGRESS", conclusion: "" }],
+    };
+    const { service, mergePr } = setup(
+      withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
+      {
+        getPrForBranch: async () => currentPr,
+        getPrDetails: async () => currentDetails,
+      },
+    );
+
+    await service.tick();
+    expect(mergePr).not.toHaveBeenCalled();
+
+    currentPr = { ...pr, checksStatus: "SUCCESS" };
+    currentDetails = {
+      ...details,
+      checks: [{ name: "Test", state: "COMPLETED", conclusion: "SUCCESS" }],
+    };
+    service.requestCheck(project.id, pr.number);
+
+    await vi.waitFor(() => expect(mergePr).toHaveBeenCalledOnce());
+  });
+
+  it("queues a settled-status check that arrives during an in-flight check", async () => {
+    let resolveFirstPr!: (value: PrData) => void;
+    const getPrForBranch = vi
+      .fn<PrWatchServiceOptions["getPrForBranch"]>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<PrData>((resolve) => {
+            resolveFirstPr = resolve;
+          }),
+      )
+      .mockResolvedValue(pr);
+    const { service, mergePr } = setup(
+      withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
+      { getPrForBranch },
+    );
+
+    const firstCheck = service.tick();
+    await vi.waitFor(() => expect(getPrForBranch).toHaveBeenCalledOnce());
+    service.requestCheck(project.id, pr.number);
+    resolveFirstPr({ ...pr, checksStatus: "PENDING" });
+    await firstCheck;
+
+    await vi.waitFor(() => expect(getPrForBranch).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mergePr).toHaveBeenCalledOnce());
+  });
+
   it("removes a watch after the PR closes", async () => {
     const { service, store } = setup(watch(), {
       getPrForBranch: async () => ({ ...pr, state: "closed" }),

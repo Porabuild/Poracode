@@ -12,6 +12,8 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useGitReadModelStore } from "@/renderer/state/gitReadModelStore";
+import { emptyGitStateSnapshot } from "@/shared/gitState";
 import { useNotesStore } from "@/renderer/state/notesStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
@@ -68,6 +70,7 @@ describe("resetRemoteStores", () => {
       statuses: { p: { isRepo: false } as never },
       prFiles: { "p#1": [] },
     });
+    useGitReadModelStore.setState({ ...emptyGitStateSnapshot(), revision: 3 });
     useGitReviewActionStore.setState({
       panels: {
         p: {
@@ -115,6 +118,7 @@ describe("resetRemoteStores", () => {
       statuses: {},
       prFiles: {},
     });
+    expect(useGitReadModelStore.getState().revision).toBe(0);
     expect(useGitReviewActionStore.getState().panels).toEqual({});
     expect(useDevTerminalStore.getState()).toMatchObject({
       isOpen: false,

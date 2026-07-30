@@ -109,6 +109,7 @@ export class GenerationService {
         {
           signal: abortController.signal,
           ...(this.deps.wslBridgeClient ? { wslClient: this.deps.wslBridgeClient } : {}),
+          ...(payload.mode ? { mode: payload.mode } : {}),
         },
       );
     } finally {

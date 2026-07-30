@@ -117,10 +117,10 @@ function metaOf(thread: Thread): Meta {
     // profiles of the same provider is counted separately. The global rollup
     // folds to the base provider at read time.
     provider: thread.agentKind,
-    model: thread.config.model ?? null,
+    model: thread.config?.model ?? null,
     mode: thread.presentationMode === "gui" ? "chat" : "cli",
-    fast: thread.config.fast === true,
-    effort: thread.config.effort ?? null,
+    fast: thread.config?.fast === true,
+    effort: thread.config?.effort ?? null,
   };
 }
 

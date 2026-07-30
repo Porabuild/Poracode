@@ -57,6 +57,29 @@ describe("createCursorAdapter capabilities", () => {
     expect(adapter.capabilities.presentationModes).toEqual(["terminal", "gui"]);
     expect(adapter.createStructuredSession).toBeTypeOf("function");
   });
+
+  it("does not pass SDK-local session ids to cursor-agent context extraction", () => {
+    const adapter = createCursorAdapter();
+    const location = { kind: "posix" as const, path: "/repo" };
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        {
+          providerSessionId: "sdk:agent-123",
+          discoveredAt: "2026-07-27T00:00:00.000Z",
+        },
+        location,
+      ),
+    ).toBeUndefined();
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        {
+          providerSessionId: "cli-chat-123",
+          discoveredAt: "2026-07-27T00:00:00.000Z",
+        },
+        location,
+      )?.args,
+    ).toContain("--resume=cli-chat-123");
+  });
 });
 
 describe("rewriteCursorLoadSessionError", () => {
@@ -322,6 +345,7 @@ describe("buildCursorModelPickerCapabilities", () => {
       "gpt-5.5": ["272k", "1m"],
     });
     expect(capabilities.fastModels).toEqual(["composer-2", "gpt-5.5"]);
+    expect(capabilities.defaultHiddenModels).toEqual(["composer-2", "gpt-5.5"]);
   });
 
   it("does not expose a context selector for Cursor models without 1M variants", () => {
@@ -336,6 +360,7 @@ describe("buildCursorModelPickerCapabilities", () => {
     // Models that resolve to the abstract "default" id (kimi-k2.5) get no entry.
     expect(capabilities.contextSizes).toBeUndefined();
     expect(capabilities.modelContextSizes).toEqual({ "gpt-5.2": ["272k"] });
+    expect(capabilities.defaultHiddenModels).toEqual(["gpt-5.2"]);
   });
 
   it("keeps Codex Max as part of the base model name", () => {
@@ -372,6 +397,7 @@ describe("buildCursorModelPickerCapabilities", () => {
       "claude-opus-4-7": ["300k", "1m"],
     });
     expect(capabilities.thinkingModels).toEqual(["claude-opus-4-7"]);
+    expect(capabilities.defaultHiddenModels).toBeUndefined();
   });
 
   it("uses 200K/1M context choices for non-4.7 Claude families with 1M variants", () => {
@@ -388,6 +414,7 @@ describe("buildCursorModelPickerCapabilities", () => {
       "claude-4.6-sonnet": ["200k", "1m"],
     });
     expect(capabilities.thinkingModels).toEqual(["claude-4.6-sonnet"]);
+    expect(capabilities.defaultHiddenModels).toBeUndefined();
   });
 });
 
@@ -438,6 +465,13 @@ describe("buildCursorAcpModelPickerCapabilities", () => {
     expect(capabilities.modelEfforts).toMatchObject({
       "gpt-5.5[context=272k,reasoning=medium,fast=false]": [],
     });
+    expect(capabilities.defaultHiddenModels).toEqual([
+      "composer-2[fast=true]",
+      "gpt-5.5[context=272k,reasoning=medium,fast=false]",
+      "gpt-5.1-codex-max[reasoning=medium,fast=false]",
+      "claude-opus-4-7[thinking=true,context=300k,effort=xhigh]",
+      "claude-sonnet-4[thinking=false,context=200k]",
+    ]);
   });
 });
 
