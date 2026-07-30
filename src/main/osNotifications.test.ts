@@ -89,6 +89,7 @@ describe("showOsNotification", () => {
     expect(win.focus).toHaveBeenCalledOnce();
     expect(win.webContents.send).toHaveBeenCalledWith(IPC_EVENT_CHANNELS.threadOpenRequested, {
       threadId: "t1",
+      source: "notification",
     });
   });
 

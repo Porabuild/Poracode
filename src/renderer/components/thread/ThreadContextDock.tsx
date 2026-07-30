@@ -2,6 +2,7 @@ import { Tooltip } from "@heroui/react";
 import { Gauge, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { CSSProperties } from "react";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
 
@@ -16,7 +17,16 @@ export function ThreadContextDock({
   const usageStyle = {
     "--lc-context-progress": `${summary.percent ?? 0}%`,
   } as CSSProperties;
-  const countLabel = summary.percent === undefined ? t`Usage unknown` : t`${summary.percent}% Full`;
+  // The percentage rolls in place as the thread streams. `%` stays outside the
+  // animated element so locales that lead with the sign (Turkish) can move it.
+  const countLabel =
+    summary.percent === undefined ? (
+      t`Usage unknown`
+    ) : (
+      <Trans>
+        <AnimatedNumber value={summary.percent} />% Full
+      </Trans>
+    );
   const tone = resolveContextUsageTone(summary);
   const fillClassName =
     tone === "danger"

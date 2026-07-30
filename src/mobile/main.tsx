@@ -12,6 +12,7 @@ import { bootstrapAppLocaleFromCache } from "@/renderer/i18n/i18n";
 import { isIgnorableRejection, isIgnorableWindowError } from "@/renderer/rendererGlobalErrors";
 import { markMobilePlatformOnRoot } from "./mobilePlatform";
 import { markTouchCapabilityOnRoot } from "./pointerModality";
+import { isStaleAssetError } from "./staleAssetRecovery";
 
 function stripPairingDetails(event: BeforeSendEvent): BeforeSendEvent {
   const url = new URL(event.url);
@@ -73,15 +74,6 @@ function showCrash(kind: RendererCrashKind, error: unknown, source?: string): vo
 // rejects it as a module script. Detect this and recover by clearing all
 // caches and reloading so the next navigation fetches fresh HTML.
 const STALE_ASSET_RECOVERY_KEY = "poracode-stale-asset-recovery";
-
-function isStaleAssetError(error: unknown): boolean {
-  if (!(error instanceof TypeError)) return false;
-  const message = error.message;
-  return (
-    message.includes("is not a valid JavaScript MIME type") ||
-    message.includes("Failed to fetch dynamically imported module")
-  );
-}
 
 async function recoverFromStaleAssets(): Promise<boolean> {
   const attempts = Number(sessionStorage.getItem(STALE_ASSET_RECOVERY_KEY) ?? "0");

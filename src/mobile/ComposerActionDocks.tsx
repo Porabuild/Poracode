@@ -1,4 +1,5 @@
 import type { AgentStatus, Project, Thread } from "@/shared/contracts";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -36,21 +37,29 @@ export function ComposerActionDocks(props: {
   readonly onOpenPlanFile?: ((path: string) => void) | undefined;
 }) {
   const { thread, agentStatus, project } = props;
+  const presentationMode =
+    thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
+  const effectiveAgentStatus = agentStatus
+    ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
+    : undefined;
   const request = useAppStore((state) => state.runtimeRequestsByThread[thread.id]?.[0]);
   const pendingSteer = useDelayedPendingSteer(
     useAppStore((state) => state.pendingSteerByThreadId[thread.id]),
   );
   const { authRequired } = resolveThreadAuthState({
-    authState: agentStatus?.authState,
+    authState: effectiveAgentStatus?.authState,
     errorDockStates: props.dockState.errorDockStates,
   });
-  const showAuthDock = authRequired && agentStatus !== undefined;
+  const showAuthDock = authRequired && effectiveAgentStatus !== undefined;
   if (!showAuthDock && !pendingSteer && !request) return null;
 
   return (
     <div className="m-thread-action-docks">
       {showAuthDock ? (
-        <ThreadAuthRequiredDock agentStatus={agentStatus} {...(project ? { project } : {})} />
+        <ThreadAuthRequiredDock
+          agentStatus={effectiveAgentStatus}
+          {...(project ? { project } : {})}
+        />
       ) : null}
       {pendingSteer ? (
         <ThreadPendingSteerStrip
@@ -62,7 +71,7 @@ export function ComposerActionDocks(props: {
         <ThreadRuntimeRequestPanel
           key={request.requestId}
           threadId={thread.id}
-          agentLabel={agentStatus?.label}
+          agentLabel={effectiveAgentStatus?.label}
           request={request}
           onResolve={(input) => resolveThreadServerRequest(thread.id, input)}
           onPlanApproved={(optionId) =>

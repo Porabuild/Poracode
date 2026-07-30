@@ -37,7 +37,12 @@ function projectDraftConfigEqual(
 
 export interface ProjectSlice {
   projects: Project[];
-  addProject: (location: ProjectLocation, nameOverride?: string) => Project;
+  addProject: (
+    location: ProjectLocation,
+    nameOverride?: string,
+    /** Workspace to file the new project into; omitted leaves it visible in every workspace. */
+    workspaceId?: string,
+  ) => Project;
   ensureHomeProject: (location: ProjectLocation) => Project;
   deleteProject: (projectId: string) => void;
   updateProjectDraftConfig: (projectId: string, draftConfig: ProjectDraftConfig) => void;
@@ -54,17 +59,28 @@ export interface ProjectSlice {
   updateProjectMcpServers: (projectId: string, mcpServers: McpServer[]) => void;
   updateProjectLocation: (projectId: string, location: ProjectLocation) => void;
   renameProject: (projectId: string, name: string) => void;
+  /** Move a project into a workspace; `undefined` unfiles it (visible in every workspace). */
+  setProjectWorkspace: (projectId: string, workspaceId: string | undefined) => void;
+  /**
+   * Move every project currently in `from` into `to`, where `undefined` means
+   * "unfiled". Serves both the first-run bootstrap (`undefined` → the default
+   * workspace, so an existing install lands wholly in it) and workspace deletion
+   * (the doomed workspace → a surviving one). Never deletes projects, and leaves
+   * the synthetic Home project unfiled.
+   */
+  refileProjects: (from: string | undefined, to: string) => void;
   setProjectDisabled: (projectId: string, disabled: boolean) => void;
   reorderProjects: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
 }
 
 export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
   projects: [],
-  addProject: (location, nameOverride) => {
+  addProject: (location, nameOverride, workspaceId) => {
     const project: Project = {
       id: crypto.randomUUID(),
       name: nameOverride?.trim() || getProjectName(location),
       location,
+      ...(workspaceId ? { workspaceId } : {}),
       createdAt: new Date().toISOString(),
     };
 
@@ -231,6 +247,34 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
         project.id === projectId ? { ...project, name } : project,
       ),
     })),
+  setProjectWorkspace: (projectId, workspaceId) =>
+    set((state) => {
+      const target = state.projects.find((project) => project.id === projectId);
+      if (!target || target.workspaceId === workspaceId) return {};
+      return {
+        projects: state.projects.map((project) => {
+          if (project.id !== projectId) return project;
+          if (!workspaceId) {
+            const { workspaceId: _, ...rest } = project;
+            return rest;
+          }
+          return { ...project, workspaceId };
+        }),
+      };
+    }),
+  refileProjects: (from, to) =>
+    set((state) => {
+      if (from === to) return {};
+      // Home is synthetic and belongs to every workspace, so it stays unfiled.
+      const shouldMove = (project: Project) =>
+        project.workspaceId === from && project.id !== HOME_PROJECT_ID;
+      if (!state.projects.some(shouldMove)) return {};
+      return {
+        projects: state.projects.map((project) =>
+          shouldMove(project) ? { ...project, workspaceId: to } : project,
+        ),
+      };
+    }),
   setProjectDisabled: (projectId, disabled) =>
     set((state) => {
       const target = state.projects.find((p) => p.id === projectId);

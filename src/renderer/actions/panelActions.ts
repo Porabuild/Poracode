@@ -5,9 +5,15 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  useThreadTodoDockStore,
+  type ThreadTodoDockPlacement,
+} from "@/renderer/state/threadTodoDockStore";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
+import { resolveActivePaneId } from "./currentProject";
 
 function panelContextMatchesThread(
   projectId: string,
@@ -86,6 +92,10 @@ export function openChangelogSettings(): void {
   usePanelStore.getState().openSettingsSection("changelog");
 }
 
+export function openWorkspaceSettings(): void {
+  usePanelStore.getState().openSettingsSection("workspaces");
+}
+
 /** Open the docked usage panel, or close all right-side panels if it is already active. */
 export function openUsagePanel(): void {
   const panelStore = usePanelStore.getState();
@@ -123,11 +133,32 @@ export function toggleBrowserPanel(): void {
 }
 
 export function openProjectSettings(projectId: string): void {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  if (project?.remoteServerId && project.remoteId) {
+    void useRemoteServersStore
+      .getState()
+      .loadProjectSettings(project.remoteServerId, project.remoteId)
+      .catch(() => undefined);
+  }
   usePanelStore.getState().openProjectSettings(projectId);
 }
 
-/** Closes git/files side and right-panel content only. Does not hide the dev terminal (bottom or right). */
+export function moveThreadTodoDock(threadId: string, placement: ThreadTodoDockPlacement): void {
+  useThreadTodoDockStore.getState().setPlacement(threadId, placement);
+  if (placement === "right") {
+    usePanelStore.getState().setRightPanelTab("plan");
+  }
+}
+
+/** Close right-panel content and return its focused Plan to the composer. */
 export function closeAllPanels(): void {
+  const appState = useAppStore.getState();
+  if (appState.view.kind === "thread") {
+    moveThreadTodoDock(
+      resolveActivePaneId(appState.view.panes, appState.focusedPaneId),
+      "composer",
+    );
+  }
   usePanelStore.getState().closeAllPanels();
 }
 
@@ -148,7 +179,7 @@ export function showSubAgentPanel(
 
 /** Dismiss every panel that can occupy the right edge — used by the overlay backdrop. */
 export function dismissRightOverlay(): void {
-  usePanelStore.getState().closeAllPanels();
+  closeAllPanels();
   useDevTerminalStore.getState().closePanel();
 }
 

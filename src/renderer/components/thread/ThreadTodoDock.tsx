@@ -3,6 +3,7 @@ import { Tooltip } from "@heroui/react";
 import { ArrowRightLeft, Check, ChevronDown, Hourglass, ListChecks, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadTodoDockPlacement } from "@/renderer/state/threadTodoDockStore";
+import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import type { ThreadTodoDockState, ThreadTodoStepStatus } from "./threadTodoState";
 import { ThreadDockHeader, ThreadDockList, ThreadDockRow, ThreadDockSection } from "./ThreadDockUI";
@@ -56,10 +57,17 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
     (count, step) => (step.status === "completed" ? count + 1 : count),
     0,
   );
-  const countLabel = `${completedCount}/${state.steps.length}`;
+  const countLabel = <AnimatedFraction value={completedCount} total={state.steps.length} />;
 
   return (
-    <ThreadDockSection ariaLabel={t`Thread todo dock`} placement={placement} collapsed={collapsed}>
+    <ThreadDockSection
+      ariaLabel={t`Thread todo dock`}
+      placement={placement}
+      collapsed={collapsed}
+      className={
+        placement === "right" ? "rounded-none border-0 bg-[var(--content-background)]" : ""
+      }
+    >
       <ThreadDockHeader
         icon={ListChecks}
         title={t`Plan`}

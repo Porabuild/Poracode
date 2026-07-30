@@ -41,26 +41,22 @@ const bridge = vi.hoisted(() => ({
   deletePrWatch: vi.fn<() => Promise<void>>(),
 }));
 
-vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => bridge,
+const settings = vi.hoisted(() => ({
+  prAutomationDefault: "merge" as const,
+  conflictResolverProvider: "codex",
+  conflictResolverModel: "gpt-5.7",
+  conflictResolverEffort: "high",
+  conflictResolverFast: false,
+  conflictResolverPresentationMode: "gui" as const,
+  wslConflictResolverProvider: "auto",
+  wslConflictResolverModel: "",
+  wslConflictResolverEffort: "",
+  wslConflictResolverFast: false,
+  wslConflictResolverPresentationMode: "gui" as const,
 }));
 
-vi.mock("@/renderer/components/common", () => ({
-  ToggleSwitch: (props: {
-    "aria-label": string;
-    isSelected: boolean;
-    isDisabled?: boolean;
-    onChange: (selected: boolean) => void;
-  }) => (
-    <button
-      type="button"
-      role="switch"
-      aria-label={props["aria-label"]}
-      aria-checked={props.isSelected}
-      disabled={props.isDisabled}
-      onClick={() => props.onChange(!props.isSelected)}
-    />
-  ),
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => bridge,
 }));
 
 vi.mock("@/renderer/state/appStore", () => ({
@@ -69,7 +65,12 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/state/agentStatusesStore", () => {
-  const getState = () => ({ agentStatuses: [agent], wslAgentStatuses: [] });
+  let state: { agentStatuses: AgentStatus[]; wslAgentStatuses: AgentStatus[] } | undefined;
+  const getState = () =>
+    (state ??= {
+      agentStatuses: [agent],
+      wslAgentStatuses: [],
+    });
   const useAgentStatusesStore = Object.assign(
     (selector: (state: ReturnType<typeof getState>) => unknown) => selector(getState()),
     { getState },
@@ -78,18 +79,7 @@ vi.mock("@/renderer/state/agentStatusesStore", () => {
 });
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => {
-  const getState = () => ({
-    conflictResolverProvider: "codex",
-    conflictResolverModel: "gpt-5.7",
-    conflictResolverEffort: "high",
-    conflictResolverFast: false,
-    conflictResolverPresentationMode: "gui" as const,
-    wslConflictResolverProvider: "auto",
-    wslConflictResolverModel: "",
-    wslConflictResolverEffort: "",
-    wslConflictResolverFast: false,
-    wslConflictResolverPresentationMode: "gui" as const,
-  });
+  const getState = () => settings;
   const useSharedSettings = Object.assign(
     (selector: (state: ReturnType<typeof getState>) => unknown) => selector(getState()),
     { getState },
@@ -123,6 +113,17 @@ describe("PrWatchControls", () => {
     bridge.deletePrWatch.mockResolvedValue(undefined);
   });
 
+  it("shows the configured default while the initial automation state loads", () => {
+    bridge.getPrWatch.mockReturnValue(new Promise(() => undefined));
+
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    expect(slider).toHaveValue("2");
+    expect(slider).toBeDisabled();
+  });
+
   it("enables watching with the AI Helpers conflict resolver model", async () => {
     render(
       <PrWatchControls
@@ -134,9 +135,11 @@ describe("PrWatchControls", () => {
     );
     await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
 
-    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByRole("slider", { name: "PR automation" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Watch PR" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.keyUp(slider, { key: "ArrowRight" });
 
     await waitFor(() =>
       expect(bridge.upsertPrWatch).toHaveBeenCalledWith({
@@ -152,20 +155,24 @@ describe("PrWatchControls", () => {
     );
   });
 
-  it("can enable auto-merge without launching an agent", async () => {
+  it("watches and fixes blockers before auto-merging", async () => {
     render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
     await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
 
     fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Auto-merge" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    fireEvent.keyDown(slider, { key: "End" });
+    fireEvent.keyUp(slider, { key: "End" });
 
     await waitFor(() =>
       expect(bridge.upsertPrWatch).toHaveBeenCalledWith({
         projectId: project.id,
         prNumber: 42,
         headBranch: "feature/pr-watch",
-        watchEnabled: false,
+        watchEnabled: true,
         autoMerge: true,
+        agentKind: "codex",
+        config: { model: "gpt-5.7", effort: "high" },
       }),
     );
   });

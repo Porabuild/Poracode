@@ -3,6 +3,10 @@ import { AlertDialog } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import {
+  productSurfaceView,
+  useProductViewTracking,
+} from "@/renderer/analytics/useProductViewTracking";
 import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import {
   DeferredBrowserHost as PrewarmedBrowserHost,
@@ -14,14 +18,12 @@ import {
   DeferredLoginTerminalOverlay as PrewarmedLoginTerminalOverlay,
   DeferredPrReviewOverlay,
   DeferredProjectSettingsOverlay,
-  DeferredRemoteThreadView,
   DeferredSettingsOverlay,
 } from "@/renderer/deferredFeatures";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -34,7 +36,6 @@ import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import type { UsageLoginConfirmationAction } from "@/shared/contracts";
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
-import { RemoteProjectModal } from "@/renderer/views/RemoteProjectModal/RemoteProjectModal";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 
@@ -49,7 +50,6 @@ function useEverEnabled(active: boolean): boolean {
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
-  const remoteThreadOpen = useRemoteServersStore((s) => s.openThread !== null);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
@@ -74,6 +74,28 @@ export function AppOverlays() {
   const prReviewVisible = !!prReviewContext && !!prReviewProject;
   const githubActionsContext = usePanelStore((s) => s.githubActionsContext);
   const githubActionsVisible = githubActionsContext !== null;
+  const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
+  const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
+  const trackedOverlaySurface =
+    fileEditorOverlayMode && fileEditorRootContext
+      ? `editor_${fileEditorOverlayMode}`
+      : prReviewVisible
+        ? "pull_request_review"
+        : gitOverlayVisible
+          ? "git_review"
+          : browserOverlayOpen
+            ? browserOverlayMaximized
+              ? "browser_fullscreen"
+              : "browser_drawer"
+            : null;
+  useProductViewTracking(
+    productSurfaceView(trackedOverlaySurface ?? "inactive", "overlay"),
+    "overlay",
+    {
+      active: trackedOverlaySurface !== null,
+      finishWhenInactive: true,
+    },
+  );
 
   return (
     <>
@@ -82,14 +104,6 @@ export function AppOverlays() {
       <OverlayShell open={settingsOpen} onExited={() => usePanelStore.getState().closeSettings()}>
         <Suspense fallback={<OverlayLoader />}>
           <DeferredSettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
-        </Suspense>
-      </OverlayShell>
-      <OverlayShell
-        open={remoteThreadOpen}
-        onExited={() => useRemoteServersStore.getState().closeRemoteThread()}
-      >
-        <Suspense fallback={<OverlayLoader />}>
-          <DeferredRemoteThreadView />
         </Suspense>
       </OverlayShell>
       <OverlayShell
@@ -229,7 +243,6 @@ export function AppOverlays() {
       </OverlayShell>
       <DeferredBrowserHost />
       <UsageLoginConfirmationDialog />
-      <RemoteProjectModal />
       <DeferredLoginTerminalOverlay />
       <DeferredCreateProjectModal />
       <DeferredCloneProjectModal />

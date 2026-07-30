@@ -172,9 +172,9 @@ describe("theme presets", () => {
         const buttonBg = mode === "light" ? mixHex("#000000", content, 0.11) : v["--default"]!;
         const buttonHover = mode === "light" ? mixHex("#000000", content, 0.16) : v["--default"]!;
         // Soft-accent label (--color-accent-soft-foreground): styles.css deepens
-        // HeroUI's raw --accent toward fg so it stays accent-hued but legible.
-        // It drives secondary-button labels (on the --default fill) and selected
-        // toggle/badge/chip labels (on a 15% --accent-soft tint) — clear both.
+        // HeroUI's raw --accent toward fg so explicitly accent-tinted controls
+        // such as selected toggles, badges, chips, and calendar states stay
+        // legible on both accent-soft and neutral fills.
         const softLabel = mixHex(accent, fg, 0.65);
         const accentSoftFill = mixHex(accent, surface, 0.15);
         const defaultFill = mixHex(fg, surface, mode === "light" ? 0.18 : 0.14);

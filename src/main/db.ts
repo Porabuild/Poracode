@@ -20,6 +20,7 @@ export {
   dbGetState,
   dbSetState,
   dbUpsertProject,
+  dbUpdateProject,
   dbUpsertThread,
   dbSetThreadGroup,
   dbMarkLiveThreadsInactive,
@@ -35,6 +36,7 @@ export { onProjectThreadDataChanged } from "./db/projectThreadChanges";
 export {
   dbReadThreadRuntimeSummaries,
   dbGetThreadRuntimeSummaries,
+  dbGetThreadRuntimeItem,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbTruncateThreadRuntimeAfter,

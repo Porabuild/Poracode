@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
@@ -8,6 +8,7 @@ import type { ChatTimelineEntry } from "../../chatPaneSelectors";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { SubAgentContent, SubAgentHeaderText, SubAgentOpenController } from "./SubAgentOverlay";
 import { ActiveSubAgentTile } from "./ActiveSubAgentTile";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 const mockBridge = {
   subagentSubscribe:
@@ -15,6 +16,7 @@ const mockBridge = {
   subagentUnsubscribe:
     vi.fn<(payload: { threadId: string; parentItemId: string }) => Promise<void>>(),
 };
+const mockScrollToEnd = vi.hoisted(() => vi.fn<() => Promise<void>>());
 
 type MockLegendProps = {
   data: readonly ChatTimelineEntry[];
@@ -26,6 +28,8 @@ type MockLegendProps = {
   className?: string;
   contentContainerClassName?: string;
   contentContainerStyle?: React.CSSProperties;
+  style?: React.CSSProperties;
+  onWheelCapture?: React.WheelEventHandler<HTMLDivElement>;
   onLoad?: () => void;
 };
 
@@ -44,11 +48,17 @@ vi.mock("@legendapp/list/react", async () => {
           sizes: new Map(),
           listen: () => () => undefined,
         }),
-        scrollToEnd: () => Promise.resolve(),
+        scrollToEnd: mockScrollToEnd,
       }));
       React.useLayoutEffect(() => onLoadRef.current?.(), []);
       return (
-        <div ref={scrollRef} className={props.className} data-poracode-chat-scroller="true">
+        <div
+          ref={scrollRef}
+          className={props.className}
+          style={props.style}
+          data-poracode-chat-scroller="true"
+          onWheelCapture={props.onWheelCapture}
+        >
           <div
             className={`legend-list-content-container ${props.contentContainerClassName ?? ""}`}
             style={props.contentContainerStyle}
@@ -77,6 +87,7 @@ describe("SubAgentContent", () => {
   beforeEach(() => {
     mockBridge.subagentSubscribe.mockReset().mockResolvedValue({ history: [] });
     mockBridge.subagentUnsubscribe.mockReset().mockResolvedValue(undefined);
+    mockScrollToEnd.mockReset().mockResolvedValue(undefined);
     useAppStore.setState({
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -133,6 +144,78 @@ describe("SubAgentContent", () => {
     expect(icons).toHaveLength(2);
     expect(icons[0]).toHaveClass("size-3.5");
     expect(icons[1]).toHaveClass("size-3.5");
+  });
+
+  it("reuses the main chat fade, sticky-bottom controls, and live elapsed footer", async () => {
+    const threadId = "thread-1";
+    const parentItem: RuntimeChatItem = {
+      ...makeSubAgentItem("parent-1"),
+      startedAt: Date.now() - 70_000,
+    };
+
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          [parentItem.id]: parentItem,
+        },
+      },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    const view = render(
+      <SubAgentContent threadId={threadId} parentItemId={parentItem.id} hideHeader />,
+    );
+
+    expect(await screen.findByText("Working for 1m 10s")).toBeInTheDocument();
+    await waitFor(() => expect(mockScrollToEnd).toHaveBeenCalled());
+    const scroller = view.container.querySelector<HTMLElement>(
+      '[data-poracode-chat-scroller="true"]',
+    );
+    expect(scroller).not.toBeNull();
+    expect(scroller?.style.maskImage).toContain("var(--top-fade-size");
+    const scrollButton = screen.getByRole("button", { name: "Scroll to bottom" });
+    expect(scrollButton).toHaveClass("opacity-0");
+
+    Object.defineProperties(scroller!, {
+      clientHeight: { configurable: true, value: 200 },
+      scrollHeight: { configurable: true, value: 1_000 },
+    });
+    fireEvent.wheel(scroller!, { deltaY: -10 });
+    scroller!.scrollTop = 100;
+    fireEvent.scroll(scroller!);
+
+    await waitFor(() => expect(scrollButton).toHaveClass("opacity-80"));
+    mockScrollToEnd.mockClear();
+    fireEvent.click(scrollButton);
+    await waitFor(() => expect(mockScrollToEnd).toHaveBeenCalled());
+  });
+
+  it("shows the frozen subagent duration after completion", async () => {
+    const threadId = "thread-1";
+    const startedAt = Date.now() - 75_000;
+    const runningParent = makeSubAgentItem("parent-1");
+    const parentItem: RuntimeChatItem = {
+      ...runningParent,
+      state: "completed",
+      startedAt,
+      completedAt: startedAt + 75_000,
+      payload: { ...(runningParent.payload as ToolCallPayload), status: "success" },
+    };
+
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          [parentItem.id]: parentItem,
+        },
+      },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} hideHeader />);
+
+    expect(await screen.findByText("Worked for 1m 15s")).toBeInTheDocument();
   });
 
   it("splits a Crossagent name and model selection into a two-line route header", () => {
@@ -312,7 +395,7 @@ describe("SubAgentContent", () => {
 
     const dialog = await screen.findByRole("region");
     expect(within(dialog).getByText("Inspect the renderer.")).toBeInTheDocument();
-    expect(within(dialog).getByText("2 commands")).toBeInTheDocument();
+    expect(within(dialog).getByText(byTextContent("2 commands"))).toBeInTheDocument();
     expect(
       await within(dialog).findByRole("heading", { name: "Child result" }, { timeout: 5_000 }),
     ).toBeInTheDocument();
@@ -357,7 +440,7 @@ describe("SubAgentContent", () => {
     );
 
     const dialog = await screen.findByRole("region");
-    expect(within(dialog).getByText("2 commands").closest("button")).toHaveAttribute(
+    expect(within(dialog).getByText(byTextContent("2 commands")).closest("button")).toHaveAttribute(
       "aria-expanded",
       "false",
     );

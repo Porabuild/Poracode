@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentEventEnvelope } from "@/shared/contracts";
 import { WslBridgeServer } from "./index";
 
@@ -54,14 +54,18 @@ function makeStubbedManager(opts: {
   helpersDir: string;
   onEvent: (envelope: AgentEventEnvelope) => void;
   onError?: (message: string, error?: unknown) => void;
+  onBridgeExit?: (distro: string) => void;
   bootPort?: number;
   child?: FakeChild;
+  childFactory?: () => FakeChild;
+  autoBoot?: (spawnCount: number) => boolean;
   spawnsRef?: { count: number };
   onSpawn?: (
     opts: Parameters<NonNullable<ConstructorParameters<typeof WslBridgeServer>[0]["spawn"]>>[0],
   ) => void;
-}): { manager: WslBridgeServer; child: FakeChild } {
+}): { manager: WslBridgeServer; child: FakeChild; children: FakeChild[] } {
   const child = opts.child ?? new FakeChild();
+  const children: FakeChild[] = [];
   const bootPort = opts.bootPort ?? 54321;
   const managerOpts: ConstructorParameters<typeof WslBridgeServer>[0] = {
     helpersDir: opts.helpersDir,
@@ -75,21 +79,26 @@ function makeStubbedManager(opts: {
     }),
     deploy: () => ({ home: "/home/me", linuxBaseDir: "/home/me/.poracode" }),
     spawn: (childOpts) => {
+      const spawnedChild = opts.childFactory?.() ?? child;
+      children.push(spawnedChild);
       opts.onSpawn?.(childOpts);
       if (opts.spawnsRef) opts.spawnsRef.count += 1;
       // Emit boot AFTER spawn returns so attachLineSplitter has wired the
       // listener — without this the listener would miss the chunk.
-      setImmediate(() => {
-        child.stdout.emit(
-          "data",
-          Buffer.from(JSON.stringify({ type: "boot", port: bootPort }) + "\n"),
-        );
-      });
-      return child as never;
+      if (!opts.autoBoot || opts.autoBoot(children.length)) {
+        setImmediate(() => {
+          spawnedChild.stdout.emit(
+            "data",
+            Buffer.from(JSON.stringify({ type: "boot", port: bootPort }) + "\n"),
+          );
+        });
+      }
+      return spawnedChild as never;
     },
   };
   if (opts.onError) managerOpts.onError = opts.onError;
-  return { manager: new WslBridgeServer(managerOpts), child };
+  if (opts.onBridgeExit) managerOpts.onBridgeExit = opts.onBridgeExit;
+  return { manager: new WslBridgeServer(managerOpts), child, children };
 }
 
 function makeEnvelope(overrides: Partial<AgentEventEnvelope> = {}): AgentEventEnvelope {
@@ -150,6 +159,46 @@ describe("WslBridgeServer", () => {
     expect(first?.baseUrl).toBe("http://127.0.0.1:1");
     expect(second?.hookUrl).toBe("http://127.0.0.1:1/v1/agent-event");
 
+    await manager.dispose();
+  });
+
+  it("releases a bridge without treating the intentional exit as a crash", async () => {
+    const helpersDir = makeHelpersDir();
+    const onBridgeExit = vi.fn<(distro: string) => void>();
+    const { manager, children } = makeStubbedManager({
+      helpersDir,
+      onEvent: () => undefined,
+      onBridgeExit,
+      childFactory: () => new FakeChild(),
+    });
+
+    await manager.ensureBridge("Ubuntu");
+    manager.releaseBridge("Ubuntu");
+    children[0]!.emit("exit", 0, null);
+    await manager.ensureBridge("Ubuntu");
+
+    expect(children).toHaveLength(2);
+    expect(onBridgeExit).not.toHaveBeenCalled();
+    await manager.dispose();
+  });
+
+  it("releases a bridge that is still booting", async () => {
+    const helpersDir = makeHelpersDir();
+    const { manager, children } = makeStubbedManager({
+      helpersDir,
+      onEvent: () => undefined,
+      childFactory: () => new FakeChild(),
+      autoBoot: (spawnCount) => spawnCount > 1,
+    });
+
+    const firstBoot = manager.ensureBridge("Ubuntu");
+    await vi.waitFor(() => expect(children).toHaveLength(1));
+    manager.releaseBridge("Ubuntu");
+    children[0]!.stdout.emit("data", Buffer.from('{"type":"boot","port":54001}\n'));
+    await firstBoot;
+    await manager.ensureBridge("Ubuntu");
+
+    expect(children).toHaveLength(2);
     await manager.dispose();
   });
 

@@ -5,6 +5,7 @@ import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts"
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ChatPane } from "./ChatPane";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 const {
   hydrateThreadRuntimeItems,
@@ -61,12 +62,27 @@ vi.mock("@legendapp/list/react", async () => {
       forwardedRef: React.ForwardedRef<unknown>,
     ) {
       const scrollRef = React.useRef<HTMLDivElement>(null);
+      const sizesRef = React.useRef(new Map<string, number>());
       const totalSizeListenerRef = React.useRef<(() => void) | null>(null);
       const onLoadRef = React.useRef(props.onLoad);
       React.useImperativeHandle(forwardedRef, () => ({
         getScrollableNode: () => scrollRef.current,
         getState: () => ({
-          sizes: new Map<string, number>(),
+          sizes: sizesRef.current,
+          positionAtIndex: (index: number) =>
+            props.data
+              .slice(0, index)
+              .reduce(
+                (top, item, itemIndex) =>
+                  top + (sizesRef.current.get(props.keyExtractor(item, itemIndex)) ?? 100),
+                0,
+              ),
+          sizeAtIndex: (index: number) => {
+            const item = props.data[index];
+            return item
+              ? (sizesRef.current.get(props.keyExtractor(item, index)) ?? 100)
+              : Number.NaN;
+          },
           listen: (_name: string, listener: () => void) => {
             totalSizeListenerRef.current = listener;
             return () => {
@@ -84,7 +100,21 @@ vi.mock("@legendapp/list/react", async () => {
           legendScrollToIndex(options);
           return Promise.resolve();
         },
-        setItemSize: () => totalSizeListenerRef.current?.(),
+        setItemSize: (itemKey: string, size: { height: number }) => {
+          sizesRef.current.set(itemKey, size.height);
+          const content = scrollRef.current?.querySelector(".legend-list-content-container");
+          let top = 0;
+          for (let index = 0; index < props.data.length; index += 1) {
+            const item = props.data[index]!;
+            const key = props.keyExtractor(item, index);
+            const container = Array.from(content?.children ?? []).find(
+              (element) => element instanceof HTMLElement && element.dataset.mockLegendKey === key,
+            );
+            if (container instanceof HTMLElement) container.style.top = `${top}px`;
+            top += sizesRef.current.get(key) ?? 100;
+          }
+          totalSizeListenerRef.current?.();
+        },
       }));
       React.useLayoutEffect(() => {
         onLoadRef.current?.();
@@ -107,9 +137,24 @@ vi.mock("@legendapp/list/react", async () => {
           >
             {props.data.length === 0 ? props.ListEmptyComponent : null}
             {props.data.map((item, index) => (
-              <React.Fragment key={props.keyExtractor(item, index)}>
+              <div
+                key={props.keyExtractor(item, index)}
+                data-mock-legend-key={props.keyExtractor(item, index)}
+                style={{
+                  position: "absolute",
+                  top: `${props.data
+                    .slice(0, index)
+                    .reduce(
+                      (top, preceding, precedingIndex) =>
+                        top +
+                        (sizesRef.current.get(props.keyExtractor(preceding, precedingIndex)) ??
+                          100),
+                      0,
+                    )}px`,
+                }}
+              >
                 {props.renderItem({ item, index })}
-              </React.Fragment>
+              </div>
             ))}
             {props.ListFooterComponent}
           </div>
@@ -1406,12 +1451,57 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    const trigger = screen.getByText(/^2 commands$/).closest("button");
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     fireEvent.click(trigger!);
 
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("keeps following virtual rows aligned through repeated tool-group toggles", async () => {
+    const thread = makeThread();
+    seedCommandItem(thread.id, "cmd-1", "echo one", "one");
+    seedCommandItem(thread.id, "cmd-2", "echo two", "two");
+    seedAssistantMessage(thread.id, "Following answer", "assistant-after-group");
+    seedUserMessage(thread.id, "Following prompt", "user-after-group");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
+    const groupRow = trigger?.closest<HTMLElement>("[data-chat-virtual-row='true']");
+    const assistantRow = container.querySelector<HTMLElement>(
+      "[data-chat-virtual-row='true'][data-item-id='assistant-after-group']",
+    );
+    const userRow = container.querySelector<HTMLElement>(
+      "[data-chat-virtual-row='true'][data-item-id='user-after-group']",
+    );
+    if (!trigger || !groupRow || !assistantRow || !userRow) {
+      throw new Error("missing virtualized tool-group fixture");
+    }
+    Object.defineProperties(groupRow, {
+      offsetHeight: {
+        configurable: true,
+        get: () => (trigger.getAttribute("aria-expanded") === "true" ? 220 : 100),
+      },
+      offsetWidth: { configurable: true, value: 500 },
+    });
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(virtualRowTop(assistantRow)).toBe(100);
+    expect(virtualRowTop(userRow)).toBe(200);
+
+    for (let toggle = 0; toggle < 6; toggle += 1) {
+      fireEvent.click(trigger);
+      act(() => MockResizeObserver.notify(groupRow));
+
+      const expanded = toggle % 2 === 0;
+      const groupHeight = expanded ? 220 : 100;
+      expect(trigger).toHaveAttribute("aria-expanded", String(expanded));
+      expect(virtualRowTop(assistantRow)).toBe(groupHeight);
+      expect(virtualRowTop(userRow)).toBe(groupHeight + 100);
+    }
   });
 
   it("collapses the tool-call group automatically once a non-group item arrives after it", async () => {
@@ -1422,7 +1512,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    const trigger = screen.getByText(/^2 commands$/).closest("button");
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     act(() => {
@@ -2050,6 +2140,12 @@ function getContentElement(scrollElement: HTMLDivElement): HTMLDivElement {
     throw new Error("missing chat content wrapper");
   }
   return element;
+}
+
+function virtualRowTop(row: HTMLElement): number {
+  const container = row.parentElement;
+  if (!(container instanceof HTMLElement)) throw new Error("missing virtual row container");
+  return Number.parseFloat(container.style.top);
 }
 
 function getUserMessageContent(container: HTMLElement): HTMLDivElement {

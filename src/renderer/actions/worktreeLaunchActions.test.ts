@@ -57,4 +57,25 @@ describe("runWorktreeSetupScript", () => {
     useDevTerminalStore.getState().removeTab(tab!.id);
     await setup;
   });
+
+  it("starts only one setup shell at a time", async () => {
+    const first = runWorktreeSetupScript(project, "C:\\first", "pnpm install", {
+      openTerminalPanel: false,
+    });
+    const second = runWorktreeSetupScript(project, "C:\\second", "pnpm install", {
+      openTerminalPanel: false,
+    });
+
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledOnce());
+    const [firstTab] = useDevTerminalStore.getState().tabs;
+    expect(firstTab?.worktreePath).toBe("C:\\first");
+
+    useDevTerminalStore.getState().removeTab(firstTab!.id);
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(2));
+    const [secondTab] = useDevTerminalStore.getState().tabs;
+    expect(secondTab?.worktreePath).toBe("C:\\second");
+
+    useDevTerminalStore.getState().removeTab(secondTab!.id);
+    await Promise.all([first, second]);
+  });
 });

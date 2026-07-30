@@ -61,7 +61,8 @@ describe("renderer product analytics adapter", () => {
         channel: "stable",
         platform: "darwin",
         provider: "codex",
-        session_id: expect.any(String),
+        $insert_id: expect.any(String),
+        $session_id: expect.any(String),
       },
     });
   });

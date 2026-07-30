@@ -15,6 +15,7 @@ import {
   builtInMcpDisabledToolsSchema,
   mcpServerListSchema,
 } from "./mcpServer";
+import { goalControlActionSchema } from "./runtimeEvent";
 
 /** How thread status/attention is derived for terminal agents (supervisor → renderer). */
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
@@ -22,6 +23,9 @@ export type ThreadStatusSource = z.infer<typeof threadStatusSourceSchema>;
 
 export const threadSchema = z.object({
   id: z.string().min(1),
+  /** Server-owned identity for a transient thread mirrored into a desktop client. */
+  remoteServerId: z.string().min(1).optional(),
+  remoteId: z.string().min(1).optional(),
   projectId: z.string().min(1),
   title: z.string().min(1),
   agentKind: agentKindSchema,
@@ -147,6 +151,21 @@ export const interruptThreadPayloadSchema = z.object({
 });
 export type InterruptThreadPayload = z.infer<typeof interruptThreadPayloadSchema>;
 
+export const MAX_GOAL_OBJECTIVE_LENGTH = 4000;
+
+const goalObjectiveSchema = z.string().trim().min(1).max(MAX_GOAL_OBJECTIVE_LENGTH);
+
+export const threadGoalControlSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("edit"), objective: goalObjectiveSchema }),
+  z.object({ action: goalControlActionSchema.exclude(["edit"]) }),
+]);
+export type ThreadGoalControl = z.infer<typeof threadGoalControlSchema>;
+
+export const controlThreadGoalPayloadSchema = threadGoalControlSchema.and(
+  z.object({ threadId: z.string().min(1) }),
+);
+export type ControlThreadGoalPayload = z.infer<typeof controlThreadGoalPayloadSchema>;
+
 export const rollbackThreadConversationPayloadSchema = z.object({
   threadId: z.string().min(1),
   numTurns: z.number().int().min(0),
@@ -192,6 +211,18 @@ export interface PendingSteerState {
  * through the regular thread actions instead of writing to the DB directly.
  */
 export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
+  /**
+   * Host lifecycle preflight for a freshly-created worktree. The paired
+   * desktop enqueues setup before the host launches the thread. Keeping this
+   * separate from `start` prevents the post-launch metadata mirror from
+   * enqueueing setup a second time.
+   */
+  z.object({
+    kind: z.literal("prepare-worktree"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    worktreePath: z.string().min(1),
+  }),
   z.object({
     kind: z.literal("start"),
     threadId: z.string().min(1),

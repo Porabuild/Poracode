@@ -28,6 +28,14 @@ const AGENTS: SpawnableAgent[] = [
       default: "full-access",
     },
     execution: "structured",
+    preference: {
+      rank: 1,
+      source: "built-in",
+      usageCount: 0,
+      model: "gpt-5.5",
+      reasoning: "high",
+      fast: false,
+    },
   },
 ];
 
@@ -40,19 +48,35 @@ const PROVIDER_SESSION_THREADS: Record<string, string> = {
 function makeRunManager(): {
   runManager: SubagentRunManager;
   spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
+  setWaitFor: (next: () => Promise<{ status: "completed"; output: string }>) => void;
 } {
   const spawned: Array<{ parentThreadId: string } & SpawnAgentRequest> = [];
+  let waitFor = async () => ({ status: "completed" as const, output: "done" });
   const runManager = {
     spawn: (parentThreadId: string, request: SpawnAgentRequest) => {
       spawned.push({ parentThreadId, ...request });
       return { runId: "run-xyz" };
     },
-    waitFor: async () => ({ status: "completed" as const, output: "done" }),
+    spawnMany: (parentThreadId: string, requests: SpawnAgentRequest[]) =>
+      requests.map((request, index) => {
+        spawned.push({ parentThreadId, ...request });
+        return { runId: `run-${index + 1}` };
+      }),
+    waitFor: () => waitFor(),
+    waitForMany: async (runIds: string[]) =>
+      runIds.map((runId) => ({ run_id: runId, status: "completed" as const, output: "done" })),
     getStatus: () => ({ status: "completed" as const, output: "done" }),
+    listRuns: () => [],
     cancel: async () => {},
     cancelAllForThread: () => {},
   } as unknown as SubagentRunManager;
-  return { runManager, spawned };
+  return {
+    runManager,
+    spawned,
+    setWaitFor: (next) => {
+      waitFor = next;
+    },
+  };
 }
 
 describe("CrossagentMcpIngress", () => {
@@ -62,10 +86,12 @@ describe("CrossagentMcpIngress", () => {
   let providerToken: string;
   let providerMcpUrl: string;
   let spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
+  let setWaitFor: ReturnType<typeof makeRunManager>["setWaitFor"];
 
   beforeEach(async () => {
     const rm = makeRunManager();
     spawned = rm.spawned;
+    setWaitFor = rm.setWaitFor;
     ingress = new CrossagentMcpIngress({
       runManager: rm.runManager,
       getSpawnableAgents: async () => AGENTS,
@@ -244,7 +270,10 @@ describe("CrossagentMcpIngress", () => {
       "get_agent",
       "get_status",
       "list_agents",
-      "run_agent",
+      "list_routing_preferences",
+      "list_runs",
+      "remove_routing_preference",
+      "set_routing_preference",
       "spawn_agent",
       "wait_for_agent",
     ]);
@@ -257,9 +286,14 @@ describe("CrossagentMcpIngress", () => {
     expect(listBody.result.tools.map((tool: { name: string }) => tool.name)).not.toContain(
       "spawn_agent",
     );
+    expect(listBody.result.tools.map((tool: { name: string }) => tool.name)).not.toContain(
+      "spawn_agents",
+    );
 
     const call = await rpc("tools/call", { name: "spawn_agent", arguments: {} });
     expect((await call.json()).result).toMatchObject({ isError: true });
+    const batchCall = await rpc("tools/call", { name: "spawn_agents", arguments: {} });
+    expect((await batchCall.json()).result).toMatchObject({ isError: true });
   });
 
   it("dispatches list_agents", async () => {
@@ -273,6 +307,14 @@ describe("CrossagentMcpIngress", () => {
         execution: "structured",
         defaultModel: "gpt-5.5",
         modelCount: 1,
+        rank: 1,
+        preferenceSource: "built-in",
+        usageCount: 0,
+        preferredModel: "gpt-5.5",
+        preferredReasoning: "high",
+        preferredFast: false,
+        matchedTags: [],
+        learnedTags: [],
       },
     ]);
   });
@@ -286,7 +328,7 @@ describe("CrossagentMcpIngress", () => {
     expect(JSON.parse(body.result.content[0].text)).toEqual(AGENTS[0]);
   });
 
-  it("dispatches spawn_agent to the run manager with the caller's parent thread", async () => {
+  it("dispatches blocking spawn_agent to the run manager with the caller's parent thread", async () => {
     const res = await rpc("tools/call", {
       name: "spawn_agent",
       arguments: {
@@ -299,7 +341,11 @@ describe("CrossagentMcpIngress", () => {
       },
     });
     const body = await res.json();
-    expect(JSON.parse(body.result.content[0].text)).toEqual({ run_id: "run-xyz" });
+    expect(JSON.parse(body.result.content[0].text)).toEqual({
+      run_id: "run-xyz",
+      status: "completed",
+      output: "done",
+    });
     expect(spawned).toEqual([
       {
         parentThreadId: "thread-1",
@@ -310,6 +356,62 @@ describe("CrossagentMcpIngress", () => {
         prompt: "search the code",
       },
     ]);
+  });
+
+  it("executes JSON-RPC batch calls concurrently while preserving response order", async () => {
+    let entered = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let bothEntered!: () => void;
+    const both = new Promise<void>((resolve) => {
+      bothEntered = resolve;
+    });
+    setWaitFor(async () => {
+      entered += 1;
+      if (entered === 2) bothEntered();
+      await gate;
+      return { status: "completed", output: "done" };
+    });
+
+    const responsePromise = fetch(mcpUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify([
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "spawn_agent",
+            arguments: { provider: "codex", prompt: "one" },
+          },
+        },
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "spawn_agent",
+            arguments: { provider: "codex", prompt: "two" },
+          },
+        },
+      ]),
+    });
+
+    await Promise.race([
+      both,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("batch calls ran serially")), 500),
+      ),
+    ]);
+    release();
+    const body = (await (await responsePromise).json()) as Array<{ id: number }>;
+    expect(body.map((reply) => reply.id)).toEqual([1, 2]);
   });
 
   it("returns an isError result for unknown tools", async () => {

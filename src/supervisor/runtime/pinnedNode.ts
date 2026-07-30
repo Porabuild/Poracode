@@ -11,9 +11,9 @@
 /**
  * Pinned Node LTS version. Bumped manually with new LTS releases. Keep in
  * lockstep with `MIN_ACCEPTED_NODE_MAJOR`. After bumping, run
- * `pnpm tsx scripts/refresh-node-checksums.mjs` to refresh the table below.
+ * `node scripts/refresh-node-checksums.mjs` to refresh the table below.
  */
-export const PORACODE_PINNED_NODE_VERSION = "22.11.0";
+export const PORACODE_PINNED_NODE_VERSION = "22.14.0";
 
 /**
  * Minimum Node major version we accept from the user's environment. Below
@@ -49,18 +49,18 @@ export type NodeTargetTriple =
  * `PORACODE_PINNED_NODE_VERSION`.
  */
 export const NODE_TARBALL_CHECKSUMS: Record<NodeTargetTriple, string> = {
-  // node-v22.11.0-linux-x64.tar.xz
-  "linux-x64": "83bf07dd343002a26211cf1fcd46a9d9534219aad42ee02847816940bf610a72",
-  // node-v22.11.0-linux-arm64.tar.xz
-  "linux-arm64": "6031d04b98f59ff0f7cb98566f65b115ecd893d3b7870821171708cdbaf7ae6e",
-  // node-v22.11.0-darwin-x64.tar.xz
-  "darwin-x64": "ab28d1784625d151e3f608a9412a009118f376118ed842ae643f8c2efdfb0af6",
-  // node-v22.11.0-darwin-arm64.tar.xz
-  "darwin-arm64": "c379a90c6aa605b74042a233ddcda4247b347ba5732007d280e44422cc8f9ecb",
-  // node-v22.11.0-win-x64.zip
-  "win-x64": "905373a059aecaf7f48c1ce10ffbd5334457ca00f678747f19db5ea7d256c236",
-  // node-v22.11.0-win-arm64.zip
-  "win-arm64": "b9ff5a6b6ffb68a0ffec82cc5664ed48247dabbd25ee6d129facd2f65a8ca80d",
+  // node-v22.14.0-linux-x64.tar.xz
+  "linux-x64": "69b09dba5c8dcb05c4e4273a4340db1005abeafe3927efda2bc5b249e80437ec",
+  // node-v22.14.0-linux-arm64.tar.xz
+  "linux-arm64": "08bfbf538bad0e8cbb0269f0173cca28d705874a67a22f60b57d99dc99e30050",
+  // node-v22.14.0-darwin-x64.tar.xz
+  "darwin-x64": "deb5b211c25f3f803cd49c1c3fc3964e6c3725546d7d9608d994270388dcbf02",
+  // node-v22.14.0-darwin-arm64.tar.xz
+  "darwin-arm64": "4e845cb71b4e897289312743b2e31c405a8a48720655404d82a4dce23fc43527",
+  // node-v22.14.0-win-x64.zip
+  "win-x64": "55b639295920b219bb2acbcfa00f90393a2789095b7323f79475c9f34795f217",
+  // node-v22.14.0-win-arm64.zip
+  "win-arm64": "2d71f5f9b2fffa33baa108c07d74b0d24e0c3dd8f441d567772ae0e3dd4b1a22",
 };
 
 export function nodeArchiveExtension(target: NodeTargetTriple): "tar.xz" | "zip" {

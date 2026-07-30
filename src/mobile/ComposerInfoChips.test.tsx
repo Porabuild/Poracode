@@ -5,6 +5,7 @@ import type { ThreadDockState } from "@/renderer/components/thread/useThreadDock
 import type { ThreadContextUsageSummary } from "@/renderer/components/thread/threadContextUsage";
 import { i18n } from "@/renderer/i18n/i18n";
 import { ComposerInfoChips } from "./ComposerInfoChips";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 vi.mock("@/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile", () => ({
   ActiveSubAgentTile: () => null,
@@ -25,7 +26,6 @@ const dockState: ThreadDockState = {
   errorDockStates: [],
   showTodoDock: false,
   showGoalDock: true,
-  showTodoInRightRail: false,
   hiddenRuntimeItemId: undefined,
   dockLayoutToken: "goal:goal-1",
   onGoalDockDismiss: vi.fn<ThreadDockState["onGoalDockDismiss"]>(),
@@ -68,7 +68,7 @@ describe("ComposerInfoChips", () => {
     const panel = container.querySelector(".m-chip-panel");
     expect(panel).toHaveAttribute("data-open");
     expect(panel).toContainElement(screen.getByRole("region", { name: "Thread context usage" }));
-    expect(screen.getByText("25% Full")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("25% Full"))).toBeInTheDocument();
   });
 
   it("keeps the expanded panel mounted through its exit animation", async () => {

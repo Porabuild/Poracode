@@ -13,6 +13,47 @@ import { mkdir } from "node:fs/promises";
 
 const execFileAsync = promisify(execFile);
 
+function execFileWithInput(
+  command: string,
+  args: string[],
+  options: Parameters<typeof execFile>[2],
+  input: string,
+): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    let stdinError: Error | undefined;
+    let settled = false;
+    const settle = (error: Error | null, result?: { stdout: string; stderr: string }): void => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve(result!);
+    };
+    const child = execFile(command, args, options, (error, stdout, stderr) => {
+      const stdoutText = typeof stdout === "string" ? stdout : stdout.toString("utf8");
+      const stderrText = typeof stderr === "string" ? stderr : stderr.toString("utf8");
+      if (error) {
+        Object.assign(error, { stdout: stdoutText, stderr: stderrText });
+        settle(error);
+        return;
+      }
+      settle(stdinError ?? null, { stdout: stdoutText, stderr: stderrText });
+    });
+    if (!child.stdin) {
+      child.kill();
+      settle(new Error(`Unable to write stdin for ${command}.`));
+      return;
+    }
+    // A child may reject its argv and exit before consuming stdin. Without an
+    // error listener the resulting EPIPE becomes an uncaught supervisor error.
+    // Save it for the command callback, whose stderr remains the authoritative
+    // diagnostic when the child itself failed.
+    child.stdin.once("error", (error) => {
+      stdinError = error;
+    });
+    child.stdin.end(input);
+  });
+}
+
 export const GIT_STATUS_TIMEOUT = 10_000;
 export const GIT_DIFF_TIMEOUT = 15_000;
 export const GIT_NETWORK_TIMEOUT = 30_000;
@@ -102,6 +143,7 @@ export async function execGit(
     allowNonZeroExit?: boolean;
     acceptedExitCodes?: readonly number[];
     env?: Record<string, string>;
+    input?: string;
     maxBuffer?: number;
   },
 ): Promise<string> {
@@ -121,13 +163,17 @@ export async function execGit(
     }
 
     const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...(options?.env ?? {}) };
-    const { stdout } = await execFileAsync("git", withQuotePathDisabled(args), {
+    const execOptions = {
       cwd: location.path,
       env,
       timeout,
       maxBuffer,
       windowsHide: true,
-    });
+    };
+    const { stdout } =
+      options?.input !== undefined
+        ? await execFileWithInput("git", withQuotePathDisabled(args), execOptions, options.input)
+        : await execFileAsync("git", withQuotePathDisabled(args), execOptions);
     return stdout;
   } catch (error: unknown) {
     if (

@@ -3,28 +3,23 @@ import { Popover, toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Workflow } from "lucide-react";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import type { PrWatch, PrWatchInput, Project, ScheduledTaskConfig } from "@/shared/contracts";
+import type { PrAutomationMode, PrWatch, PrWatchInput } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
-import { ToggleSwitch } from "@/renderer/components/common";
-import {
-  getConflictResolverCandidates,
-  readConflictResolverSettingsForProject,
-  resolveConflictResolverLaunchConfig,
-} from "@/renderer/components/providers/conflictResolver";
-import {
-  agentWithCapabilities,
-  resolveFastValue,
-} from "@/renderer/components/thread/threadDraftViewHelpers";
+import { resolvePrAutomationAgent } from "@/renderer/actions/prAutomationActions";
+import { PrAutomationSlider } from "@/renderer/components/git/PrAutomationSlider";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
-interface AutomationAgent {
-  agentKind: string;
-  config: ScheduledTaskConfig;
+function automationMode(
+  watch: PrWatch | null | undefined,
+  loadingMode: PrAutomationMode,
+): PrAutomationMode {
+  if (watch === undefined) return loadingMode;
+  if (watch?.autoMerge) return "merge";
+  return watch?.watchEnabled ? "fix" : "off";
 }
 
 export function PrWatchControls(props: {
@@ -40,11 +35,13 @@ export function PrWatchControls(props: {
   );
   const windowsAgents = useAgentStatusesStore((state) => state.agentStatuses);
   const wslAgents = useAgentStatusesStore((state) => state.wslAgentStatuses);
-  const [watch, setWatch] = useState<PrWatch | null>(null);
+  const defaultMode = useSharedSettings((state) => state.prAutomationDefault);
+  const [watch, setWatch] = useState<PrWatch | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const watchPresentRef = useRef(false);
   const refreshPrRef = useRef(props.onRefreshPr);
-  const enabled = Boolean(watch?.watchEnabled || watch?.autoMerge);
+  const mode = automationMode(watch, defaultMode);
+  const enabled = mode !== "off";
 
   useEffect(() => {
     refreshPrRef.current = props.onRefreshPr;
@@ -58,8 +55,8 @@ export function PrWatchControls(props: {
           projectId: props.projectId,
           prNumber: props.prNumber,
         });
-        if (result?.watchEnabled && project) {
-          const automation = resolveAutomationAgent(
+        if ((result?.watchEnabled || result?.autoMerge) && project) {
+          const automation = resolvePrAutomationAgent(
             project,
             windowsAgents,
             wslAgents,
@@ -67,7 +64,8 @@ export function PrWatchControls(props: {
           );
           if (
             automation &&
-            (result.agentKind !== automation.agentKind ||
+            (!result.watchEnabled ||
+              result.agentKind !== automation.agentKind ||
               result.config?.model !== automation.config.model ||
               (result.config?.effort ?? "") !== (automation.config.effort ?? "") ||
               Boolean(result.config?.fast) !== Boolean(automation.config.fast))
@@ -101,29 +99,32 @@ export function PrWatchControls(props: {
     };
   }, [project, props.prNumber, props.projectId, windowsAgents, wslAgents]);
 
-  async function update(watchEnabled: boolean, autoMerge: boolean): Promise<void> {
-    if (busy || !project) return;
+  async function update(nextMode: PrAutomationMode): Promise<boolean> {
+    if (busy || !project) return false;
     setBusy(true);
     try {
-      if (!watchEnabled && !autoMerge) {
+      if (nextMode === "off") {
         await readBridge().deletePrWatch({
           projectId: props.projectId,
           prNumber: props.prNumber,
         });
         watchPresentRef.current = false;
         setWatch(null);
-        return;
+        return true;
       }
 
       const automation =
-        watchEnabled && (!watch?.agentKind || !watch.config)
-          ? resolveAutomationAgent(project, windowsAgents, wslAgents, useSharedSettings.getState())
-          : watch?.agentKind && watch.config
-            ? { agentKind: watch.agentKind, config: watch.config }
-            : undefined;
-      if (watchEnabled && !automation) {
+        watch?.agentKind && watch.config
+          ? { agentKind: watch.agentKind, config: watch.config }
+          : resolvePrAutomationAgent(
+              project,
+              windowsAgents,
+              wslAgents,
+              useSharedSettings.getState(),
+            );
+      if (!automation) {
         toast.warning(i18n._(msg`Connect an agent before watching PRs.`));
-        return;
+        return false;
       }
 
       const input: PrWatchInput = {
@@ -131,15 +132,18 @@ export function PrWatchControls(props: {
         prNumber: props.prNumber,
         headBranch: props.headBranch,
         ...(props.worktreePath ? { worktreePath: props.worktreePath } : {}),
-        watchEnabled,
-        autoMerge,
-        ...(automation ? { agentKind: automation.agentKind, config: automation.config } : {}),
+        watchEnabled: true,
+        autoMerge: nextMode === "merge",
+        agentKind: automation.agentKind,
+        config: automation.config,
       };
       const updated = await readBridge().upsertPrWatch(input);
       watchPresentRef.current = true;
       setWatch(updated);
+      return true;
     } catch (error) {
       toast.danger(friendlyError(error));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -159,46 +163,25 @@ export function PrWatchControls(props: {
           <Workflow className="size-3.5" />
         </button>
       </Popover.Trigger>
-      <Popover.Content placement="bottom end" className="w-72">
+      <Popover.Content placement="bottom end" className="w-80">
         <Popover.Dialog className="p-3">
           <Popover.Heading className="text-xs font-medium text-foreground">
             <Trans>PR automation</Trans>
           </Popover.Heading>
-          <div className="mt-3 space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-foreground">
-                  <Trans>Watch PR</Trans>
-                </p>
-                <p className="text-[11px] leading-tight text-muted">
-                  <Trans>Fix new comments and failed checks, then push updates.</Trans>
-                </p>
-              </div>
-              <ToggleSwitch
-                size="sm"
-                aria-label={t`Watch PR`}
-                isDisabled={busy}
-                isSelected={watch?.watchEnabled ?? false}
-                onChange={(selected) => void update(selected, watch?.autoMerge ?? false)}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-foreground">
-                  <Trans>Auto-merge</Trans>
-                </p>
-                <p className="text-[11px] leading-tight text-muted">
-                  <Trans>Squash merge when checks and required reviews pass.</Trans>
-                </p>
-              </div>
-              <ToggleSwitch
-                size="sm"
-                aria-label={t`Auto-merge`}
-                isDisabled={busy}
-                isSelected={watch?.autoMerge ?? false}
-                onChange={(selected) => void update(watch?.watchEnabled ?? false, selected)}
-              />
-            </div>
+          <div className="mt-3 space-y-2">
+            <PrAutomationSlider
+              ariaLabel={t`PR automation`}
+              className="mx-auto w-[200px] px-2"
+              isDisabled={busy || watch === undefined}
+              value={mode}
+              onChange={update}
+            />
+            <p className="text-[11px] leading-tight text-muted">
+              <Trans>
+                Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected
+                merge method when ready.
+              </Trans>
+            </p>
             {watch?.activeThreadId ? (
               <p className="text-[11px] text-accent">
                 <Trans>An agent is fixing this PR.</Trans>
@@ -211,38 +194,4 @@ export function PrWatchControls(props: {
       </Popover.Content>
     </Popover>
   );
-}
-
-function resolveAutomationAgent(
-  project: Project,
-  windowsAgents: ReturnType<typeof useAgentStatusesStore.getState>["agentStatuses"],
-  wslAgents: ReturnType<typeof useAgentStatusesStore.getState>["wslAgentStatuses"],
-  settings: ReturnType<typeof useSharedSettings.getState>,
-): AutomationAgent | undefined {
-  const conflictSettings = readConflictResolverSettingsForProject(project.location.kind, settings);
-  const agents = getProjectAgentStatuses(project.location, windowsAgents, wslAgents)
-    .filter((agent) => {
-      const modes = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-      return agent.installed && agent.authState !== "missing" && modes.includes("gui");
-    })
-    .map((agent) => agentWithCapabilities(agent, "gui"))
-    .filter((agent) => agent.capabilities.models.length > 0);
-  const selected = getConflictResolverCandidates(agents, conflictSettings.provider)[0];
-  if (!selected) return undefined;
-  const { model, effort } = resolveConflictResolverLaunchConfig(
-    conflictSettings.provider,
-    selected,
-    conflictSettings.model,
-    conflictSettings.effort,
-  );
-  if (!model) return undefined;
-  const fast = resolveFastValue(selected, model, conflictSettings.fast);
-  return {
-    agentKind: selected.kind,
-    config: {
-      model,
-      ...(effort ? { effort } : {}),
-      ...(fast ? { fast: true } : {}),
-    },
-  };
 }

@@ -1,16 +1,20 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import type {
-  CaptureExperimentSnapshotResult,
-  Experiment,
-  ExperimentCandidate,
-  Project,
-  ProjectLocation,
+import {
+  type CaptureExperimentSnapshotResult,
+  type Experiment,
+  type ExperimentCandidate,
+  type ExperimentJudgeMode,
+  type Project,
+  type ProjectLocation,
 } from "@/shared/contracts";
+import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { resolveAiLanguageName } from "@/shared/locale";
 import { friendlyError } from "@/shared/messages";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
+import { agentConfigProductProperties } from "@/renderer/analytics/threadAnalyticsProperties";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { detectOSLocale } from "@/renderer/i18n/locales";
@@ -33,12 +37,15 @@ import {
   resolveCandidateWorktreePath,
 } from "./experimentWorktreeActions";
 import { runGitMergeToSource, showGitOperationFailure } from "./gitCommandRunner";
+import { applyDefaultPrAutomation } from "./prAutomationActions";
+import { buildExperimentResponseTranscript } from "./experimentResponseTranscript";
 
 export interface ExperimentJudgeSelection {
   agentKind: string;
   model: string;
   effort?: string;
   fast: boolean;
+  mode?: ExperimentJudgeMode;
 }
 
 function experimentSnapshotCandidates(experiment: Experiment) {
@@ -101,9 +108,17 @@ async function commitCandidateChanges(
 }
 
 export type ExperimentJudgeProgressEvent =
-  | { kind: "capturing" }
-  | { kind: "captured"; threadId: string; files: number; insertions: number; deletions: number }
-  | { kind: "judging" }
+  | { kind: "capturing"; mode: ExperimentJudgeMode }
+  | {
+      kind: "captured";
+      threadId: string;
+      files: number;
+      insertions: number;
+      deletions: number;
+      omittedFiles?: number;
+    }
+  | { kind: "captured-response"; threadId: string; characters: number }
+  | { kind: "judging"; mode: ExperimentJudgeMode }
   | {
       kind: "winner";
       threadId: string;
@@ -153,14 +168,28 @@ export async function crownExperiment(
     const judgeModel = selection?.model ?? judgeThread?.config.model;
     const judgeEffort = selection?.effort ?? judgeThread?.config.effort;
     const judgeFast = selection?.fast ?? judgeThread?.config.fast;
-    onProgress?.({ kind: "capturing" });
+    const judgeMode = selection?.mode ?? "changes";
+    onProgress?.({ kind: "capturing", mode: judgeMode });
     const unsubscribeProgress = readBridge().onSupervisorEvent((event) => {
       if (event.type !== "experiment-judge-progress" || event.experimentId !== experimentId) {
         return;
       }
-      onProgress?.(event.progress);
+      onProgress?.(
+        event.progress.kind === "judging" ? { kind: "judging", mode: judgeMode } : event.progress,
+      );
     });
     try {
+      const responses =
+        judgeMode === "responses"
+          ? await Promise.all(
+              experiment.candidates.map(async (candidate) => ({
+                threadId: candidate.threadId,
+                response: buildExperimentResponseTranscript(
+                  await readBridge().dbGetThreadRuntimeItems(candidate.threadId),
+                ),
+              })),
+            )
+          : undefined;
       const result = await readBridge().judgeExperimentSnapshot({
         experimentId,
         projectLocation: project.location,
@@ -169,6 +198,8 @@ export async function crownExperiment(
         ...(judgeModel ? { model: judgeModel } : {}),
         ...(judgeEffort ? { effort: judgeEffort } : {}),
         ...(judgeFast !== undefined ? { fast: judgeFast } : {}),
+        mode: judgeMode,
+        ...(responses ? { responses } : {}),
         prompt: experiment.prompt,
         candidates: experimentSnapshotCandidates(experiment),
       });
@@ -178,9 +209,25 @@ export async function crownExperiment(
         rationale: result.rationale,
         assessments: result.assessments,
         source: "ai",
+        comparisonMode: judgeMode,
         modelLabel: judgeLabel,
-        snapshotHash: result.hash,
+        ...(judgeMode === "changes" ? { snapshotHash: result.hash } : {}),
         createdAt: new Date().toISOString(),
+      });
+      captureProductEvent("experiment.winner_selected", {
+        ...agentConfigProductProperties({
+          agentKind: judgeAgent.kind,
+          capabilities: judgeAgent.capabilities,
+          config: {
+            model: judgeModel ?? "",
+            ...(judgeEffort ? { effort: judgeEffort } : {}),
+            ...(judgeFast !== undefined ? { fast: judgeFast } : {}),
+          },
+        }),
+        candidate_count: experiment.candidates.length,
+        provider: normalizeAnalyticsProvider(judgeAgent.kind),
+        source: "ai",
+        comparison_mode: judgeMode,
       });
       onProgress?.({
         kind: "winner",
@@ -217,6 +264,10 @@ export function setManualExperimentCrown(experimentId: string, threadId: string)
     threadId,
     source: "user",
     createdAt: new Date().toISOString(),
+  });
+  captureProductEvent("experiment.winner_selected", {
+    candidate_count: experiment.candidates.length,
+    source: "user",
   });
 }
 
@@ -306,6 +357,12 @@ export async function mergeExperimentWinner(experimentId: string): Promise<boole
       });
       const cleanupComplete = cleanupResults.every(Boolean);
       useExperimentStore.getState().decideExperiment(experimentId, winner.threadId);
+      captureProductEvent("experiment.completed", {
+        action: "merged",
+        candidate_count: experiment.candidates.length,
+        cleanup_complete: cleanupComplete,
+        winner_source: experiment.crown.source,
+      });
       toast.success(i18n._(msg`Merged the experiment winner into ${sourceBranch}.`));
       if (!cleanupComplete) {
         toast.warning(i18n._(msg`Some experiment worktrees could not be removed.`));
@@ -385,6 +442,12 @@ export async function createExperimentCandidatePr(
         body,
         isDraft: false,
       });
+      await applyDefaultPrAutomation({
+        project,
+        prNumber: pr.number,
+        headBranch: candidate.worktreeBranch,
+        ...(candidate.worktreePath ? { worktreePath: candidate.worktreePath } : {}),
+      });
       const candidateIds = new Set(experiment.candidates.map((item) => item.threadId));
       const appStore = useAppStore.getState();
       if (appStore.view.kind === "experiment" && appStore.view.experimentId === experimentId) {
@@ -399,6 +462,10 @@ export async function createExperimentCandidatePr(
       }));
       useExperimentStore.getState().removeExperiment(experimentId);
       await persistExperimentOwnershipState([...candidateIds]).catch(() => undefined);
+      captureProductEvent("experiment.completed", {
+        action: "pull_request",
+        candidate_count: experiment.candidates.length,
+      });
       toast.success(i18n._(msg`Opened pull request #${pr.number} for the candidate.`));
       void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
       return true;
@@ -464,5 +531,10 @@ export async function discardExperiment(experimentId: string): Promise<boolean> 
   if (project) {
     void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
   }
+  captureProductEvent("experiment.completed", {
+    action: "discarded",
+    candidate_count: experiment.candidates.length,
+    cleanup_complete: cleanupComplete,
+  });
   return cleanupComplete;
 }

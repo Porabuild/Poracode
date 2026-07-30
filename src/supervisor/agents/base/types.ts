@@ -16,6 +16,7 @@ import type {
   ThreadPresentationMode,
   ThreadServerRequestId,
   ThreadStatus,
+  ThreadGoalControl,
   ResolvedMcpServer,
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
@@ -39,6 +40,12 @@ export interface CommandSpec {
 export interface AgentEnvContext {
   envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
+  /**
+   * Provider-global settings for this adapter. Detection receives the same
+   * snapshot launch receives, allowing a provider with multiple structured
+   * runtimes to probe only the selected runtime.
+   */
+  agentSettings?: Record<string, boolean | string>;
   /**
    * Poracode data base dir for native (non-WSL) plugin staging. Populated by
    * the supervisor so dev runs (`~/.poracode-dev`) stage plugins separately
@@ -131,6 +138,7 @@ export interface StructuredSessionHandle {
    */
   prepareSteerInterrupt?(): Promise<void>;
   interruptTurn?(): Promise<void>;
+  controlGoal?(control: ThreadGoalControl): Promise<void>;
   /**
    * Close the provider's current canonical turn locally before a forced
    * process disposal. Implementations should complete any open items and mark
@@ -230,6 +238,7 @@ export interface DetectProbeCtx {
   location: ProjectLocation;
   executablePath: string | undefined;
   version?: string | undefined;
+  agentSettings?: Record<string, boolean | string>;
   /** {@link DetectionSpec.probeEnv}, so `capabilitiesProbe`/`statusProbe` can forward it. */
   probeEnv?: Record<string, string> | undefined;
 }

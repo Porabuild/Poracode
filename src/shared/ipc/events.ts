@@ -15,8 +15,9 @@ import type {
   UsageSnapshot,
 } from "../contracts";
 import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
-import type { BrowserLinkPresentationMode } from "../settings";
+import type { BrowserLinkPresentationMode, CrossagentRoutingOverride } from "../settings";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "./procedureMap";
+import type { MessageKey } from "../messages";
 
 export type SupervisorRequest = {
   [Name in SupervisorProcedureName]: {
@@ -32,6 +33,29 @@ export type SupervisorReply =
 
 export type SupervisorEvent =
   | {
+      type: "crossagent-routing-override-changed";
+      requestId: string;
+      change:
+        | { action: "set"; override: CrossagentRoutingOverride }
+        | { action: "remove"; tags: string[] };
+    }
+  | {
+      type: "crossagent-selection-used";
+      selections: Array<{
+        agentKind: string;
+        modelId: string;
+        effort?: string;
+        fast: boolean;
+        tags?: string[];
+        explicitFields: {
+          provider: boolean;
+          model: boolean;
+          effort: boolean;
+          fast: boolean;
+        };
+      }>;
+    }
+  | {
       type: "experiment-judge-progress";
       experimentId: string;
       progress:
@@ -41,6 +65,12 @@ export type SupervisorEvent =
             files: number;
             insertions: number;
             deletions: number;
+            omittedFiles?: number;
+          }
+        | {
+            kind: "captured-response";
+            threadId: string;
+            characters: number;
           }
         | { kind: "judging" };
     }
@@ -136,6 +166,8 @@ export type BrowserEvent =
 /** Emitted by the main process when a native app surface requests opening a thread. */
 export type ThreadOpenRequestedEvent = {
   threadId: string;
+  /** Present for OS notification clicks; omitted by tray and app-control opens. */
+  source?: "notification";
 };
 
 /** Project rows changed outside the renderer's persisted app-store snapshot. */
@@ -155,4 +187,5 @@ export type UpdateStatus =
       total: number;
     }
   | { type: "downloaded"; version: string }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; messageKey?: never }
+  | { type: "error"; messageKey: MessageKey; message?: never };

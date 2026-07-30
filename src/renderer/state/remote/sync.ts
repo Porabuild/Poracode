@@ -1,7 +1,8 @@
 import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
-import { remoteGitSummariesEventSchema } from "@/shared/remote";
+import { remoteGitStateEventSchema, remoteGitSummariesEventSchema } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { handleThreadStateNotification } from "@/renderer/notifications";
@@ -247,10 +248,10 @@ function syncRuntimeTurnBoundaryFromSnapshot(
 }
 
 /**
- * Requests are ephemeral (never persisted), so after a reload the only trace
- * of a pending approval is its still-open `*_request` runtime item. Seed the
- * store from those when the thread is blocked on the user; clear stale ones
- * once the thread moves on.
+ * Live requests are ephemeral renderer state, so after a reload rebuild them
+ * from their still-open persisted `*_request` runtime items. Seed the store
+ * only while the thread is blocked on the user, and clear stale requests once
+ * the thread moves on.
  */
 function syncRuntimeRequestsFromSnapshot(snapshot: RemoteThreadSnapshot): void {
   const threadId = snapshot.thread.id;
@@ -429,6 +430,8 @@ export interface RemoteDispatchHooks {
    * these events out before dispatch and so supplies no hook.
    */
   readonly onGitSummaries?: (summaries: RemoteGitSummaries) => void;
+  /** Applies the host-owned normalized Git/PR read model on remote clients. */
+  readonly onGitState?: (patch: GitStatePatch) => void;
 }
 
 export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
@@ -447,6 +450,11 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
     // the core does not own. Mobile attaches its hydration hook here; desktop
     // never reaches this branch (its event filter drops desktop-global events).
     hooks?.onGitSummaries?.(gitSummaries.data.summaries);
+    return;
+  }
+  const gitState = remoteGitStateEventSchema.safeParse(value);
+  if (gitState.success) {
+    hooks?.onGitState?.(gitState.data.patch);
     return;
   }
 

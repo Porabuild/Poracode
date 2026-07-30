@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ProjectNotes } from "@/shared/contracts";
+import type { PrWatch, PrWatchInput, PrWatchKey, ProjectNotes } from "@/shared/contracts";
 import type { RemoteDesktopClient } from "./remoteClient";
 import { installRemoteBridge, setRemoteBridgeClient } from "./bridge";
 
@@ -74,5 +74,50 @@ describe("remote bridge", () => {
     await expect(window.poracode.dbSetProjectNotes(notes)).resolves.toBeUndefined();
     expect(projectNotes).toHaveBeenCalledWith("project-1");
     expect(setProjectNotes).toHaveBeenCalledWith(notes);
+  });
+
+  it("forwards PR automation to the paired desktop", async () => {
+    const watch: PrWatch = {
+      projectId: "project-1",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    };
+    const getPrWatch = vi.fn<(input: PrWatchKey) => Promise<PrWatch | null>>(async () => watch);
+    const checkPrWatch = vi.fn<(input: PrWatchKey) => Promise<void>>(async () => undefined);
+    const upsertPrWatch = vi.fn<(input: PrWatchInput) => Promise<PrWatch>>(async () => watch);
+    const deletePrWatch = vi.fn<(input: PrWatchKey) => Promise<void>>(async () => undefined);
+    setRemoteBridgeClient(
+      { getPrWatch, checkPrWatch, upsertPrWatch, deletePrWatch } as unknown as RemoteDesktopClient,
+      "darwin",
+    );
+    installRemoteBridge();
+
+    const key = { projectId: "project-1", prNumber: 42 };
+    const input: PrWatchInput = {
+      ...key,
+      headBranch: "feature/mobile",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol" },
+    };
+    await expect(window.poracode.getPrWatch(key)).resolves.toEqual(watch);
+    await expect(window.poracode.checkPrWatch(key)).resolves.toBeUndefined();
+    await expect(window.poracode.upsertPrWatch(input)).resolves.toEqual(watch);
+    await expect(window.poracode.deletePrWatch(key)).resolves.toBeUndefined();
+    expect(getPrWatch).toHaveBeenCalledWith(key);
+    expect(checkPrWatch).toHaveBeenCalledWith(key);
+    expect(upsertPrWatch).toHaveBeenCalledWith(input);
+    expect(deletePrWatch).toHaveBeenCalledWith(key);
   });
 });

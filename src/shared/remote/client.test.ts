@@ -138,6 +138,86 @@ describe("RemoteDesktopClient", () => {
     ]);
   });
 
+  it("reads, checks, enables, and deletes PR automation through the remote API", async () => {
+    const requests: Array<{ url: string; method: string; body: unknown }> = [];
+    const watch = {
+      projectId: "project one",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      worktreePath: "/repo/worktree",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    } as const;
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        const method = init?.method ?? "GET";
+        requests.push({
+          url: String(url),
+          method,
+          body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined,
+        });
+        return new Response(JSON.stringify(method === "DELETE" ? { ok: true } : { watch }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    const input = {
+      projectId: watch.projectId,
+      prNumber: watch.prNumber,
+      headBranch: watch.headBranch,
+      worktreePath: watch.worktreePath,
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: watch.agentKind,
+      config: watch.config,
+    };
+    await expect(
+      client.getPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toEqual(watch);
+    await expect(
+      client.checkPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toBeUndefined();
+    await expect(client.upsertPrWatch(input)).resolves.toEqual(watch);
+    await expect(
+      client.deletePrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toBeUndefined();
+
+    expect(requests).toEqual([
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches?projectId=project+one&prNumber=42",
+        method: "GET",
+        body: undefined,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches/check",
+        method: "POST",
+        body: { projectId: watch.projectId, prNumber: watch.prNumber },
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches",
+        method: "POST",
+        body: input,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches",
+        method: "DELETE",
+        body: { projectId: watch.projectId, prNumber: watch.prNumber },
+      },
+    ]);
+  });
+
   it("requests a tail snapshot and encodes older runtime page cursors", async () => {
     const requestedUrls: string[] = [];
     const client = new RemoteDesktopClient(
@@ -224,6 +304,32 @@ describe("RemoteDesktopClient", () => {
     });
 
     expect(commandId).toBe("user-message-1");
+  });
+
+  it("forwards goal controls to the paired desktop", async () => {
+    let requestUrl = "";
+    let requestBody: unknown;
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.controlThreadGoal({
+      threadId: "thread-1",
+      action: "edit",
+      objective: "Ship edited goal",
+    });
+
+    expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-1/goal");
+    expect(requestBody).toEqual({ action: "edit", objective: "Ship edited goal" });
   });
 
   it("times out requests even when the transport ignores abort signals", async () => {

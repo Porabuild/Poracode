@@ -5,6 +5,7 @@ import {
   FolderOpen,
   Gauge,
   Globe,
+  ListChecks,
   Lock,
   LockOpen,
   Maximize2,
@@ -36,6 +37,7 @@ export function UnifiedRightPanel(props: {
   usageContent?: ReactNode;
   notesContent?: ReactNode;
   portsContent?: ReactNode;
+  planContent?: ReactNode;
   subagentContent?: ReactNode;
   subagentModel?: ReactNode;
   subagentTitle?: ReactNode;
@@ -47,6 +49,7 @@ export function UnifiedRightPanel(props: {
   showUsageTab?: boolean;
   showNotesTab?: boolean;
   showPortsTab?: boolean;
+  showPlanTab?: boolean;
   showSubagentTab?: boolean;
   showBrowserTab?: boolean;
   onCloseSubagent?: () => void;
@@ -77,6 +80,7 @@ export function UnifiedRightPanel(props: {
     usageContent,
     notesContent,
     portsContent,
+    planContent,
     subagentContent,
     subagentModel,
     subagentTitle,
@@ -87,6 +91,7 @@ export function UnifiedRightPanel(props: {
     showUsageTab = true,
     showNotesTab = true,
     showPortsTab = false,
+    showPlanTab = false,
     showSubagentTab = false,
     showBrowserTab = true,
     onCloseSubagent,
@@ -123,6 +128,14 @@ export function UnifiedRightPanel(props: {
 
   const dragCtl = "poracode-overlay-header__controls";
   const tabs = [
+    {
+      id: "plan",
+      label: t`Plan`,
+      icon: ListChecks,
+      content: planContent,
+      visible: showPlanTab,
+      onOpen: undefined,
+    },
     {
       id: "subagent",
       label: t`Subagent`,

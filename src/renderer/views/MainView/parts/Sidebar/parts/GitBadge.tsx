@@ -4,6 +4,7 @@ import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useDraggable } from "@dnd-kit/react";
 import { readBridge } from "@/renderer/bridge";
+import { DiffStat } from "@/renderer/components/common/DiffStat";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
@@ -224,10 +225,12 @@ export function GitBadge(props: {
     >
       <span className="flex items-center gap-1 text-[10px] font-medium">
         {hasChanges && (
-          <span className="flex items-center gap-0.5">
-            {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
-            {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
-          </span>
+          <DiffStat
+            animated
+            className="flex items-center gap-0.5"
+            insertions={totalInsertions}
+            deletions={totalDeletions}
+          />
         )}
         {showPrIcon && <GitPullRequest className={`size-3 shrink-0 ${prIconColor}`} />}
         {showWorktreeFork && (

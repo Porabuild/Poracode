@@ -4,6 +4,7 @@ import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ToolCallGroup } from "./ToolCallGroup";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 describe("ToolCallGroup", () => {
   beforeEach(() => {
@@ -79,7 +80,7 @@ describe("ToolCallGroup", () => {
     );
 
     // Header still derives from the summary while collapsed.
-    expect(screen.getByText("2 views")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 views"))).toBeInTheDocument();
     // No child row content and no viewport container are mounted.
     expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
     expect(screen.queryByText("Read file one")).not.toBeInTheDocument();
@@ -117,6 +118,103 @@ describe("ToolCallGroup", () => {
     expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[0]!).toBeLessThan(
       onHeightChange.mock.invocationCallOrder[0]!,
     );
+    expect(onHeightChange).toHaveBeenCalledOnce();
+  });
+
+  it("remeasures after every explicit expand and collapse commit", () => {
+    const threadId = "thread-1";
+    const items = [makeToolItem("tool-1", "Read file one")];
+    seedThread(threadId, items);
+    let container: HTMLElement | null = null;
+    const committedLayouts: boolean[] = [];
+    const onHeightChange = vi.fn<() => void>(() => {
+      committedLayouts.push(
+        container?.querySelector(".poracode-tool-call-group-viewport") !== null,
+      );
+    });
+    const beginVirtualizerLayoutChange = vi.fn<() => void>();
+    const view = renderToolCallGroup(
+      threadId,
+      [items[0]!.id],
+      false,
+      onHeightChange,
+      beginVirtualizerLayoutChange,
+    );
+    container = view.container;
+    const trigger = screen.getByRole("button", { name: /1 view/i });
+
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+
+    expect(committedLayouts).toEqual([true, false, true]);
+    expect(onHeightChange).toHaveBeenCalledTimes(3);
+    expect(beginVirtualizerLayoutChange).toHaveBeenCalledTimes(3);
+    for (let index = 0; index < 3; index += 1) {
+      expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[index]!).toBeLessThan(
+        onHeightChange.mock.invocationCallOrder[index]!,
+      );
+    }
+  });
+
+  it("remeasures after Show all and Show less commit their row sets", () => {
+    const threadId = "thread-1";
+    const items = Array.from({ length: 10 }, (_, index) =>
+      makeToolItem(`tool-${index + 1}`, `Read file ${index + 1}`),
+    );
+    seedThread(threadId, items);
+    const committedFirstRows: boolean[] = [];
+    const onHeightChange = vi.fn<() => void>(() => {
+      committedFirstRows.push(screen.queryByText("Read file 1") !== null);
+    });
+    const beginVirtualizerLayoutChange = vi.fn<() => void>();
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      true,
+      onHeightChange,
+      beginVirtualizerLayoutChange,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+
+    expect(committedFirstRows).toEqual([true, false]);
+    expect(onHeightChange).toHaveBeenCalledTimes(2);
+    expect(beginVirtualizerLayoutChange).toHaveBeenCalledTimes(2);
+    for (let index = 0; index < 2; index += 1) {
+      expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[index]!).toBeLessThan(
+        onHeightChange.mock.invocationCallOrder[index]!,
+      );
+    }
+  });
+
+  it("auto-collapses and remeasures when it stops being the live tail", () => {
+    const threadId = "thread-1";
+    const items = [makeToolItem("tool-1", "Read file one")];
+    seedThread(threadId, items);
+    let container: HTMLElement | null = null;
+    const onHeightChange = vi.fn<() => void>(() => {
+      expect(container?.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+    });
+    const view = renderToolCallGroup(threadId, [items[0]!.id], true, onHeightChange);
+    container = view.container;
+
+    expect(screen.getByText("Read file one")).toBeInTheDocument();
+
+    view.rerender(
+      <AppProvider>
+        <ToolCallGroup
+          threadId={threadId}
+          itemIds={[items[0]!.id]}
+          isLive={false}
+          onHeightChange={onHeightChange}
+        />
+      </AppProvider>,
+    );
+
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+    expect(screen.queryByText("Read file one")).not.toBeInTheDocument();
     expect(onHeightChange).toHaveBeenCalledOnce();
   });
 
@@ -472,6 +570,29 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("Install packages · pnpm install")).toBeInTheDocument();
   });
 
+  it("cleans and syntax-highlights batched Codex sed views", async () => {
+    const threadId = "thread-1";
+    const item: RuntimeChatItem = {
+      ...makeCommandItem(
+        "cmd-batched-view",
+        `/bin/zsh -lc "sed -n '1,80p' src/shared/settings.ts; sed -n '570,630p' src/shared/settings.ts"`,
+      ),
+      streams: {
+        command_output: 'import { z } from "zod";\nexport const setting = true;\n',
+      },
+    };
+    seedThread(threadId, [item]);
+
+    const view = renderToolCallGroup(threadId, [item.id]);
+
+    expect(screen.queryByText(";src/shared/settings.ts")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("src/shared/settings.ts"));
+
+    await waitFor(() => {
+      expect(view.container.querySelector(".lc-shiki")).toBeInTheDocument();
+    });
+  });
+
   it("categorizes persisted compacted tool summaries by their labels", () => {
     const threadId = "thread-1";
     const items = [
@@ -486,8 +607,8 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("2 commands")).toBeInTheDocument();
-    expect(screen.getByText("1 edit")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 edit"))).toBeInTheDocument();
   });
 
   it("categorizes ApplyPatch tool calls as edits in the group heading", () => {
@@ -503,7 +624,7 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("2 edits")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 edits"))).toBeInTheDocument();
   });
 
   it("renders semantic tool-like item buckets as tool rows", () => {
@@ -535,6 +656,38 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("github · search")).toBeInTheDocument();
     expect(screen.getAllByText("screen.png").length).toBeGreaterThan(0);
     expect(screen.getByText("Tool search · deploy")).toBeInTheDocument();
+  });
+
+  it("summarizes MCP calls separately from generic tools", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeSemanticToolItem("mcp-1", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeSemanticToolItem("mcp-2", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeSemanticToolItem("mcp-3", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeReasoningItem("reasoning-1", "Testing website build and pnpm config"),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    expect(screen.getByText(byTextContent("3 MCPs"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 thought"))).toBeInTheDocument();
+    expect(screen.queryByText(byTextContent("3 tools"))).not.toBeInTheDocument();
   });
 
   it("keeps web searches visible when Codex omits the query", () => {
@@ -599,8 +752,8 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("1 thought")).toBeInTheDocument();
-    expect(screen.getByText("2 views")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 thought"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 views"))).toBeInTheDocument();
     expect(screen.getByText("Thought")).toBeInTheDocument();
     expect(screen.getByText("Read file")).toBeInTheDocument();
     expect(screen.getByText("Read other file")).toBeInTheDocument();
@@ -656,7 +809,7 @@ describe("ToolCallGroup", () => {
 
     // Header keeps physical counts; the run merge is a body-level treatment.
     // The command makes this a mixed group, so it auto-expands while live.
-    expect(screen.getByText("5 edits")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("5 edits"))).toBeInTheDocument();
 
     // 6 items render as 5 rows: the consecutive same-file pair collapses into
     // one "2 edits: chatPaneSelectors.test.ts" row with the summed diff.
@@ -698,7 +851,7 @@ describe("ToolCallGroup", () => {
 
     renderToolCallGroup(threadId, [items[0]!.id]);
 
-    expect(screen.getByText("1 command")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 command"))).toBeInTheDocument();
   });
 
   it("prefers a synthesized diff over non-diff streamed status text", async () => {

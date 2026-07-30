@@ -1119,6 +1119,14 @@ html[data-theme="dark"][data-theme-preset="default"] .m-shell:not(.m-shell--wide
 /* ── Sidebar + detail (wide layout) ────────────────────────────── */
 
 .m-sidebar {
+  --m-sidebar-surface: color-mix(
+    in oklab,
+    var(--foreground, #fafafa) 1.5%,
+    var(--sidebar-background, #0e0e14)
+  );
+  --m-sidebar-picker-alpha: 78%;
+  --m-sidebar-picker-backdrop: saturate(140%) blur(16px);
+
   position: relative;
   display: flex;
   min-height: 0;
@@ -1128,14 +1136,24 @@ html[data-theme="dark"][data-theme-preset="default"] .m-shell:not(.m-shell--wide
      foreground lift over `--sidebar-background` reads as frosted glass
      without a decorative wash behind it. Bevel highlights match the
      desktop app's glass fallback. */
-  background: color-mix(
-    in oklab,
-    var(--foreground, #fafafa) 1.5%,
-    var(--sidebar-background, #0e0e14)
-  );
+  background: var(--m-sidebar-surface);
   box-shadow:
     inset 1px 0 0 color-mix(in oklab, var(--foreground, #fafafa) 7%, transparent),
     inset 0 1px 0 color-mix(in oklab, var(--foreground, #fafafa) 9%, transparent);
+}
+
+/* Browser PWAs cannot request the OS window material used by Electron, but
+   backdrop-filter can match its character over app content. WebKit carries a
+   lighter, more saturated vibrancy-like layer; Chromium on Windows needs a
+   denser acrylic-like tint because its backdrop blur is visually weaker. */
+html[data-mobile-platform="macos"] .m-sidebar {
+  --m-sidebar-picker-alpha: 68%;
+  --m-sidebar-picker-backdrop: saturate(165%) blur(20px);
+}
+
+html[data-mobile-platform="windows"] .m-sidebar {
+  --m-sidebar-picker-alpha: 88%;
+  --m-sidebar-picker-backdrop: saturate(135%) blur(20px) brightness(1.04);
 }
 
 .m-sidebar__resize-handle {
@@ -1323,14 +1341,18 @@ html[data-theme="dark"][data-theme-preset="default"] .m-shell:not(.m-shell--wide
   background: var(--background);
 }
 
-/* Inside the wide sidebar the pane behind is translucent glass. Any tint
-   here would stack on the glass and read as a different shade at rest, so
-   the sticky picker stays transparent and only blurs the rows that scroll
-   under it (like the desktop app's transparent overlay header). */
+/* Keep the sticky wide-sidebar controls legible when thread rows scroll under
+   them. The tint uses the exact sidebar surface, so compositing it over the
+   sidebar keeps the resting color unchanged while the blur supplies the glass
+   separation. */
 .m-sidebar .m-threads__picker {
-  /* Fully transparent: any tint or backdrop-filter composites against the
-     sidebar's own glass layer and renders as a visibly darker strip. */
-  background: transparent;
+  background: color-mix(
+    in oklab,
+    var(--m-sidebar-surface) var(--m-sidebar-picker-alpha),
+    transparent
+  );
+  backdrop-filter: var(--m-sidebar-picker-backdrop);
+  -webkit-backdrop-filter: var(--m-sidebar-picker-backdrop);
 }
 
 .m-thread-search {
@@ -3219,12 +3241,7 @@ html[data-touch-device] .m-compose-bubble [data-composer-input-anchor]:not(:focu
  * (or the typed prompt) with the send button pinned right whenever there is a
  * prompt to send; the toolbar stays invisible (opacity 0) and fades in on
  * expand / out on collapse. Focusing the input grows the bubble and reveals
- * the full toolbar row. The workspace entry above the chat is the git
- * surface, so the composer's own branch affordance is dropped entirely on
- * this device. */
-.m-shell [data-composer-branch] {
-  display: none;
-}
+ * the full toolbar row. */
 
 :is(.m-main, .m-detail) .m-thread .poracode-composer-shell [data-composer-input-anchor] {
   overflow: hidden;
@@ -5849,6 +5866,43 @@ html[data-mobile-platform="ios"] .m-shell--lightweight-subagent-pop > :is(.m-top
 }
 
 @keyframes m-lightweight-subagent-pop {
+  from {
+    transform: translate3d(-25%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Push into a fullscreen overlay (workspace / PR / terminal / notes) from an
+   ordinary page. iOS Safari stalls snapshotting the outgoing transcript before
+   the View Transition starts, so skip it and slide only the incoming opaque
+   overlay in over the shell on compositor transforms. */
+html[data-mobile-platform="ios"]
+  .m-shell--lightweight-fullscreen-push
+  :is(.m-workspace, .m-git-overlay, .m-notes-screen, .m-screen-loading) {
+  animation: m-lightweight-fullscreen-push 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-fullscreen-push {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Back out of a fullscreen overlay to the page beneath. Animate only the
+   incoming shell; the outgoing overlay (diff / terminal / PR) is removed
+   without a Safari snapshot. */
+html[data-mobile-platform="ios"] .m-shell--lightweight-fullscreen-pop > :is(.m-topbar, .m-main) {
+  animation: m-lightweight-fullscreen-pop 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-fullscreen-pop {
   from {
     transform: translate3d(-25%, 0, 0);
   }

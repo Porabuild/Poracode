@@ -4,11 +4,13 @@ import type {
   RemoteAccessTokenResult,
   RemoteClientMetadata,
   RemoteGitSummariesEvent,
+  RemoteGitStateEvent,
   RemoteProjectsChangedEvent,
   RemoteThreadsChangedEvent,
   RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { GitStateInterest } from "@/shared/gitState";
 import type { AuthenticatedRemoteSession, RemoteAuthStore } from "../auth";
 import type { PortProxy } from "../portForward/portProxy";
 import type { RemoteBrowserGateway } from "../RemoteBrowserGateway";
@@ -19,12 +21,16 @@ import type { RemoteServerSecurity } from "./security";
 export type RemoteBroadcastEvent =
   | SupervisorEvent
   | RemoteGitSummariesEvent
+  | RemoteGitStateEvent
   | RemoteProjectsChangedEvent
   | RemoteThreadsChangedEvent;
 
 export interface BufferedSupervisorEvent {
   readonly seq: number;
   readonly event: RemoteBroadcastEvent;
+  /** Serialized size of `event`, so the replay buffer can enforce a byte budget
+   * and not just an entry count (see `eventSizeGuard.trimEventBuffer`). */
+  readonly bytes: number;
 }
 
 /**
@@ -42,6 +48,12 @@ export interface RemoteServerContext {
   readonly clients: Map<WebSocket, AuthenticatedRemoteSession>;
   readonly clientLiveness: Map<WebSocket, boolean>;
   readonly terminalWatches: Map<WebSocket, Set<string>>;
+  /** Git-state interests declared by each connection, so pull-request bodies are
+   * only sent to the client that asked for them. */
+  readonly gitStateInterests: Map<WebSocket, readonly GitStateInterest[]>;
+  /** Threads each connection wants live transcript content for. Absent entry =
+   * the client never declared any, so it keeps receiving everything. */
+  readonly itemInterests: Map<WebSocket, ReadonlySet<string>>;
   readonly eventBuffer: BufferedSupervisorEvent[];
   /** Live in-memory event sequence; read through a getter so replays see the
    * current value rather than a snapshot taken at context-build time. */
@@ -54,6 +66,7 @@ export interface RemoteServerContext {
   requireInfo(): RemoteAccessServerInfo;
   requireSettingsGateway(): NonNullable<RemoteAccessServerOptions["settings"]>;
   requireSchedulesGateway(): NonNullable<RemoteAccessServerOptions["schedules"]>;
+  requirePrWatchesGateway(): NonNullable<RemoteAccessServerOptions["prWatches"]>;
   requireBrowserGateway(): RemoteBrowserGateway;
   requirePortForwardGateway(): RemotePortForwardGateway;
   requirePortProxy(): PortProxy;

@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
-import {
-  __resetRemoteServersStoreForTest,
-  filterRemoteThreadEvent,
-  useRemoteServersStore,
-  type RemoteClientFactory,
-  type RemoteSocketFactory,
-  type RemoteSocketLike,
-} from "./remoteServersStore";
+import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "./remoteServersStore";
+import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
+import type {
+  RemoteClientFactory,
+  RemoteSocketFactory,
+  RemoteSocketLike,
+} from "./remoteServers/types";
 import { useAgentStatusesStore } from "./agentStatusesStore";
+import { useAppStore } from "./appStore";
 import { watchRemoteTerminal } from "./remoteTerminalFeed";
+import { remoteProjectId, remoteThreadId } from "./remoteProjection";
+import { routeRemoteProcedure } from "../remoteProcedureRouter";
 
 const bridge = vi.hoisted(() => ({
   sshConnect: vi.fn<() => Promise<unknown>>(),
@@ -98,16 +100,21 @@ function makeClient(opts?: {
   snapshot?: RemoteDesktopClient["snapshot"];
   agentStatuses?: RemoteDesktopClient["agentStatuses"];
   environmentHttpBaseUrl?: string;
+  hostMode?: "desktop" | "helper";
   projectCommand?: RemoteDesktopClient["projectCommand"];
+  projectSettings?: RemoteDesktopClient["projectSettings"];
   interruptThread?: RemoteDesktopClient["interruptThread"];
   closeThread?: RemoteDesktopClient["closeThread"];
   threadHistory?: RemoteDesktopClient["threadHistory"];
+  threadRuntimeItemsPage?: RemoteDesktopClient["threadRuntimeItemsPage"];
   websocketTicket?: RemoteDesktopClient["websocketTicket"];
   websocketUrl?: RemoteDesktopClient["websocketUrl"];
   sendThreadInput?: RemoteDesktopClient["sendThreadInput"];
   startNewThread?: RemoteDesktopClient["startNewThread"];
   writeTerminal?: RemoteDesktopClient["writeTerminal"];
   resizeTerminal?: RemoteDesktopClient["resizeTerminal"];
+  startShell?: RemoteDesktopClient["startShell"];
+  closeShell?: RemoteDesktopClient["closeShell"];
   gitCall?: RemoteDesktopClient["gitCall"];
 }): RemoteDesktopClient {
   return {
@@ -119,6 +126,7 @@ function makeClient(opts?: {
     }),
     environment: async () => ({
       protocolVersion: 1,
+      ...(opts?.hostMode ? { hostMode: opts.hostMode } : {}),
       desktopId: "d1",
       label: "Server One",
       appVersion: "1.0",
@@ -143,9 +151,12 @@ function makeClient(opts?: {
       }),
     projectCommand:
       opts?.projectCommand ?? (async () => ({ projects: opts?.snapshotProjects ?? [proj] })),
+    projectSettings: opts?.projectSettings ?? (async () => ({})),
     interruptThread: opts?.interruptThread ?? (async () => {}),
     closeThread: opts?.closeThread ?? (async () => {}),
     threadHistory: opts?.threadHistory ?? (async () => remoteThreadSnapshot(remoteThread.id)),
+    threadRuntimeItemsPage:
+      opts?.threadRuntimeItemsPage ?? (async () => ({ items: [], nextCursor: null })),
     websocketTicket: opts?.websocketTicket ?? (async () => "ticket-1"),
     websocketUrl: opts?.websocketUrl ?? (() => "ws://192.168.1.9:38987/ws?ticket=ticket-1"),
     parseSocketMessage: (value: string) => JSON.parse(value),
@@ -153,6 +164,8 @@ function makeClient(opts?: {
     startNewThread: opts?.startNewThread ?? (async () => ({ threadId: crypto.randomUUID() })),
     writeTerminal: opts?.writeTerminal ?? (async () => {}),
     resizeTerminal: opts?.resizeTerminal ?? (async () => {}),
+    startShell: opts?.startShell ?? (async () => {}),
+    closeShell: opts?.closeShell ?? (async () => {}),
     gitCall: opts?.gitCall ?? (async () => ({})),
   } as unknown as RemoteDesktopClient;
 }
@@ -205,20 +218,40 @@ describe("useRemoteServersStore", () => {
     expect(state.servers).toHaveLength(1);
     expect(state.runtime.d1?.status).toBe("online");
     expect(state.runtime.d1?.projects[0]?.name).toBe("Remote App");
+    expect(useAppStore.getState().projects).toContainEqual(
+      expect.objectContaining({
+        id: remoteProjectId("d1", "p1"),
+        remoteServerId: "d1",
+        remoteId: "p1",
+      }),
+    );
   });
 
   it("bootstraps and persists an SSH-backed server through the shared protocol", async () => {
     const id = "1a2f655a-e274-4213-9a2b-029f29062fd7";
     const connection = { id, label: "Build host", target: "dev@build" };
+    const listing = {
+      path: "/srv",
+      parentPath: "/",
+      homePath: "/home/dev",
+      entries: [{ name: "app", path: "/srv/app", type: "directory" as const }],
+      truncated: false,
+    };
+    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => listing);
     bridge.sshConnect.mockResolvedValue({
       connectionId: id,
       endpoint: "http://127.0.0.1:39001/",
       remotePort: 38987,
       pairingCredential: "lc_pair_ssh",
     });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ gitCall, hostMode: "helper" })));
 
     const record = await useRemoteServersStore.getState().pairSshServer(connection);
+    const folders = await useRemoteServersStore
+      .getState()
+      .browseHostDirectory(record.desktopId, "/srv");
 
     expect(bridge.sshConnect).toHaveBeenCalledWith({
       connection,
@@ -226,8 +259,11 @@ describe("useRemoteServersStore", () => {
     });
     expect(record).toMatchObject({
       endpoint: "http://127.0.0.1:39001/",
+      hostMode: "helper",
       transport: { kind: "ssh", connection },
     });
+    expect(folders).toEqual(listing);
+    expect(gitCall).toHaveBeenCalledWith("browseHostDirectory", { path: "/srv" });
   });
 
   it("re-establishes and disconnects an SSH tunnel for a persisted server", async () => {
@@ -451,6 +487,175 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().runtime.d1?.projects).toHaveLength(2);
   });
 
+  it("loads sensitive project settings into the projected project row", async () => {
+    const server = {
+      id: "memory-id",
+      name: "memory",
+      description: "Memory tools",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "stdio" as const, command: "node", args: ["server.js"], env: {} },
+    };
+    const projectSettings = vi.fn<RemoteDesktopClient["projectSettings"]>(async () => ({
+      mcpServers: [server],
+    }));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ projectSettings })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    await useRemoteServersStore.getState().loadProjectSettings("d1", "p1");
+
+    expect(projectSettings).toHaveBeenCalledWith("p1");
+    expect(
+      useAppStore.getState().projects.find((project) => project.id === remoteProjectId("d1", "p1"))
+        ?.mcpServers,
+    ).toEqual([server]);
+  });
+
+  it("browses folders through the selected remote server", async () => {
+    const listing = {
+      path: "/srv",
+      parentPath: "/",
+      homePath: "/home/remote",
+      entries: [{ name: "app", path: "/srv/app", type: "directory" as const }],
+      truncated: false,
+    };
+    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => listing);
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ gitCall })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    await expect(
+      useRemoteServersStore.getState().browseHostDirectory("d1", "/srv"),
+    ).resolves.toEqual(listing);
+    expect(gitCall).toHaveBeenCalledWith("browseHostDirectory", { path: "/srv" });
+  });
+
+  it("routes project-scoped renderer procedures by explicit remote ownership", async () => {
+    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => ({
+      skills: [],
+      effectiveSkillIds: [],
+    }));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ gitCall })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    const projectedProject = useAppStore
+      .getState()
+      .projects.find((project) => project.remoteServerId === "d1");
+    expect(projectedProject?.location.remoteServerId).toBe("d1");
+
+    await expect(
+      routeRemoteProcedure("scanSkills", {
+        projectLocation: projectedProject?.location,
+        agentKind: "claude",
+      }),
+    ).resolves.toEqual({ skills: [], effectiveSkillIds: [] });
+    expect(gitCall).toHaveBeenCalledWith("scanSkills", {
+      projectLocation: { kind: "posix", path: "/r/app" },
+      agentKind: "claude",
+    });
+
+    expect(
+      routeRemoteProcedure("scanSkills", {
+        projectLocation: { kind: "posix", path: "/r/app" },
+        agentKind: "claude",
+      }),
+    ).toBeUndefined();
+  });
+
+  it("pages older runtime history through the thread's remote server", async () => {
+    const threadRuntimeItemsPage = vi.fn<RemoteDesktopClient["threadRuntimeItemsPage"]>(
+      async () => ({ items: [], nextCursor: null }),
+    );
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ threadRuntimeItemsPage })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    useAppStore.setState((state) => ({
+      threads: [
+        ...state.threads,
+        {
+          ...remoteThread,
+          id: remoteThreadId("d1", "rt-1"),
+          remoteId: "rt-1",
+          remoteServerId: "d1",
+          projectId: remoteProjectId("d1", "p1"),
+        } as Thread,
+      ],
+    }));
+
+    await expect(
+      routeRemoteProcedure("dbGetThreadRuntimeItemsPage", {
+        threadId: remoteThreadId("d1", "rt-1"),
+        beforePosition: 77,
+        limit: 500,
+        targetTimelineEntryCount: 40,
+      }),
+    ).resolves.toEqual({ items: [], nextCursor: null });
+    expect(threadRuntimeItemsPage).toHaveBeenCalledWith({
+      threadId: "rt-1",
+      beforePosition: 77,
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+  });
+
+  it("routes normal project terminal operations through the remote server", async () => {
+    const startShell = vi.fn<RemoteDesktopClient["startShell"]>(async () => {});
+    const writeTerminal = vi.fn<RemoteDesktopClient["writeTerminal"]>(async () => {});
+    const resizeTerminal = vi.fn<RemoteDesktopClient["resizeTerminal"]>(async () => {});
+    const closeShell = vi.fn<RemoteDesktopClient["closeShell"]>(async () => {});
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(
+        factoryFor(makeClient({ startShell, writeTerminal, resizeTerminal, closeShell })),
+      );
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    const location = useAppStore
+      .getState()
+      .projects.find((project) => project.remoteServerId === "d1")?.location;
+
+    await routeRemoteProcedure("startShell", {
+      shellId: "shell:remote",
+      projectLocation: location,
+      initialSize: { cols: 90, rows: 25 },
+    });
+    await routeRemoteProcedure("writeTerminal", {
+      threadId: "shell:remote",
+      data: "pwd\r",
+    });
+    await routeRemoteProcedure("resizeTerminal", {
+      threadId: "shell:remote",
+      cols: 100,
+      rows: 30,
+    });
+    await routeRemoteProcedure("closeThread", { threadId: "shell:remote" });
+
+    expect(startShell).toHaveBeenCalledWith({
+      shellId: "shell:remote",
+      projectLocation: { kind: "posix", path: "/r/app" },
+      initialSize: { cols: 90, rows: 25 },
+    });
+    expect(writeTerminal).toHaveBeenCalledWith({
+      threadId: "shell:remote",
+      data: "pwd\r",
+    });
+    expect(resizeTerminal).toHaveBeenCalledWith({
+      threadId: "shell:remote",
+      cols: 100,
+      rows: 30,
+    });
+    expect(closeShell).toHaveBeenCalledWith({ threadId: "shell:remote" });
+  });
+
   it("interrupts a remote thread", async () => {
     const interruptThread = vi.fn<RemoteDesktopClient["interruptThread"]>(async () => {});
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ interruptThread })));
@@ -567,22 +772,23 @@ describe("useRemoteServersStore", () => {
     await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledTimes(1));
 
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
-    await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledTimes(2));
 
     expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(1);
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1");
-    expect(sockets[0]?.close).toHaveBeenCalledTimes(1);
-    expect(sockets[1]?.close).not.toHaveBeenCalled();
+    expect(sockets[0]?.close).not.toHaveBeenCalled();
 
     // A thread-scoped live event frame for the OPEN thread is forwarded.
     const threadStateEvent = { type: "thread-state", threadId: "rt-1", status: "idle" };
-    sockets[1]?.onmessage?.({
+    sockets[0]?.onmessage?.({
       data: JSON.stringify({ type: "event", seq: 1, event: threadStateEvent }),
     });
-    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith(threadStateEvent);
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith({
+      ...threadStateEvent,
+      threadId: remoteThreadId("d1", "rt-1"),
+    });
 
     useRemoteServersStore.getState().closeRemoteThread();
-    expect(sockets[1]?.close).not.toHaveBeenCalled();
+    expect(sockets[0]?.close).not.toHaveBeenCalled();
     expect(useRemoteServersStore.getState().openThread).toBeNull();
   });
 
@@ -619,7 +825,7 @@ describe("useRemoteServersStore", () => {
     const onOutput = vi.fn<(data: string) => void>();
     const onReset = vi.fn<() => void>();
     const onExited = vi.fn<(exitCode: number | null) => void>();
-    const unsubscribe = watchRemoteTerminal("rt-1", { onOutput, onReset, onExited });
+    const unsubscribe = watchRemoteTerminal("d1", "rt-1", { onOutput, onReset, onExited });
     expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "terminal-watch", id: "rt-1" }));
 
     socket.onmessage?.({
@@ -643,8 +849,10 @@ describe("useRemoteServersStore", () => {
     expect(onReset).toHaveBeenCalledTimes(1);
     expect(onExited).toHaveBeenCalledWith(7);
 
-    await useRemoteServersStore.getState().writeRemoteTerminal("x");
-    await useRemoteServersStore.getState().resizeRemoteTerminal({ cols: 100, rows: 25 });
+    await useRemoteServersStore.getState().writeThreadTerminal("d1", "rt-1", "x");
+    await useRemoteServersStore
+      .getState()
+      .resizeThreadTerminal("d1", "rt-1", { cols: 100, rows: 25 });
     expect(writeTerminal).toHaveBeenCalledWith({ threadId: "rt-1", data: "x" });
     expect(resizeTerminal).toHaveBeenCalledWith({ threadId: "rt-1", cols: 100, rows: 25 });
 
@@ -745,7 +953,10 @@ describe("useRemoteServersStore", () => {
     sockets[1]?.onmessage?.({
       data: JSON.stringify({ type: "event", seq: 8, event: second }),
     });
-    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith(second);
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith({
+      ...second,
+      threadId: remoteThreadId("d1", "rt-1"),
+    });
   });
 
   it("refreshes remote thread history when websocket replay requires resync", async () => {
@@ -824,7 +1035,7 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().servers).toHaveLength(0);
   });
 
-  it("sends a prompt to the open remote thread with its config", async () => {
+  it("sends thread input with the normal composer's full payload", async () => {
     const sendThreadInput = vi.fn<RemoteDesktopClient["sendThreadInput"]>(async () => {});
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ sendThreadInput })));
     useRemoteServersStore.getState().setSocketFactory(() => ({
@@ -835,13 +1046,20 @@ describe("useRemoteServersStore", () => {
     await useRemoteServersStore
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
-
-    await useRemoteServersStore.getState().sendRemotePrompt("hello remote");
+    await useRemoteServersStore.getState().sendThreadInput({
+      desktopId: "d1",
+      threadId: "rt-1",
+      prompt: "hello remote",
+      segments: [{ kind: "text", content: "hello remote" }],
+      config: { model: "claude-sonnet" },
+      userMessageItemId: "user-1",
+    });
     expect(sendThreadInput).toHaveBeenCalledWith({
       threadId: "rt-1",
       prompt: "hello remote",
-      config: { foo: "bar" },
+      segments: [{ kind: "text", content: "hello remote" }],
+      config: { model: "claude-sonnet" },
+      userMessageItemId: "user-1",
     });
   });
 
@@ -871,9 +1089,7 @@ describe("useRemoteServersStore", () => {
     });
     useRemoteServersStore.getState().setClientFactory(factoryFor(client));
     await pairIsolated(() => makeSocket());
-    useRemoteServersStore.getState().openRemoteProject("d1", "p1");
-
-    await useRemoteServersStore.getState().startRemoteThread({
+    await useRemoteServersStore.getState().launchRemoteThread({
       desktopId: "d1",
       projectId: "p1",
       agentKind: "claude",
@@ -889,7 +1105,6 @@ describe("useRemoteServersStore", () => {
       prompt: "work remotely",
       presentationMode: "gui",
     });
-    expect(useRemoteServersStore.getState().remoteProjectDraft).toBeNull();
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-new");
   });
 
@@ -1045,7 +1260,7 @@ describe("useRemoteServersStore", () => {
       batches: Array<{ threadId: string }>;
     };
     expect(forwarded.type).toBe("thread-runtime-events-multi");
-    expect(forwarded.batches[0]?.threadId).toBe("rt-1");
+    expect(forwarded.batches[0]?.threadId).toBe(remoteThreadId("d1", "rt-1"));
   });
 
   // ── Finding #2: refresh coalescing / out-of-order + seq clamp ───────
@@ -1186,39 +1401,6 @@ describe("useRemoteServersStore", () => {
       updatedAt: "now",
     });
     await connectAllPromise;
-  });
-
-  // ── Finding #4: fresh config on send ────────────────────────────────
-  it("sends the latest thread config from the runtime snapshot, not the stale opened one", async () => {
-    const sendThreadInput = vi.fn<RemoteDesktopClient["sendThreadInput"]>(async () => {});
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ sendThreadInput })));
-    useRemoteServersStore.getState().setSocketFactory(() => makeSocket());
-    await useRemoteServersStore
-      .getState()
-      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
-
-    // Simulate the remote/PWA changing the thread's config after the overlay
-    // opened: the runtime snapshot now carries a fresher config for rt-1.
-    useRemoteServersStore.setState((state) => ({
-      runtime: {
-        ...state.runtime,
-        d1: {
-          status: "online",
-          projects: state.runtime.d1?.projects ?? [],
-          threads: [
-            { ...remoteThread, id: "rt-1", config: { foo: "updated" } } as unknown as Thread,
-          ],
-        },
-      },
-    }));
-
-    await useRemoteServersStore.getState().sendRemotePrompt("hello");
-    expect(sendThreadInput).toHaveBeenCalledWith({
-      threadId: "rt-1",
-      prompt: "hello",
-      config: { foo: "updated" },
-    });
   });
 
   // ── Finding #5: debounced refresh coalesces a burst ─────────────────

@@ -26,6 +26,7 @@ import { PullFromSourceDialog } from "@/renderer/views/MainView/parts/PullFromSo
 import { MainPageLayout, StalePanelCleanup } from "@/renderer/views/MainView/parts/MainPageLayout";
 import { ThreadSearchOverlayHost } from "@/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay";
 import { ThreadLiveWorkflowTracker } from "@/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile";
+import { RendererRuntimeDiagnosticContextSync } from "@/renderer/diagnostics/runtimeContext";
 
 function findMissingWslDistro(distros: readonly string[], statuses: readonly AgentStatus[]) {
   const cachedDistros = new Set(
@@ -105,6 +106,7 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
   console.log(`[renderer] +${Date.now() - loadT0}ms: rendering main UI`);
   return (
     <>
+      <RendererRuntimeDiagnosticContextSync />
       <AppDndProvider
         onSidebarSortEnd={handleSortEnd}
         onPaneDrop={handlePaneDrop}

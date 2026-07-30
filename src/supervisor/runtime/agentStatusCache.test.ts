@@ -219,6 +219,74 @@ describe("agent status cache", () => {
       expect.arrayContaining(["status", "model", "review", "compact", "permissions"]),
     );
   });
+
+  it("round-trips runtime variants and session routing through the disk cache schema", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: STATUS_CACHE_VERSION,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {},
+            runtimeVariants: {
+              sdk: {
+                presentationMode: "gui",
+                installed: false,
+                authState: "unknown",
+                authUsesProviderLogin: false,
+                capabilities: {
+                  models: [{ id: "sdk-model", label: "SDK Model" }],
+                  liveInputMode: "server",
+                  presentationMode: "gui",
+                },
+              },
+            },
+            sessionRuntimeRouting: {
+              prefixes: { "sdk:": "sdk" },
+              fallbackRuntime: "acp",
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(cached.windows[0]?.runtimeVariants?.sdk).toMatchObject({
+      presentationMode: "gui",
+      installed: false,
+      authState: "unknown",
+      authUsesProviderLogin: false,
+      capabilities: {
+        models: [{ id: "sdk-model", label: "SDK Model" }],
+        liveInputMode: "server",
+        presentationMode: "gui",
+        settingDefs: [],
+      },
+    });
+    expect(cached.windows[0]?.sessionRuntimeRouting).toEqual({
+      prefixes: { "sdk:": "sdk" },
+      fallbackRuntime: "acp",
+    });
+  });
 });
 
 describe("detectWslAgentStatuses", () => {

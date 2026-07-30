@@ -42,6 +42,7 @@ type MockLegendProps = {
 };
 
 const {
+  legendDomReflowMode,
   latestLegendProps,
   legendSizes,
   totalSizeListener,
@@ -50,6 +51,7 @@ const {
   setItemSizeMock,
   unsubscribeMock,
 } = vi.hoisted(() => ({
+  legendDomReflowMode: { current: "sync" as "sync" | "deferred" },
   latestLegendProps: { current: null as unknown },
   legendSizes: new Map<string, number>(),
   totalSizeListener: { current: null as null | (() => void) },
@@ -58,6 +60,8 @@ const {
   setItemSizeMock: vi.fn<(itemKey: string, size: { width: number; height: number }) => void>(),
   unsubscribeMock: vi.fn<() => void>(),
 }));
+
+const MOCK_ROW_SIZE = 100;
 
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");
@@ -79,6 +83,20 @@ vi.mock("@legendapp/list/react", async () => {
         getScrollableNode: () => scrollRef.current,
         getState: () => ({
           sizes: legendSizes,
+          positionAtIndex: (index: number) =>
+            props.data
+              .slice(0, index)
+              .reduce(
+                (top, item, itemIndex) =>
+                  top + (legendSizes.get(props.keyExtractor(item, itemIndex)) ?? MOCK_ROW_SIZE),
+                0,
+              ),
+          sizeAtIndex: (index: number) => {
+            const item = props.data[index];
+            return item
+              ? (legendSizes.get(props.keyExtractor(item, index)) ?? MOCK_ROW_SIZE)
+              : Number.NaN;
+          },
           listen: (name: string, listener: () => void) => {
             if (name === "totalSize") totalSizeListener.current = listener;
             return unsubscribeMock;
@@ -89,6 +107,20 @@ vi.mock("@legendapp/list/react", async () => {
         setItemSize: (itemKey: string, size: { width: number; height: number }) => {
           legendSizes.set(itemKey, size.height);
           setItemSizeMock(itemKey, size);
+          if (legendDomReflowMode.current === "sync") {
+            const content = scrollRef.current?.querySelector(".legend-list-content-container");
+            let top = 0;
+            for (let index = 0; index < props.data.length; index += 1) {
+              const item = props.data[index]!;
+              const key = props.keyExtractor(item, index);
+              const container = Array.from(content?.children ?? []).find(
+                (element) =>
+                  element instanceof HTMLElement && element.dataset.mockLegendKey === key,
+              );
+              if (container instanceof HTMLElement) container.style.top = `${top}px`;
+              top += legendSizes.get(key) ?? MOCK_ROW_SIZE;
+            }
+          }
         },
       }));
       React.useLayoutEffect(() => {
@@ -110,10 +142,27 @@ vi.mock("@legendapp/list/react", async () => {
           >
             {props.ListHeaderComponent}
             {props.data.length === 0 ? props.ListEmptyComponent : null}
+            {/* Mirror LegendList's absolutely positioned per-row containers so
+                row code that reads/writes sibling offsets is exercised. */}
             {props.data.map((item, index) => (
-              <React.Fragment key={props.keyExtractor(item, index)}>
+              <div
+                key={props.keyExtractor(item, index)}
+                data-mock-legend-key={props.keyExtractor(item, index)}
+                style={{
+                  position: "absolute",
+                  top: `${props.data
+                    .slice(0, index)
+                    .reduce(
+                      (top, preceding, precedingIndex) =>
+                        top +
+                        (legendSizes.get(props.keyExtractor(preceding, precedingIndex)) ??
+                          MOCK_ROW_SIZE),
+                      0,
+                    )}px`,
+                }}
+              >
                 {props.renderItem({ item, index })}
-              </React.Fragment>
+              </div>
             ))}
             {props.ListFooterComponent}
           </div>
@@ -143,6 +192,7 @@ vi.mock("./items/ChatItemRow", () => ({
 describe("MessageList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    legendDomReflowMode.current = "sync";
     legendSizes.clear();
     totalSizeListener.current = null;
     clearTimelineMeasurementCache();
@@ -402,6 +452,161 @@ describe("MessageList", () => {
     }
   });
 
+  it("pushes the rows below down when a mid-list row grows, before LegendList reflows", () => {
+    legendDomReflowMode.current = "deferred";
+    const observed: Array<{ target: Element; callback: () => void }> = [];
+    const originalResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      constructor(private readonly callback: () => void) {}
+      observe(target: Element) {
+        observed.push({ target, callback: this.callback });
+      }
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+
+    try {
+      const threadId = "thread-1";
+      seedCompletedItem(threadId, "assistant-1", "assistant_message");
+      seedCompletedItem(threadId, "user-1", "user_message");
+      render(<MessageList threadId={threadId} entries={makeEntries(["assistant-1", "user-1"])} />);
+
+      const row = screen.getByText("assistant-1").closest("[data-chat-virtual-row='true']");
+      if (!(row instanceof HTMLDivElement)) throw new Error("missing anchor row");
+      const nextContainer = row.parentElement?.nextElementSibling;
+      if (!(nextContainer instanceof HTMLDivElement)) throw new Error("missing following row");
+      const resize = observed.find((entry) => entry.target === row);
+      if (!resize) throw new Error("row is not observed");
+
+      const grow = (height: number) => {
+        Object.defineProperties(row, {
+          offsetHeight: { configurable: true, value: height },
+          offsetWidth: { configurable: true, value: 500 },
+        });
+        act(() => resize.callback());
+      };
+
+      grow(120);
+      const topAfterBaseline = Number.parseFloat(nextContainer.style.top);
+      setItemSizeMock.mockClear();
+
+      grow(180);
+
+      expect(setItemSizeMock).toHaveBeenCalledWith("assistant-1", { height: 180, width: 500 });
+      // The 60px the row gained is handed to the following row immediately, so a
+      // prompt appended under a still-working row cannot paint over its last line
+      // (the "Worked for X" record) while LegendList catches up next frame.
+      expect(Number.parseFloat(nextContainer.style.top)).toBe(topAfterBaseline + 60);
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
+  it("does not shift following rows again when LegendList already reflowed them", () => {
+    const observed: Array<{ target: Element; callback: () => void }> = [];
+    const originalResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      constructor(private readonly callback: () => void) {}
+      observe(target: Element) {
+        observed.push({ target, callback: this.callback });
+      }
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+
+    try {
+      const threadId = "thread-1";
+      seedCompletedItem(threadId, "assistant-1", "assistant_message");
+      seedCompletedItem(threadId, "user-1", "user_message");
+      render(<MessageList threadId={threadId} entries={makeEntries(["assistant-1", "user-1"])} />);
+
+      const row = screen.getByText("assistant-1").closest("[data-chat-virtual-row='true']");
+      if (!(row instanceof HTMLDivElement)) throw new Error("missing anchor row");
+      const container = row.parentElement;
+      const nextContainer = container?.nextElementSibling;
+      if (!(container instanceof HTMLDivElement)) throw new Error("missing anchor container");
+      if (!(nextContainer instanceof HTMLDivElement)) throw new Error("missing following row");
+      const resize = observed.find((entry) => entry.target === row);
+      if (!resize) throw new Error("row is not observed");
+
+      let rowHeight = 120;
+      Object.defineProperties(row, {
+        offsetHeight: { configurable: true, get: () => rowHeight },
+        offsetWidth: { configurable: true, value: 500 },
+      });
+      act(() => resize.callback());
+
+      rowHeight = 180;
+      const ownTop = Number.parseFloat(container.style.top);
+      const reflowedTop = ownTop + rowHeight;
+      setItemSizeMock.mockClear();
+
+      act(() => resize.callback());
+
+      expect(setItemSizeMock).toHaveBeenCalledWith("assistant-1", { height: 180, width: 500 });
+      expect(Number.parseFloat(nextContainer.style.top)).toBe(reflowedTop);
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
+  it("keeps measuring a row while it changes from the tail to a completed mid-list row", () => {
+    const observed: Array<{ target: Element; callback: () => void; active: boolean }> = [];
+    const originalResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      private records: Array<{ target: Element; callback: () => void; active: boolean }> = [];
+
+      constructor(private readonly callback: () => void) {}
+      observe(target: Element) {
+        const record = { target, callback: this.callback, active: true };
+        this.records.push(record);
+        observed.push(record);
+      }
+      unobserve() {}
+      disconnect() {
+        for (const record of this.records) record.active = false;
+      }
+    } as unknown as typeof ResizeObserver;
+
+    try {
+      const threadId = "thread-1";
+      seedCompletedItem(threadId, "assistant-1", "assistant_message");
+      seedCompletedItem(threadId, "user-1", "user_message");
+      const view = render(
+        <MessageList threadId={threadId} entries={makeEntries(["assistant-1"])} />,
+      );
+      const row = screen.getByText("assistant-1").closest("[data-chat-virtual-row='true']");
+      if (!(row instanceof HTMLDivElement)) throw new Error("missing anchor row");
+      let rowHeight = 120;
+      Object.defineProperties(row, {
+        offsetHeight: { configurable: true, get: () => rowHeight },
+        offsetWidth: { configurable: true, value: 500 },
+      });
+      const initialObserver = observed.find((entry) => entry.target === row && entry.active);
+      if (!initialObserver) throw new Error("row is not observed");
+      act(() => initialObserver.callback());
+
+      rowHeight = 180;
+      view.rerender(
+        <MessageList threadId={threadId} entries={makeEntries(["assistant-1", "user-1"])} />,
+      );
+      const nextContainer = row.parentElement?.nextElementSibling;
+      if (!(nextContainer instanceof HTMLDivElement)) throw new Error("missing following row");
+      const topBeforeCompletionResize = Number.parseFloat(nextContainer.style.top);
+      const activeObserver = observed.find((entry) => entry.target === row && entry.active);
+      if (!activeObserver) throw new Error("row observation was dropped");
+
+      act(() => activeObserver.callback());
+
+      // Completing the turn and appending the prompt happen in one render. The
+      // observer must retain its pre-completion baseline so the prompt moves by
+      // the assistant row's late 60px growth instead of covering that content.
+      expect(Number.parseFloat(nextContainer.style.top)).toBe(topBeforeCompletionResize + 60);
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
   it("coalesces live streaming remeasurement to one animation frame", async () => {
     vi.useFakeTimers();
     try {
@@ -503,6 +708,223 @@ describe("MessageList", () => {
     }
   });
 
+  it("keeps every following row aligned through repeated grow, shrink, and regrow cycles", () => {
+    const resize = installResizeObserverHarness();
+    try {
+      seedCompletedItem("thread-1", "assistant-1", "assistant_message");
+      seedCompletedItem("thread-1", "user-1", "user_message");
+      seedCompletedItem("thread-1", "assistant-2", "assistant_message");
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["assistant-1", "user-1", "assistant-2"])}
+        />,
+      );
+      const row = getVirtualRow(view.container, "assistant-1");
+      let height = 100;
+      setElementSize(
+        row,
+        () => height,
+        () => 500,
+      );
+
+      resize.notify(row);
+      expect(mockLegendTops(view.container)).toEqual([0, 100, 200]);
+
+      height = 180;
+      resize.notify(row);
+      expect(mockLegendTops(view.container)).toEqual([0, 180, 280]);
+
+      height = 90;
+      resize.notify(row);
+      expect(mockLegendTops(view.container)).toEqual([0, 90, 190]);
+
+      height = 140;
+      resize.notify(row);
+      expect(mockLegendTops(view.container)).toEqual([0, 140, 240]);
+      expect(setItemSizeMock.mock.calls.map((call) => call[1].height)).toEqual([100, 180, 90, 140]);
+    } finally {
+      resize.restore();
+    }
+  });
+
+  it("aligns multiple downstream rows before a deferred LegendList DOM commit", () => {
+    legendDomReflowMode.current = "deferred";
+    const resize = installResizeObserverHarness();
+    try {
+      for (const itemId of ["item-0", "item-1", "item-2", "item-3"]) {
+        seedCompletedItem("thread-1", itemId, "assistant_message");
+      }
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["item-0", "item-1", "item-2", "item-3"])}
+        />,
+      );
+      const row = getVirtualRow(view.container, "item-1");
+      let height = 170;
+      setElementSize(
+        row,
+        () => height,
+        () => 500,
+      );
+
+      resize.notify(row);
+      expect(mockLegendTops(view.container)).toEqual([0, 100, 270, 370]);
+
+      height = 220;
+      resize.notify(row);
+      expect(mockLegendTops(view.container)).toEqual([0, 100, 320, 420]);
+    } finally {
+      resize.restore();
+    }
+  });
+
+  it("leaves deferred shrink positioning to LegendList while still reporting the new size", () => {
+    legendDomReflowMode.current = "deferred";
+    const resize = installResizeObserverHarness();
+    try {
+      seedCompletedItem("thread-1", "assistant-1", "assistant_message");
+      seedCompletedItem("thread-1", "user-1", "user_message");
+      const view = render(
+        <MessageList threadId="thread-1" entries={makeEntries(["assistant-1", "user-1"])} />,
+      );
+      const row = getVirtualRow(view.container, "assistant-1");
+      let height = 180;
+      setElementSize(
+        row,
+        () => height,
+        () => 500,
+      );
+      resize.notify(row);
+      expect(mockLegendTops(view.container)).toEqual([0, 180]);
+
+      setItemSizeMock.mockClear();
+      height = 100;
+      resize.notify(row);
+
+      expect(setItemSizeMock).toHaveBeenCalledWith("assistant-1", {
+        height: 100,
+        width: 500,
+      });
+      // LegendList intentionally confirms web shrinks on its next animation
+      // frame. Our growth-only pre-paint optimization must not race that path.
+      expect(mockLegendTops(view.container)).toEqual([0, 180]);
+    } finally {
+      resize.restore();
+    }
+  });
+
+  it("deduplicates ResizeObserver work after an explicit row measurement", () => {
+    const resize = installResizeObserverHarness();
+    try {
+      const onVirtualizerLayoutChange = vi.fn<() => void>();
+      const onLiveVirtualizerLayoutChange = vi.fn<() => void>();
+      seedCompletedItem("thread-1", "assistant-1", "assistant_message");
+      seedCompletedItem("thread-1", "user-1", "user_message");
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["assistant-1", "user-1"])}
+          onVirtualizerLayoutChange={onVirtualizerLayoutChange}
+          onLiveVirtualizerLayoutChange={onLiveVirtualizerLayoutChange}
+        />,
+      );
+      const row = getVirtualRow(view.container, "assistant-1");
+      setElementSize(
+        row,
+        () => 180,
+        () => 500,
+      );
+
+      fireEvent.click(screen.getByText("assistant-1"));
+      expect(setItemSizeMock).toHaveBeenCalledOnce();
+      expect(onVirtualizerLayoutChange).toHaveBeenCalledOnce();
+      expect(mockLegendTops(view.container)).toEqual([0, 180]);
+
+      setItemSizeMock.mockClear();
+      onVirtualizerLayoutChange.mockClear();
+      onLiveVirtualizerLayoutChange.mockClear();
+      resize.notify(row);
+
+      expect(setItemSizeMock).not.toHaveBeenCalled();
+      expect(onVirtualizerLayoutChange).not.toHaveBeenCalled();
+      expect(onLiveVirtualizerLayoutChange).not.toHaveBeenCalled();
+      expect(mockLegendTops(view.container)).toEqual([0, 180]);
+    } finally {
+      resize.restore();
+    }
+  });
+
+  it("deduplicates width-only observer updates after the height is known", () => {
+    const resize = installResizeObserverHarness();
+    try {
+      const onLiveVirtualizerLayoutChange = vi.fn<() => void>();
+      seedCompletedItem("thread-1", "assistant-1", "assistant_message");
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["assistant-1"])}
+          onLiveVirtualizerLayoutChange={onLiveVirtualizerLayoutChange}
+        />,
+      );
+      const row = getVirtualRow(view.container, "assistant-1");
+      let width = 400;
+      setElementSize(
+        row,
+        () => 120,
+        () => width,
+      );
+      resize.notify(row);
+
+      setItemSizeMock.mockClear();
+      onLiveVirtualizerLayoutChange.mockClear();
+      width = 500;
+      resize.notify(row);
+
+      expect(setItemSizeMock).not.toHaveBeenCalled();
+      expect(onLiveVirtualizerLayoutChange).not.toHaveBeenCalled();
+    } finally {
+      resize.restore();
+    }
+  });
+
+  it("cancels queued live measurement and disconnects row observation on unmount", async () => {
+    vi.useFakeTimers();
+    const resize = installResizeObserverHarness();
+    try {
+      seedStartedItem("thread-1", "assistant-1", "assistant_message");
+      const view = render(
+        <MessageList threadId="thread-1" entries={makeEntries(["assistant-1"])} />,
+      );
+      const row = getVirtualRow(view.container, "assistant-1");
+      setElementSize(
+        row,
+        () => 120,
+        () => 500,
+      );
+      setItemSizeMock.mockClear();
+
+      act(() => {
+        useAppStore.getState().applyRuntimeEvent("thread-1", {
+          type: "content.delta",
+          threadId: "thread-1",
+          itemId: "assistant-1",
+          stream: "assistant_text",
+          delta: "queued growth",
+        });
+      });
+      view.unmount();
+      await act(async () => vi.advanceTimersByTimeAsync(16));
+
+      expect(setItemSizeMock).not.toHaveBeenCalled();
+      expect(resize.records.some((record) => record.target === row && record.active)).toBe(false);
+    } finally {
+      resize.restore();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the assistant-only bottom fade behavior on LegendList's content box", () => {
     seedStartedItem("thread-1", "assistant-1", "assistant_message");
     const { container, rerender } = render(
@@ -578,4 +1000,75 @@ function seedCompletedItem(
     threadId,
     itemId,
   });
+}
+
+type ResizeObserverRecord = {
+  target: Element;
+  callback: ResizeObserverCallback;
+  active: boolean;
+};
+
+function installResizeObserverHarness() {
+  const originalResizeObserver = globalThis.ResizeObserver;
+  const records: ResizeObserverRecord[] = [];
+  globalThis.ResizeObserver = class {
+    private records: ResizeObserverRecord[] = [];
+
+    constructor(private readonly callback: ResizeObserverCallback) {}
+
+    observe(target: Element) {
+      const record = { target, callback: this.callback, active: true };
+      this.records.push(record);
+      records.push(record);
+    }
+
+    unobserve(target: Element) {
+      for (const record of this.records) {
+        if (record.target === target) record.active = false;
+      }
+    }
+
+    disconnect() {
+      for (const record of this.records) record.active = false;
+    }
+  } as unknown as typeof ResizeObserver;
+
+  return {
+    records,
+    notify(target: Element) {
+      const record = records.findLast(
+        (candidate) => candidate.target === target && candidate.active,
+      );
+      if (!record) throw new Error("target is not actively observed");
+      act(() => {
+        record.callback([{ target } as unknown as ResizeObserverEntry], {} as ResizeObserver);
+      });
+    },
+    restore() {
+      globalThis.ResizeObserver = originalResizeObserver;
+    },
+  };
+}
+
+function getVirtualRow(container: HTMLElement, itemId: string): HTMLDivElement {
+  const row = container.querySelector(`[data-chat-virtual-row='true'][data-item-id='${itemId}']`);
+  if (!(row instanceof HTMLDivElement)) throw new Error(`missing virtual row ${itemId}`);
+  return row;
+}
+
+function setElementSize(
+  element: HTMLElement,
+  readHeight: () => number,
+  readWidth: () => number,
+): void {
+  Object.defineProperties(element, {
+    offsetHeight: { configurable: true, get: readHeight },
+    offsetWidth: { configurable: true, get: readWidth },
+  });
+}
+
+function mockLegendTops(container: HTMLElement): number[] {
+  return Array.from(container.querySelectorAll<HTMLElement>("[data-mock-legend-key]")).map(
+    (element) => Number.parseFloat(element.style.top),
+  );
 }

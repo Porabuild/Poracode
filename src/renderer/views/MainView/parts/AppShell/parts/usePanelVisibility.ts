@@ -2,6 +2,9 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
+import { selectThreadTodoDockState } from "@/renderer/components/thread/threadTodoState";
+import { resolveActivePaneId } from "@/renderer/actions/currentProject";
 
 export function usePanelVisibility() {
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
@@ -14,30 +17,50 @@ export function usePanelVisibility() {
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const currentThreadId = useAppStore((state) => {
+    if (state.view.kind !== "thread") return null;
+    return resolveActivePaneId(state.view.panes, state.focusedPaneId);
+  });
+  const todoDockPlacement = useThreadTodoDockStore((state) =>
+    currentThreadId
+      ? (state.byThreadId[currentThreadId]?.placement ?? state.defaultPlacement)
+      : "composer",
+  );
+  const retiredTodoSourceItemId = useThreadTodoDockStore((state) =>
+    currentThreadId ? state.byThreadId[currentThreadId]?.retiredSourceItemId : undefined,
+  );
+  const todoDockState = useAppStore((state) =>
+    currentThreadId && todoDockPlacement === "right"
+      ? selectThreadTodoDockState(state, currentThreadId)
+      : null,
+  );
 
   const isTerminalRight = terminalPosition === "right";
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
   const filesPanelOpen = filesPanelContext !== null;
-  const subAgentInCurrentThread = useAppStore((state) => {
-    if (!subAgentPanelContext || state.view.kind !== "thread") return false;
-    const activeThreadId =
-      state.focusedPaneId && state.view.panes.includes(state.focusedPaneId)
-        ? state.focusedPaneId
-        : state.view.panes[0];
-    return (
-      activeThreadId === subAgentPanelContext.threadId &&
-      state.runtimeItemsByIdByThread[subAgentPanelContext.threadId]?.[
-        subAgentPanelContext.parentItemId
-      ] !== undefined
-    );
-  });
+  const subAgentItemExists = useAppStore((state) =>
+    subAgentPanelContext
+      ? state.runtimeItemsByIdByThread[subAgentPanelContext.threadId]?.[
+          subAgentPanelContext.parentItemId
+        ] !== undefined
+      : false,
+  );
+  const subAgentInCurrentThread =
+    subAgentPanelContext !== null &&
+    subAgentPanelContext.threadId === currentThreadId &&
+    subAgentItemExists;
   const scopedSubAgentPanelOpen =
     subAgentPanelOpen && subAgentPanelContext !== null && subAgentInCurrentThread;
+  const planPanelOpen =
+    todoDockPlacement === "right" &&
+    todoDockState !== null &&
+    todoDockState.sourceItemId !== retiredTodoSourceItemId;
 
   const rightPanelOpen = isTerminalRight
     ? devTerminalOpen ||
       gitPanelOpen ||
       filesPanelOpen ||
+      planPanelOpen ||
       scopedSubAgentPanelOpen ||
       browserPanelOpen ||
       usagePanelOpen ||
@@ -47,6 +70,7 @@ export function usePanelVisibility() {
     !isTerminalRight &&
     (gitPanelOpen ||
       filesPanelOpen ||
+      planPanelOpen ||
       scopedSubAgentPanelOpen ||
       browserPanelOpen ||
       usagePanelOpen ||

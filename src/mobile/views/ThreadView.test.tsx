@@ -438,6 +438,52 @@ describe("mobile ThreadView", () => {
     expect(view.container.querySelector(".m-compose-summary .lucide-zap")).toBeNull();
   });
 
+  it("shows the session-pinned runtime model in the compact summary", () => {
+    const baseStatus = makeCodexStatus();
+    fixtures.agentStatuses = [
+      {
+        ...baseStatus,
+        runtimeVariants: {
+          sdk: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "authenticated",
+            authUsesProviderLogin: false,
+            capabilities: {
+              ...baseStatus.capabilities,
+              models: [{ id: "sdk-model", label: "Pinned SDK model" }],
+              efforts: ["high"],
+              modelEfforts: { "sdk-model": ["high"] },
+            },
+          },
+        },
+        sessionRuntimeRouting: { prefixes: { "sdk:": "sdk" } },
+      },
+    ];
+    const thread = {
+      ...makeTerminalThread(),
+      presentationMode: "gui",
+      config: { model: "sdk-model", effort: "high" },
+      sessionRef: {
+        providerSessionId: "sdk:session-1",
+        discoveredAt: "2026-01-01T00:00:00.000Z",
+      },
+    } as Thread;
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    expect(view.container.querySelector(".m-compose-summary")).toHaveTextContent(
+      "Pinned SDK model",
+    );
+  });
+
   it("hosts an open runtime request above the composer bubble, outside its clip", () => {
     const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
     useAppStore.setState({
@@ -571,8 +617,14 @@ describe("mobile ThreadView", () => {
     expect(card?.closest(".m-compose-bubble")).toBeNull();
   });
 
-  it("hosts the auth-required dock in the same action-dock card", () => {
-    fixtures.agentStatuses = [{ ...makeCodexStatus(), authState: "missing" }];
+  it("uses GUI authentication for the auth-required action dock", () => {
+    fixtures.agentStatuses = [
+      {
+        ...makeCodexStatus(),
+        authState: "authenticated",
+        presentationAuthStates: { gui: "missing" },
+      },
+    ];
     const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
 
     const view = render(
@@ -587,6 +639,28 @@ describe("mobile ThreadView", () => {
     const card = view.container.querySelector(".m-thread-action-docks");
     expect(card).not.toBeNull();
     expect(card?.closest(".m-compose-bubble")).toBeNull();
+  });
+
+  it("does not show an auth dock when GUI auth is ready despite missing root auth", () => {
+    fixtures.agentStatuses = [
+      {
+        ...makeCodexStatus(),
+        authState: "missing",
+        presentationAuthStates: { gui: "authenticated" },
+      },
+    ];
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    expect(view.container.querySelector(".m-thread-action-docks")).toBeNull();
   });
 
   it("keeps the composer expanded when the keyboard is dismissed (no collapse-on-focus-loss)", async () => {

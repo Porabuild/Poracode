@@ -2,11 +2,17 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { readBridge } from "@/renderer/bridge";
 import {
   useSharedSettings,
   whenSharedSettingsHydrated,
 } from "@/renderer/state/sharedSettingsStore";
-import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
+import {
+  normalizeShellScript,
+  startShellWithToast,
+  writeScriptToShell,
+} from "@/renderer/utils/shellUtils";
 import { closeAllPanels } from "./panelActions";
 
 function applyTerminalPanel(
@@ -100,5 +106,23 @@ export function runProjectAction(projectId: string, actionId: string, worktreePa
     },
     tabLabel,
   );
-  writeScriptToShell(tab.id, action.command);
+  if (project.remoteServerId) {
+    let armed = true;
+    const unsubscribe = watchRemoteTerminal(project.remoteServerId, tab.id, {
+      onOutput: () => {
+        if (!armed) return;
+        armed = false;
+        void readBridge().writeTerminal({
+          threadId: tab.id,
+          data: `${normalizeShellScript(action.command)}\r`,
+        });
+      },
+      onReset: () => {
+        armed = true;
+      },
+      onExited: () => unsubscribe(),
+    });
+  } else {
+    writeScriptToShell(tab.id, action.command);
+  }
 }

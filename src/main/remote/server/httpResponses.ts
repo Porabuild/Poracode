@@ -1,11 +1,28 @@
-import type { ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { ZodError } from "zod";
 import { remoteHttpErrorSchema } from "@/shared/remote";
 import { writeJsonResponse } from "@/shared/http";
 import { RemoteHttpError } from "../auth";
+import { writeNegotiatedJson } from "./httpCompression";
 
 export function writeJson(res: ServerResponse, status: number, data: unknown): void {
   writeJsonResponse(res, status, data, { trailingNewline: true });
+}
+
+/**
+ * `writeJson` plus gzip negotiation and a revalidating `ETag`. Used by the large
+ * read endpoints (shell snapshot, thread history, runtime pages) — the responses
+ * that dominate remote bandwidth and that clients re-fetch on every
+ * status-affecting event. Small fixed-shape replies stay on `writeJson`; they sit
+ * under the compression threshold anyway.
+ */
+export async function writeNegotiatedJsonResponse(
+  req: IncomingMessage,
+  res: ServerResponse,
+  status: number,
+  data: unknown,
+): Promise<void> {
+  await writeNegotiatedJson(req, res, status, `${JSON.stringify(data)}\n`);
 }
 
 export function writeHtml(res: ServerResponse, status: number, html: string): void {

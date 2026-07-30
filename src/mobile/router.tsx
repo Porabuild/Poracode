@@ -14,6 +14,8 @@ import { isNativeApp } from "./pwaInstall";
 import { migrateLegacyBrowserRoute, mobileRouterBasePath } from "./routing";
 import { isFullscreenScreenPath, navigationTransitionType } from "./navHelpers";
 import {
+  shouldUseLightweightFullscreenPop,
+  shouldUseLightweightFullscreenPush,
   shouldUseLightweightSubAgentPop,
   shouldUseLightweightSubAgentPush,
   shouldUseLightweightThreadListPop,
@@ -272,13 +274,16 @@ function navigationTransitionTypes(fromPath: string | undefined, toPath: string)
     if (window.matchMedia(WIDE_SHELL_QUERY).matches) return false;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
   }
-  // iOS Safari can block while snapshotting a long virtualized transcript.
-  // NarrowShell animates only the lightweight incoming list/subagent layer for
-  // these routes, so skip the expensive snapshot here.
+  // iOS Safari can block while snapshotting a long virtualized transcript or a
+  // heavy fullscreen overlay (diff / terminal / PR). NarrowShell animates only
+  // the lightweight incoming layer for these routes, so skip the expensive
+  // snapshot here.
   if (
     shouldUseLightweightThreadListPop(fromPath, toPath) ||
     shouldUseLightweightSubAgentPush(fromPath, toPath) ||
-    shouldUseLightweightSubAgentPop(fromPath, toPath)
+    shouldUseLightweightSubAgentPop(fromPath, toPath) ||
+    shouldUseLightweightFullscreenPush(fromPath, toPath) ||
+    shouldUseLightweightFullscreenPop(fromPath, toPath)
   ) {
     return false;
   }

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit, Globe, Pencil, Terminal, type LucideIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -169,7 +170,9 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                 <SameFileEditGroupTitle summary={sameFileEditSummary} />
               ) : (
                 sections.map((section, idx) => {
-                  const diffLabel = formatDiffSummaryLabel(section.diffSummary);
+                  const diffLabel = formatDiffSummaryLabel(section.diffSummary, {
+                    animated: true,
+                  });
                   return (
                     <Fragment key={section.category}>
                       {idx > 0 ? (
@@ -180,7 +183,12 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                       <span className="flex shrink-0 items-center gap-1">
                         <section.Icon className="size-3" />
                         <code className="font-mono tabular-nums !text-[color:var(--muted)]">
-                          {section.count} {section.label}
+                          <AnimatedNumber value={section.count} />{" "}
+                          {section.category === "mcp" ? (
+                            <Plural value={section.count} one="MCP" other="MCPs" />
+                          ) : (
+                            section.label
+                          )}
                         </code>
                         {diffLabel ? (
                           <span className="shrink-0 tabular-nums font-medium">{diffLabel}</span>
@@ -289,13 +297,17 @@ function SameFileEditRunInline({
 }
 
 function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary }) {
-  const diffLabel = formatDiffSummaryLabel(summary.diffSummary);
-  const label = `${summary.count} ${summary.count === 1 ? "edit" : "edits"}:`;
+  // Both the count and the totals grow while consecutive edits to the same file
+  // keep collapsing into this one header, so they animate in place.
+  const diffLabel = formatDiffSummaryLabel(summary.diffSummary, { animated: true });
   return (
     <>
       <span className="flex shrink-0 items-center gap-1">
         <Pencil className="size-3" />
-        <code className="font-mono tabular-nums !text-[color:var(--muted)]">{label}</code>
+        <code className="font-mono tabular-nums !text-[color:var(--muted)]">
+          <AnimatedNumber value={summary.count} />{" "}
+          <Plural value={summary.count} one="edit" other="edits" />:
+        </code>
       </span>
       <code className="flex min-w-0 flex-1 font-mono !text-[color:var(--muted)]">
         <ChatFilePath

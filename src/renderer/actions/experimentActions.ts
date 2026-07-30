@@ -14,6 +14,7 @@ import { DEFAULT_TERMINAL_SIZE, MAX_EXPERIMENT_PROMPT_LENGTH } from "@/shared/co
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { friendlyError } from "@/shared/messages";
 import { buildWorktreeLocation, sanitizeWorktreeBranchName } from "@/shared/worktree";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
 import { formatModelConfigLabel } from "@/renderer/components/providers/modelDisplay";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -387,6 +388,14 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
       }
     }),
   );
+  const startedCandidateCount = preparedThreads.filter(
+    (thread) =>
+      useAppStore.getState().threads.find((item) => item.id === thread.id)?.status !== "error",
+  ).length;
+  captureProductEvent("experiment.started", {
+    candidate_count: preparedThreads.length,
+    outcome: startedCandidateCount === preparedThreads.length ? "started" : "partial",
+  });
   void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
   return experimentId;
 }

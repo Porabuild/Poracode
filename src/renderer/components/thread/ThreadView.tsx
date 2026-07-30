@@ -16,9 +16,9 @@ import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/
 import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
-import { setRendererRuntimeDiagnosticContext } from "@/renderer/diagnostics/sentry";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
-import type { TerminalPaneHandle } from "./TerminalPane";
+import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
+import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
 import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
@@ -82,7 +82,12 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.dragHandleRef === next.dragHandleRef &&
     prev.droppableRef === next.droppableRef &&
     prev.installedAgents === next.installedAgents &&
-    prev.onContinueInProvider === next.onContinueInProvider
+    prev.onContinueInProvider === next.onContinueInProvider &&
+    prev.onSubmitInput === next.onSubmitInput &&
+    prev.onOpenProjectRelativePath === next.onOpenProjectRelativePath &&
+    prev.checkpointActions === next.checkpointActions &&
+    prev.remoteTerminalTransport === next.remoteTerminalTransport &&
+    prev.pickFiles === next.pickFiles
   );
 }
 
@@ -131,6 +136,11 @@ export type ThreadViewProps = {
     | undefined;
   onLaunchConsumed?: (() => void) | undefined;
   onLaunchFailed?: ((message: string) => void) | undefined;
+  onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
+  onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
+  checkpointActions?: CheckpointRevertActions | undefined;
+  remoteTerminalTransport?: RemoteTerminalTransport | undefined;
+  pickFiles?: (() => Promise<string[] | null>) | undefined;
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
@@ -157,6 +167,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onContinueInProvider,
     onLaunchConsumed,
     onLaunchFailed,
+    onSubmitInput,
+    onOpenProjectRelativePath,
+    checkpointActions,
+    remoteTerminalTransport,
+    pickFiles,
   } = props;
   const { t } = useLingui();
   const terminalPaneRef = useRef<TerminalPaneHandle>(null);
@@ -174,17 +189,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     (thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal") ===
     "terminal";
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
-
-  useEffect(() => {
-    const presentation =
-      thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
-    setRendererRuntimeDiagnosticContext({
-      provider: thread.agentKind,
-      presentation,
-      runtimeKind: presentation === "terminal" ? "pty" : "structured",
-      featureArea: "thread",
-    });
-  }, [agentStatus?.capabilities.presentationMode, thread.agentKind, thread.presentationMode]);
 
   useLayoutEffect(() => {
     setContinueDialogOpen(false);
@@ -432,6 +436,9 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 onTerminalResize={setTerminalSize}
+                {...(onSubmitInput ? { onSubmitInput } : {})}
+                {...(remoteTerminalTransport ? { remoteTerminalTransport } : {})}
+                {...(pickFiles ? { pickFiles } : {})}
               />
             ) : (
               <GuiThreadContent
@@ -442,6 +449,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 runtimeDebugOpen={import.meta.env.DEV && runtimeDebugOpen}
+                {...(onSubmitInput ? { onSubmitInput } : {})}
+                {...(onOpenProjectRelativePath ? { onOpenProjectRelativePath } : {})}
+                {...(checkpointActions ? { checkpointActions } : {})}
+                {...(thread.remoteServerId ? { checkpointProjectLocation: projectLocation } : {})}
+                {...(pickFiles ? { pickFiles } : {})}
               />
             )}
           </div>

@@ -276,12 +276,15 @@ async function waitForTarget(timeoutMs) {
   // A window's kind never changes, so remember each probed target across poll
   // iterations instead of re-opening a WebSocket to it every second.
   const probedKindsByTargetId = new Map();
+  let lastTargets = null;
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/json/list`);
       if (res.ok) {
         const targets = await res.json();
-        const candidates = targets.filter((t) => t.type === "page" && t.url === appUrl);
+        lastTargets = targets;
+        const pageTargets = targets.filter((t) => t.type === "page");
+        const candidates = pageTargets.filter((t) => t.url === appUrl);
         if (!windowKind && candidates[0]) return candidates[0];
         for (const target of candidates) {
           let kind = probedKindsByTargetId.get(target.id);
@@ -296,11 +299,36 @@ async function waitForTarget(timeoutMs) {
           }
           if (kind === windowKind) return target;
         }
+        // CDP is up and serving targets, but none match the expected URL.
+        // Fail fast instead of polling — the URL won't change.
+        if (pageTargets.length > 0) {
+          const available = pageTargets.map((t) => t.url).join(", ");
+          throw new Error(
+            `no app CDP target matching ${appUrl} on port ${port}. ` +
+              `Available page targets: ${available}. ` +
+              `Set PORACODE_APP_URL to the correct URL.`,
+          );
+        }
       }
-    } catch {
+    } catch (err) {
+      // If we threw the fast-fail error above, propagate it.
+      if (err?.message?.includes("no app CDP target matching")) throw err;
       // CDP endpoint not up yet — keep polling.
     }
     await new Promise((r) => setTimeout(r, 1000));
+  }
+  // Timeout reached. If CDP was serving targets but none matched, give a
+  // diagnostic instead of a bare null.
+  if (lastTargets) {
+    const pageTargets = lastTargets.filter((t) => t.type === "page");
+    if (pageTargets.length > 0) {
+      const available = pageTargets.map((t) => t.url).join(", ");
+      throw new Error(
+        `no app CDP target matching ${appUrl} on port ${port}. ` +
+          `Available page targets: ${available}. ` +
+          `Set PORACODE_APP_URL to the correct URL.`,
+      );
+    }
   }
   return null;
 }

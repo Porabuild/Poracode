@@ -5,9 +5,10 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
+import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import {
   isAskUserQuestionToolName,
-  isCrossagentRunAgentTool,
+  isCrossagentSpawnAgentTool,
   isDelegatedAgentTool,
 } from "@/shared/toolCallClassification";
 import { imageViewRendersInline } from "./parts/items/imageViewSource";
@@ -254,6 +255,10 @@ function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // in chat. Empty completed reasoning items are already dropped at the data
   // layer.
   if (item.type === "plan" || item.type === "goal") return false;
+  // Open agent requests (approvals/questions) are persisted only so remote
+  // clients can recover the pending prompt from a snapshot; they render as the
+  // blocking request form, never as a chat row.
+  if ((item.type as string) === RUNTIME_REQUEST_ITEM_TYPE) return false;
   // Error items have no renderer in the chat row switch (ChatItemRow returns
   // null for `error`); excluding them here keeps the virtualized list from
   // allocating an empty slot that shows up as a gap.
@@ -280,7 +285,7 @@ function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
     }
     // Successful Crossagents runs render as the richer delegated-agent row.
     // Keep failed transport calls visible because they may have no delegated row.
-    if (payload?.status !== "error" && isCrossagentRunAgentTool(payload)) return false;
+    if (payload?.status !== "error" && isCrossagentSpawnAgentTool(payload)) return false;
     // Tool renderers defer rows without a name. Keep those incomplete calls out
     // of the virtualized timeline and group counts until a later update names them.
     if (!payload?.name?.trim()) return false;

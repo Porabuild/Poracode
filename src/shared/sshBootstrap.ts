@@ -1,4 +1,6 @@
 import { parsePairingCredential, parseRemoteLaunchPort } from "./ssh";
+import { msg } from "./messages";
+import { remoteEnvironmentDescriptorSchema } from "./remote/protocol";
 import {
   INSTALL_REMOTE_RUNTIME_SCRIPT,
   LAUNCH_REMOTE_SERVER_SCRIPT,
@@ -73,7 +75,7 @@ export async function issueRemotePairingCredential(
   );
 }
 
-/** Poll the tunneled endpoint until the remote server answers its well-known probe. */
+/** Poll the tunneled endpoint until the versioned Poracode Helper answers. */
 export async function waitForRemoteEndpoint(
   fetchImpl: typeof fetch,
   endpoint: string,
@@ -86,15 +88,24 @@ export async function waitForRemoteEndpoint(
       const response = await fetchImpl(new URL(".well-known/poracode/environment", endpoint), {
         signal: AbortSignal.timeout(1_000),
       });
-      if (response.ok) return;
-      lastError = new Error(`Remote Poracode probe returned HTTP ${response.status}.`);
+      if (response.ok) {
+        const descriptor = remoteEnvironmentDescriptorSchema.safeParse(await response.json());
+        if (descriptor.success && descriptor.data.hostMode === "helper") return;
+        lastError = new Error(
+          descriptor.success
+            ? msg("remote.helper.wrongHost")
+            : msg("remote.helper.invalidResponse"),
+        );
+      } else {
+        lastError = new Error(msg("remote.helper.probeFailed", { status: response.status }));
+      }
     } catch (error) {
       // The listener can become reachable a moment after the tunnel is bound.
       lastError = error;
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  throw new Error("Timed out waiting for the SSH tunnel to reach remote Poracode.", {
+  throw new Error(msg("remote.helper.timeout"), {
     cause: lastError,
   });
 }

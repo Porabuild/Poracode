@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RemoteThreadCommand, Thread } from "@/shared/contracts";
+import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import type {
   QuickComposerSubmission,
   SupervisorEvent,
@@ -13,6 +13,7 @@ import { useGitStore } from "./state/gitStore";
 import { usePanelStore } from "./state/panelStore";
 import { useSidebarUiStore } from "./state/sidebarUiStore";
 import { useExperimentStore } from "./state/experimentStore";
+import { useWorkspaceStore } from "./state/workspaceStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
@@ -21,6 +22,8 @@ const {
   quickComposerSubmitListeners,
   projectStateChangedListeners,
   remoteThreadCommandListeners,
+  runWorktreeSetupScript,
+  sharedSettingsState,
   supervisorEventListeners,
   threadOpenRequestedListeners,
 } = vi.hoisted(() => {
@@ -31,6 +34,18 @@ const {
   const projectListeners: Array<(event: { projects: unknown[] }) => void> = [];
   return {
     remoteThreadCommandListeners: listeners,
+    runWorktreeSetupScript: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    sharedSettingsState: {
+      current: {
+        themeMode: "system",
+        staleThreadUnloadMinutes: 20,
+        autoArchiveDoneAfterDays: 7,
+        worktreeStorageMode: "global",
+        worktreeBasePath: "",
+        wslWorktreeBasePath: "",
+        workspaces: [] as Workspace[],
+      },
+    },
     quickComposerSubmitListeners: quickListeners,
     supervisorEventListeners: supervisorListeners,
     threadOpenRequestedListeners: threadOpenListeners,
@@ -168,6 +183,7 @@ const {
       checkForUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       startUpdateDownload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       installUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      relaunchApp: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
       listAcpRegistry: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
       onBrowserEvent: vi.fn<() => () => void>(() => () => undefined),
@@ -184,6 +200,7 @@ const {
         projectListeners.push(listener);
         return () => undefined;
       }),
+      onGitStateChanged: vi.fn<() => () => void>(() => () => undefined),
       onThreadOpenRequested: vi.fn<
         (listener: (event: ThreadOpenRequestedEvent) => void) => () => void
       >((listener) => {
@@ -211,6 +228,14 @@ vi.mock("./bridge", () => ({
   isWindows: () => false,
   isMac: () => false,
 }));
+
+vi.mock("@/renderer/actions/worktreeLaunchActions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/actions/worktreeLaunchActions")>();
+  return {
+    ...actual,
+    runWorktreeSetupScript,
+  };
+});
 
 vi.mock("./components/ui/provider", () => ({
   AppProvider: (props: { children: ReactNode }) => props.children,
@@ -358,30 +383,17 @@ vi.mock("@/renderer/components/thread/ThreadView", () => ({
 
 vi.mock("./state/sharedSettingsStore", () => ({
   useSharedSettings: Object.assign(
-    (selector: (s: Record<string, unknown>) => unknown) =>
-      selector({
-        themeMode: "system",
-        staleThreadUnloadMinutes: 20,
-        autoArchiveDoneAfterDays: 7,
-        worktreeStorageMode: "global",
-        worktreeBasePath: "",
-        wslWorktreeBasePath: "",
-      }),
+    (selector: (s: Record<string, unknown>) => unknown) => selector(sharedSettingsState.current),
     {
       getState: () => ({
-        themeMode: "system",
-        staleThreadUnloadMinutes: 20,
-        autoArchiveDoneAfterDays: 7,
-        worktreeStorageMode: "global",
-        worktreeBasePath: "",
-        wslWorktreeBasePath: "",
+        ...sharedSettingsState.current,
         setThemeMode: () => undefined,
       }),
     },
   ),
 }));
 
-import { App } from "./app";
+import { App, STARTUP_RECOVERY_TIMEOUT_MS } from "./app";
 
 describe("App", () => {
   const originalHasHydrated = useAppStore.persist.hasHydrated;
@@ -437,10 +449,35 @@ describe("App", () => {
       collapsedWorktrees: {},
       threadListLimits: {},
     });
+    sharedSettingsState.current.workspaces = [];
+    useWorkspaceStore.setState({ activeWorkspaceId: null });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("offers recovery controls when initial hydration does not finish", async () => {
+    vi.useFakeTimers();
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(false);
+    useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
+
+    render(<App />);
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(STARTUP_RECOVERY_TIMEOUT_MS);
+    });
+    expect(screen.getByText("Startup is taking longer than expected")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep waiting" }));
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(STARTUP_RECOVERY_TIMEOUT_MS);
+    });
+    expect(screen.getByText("Startup is taking longer than expected")).toBeInTheDocument();
   });
 
   it("opens a thread requested by a native app surface", async () => {
@@ -468,6 +505,57 @@ describe("App", () => {
 
     expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+  });
+
+  it("switches workspaces when a notification requests a thread in another workspace", async () => {
+    vi.useFakeTimers();
+    mockAnimationFrameWithFakeTimers();
+    const currentWorkspace = {
+      id: "workspace-current",
+      name: "Current",
+      createdAt: "2026-07-29T00:00:00.000Z",
+      icon: "briefcase" as const,
+    };
+    const threadWorkspace = {
+      id: "workspace-thread",
+      name: "Thread workspace",
+      createdAt: "2026-07-29T00:00:00.000Z",
+      icon: "rocket" as const,
+    };
+    const project = {
+      id: "project-in-thread-workspace",
+      name: "Repo",
+      location: { kind: "posix" as const, path: "/repo" },
+      workspaceId: threadWorkspace.id,
+      createdAt: "2026-07-29T00:00:00.000Z",
+    };
+    const thread: Thread = {
+      id: "thread-from-notification",
+      projectId: project.id,
+      title: "Requested thread",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-07-29T00:00:00.000Z",
+      updatedAt: "2026-07-29T00:00:00.000Z",
+    };
+    sharedSettingsState.current.workspaces = [currentWorkspace, threadWorkspace];
+    useWorkspaceStore.setState({ activeWorkspaceId: currentWorkspace.id });
+    useAppStore.setState({ projects: [project], threads: [thread] });
+
+    threadOpenRequestedListeners.at(-1)?.({
+      threadId: thread.id,
+      source: "notification",
+    });
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe(threadWorkspace.id);
+    await vi.advanceTimersByTimeAsync(16);
+    expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
   });
 
   it("acknowledges a remotely opened finished thread without navigating the desktop", () => {
@@ -660,6 +748,77 @@ describe("App", () => {
       { kind: "text", content: "start from phone" },
     ]);
     expect(bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("runs setup once and headlessly for a worktree newly created from the PWA", () => {
+    const project = {
+      id: "project-1",
+      name: "Repo",
+      location: {
+        kind: "windows" as const,
+        path: "C:\\repo",
+      },
+      scripts: {
+        actions: [],
+        setupScript: "direnv allow\npnpm ci",
+        worktreeCopyPatterns: [".envrc", ".env.*"],
+      },
+      createdAt: "2026-03-22T00:00:00.000Z",
+    };
+    useAppStore.setState({ projects: [project], view: { kind: "home" } });
+    render(<App />);
+
+    act(() => {
+      remoteThreadCommandListeners.at(-1)?.({
+        kind: "prepare-worktree",
+        threadId: "remote-new-worktree",
+        projectId: project.id,
+        worktreePath: "C:\\worktrees\\mobile-fix",
+      });
+    });
+
+    expect(runWorktreeSetupScript).toHaveBeenCalledTimes(1);
+    expect(runWorktreeSetupScript).toHaveBeenCalledWith(
+      project,
+      "C:\\worktrees\\mobile-fix",
+      "direnv allow\npnpm ci",
+      { openTerminalPanel: false },
+    );
+  });
+
+  it("does not run setup when the PWA reuses an existing worktree", () => {
+    const project = {
+      id: "project-1",
+      name: "Repo",
+      location: {
+        kind: "windows" as const,
+        path: "C:\\repo",
+      },
+      scripts: {
+        actions: [],
+        setupScript: "direnv allow\npnpm ci",
+      },
+      createdAt: "2026-03-22T00:00:00.000Z",
+    };
+    useAppStore.setState({ projects: [project], view: { kind: "home" } });
+    render(<App />);
+
+    act(() => {
+      remoteThreadCommandListeners.at(-1)?.({
+        kind: "start",
+        threadId: "remote-existing-worktree",
+        projectId: project.id,
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        prompt: "continue from phone",
+        presentationMode: "gui",
+        worktreePath: "C:\\worktrees\\existing",
+        worktreeBranch: "feature/existing",
+        launchRuntime: false,
+      });
+    });
+
+    expect(runWorktreeSetupScript).not.toHaveBeenCalled();
   });
 
   it("adopts project changes made outside the renderer before the next store sync", () => {

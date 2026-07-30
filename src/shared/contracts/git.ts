@@ -630,6 +630,7 @@ export type GitWatchWorktreesPayload = z.infer<typeof gitWatchWorktreesPayloadSc
 
 export const gitUnwatchProjectPayloadSchema = z.object({
   projectId: z.string().min(1),
+  releaseWslDistro: z.string().min(1).optional(),
 });
 export type GitUnwatchProjectPayload = z.infer<typeof gitUnwatchProjectPayloadSchema>;
 

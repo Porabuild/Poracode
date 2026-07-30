@@ -12,6 +12,7 @@ export type PrPageKey = "changes" | "commits" | "checks" | "conversation";
 export interface PrContextValue {
   readonly project: Project;
   readonly projectLocation: ProjectLocation;
+  readonly worktreePath?: string;
   readonly prNumber: number;
   /** Key for the prData selectors (worktree path, else `__branch:<projectId>`). */
   readonly prKey: string;

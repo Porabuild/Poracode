@@ -1,9 +1,28 @@
 name: Deploy Nightly PWA
 
-# Keep app-nightly.poracode.com on the deployment built from every master push.
+# Vercel Git deployments are disabled in vercel.json. Keep
+# app-nightly.poracode.com on relevant master builds through this workflow.
 on:
   push:
     branches: [master]
+    paths:
+      - ".github/workflows/deploy-nightly-pwa.yml"
+      - ".vercelignore"
+      - "lingui.config.ts"
+      - "native/**"
+      - "package.json"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "postcss.config.mjs"
+      - "public/**"
+      - "resources/**"
+      - "scripts/**"
+      - "src/**"
+      - "tsconfig.json"
+      - "vercel.json"
+      - "vite.config.ts"
+  workflow_dispatch:
 
 permissions:
   contents: read

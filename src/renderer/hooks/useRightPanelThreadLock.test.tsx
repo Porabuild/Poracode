@@ -2,7 +2,9 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRightPanelThreadLock } from "./useRightPanelThreadLock";
 
 function makeThread(input: Partial<Thread> = {}): Thread {
@@ -26,10 +28,11 @@ function makeThread(input: Partial<Thread> = {}): Thread {
 }
 
 const threadA = makeThread({ id: "thread-a", projectId: "project-a" });
+const threadBWorktreePath = "/repo-b/.poracode/worktrees/feature";
 const threadB = makeThread({
   id: "thread-b",
   projectId: "project-b",
-  worktreePath: "/repo-b/.poracode/worktrees/feature",
+  worktreePath: threadBWorktreePath,
 });
 
 function focusThread(threadId: string) {
@@ -51,6 +54,17 @@ describe("useRightPanelThreadLock", () => {
       filesPanelContext: null,
       rightPanelTab: "git",
     });
+    useDevTerminalStore.setState({
+      isOpen: false,
+      activeProjectId: null,
+      activeWorktreePath: null,
+      tabs: [],
+      activeTabId: null,
+      focusRequestId: 0,
+      tabActivity: {},
+      streamingTabs: {},
+    });
+    useSharedSettings.setState({ terminalPosition: "bottom" });
     focusThread("thread-a");
   });
 
@@ -97,5 +111,59 @@ describe("useRightPanelThreadLock", () => {
 
     expect(usePanelStore.getState().gitReviewContext).toBeNull();
     expect(usePanelStore.getState().filesPanelContext).toBeNull();
+  });
+
+  it("re-scopes the open bottom terminal to the focused thread", () => {
+    usePanelStore.setState({ gitReviewContext: null, gitReviewAsPanel: false });
+    useDevTerminalStore.setState({
+      isOpen: true,
+      activeProjectId: "project-a",
+      tabs: [
+        {
+          id: "terminal-a",
+          projectId: "project-a",
+          title: "Project A",
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+        {
+          id: "terminal-b",
+          projectId: "project-b",
+          worktreePath: threadBWorktreePath,
+          title: "Feature",
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      activeTabId: "terminal-a",
+    });
+    const { rerender } = renderHook(() => useRightPanelThreadLock());
+
+    focusThread("thread-b");
+    rerender();
+
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      activeProjectId: "project-b",
+      activeWorktreePath: threadBWorktreePath,
+      activeTabId: "terminal-b",
+    });
+  });
+
+  it("leaves a right-docked terminal on its existing scope", () => {
+    usePanelStore.setState({ gitReviewContext: null, gitReviewAsPanel: false });
+    useSharedSettings.setState({ terminalPosition: "right" });
+    useDevTerminalStore.setState({
+      isOpen: true,
+      activeProjectId: "project-a",
+      activeWorktreePath: null,
+    });
+    const { rerender } = renderHook(() => useRightPanelThreadLock());
+
+    focusThread("thread-b");
+    rerender();
+
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      activeProjectId: "project-a",
+      activeWorktreePath: null,
+    });
   });
 });

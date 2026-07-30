@@ -48,6 +48,7 @@ export function showOsNotification(
     showAndFocusWindow(win);
     win.webContents.send(IPC_EVENT_CHANNELS.threadOpenRequested, {
       threadId: payload.threadId,
+      source: "notification",
     });
   });
 

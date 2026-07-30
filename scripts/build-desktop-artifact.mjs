@@ -7,7 +7,7 @@
 // by glob is a moving target. Instead we copy the build artifacts into a clean
 // staging directory, write a fresh package.json that lists ONLY the runtime
 // externals reported by `scripts/scan-runtime-externals.mjs`, run a flat
-// `pnpm install` (node-linker=hoisted), and run electron-builder there.
+// `npm install`, and run electron-builder there.
 
 import { spawnSync } from "node:child_process";
 import {
@@ -357,14 +357,11 @@ async function main() {
       buildElectronBuilderConfig(initialMacArtifactKind),
     );
 
-    // 6. Install prod + stage devdeps with a flat layout.
-    //    node-linker=hoisted makes pnpm produce an npm-style flat node_modules,
-    //    which electron-builder's file walker (and our asar globs) expect.
-    //    dangerously-allow-all-builds bypasses pnpm 10+'s build-script gating
-    //    (electron's postinstall must run to download the binary; better-sqlite3
-    //    and node-pty compile native bindings). The stage's deps are pinned to
-    //    versions the root project already trusts, so this is no riskier than
-    //    `pnpm install` on the root.
+    // 6. Install prod + stage devdeps with a genuinely flat npm layout.
+    //    electron-builder's file walker (and our asar globs) expect this.
+    //    npm runs electron's postinstall and the native dependency build
+    //    scripts by default. The stage's deps are pinned to versions the root
+    //    project already trusts.
     //    We DON'T disable optionals because electron-builder's dmg-builder
     //    requires the `dmg-license` optionalDependency unconditionally at
     //    import time. Instead we install optionals normally, then surgically
@@ -565,6 +562,7 @@ asarUnpack:
   - node_modules/node-pty/**/*
   - node_modules/better-sqlite3/**/*
   - dist/main/claudeSdkProbeWorker.mjs
+  - dist/main/cursorSdkWorker.mjs
   - node_modules/@anthropic-ai/claude-agent-sdk/**/*
 
 afterPack: build/after-pack.cjs

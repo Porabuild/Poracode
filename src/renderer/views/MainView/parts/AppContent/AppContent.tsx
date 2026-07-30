@@ -1,7 +1,5 @@
-import { useShallow } from "zustand/shallow";
 import { X } from "lucide-react";
 import { toast } from "@heroui/react";
-import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type {
   ExtractContextResult,
@@ -12,33 +10,18 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import { friendlyError } from "@/shared/messages";
-import { isHomeProject } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
-import { titlePromptFromSegments } from "@/shared/threadTitle";
 import { readBridge } from "@/renderer/bridge";
-import { i18n } from "@/renderer/i18n/i18n";
-import {
-  isDetectingAgentsForLocation,
-  useAgentStatusesStore,
-} from "@/renderer/state/agentStatusesStore";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  findExperimentByGroupId,
-  findExperimentByThreadId,
-} from "@/renderer/state/experimentStore";
-import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import {
   useInitialProjectDraftConfig,
   useProjectIds,
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
-import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
-import {
-  primeWorktreeGitState,
-  runWorktreeSetupScript,
-} from "@/renderer/actions/worktreeLaunchActions";
+import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import {
   resolvePaneDomKey,
   SplitPaneContainer,
@@ -48,121 +31,13 @@ import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarC
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
+import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
 import { PullRequestsView } from "@/renderer/views/PullRequestsView/PullRequestsView";
 import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
-import { buildProjectDraftConfig } from "./draftConfig";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
-
-export async function startThreadFromDraft(
-  project: Project,
-  input: DraftStartInput,
-  options: { replacePaneId?: string; preserveActiveGroup?: boolean } = {},
-): Promise<void> {
-  const {
-    agentKind,
-    config,
-    prompt,
-    segments,
-    existingWorktreePath,
-    worktreeBranch,
-    worktreeBaseBranch,
-    worktreeIsNewBranch,
-    worktreeTransferUncommitted,
-    presentationMode,
-  } = input;
-  const isHomeScope = isHomeProject(project);
-  const store = useAppStore.getState();
-
-  store.updateProjectDraftConfig(
-    project.id,
-    buildProjectDraftConfig({
-      agentKind,
-      config,
-      worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
-    }),
-  );
-
-  let worktreePath: string | undefined;
-  let newWorktreeSetupPath: string | undefined;
-  if (isHomeScope) {
-    worktreePath = undefined;
-  } else if (existingWorktreePath) {
-    worktreePath = existingWorktreePath;
-  } else if (worktreeBranch) {
-    try {
-      const result = await readBridge().gitAddWorktree({
-        projectLocation: project.location,
-        branch: worktreeBranch,
-        createBranch: worktreeIsNewBranch ?? false,
-        startPoint: worktreeBaseBranch,
-        ...worktreePlacementPayload(project),
-        copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
-        transferUncommitted: worktreeTransferUncommitted ?? false,
-        keepChangesInSource: worktreeTransferUncommitted ?? false,
-      });
-      worktreePath = result.path;
-      newWorktreeSetupPath = result.path;
-      if (worktreeTransferUncommitted && result.changesTransferred === false) {
-        toast.danger(
-          i18n._(
-            msg`Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch.`,
-          ),
-        );
-      }
-    } catch (error) {
-      console.error("[renderer] failed to create worktree:", error);
-      toast.danger(friendlyError(error));
-      throw error;
-    }
-  }
-
-  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-  const projectAgentStatuses = getProjectAgentStatuses(
-    project.location,
-    agentStatuses,
-    wslAgentStatuses,
-  );
-  const titlePrompt = titlePromptFromSegments(prompt, segments);
-  const currentView = store.view;
-  const activeGroup =
-    options.preserveActiveGroup !== false &&
-    currentView.kind === "thread" &&
-    currentView.activeGroupId &&
-    !findExperimentByGroupId(currentView.activeGroupId)
-      ? {
-          groupId: currentView.activeGroupId,
-          groupName: store.threads.find((thread) => thread.groupId === currentView.activeGroupId)
-            ?.groupName,
-        }
-      : undefined;
-
-  const thread = store.createThread({
-    projectId: project.id,
-    agentKind,
-    config,
-    prompt: titlePrompt,
-    ...(presentationMode ? { presentationMode } : {}),
-    ...(worktreePath ? { worktreePath, ...(worktreeBranch ? { worktreeBranch } : {}) } : {}),
-    ...(options.replacePaneId ? { replacePaneId: options.replacePaneId } : {}),
-    ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
-    ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
-  });
-  store.queueThreadLaunch(thread.id, prompt, segments);
-  generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
-  if (worktreePath) {
-    void primeWorktreeGitState(project, worktreePath);
-    void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-  }
-  if (newWorktreeSetupPath) {
-    const setupScript = project.scripts?.setupScript;
-    if (setupScript) {
-      void runWorktreeSetupScript(project, newWorktreeSetupPath, setupScript);
-    }
-  }
-}
 
 export function AppContent() {
   const { t } = useLingui();
@@ -437,19 +312,13 @@ function DraftViewContent(props: {
   onStart: (input: DraftStartInput) => void | Promise<void>;
 }) {
   const { project, lastDraftConfig, onStart } = props;
-  const projectAgentStatuses = useAgentStatusesStore(
-    useShallow((s) =>
-      getProjectAgentStatuses(project.location, s.agentStatuses, s.wslAgentStatuses),
-    ),
-  );
-  const isDetectingAgents = useAgentStatusesStore((s) =>
-    isDetectingAgentsForLocation(s, project.location),
-  );
+  const draftEnvironment = useDraftEnvironment(project);
   return (
     <ThreadDraftView
       project={project}
-      agentStatuses={projectAgentStatuses}
-      isDetectingAgents={isDetectingAgents}
+      agentStatuses={draftEnvironment.agentStatuses}
+      isDetectingAgents={draftEnvironment.isDetectingAgents}
+      {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
       {...(lastDraftConfig ? { lastDraftConfig } : {})}
       onStart={onStart}
     />

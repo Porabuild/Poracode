@@ -10,6 +10,8 @@ import {
   commitDefaultActionSchema,
   newThreadModeSchema,
   notificationFilterSchema,
+  prAutomationModeSchema,
+  prMergeMethodSchema,
   providerDraftConfigSchema,
   terminalPositionSchema,
   themeModeSchema,
@@ -17,6 +19,7 @@ import {
   threadRemoveActionSchema,
   worktreeStorageModeSchema,
   mcpServerListSchema,
+  workspaceListSchema,
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
@@ -26,6 +29,47 @@ const modelPickerEntrySchema = z.object({
   modelId: z.string().min(1),
   presentationMode: threadPresentationModeSchema.default("terminal"),
 });
+
+export const agentSelectionUsageEntrySchema = z.object({
+  agentKind: z.string().min(1),
+  modelId: z.string().min(1),
+  effort: z.string().optional(),
+  fast: z.boolean().default(false),
+  count: z.number().int().positive(),
+  lastUsedAt: z.number().int().nonnegative(),
+});
+export type AgentSelectionUsageEntry = z.infer<typeof agentSelectionUsageEntrySchema>;
+
+export const crossagentSelectionUsageEntrySchema = agentSelectionUsageEntrySchema.extend({
+  /** Normalized task classifications supplied by the calling agent. */
+  tags: z.array(z.string().min(1).max(32)).max(5).optional(),
+  /**
+   * Fields the caller actually supplied. Missing on legacy entries, which are
+   * treated as fully explicit to preserve their existing ranking behavior.
+   */
+  explicitFields: z
+    .object({
+      provider: z.boolean(),
+      model: z.boolean(),
+      effort: z.boolean(),
+      fast: z.boolean(),
+    })
+    .optional(),
+});
+export type CrossagentSelectionUsageEntry = z.infer<typeof crossagentSelectionUsageEntrySchema>;
+
+export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
+export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
+
+export const crossagentRoutingOverrideSchema = z.object({
+  tags: z.array(z.string().min(1).max(32)).min(1).max(5),
+  agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+  modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
+  effort: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
+  fast: z.boolean().optional(),
+  updatedAt: z.number().int().nonnegative(),
+});
+export type CrossagentRoutingOverride = z.infer<typeof crossagentRoutingOverrideSchema>;
 
 /**
  * Cache entry recording whether a given agent supports the **CLI hook plugin**
@@ -334,6 +378,13 @@ export const sharedSettingsSchema = z.object({
    * sticky last-used choice for the Create PR split-button.
    */
   prCreateMode: prCreateModeSchema,
+  /** Default automation applied to pull requests created from Poracode. */
+  prAutomationDefault: prAutomationModeSchema,
+  /**
+   * Sticky last-used merge method. The PR split-button and automatic PR
+   * merging share this setting so automation matches the user's choice.
+   */
+  prMergeMethod: prMergeMethodSchema,
   /**
    * Sticky last-used primary commit action for the commit split-button,
    * remembered across sessions so it defaults to whatever the user picked last.
@@ -390,6 +441,16 @@ export const sharedSettingsSchema = z.object({
    * WebSocket-connected foreground app still shows full detail.
    */
   remotePushRedactContent: z.boolean(),
+  /**
+   * User-defined project groupings ("Work", "Side Hustle", …), newest last.
+   * Which one is *active* is not stored here but per-window (see the renderer's
+   * `workspaceStore`), so switching in one window leaves the others alone.
+   *
+   * Not part of `remoteSettingsSchema`, so paired clients (mobile PWA) receive no
+   * workspace list and therefore show every project — add it to that allowlist if
+   * workspaces should scope remote sessions too.
+   */
+  workspaces: workspaceListSchema,
   /** User-starred (provider, presentation, model) entries surfaced at the top of the model picker. */
   favoriteModels: z.array(modelPickerEntrySchema),
   /**
@@ -397,6 +458,22 @@ export const sharedSettingsSchema = z.object({
    * caps to 5 entries that aren't already in `favoriteModels`.
    */
   recentModels: z.array(modelPickerEntrySchema),
+  /** Popularity of user-launched provider/model configurations used as a Crossagents fallback. */
+  agentSelectionUsage: z.array(agentSelectionUsageEntrySchema).default([]),
+  /**
+   * Popularity of explicit Crossagents selections. Supervisor-managed so an
+   * automatic choice can never reinforce itself and renderer writes cannot
+   * overwrite a selection recorded by the MCP ingress.
+   */
+  crossagentSelectionUsage: z.array(crossagentSelectionUsageEntrySchema).default([]),
+  /**
+   * User-pinned task-tag routes managed by the Crossagents MCP. The most
+   * specific matching tag set wins before learned affinity.
+   */
+  crossagentRoutingOverrides: z
+    .array(crossagentRoutingOverrideSchema)
+    .max(MAX_CROSSAGENT_ROUTING_OVERRIDES)
+    .default([]),
   /**
    * Dev-only: force agents off the CLI hook plugin path (L1) so they fall back
    * to L2 terminal parsing. The UI toggle is only visible in the dev build;
@@ -455,7 +532,10 @@ export type CliPickerTarget = SharedSettings["cliPickerTarget"];
  * supervisor-only fields (`agentHookSupport`) that the renderer never
  * manages and that the main process re-merges from disk on write.
  */
-export type SharedSettingsInput = Omit<SharedSettings, "agentHookSupport">;
+export type SharedSettingsInput = Omit<
+  SharedSettings,
+  "agentHookSupport" | "crossagentSelectionUsage" | "crossagentRoutingOverrides"
+>;
 
 export const defaultSharedSettings: SharedSettings = {
   themeMode: "dark",
@@ -527,6 +607,8 @@ export const defaultSharedSettings: SharedSettings = {
   wslWorktreeBasePath: "",
   gitReviewMode: "panel",
   prCreateMode: "dialog",
+  prAutomationDefault: "off",
+  prMergeMethod: "squash",
   commitDefaultAction: "commit-push",
   providerConfigs: {},
   lastPresentationModeByAgent: {},
@@ -541,8 +623,12 @@ export const defaultSharedSettings: SharedSettings = {
   notifyL2Cli: true,
   remotePushEnabled: true,
   remotePushRedactContent: false,
+  workspaces: [],
   favoriteModels: [],
   recentModels: [],
+  agentSelectionUsage: [],
+  crossagentSelectionUsage: [],
+  crossagentRoutingOverrides: [],
   disableCliHookPlugin: false,
   dismissedHookInstallProposals: {},
   agentHookSupport: {},
@@ -608,6 +694,15 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
   const parsed = z.record(z.string(), z.unknown()).safeParse(value);
   if (!parsed.success) return normalized;
 
+  const hasAutomationMode = prAutomationModeSchema.safeParse(
+    parsed.data.prAutomationDefault,
+  ).success;
+  const legacyAutomationMode =
+    parsed.data.prAutoMergeDefault === true
+      ? "merge"
+      : parsed.data.prWatchDefault === true
+        ? "fix"
+        : "off";
   const usage = z.record(z.string(), z.unknown()).safeParse(parsed.data.usage);
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
@@ -615,6 +710,7 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
 
   return {
     ...normalized,
+    prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
     usage: {
       ...normalized.usage,
       disabledProviders: disabledProviders?.success ? disabledProviders.data : [],

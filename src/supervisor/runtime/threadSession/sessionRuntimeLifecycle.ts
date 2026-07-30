@@ -188,9 +188,11 @@ export class SessionRuntimeLifecycle {
           `[supervisor] uncaught error in onData for thread ${session.threadId}:`,
           error,
         );
-        captureSupervisorException(error, {
-          "poracode.feature_area": "supervisor-runtime",
+        captureSupervisorException(new Error("PTY output pipeline failed."), {
+          "poracode.feature_area": "thread-session-lifecycle",
+          "poracode.presentation": session.presentationMode ?? "terminal",
           "poracode.provider": session.agentKind,
+          "poracode.runtime_kind": "pty",
         });
       }
     });
@@ -225,7 +227,12 @@ export class SessionRuntimeLifecycle {
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {
     if (session.status === "inactive") return;
-    this.context.outputPipeline.updateState(session, "inactive", "none");
+    // onError is the authoritative non-clean boundary. A derivative transport
+    // close must tear down the backing PTY without overwriting the visible
+    // error state or manufacturing a second failure.
+    if (session.status !== "error") {
+      this.context.outputPipeline.updateState(session, "inactive", "none");
+    }
     this.context.emit({
       type: "thread-exited",
       threadId: session.threadId,

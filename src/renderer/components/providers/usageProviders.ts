@@ -90,9 +90,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   codex: {
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
   },
-  // Copilot uses GitHub's OAuth device flow, the others a captured web-session
-  // cookie — both surface as the in-app browser login.
-  commandcode: { supportsBrowserLogin: true },
+  // Copilot uses GitHub's OAuth device flow through the in-app browser.
   copilot: { supportsBrowserLogin: true },
   cursor: { sharedWindowReset: true, rings: { outer: ["cursor-auto"], inner: ["cursor-api"] } },
   // Droid signs in via the in-app app.factory.ai browser session. The standard

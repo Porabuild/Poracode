@@ -15,6 +15,14 @@ export const LANDING_FAQ_ITEMS: readonly LandingFaqItem[] = [
     answerKey: "faq.agents.answer",
   },
   {
+    questionKey: "faq.free.question",
+    answerKey: "faq.free.answer",
+  },
+  {
+    questionKey: "faq.mcp.question",
+    answerKey: "faq.mcp.answer",
+  },
+  {
     questionKey: "faq.subscriptions.question",
     answerKey: "faq.subscriptions.answer",
   },

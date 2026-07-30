@@ -11,7 +11,7 @@ import {
   type RefObject,
   type WheelEventHandler,
 } from "react";
-import { LegendList, type LegendListRef } from "@legendapp/list/react";
+import { LegendList, type LegendListRef, type LegendListState } from "@legendapp/list/react";
 import { Surface } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import type {
@@ -20,6 +20,8 @@ import type {
   ThreadConfig,
   ToolCallPayload,
 } from "@/shared/contracts";
+import { threadProductProperties } from "@/renderer/analytics/posthog";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -50,6 +52,7 @@ import {
   readTimelineMeasurements,
   writeTimelineMeasurements,
 } from "./timelineMeasurementCache";
+import { syncFollowingVirtualRowPositions } from "./virtualRowLayout";
 
 export interface CheckpointRevertActions {
   rollbackThreadConversation(input: {
@@ -297,24 +300,26 @@ export function MessageList({
 
   const remeasureRowElement = useCallback(
     (itemKey: string, element: HTMLDivElement | null, liveStreamGrowth = false) => {
-      if (!element) return;
+      const instance = listRef.current;
+      if (!element || !instance) return null;
       const height = element.offsetHeight;
       // A streamed store delta and the live-row ResizeObserver can report the
       // same painted size in either order. Let the first path update LegendList
       // and make the second a no-op instead of starting a redundant anchor /
       // scroll reconciliation cycle.
-      if (liveStreamGrowth && listRef.current?.getState().sizes.get(itemKey) === height) {
-        return;
+      if (liveStreamGrowth && instance.getState().sizes.get(itemKey) === height) {
+        return instance.getState();
       }
       if (liveStreamGrowth) {
         onLiveVirtualizerLayoutChange?.();
       } else {
         onVirtualizerLayoutChange?.();
       }
-      listRef.current?.setItemSize(itemKey, {
+      instance.setItemSize(itemKey, {
         height,
         width: element.offsetWidth,
       });
+      return instance.getState();
     },
     [onLiveVirtualizerLayoutChange, onVirtualizerLayoutChange],
   );
@@ -331,6 +336,7 @@ export function MessageList({
           ? countRollbackTurnsAfterCheckpoint(itemIds, itemsById, completedTurns, itemId)
           : 0;
       const revert = checkpointActions ?? readBridge();
+      let providerRollbackSucceeded = rollbackTurns === 0;
       if (rollbackTurns > 0) {
         try {
           await revert.rollbackThreadConversation({
@@ -338,6 +344,7 @@ export function MessageList({
             numTurns: rollbackTurns,
             ...(threadConfig ? { config: threadConfig } : {}),
           });
+          providerRollbackSucceeded = true;
         } catch (error) {
           console.warn(
             "[checkpoint] provider rollback failed; continuing with local revert",
@@ -354,6 +361,13 @@ export function MessageList({
       }
       state.truncateThreadRuntimeAfter(threadId, itemId);
       await readBridge().dbTruncateThreadRuntimeAfter({ threadId, itemId });
+      const thread = state.threads.find((item) => item.id === threadId);
+      captureProductEvent("thread.checkpoint_reverted", {
+        ...(thread ? threadProductProperties(thread) : {}),
+        has_file_checkpoint: Boolean(projectLocation && checkpoint),
+        outcome: providerRollbackSucceeded ? "complete" : "local_only",
+        rollback_turn_count: rollbackTurns,
+      });
       parentActions?.onContentHeightChange();
     },
     [checkpointActions, parentActions, projectLocation, threadConfig, threadId],
@@ -491,7 +505,7 @@ type VirtualChatListRowProps = {
     itemKey: string,
     element: HTMLDivElement | null,
     liveStreamGrowth?: boolean,
-  ) => void;
+  ) => LegendListState | null;
   onVirtualizerLayoutChange?: () => void;
   suppressInlineTurnAnchorId: string | null;
   canRevertCheckpoints: boolean;
@@ -512,6 +526,11 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
 }: VirtualChatListRowProps) {
   const rowElementRef = useRef<HTMLDivElement | null>(null);
   const liveMeasureRafRef = useRef<number | null>(null);
+  // Keep the observer mounted when an appended prompt changes this row from
+  // tail to mid-list; resetting its height baseline there misses completion
+  // growth that lands in the same commit.
+  const isLastEntryRef = useRef(isLastEntry);
+  isLastEntryRef.current = isLastEntry;
   const ref = useCallback((element: HTMLDivElement | null) => {
     rowElementRef.current = element;
   }, []);
@@ -552,7 +571,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
   }, [entry, isLastEntry, scheduleLiveMeasure, threadId]);
   useLayoutEffect(() => {
     const element = rowElementRef.current;
-    if (!isLastEntry || !element) return;
+    if (!element) return;
 
     let previousHeight = element.offsetHeight;
     let previousWidth = element.offsetWidth;
@@ -560,20 +579,29 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
       const nextHeight = element.offsetHeight;
       const nextWidth = element.offsetWidth;
       if (nextHeight === previousHeight && nextWidth === previousWidth) return;
+      const previousMeasuredHeight = previousHeight;
+      const heightDelta = nextHeight - previousMeasuredHeight;
       previousHeight = nextHeight;
       previousWidth = nextWidth;
-      // The smoothed Markdown renderer can grow between provider deltas. Its
-      // actual DOM resize is the earliest reliable signal and ResizeObserver
-      // runs after layout but before paint, so measure LegendList here instead
-      // of letting the tail paint below the reserved composer/safe-area band
-      // until the next stream event or animation frame catches up. Observe the
-      // single tail row through turn completion as well: the final unsmoothed
-      // text commit can land in the same update that marks the turn inactive.
-      remeasureElement(entry.id, element, true);
+      // The smoothed Markdown renderer can grow between provider deltas, and the
+      // completion commit renders the final text concurrently — often a few
+      // frames after the store event. The DOM resize is the earliest reliable
+      // signal and ResizeObserver runs after layout but before paint, so measure
+      // LegendList here rather than waiting for the next stream event or frame.
+      const layout = remeasureElement(entry.id, element, true);
+      // LegendList may commit its position wrappers on this frame or the next.
+      // Nothing sits below the tail, but a growing mid-list row can briefly
+      // paint into its neighbour. Mirror the virtualizer's authoritative
+      // single-column positions before paint; never infer them from DOM deltas.
+      // Shrinks remain entirely LegendList-owned because it deliberately
+      // confirms them on the next animation frame.
+      if (layout && !isLastEntryRef.current && heightDelta > 0) {
+        syncFollowingVirtualRowPositions(element, layout);
+      }
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [entry.id, isLastEntry, remeasureElement]);
+  }, [entry.id, remeasureElement]);
   useLayoutEffect(
     () => () => {
       if (liveMeasureRafRef.current !== null) {

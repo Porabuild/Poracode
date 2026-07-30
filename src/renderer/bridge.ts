@@ -1,7 +1,31 @@
 import type { PoracodeBridge } from "@/shared/ipc";
+import { isRemoteRoutableProcedure, routeRemoteProcedure } from "@/renderer/remoteProcedureRouter";
+
+let cachedBridge: PoracodeBridge | undefined;
+let cachedSource: PoracodeBridge | undefined;
 
 export function readBridge(): PoracodeBridge {
-  return window.poracode;
+  const source = window.poracode;
+  if (!source) return source as PoracodeBridge;
+  if (cachedBridge && cachedSource === source) return cachedBridge;
+  cachedSource = source;
+  const functionCache = new Map<PropertyKey, { value: Function; wrapper: Function }>();
+  cachedBridge = new Proxy({} as PoracodeBridge, {
+    get(_target, property) {
+      const value = Reflect.get(source, property, source) as unknown;
+      if (typeof value !== "function") return value;
+      const cached = functionCache.get(property);
+      if (cached?.value === value) return cached.wrapper;
+      const shouldRoute = typeof property === "string" && isRemoteRoutableProcedure(property);
+      const wrapper = (...args: unknown[]) => {
+        const routed = shouldRoute ? routeRemoteProcedure(property as string, args[0]) : undefined;
+        return routed ?? Reflect.apply(value, source, args);
+      };
+      functionCache.set(property, { value, wrapper });
+      return wrapper;
+    },
+  });
+  return cachedBridge;
 }
 
 export function isWindows(): boolean {

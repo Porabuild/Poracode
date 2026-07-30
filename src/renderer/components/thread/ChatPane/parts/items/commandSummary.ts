@@ -353,7 +353,11 @@ interface FindSearch {
 }
 
 function parseSedView(command: string): SedView | null {
-  const words = splitShellWords(command);
+  // Codex commonly batches several reads into one shell invocation:
+  // `sed ... first.ts; sed ... second.ts`. Parse only the first statement so
+  // its `;` separator does not become part of the displayed path (and turn a
+  // highlightable `.ts` extension into the unknown `.ts;` extension).
+  const words = splitShellWords(firstShellStatement(command));
   if (words.length < 3) return null;
   const executable = words[0]!.split(/[/\\]/).pop()?.toLowerCase();
   if (executable !== "sed" && executable !== "gsed") return null;
@@ -382,6 +386,34 @@ function parseSedView(command: string): SedView | null {
   const start = range[1]!;
   const end = range[2];
   return { path, lines: end ? `${start}-${end}` : start };
+}
+
+function firstShellStatement(input: string): string {
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      continue;
+    }
+    if (ch === ";") return input.slice(0, i).trim();
+  }
+
+  return input;
 }
 
 function formatLineRange(lines: string): string {

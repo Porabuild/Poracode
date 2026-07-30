@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import { inlineImagePayloadRenders } from "@/shared/inlineImagePayload";
 import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
 import { isSubAgentTool } from "@/shared/toolCallClassification";
@@ -46,7 +47,7 @@ interface PositionedPersistedRuntimeItemRow extends PersistedRuntimeItemRow {
 
 const RUNTIME_PAGE_BOUNDARY_SCAN_SIZE = 200;
 const RUNTIME_PAGE_MAX_RAW_ITEMS = 5_000;
-const RUNTIME_PAGE_HIDDEN_TYPES = new Set(["plan", "goal", "error"]);
+const RUNTIME_PAGE_HIDDEN_TYPES = new Set(["plan", "goal", "error", RUNTIME_REQUEST_ITEM_TYPE]);
 const RUNTIME_PAGE_NAMED_TOOL_TYPES = new Set([
   "tool_call",
   "mcp_tool_call",
@@ -63,6 +64,9 @@ const RUNTIME_PAGE_GROUP_TYPES = new Set([
   "web_search",
   "reasoning",
 ]);
+
+/** Item id for a persisted open request, keyed by its request id. */
+const runtimeRequestItemId = (requestId: string) => `${RUNTIME_REQUEST_ITEM_TYPE}:${requestId}`;
 
 interface ThreadRuntimeSummaryStatementRunner {
   all(...values: string[]): unknown[];
@@ -184,6 +188,25 @@ export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[
     )
     .all(threadId) as PersistedRuntimeItemRow[];
   return rows.map(mapRuntimeItemRow);
+}
+
+/**
+ * Reads one runtime item by id. Exists so the remote image endpoint can resolve
+ * a single inline image without loading a whole thread's payloads — a
+ * screenshot-heavy transcript is hundreds of megabytes, so
+ * `dbGetThreadRuntimeItems` is not an option on that path.
+ */
+export function dbGetThreadRuntimeItem(
+  threadId: string,
+  itemId: string,
+): PersistedRuntimeItem | null {
+  const sqlite = getSqlite();
+  const row = sqlite
+    .prepare(
+      "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
+    )
+    .get(threadId, itemId) as PersistedRuntimeItemRow | undefined;
+  return row ? mapRuntimeItemRow(row) : null;
 }
 
 export function dbGetThreadRuntimeItemsPage(
@@ -395,6 +418,10 @@ export function dbApplyThreadRuntimeEvents(
     const deleteItem = sqlite.prepare(
       "DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
     );
+    const completeOpenRequests = sqlite.prepare(
+      `UPDATE thread_runtime_items SET state = 'completed'
+       WHERE thread_id = ? AND type = ? AND state != 'completed'`,
+    );
 
     const readItem = (itemId: string) =>
       getItem.get(threadId, itemId) as
@@ -496,12 +523,56 @@ export function dbApplyThreadRuntimeEvents(
           if (event.state === "interrupted" || event.state === "cancelled") {
             pruneTrailingInterruptedReasoningItems(sqlite, threadId);
           }
+          // A finished turn no longer blocks on an approval/question. Retire any
+          // request items left open (e.g. an interrupted turn that never emitted
+          // `request.resolved`) so a later snapshot cannot resurrect a stale
+          // pending request.
+          completeOpenRequests.run(threadId, RUNTIME_REQUEST_ITEM_TYPE);
           break;
 
         case "usage.spent":
           // Token consumption is not a chat item; the usage ledger persists it
           // (recordUsageSpentFromRuntimeEvents) alongside this function.
           break;
+
+        case "request.opened": {
+          // Persist the open request so a remote client that missed the live
+          // broadcast can recover it from the thread snapshot. The payload shape
+          // mirrors what `requestsFromRuntimeItems` reads back on recovery.
+          const itemId = runtimeRequestItemId(event.requestId);
+          const payload = {
+            requestId: event.requestId,
+            requestType: event.requestType,
+            payload: event.payload,
+          };
+          const row = readItem(itemId);
+          if (row) {
+            updateItem.run(
+              "started",
+              JSON.stringify(payload),
+              row.streams ?? "{}",
+              threadId,
+              itemId,
+            );
+          } else {
+            appendItem({
+              id: itemId,
+              type: RUNTIME_REQUEST_ITEM_TYPE,
+              state: "started",
+              streams: {},
+              payload,
+            });
+          }
+          break;
+        }
+
+        case "request.resolved": {
+          const itemId = runtimeRequestItemId(event.requestId);
+          const row = readItem(itemId);
+          if (!row) break;
+          updateItem.run("completed", row.payload, row.streams ?? "{}", threadId, itemId);
+          break;
+        }
 
         default:
           break;
@@ -651,11 +722,13 @@ export function dbGetLatestThreadRuntimeAnchorItemId(threadId: string): string |
     .prepare(
       `SELECT item_id
        FROM thread_runtime_items
-       WHERE thread_id = ? AND type NOT IN ('user_message', 'plan', 'error')
+       WHERE thread_id = ?
+         AND type NOT IN ('user_message', 'plan', 'error')
+         AND type != ?
        ORDER BY position DESC
        LIMIT 1`,
     )
-    .get(threadId) as { item_id: string } | undefined;
+    .get(threadId, RUNTIME_REQUEST_ITEM_TYPE) as { item_id: string } | undefined;
   return row?.item_id ?? null;
 }
 

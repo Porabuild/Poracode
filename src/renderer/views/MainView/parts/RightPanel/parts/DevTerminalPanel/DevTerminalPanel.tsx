@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Columns2 } from "lucide-react";
+import {
+  productSurfaceView,
+  useProductViewTracking,
+} from "@/renderer/analytics/useProductViewTracking";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { clearEagerShellStart, wasShellStartedEagerly } from "@/renderer/utils/shellUtils";
+import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import type { TerminalSize } from "@/shared/contracts";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -44,6 +49,9 @@ export function DevTerminalPanel(props: {
     return !tab.worktreePath;
   });
   const activeProject = projects.find((p) => p.id === activeProjectId);
+  const activeScopeLabel = activeProject
+    ? formatProjectScopeLabel(activeProject.name, activeWorktreePath ?? undefined)
+    : undefined;
   const selectedTabId =
     projectTabs.find((tab) => tab.id === activeTabId)?.id ?? projectTabs.at(-1)?.id ?? "__add__";
   const activeTab = projectTabs.find((tab) => tab.id === selectedTabId);
@@ -52,6 +60,10 @@ export function DevTerminalPanel(props: {
 
   // Cross-fade when switching between project and worktree contexts.
   const isOpen = useDevTerminalStore((s) => s.isOpen);
+  useProductViewTracking(productSurfaceView("terminal", "panel"), "panel", {
+    active: isOpen && !hideHeader,
+    finishWhenInactive: true,
+  });
   const contextKey = `${activeProjectId}:${activeWorktreePath ?? ""}`;
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const prevContextRef = useRef(contextKey);
@@ -199,7 +211,7 @@ export function DevTerminalPanel(props: {
       <BottomTerminalLayout
         tabs={tabs}
         projectTabs={projectTabs}
-        activeProject={activeProject}
+        activeScopeLabel={activeScopeLabel}
         selectedTabId={selectedTabId}
         activeTab={activeTab}
         focusRequestId={focusRequestId}
@@ -222,7 +234,7 @@ export function DevTerminalPanel(props: {
     <RightTerminalLayout
       tabs={tabs}
       projectTabs={projectTabs}
-      activeProject={activeProject}
+      activeScopeLabel={activeScopeLabel}
       selectedTabId={selectedTabId}
       activeTab={activeTab}
       focusRequestId={focusRequestId}

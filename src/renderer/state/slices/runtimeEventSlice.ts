@@ -44,6 +44,9 @@ export interface RuntimeChatItem {
   type: CanonicalItemType;
   /** "started" / "updated" land on items that haven't ended yet; "completed" → final. */
   state: "started" | "updated" | "completed";
+  /** Local wall-clock timing for delegated-agent parents. Not persisted; provider duration is the reload fallback. */
+  startedAt?: number;
+  completedAt?: number;
   /** Last payload object reported via `item.started` or `item.updated`. */
   payload?: unknown;
   /** Streamed content buckets (markdown text, command output, etc.). */

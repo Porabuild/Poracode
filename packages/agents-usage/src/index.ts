@@ -54,13 +54,12 @@ export { collectCursor, parseCursorUsage, CURSOR_USAGE_ENDPOINT } from "./collec
 export {
   collectCommandCode,
   formatCommandCodePlanLabel,
-  isCommandCodeSessionLive,
   parseCommandCodeUsage,
-  COMMANDCODE_AUTH_SESSION_ENDPOINT,
   COMMANDCODE_BILLING_CREDITS_ENDPOINT,
   COMMANDCODE_BILLING_SUBSCRIPTIONS_ENDPOINT,
   COMMANDCODE_PROVIDER_ID,
   COMMANDCODE_USAGE_SUMMARY_ENDPOINT,
+  COMMANDCODE_WHOAMI_ENDPOINT,
 } from "./collectors/commandcode";
 export {
   collectFactory,

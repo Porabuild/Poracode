@@ -1,10 +1,13 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { AgentKind, AgentProviderMetadata, AgentStatus, Project } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
 import { ClaudeAgentSettingsPanel } from "./ClaudeProfileSettings";
+import { CursorProviderSettings } from "./CursorProviderSettings";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
+import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
+import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 
 /**
  * Props handed to a provider's `settingsPanel`. Panels may consume any
@@ -15,6 +18,12 @@ export interface NativeAgentSettingsPanelProps {
   statuses: readonly AgentStatus[];
   wslDistros: string[];
   onOpenProfile?: ((profileKind: string) => void) | undefined;
+  /**
+   * The generic per-environment install/auth rows, handed over when the entry
+   * sets `ownsInstallRows`. Panels place them wherever they belong in their own
+   * layout instead of having them stranded above the panel.
+   */
+  installRows?: ReactNode;
 }
 
 export interface NativeAgentAcpRegistryAlias {
@@ -28,6 +37,13 @@ export interface NativeAgentRegistryEntry {
   description: MessageDescriptor;
   installCommand: (project: Project) => string;
   docsUrl: string;
+  /**
+   * Providers whose tile hosts several independently installed runtimes declare
+   * them here. The registry card then renders install targets, installed tags,
+   * versions and update actions generically from these slots plus the detected
+   * `AgentStatus.runtimeVariants`, instead of a single all-or-nothing install.
+   */
+  runtimeSlots?: NativeAgentRuntimeSlots;
   /**
    * ACP registry ids that belong to this built-in provider family. Registry
    * cards use these aliases to resolve native installs and hide redundant ACP
@@ -47,6 +63,13 @@ export interface NativeAgentRegistryEntry {
    * provider — a generic single sign-in row would be redundant).
    */
   ownsAuthUi?: boolean;
+  /**
+   * The provider's `settingsPanel` places the per-environment install/auth rows
+   * itself (received as `installRows`), so `SingleAgentSettings` stops
+   * rendering them above the panel. Used when those rows belong to one of
+   * several runtimes the panel groups (e.g. Cursor's CLI-backed ACP runtime).
+   */
+  ownsInstallRows?: boolean;
   /**
    * Resolve the provider's signed-in account when it isn't part of the
    * detected status (e.g. Antigravity's credential sits in the OS keyring
@@ -245,7 +268,9 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "if command -v npm >/dev/null 2>&1; then npm install -g command-code@latest; else " +
           "printf 'npm is required to install Command Code. Install Node.js/npm first, then refresh detected agents.\\n'; fi",
         posix:
-          "if command -v npm >/dev/null 2>&1; then npm install -g command-code@latest; else " +
+          "if command -v npm >/dev/null 2>&1; then npm install -g command-code@latest && " +
+          'prefix="$(npm config get prefix)" && mkdir -p "$HOME/.local/bin" && ' +
+          'ln -sf "$prefix/bin/command-code" "$HOME/.local/bin/command-code"; else ' +
           "printf 'npm is required to install Command Code. Install Node.js/npm first, then refresh detected agents.\\n'; fi",
         windows:
           "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g command-code@latest } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
@@ -254,15 +279,13 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "cursor",
     acpRegistryAliases: [{ id: "cursor", nativeSupport: true }],
-    description: msg`First-class Cursor Agent integration using Poracode's native runtime.`,
+    description: msg`First-class Cursor integration using ACP or the public SDK runtime.`,
     docsUrl: "https://cursor.com/docs/cli/installation",
-    installCommand: (project) =>
-      posixOrWindows(
-        project,
-        "if command -v curl >/dev/null 2>&1; then curl https://cursor.com/install -fsS | bash; " +
-          "else printf 'curl is required to install Cursor. Install curl, then refresh detected agents.\\n'; fi",
-        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm 'https://cursor.com/install?win32=true' | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
-      ),
+    installCommand: cursorAgentInstallCommand,
+    runtimeSlots: cursorRuntimeSlots,
+    settingsPanel: CursorProviderSettings,
+    ownsAuthUi: true,
+    ownsInstallRows: true,
   },
   {
     id: "gemini",

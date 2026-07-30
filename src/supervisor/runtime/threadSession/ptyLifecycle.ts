@@ -32,6 +32,28 @@ export class PtyLifecycle {
     this.exitPromises.delete(session);
   }
 
+  /**
+   * Resize only while the tracked PTY is live. node-pty can report process
+   * exit just before its JS exit callback runs, so the native resize itself
+   * remains a race. Suppress only the two exact node-pty lifecycle errors at
+   * this typed boundary; every other resize failure still propagates.
+   */
+  resize(session: SessionRuntime | ShellSessionRuntime, cols: number, rows: number): void {
+    if (session.ptyExited || session.ignoreExit) return;
+    const pty = session.pty;
+    if (!pty) return;
+    try {
+      pty.resize(cols, rows);
+    } catch (error) {
+      if (isPtyResizeAfterExitError(error)) {
+        session.ptyExited = true;
+        this.resolveExit(session);
+        return;
+      }
+      throw error;
+    }
+  }
+
   async waitForExit(session: SessionRuntime | ShellSessionRuntime): Promise<void> {
     if (session.ptyExited) {
       return;
@@ -77,4 +99,12 @@ export class PtyLifecycle {
     }
     session.pty.kill();
   }
+}
+
+function isPtyResizeAfterExitError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message === "Cannot resize a pty that has already exited" ||
+    error.message === "ioctl(2) failed, ENOTTY"
+  );
 }

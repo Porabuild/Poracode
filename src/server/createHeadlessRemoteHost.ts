@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
 import {
   closeDatabase,
   dbDeleteThread,
@@ -20,17 +22,16 @@ import {
   writeSharedSettingsFile,
 } from "@/main/sharedSettingsFile";
 import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
+import { createPersistentRemoteAuthStore } from "@/main/remote/auth";
+import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
+import { createPortForwarding } from "@/main/remote/portForward/portForwarding";
 import {
-  createPersistentRemoteAuthStore,
-  createPortForwarding,
   createPushGateway,
   createWebPushPublicKeyResolver,
   PushCoordinator,
   PushRegistrationStore,
-  readOrCreateRemoteAccessIdentity,
-  RemoteAccessServer,
-  type RemoteAccessServerInfo,
-} from "@/main/remote";
+} from "@/main/remote/push";
+import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
 import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
@@ -38,7 +39,7 @@ import {
   resolveRemoteAccessPort,
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
-import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { isThreadTurnActive, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { pickRemoteSettings, remoteProjectCommandResultSchema } from "@/shared/remote";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
@@ -51,6 +52,8 @@ import {
   buildSharedAppControlsIngressDeps,
   createAppControlsSupervisorCaller,
 } from "@/main/app-controls";
+import { createDevicePrWatchService, type PrWatchService } from "@/main/prWatch";
+import { createGitStateExecutor, GitStateService } from "@/main/gitState";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
 /**
@@ -178,6 +181,8 @@ export async function createHeadlessRemoteHost(
   // `serverRef` is assigned; the null-guard covers construction order only.
   let serverRef: RemoteAccessServer | null = null;
   let appControlsMcpIngress: AppControlsMcpIngress | null = null;
+  let prWatchService: PrWatchService | null = null;
+  let gitStateService: GitStateService | null = null;
   // Assigned right after the supervisor client below; the `onEvent` tap only
   // fires once the supervisor is started, by which point it is set.
   let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
@@ -201,6 +206,8 @@ export async function createHeadlessRemoteHost(
     onEvent: (event) => {
       options.onSupervisorEvent?.(event);
       appControlsMcpIngress?.observeSupervisorEvent(event);
+      prWatchService?.observeSupervisorEvent(event);
+      gitStateService?.observeSupervisorEvent(event);
       scheduleRunCoordinator?.observeSupervisorEvent(event);
       serverRef?.publishSupervisorEvent(event);
       pushCoordinator.handleSupervisorEvent(event);
@@ -238,6 +245,52 @@ export async function createHeadlessRemoteHost(
       projects: remoteProjectCommandResultSchema.parse({ projects: dbGetProjects() }).projects,
     });
   };
+  const sharedAppControlsDeps = buildSharedAppControlsIngressDeps({
+    call: (name, payload) => supervisorClient.call(name, payload),
+    // Headless has no desktop renderer to mirror to; the DB thread row is the
+    // source of truth and connected remote clients pick it up.
+    sendThreadCommand: () => false,
+    getSharedSettings,
+    publishProjectsChanged: publishHeadlessProjectsChanged,
+  });
+  prWatchService = createDevicePrWatchService({
+    getProject: dbGetProject,
+    getPrForBranch: (project, branch) =>
+      supervisorClient.call("ghGetPrForBranch", {
+        projectLocation: project.location,
+        branch,
+      }),
+    getPrDetails: (project, prNumber) =>
+      supervisorClient
+        .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
+        .then((result) => result.details),
+    getPrReviewThreads: (project, prNumber) =>
+      supervisorClient
+        .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
+        .then((result) => result.threads),
+    getMergeMethod: () => getSharedSettings().prMergeMethod,
+    mergePr: (project, prNumber, method) =>
+      supervisorClient.call("ghMergePr", {
+        projectLocation: project.location,
+        prNumber,
+        method,
+        admin: false,
+      }),
+    createThread: sharedAppControlsDeps.createThread,
+    isThreadActive: (threadId) => {
+      const status = dbGetThread(threadId)?.status;
+      return status !== undefined && isThreadTurnActive(status);
+    },
+    worktreeExists: existsSync,
+  });
+  gitStateService = new GitStateService({
+    hostId: identity.desktopId,
+    executor: createGitStateExecutor((name, payload) => supervisorClient.call(name, payload)),
+    getProject: dbGetProject,
+    onPatch: (patch) => {
+      serverRef?.publishSupervisorEvent({ type: "remote-git-state", patch });
+    },
+  });
   appControlsMcpIngress = new AppControlsMcpIngress({
     scheduleService,
     getThread: dbGetThread,
@@ -245,14 +298,7 @@ export async function createHeadlessRemoteHost(
     getProjects: () => dbGetProjects(),
     getProject: dbGetProject,
     getProjectNotes: dbGetProjectNotes,
-    ...buildSharedAppControlsIngressDeps({
-      call: (name, payload) => supervisorClient.call(name, payload),
-      // Headless has no desktop renderer to mirror to; the DB thread row is the
-      // source of truth and connected remote clients pick it up.
-      sendThreadCommand: () => false,
-      getSharedSettings,
-      publishProjectsChanged: publishHeadlessProjectsChanged,
-    }),
+    ...sharedAppControlsDeps,
     settings: {
       read: () => readSharedSettingsFile(paths.settingsPath),
       // Headless has no desktop renderer to notify; connected remote clients
@@ -305,9 +351,15 @@ export async function createHeadlessRemoteHost(
 
   const server = new RemoteAccessServer({
     appVersion: options.appVersion,
+    hostMode: "helper",
     identity,
     isDev,
     authStore,
+    onOversizedEventDropped: ({ type, bytes }) => {
+      console.warn(
+        `[remote] ${type} event of ${bytes} bytes exceeded the live stream budget; clients asked to resync`,
+      );
+    },
     host,
     port,
     advertisedHost,
@@ -319,9 +371,14 @@ export async function createHeadlessRemoteHost(
       read: () => pickRemoteSettings(readSharedSettingsFile(paths.settingsPath)),
       update: (patch) => pickRemoteSettings(patchSharedSettingsFile(paths.settingsPath, patch)),
     },
+    attachments: {
+      save: (input) => saveUploadedAttachmentFile(paths, input),
+    },
     // `ScheduleService`'s public methods already match the gateway interface,
     // so pass it directly instead of re-wrapping each method.
     schedules: scheduleService,
+    prWatches: prWatchService,
+    gitState: gitStateService,
     pushRegistrations: {
       webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
       upsert: (registration) => pushStore.upsert(registration),
@@ -341,6 +398,8 @@ export async function createHeadlessRemoteHost(
         await appControlsMcpIngress?.start();
         supervisorClient.start(paths.baseDir);
         scheduleService.start();
+        prWatchService?.start();
+        gitStateService?.start();
         started = true;
       }
       const info = await server.start();
@@ -372,6 +431,10 @@ export async function createHeadlessRemoteHost(
       // regardless of ordering, but disposing after keeps the two aligned).
       await server.dispose();
       scheduleService.dispose();
+      prWatchService?.dispose();
+      prWatchService = null;
+      gitStateService?.dispose();
+      gitStateService = null;
       appControlsMcpIngress?.dispose();
       appControlsMcpIngress = null;
       portForwarding.dispose();

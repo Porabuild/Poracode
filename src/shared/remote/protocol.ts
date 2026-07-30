@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sensitiveAgentSettingKeys } from "../agentSecrets";
 import {
   agentStatusSchema,
   cloneRepoSourceSchema,
@@ -11,6 +12,7 @@ import {
   threadSchema,
 } from "../contracts";
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
+import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 1;
@@ -61,6 +63,9 @@ export function filterKnownRemoteAccessScopes(scopes: readonly string[]): Remote
  */
 export const advertisedRemoteAccessScopesSchema = z.array(z.string().min(1));
 
+export const remoteHostModeSchema = z.enum(["desktop", "helper"]);
+export type RemoteHostMode = z.infer<typeof remoteHostModeSchema>;
+
 /** Derive the WebSocket base URL for a remote desktop's HTTP endpoint. */
 export function toWebSocketUrl(httpUrl: string | URL): URL {
   const url = new URL(httpUrl);
@@ -77,6 +82,11 @@ export type RemoteClientMetadata = z.infer<typeof remoteClientMetadataSchema>;
 
 export const remoteEnvironmentDescriptorSchema = z.object({
   protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
+  /**
+   * Process hosting the shared remote-access server. Optional on the wire for
+   * protocol-v1 servers released before standalone helpers advertised it.
+   */
+  hostMode: remoteHostModeSchema.optional(),
   desktopId: z.string().min(1),
   label: z.string().min(1),
   appVersion: z.string().min(1),
@@ -182,6 +192,12 @@ export const remoteGitSummariesEventSchema = z.object({
 });
 export type RemoteGitSummariesEvent = z.infer<typeof remoteGitSummariesEventSchema>;
 
+export const remoteGitStateEventSchema = z.object({
+  type: z.literal("remote-git-state"),
+  patch: gitStatePatchSchema,
+});
+export type RemoteGitStateEvent = z.infer<typeof remoteGitStateEventSchema>;
+
 /**
  * Remote project management. Lets a paired client add/clone/remove projects on
  * the desktop or a headless server. Locations are referenced by an absolute
@@ -211,8 +227,23 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     name: z.string().min(1),
     source: cloneRepoSourceSchema,
   }),
-  // Remove a project. Edits that reorder/cascade (rename, disable) still flow
-  // through the renderer store on the desktop; see Phase 2 in the design doc.
+  z.object({
+    kind: z.literal("update"),
+    projectId: z.string().min(1),
+    patch: z.object({
+      name: projectSchema.shape.name.optional(),
+      scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
+      searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
+      worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),
+      mcpServers: projectSchema.shape.mcpServers.unwrap().nullable().optional(),
+      disabled: projectSchema.shape.disabled,
+    }),
+  }),
+  z.object({
+    kind: z.literal("relocate"),
+    projectId: z.string().min(1),
+    path: z.string().min(1),
+  }),
   z.object({ kind: z.literal("remove"), projectId: z.string().min(1) }),
 ]);
 export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
@@ -220,6 +251,10 @@ export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
 /** Project metadata safe to expose remotely; MCP definitions may contain secrets. */
 export const remoteProjectSchema = projectSchema.omit({ mcpServers: true });
 export type RemoteProject = z.infer<typeof remoteProjectSchema>;
+
+/** Sensitive project settings are fetched separately behind `projects:manage`. */
+export const remoteProjectSettingsSchema = projectSchema.pick({ mcpServers: true });
+export type RemoteProjectSettings = z.infer<typeof remoteProjectSettingsSchema>;
 
 /** Result of a project command: the full updated list plus the affected row. */
 export const remoteProjectCommandResultSchema = z.object({
@@ -496,6 +531,8 @@ export const remoteShellSnapshotSchema = z.object({
   runtimeSummariesByThread: z.record(z.string(), remoteRuntimeSummarySchema),
   /** Absent on desktops that predate git summaries. */
   gitSummariesByThread: remoteGitSummariesSchema.optional(),
+  /** Normalized host-owned Git/PR state. Absent on legacy hosts. */
+  gitState: gitStateSnapshotSchema.optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteShellSnapshot = z.infer<typeof remoteShellSnapshotSchema>;
@@ -546,34 +583,48 @@ export type RemoteRuntimeItemsPage = z.infer<typeof remoteRuntimeItemsPageSchema
  * excludes secrets (providerConfigs and custom MCP definitions) and
  * device-local preferences (theme, fonts, audio, …).
  */
-export const remoteSettingsSchema = sharedSettingsSchema.pick({
-  agentSettings: true,
-  hiddenModels: true,
-  disabledAgents: true,
-  providerOrder: true,
-  enabledMcpServers: true,
-  disabledBuiltInMcpServers: true,
-  titleGenProvider: true,
-  titleGenModel: true,
-  titleGenEffort: true,
-  commitGenProvider: true,
-  commitGenModel: true,
-  commitGenEffort: true,
-  conflictResolverProvider: true,
-  conflictResolverModel: true,
-  conflictResolverEffort: true,
-  conflictResolverPresentationMode: true,
-  wslTitleGenProvider: true,
-  wslTitleGenModel: true,
-  wslTitleGenEffort: true,
-  wslCommitGenProvider: true,
-  wslCommitGenModel: true,
-  wslCommitGenEffort: true,
-  wslConflictResolverProvider: true,
-  wslConflictResolverModel: true,
-  wslConflictResolverEffort: true,
-  wslConflictResolverPresentationMode: true,
-});
+const remoteAgentSettingsSchema = sharedSettingsSchema.shape.agentSettings.transform((settings) =>
+  Object.fromEntries(
+    Object.entries(settings).map(([agentKind, values]) => {
+      const next = { ...values };
+      for (const key of sensitiveAgentSettingKeys(agentKind)) delete next[key];
+      return [agentKind, next];
+    }),
+  ),
+);
+
+export const remoteSettingsSchema = sharedSettingsSchema
+  .pick({
+    agentSettings: true,
+    hiddenModels: true,
+    disabledAgents: true,
+    providerOrder: true,
+    enabledMcpServers: true,
+    disabledBuiltInMcpServers: true,
+    titleGenProvider: true,
+    titleGenModel: true,
+    titleGenEffort: true,
+    commitGenProvider: true,
+    commitGenModel: true,
+    commitGenEffort: true,
+    conflictResolverProvider: true,
+    conflictResolverModel: true,
+    conflictResolverEffort: true,
+    conflictResolverPresentationMode: true,
+    wslTitleGenProvider: true,
+    wslTitleGenModel: true,
+    wslTitleGenEffort: true,
+    wslCommitGenProvider: true,
+    wslCommitGenModel: true,
+    wslCommitGenEffort: true,
+    wslConflictResolverProvider: true,
+    wslConflictResolverModel: true,
+    wslConflictResolverEffort: true,
+    wslConflictResolverPresentationMode: true,
+    prAutomationDefault: true,
+    prMergeMethod: true,
+  })
+  .extend({ agentSettings: remoteAgentSettingsSchema });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 
 export const REMOTE_SETTINGS_KEYS = Object.keys(
@@ -747,6 +798,29 @@ export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
   // they only stream to clients that opted in via terminal-watch.
   z.object({ type: z.literal("terminal-watch"), id: z.string().min(1) }),
   z.object({ type: z.literal("terminal-unwatch"), id: z.string().min(1) }),
+  z.object({
+    type: z.literal("git-state-interests"),
+    interests: z.array(gitStateInterestSchema).max(500),
+  }),
+  /**
+   * Threads this client wants live transcript *content* for. Runtime item and
+   * text-delta events for any other thread are withheld — a phone viewing one
+   * thread otherwise downloads every other thread's tool payloads too.
+   *
+   * Scoped to bulk content ONLY. Lifecycle and interaction events
+   * (`request.opened`/`request.resolved`, `turn.*`, `session.*`, warnings,
+   * errors, context/usage) always reach every client regardless of this list:
+   * a permission prompt on a thread the user is not looking at must still
+   * surface, and `RemoteThreadSnapshot` carries no open-requests field to
+   * recover it from later.
+   *
+   * A client that never sends this message keeps receiving everything, so older
+   * clients are unaffected.
+   */
+  z.object({
+    type: z.literal("thread-item-interests"),
+    threadIds: z.array(z.string().min(1)).max(200),
+  }),
 ]);
 export type RemoteWebSocketClientMessage = z.infer<typeof remoteWebSocketClientMessageSchema>;
 

@@ -85,6 +85,7 @@ export type {
   ThreadHistoryEntry,
 } from "./types";
 export * from "./terminalHints";
+export * from "./expectedRuntimeError";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
@@ -653,7 +654,13 @@ export async function detectAgentInstall(
   let probedProviderMetadata: AgentProviderMetadata | undefined;
   let probedPreferTerminalLogin: boolean | undefined;
   if (executablePath) {
-    const probeCtx: DetectProbeCtx = { location, executablePath, version, probeEnv: spec.probeEnv };
+    const probeCtx: DetectProbeCtx = {
+      location,
+      executablePath,
+      version,
+      ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+      probeEnv: spec.probeEnv,
+    };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
       spec.capabilitiesProbe ? spec.capabilitiesProbe(probeCtx) : Promise.resolve(undefined),
       spec.statusProbe ? spec.statusProbe(probeCtx) : Promise.resolve(undefined),
@@ -687,7 +694,12 @@ export async function detectAgentInstall(
     statusProbeResult = nextStatusProbeResult;
   }
 
-  const probeCtx: DetectProbeCtx = { location, executablePath, version };
+  const probeCtx: DetectProbeCtx = {
+    location,
+    executablePath,
+    version,
+    ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+  };
 
   let authState: AuthState;
   if (!executablePath) {

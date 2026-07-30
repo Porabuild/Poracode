@@ -384,6 +384,38 @@ describe("ThreadsView grouping", () => {
     expect(container.querySelector(".m-thread-section")).toBeNull();
   });
 
+  it("sinks done threads into a trailing Done section ordered by last update", () => {
+    const { container } = renderView([
+      makeThread({ id: "done-old", title: "Done old", done: true, updatedAt: oldIso() }),
+      makeThread({ id: "live", title: "Live", updatedAt: recentIso() }),
+      makeThread({ id: "done-new", title: "Done new", done: true, updatedAt: recentIso() }),
+    ]);
+
+    expect(rowTitles(container)).toEqual(["Live", "Done new", "Done old"]);
+    expect(
+      [...container.querySelectorAll(".m-thread-section")].map((el) => el.textContent),
+    ).toEqual(["Done"]);
+  });
+
+  it("keeps a mixed worktree group live until every member is done", () => {
+    const worktree = { worktreePath: "/repo/wt", worktreeBranch: "feature/x" };
+    const mixed = renderView([
+      makeThread({ id: "done", title: "Done member", done: true, ...worktree }),
+      makeThread({ id: "live", title: "Live member", ...worktree }),
+    ]);
+
+    expect(mixed.container.querySelector(".m-thread-section")).toBeNull();
+    mixed.unmount();
+
+    const allDone = renderView([
+      makeThread({ id: "done-a", title: "Done A", done: true, ...worktree }),
+      makeThread({ id: "done-b", title: "Done B", done: true, ...worktree }),
+    ]);
+    expect(
+      [...allDone.container.querySelectorAll(".m-thread-section")].map((el) => el.textContent),
+    ).toEqual(["Done"]);
+  });
+
   it("filters threads from the touch search box", () => {
     renderView([
       makeThread({ id: "a", title: "Alpha" }),

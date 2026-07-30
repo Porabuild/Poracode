@@ -384,6 +384,35 @@ describe("SessionRuntimeLifecycle", () => {
     }
   });
 
+  it("keeps the authoritative error state when transport close follows onError", () => {
+    vi.useFakeTimers();
+    try {
+      const harness = createHarness();
+      harness.mocks.failStructuredSession.mockImplementation((session) => {
+        session.status = "error";
+      });
+      harness.lifecycle.attach(harness.session);
+      harness.mocks.updateState.mockClear();
+
+      harness.structuredListener?.onError("root failure");
+      harness.structuredListener?.onClose();
+
+      expect(harness.mocks.failStructuredSession).toHaveBeenCalledTimes(1);
+      expect(harness.mocks.updateState).not.toHaveBeenCalledWith(
+        harness.session,
+        "inactive",
+        "none",
+      );
+      expect(harness.mocks.emit).toHaveBeenCalledWith({
+        type: "thread-exited",
+        threadId: harness.session.threadId,
+        exitCode: null,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("routes PTY data only for the current session", () => {
     const harness = createHarness();
     harness.lifecycle.attach(harness.session);

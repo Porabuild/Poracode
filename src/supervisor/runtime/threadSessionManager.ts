@@ -1,12 +1,11 @@
-import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
-import { defaultSharedSettings, normalizeSharedSettings } from "@/shared/settings";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
   type ClearPendingSteerPayload,
+  type ControlThreadGoalPayload,
   type AgentEventEnvelope,
   type AgentKind,
   type CloseThreadPayload,
@@ -68,9 +67,13 @@ import {
   type SpawnThreadInput,
 } from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
+import { StructuredFailureReporter } from "./threadSession/structuredFailureReporter";
+import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
+
+const RECENTLY_REMOVED_THREAD_LIMIT = 256;
 
 export class ThreadSessionManager {
   readonly sessions = new Map<string, SessionRuntime>();
@@ -90,6 +93,8 @@ export class ThreadSessionManager {
   private readonly spawnPipeline: SpawnPipeline;
   private readonly invalidSessionRecovery: InvalidSessionRecoveryCoordinator;
   private readonly structuredTurnQueue: StructuredTurnQueue;
+  private readonly structuredFailureReporter = new StructuredFailureReporter();
+  private readonly recentlyRemovedThreadIds = new Set<string>();
   private disposed = false;
 
   constructor(private readonly options: ThreadSessionManagerOptions) {
@@ -118,6 +123,7 @@ export class ThreadSessionManager {
     this.structuredTurnQueue = new StructuredTurnQueue({
       emit: options.emit,
       sessions: this.sessions,
+      beginFailureEpisode: (session) => this.structuredFailureReporter.beginEpisode(session),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
     });
     this.steerCoordinator = new SteerCoordinator({
@@ -230,6 +236,7 @@ export class ThreadSessionManager {
    * event the user sees a red icon and nothing else.
    */
   private failStructuredSession(session: SessionRuntime, error: unknown): void {
+    this.structuredFailureReporter.capture(session, error);
     const message = error instanceof Error ? error.message : String(error);
     this.outputPipeline.updateState(session, "error", "error", message);
     this.enqueueRuntimeEvent(session.threadId, {
@@ -451,6 +458,7 @@ export class ThreadSessionManager {
     if (pending) {
       return { threadId };
     }
+    this.recentlyRemovedThreadIds.delete(threadId);
 
     const run = this.spawnPipeline.startThreadInner({ ...payload, threadId });
     this.startLocks.set(
@@ -472,7 +480,11 @@ export class ThreadSessionManager {
   }
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
-    const session = this.requireSession(payload.threadId);
+    const session = this.sessions.get(payload.threadId);
+    if (!session) {
+      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
+      throw new Error(`Unknown thread session: ${payload.threadId}`);
+    }
     if (session.status === "inactive" && !session.sessionRef) {
       throw new Error("This thread exited before a resumable session id was discovered.");
     }
@@ -594,6 +606,7 @@ export class ThreadSessionManager {
       if (this.startLocks.has(payload.threadId)) {
         this.pendingStartInterrupts.add(payload.threadId);
         this.pendingStartAborts.add(payload.threadId);
+        this.rememberRemovedThread(payload.threadId);
         this.options.emit({
           type: "thread-state",
           threadId: payload.threadId,
@@ -604,10 +617,20 @@ export class ThreadSessionManager {
         });
         return;
       }
+      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
       throw new Error(`Unknown thread session: ${payload.threadId}`);
     }
-    this.options.crossagentMcp?.cancelAll(payload.threadId);
+    this.options.crossagentMcp?.cancelForeground(payload.threadId);
     await this.structuredInterruptWatchdog.interruptStructuredTurn(session);
+  }
+
+  async controlThreadGoal(payload: ControlThreadGoalPayload): Promise<void> {
+    const { threadId, ...control } = payload;
+    const session = this.requireSession(threadId);
+    if (!session.structuredSession?.controlGoal) {
+      throw new Error(`${session.adapter.label} does not support goal controls.`);
+    }
+    await session.structuredSession.controlGoal(control);
   }
 
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
@@ -641,7 +664,11 @@ export class ThreadSessionManager {
       shell.pty.write(payload.data);
       return;
     }
-    const session = this.requireSession(payload.threadId);
+    const session = this.sessions.get(payload.threadId);
+    if (!session) {
+      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
+      throw new Error(`Unknown thread session: ${payload.threadId}`);
+    }
     requireSessionPty(session).write(payload.data);
     this.maybeArmUserInterruptRecovery(session, payload.data);
   }
@@ -768,7 +795,7 @@ export class ThreadSessionManager {
   async resizeTerminal(payload: ResizeTerminalPayload): Promise<void> {
     const shell = this.shellSessions.get(payload.threadId);
     if (shell) {
-      shell.pty.resize(payload.cols, payload.rows);
+      this.ptyLifecycle.resize(shell, payload.cols, payload.rows);
       return;
     }
     const session = this.sessions.get(payload.threadId);
@@ -776,7 +803,7 @@ export class ThreadSessionManager {
       return;
     }
     session.terminalSize = { cols: payload.cols, rows: payload.rows };
-    session.pty?.resize(payload.cols, payload.rows);
+    this.ptyLifecycle.resize(session, payload.cols, payload.rows);
   }
 
   /**
@@ -804,6 +831,7 @@ export class ThreadSessionManager {
     if (shell) {
       shell.ignoreExit = true;
       this.shellSessions.delete(payload.threadId);
+      this.rememberRemovedThread(payload.threadId);
       this.ptyLifecycle.killShell(shell);
       await this.ptyLifecycle.waitForExit(shell);
       return;
@@ -813,11 +841,13 @@ export class ThreadSessionManager {
     if (!existing) {
       if (this.startLocks.has(payload.threadId)) {
         this.pendingStartAborts.add(payload.threadId);
+        this.rememberRemovedThread(payload.threadId);
       }
       return;
     }
 
     existing.ignoreExit = true;
+    this.rememberRemovedThread(payload.threadId);
     this.outputPipeline.clearSessionTimers(existing);
     existing.stopSessionRefWatcher?.();
     existing.stopSessionRefWatcher = undefined;
@@ -838,6 +868,7 @@ export class ThreadSessionManager {
 
   async startShell(payload: StartShellPayload): Promise<void> {
     ensureNodePtySpawnHelperExecutable();
+    this.recentlyRemovedThreadIds.delete(payload.shellId);
     const existing = this.shellSessions.get(payload.shellId);
     if (existing) {
       existing.ignoreExit = true;
@@ -941,6 +972,7 @@ export class ThreadSessionManager {
         return;
       }
       this.shellSessions.delete(payload.shellId);
+      this.rememberRemovedThread(payload.shellId);
       this.options.emit({
         type: "thread-exited",
         threadId: payload.shellId,
@@ -989,6 +1021,7 @@ export class ThreadSessionManager {
     await Promise.allSettled(
       [...this.sessions.values()].map(async (session) => {
         session.ignoreExit = true;
+        this.rememberRemovedThread(session.threadId);
         this.outputPipeline.clearSessionTimers(session);
         await session.structuredSession?.dispose();
         this.ptyLifecycle.kill(session);
@@ -999,6 +1032,7 @@ export class ThreadSessionManager {
 
     for (const shell of this.shellSessions.values()) {
       shell.ignoreExit = true;
+      this.rememberRemovedThread(shell.shellId);
       this.ptyLifecycle.killShell(shell);
     }
     this.shellSessions.clear();
@@ -1011,6 +1045,16 @@ export class ThreadSessionManager {
       throw new Error(`Unknown thread session: ${threadId}`);
     }
     return session;
+  }
+
+  private rememberRemovedThread(threadId: string): void {
+    this.recentlyRemovedThreadIds.delete(threadId);
+    this.recentlyRemovedThreadIds.add(threadId);
+    if (this.recentlyRemovedThreadIds.size <= RECENTLY_REMOVED_THREAD_LIMIT) return;
+    const oldest = this.recentlyRemovedThreadIds.values().next().value;
+    if (oldest !== undefined) {
+      this.recentlyRemovedThreadIds.delete(oldest);
+    }
   }
 
   private isCurrentSession(session: SessionRuntime): boolean {
@@ -1084,13 +1128,7 @@ export class ThreadSessionManager {
   }
 
   private resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string> {
-    let settings = defaultSharedSettings;
-    try {
-      const raw = readFileSync(this.options.settingsPath, "utf8");
-      settings = normalizeSharedSettings(JSON.parse(raw));
-    } catch {
-      // use defaults
-    }
+    const settings = readSupervisorSharedSettings(this.options.settingsPath);
     return settings.agentSettings[adapter.kind] ?? {};
   }
 }

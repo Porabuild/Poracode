@@ -38,6 +38,10 @@ interface ThreadRuntimeRequestPanelProps {
     requestId: ThreadServerRequestId;
     method: string;
     response: unknown;
+    analytics: {
+      outcome: RequestOutcome;
+      requestType: string;
+    };
   }) => Promise<void>;
   onPlanApproved?: (optionId: string) => void;
   onOpenPlanFile?: ((path: string) => void) | undefined;
@@ -69,6 +73,10 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       requestId: request.requestId,
       method: "requestPermission",
       response,
+      analytics: {
+        outcome,
+        requestType: request.requestType,
+      },
     }).catch((err) => {
       console.error("[chat] request resolution failed", err);
       rollback();

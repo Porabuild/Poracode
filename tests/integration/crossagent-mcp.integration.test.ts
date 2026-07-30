@@ -12,7 +12,7 @@ import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp"
 
 // Live integration: stands up the real Crossagents MCP ingress + run manager with
 // the real adapter registry, then acts as the MCP client exactly the way a
-// host agent does — initialize, tools/list, list_agents, run_agent with a
+// host agent does — initialize, tools/list, list_agents, spawn_agent with a
 // cheap Claude model — and asserts on the re-tagged runtime events the parent
 // thread (and therefore the subagent tile UI) would receive. Skips when Claude
 // is not installed/authenticated on the host.
@@ -147,7 +147,7 @@ describe("Crossagents MCP (live)", () => {
     expect(provider.defaultModel).toBeDefined();
   });
 
-  it("run_agent completes a real child turn and bridges events to the parent", async () => {
+  it("spawn_agent completes a real child turn and bridges events to the parent", async () => {
     if (!claude) return;
     const status = await claude.detectInstall().catch(() => undefined);
     if (!status?.installed || status.authState !== "authenticated") {
@@ -159,7 +159,7 @@ describe("Crossagents MCP (live)", () => {
     console.log("[subagent-int] running LIVE child turn (claude haiku)");
 
     parentEvents.length = 0;
-    const result = await callTool("run_agent", {
+    const result = await callTool("spawn_agent", {
       provider: "claude",
       model: "haiku",
       name: "dogfood",
@@ -203,7 +203,7 @@ describe("Crossagents MCP (live)", () => {
     }
   }, 240_000);
 
-  it("run_agent completes a real OpenCode child turn", async () => {
+  it("spawn_agent completes a real OpenCode child turn", async () => {
     if (!opencode) return;
     const status = await opencode.detectInstall().catch(() => undefined);
     if (!status?.installed || status.authState !== "authenticated") {
@@ -214,7 +214,7 @@ describe("Crossagents MCP (live)", () => {
     }
 
     parentEvents.length = 0;
-    const result = await callTool("run_agent", {
+    const result = await callTool("spawn_agent", {
       provider: "opencode",
       model: "opencode/big-pickle",
       name: "opencode-dogfood",

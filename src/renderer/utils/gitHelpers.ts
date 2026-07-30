@@ -55,6 +55,7 @@ export function buildFileEditorContext(
       projectName: project.name,
       projectLocation: project.location,
       rootLabel: project.name,
+      ...(project.remoteServerId ? { remoteServerId: project.remoteServerId } : {}),
     };
   }
 
@@ -64,6 +65,7 @@ export function buildFileEditorContext(
     projectLocation: buildWorktreeLocation(project.location, worktreePath),
     rootLabel: worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? project.name,
     worktreePath,
+    ...(project.remoteServerId ? { remoteServerId: project.remoteServerId } : {}),
   };
 }
 
@@ -90,6 +92,7 @@ export async function openFileInEditor(
   path: string,
   options?: OpenFileInEditorOptions,
 ): Promise<void> {
+  if (project.remoteServerId && (path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path))) return;
   const fileEditor = useFileEditorStore.getState();
   const targetContext = buildFileEditorContext(project, worktreePath, worktreeBranch);
   const currentRoot = fileEditor.rootContext;

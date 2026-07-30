@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import type { RemoteShellSnapshot } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useGitReadModelStore } from "@/renderer/state/gitReadModelStore";
+import { emptyGitStateSnapshot } from "@/shared/gitState";
 import { applyShellSnapshot, dispatchRemoteSupervisorEvent, resetRemoteStores } from "./storeSync";
 
 // The thread-state dispatch fans out to the desktop notification helper, which
@@ -165,5 +167,14 @@ describe("applyShellSnapshot", () => {
     expect(after).not.toBe(before);
     expect(after[0]).not.toBe(before[0]);
     expect(after[1]).toBe(before[1]);
+  });
+
+  it("hydrates the host-owned Git read model from the shell snapshot", () => {
+    applyShellSnapshot({
+      ...makeShellSnapshot([]),
+      gitState: { ...emptyGitStateSnapshot(), revision: 4 },
+    });
+
+    expect(useGitReadModelStore.getState().revision).toBe(4);
   });
 });

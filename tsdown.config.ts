@@ -24,13 +24,20 @@ const deps = {
   // source (its exports point at src/*.ts). It must be bundled into the
   // supervisor — left external, Node's ESM loader would try to load its raw
   // extensionless .ts imports at runtime and crash.
-  alwaysBundle: ["electron-updater", "simple-git", "zod", /^@poracode\/agents-usage(?:\/|$)/],
+  alwaysBundle: [
+    "electron-updater",
+    "simple-git",
+    "zod",
+    "@sindresorhus/slugify",
+    /^@poracode\/agents-usage(?:\/|$)/,
+  ],
   onlyBundle: false as const,
   neverBundle: [
     "electron",
     "node-pty",
     "better-sqlite3",
     "@anthropic-ai/claude-agent-sdk",
+    "@cursor/sdk",
     "@opencode-ai/sdk",
   ],
 };
@@ -100,6 +107,23 @@ export default defineConfig([
     platform: "node" as const,
     format: "esm" as const,
     target: "node24" as const,
+    sourcemap,
+    dts: false,
+    minify: false,
+    define: buildDefines,
+    deps,
+  },
+  {
+    // Self-contained transport shell. The user-installed @cursor/sdk entry is
+    // discovered and dynamically imported at runtime inside this worker.
+    entry: { cursorSdkWorker: "src/supervisor/agents/cursor/sdkWorker.ts" },
+    clean: false,
+    outDir: "dist/main",
+    platform: "node" as const,
+    format: "esm" as const,
+    // The external SDK's documented floor is Node 22.13. Keep this portable
+    // worker compiled for Node 22 even though Poracode itself requires Node 24.
+    target: "node22" as const,
     sourcemap,
     dts: false,
     minify: false,

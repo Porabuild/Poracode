@@ -1,8 +1,11 @@
 import type {
   ClearPendingSteerPayload,
   CloseThreadPayload,
+  ControlThreadGoalPayload,
   RefreshAgentScope,
   InterruptThreadPayload,
+  PrWatchInput,
+  PrWatchKey,
   ProfileIdentity,
   ProfileStatsRequest,
   ProjectNotes,
@@ -25,8 +28,10 @@ import {
   type RemoteRuntimeItemsPageRequest,
 } from "@/shared/remote";
 import { setRemoteLocalImageResolver } from "@/shared/localImageDisplay";
+import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import type { SharedSettingsInput } from "@/shared/settings";
+import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
 import { useBrowserMirrorStore } from "./browserMirror";
 import type { RemoteDesktopClient } from "./remoteClient";
 import { pushDesktopSettingsDiff } from "./settingsSync";
@@ -60,6 +65,10 @@ export function setRemoteBridgeClient(
   // shell; in the PWA, swap them for the desktop's authenticated HTTP image
   // endpoint at render time (see shared/localImageDisplay.ts).
   setRemoteLocalImageResolver(client ? (url) => remoteLocalImageUrl(client, url) : null);
+  // The host strips inline image bytes out of remote transcripts and sends a
+  // reference instead; resolve those to its authenticated image endpoint (see
+  // shared/imageRefDisplay.ts).
+  setRemoteImageRefResolver(client ? (ref) => client.imageRefUrl(ref) : null);
 }
 
 /**
@@ -136,39 +145,12 @@ async function pickBrowserFiles(options?: {
   if (!options?.attachmentThreadId) {
     throw new Error("Remote file selection requires an attachment destination.");
   }
-  const attachmentThreadId = options.attachmentThreadId;
-  const input = document.createElement("input");
-  input.type = "file";
-  input.multiple = true;
-  const extensions = options.filters?.flatMap((filter) => filter.extensions) ?? [];
-  if (extensions.length > 0) {
-    input.accept = extensions.map((extension) => `.${extension.replace(/^\./, "")}`).join(",");
-  }
-
-  const files = await new Promise<File[]>((resolve) => {
-    let settled = false;
-    const finish = (selected: File[]) => {
-      if (settled) return;
-      settled = true;
-      input.remove();
-      resolve(selected);
-    };
-    input.addEventListener("change", () => finish(Array.from(input.files ?? [])), { once: true });
-    input.addEventListener("cancel", () => finish([]), { once: true });
-    input.click();
-  });
-  if (files.length === 0) return null;
-
   const client = requireClient();
-  return Promise.all(
-    files.map(async (file) =>
-      client.uploadAttachment({
-        threadId: attachmentThreadId,
-        fileName: file.name,
-        data: new Uint8Array(await file.arrayBuffer()),
-      }),
-    ),
-  );
+  return pickAndUploadBrowserFiles({
+    attachmentThreadId: options.attachmentThreadId,
+    ...(options.filters ? { filters: options.filters } : {}),
+    upload: (input) => client.uploadAttachment(input),
+  });
 }
 
 const remoteBridge = {
@@ -194,6 +176,8 @@ const remoteBridge = {
   sendThreadInput: (payload: SendThreadInputPayload) => requireClient().sendThreadInput(payload),
   interruptThread: (payload: InterruptThreadPayload) =>
     requireClient().interruptThread(payload.threadId),
+  controlThreadGoal: (payload: ControlThreadGoalPayload) =>
+    requireClient().controlThreadGoal(payload),
   writeTerminal: (payload: WriteTerminalPayload) => requireClient().writeTerminal(payload),
   resizeTerminal: (payload: ResizeTerminalPayload) => requireClient().resizeTerminal(payload),
   startThread: (payload: StartThreadPayload) => requireClient().startThread(payload),
@@ -239,6 +223,10 @@ const remoteBridge = {
     requireClient().updateSchedule(id, task),
   deleteSchedule: ({ id }: { id: string }) => requireClient().deleteSchedule(id),
   runScheduleNow: ({ id }: { id: string }) => requireClient().runScheduleNow(id),
+  getPrWatch: (input: PrWatchKey) => requireClient().getPrWatch(input),
+  checkPrWatch: (input: PrWatchKey) => requireClient().checkPrWatch(input),
+  upsertPrWatch: (input: PrWatchInput) => requireClient().upsertPrWatch(input),
+  deletePrWatch: (input: PrWatchKey) => requireClient().deletePrWatch(input),
 
   // Shared settings persist per device via the store's localStorage fallback.
   // Remote-editable keys (including persistent composer MCP enablement) are
@@ -247,6 +235,8 @@ const remoteBridge = {
     pushDesktopSettingsDiff(activeClient, settings);
     return Promise.resolve();
   },
+  removeCrossagentRoutingOverride: () =>
+    Promise.reject(new Error("Manual routing preferences can only be changed on desktop.")),
 
   // Shell conveniences with browser-native equivalents.
   openExternal: (url: string) => {
@@ -311,7 +301,8 @@ const remoteBridge = {
     payload.beforePosition === undefined
       ? Promise.resolve({ items: [], nextCursor: null })
       : requireClient().threadRuntimeItemsPage(payload),
-  dbTruncateThreadRuntimeAfter: () => Promise.resolve(),
+  dbTruncateThreadRuntimeAfter: (payload: { threadId: string; itemId: string }) =>
+    requireClient().truncateThreadRuntimeAfter(payload),
   dbGetThreadCompletedTurns: () => Promise.resolve([]),
   dbGetThreadContextUsage: () => Promise.resolve(null),
 
@@ -372,6 +363,7 @@ const remoteBridge = {
 
   // Event subscriptions: remote events arrive over the WebSocket instead.
   onSupervisorEvent: () => () => undefined,
+  onGitStateChanged: () => () => undefined,
   onUpdateStatus: () => () => undefined,
   onBrowserEvent: () => () => undefined,
   onRemoteThreadCommand: () => () => undefined,

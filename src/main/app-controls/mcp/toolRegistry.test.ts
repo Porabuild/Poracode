@@ -723,6 +723,9 @@ describe("Poracode app control tools — settings", () => {
     return {
       ...defaultSharedSettings,
       themeMode: "light",
+      agentSettings: {
+        cursor: { structuredRuntime: "sdk", sdkApiKey: "lc-safe:cursor-secret-token" },
+      },
       acpRegistryInstalledAgents: { registryAgent: { source: "x" } as never },
       agentInstances: {
         claudeProfile: {
@@ -772,7 +775,12 @@ describe("Poracode app control tools — settings", () => {
     };
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("super-secret-token");
+    expect(serialized).not.toContain("cursor-secret-token");
     expect(serialized).not.toContain("visible");
+    expect(
+      (result.settings as unknown as { agentSettings: Record<string, Record<string, string>> })
+        .agentSettings.cursor?.sdkApiKey,
+    ).toBe("«redacted»");
     const env = result.settings.agentInstances.claudeProfile?.environment;
     expect(env).toEqual({
       ANTHROPIC_API_KEY: { sensitive: true },
@@ -845,6 +853,20 @@ describe("Poracode app control tools — settings", () => {
     await expect(
       dispatchTool("update_settings", { patch: { agentInstances: {} } }, ctx),
     ).rejects.toThrow(/managed elsewhere/);
+    expect(settingsWrite).not.toHaveBeenCalled();
+  });
+
+  it("update_settings refuses sensitive agent settings", async () => {
+    const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
+    await expect(
+      dispatchTool(
+        "update_settings",
+        {
+          patch: { agentSettings: { cursor: { sdkApiKey: "replacement" } } },
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(/cursor\.sdkApiKey/);
     expect(settingsWrite).not.toHaveBeenCalled();
   });
 

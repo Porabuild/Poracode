@@ -208,6 +208,9 @@ function createController(
   devServerUrl?: string,
   channel: DesktopRemoteAccessControllerOptions["channel"] = "stable",
   notifyRemoteAccessPairingChanged?: DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"],
+  reportError: DesktopRemoteAccessControllerOptions["reportError"] = vi.fn<
+    DesktopRemoteAccessControllerOptions["reportError"]
+  >(),
 ) {
   const callSupervisor = vi.fn<() => Promise<Record<string, never>>>(
     async () => ({}),
@@ -230,8 +233,12 @@ function createController(
     notifyRemoteAccessPairingChanged:
       notifyRemoteAccessPairingChanged ??
       vi.fn<DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"]>(),
-    reportError: vi.fn<DesktopRemoteAccessControllerOptions["reportError"]>(),
+    notifyProjectStateChanged:
+      vi.fn<DesktopRemoteAccessControllerOptions["notifyProjectStateChanged"]>(),
+    reportError,
     scheduleService: {} as never,
+    prWatchService: {} as never,
+    gitStateService: {} as never,
   });
 }
 
@@ -476,6 +483,53 @@ describe("DesktopRemoteAccessController", () => {
     expect(h.settings.remoteAccessEnabled).toBe(true);
     expect(h.forwardings[0]?.dispose).toHaveBeenCalledTimes(1);
     expect(controller.getServer()).toBeNull();
+  });
+
+  it("reports an exhausted port conflict without its address and with normalized tags", async () => {
+    const start = deferred<RemoteAccessServerInfo>();
+    h.serverPlans.push({ startPromise: start.promise });
+    const reportError = vi.fn<DesktopRemoteAccessControllerOptions["reportError"]>();
+    const controller = createController(undefined, "stable", undefined, reportError);
+    const serverCreated = waitForNextServerCreated();
+
+    const enabling = controller.setEnabled(true);
+    await serverCreated;
+    const conflict = Object.assign(new Error("listen EADDRINUSE 192.168.1.20:38987"), {
+      code: "EADDRINUSE",
+    });
+    start.reject(conflict);
+
+    await expect(enabling).rejects.toBe(conflict);
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError.mock.calls[0]?.[0]).toMatchObject({
+      name: "RemoteAccessPortConflictError",
+      message: "Remote access server port remained unavailable after retries.",
+    });
+    expect(reportError.mock.calls[0]?.[1]).toEqual({
+      "poracode.feature_area": "remote-access",
+      "poracode.channel": "stable",
+      "poracode.platform": process.platform,
+      "event.origin": "remote-access.listen.port-conflict",
+    });
+    expect((reportError.mock.calls[0]![0] as Error).message).not.toContain("192.168");
+  });
+
+  it("does not report a port bind failure from a superseded shutdown race", async () => {
+    const start = deferred<RemoteAccessServerInfo>();
+    h.serverPlans.push({ startPromise: start.promise });
+    const reportError = vi.fn<DesktopRemoteAccessControllerOptions["reportError"]>();
+    const controller = createController(undefined, "stable", undefined, reportError);
+    const serverCreated = waitForNextServerCreated();
+
+    const enabling = controller.setEnabled(true);
+    await serverCreated;
+    await controller.setEnabled(false);
+    start.reject(
+      Object.assign(new Error("listen EADDRINUSE private-address"), { code: "EADDRINUSE" }),
+    );
+
+    await expect(enabling).resolves.toEqual({ status: "disabled" });
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it("keeps forwarding alive until a full disable finishes closing the server", async () => {

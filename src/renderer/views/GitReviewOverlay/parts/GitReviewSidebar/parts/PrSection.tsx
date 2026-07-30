@@ -23,6 +23,7 @@ import {
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
+import type { PrMergeMethod } from "@/shared/contracts";
 import { PixelLoader, PrCheckStatusText } from "@/renderer/components/common";
 import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
@@ -37,11 +38,11 @@ import {
 } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { countPassedPrChecks, getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
 import { PrWatchControls } from "./PrWatchControls";
-import { isRemoteSession } from "@/renderer/bridge";
 
 const BLOCK_REASON: Record<string, MessageDescriptor> = {
   BLOCKED: msg`Required reviews, conversations, or status checks not met.`,
@@ -59,7 +60,7 @@ export function PrSection(props: {
   prLoading: boolean;
   /** Which write action is in flight, so only its button spins (others stay disabled). */
   pendingAction?: PrWriteAction | null | undefined;
-  handleMergePr: (method: "merge" | "squash" | "rebase", admin?: boolean) => Promise<void>;
+  handleMergePr: (method: PrMergeMethod, admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
   handleUpdatePrBranch?: ((rebase?: boolean) => Promise<void>) | undefined;
@@ -92,6 +93,7 @@ export function PrSection(props: {
   const combinedChecksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
   const mergeStateStatus = usePrMergeStateStatus(prKey);
   const mergeable = usePrMergeable(prKey);
+  const prMergeMethod = useSharedSettings((s) => s.prMergeMethod);
   const requestedDetailsKey = useRef<string | undefined>(undefined);
   const [bypass, setBypass] = useState(false);
 
@@ -168,7 +170,7 @@ export function PrSection(props: {
             <Tooltip.Content placement="top">{t`Refresh`}</Tooltip.Content>
           </Tooltip>
         )}
-        {!isRemoteSession() && canReview && details?.headBranch && (
+        {canReview && details?.headBranch && (
           <PrWatchControls
             projectId={projectId}
             prNumber={number}
@@ -388,12 +390,18 @@ export function PrSection(props: {
               className="flex-1"
               isDisabled={prLoading || (isBlocked && !bypass)}
               isPending={pendingAction === "merge"}
-              onPress={() => void handleMergePr("squash", bypass)}
+              onPress={() => void handleMergePr(prMergeMethod, bypass)}
             >
               {({ isPending }) => (
                 <>
                   {isPending ? <PixelLoader size="xs" /> : <GitMerge className="size-3.5" />}
-                  <Trans>Merge PR: Squash</Trans>
+                  {prMergeMethod === "merge" ? (
+                    <Trans>Merge PR: Commit</Trans>
+                  ) : prMergeMethod === "rebase" ? (
+                    <Trans>Merge PR: Rebase</Trans>
+                  ) : (
+                    <Trans>Merge PR: Squash</Trans>
+                  )}
                 </>
               )}
             </Button>
@@ -413,12 +421,17 @@ export function PrSection(props: {
                   disabledKeys={isBlocked && !bypass ? ["merge", "squash", "rebase"] : []}
                   onAction={(key) => {
                     if (key === "close") void handleClosePr();
-                    else void handleMergePr(key as "merge" | "squash" | "rebase", bypass);
+                    else void handleMergePr(key as PrMergeMethod, bypass);
                   }}
                 >
                   <Dropdown.Item id="merge" textValue={t`Merge PR: Commit`}>
                     <Label>
                       <Trans>Merge PR: Commit</Trans>
+                    </Label>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="squash" textValue={t`Merge PR: Squash`}>
+                    <Label>
+                      <Trans>Merge PR: Squash</Trans>
                     </Label>
                   </Dropdown.Item>
                   <Dropdown.Item id="rebase" textValue={t`Merge PR: Rebase`}>

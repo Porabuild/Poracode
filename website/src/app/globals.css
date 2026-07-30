@@ -104,6 +104,42 @@ body {
   }
 }
 
+/* Uniform-cell grids: stretch the final item across the remainder so a partial
+   last row never leaves an empty cell showing the container background. Done in
+   CSS because it has to be right at every breakpoint the grid declares — a
+   span computed in JS only knows about one of them. Cells must be equal-width
+   (no per-item spans) for the nth-child arithmetic to hold. */
+@media (min-width: 640px) {
+  .grid-fill-last > :last-child:nth-child(2n + 1) {
+    grid-column: span 2;
+  }
+}
+@media (min-width: 1024px) {
+  .grid-fill-last > :last-child {
+    grid-column: auto;
+  }
+  .grid-fill-last > :last-child:nth-child(3n + 1) {
+    grid-column: span 3;
+  }
+  .grid-fill-last > :last-child:nth-child(3n + 2) {
+    grid-column: span 2;
+  }
+}
+
+/* Lightbox entrance. The reduced-motion block below collapses every animation
+   duration globally, so this needs no separate opt-out. */
+.lightbox-in {
+  animation: lightbox-in 0.18s ease-out both;
+}
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* The brand forbids text gradients — the headline accent is the SVG Pora dot
    (DotPeriod), never a clipped gradient. No `.brand-gradient-text` /
    `.brand-shimmer` helpers exist by design. */

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SessionNotification } from "@agentclientprotocol/sdk";
 import {
   createAcpMapperState,
@@ -9,6 +9,7 @@ import {
   PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
   PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "../acp/canonicalMapping";
+import { AcpStructuredSession } from "../acp/session";
 import { createQwenAcpSessionBridge, createQwenAcpSessionUpdateTransform } from "./acpTransform";
 
 function note(update: Record<string, unknown>): SessionNotification {
@@ -465,5 +466,121 @@ describe("createQwenAcpSessionUpdateTransform", () => {
         updatedAt: expect.any(Number),
       },
     });
+  });
+});
+
+/**
+ * Wire-level regression for the missing working status on Qwen threads.
+ *
+ * Qwen resolves `session/prompt` the instant a backgrounded subagent reports,
+ * then opens a turn of its own — under a `notification<epoch>` prompt id — that
+ * can run for tens of minutes doing real main-agent work. Those follow-up
+ * notifications carry no subagent tag, so the shared session has to recognise
+ * them as live work on its own. This drives the real transform into a real
+ * `AcpStructuredSession` to prove the whole path, not just the transform.
+ */
+describe("Qwen background-notification turns drive shared session status", () => {
+  function makeSession(transform: ReturnType<typeof createQwenAcpSessionUpdateTransform>) {
+    const listener = {
+      onClose: vi.fn<() => void>(),
+      onError: vi.fn<(message: string) => void>(),
+      onUpdate: vi.fn<(update: unknown) => void>(),
+      onRuntimeEvent: vi.fn<(event: unknown) => void>(),
+    };
+    // Only the fields `handleSessionUpdate` reaches; the constructor spawns a
+    // child process, which this path does not need.
+    const session = Object.create(AcpStructuredSession.prototype) as Record<string, unknown>;
+    Object.assign(session, {
+      threadId: "thread-qwen",
+      sessionId: "qwen-session",
+      projectLocation: { kind: "posix", path: "/repo" },
+      cwd: "/repo",
+      listener,
+      sessionUpdateTransform: transform,
+      acpToolCallIdToItemId: new Map(),
+      detachedTurnParentToolCallIds: new Set(),
+      bufferedRuntimeEvents: [],
+      currentStatus: "idle",
+      currentAttention: "none",
+      isDisposed: false,
+      isReplayingHistory: false,
+      promptInFlight: false,
+      foregroundTurnOpen: false,
+      stderrChunks: [],
+      mapperState: undefined,
+    });
+    return {
+      listener,
+      feed: (update: Record<string, unknown>) =>
+        (
+          session as unknown as { handleSessionUpdate(n: SessionNotification): void }
+        ).handleSessionUpdate(note(update)),
+    };
+  }
+
+  it("paints working for main-agent work that follows a background subagent report", () => {
+    const bridge = createQwenAcpSessionBridge();
+    const { listener, feed } = makeSession(bridge.sessionUpdateTransform);
+
+    // The backgrounded subagent launches and reports out of band. Our prompt has
+    // already settled by this point, so nothing is in flight.
+    feed({
+      sessionUpdate: "tool_call",
+      toolCallId: "agent-bg",
+      title: "Agent",
+      status: "pending",
+      _meta: { toolName: "agent" },
+    });
+    feed({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-bg",
+      status: "completed",
+      content: [
+        { type: "content", content: { type: "text", text: "agentId: Explore-bg1 (internal ID)" } },
+      ],
+      rawOutput: { status: "background", subagentName: "Explore" },
+      _meta: { toolName: "agent" },
+    });
+    feed({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "Background completed." },
+      _meta: {
+        source: "background_notification",
+        backgroundTask: { taskId: "Explore-bg1", status: "completed" },
+      },
+    });
+
+    // Qwen's real terminal boundary for the background report.
+    const boundary = bridge.extensionSessionUpdateTransform("_qwencode/end_turn", {
+      sessionId: "qwen-session",
+      reason: "end_turn",
+      source: "background_notification",
+    });
+    expect(boundary).toBeDefined();
+    feed(boundary!.update as Record<string, unknown>);
+
+    listener.onUpdate.mockClear();
+    listener.onRuntimeEvent.mockClear();
+
+    // Everything from here is Qwen's self-started turn: untagged main-agent
+    // reasoning and edits. This is the stretch that used to run with no turn.
+    feed({
+      sessionUpdate: "agent_thought_chunk",
+      content: { type: "text", text: "Now let me apply the fix." },
+    });
+    feed({
+      sessionUpdate: "tool_call",
+      toolCallId: "edit-1",
+      title: "Edit runtimeItems.ts",
+      kind: "edit",
+      status: "in_progress",
+    });
+
+    expect(listener.onUpdate).toHaveBeenCalledWith({ status: "working", attention: "working" });
+    expect(
+      listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string })
+        .filter((event) => event.type === "turn.started"),
+    ).toHaveLength(1);
   });
 });

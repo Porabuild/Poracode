@@ -5,7 +5,7 @@ import { memo, useState, type ReactNode } from "react";
 import { readBridge } from "@/renderer/bridge";
 import { openImageLightbox } from "@/renderer/components/composer/ImageLightbox";
 import { friendlyError } from "@/shared/messages";
-import { chatInlineImageClass } from "./chatImageClass";
+import { chatInlineImageClass, reserveInlineImageSlot } from "./chatImageClass";
 import type { ImageViewSource } from "./imageViewSource";
 
 interface ImageCardProps {
@@ -28,6 +28,16 @@ export const ImageCard = memo(function ImageCard({
   const { t } = useLingui();
   const imageAlt = source.alt || t`Image`;
   const openPreview = () => openImageLightbox([{ src: source.src, alt: imageAlt }], 0);
+  // A `data:` source is already in hand, so it paints on the first frame; fading
+  // it would only add perceived latency. Anything fetched over the network gets
+  // the crossfade (and the blurred stand-in, when the host supplied one).
+  const fadesIn = !source.src.startsWith("data:");
+  const [loaded, setLoaded] = useState(!fadesIn);
+  const showPreview = fadesIn && !loaded && Boolean(source.preview);
+  // Reserve the final box up front so the transcript never reflows when a
+  // fetched image lands. Inline `data:` images paint immediately and keep the
+  // natural `w-auto` sizing.
+  const reservedSlot = fadesIn ? reserveInlineImageSlot(source.width, source.height) : undefined;
 
   return (
     <span
@@ -36,17 +46,32 @@ export const ImageCard = memo(function ImageCard({
     >
       <button
         type="button"
-        className="block cursor-zoom-in bg-black/20"
+        className="relative block cursor-zoom-in bg-black/20"
         aria-label={t`Open image preview`}
         onClick={openPreview}
       >
+        {/* Blurred stand-in for a host-held image, painted in the slot the <img>
+            has already reserved via its intrinsic width/height. Scaled past the
+            edges so the blur has no visible border, and dropped from the tree
+            once the real image paints. Inline images are already decoded, so
+            they skip the fade entirely and never flash. */}
+        {showPreview ? (
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 scale-110 bg-cover bg-center blur-lg"
+            style={{ backgroundImage: `url("${source.preview!}")` }}
+          />
+        ) : null}
         <img
           src={source.src}
           alt={imageAlt}
           draggable={false}
           decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
           {...(source.width && source.height ? { width: source.width, height: source.height } : {})}
-          className={`${chatInlineImageClass}${imageClassName ? ` ${imageClassName}` : ""}`}
+          {...(reservedSlot ? { style: reservedSlot } : {})}
+          className={`${chatInlineImageClass} relative${fadesIn ? ` transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}` : ""}${imageClassName ? ` ${imageClassName}` : ""}`}
         />
       </button>
       <span className="poracode-image-action-toolbar absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 backdrop-blur-sm transition-opacity duration-150">

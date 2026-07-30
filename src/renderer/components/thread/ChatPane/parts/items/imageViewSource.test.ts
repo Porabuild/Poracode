@@ -1,6 +1,8 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { remoteImageRef } from "@/shared/remote";
+import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import {
   imageViewRendersInline,
   imageViewSourceFromImageBlock,
@@ -156,5 +158,65 @@ describe("imageViewRendersInline", () => {
     expect(
       imageViewRendersInline({ name: "imageGeneration", status: "error", result: PNG_BASE64 }),
     ).toBe(false);
+  });
+});
+
+describe("host-minted image references", () => {
+  const ref = remoteImageRef({
+    threadId: "t1",
+    itemId: "i1",
+    path: ["images", 0],
+    mime: "image/jpeg",
+    bytes: 4096,
+    width: 800,
+    height: 600,
+  });
+
+  afterEach(() => {
+    setRemoteImageRefResolver(null);
+  });
+
+  it("resolves a reference through the installed resolver", () => {
+    setRemoteImageRefResolver((value) => `https://desktop.test/img/${value.itemId}`);
+    const source = resolveImageViewSource({
+      name: "imageView",
+      status: "success",
+      images: [ref],
+      args: { prompt: "a cat" },
+    });
+    expect(source).toMatchObject({
+      src: "https://desktop.test/img/i1",
+      mime: "image/jpeg",
+      extension: "jpg",
+      alt: "a cat",
+      // Carried on the reference so the row reserves layout before loading.
+      width: 800,
+      height: 600,
+    });
+    expect(source?.fileName).toBe("a-cat.jpg");
+  });
+
+  it("groups as an inline image so the timeline does not demote the row", () => {
+    setRemoteImageRefResolver(() => "https://desktop.test/img/i1");
+    expect(imageViewRendersInline({ status: "success", images: [ref] })).toBe(true);
+  });
+
+  it("falls back to the accordion when nothing can resolve the reference", () => {
+    // The desktop shell installs no resolver: better an inert accordion than a
+    // broken <img>.
+    expect(resolveImageViewSource({ status: "success", images: [ref] })).toBeNull();
+    setRemoteImageRefResolver(() => "");
+    expect(resolveImageViewSource({ status: "success", images: [ref] })).toBeNull();
+  });
+
+  it("shows the accordion for an errored payload even with a reference", () => {
+    setRemoteImageRefResolver(() => "https://desktop.test/img/i1");
+    expect(imageViewRendersInline({ status: "error", images: [ref] })).toBe(false);
+    expect(resolveImageViewSource({ status: "error", images: [ref] })).toBeNull();
+  });
+
+  it("still renders payloads that kept their inline bytes", () => {
+    setRemoteImageRefResolver(() => "https://desktop.test/img/i1");
+    expect(resolveImageViewSource({ result: PNG_BASE64 })?.src).toContain("data:image/png;base64,");
   });
 });

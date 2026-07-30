@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import {
   isSidebarGroupCollapsed,
   SIDEBAR_THREAD_LIST_PAGE_SIZE,
@@ -59,7 +58,6 @@ export const useSidebarUiStore = create<SidebarUiState>()(
         set((state) => {
           if ((state.collapsedProjects[projectId] ?? false) === collapsed) return {};
           const collapsedProjects = { ...state.collapsedProjects, [projectId]: collapsed };
-          captureProductEvent("ui.project_group_toggled", { collapsed });
           // Collapsing resets the revealed page count so reopening starts fresh.
           return collapsed
             ? { collapsedProjects, threadListLimits: withoutKey(state.threadListLimits, projectId) }
@@ -69,7 +67,6 @@ export const useSidebarUiStore = create<SidebarUiState>()(
         set((state) => {
           const collapsed = !(state.collapsedProjects[projectId] ?? false);
           const collapsedProjects = { ...state.collapsedProjects, [projectId]: collapsed };
-          captureProductEvent("ui.project_group_toggled", { collapsed });
           return collapsed
             ? { collapsedProjects, threadListLimits: withoutKey(state.threadListLimits, projectId) }
             : { collapsedProjects };
@@ -90,13 +87,11 @@ export const useSidebarUiStore = create<SidebarUiState>()(
       setWorktreeCollapsed: (key, collapsed) =>
         set((state) => {
           if (isSidebarGroupCollapsed(state.collapsedWorktrees, key) === collapsed) return {};
-          captureProductEvent("ui.worktree_group_toggled", { collapsed });
           return { collapsedWorktrees: { ...state.collapsedWorktrees, [key]: collapsed } };
         }),
       toggleWorktreeCollapsed: (key) =>
         set((state) => {
           const collapsed = !isSidebarGroupCollapsed(state.collapsedWorktrees, key);
-          captureProductEvent("ui.worktree_group_toggled", { collapsed });
           return {
             collapsedWorktrees: {
               ...state.collapsedWorktrees,
@@ -107,7 +102,6 @@ export const useSidebarUiStore = create<SidebarUiState>()(
       revealMoreThreads: (projectId) =>
         set((state) => {
           const current = state.threadListLimits[projectId] ?? SIDEBAR_THREAD_LIST_PAGE_SIZE;
-          captureProductEvent("ui.thread_list_show_more");
           return {
             threadListLimits: {
               ...state.threadListLimits,

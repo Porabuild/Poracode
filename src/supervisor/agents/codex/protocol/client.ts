@@ -13,6 +13,8 @@ import type {
   ThreadForkResponse,
   ThreadGoalClearParams,
   ThreadGoalClearResponse,
+  ThreadGoalGetParams,
+  ThreadGoalGetResponse,
   ThreadGoalSetParams,
   ThreadGoalSetResponse,
   ThreadReadParams,
@@ -52,6 +54,8 @@ export type {
   ThreadForkResponse,
   ThreadGoalClearParams,
   ThreadGoalClearResponse,
+  ThreadGoalGetParams,
+  ThreadGoalGetResponse,
   ThreadGoalSetParams,
   ThreadGoalSetResponse,
   ThreadReadParams,
@@ -80,6 +84,7 @@ export interface CodexClientRequestMap {
   "thread/unsubscribe": { params: ThreadUnsubscribeParams; result: ThreadUnsubscribeResponse };
   "thread/rollback": { params: ThreadRollbackParams; result: ThreadRollbackResponse };
   "thread/goal/set": { params: ThreadGoalSetParams; result: ThreadGoalSetResponse };
+  "thread/goal/get": { params: ThreadGoalGetParams; result: ThreadGoalGetResponse };
   "thread/goal/clear": { params: ThreadGoalClearParams; result: ThreadGoalClearResponse };
   "turn/start": { params: TurnStartParams; result: TurnStartResponse };
   "turn/interrupt": { params: TurnInterruptParams; result: TurnInterruptResponse };

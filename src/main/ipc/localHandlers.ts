@@ -47,6 +47,7 @@ import {
   setProfileIdentityResponse,
 } from "../profile";
 import {
+  applyAgentSecretSetting,
   applyClaudeProfileEnvironment,
   mergeManagedSharedSettings,
   readSharedSettingsFile,
@@ -68,6 +69,7 @@ import {
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { SharedSettings } from "@/shared/settings";
+import { removeCrossagentRoutingOverride } from "@/shared/crossagentRanking";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
@@ -350,6 +352,26 @@ export function createLocalIpcHandlers(
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.(merged);
     },
+    setAgentSecretSetting: (payload) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const { settings, storedValue } = applyAgentSecretSetting(
+        readSharedSettingsFile(settingsPath),
+        payload,
+        dirname(settingsPath),
+      );
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return { storedValue };
+    },
+    removeCrossagentRoutingOverride: ({ tags }) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const current = readSharedSettingsFile(settingsPath);
+      const overrides = removeCrossagentRoutingOverride(current.crossagentRoutingOverrides, tags);
+      const settings = { ...current, crossagentRoutingOverrides: overrides };
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return overrides;
+    },
     setClaudeProfileEnvironment: (payload) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
       const { settings, instance } = applyClaudeProfileEnvironment(
@@ -446,6 +468,8 @@ export function createLocalIpcHandlers(
     runScheduleNow: ({ id }) => options.scheduleService.runNow(id),
     getScheduleRuns: ({ id }) => dbListScheduleRuns(id),
     getPrWatch: ({ projectId, prNumber }) => options.prWatchService.get(projectId, prNumber),
+    checkPrWatch: ({ projectId, prNumber }) =>
+      options.prWatchService.requestCheck(projectId, prNumber),
     upsertPrWatch: (watch) => options.prWatchService.upsert(watch),
     deletePrWatch: ({ projectId, prNumber }) => options.prWatchService.delete(projectId, prNumber),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),

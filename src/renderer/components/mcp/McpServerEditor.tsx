@@ -247,7 +247,7 @@ export function McpServerEditor(props: {
                         onChange={(event) => update("name", event.target.value)}
                       />
                     </Field>
-                    <div className="space-y-1.5">
+                    <div className="flex flex-col gap-1.5">
                       <Label className="text-xs font-medium text-foreground">{t`Type`}</Label>
                       <Select
                         aria-label={t`MCP transport type`}
@@ -370,7 +370,7 @@ export function McpServerEditor(props: {
                   </Field>
                 </div>
               ) : (
-                <TextField className="space-y-2" isInvalid={jsonError !== undefined}>
+                <TextField className="gap-2" isInvalid={jsonError !== undefined}>
                   <Label className="text-xs font-medium text-foreground">
                     <Trans>Full configuration</Trans>
                   </Label>
@@ -420,7 +420,7 @@ function Field(props: {
   children: ReactNode;
 }) {
   return (
-    <TextField className="space-y-1.5" isInvalid={props.error !== undefined}>
+    <TextField className="gap-1.5" isInvalid={props.error !== undefined}>
       <div className="flex items-baseline justify-between gap-3">
         <Label className="text-xs font-medium text-foreground">{props.label}</Label>
         {props.hint ? (

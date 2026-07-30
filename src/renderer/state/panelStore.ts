@@ -50,6 +50,7 @@ export type RightPanelTab =
   | "usage"
   | "notes"
   | "ports"
+  | "plan"
   | "subagent";
 
 interface PanelState {

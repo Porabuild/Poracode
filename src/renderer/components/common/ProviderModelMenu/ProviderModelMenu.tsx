@@ -66,6 +66,8 @@ export interface ProviderModelMenuProps {
   lockedAgentKind?: string;
   presentationMode?: ThreadPresentationMode;
   isDisabled?: boolean;
+  /** Fast mode is on for the current draft, so supported rows mark it filled. */
+  isFastEnabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
   collapseTier?: number;
@@ -259,6 +261,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     lockedAgentKind,
     presentationMode,
     isDisabled,
+    isFastEnabled = false,
     hideLabelOnWrap,
     forceHideLabel = false,
     collapseTier,
@@ -472,6 +475,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           modelRowHeight={mobile ? MODEL_MENU_ROW_HEIGHT_MOBILE : MODEL_MENU_ROW_HEIGHT}
           mobile={mobile}
           mobileExpanded={mobile && expanded}
+          isFastEnabled={isFastEnabled}
           toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
             toggleFavoriteModel(
               providerKind,
@@ -520,6 +524,7 @@ function WindowedProviderModelList(props: {
   modelRowHeight: number;
   mobile: boolean;
   mobileExpanded: boolean;
+  isFastEnabled: boolean;
   toggleFavorite: (
     providerKind: string,
     modelId: string,
@@ -535,6 +540,7 @@ function WindowedProviderModelList(props: {
     modelRowHeight,
     mobile,
     mobileExpanded,
+    isFastEnabled,
     toggleFavorite,
     onSelect,
   } = props;
@@ -818,10 +824,16 @@ function WindowedProviderModelList(props: {
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                   <span className="min-w-0 truncate">{name}</span>
                   {item.supportsFast ? (
+                    // Filled while Fast mode is on, outlined when the model
+                    // merely supports it.
                     <Zap
                       role="img"
-                      aria-label={t`Supports Fast mode`}
-                      className="size-3 shrink-0 text-muted/60"
+                      aria-label={isFastEnabled ? t`Fast mode` : t`Supports Fast mode`}
+                      className={
+                        isFastEnabled
+                          ? "size-3 shrink-0 fill-current text-muted"
+                          : "size-3 shrink-0 text-muted/60"
+                      }
                     />
                   ) : null}
                   {mutedHint ? (

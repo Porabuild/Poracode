@@ -1,7 +1,7 @@
-import { Modal } from "@heroui/react";
-import { Trans } from "@lingui/react/macro";
+import { Modal, ToggleButton, ToggleButtonGroup } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Crown } from "lucide-react";
-import type { AgentStatus } from "@/shared/contracts";
+import type { AgentStatus, ExperimentJudgeMode } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import {
   buildModelPickerControls,
@@ -19,11 +19,12 @@ export interface ExperimentJudgeConfig {
   model: string;
   effort: string;
   fast: boolean;
+  mode: ExperimentJudgeMode;
 }
 
 export function resolveExperimentJudgeConfig(
   agents: readonly AgentStatus[],
-  saved: ExperimentJudgeConfig,
+  saved: Omit<ExperimentJudgeConfig, "mode"> & { mode?: ExperimentJudgeMode },
 ): ExperimentJudgeConfig | null {
   const agent = agents.find((candidate) => candidate.kind === saved.agentKind) ?? agents[0];
   if (!agent) return null;
@@ -35,6 +36,7 @@ export function resolveExperimentJudgeConfig(
     model,
     effort: resolveEffortValue(agent, model, useSavedConfig ? saved.effort : undefined),
     fast: resolveFastValue(agent, model, useSavedConfig ? saved.fast : undefined),
+    mode: saved.mode ?? "changes",
   };
 }
 
@@ -45,6 +47,7 @@ export function ExperimentJudgeDialog(props: {
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t } = useLingui();
   const selectedAgent =
     props.agents.find((candidate) => candidate.kind === props.config.agentKind) ?? props.agents[0];
   const controls = selectedAgent
@@ -66,6 +69,7 @@ export function ExperimentJudgeDialog(props: {
             model,
             effort: resolveEffortValue(nextAgent, model, props.config.effort),
             fast: resolveFastValue(nextAgent, model, props.config.fast),
+            mode: props.config.mode,
           });
         },
         onConfigPatch: (patch) => {
@@ -93,11 +97,37 @@ export function ExperimentJudgeDialog(props: {
           </Modal.Header>
           <Modal.Body className="flex flex-col gap-5">
             <p className="text-sm text-muted">
-              <Trans>
-                The selected model compares snapshots of each candidate's changes under anonymous
-                labels. It recommends a winner without merging anything.
-              </Trans>
+              {props.config.mode === "responses" ? (
+                <Trans>
+                  The selected model compares each candidate's chat response under anonymous labels.
+                  Files in their worktrees are ignored.
+                </Trans>
+              ) : (
+                <Trans>
+                  The selected model compares snapshots of each candidate's changes under anonymous
+                  labels. It recommends a winner without merging anything.
+                </Trans>
+              )}
             </p>
+            <ToggleButtonGroup
+              aria-label={t`Mode`}
+              className="h-8 w-fit [&_button]:h-8 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-3"
+              selectionMode="single"
+              disallowEmptySelection
+              size="sm"
+              selectedKeys={[props.config.mode]}
+              onSelectionChange={(keys) => {
+                const mode = [...keys][0] as ExperimentJudgeMode | undefined;
+                if (mode) props.onChange({ ...props.config, mode });
+              }}
+            >
+              <ToggleButton id="changes">
+                <Trans>Changes</Trans>
+              </ToggleButton>
+              <ToggleButton id="responses">
+                <Trans>Chat</Trans>
+              </ToggleButton>
+            </ToggleButtonGroup>
             <div className="-ml-1.5">
               <ThreadComposer
                 compact

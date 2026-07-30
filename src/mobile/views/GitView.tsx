@@ -130,6 +130,7 @@ export function GitView(props: {
     const branch = worktreeBranch ?? status?.branch;
     if (!branch) return;
     await refreshMobilePrData({
+      projectId: project.id,
       projectLocation: project.location,
       branch,
       prKey: resolvePrKey(project.id, worktreePath),

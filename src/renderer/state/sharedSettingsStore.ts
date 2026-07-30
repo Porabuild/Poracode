@@ -16,7 +16,9 @@ import type {
   InstalledAcpRegistryAgent,
   NewThreadMode,
   NotificationFilter,
+  PrAutomationMode,
   PrCreateMode,
+  PrMergeMethod,
   ProviderDraftConfig,
   TerminalPosition,
   ThemeMode,
@@ -25,7 +27,10 @@ import type {
   WorktreeStorageMode,
   BuiltInMcpServerId,
   McpServer,
+  Workspace,
 } from "@/shared/contracts";
+import { nextWorkspaceIconId } from "@/shared/contracts";
+import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
 
 const STORAGE_KEY = "poracode-shared-settings";
 
@@ -61,6 +66,7 @@ interface SharedSettingsState extends SharedSettings {
   ) => void;
   setWslConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
   setAgentSetting: (agentKind: string, key: string, value: boolean | string) => void;
+  setAgentSecretSetting: (agentKind: string, key: string, value: string) => Promise<boolean>;
   setModelHidden: (agentKind: string, modelId: string, hidden: boolean) => void;
   setHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setAgentDisabled: (agentKind: string, disabled: boolean) => void;
@@ -90,6 +96,8 @@ interface SharedSettingsState extends SharedSettings {
   setWslWorktreeBasePath: (value: string) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
+  setPrAutomationDefault: (value: PrAutomationMode) => void;
+  setPrMergeMethod: (value: PrMergeMethod) => void;
   setCommitDefaultAction: (value: CommitDefaultAction) => void;
   setEditorLspEnabled: (value: boolean) => void;
   setSearchUseIgnoreFiles: (value: boolean) => void;
@@ -134,6 +142,13 @@ interface SharedSettingsState extends SharedSettings {
     error?: boolean;
   }) => void;
   setNotifyL2Cli: (value: boolean) => void;
+  /** Append a workspace and return it, so callers can activate the new entry. */
+  addWorkspace: (name: string) => Workspace;
+  renameWorkspace: (workspaceId: string, name: string) => void;
+  /** Remove a workspace. No-op on the last remaining one — a project must always have a home. */
+  removeWorkspace: (workspaceId: string) => void;
+  /** Replace the whole list in one persist write (used to seed the defaults). */
+  setWorkspaces: (workspaces: Workspace[]) => void;
   toggleFavoriteModel: (
     agentKind: string,
     modelId: string,
@@ -156,11 +171,12 @@ interface SharedSettingsState extends SharedSettings {
     agentKind: string,
     modelId: string,
     presentationMode: ThreadPresentationMode,
+    effort?: string,
+    fast?: boolean,
   ) => void;
 }
 
 const RECENT_MODELS_LIMIT = 16;
-
 function hasBridge(): boolean {
   return typeof window !== "undefined" && window.poracode !== undefined;
 }
@@ -349,6 +365,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ agentSettings: { ...current, [agentKind]: agentValues } });
     persistSettings(selectSharedSettings(get()));
   },
+  setAgentSecretSetting: async (agentKind, key, value) => {
+    const { storedValue } = await readBridge().setAgentSecretSetting({ agentKind, key, value });
+    const current = get().agentSettings;
+    const agentValues = { ...current[agentKind] };
+    if (storedValue === null) delete agentValues[key];
+    else agentValues[key] = storedValue;
+    set({ agentSettings: { ...current, [agentKind]: agentValues } });
+    cacheSettingsSnapshot(selectSharedSettings(get()));
+    return storedValue !== null;
+  },
   setModelHidden: (agentKind, modelId, hidden) => {
     const current = get().hiddenModels;
     const list = current[agentKind] ?? [];
@@ -493,6 +519,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   setPrCreateMode: (prCreateMode) => {
     if (get().prCreateMode === prCreateMode) return;
     set({ prCreateMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrAutomationDefault: (prAutomationDefault) => {
+    if (get().prAutomationDefault === prAutomationDefault) return;
+    set({ prAutomationDefault });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrMergeMethod: (prMergeMethod) => {
+    if (get().prMergeMethod === prMergeMethod) return;
+    set({ prMergeMethod });
     persistSettings(selectSharedSettings(get()));
   },
   setCommitDefaultAction: (commitDefaultAction) => {
@@ -688,6 +724,36 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ notifyL2Cli });
     persistSettings(selectSharedSettings(get()));
   },
+  addWorkspace: (name) => {
+    const current = get().workspaces;
+    const workspace: Workspace = {
+      id: crypto.randomUUID(),
+      name,
+      createdAt: new Date().toISOString(),
+      icon: nextWorkspaceIconId(current),
+    };
+    set({ workspaces: [...current, workspace] });
+    persistSettings(selectSharedSettings(get()));
+    return workspace;
+  },
+  renameWorkspace: (workspaceId, name) => {
+    const current = get().workspaces;
+    if (!current.some((w) => w.id === workspaceId && w.name !== name)) return;
+    set({ workspaces: current.map((w) => (w.id === workspaceId ? { ...w, name } : w)) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  removeWorkspace: (workspaceId) => {
+    const current = get().workspaces;
+    // Refuse to drop the last workspace: with none left there is no valid
+    // active id, and every project would render as unfiled.
+    if (current.length <= 1 || !current.some((w) => w.id === workspaceId)) return;
+    set({ workspaces: current.filter((w) => w.id !== workspaceId) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWorkspaces: (workspaces) => {
+    set({ workspaces });
+    persistSettings(selectSharedSettings(get()));
+  },
   toggleFavoriteModel: (agentKind, modelId, presentationMode) => {
     const current = get().favoriteModels;
     const idx = current.findIndex(
@@ -720,7 +786,7 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ crossagentRoutingGuide });
     persistSettings(selectSharedSettings(get()));
   },
-  pushRecentModel: (agentKind, modelId, presentationMode) => {
+  pushRecentModel: (agentKind, modelId, presentationMode, effort, fast) => {
     const current = get().recentModels;
     const samePresentation = current.filter((m) => m.presentationMode === presentationMode);
     const otherPresentations = current.filter((m) => m.presentationMode !== presentationMode);
@@ -732,18 +798,26 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       RECENT_MODELS_LIMIT,
     );
     const next = [...nextForPresentation, ...otherPresentations].slice(0, RECENT_MODELS_LIMIT * 2);
-    if (
+    const agentSelectionUsage = incrementAgentSelectionUsage(get().agentSelectionUsage, [
+      {
+        agentKind,
+        modelId,
+        ...(effort ? { effort } : {}),
+        fast: fast === true,
+      },
+    ]);
+    const recentsUnchanged =
       current.length === next.length &&
       current.every(
         (m, i) =>
           m.agentKind === next[i]!.agentKind &&
           m.modelId === next[i]!.modelId &&
           m.presentationMode === next[i]!.presentationMode,
-      )
-    ) {
-      return;
-    }
-    set({ recentModels: next });
+      );
+    set({
+      ...(recentsUnchanged ? {} : { recentModels: next }),
+      agentSelectionUsage,
+    });
     persistSettings(selectSharedSettings(get()));
   },
 }));
@@ -819,6 +893,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     wslWorktreeBasePath: state.wslWorktreeBasePath,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,
+    prAutomationDefault: state.prAutomationDefault,
+    prMergeMethod: state.prMergeMethod,
     commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
@@ -839,8 +915,10 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     notifyL2Cli: state.notifyL2Cli,
     remotePushEnabled: state.remotePushEnabled,
     remotePushRedactContent: state.remotePushRedactContent,
+    workspaces: state.workspaces,
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
+    agentSelectionUsage: state.agentSelectionUsage,
     browser: state.browser,
     audio: state.audio,
     usage: state.usage,

@@ -7,6 +7,7 @@ import type {
   ResolvedMcpServer,
 } from "@/shared/contracts";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
+import type { CrossagentRankSource } from "@/shared/crossagentRanking";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 
 /** Terminal states a subagent run can settle into. */
@@ -98,6 +99,16 @@ export interface SpawnableAgent {
     default: "full-access";
   };
   execution: SpawnableAgentExecution;
+  preference?: {
+    rank: number;
+    source: CrossagentRankSource;
+    usageCount: number;
+    model: string;
+    reasoning?: string;
+    fast: boolean;
+    matchedTags?: string[];
+    learnedTags?: Array<{ tag: string; count: number }>;
+  };
 }
 
 /** Compact first-stage provider discovery returned by `list_agents`. */
@@ -107,22 +118,85 @@ export interface SpawnableAgentSummary {
   execution: SpawnableAgentExecution;
   defaultModel: string;
   modelCount: number;
+  rank: number;
+  preferenceSource: CrossagentRankSource;
+  usageCount: number;
+  preferredModel: string;
+  preferredReasoning?: string;
+  preferredFast: boolean;
+  matchedTags: string[];
+  learnedTags: Array<{ tag: string; count: number }>;
 }
 
-/** Arguments accepted by `spawn_agent` / `run_agent`. */
-export interface SpawnAgentRequest {
+/** Provider/model selection for one subagent attempt. */
+export interface SpawnAgentSelection {
   agent: string;
   model?: string;
   effort?: string;
   fast?: boolean;
+}
+
+export interface ExplicitSpawnAgentSelection {
+  selection: SpawnAgentSelection;
+  tags: string[];
+  explicitFields: {
+    provider: boolean;
+    model: boolean;
+    effort: boolean;
+    fast: boolean;
+  };
+}
+
+/** Arguments accepted by `spawn_agent` / `run_agent`. */
+export interface SpawnAgentRequest extends SpawnAgentSelection {
   prompt: string;
   name?: string;
+  /**
+   * Run without blocking the parent agent. Background runs remain tied to the
+   * parent thread, survive interruption of its current turn, and are cancelled
+   * when that thread closes.
+   */
+  background?: boolean;
+  /** Ordered alternate selections tried after a failed attempt. */
+  fallbacks?: SpawnAgentSelection[];
+  /**
+   * `startup` retries only before a turn was dispatched (safe default).
+   * `any-failure` may repeat work that already changed files or external state.
+   */
+  retryMode?: "startup" | "any-failure";
+}
+
+/** One completed attempt in a retry/fallback chain. */
+export interface SubagentAttemptResult {
+  attempt: number;
+  provider: string;
+  model: string;
+  status: Exclude<SubagentRunStatus, "running">;
+  output: string;
+  error?: string;
+  may_have_side_effects?: boolean;
 }
 
 /** Result of `wait_for_agent` / `run_agent`. */
 export interface SubagentWaitResult {
   status: SubagentRunStatus;
   output: string;
+  error?: {
+    message: string;
+    may_have_side_effects: boolean;
+  };
+  /** Included only for runs configured with fallbacks. */
+  attempts?: SubagentAttemptResult[];
+}
+
+/** Caller-scoped summary returned by `list_runs`. */
+export interface SubagentRunSummary {
+  run_id: string;
+  name: string;
+  status: SubagentRunStatus;
+  background: boolean;
+  attempt: number;
+  attempt_count: number;
 }
 
 /**
