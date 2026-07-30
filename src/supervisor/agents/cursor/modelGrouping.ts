@@ -11,7 +11,7 @@ import { parseCursorModelId } from "@/shared/cursorModelId";
 export const CURSOR_MODEL_GROUP_ID = "cursor";
 export const OTHER_MODEL_GROUP_ID = "other";
 
-const CURSOR_FIRST_PARTY_MODEL_RE = /^(?:auto(?:-smart)?|composer(?:-|$))/iu;
+const CURSOR_FIRST_PARTY_MODEL_RE = /^(?:default$|auto(?:-smart)?|composer(?:-|$))/iu;
 
 export function cursorModelGroup(modelId: string): "cursor" | "other" {
   const baseId = parseCursorModelId(modelId).baseId;

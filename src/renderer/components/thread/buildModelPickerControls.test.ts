@@ -185,6 +185,30 @@ describe("buildProviderModelMenuProviders", () => {
     ]);
   });
 
+  it("uses Cursor defaults until a visibility surface is explicitly configured", () => {
+    const withDefaults: AgentStatus = {
+      ...cursorStatus,
+      capabilities: {
+        ...cursorStatus.capabilities,
+        defaultHiddenModels: ["gpt-5"],
+      },
+    };
+
+    const defaultProviders = buildProviderModelMenuProviders([withDefaults], {
+      presentationMode: "terminal",
+    });
+    expect(defaultProviders[0]?.capabilities.models.map(({ id }) => id)).toEqual(["composer-2.5"]);
+
+    const explicitlyVisibleProviders = buildProviderModelMenuProviders([withDefaults], {
+      presentationMode: "terminal",
+      hiddenModelsByAgent: { cursor: [] },
+    });
+    expect(explicitlyVisibleProviders[0]?.capabilities.models.map(({ id }) => id)).toEqual([
+      "composer-2.5",
+      "gpt-5",
+    ]);
+  });
+
   it("exposes independently installed Cursor ACP and SDK model surfaces", () => {
     const guiCapabilities = {
       ...cursorStatus.capabilities,
@@ -225,5 +249,43 @@ describe("buildProviderModelMenuProviders", () => {
       { label: "Cursor ACP", hiddenModelsKey: "cursor-acp" },
       { label: "Cursor SDK", hiddenModelsKey: "cursor-sdk" },
     ]);
+  });
+
+  it("omits an installed Cursor SDK surface until its API key is authenticated", () => {
+    const guiCapabilities = {
+      ...cursorStatus.capabilities,
+      presentationMode: "gui" as const,
+      presentationModes: ["gui" as const],
+      liveInputMode: "server" as const,
+    };
+    const providers = expandAgentToVisibilityProviders({
+      ...cursorStatus,
+      runtimeVariants: {
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities: {
+            ...guiCapabilities,
+            runtimeLabel: "ACP",
+            models: [{ id: "acp-model", label: "ACP Model" }],
+          },
+        },
+        sdk: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "missing",
+          authUsesProviderLogin: false,
+          capabilities: {
+            ...guiCapabilities,
+            runtimeLabel: "SDK",
+            models: [{ id: "sdk-model", label: "SDK Model" }],
+          },
+        },
+      },
+    });
+
+    expect(providers.map(({ label }) => label)).toEqual(["Cursor CLI", "Cursor ACP"]);
   });
 });

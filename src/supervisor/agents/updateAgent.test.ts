@@ -3,6 +3,7 @@ import type { AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter, AgentEnvContext } from "./base";
 import {
   clearLatestVersionCache,
+  getLatestSupportedNpmPackageVersion,
   getLatestVersionForAdapter,
   resolveUpdateCommand,
 } from "./updateAgent";
@@ -375,5 +376,87 @@ describe("getLatestVersionForAdapter", () => {
     globalThis.fetch = (() => Promise.reject(new Error("network down"))) as unknown as typeof fetch;
     const result = await getLatestVersionForAdapter(makeAdapter("codex"));
     expect(result.version).toBeUndefined();
+  });
+});
+
+describe("getLatestSupportedNpmPackageVersion", () => {
+  const originalFetch = globalThis.fetch;
+  const cursorSdkQuery = {
+    name: "@cursor/sdk",
+    minVersion: "1.0.24",
+    maxExclusiveMajor: 2,
+  };
+
+  function registryResponse(versions: readonly string[]): Response {
+    return {
+      ok: true,
+      json: async () => ({
+        versions: Object.fromEntries(versions.map((version) => [version, { version }])),
+      }),
+    } as Response;
+  }
+
+  beforeEach(() => {
+    clearLatestVersionCache();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    clearLatestVersionCache();
+  });
+
+  it("returns the newest supported version from the abbreviated registry document", async () => {
+    const fetchSpy = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(registryResponse(["1.0.24", "1.0.31", "1.0.9"]));
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestSupportedNpmPackageVersion(cursorSdkQuery);
+
+    expect(result).toEqual({ version: "1.0.31", source: "npm" });
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://registry.npmjs.org/%40cursor%2Fsdk");
+    expect((init.headers as Record<string, string>).accept).toBe(
+      "application/vnd.npm.install-v1+json",
+    );
+  });
+
+  it("stays inside the window when a newer unsupported major is published", async () => {
+    globalThis.fetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(registryResponse(["1.0.24", "2.0.0", "2.1.3"])) as unknown as typeof fetch;
+
+    const result = await getLatestSupportedNpmPackageVersion(cursorSdkQuery);
+
+    // Newest *supported* release only: a caller sitting on 1.0.24 sees nothing
+    // newer, so no update is offered for the 2.x line the runtime can't load.
+    expect(result).toEqual({ version: "1.0.24", source: "npm" });
+  });
+
+  it("ignores pre-releases and versions below the minimum", async () => {
+    globalThis.fetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(registryResponse(["1.0.23", "1.1.0-beta.1"])) as unknown as typeof fetch;
+
+    expect(await getLatestSupportedNpmPackageVersion(cursorSdkQuery)).toEqual({
+      source: "unknown",
+    });
+  });
+
+  it("returns no version on registry failure (does not throw)", async () => {
+    globalThis.fetch = (() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
+
+    expect(await getLatestSupportedNpmPackageVersion(cursorSdkQuery)).toEqual({
+      source: "unknown",
+    });
+  });
+
+  it("caches per package and window", async () => {
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue(registryResponse(["1.0.31"]));
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    await getLatestSupportedNpmPackageVersion(cursorSdkQuery);
+    await getLatestSupportedNpmPackageVersion(cursorSdkQuery);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage";
 import type { AgentInstanceConfig } from "@/shared/contracts";
-import { isEncryptedSecret } from "@/shared/secretStorage";
+import { decryptSecret, isEncryptedSecret } from "@/shared/secretStorage";
 import {
   DEFAULT_USAGE_DISABLED_PROVIDER_IDS,
   DEFAULT_USAGE_ENABLED_PROVIDER_IDS,
@@ -12,8 +12,10 @@ import {
   type SharedSettings,
 } from "@/shared/settings";
 import {
+  applyAgentSecretSetting,
   applyClaudeProfileEnvironment,
   mergeManagedSharedSettings,
+  patchSharedSettingsFile,
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "./sharedSettingsFile";
@@ -488,6 +490,81 @@ describe("sharedSettingsFile", () => {
       transcriptionLanguage: "es",
       transcriptionModel: "tiny",
       useWebGpu: true,
+    });
+  });
+});
+
+describe("applyAgentSecretSetting", () => {
+  it("seals Cursor SDK API keys and lets the supervisor decrypt the stored value", () => {
+    const dir = makeTempDir();
+    const { settings, storedValue } = applyAgentSecretSetting(
+      defaultSharedSettings,
+      { agentKind: "cursor", key: "sdkApiKey", value: " cursor-secret " },
+      dir,
+    );
+
+    expect(storedValue).not.toBeNull();
+    expect(isEncryptedSecret(storedValue ?? "")).toBe(true);
+    expect(storedValue).not.toContain("cursor-secret");
+    expect(settings.agentSettings.cursor?.sdkApiKey).toBe(storedValue);
+    expect(decryptSecret(dir, storedValue ?? "")).toBe("cursor-secret");
+  });
+
+  it("pins encrypted agent secrets during ordinary renderer settings writes", () => {
+    const dir = makeTempDir();
+    const { settings: onDisk, storedValue } = applyAgentSecretSetting(
+      defaultSharedSettings,
+      { agentKind: "cursor", key: "sdkApiKey", value: "cursor-secret" },
+      dir,
+    );
+    const incoming = {
+      ...defaultSharedSettings,
+      agentSettings: {
+        cursor: { sdkApiKey: "plaintext-overwrite", structuredRuntime: "sdk" },
+      },
+    };
+
+    const merged = mergeManagedSharedSettings(onDisk, incoming);
+    expect(merged.agentSettings.cursor).toEqual({
+      sdkApiKey: storedValue,
+      structuredRuntime: "sdk",
+    });
+  });
+
+  it("clears a saved key only through the dedicated secret path", () => {
+    const dir = makeTempDir();
+    const saved = applyAgentSecretSetting(
+      defaultSharedSettings,
+      { agentKind: "cursor", key: "sdkApiKey", value: "cursor-secret" },
+      dir,
+    );
+    const cleared = applyAgentSecretSetting(
+      saved.settings,
+      { agentKind: "cursor", key: "sdkApiKey", value: "" },
+      dir,
+    );
+
+    expect(cleared.storedValue).toBeNull();
+    expect(cleared.settings.agentSettings.cursor?.sdkApiKey).toBeUndefined();
+  });
+
+  it("preserves a saved key when a remote patch replaces ordinary agent settings", () => {
+    const dir = makeTempDir();
+    const settingsPath = join(dir, "settings.json");
+    const saved = applyAgentSecretSetting(
+      defaultSharedSettings,
+      { agentKind: "cursor", key: "sdkApiKey", value: "cursor-secret" },
+      dir,
+    );
+    writeSharedSettingsFile(settingsPath, saved.settings);
+
+    const patched = patchSharedSettingsFile(settingsPath, {
+      agentSettings: { cursor: { structuredRuntime: "acp" } },
+    });
+
+    expect(patched.agentSettings.cursor).toEqual({
+      structuredRuntime: "acp",
+      sdkApiKey: saved.storedValue,
     });
   });
 });

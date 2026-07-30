@@ -1,9 +1,7 @@
-import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
-import { defaultSharedSettings, normalizeSharedSettings } from "@/shared/settings";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
   type ClearPendingSteerPayload,
@@ -70,6 +68,7 @@ import {
 } from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
 import { StructuredFailureReporter } from "./threadSession/structuredFailureReporter";
+import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
@@ -1129,13 +1128,7 @@ export class ThreadSessionManager {
   }
 
   private resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string> {
-    let settings = defaultSharedSettings;
-    try {
-      const raw = readFileSync(this.options.settingsPath, "utf8");
-      settings = normalizeSharedSettings(JSON.parse(raw));
-    } catch {
-      // use defaults
-    }
+    const settings = readSupervisorSharedSettings(this.options.settingsPath);
     return settings.agentSettings[adapter.kind] ?? {};
   }
 }

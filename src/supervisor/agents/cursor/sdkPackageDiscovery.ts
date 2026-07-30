@@ -60,6 +60,8 @@ export interface CursorSdkLoadOptions {
  */
 export interface CursorSdkLoaderDependencies {
   importModule?: (specifier: string) => Promise<unknown>;
+  /** Injectable to keep discovery tests independent of the host Node install. */
+  executablePath?: string;
   resolvePackageManagerRoots?: (input: {
     platform: NodeJS.Platform;
     env: Readonly<Record<string, string | undefined>>;
@@ -130,7 +132,12 @@ export async function discoverCursorSdkPackage(
     for (const root of options.globalPackageRoots ?? []) {
       addModuleRootCandidates(freeCandidates, root, "global-explicit");
     }
-    addInferredGlobalCandidates(freeCandidates, platform, env, process.execPath);
+    addInferredGlobalCandidates(
+      freeCandidates,
+      platform,
+      env,
+      dependencies.executablePath ?? process.execPath,
+    );
   }
 
   const seenCandidates = new Set<string>();

@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { AgentKind, AgentProviderMetadata, AgentStatus, Project } from "@/shared/contracts";
@@ -18,6 +18,12 @@ export interface NativeAgentSettingsPanelProps {
   statuses: readonly AgentStatus[];
   wslDistros: string[];
   onOpenProfile?: ((profileKind: string) => void) | undefined;
+  /**
+   * The generic per-environment install/auth rows, handed over when the entry
+   * sets `ownsInstallRows`. Panels place them wherever they belong in their own
+   * layout instead of having them stranded above the panel.
+   */
+  installRows?: ReactNode;
 }
 
 export interface NativeAgentAcpRegistryAlias {
@@ -57,6 +63,13 @@ export interface NativeAgentRegistryEntry {
    * provider — a generic single sign-in row would be redundant).
    */
   ownsAuthUi?: boolean;
+  /**
+   * The provider's `settingsPanel` places the per-environment install/auth rows
+   * itself (received as `installRows`), so `SingleAgentSettings` stops
+   * rendering them above the panel. Used when those rows belong to one of
+   * several runtimes the panel groups (e.g. Cursor's CLI-backed ACP runtime).
+   */
+  ownsInstallRows?: boolean;
   /**
    * Resolve the provider's signed-in account when it isn't part of the
    * detected status (e.g. Antigravity's credential sits in the OS keyring
@@ -271,6 +284,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     installCommand: cursorAgentInstallCommand,
     runtimeSlots: cursorRuntimeSlots,
     settingsPanel: CursorProviderSettings,
+    ownsAuthUi: true,
+    ownsInstallRows: true,
   },
   {
     id: "gemini",

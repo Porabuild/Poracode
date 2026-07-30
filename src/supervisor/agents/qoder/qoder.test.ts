@@ -80,7 +80,7 @@ describe("createQoderAdapter", () => {
   it("exposes terminal and ACP runtimes, updater metadata, and Qoder skill roots", () => {
     const adapter = createQoderAdapter();
     expect(adapter.capabilities.modes).toEqual(["agent", "plan"]);
-    expect(adapter.capabilities.defaultApprovalPolicy).toBe("default");
+    expect(adapter.capabilities.defaultApprovalPolicy).toBe("bypassPermissions");
     expect(adapter.capabilities.bypassPermissions).toEqual({
       approvalPolicy: "bypassPermissions",
     });
@@ -136,6 +136,7 @@ describe("buildQoderProbeCapabilities", () => {
     expect(capabilities.defaultEffort).toBe("xhigh");
     expect(capabilities.modes).toEqual(["agent", "plan"]);
     expect(capabilities.approvalPolicies).toHaveLength(3);
+    expect(capabilities.defaultApprovalPolicy).toBe("bypassPermissions");
     expect(capabilities.slashCommands).toHaveLength(1);
     expect(capabilities.preferTerminalLogin).toBe(true);
   });

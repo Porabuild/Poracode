@@ -23,6 +23,19 @@ export const settingsProcedures = {
     "main-local",
     z.custom<SharedSettingsInput>(),
   ),
+  setAgentSecretSetting: definePayloadProcedure<
+    { agentKind: string; key: string; value: string },
+    { storedValue: string | null },
+    "main-local"
+  >(
+    "setAgentSecretSetting",
+    "main-local",
+    z.object({
+      agentKind: z.string().min(1).max(64),
+      key: z.string().min(1).max(120),
+      value: z.string().max(16_384),
+    }),
+  ),
   removeCrossagentRoutingOverride: definePayloadProcedure<
     { tags: string[] },
     CrossagentRoutingOverride[],

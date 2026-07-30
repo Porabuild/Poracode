@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sensitiveAgentSettingKeys } from "../agentSecrets";
 import {
   agentStatusSchema,
   cloneRepoSourceSchema,
@@ -555,36 +556,48 @@ export type RemoteRuntimeItemsPage = z.infer<typeof remoteRuntimeItemsPageSchema
  * excludes secrets (providerConfigs and custom MCP definitions) and
  * device-local preferences (theme, fonts, audio, …).
  */
-export const remoteSettingsSchema = sharedSettingsSchema.pick({
-  agentSettings: true,
-  hiddenModels: true,
-  disabledAgents: true,
-  providerOrder: true,
-  enabledMcpServers: true,
-  disabledBuiltInMcpServers: true,
-  titleGenProvider: true,
-  titleGenModel: true,
-  titleGenEffort: true,
-  commitGenProvider: true,
-  commitGenModel: true,
-  commitGenEffort: true,
-  conflictResolverProvider: true,
-  conflictResolverModel: true,
-  conflictResolverEffort: true,
-  conflictResolverPresentationMode: true,
-  wslTitleGenProvider: true,
-  wslTitleGenModel: true,
-  wslTitleGenEffort: true,
-  wslCommitGenProvider: true,
-  wslCommitGenModel: true,
-  wslCommitGenEffort: true,
-  wslConflictResolverProvider: true,
-  wslConflictResolverModel: true,
-  wslConflictResolverEffort: true,
-  wslConflictResolverPresentationMode: true,
-  prAutomationDefault: true,
-  prMergeMethod: true,
-});
+const remoteAgentSettingsSchema = sharedSettingsSchema.shape.agentSettings.transform((settings) =>
+  Object.fromEntries(
+    Object.entries(settings).map(([agentKind, values]) => {
+      const next = { ...values };
+      for (const key of sensitiveAgentSettingKeys(agentKind)) delete next[key];
+      return [agentKind, next];
+    }),
+  ),
+);
+
+export const remoteSettingsSchema = sharedSettingsSchema
+  .pick({
+    agentSettings: true,
+    hiddenModels: true,
+    disabledAgents: true,
+    providerOrder: true,
+    enabledMcpServers: true,
+    disabledBuiltInMcpServers: true,
+    titleGenProvider: true,
+    titleGenModel: true,
+    titleGenEffort: true,
+    commitGenProvider: true,
+    commitGenModel: true,
+    commitGenEffort: true,
+    conflictResolverProvider: true,
+    conflictResolverModel: true,
+    conflictResolverEffort: true,
+    conflictResolverPresentationMode: true,
+    wslTitleGenProvider: true,
+    wslTitleGenModel: true,
+    wslTitleGenEffort: true,
+    wslCommitGenProvider: true,
+    wslCommitGenModel: true,
+    wslCommitGenEffort: true,
+    wslConflictResolverProvider: true,
+    wslConflictResolverModel: true,
+    wslConflictResolverEffort: true,
+    wslConflictResolverPresentationMode: true,
+    prAutomationDefault: true,
+    prMergeMethod: true,
+  })
+  .extend({ agentSettings: remoteAgentSettingsSchema });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 
 export const REMOTE_SETTINGS_KEYS = Object.keys(

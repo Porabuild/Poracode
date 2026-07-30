@@ -1,9 +1,10 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { encryptSecret } from "@/shared/secretStorage";
 import type { AgentAdapter } from "../agents/base";
 
 vi.mock("../agents/base", async (importActual) => {
@@ -299,15 +300,19 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
 
   it("passes provider settings to native, WSL, and scoped detection", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
-    const adapter = makeAdapter("codex", "Codex", detectInstall);
+    const adapter = makeAdapter("cursor", "Cursor", detectInstall);
     const { service, settingsPath } = makeMultiAdapterService([adapter]);
     const initialSettings = {
       structuredRuntime: "sdk",
-      sdkPackagePath: "/opt/cursor-sdk",
+      sdkApiKey: "sdk-key",
+    };
+    const storedInitialSettings = {
+      ...initialSettings,
+      sdkApiKey: encryptSecret(dirname(settingsPath), initialSettings.sdkApiKey),
     };
     writeFileSync(
       settingsPath,
-      JSON.stringify({ agentSettings: { codex: initialSettings } }),
+      JSON.stringify({ agentSettings: { cursor: storedInitialSettings } }),
       "utf8",
     );
 
@@ -325,18 +330,22 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
 
     const updatedSettings = {
       structuredRuntime: "acp",
-      sdkPackagePath: "/srv/cursor-sdk",
+      sdkApiKey: "updated-sdk-key",
+    };
+    const storedUpdatedSettings = {
+      ...updatedSettings,
+      sdkApiKey: encryptSecret(dirname(settingsPath), updatedSettings.sdkApiKey),
     };
     writeFileSync(
       settingsPath,
-      JSON.stringify({ agentSettings: { codex: updatedSettings } }),
+      JSON.stringify({ agentSettings: { cursor: storedUpdatedSettings } }),
       "utf8",
     );
     detectInstall.mockClear();
 
     await service.refreshAgentStatuses({
       wslDistros: ["Ubuntu"],
-      scope: { agentKinds: ["codex"], envs: [{ kind: "wsl", distro: "Ubuntu" }] },
+      scope: { agentKinds: ["cursor"], envs: [{ kind: "wsl", distro: "Ubuntu" }] },
     });
 
     expect(detectInstall).toHaveBeenCalledExactlyOnceWith({

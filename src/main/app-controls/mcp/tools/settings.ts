@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer, McpTransport } from "@/shared/contracts";
+import { isSensitiveAgentSetting, sensitiveAgentSettingKeys } from "@/shared/agentSecrets";
 import { normalizeSharedSettings, type SharedSettings } from "@/shared/settings";
 import { mergeManagedSharedSettings } from "../../../sharedSettingsFile";
 import type { ToolDomain } from "./types";
@@ -71,6 +72,7 @@ export const settingsTools: ToolDomain = {
     update_settings: (args, ctx) => {
       const { patch } = updateArgsSchema.parse(args);
       const rejected = Object.keys(patch).filter((key) => PROTECTED_SETTINGS_KEYS.has(key));
+      const rejectedAgentSecrets = findPatchedAgentSecrets(patch.agentSettings);
       if (rejected.length > 0) {
         const hint = rejected.includes("mcpServers")
           ? " Manage MCP servers with add_mcp_server, update_mcp_server, and remove_mcp_server."
@@ -79,6 +81,13 @@ export const settingsTools: ToolDomain = {
           `These settings are managed elsewhere and cannot be changed with this tool: ${rejected.join(
             ", ",
           )}.${hint}`,
+        );
+      }
+      if (rejectedAgentSecrets.length > 0) {
+        throw new Error(
+          `These sensitive agent settings are managed elsewhere and cannot be changed with this tool: ${rejectedAgentSecrets.join(
+            ", ",
+          )}.`,
         );
       }
       const onDisk = ctx.settings.read();
@@ -125,6 +134,15 @@ function deepMerge(
  * An agent can therefore see what is configured without ever reading a secret.
  */
 export function redactSharedSettings(settings: SharedSettings): Record<string, unknown> {
+  const agentSettings = Object.fromEntries(
+    Object.entries(settings.agentSettings).map(([agentKind, values]) => {
+      const next = { ...values };
+      for (const key of sensitiveAgentSettingKeys(agentKind)) {
+        if (key in next) next[key] = REDACTED_VALUE;
+      }
+      return [agentKind, next];
+    }),
+  );
   const agentInstances = Object.fromEntries(
     Object.entries(settings.agentInstances).map(([id, instance]) => {
       if (!instance.environment) return [id, instance];
@@ -138,7 +156,17 @@ export function redactSharedSettings(settings: SharedSettings): Record<string, u
     }),
   );
   const mcpServers = settings.mcpServers.map(redactMcpServer);
-  return { ...settings, agentInstances, mcpServers };
+  return { ...settings, agentSettings, agentInstances, mcpServers };
+}
+
+function findPatchedAgentSecrets(value: unknown): string[] {
+  if (!isPlainObject(value)) return [];
+  return Object.entries(value).flatMap(([agentKind, settings]) => {
+    if (!isPlainObject(settings)) return [];
+    return Object.keys(settings)
+      .filter((key) => isSensitiveAgentSetting(agentKind, key))
+      .map((key) => `${agentKind}.${key}`);
+  });
 }
 
 /** Mask the credential-bearing values of one MCP server's transport. */

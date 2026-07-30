@@ -156,6 +156,11 @@ const agentPresentationCapabilityOverrideSchema = z
     /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
     runtimeLabel: z.string().min(1).optional(),
     models: z.array(labeledOptionSchema),
+    /**
+     * Provider-owned initial model visibility. Applied only while the user has
+     * no explicit hidden-model list for this presentation/runtime surface.
+     */
+    defaultHiddenModels: z.array(z.string().min(1)).optional(),
     efforts: z.array(z.string().min(1)),
     defaultEffort: z.string().optional(),
     modelEfforts: z.record(z.string(), z.array(z.string().min(1))),
@@ -216,6 +221,11 @@ export const agentCapabilitySchema = z.object({
   /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
   runtimeLabel: z.string().min(1).optional(),
   models: z.array(labeledOptionSchema).default([]),
+  /**
+   * Provider-owned initial model visibility. An explicit user list (including
+   * an empty list from "Show all") always replaces these defaults.
+   */
+  defaultHiddenModels: z.array(z.string().min(1)).optional(),
   efforts: z.array(z.string().min(1)).default([]),
   defaultEffort: z.string().optional(),
   modelEfforts: z.record(z.string(), z.array(z.string().min(1))).default({}),
@@ -606,8 +616,25 @@ export const updateAgentBinaryResultSchema = z.object({
 });
 export type UpdateAgentBinaryResult = z.infer<typeof updateAgentBinaryResultSchema>;
 
+/**
+ * Optional npm scope for `getLatestAgentVersion`. When present the probe
+ * resolves the newest published version of `name` inside this window instead of
+ * the agent kind's own release channel — for provider settings that manage an
+ * extra package alongside the CLI (e.g. Cursor's `@cursor/sdk`), where an
+ * update to an unsupported major must never be offered.
+ */
+export const npmPackageVersionQuerySchema = z.object({
+  name: z.string().min(1),
+  /** Inclusive minimum supported version. */
+  minVersion: z.string().min(1).optional(),
+  /** First major version the caller does not support. */
+  maxExclusiveMajor: z.number().int().positive().optional(),
+});
+export type NpmPackageVersionQuery = z.infer<typeof npmPackageVersionQuerySchema>;
+
 export const getLatestAgentVersionPayloadSchema = z.object({
   agentKind: agentKindSchema,
+  npmPackage: npmPackageVersionQuerySchema.optional(),
 });
 export type GetLatestAgentVersionPayload = z.infer<typeof getLatestAgentVersionPayloadSchema>;
 

@@ -42,14 +42,14 @@ vi.mock("@heroui/react", async () => {
     );
   }
 
-  function Radio(props: { children?: ReactNode; value: string }) {
+  function Radio(props: { children?: ReactNode; isDisabled?: boolean; value: string }) {
     const group = React.useContext(RadioGroupContext);
     return (
       <label>
         <input
           type="radio"
           checked={group.value === props.value}
-          disabled={group.isDisabled}
+          disabled={group.isDisabled || props.isDisabled}
           value={props.value}
           onChange={() => group.onChange?.(props.value)}
         />
@@ -90,6 +90,8 @@ vi.mock("@/renderer/components/common", () => ({
     disabled?: boolean;
     placeholder?: string;
     onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+    onFocus?: () => void;
+    onBlur?: () => void;
   }) => (
     <input
       aria-label={props["aria-label"]}
@@ -97,17 +99,40 @@ vi.mock("@/renderer/components/common", () => ({
       disabled={props.disabled}
       placeholder={props.placeholder}
       onChange={props.onChange}
+      onFocus={props.onFocus}
+      onBlur={props.onBlur}
     />
   ),
+  PixelLoader: () => <span data-testid="pixel-loader" />,
 }));
 
 const bridgeMock = vi.hoisted(() => ({
-  refreshAgentStatuses: vi.fn<() => Promise<void>>(),
+  refreshAgentStatuses: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  getLatestAgentVersion:
+    vi.fn<(payload: unknown) => Promise<{ version?: string; source?: string }>>(),
 }));
 const flushSharedSettingsMock = vi.hoisted(() => vi.fn<() => Promise<void>>());
 const setAgentSettingMock = vi.hoisted(() =>
   vi.fn<(agentKind: string, key: string, value: boolean | string) => void>(),
 );
+const setAgentSecretSettingMock = vi.hoisted(() =>
+  vi.fn<(agentKind: string, key: string, value: string) => Promise<boolean>>(),
+);
+const runAgentInstallCommandMock = vi.hoisted(() =>
+  vi.fn<
+    (input: {
+      label: string;
+      command: unknown;
+      onCommandComplete?: (exitCode: number) => void;
+      purpose?: string;
+    }) => boolean
+  >(),
+);
+
+vi.mock("@/renderer/actions/agentLoginActions", () => ({
+  runAgentInstallCommand: runAgentInstallCommandMock,
+  runAgentLoginCommand: vi.fn<(input: unknown) => boolean>(() => true),
+}));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridgeMock,
@@ -166,6 +191,8 @@ const runtimeStatus: AgentStatus = {
     sdk: {
       presentationMode: "gui",
       installed: true,
+      version: "1.0.24",
+      installationSource: "global-npm",
       authState: "authenticated",
       authUsesProviderLogin: false,
       capabilities: { ...runtimeCapabilities, runtimeLabel: "SDK" },
@@ -175,13 +202,21 @@ const runtimeStatus: AgentStatus = {
 
 beforeEach(() => {
   bridgeMock.refreshAgentStatuses.mockReset().mockResolvedValue(undefined);
+  // The SDK row only offers an update when npm publishes a newer supported
+  // release than the detected one (1.0.24 in these fixtures).
+  bridgeMock.getLatestAgentVersion
+    .mockReset()
+    .mockResolvedValue({ version: "1.0.31", source: "npm" });
   flushSharedSettingsMock.mockReset().mockResolvedValue(undefined);
   setAgentSettingMock.mockReset();
+  setAgentSecretSettingMock.mockReset().mockResolvedValue(true);
+  runAgentInstallCommandMock.mockReset().mockReturnValue(true);
   toastMock.danger.mockReset();
   toastMock.success.mockReset();
   useSharedSettings.setState({
     agentSettings: {},
     setAgentSetting: setAgentSettingMock,
+    setAgentSecretSetting: setAgentSecretSettingMock,
   });
 });
 
@@ -192,44 +227,77 @@ describe("CursorProviderSettings", () => {
     ).toBe(CursorProviderSettings);
   });
 
-  it("defaults to ACP and stages a runtime change until Save", () => {
+  it("defaults to ACP and disables SDK until it is installed and authenticated", () => {
     render(<CursorProviderSettings agentKind="cursor" wslDistros={[]} />);
 
     const acpRuntime = screen.getByRole("radio", { name: /ACP/ });
     const sdkRuntime = screen.getByRole("radio", { name: /SDK/ });
-    const save = screen.getByRole("button", { name: "Save Cursor GUI runtime" });
     expect(screen.getByRole("radiogroup", { name: "Structured runtime" })).toBeTruthy();
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(acpRuntime).toBeChecked();
     expect(sdkRuntime).not.toBeChecked();
-    expect(save).toBeDisabled();
-
-    fireEvent.click(sdkRuntime);
-    expect(sdkRuntime).toBeChecked();
-    expect(save).toBeEnabled();
-    expect(setAgentSettingMock).not.toHaveBeenCalled();
-    expect(
-      screen.getByText(/requires a separately installed @cursor\/sdk package and CURSOR_API_KEY/),
-    ).toBeTruthy();
+    expect(acpRuntime).toBeDisabled();
+    expect(sdkRuntime).toBeDisabled();
   });
 
-  it("loads the saved SDK runtime and explicit package path", () => {
+  it("keeps Cursor CLI sign-in out of the panel so the environment rows own it", () => {
+    render(
+      <CursorProviderSettings agentKind="cursor" statuses={[runtimeStatus]} wslDistros={[]} />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Re-login|Logout/ })).toBeNull();
+    expect(screen.queryByText("ACP authentication")).toBeNull();
+  });
+
+  it("places the handed-over environment rows inside the ACP runtime card", () => {
+    render(
+      <CursorProviderSettings
+        agentKind="cursor"
+        statuses={[runtimeStatus]}
+        wslDistros={[]}
+        installRows={<div data-testid="env-rows">Default v1.2.3</div>}
+      />,
+    );
+
+    const envRows = screen.getByTestId("env-rows");
+    const acpCard = screen.getByRole("radio", { name: /ACP/ }).closest("div");
+    expect(acpCard?.contains(envRows)).toBe(true);
+    expect(screen.getByTestId("env-rows")).toBeInTheDocument();
+  });
+
+  it("loads the saved SDK runtime and masks a saved API key", () => {
     useSharedSettings.setState({
       agentSettings: {
         cursor: {
           structuredRuntime: "sdk",
-          sdkPackagePath: " /opt/cursor-sdk/node_modules/@cursor/sdk ",
+          sdkApiKey: "lc-safe:encrypted",
         },
       },
     });
 
-    render(<CursorProviderSettings agentKind="cursor" wslDistros={[]} />);
+    render(
+      <CursorProviderSettings agentKind="cursor" statuses={[runtimeStatus]} wslDistros={[]} />,
+    );
 
     expect(screen.getByRole("radio", { name: /SDK/ })).toBeChecked();
-    expect(screen.getByRole("textbox", { name: "SDK package path" })).toHaveValue(
-      "/opt/cursor-sdk/node_modules/@cursor/sdk",
+    // A stored key renders as a mask, like the ACP credential fields.
+    expect(screen.getByLabelText("Cursor SDK API key")).toHaveValue("***********");
+    expect(screen.queryByText(/package path/i)).not.toBeInTheDocument();
+  });
+
+  it("replaces the masked key on focus and restores the mask when left empty", () => {
+    useSharedSettings.setState({
+      agentSettings: { cursor: { structuredRuntime: "sdk", sdkApiKey: "lc-safe:encrypted" } },
+    });
+    render(
+      <CursorProviderSettings agentKind="cursor" statuses={[runtimeStatus]} wslDistros={[]} />,
     );
-    expect(screen.getByRole("button", { name: "Save Cursor GUI runtime" })).toBeDisabled();
+
+    const field = screen.getByLabelText("Cursor SDK API key");
+    fireEvent.focus(field);
+    expect(field).toHaveValue("");
+    fireEvent.blur(field);
+    expect(field).toHaveValue("***********");
   });
 
   it("shows both installed runtimes and their actual model controls and modes", () => {
@@ -237,57 +305,202 @@ describe("CursorProviderSettings", () => {
       <CursorProviderSettings agentKind="cursor" statuses={[runtimeStatus]} wslDistros={[]} />,
     );
 
-    expect(screen.getAllByText("Installed")).toHaveLength(2);
+    expect(
+      screen.getAllByText((_, element) => element?.textContent === "Installed · Authenticated"),
+    ).toHaveLength(2);
     expect(
       screen.getAllByText((_, element) => element?.textContent === "2 models · Modes: Work, Plan"),
     ).toHaveLength(2);
-    expect(
-      screen.getAllByText(
-        (_, element) =>
-          element?.textContent === "Model controls: Context, Reasoning, Fast, Thinking",
-      ),
-    ).toHaveLength(2);
+    // The SDK card carries its own API key state; ACP auth lives with the CLI.
+    expect(screen.getByText("Authenticated")).toBeInTheDocument();
   });
 
-  it("persists both staged values, flushes, then refreshes Cursor status", async () => {
-    render(<CursorProviderSettings agentKind="cursor" wslDistros={["Ubuntu"]} />);
+  it("combines runtime availability detected in different environments", () => {
+    const acpOnly: AgentStatus = {
+      ...runtimeStatus,
+      runtimeVariants: {
+        acp: runtimeStatus.runtimeVariants!.acp!,
+        sdk: {
+          ...runtimeStatus.runtimeVariants!.sdk!,
+          installed: false,
+          authState: "unknown",
+          capabilities: { ...runtimeCapabilities, models: [] },
+        },
+      },
+    };
+    const sdkOnly: AgentStatus = {
+      ...runtimeStatus,
+      runtimeVariants: {
+        acp: {
+          ...runtimeStatus.runtimeVariants!.acp!,
+          installed: false,
+          authState: "unknown",
+          capabilities: { ...runtimeCapabilities, models: [] },
+        },
+        sdk: runtimeStatus.runtimeVariants!.sdk!,
+      },
+    };
+
+    render(
+      <CursorProviderSettings
+        agentKind="cursor"
+        statuses={[acpOnly, sdkOnly]}
+        wslDistros={["Ubuntu"]}
+      />,
+    );
+
+    expect(screen.getByRole("radio", { name: /ACP/ })).toBeEnabled();
+    expect(screen.getByRole("radio", { name: /SDK/ })).toBeEnabled();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "@cursor/sdk · v1.0.24"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the separately detected SDK version and runs its package update", async () => {
+    render(
+      <CursorProviderSettings agentKind="cursor" statuses={[runtimeStatus]} wslDistros={[]} />,
+    );
+
+    expect(
+      screen.getByText((_, element) => element?.textContent === "@cursor/sdk · v1.0.24"),
+    ).toBeInTheDocument();
+    const updateButton = await vi.waitFor(() =>
+      screen.getByRole("button", { name: "Update Cursor SDK" }),
+    );
+    fireEvent.click(updateButton);
+
+    expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Update Cursor SDK",
+        purpose: "update",
+      }),
+    );
+    const input = runAgentInstallCommandMock.mock.calls[0]![0];
+    await act(async () => input.onCommandComplete?.(0));
+    await vi.waitFor(() => expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalled());
+  });
+
+  it("hides the SDK update button when the newest supported release is installed", async () => {
+    const upToDateStatus: AgentStatus = {
+      ...runtimeStatus,
+      runtimeVariants: {
+        ...runtimeStatus.runtimeVariants,
+        sdk: {
+          ...runtimeStatus.runtimeVariants!.sdk!,
+          version: "1.0.26",
+        },
+      },
+    };
+    bridgeMock.getLatestAgentVersion.mockResolvedValue({ version: "1.0.26", source: "npm" });
+    render(
+      <CursorProviderSettings agentKind="cursor" statuses={[upToDateStatus]} wslDistros={[]} />,
+    );
+
+    await vi.waitFor(() => expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Update Cursor SDK" })).toBeNull();
+  });
+
+  it("hides the SDK update button when the version probe fails", async () => {
+    bridgeMock.getLatestAgentVersion.mockRejectedValue(new Error("offline"));
+    render(
+      <CursorProviderSettings agentKind="cursor" statuses={[runtimeStatus]} wslDistros={[]} />,
+    );
+
+    await vi.waitFor(() => expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Update Cursor SDK" })).toBeNull();
+  });
+
+  it("offers SDK installation when the package is not detected", () => {
+    const withoutSdk: AgentStatus = {
+      ...runtimeStatus,
+      runtimeVariants: {
+        ...runtimeStatus.runtimeVariants,
+        sdk: {
+          ...runtimeStatus.runtimeVariants!.sdk!,
+          installed: false,
+          authState: "missing",
+        },
+      },
+    };
+    render(<CursorProviderSettings agentKind="cursor" statuses={[withoutSdk]} wslDistros={[]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install Cursor SDK" }));
+    expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Install Cursor SDK",
+      }),
+    );
+  });
+
+  it("persists the picked runtime, flushes, then refreshes Cursor status", async () => {
+    render(
+      <CursorProviderSettings
+        agentKind="cursor"
+        statuses={[runtimeStatus]}
+        wslDistros={["Ubuntu"]}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("radio", { name: /SDK/ }));
-    fireEvent.change(screen.getByRole("textbox", { name: "SDK package path" }), {
-      target: { value: "  /opt/cursor-sdk/node_modules/@cursor/sdk  " },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save Cursor GUI runtime" }));
 
     await vi.waitFor(() => {
       expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledWith(["Ubuntu"], {
         agentKinds: ["cursor"],
       });
     });
-    expect(setAgentSettingMock).toHaveBeenNthCalledWith(1, "cursor", "structuredRuntime", "sdk");
-    expect(setAgentSettingMock).toHaveBeenNthCalledWith(
-      2,
-      "cursor",
-      "sdkPackagePath",
-      "/opt/cursor-sdk/node_modules/@cursor/sdk",
-    );
+    expect(setAgentSettingMock).toHaveBeenCalledWith("cursor", "structuredRuntime", "sdk");
     expect(flushSharedSettingsMock.mock.invocationCallOrder[0]).toBeLessThan(
       bridgeMock.refreshAgentStatuses.mock.invocationCallOrder[0]!,
     );
-    expect(toastMock.success).toHaveBeenCalledWith("Cursor GUI runtime updated.");
-    expect(screen.getByRole("button", { name: "Save Cursor GUI runtime" })).toBeDisabled();
+    // The selected card is the confirmation — no toast for a silent success.
+    expect(toastMock.success).not.toHaveBeenCalled();
   });
 
-  it("does not refresh status when the settings flush fails", async () => {
+  it("restores the previous runtime when the settings flush fails", async () => {
     flushSharedSettingsMock.mockRejectedValueOnce(new Error("write failed"));
-    render(<CursorProviderSettings agentKind="cursor" wslDistros={[]} />);
+    render(
+      <CursorProviderSettings agentKind="cursor" statuses={[runtimeStatus]} wslDistros={[]} />,
+    );
 
     fireEvent.click(screen.getByRole("radio", { name: /SDK/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Save Cursor GUI runtime" }));
 
     await act(async () => {
       await vi.waitFor(() => expect(toastMock.danger).toHaveBeenCalled());
     });
     expect(bridgeMock.refreshAgentStatuses).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Save Cursor GUI runtime" })).toBeEnabled();
+    expect(setAgentSettingMock).toHaveBeenLastCalledWith("cursor", "structuredRuntime", "acp");
+  });
+
+  it("saves an SDK API key through the encrypted setting path and refreshes detection", async () => {
+    const missingSdkAuth: AgentStatus = {
+      ...runtimeStatus,
+      runtimeVariants: {
+        ...runtimeStatus.runtimeVariants,
+        sdk: {
+          ...runtimeStatus.runtimeVariants!.sdk!,
+          authState: "missing",
+          capabilities: { ...runtimeCapabilities, models: [] },
+        },
+      },
+    };
+    render(
+      <CursorProviderSettings agentKind="cursor" statuses={[missingSdkAuth]} wslDistros={[]} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Cursor SDK API key"), {
+      target: { value: " cursor-secret " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Cursor SDK API key" }));
+
+    await vi.waitFor(() => {
+      expect(setAgentSecretSettingMock).toHaveBeenCalledWith(
+        "cursor",
+        "sdkApiKey",
+        "cursor-secret",
+      );
+      expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalled();
+    });
+    expect(screen.getByRole("radio", { name: /SDK/ })).toBeDisabled();
+    expect(toastMock.success).toHaveBeenCalledWith("Cursor SDK API key saved.");
   });
 });

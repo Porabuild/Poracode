@@ -1,5 +1,6 @@
 export * from "./CursorIcon";
 
+import { msg } from "@lingui/core/macro";
 import { CursorIcon } from "./CursorIcon";
 import providerManifest from "./manifest";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
@@ -46,16 +47,6 @@ registerComposerControls(PROVIDER_KIND, ({ capabilities, config, isDisabled, onC
     (unrestricted.sandboxMode === undefined || config.sandboxMode === unrestricted.sandboxMode);
 
   const controls: ComposerControl[] = [
-    ...(capabilities.runtimeLabel
-      ? [
-          {
-            kind: "static" as const,
-            value: capabilities.runtimeLabel,
-            hideLabelOnWrap: true,
-            tier: 6,
-          },
-        ]
-      : []),
     ...(hasPlanMode
       ? [
           planWorkToggle({
@@ -70,6 +61,8 @@ registerComposerControls(PROVIDER_KIND, ({ capabilities, config, isDisabled, onC
           fullAccessToggle({
             isFullAccess,
             isDisabled,
+            restrictedLabel: "Auto-review",
+            restrictedDisplayLabel: msg`Auto-review`,
             onChange: (isSelected) => {
               if (isSelected) {
                 onConfigChange(unrestricted);
@@ -80,7 +73,8 @@ registerComposerControls(PROVIDER_KIND, ({ capabilities, config, isDisabled, onC
                 ...(capabilities.sandboxModes.length > 0
                   ? {
                       sandboxMode:
-                        capabilities.defaultSandboxMode ??
+                        capabilities.sandboxModes.find(({ id }) => id !== unrestricted.sandboxMode)
+                          ?.id ??
                         capabilities.sandboxModes[0]?.id ??
                         "workspace-write",
                     }

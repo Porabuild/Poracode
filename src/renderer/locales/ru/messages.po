@@ -233,7 +233,7 @@ msgstr "Лимит {0}"
 msgid "{0} logged out."
 msgstr "{0} вышел из системы."
 
-#. placeholder {0}: runtime.capabilities.models.length
+#. placeholder {0}: capabilities.models.length
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "{0} models"
 msgstr "Моделей: {0}"
@@ -559,13 +559,17 @@ msgstr "{usedLabel} токенов"
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} из {totalCount} видимых"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "@cursor/sdk is not installed."
+msgstr "@cursor/sdk не установлен."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "/absolute/path/to/project"
 msgstr "/absolute/path/to/project"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "/path/to/node_modules/@cursor/sdk"
-msgstr "/путь/к/node_modules/@cursor/sdk"
+#~ msgid "/path/to/node_modules/@cursor/sdk"
+#~ msgstr "/путь/к/node_modules/@cursor/sdk"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "/skill-creator Create a new managed skill for {destination}."
@@ -675,7 +679,6 @@ msgstr "Аккаунты"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "ACP"
 msgstr "ACP"
 
@@ -687,6 +690,10 @@ msgstr "ACP"
 msgid "ACP Agents"
 msgstr "Агенты ACP"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "ACP authentication"
+#~ msgstr "Аутентификация ACP"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "ACP installed"
 msgstr "ACP установлен"
@@ -696,8 +703,8 @@ msgid "ACP not installed"
 msgstr "ACP не установлен"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "ACP uses the Cursor Agent login. SDK uses @cursor/sdk with CURSOR_API_KEY."
-msgstr "ACP использует вход Cursor Agent. SDK использует @cursor/sdk с CURSOR_API_KEY."
+#~ msgid "ACP uses the Cursor Agent login. SDK uses @cursor/sdk with CURSOR_API_KEY."
+#~ msgstr "ACP использует вход Cursor Agent. SDK использует @cursor/sdk с CURSOR_API_KEY."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "ACP uses the installed Cursor Agent. SDK loads an external @cursor/sdk package."
@@ -1169,6 +1176,10 @@ msgstr "Другая операция для этого эксперимента
 msgid "Antigravity"
 msgstr "Antigravity"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "API key"
+msgstr "API-ключ"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "Требуется ключ API"
@@ -1336,6 +1347,10 @@ msgstr "Звук"
 msgid "Authenticate"
 msgstr "Войти"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Authenticated"
+msgstr "Аутентифицировано"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Аутентификация"
@@ -1348,6 +1363,10 @@ msgstr "Требуется аутентификация"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Authentication setup cannot be imported"
 msgstr "Настройку аутентификации нельзя импортировать"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Authentication unavailable"
+msgstr "Аутентификация недоступна"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Authored"
@@ -1413,6 +1432,7 @@ msgid "Auto-refresh interval in minutes, 0 to turn off"
 msgstr "Интервал автообновления в минутах, 0 — отключить"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/cursor/index.tsx
 msgid "Auto-review"
 msgstr "Автопроверка"
 
@@ -2016,6 +2036,10 @@ msgstr "Выбрать файл идентификации SSH"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose the display language for Poracode's interface."
 msgstr "Выберите язык интерфейса Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
+#~ msgstr "Выберите среду выполнения для новых чатов Cursor с графическим интерфейсом. SDK станет доступен после обнаружения пакета и аутентификации API-ключа."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the structured runtime for new Cursor GUI threads. Running threads keep their current runtime."
@@ -2716,7 +2740,6 @@ msgstr "Содержит конфиденциальные значения; до
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Context"
 msgstr "Контекст"
 
@@ -3184,6 +3207,7 @@ msgstr "Назначен победителем"
 #~ msgstr "Отобранные бесплатные и премиальные навыки под управлением MCP Market."
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
 msgstr "Текущие"
 
@@ -3204,12 +3228,44 @@ msgid "Cursor"
 msgstr "Cursor"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "Cursor GUI runtime updated."
-msgstr "Среда выполнения GUI Cursor обновлена."
+#~ msgid "Cursor ACP"
+#~ msgstr "Cursor ACP"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Cursor ACP authentication refreshed."
+#~ msgstr "Аутентификация Cursor ACP обновлена."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Cursor ACP logged out."
+#~ msgstr "Выполнен выход из Cursor ACP."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Cursor CLI (ACP)"
+msgstr "Cursor CLI (ACP)"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Cursor GUI runtime updated."
+#~ msgstr "Среда выполнения GUI Cursor обновлена."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Cursor SDK"
+msgstr "Cursor SDK"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Cursor SDK (external package)"
 #~ msgstr "Cursor SDK (внешний пакет)"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Cursor SDK API key"
+msgstr "API-ключ Cursor SDK"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Cursor SDK API key removed."
+msgstr "API-ключ Cursor SDK удалён."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Cursor SDK API key saved."
+msgstr "API-ключ Cursor SDK сохранён."
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Cursor SDK is up to date."
@@ -3280,7 +3336,6 @@ msgstr "Отклонить"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "По умолчанию"
@@ -3970,8 +4025,8 @@ msgid "Enter a valid SSH target and port."
 msgstr "Введите допустимый SSH-адрес и порт."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
-msgstr "Введите абсолютный путь к пакету @cursor/sdk или оставьте поле пустым для автоматического обнаружения."
+#~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
+#~ msgstr "Введите абсолютный путь к пакету @cursor/sdk или оставьте поле пустым для автоматического обнаружения."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter one MCP server configuration."
@@ -4289,10 +4344,10 @@ msgstr "Не удалось обновить цель"
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Fast"
 msgstr "Быстрый"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "Быстрый режим"
@@ -5153,6 +5208,7 @@ msgstr "установки"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Install"
@@ -5177,6 +5233,10 @@ msgstr "Установить {0}."
 msgid "Install {env}"
 msgstr "Установить {env}"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Install @cursor/sdk to configure its API key."
+#~ msgstr "Установите @cursor/sdk, чтобы настроить API-ключ."
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Install ACP + SDK"
 msgstr "Установить ACP + SDK"
@@ -5186,8 +5246,8 @@ msgid "Install ACP + SDK in {environment}"
 msgstr "Установить ACP + SDK в {environment}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
-msgstr "Установите ACP, SDK или оба варианта, затем выберите среду выполнения для новых чатов Cursor с графическим интерфейсом. Существующие чаты останутся привязаны к создавшей их среде."
+#~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
+#~ msgstr "Установите ACP, SDK или оба варианта, затем выберите среду выполнения для новых чатов Cursor с графическим интерфейсом. Существующие чаты останутся привязаны к создавшей их среде."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
@@ -5202,6 +5262,7 @@ msgid "Install Cursor Agent (ACP) in {environment}"
 msgstr "Установить Cursor Agent (ACP) в {environment}"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Install Cursor SDK"
 msgstr "Установить Cursor SDK"
 
@@ -5242,6 +5303,10 @@ msgstr "Установить Tailscale"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Установите Tailscale, чтобы включить HTTPS-доступ через MagicDNS."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Install the package to add its API key."
+msgstr "Установите пакет, чтобы добавить его API-ключ."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -6091,8 +6156,8 @@ msgid "Model added to favorites"
 msgstr "Модель добавлена в избранное"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "Model controls"
-msgstr "Параметры модели"
+#~ msgid "Model controls"
+#~ msgstr "Параметры модели"
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
@@ -7371,6 +7436,10 @@ msgstr "Переопределяет {conflict}"
 msgid "Overriding the global setting for this project."
 msgstr "Переопределение глобальной настройки для этого проекта."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Package"
+msgstr "Пакет"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Package config"
 msgstr "Конфигурация пакета"
@@ -7489,6 +7558,10 @@ msgstr "Вставьте API-ключ {label}"
 msgid "Paste <0>{0}</0> here. Click to copy."
 msgstr "Вставьте <0>{0}</0> сюда. Нажмите, чтобы скопировать."
 
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Paste Cursor API key"
+msgstr "Вставьте API-ключ Cursor"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Paste either a named server object or an object wrapped in an mcpServers key."
 msgstr "Вставьте именованный объект сервера или объект, вложенный в ключ mcpServers."
@@ -7571,6 +7644,10 @@ msgstr "Выбрать элемент"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionIconPicker.tsx
 msgid "Pick icon"
 msgstr "Выбрать значок"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
+msgstr "Выберите среду выполнения для новых GUI-чатов Cursor. Каждая среда выполнения устанавливается и аутентифицируется отдельно; открытые чаты сохраняют ту, с которой были запущены."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Picker failed"
@@ -8129,7 +8206,6 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "Готово. Включите, чтобы объявлять HTTPS-URL Tailscale в новых кодах сопряжения."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Reasoning"
 msgstr "Рассуждения"
 
@@ -8345,6 +8421,10 @@ msgstr "Удалить профиль Claude"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Remove connection"
 msgstr "Удалить подключение"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Remove Cursor SDK API key"
+msgstr "Удалить API-ключ Cursor SDK"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -8869,6 +8949,10 @@ msgstr "Закончится раньше"
 msgid "Runs out in {runOut}"
 msgstr "Закончится через {runOut}"
 
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "Runs through the Cursor CLI. Install it, update it, and sign in from the environment rows above."
+#~ msgstr "Работает через CLI Cursor. Установите и обновите его, затем войдите в систему в строках окружения выше."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Runtime"
@@ -8890,7 +8974,6 @@ msgstr "Параметры среды выполнения"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -8910,8 +8993,12 @@ msgid "Save Claude profile"
 msgstr "Сохранить профиль Claude"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "Save Cursor GUI runtime"
-msgstr "Сохранить среду выполнения GUI Cursor"
+#~ msgid "Save Cursor GUI runtime"
+#~ msgstr "Сохранить среду выполнения GUI Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Save Cursor SDK API key"
+msgstr "Сохранить API-ключ Cursor SDK"
 
 #: src/renderer/commands/registry.ts
 msgid "Save File"
@@ -8924,6 +9011,10 @@ msgstr "Сохранить серверы MCP"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Save shortcut"
 msgstr "Сохранить сочетание клавиш"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+#~ msgid "Saved API key"
+#~ msgstr "Сохранённый API-ключ"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
@@ -9006,28 +9097,32 @@ msgid "Scroll to bottom"
 msgstr "Прокрутить вниз"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "SDK"
-msgstr "SDK"
+#~ msgid "SDK"
+#~ msgstr "SDK"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#~ msgid "SDK authentication"
+#~ msgstr "Аутентификация SDK"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK installed"
 msgstr "SDK установлен"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "SDK mode requires a separately installed @cursor/sdk package and CURSOR_API_KEY. It does not use the Cursor Agent CLI login."
-msgstr "Для режима SDK требуется отдельно установленный пакет @cursor/sdk и CURSOR_API_KEY. Вход через CLI Cursor Agent не используется."
+#~ msgid "SDK mode requires a separately installed @cursor/sdk package and CURSOR_API_KEY. It does not use the Cursor Agent CLI login."
+#~ msgstr "Для режима SDK требуется отдельно установленный пакет @cursor/sdk и CURSOR_API_KEY. Вход через CLI Cursor Agent не используется."
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "SDK not installed"
 msgstr "SDK не установлен"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "SDK package path"
-msgstr "Путь к пакету SDK"
+#~ msgid "SDK package path"
+#~ msgstr "Путь к пакету SDK"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
-msgid "SDK package path (optional)"
-msgstr "Путь к пакету SDK (необязательно)"
+#~ msgid "SDK package path (optional)"
+#~ msgstr "Путь к пакету SDK (необязательно)"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -10064,6 +10159,8 @@ msgid "Support:"
 msgstr "Поддержка:"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Supports Fast mode"
 msgstr "Поддерживает быстрый режим"
 
@@ -10492,7 +10589,6 @@ msgstr "Эти встроенные серверы MCP используются 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Thinking"
 msgstr "Размышление"
 
@@ -11266,6 +11362,7 @@ msgid "update"
 msgstr "обновление"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "Обновить"
@@ -11288,6 +11385,7 @@ msgid "Update checks are not available in development mode."
 msgstr "Проверка обновлений недоступна в режиме разработки."
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Update Cursor SDK"
 msgstr "Обновить Cursor SDK"
 

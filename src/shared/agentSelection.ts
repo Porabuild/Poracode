@@ -71,6 +71,7 @@ export function capabilitiesForPresentation(
 
   const {
     defaultEffort: _defaultEffort,
+    defaultHiddenModels: _defaultHiddenModels,
     contextSizes: _contextSizes,
     modelContextSizes: _modelContextSizes,
     defaultContextSize: _defaultContextSize,
@@ -171,13 +172,25 @@ function runtimeVariantForSession(
   return variant?.presentationMode === presentationMode ? variant : undefined;
 }
 
-/** Return capabilities with hidden models filtered out. */
+/**
+ * Resolve the hidden ids for one capability surface. Provider defaults apply
+ * only until the user saves an explicit list; `[]` deliberately means show all.
+ */
+export function resolveHiddenModelIds(
+  capabilities: AgentCapability,
+  hiddenIds: readonly string[] | undefined,
+): readonly string[] {
+  return hiddenIds ?? capabilities.defaultHiddenModels ?? [];
+}
+
+/** Return capabilities with effective hidden models filtered out. */
 export function filterHiddenModels(
   capabilities: AgentCapability,
   hiddenIds: readonly string[] | undefined,
 ): AgentCapability {
-  if (!hiddenIds || hiddenIds.length === 0) return capabilities;
-  const hidden = new Set(hiddenIds);
+  const effectiveHiddenIds = resolveHiddenModelIds(capabilities, hiddenIds);
+  if (effectiveHiddenIds.length === 0) return capabilities;
+  const hidden = new Set(effectiveHiddenIds);
   return { ...capabilities, models: capabilities.models.filter((m) => !hidden.has(m.id)) };
 }
 

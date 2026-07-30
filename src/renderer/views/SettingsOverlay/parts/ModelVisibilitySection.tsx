@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { Button, Popover } from "@heroui/react";
-import { Check, Minus, Search } from "lucide-react";
+import { Check, Minus, Search, Zap } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -12,6 +12,7 @@ import {
 import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { providerVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
+import { resolveHiddenModelIds } from "@/shared/agentSelection";
 
 type SubGroupState = "all" | "some" | "none";
 
@@ -42,6 +43,7 @@ function ModelVisibilityRow(props: {
   onToggleGroup: (headerId: string) => void;
 }) {
   const { item, isVisible, groupState, indent, onToggleModel, onToggleGroup } = props;
+  const { t } = useLingui();
 
   if (item.type === "header-provider") {
     const state = groupState ?? "all";
@@ -127,6 +129,14 @@ function ModelVisibilityRow(props: {
       />
       <span className="ml-1 flex min-w-0 flex-1 items-center gap-1.5">
         <span className="min-w-0 truncate">{name}</span>
+        {/* Same Fast marker the composer's model menu uses. */}
+        {item.supportsFast ? (
+          <Zap
+            role="img"
+            aria-label={t`Supports Fast mode`}
+            className="size-3 shrink-0 text-muted/60"
+          />
+        ) : null}
         {mutedHint ? (
           <span className="shrink-0 text-[10px] leading-none text-muted/60">· {mutedHint}</span>
         ) : null}
@@ -162,7 +172,10 @@ export function ModelVisibilitySection() {
   const hiddenByProvider = new Map<string, Set<string>>();
   for (const provider of providers) {
     const providerKey = providerVisibilityKey(provider);
-    hiddenByProvider.set(providerKey, new Set(hiddenModels[providerKey] ?? []));
+    hiddenByProvider.set(
+      providerKey,
+      new Set(resolveHiddenModelIds(provider.capabilities, hiddenModels[providerKey])),
+    );
   }
 
   const totalCount = allModels.length;

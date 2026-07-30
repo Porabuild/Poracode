@@ -2,11 +2,7 @@ import { authStateForPresentation, capabilitiesForPresentation } from "@/shared/
 import type { AgentCapability, AgentStatus, AuthState } from "@/shared/contracts";
 import { detectProbeLocation, type AgentEnvContext } from "../base";
 import { cursorSdkGuiCapabilities, type CursorSdkModel } from "./sdkModels";
-import {
-  CURSOR_SDK_SESSION_PREFIX,
-  cursorSdkConfiguredPath,
-  type CursorStructuredRuntime,
-} from "./structuredRuntime";
+import { CURSOR_SDK_SESSION_PREFIX, type CursorStructuredRuntime } from "./structuredRuntime";
 import {
   CursorSdkWorkerRpcError,
   spawnCursorSdkWorker,
@@ -41,16 +37,6 @@ export interface CursorSdkRuntimeProbe {
   installed: boolean;
   authState: AuthState;
   models: CursorSdkModel[];
-  /**
-   * The environment-wide probe cannot see project-local node_modules or
-   * project-shell credentials because it deliberately runs from home (native)
-   * or /tmp (WSL). When package or credential discovery may therefore differ
-   * at launch, keep the explicitly-selected SDK runtime selectable and let the
-   * session resolve it from the real project cwd. Invalid configured paths and
-   * credentials that were actually presented and rejected remain exact
-   * failures.
-   */
-  projectDiscoveryDeferred?: boolean;
   version?: string;
   source?: string;
   diagnosticCode?: string;
@@ -73,13 +59,8 @@ export function applyCursorSdkProbe(
   selectedRuntime: CursorStructuredRuntime = "sdk",
 ): AgentStatus {
   const cliInstalled = cliStatus.installed;
-  const sdkSelectable = probe.installed || probe.projectDiscoveryDeferred === true;
-  const sdkModels =
-    probe.models.length > 0
-      ? probe.models
-      : probe.projectDiscoveryDeferred
-        ? deferredProjectSdkModels(cliStatus)
-        : [];
+  const sdkReady = probe.installed && probe.authState === "authenticated";
+  const sdkModels = probe.models;
   const sdkGui = cursorSdkGuiCapabilities(sdkModels);
   const acpCapabilities = cursorAcpRuntimeCapabilities(cliStatus.capabilities);
   const sdkCapabilities = cursorSdkRuntimeCapabilities(
@@ -98,7 +79,7 @@ export function applyCursorSdkProbe(
     },
     sdk: {
       presentationMode: "gui",
-      installed: sdkSelectable,
+      installed: probe.installed,
       ...(probe.version ? { version: probe.version } : {}),
       ...(probe.source ? { installationSource: probe.source } : {}),
       authState: probe.authState,
@@ -111,7 +92,7 @@ export function applyCursorSdkProbe(
     fallbackRuntime: "acp",
   };
 
-  if (selectedRuntime === "acp") {
+  if ((selectedRuntime === "acp" && cliInstalled) || (!sdkReady && cliInstalled)) {
     const { presentationCapabilities: _presentationCapabilities, ...acpRootCapabilities } =
       cliStatus.capabilities;
     return {
@@ -136,12 +117,12 @@ export function applyCursorSdkProbe(
   const capabilities: AgentStatus["capabilities"] = cliInstalled
     ? {
         ...cliCapabilities,
-        presentationModes: sdkSelectable ? ["terminal", "gui"] : ["terminal"],
+        presentationModes: sdkReady ? ["terminal", "gui"] : ["terminal"],
         mcpScope: {
           ...cliStatus.capabilities.mcpScope,
-          ...(sdkSelectable ? { gui: "always" as const } : {}),
+          ...(sdkReady ? { gui: "always" as const } : {}),
         },
-        ...(sdkSelectable
+        ...(sdkReady
           ? {
               presentationCapabilities: {
                 gui: sdkGui,
@@ -153,19 +134,19 @@ export function applyCursorSdkProbe(
         ...cliCapabilities,
         ...sdkGui,
         presentationMode: "gui",
-        presentationModes: sdkSelectable ? ["gui"] : [],
+        presentationModes: sdkReady ? ["gui"] : [],
         supportsOneShot: false,
-        mcpScope: sdkSelectable ? ({ gui: "always" } as const) : {},
-        ...(sdkSelectable ? { presentationCapabilities: { gui: sdkGui } } : {}),
+        mcpScope: sdkReady ? ({ gui: "always" } as const) : {},
+        ...(sdkReady ? { presentationCapabilities: { gui: sdkGui } } : {}),
       };
 
   const presentationAuthStates = {
     ...(cliInstalled ? { terminal: cliStatus.authState } : {}),
-    ...(sdkSelectable ? { gui: probe.authState } : {}),
+    ...(probe.installed ? { gui: probe.authState } : {}),
   };
   const merged: AgentStatus = {
     ...cliStatus,
-    installed: cliInstalled || sdkSelectable,
+    installed: cliInstalled || probe.installed,
     authState: cliInstalled ? cliStatus.authState : probe.authState,
     capabilities,
     ...(cliInstalled
@@ -174,7 +155,7 @@ export function applyCursorSdkProbe(
           ...(probe.version ? { version: probe.version } : {}),
         }),
     ...(Object.keys(presentationAuthStates).length > 0 ? { presentationAuthStates } : {}),
-    ...(sdkSelectable ? { presentationAuthUsesProviderLogin: { gui: false } } : {}),
+    ...(probe.installed ? { presentationAuthUsesProviderLogin: { gui: false } } : {}),
     runtimeVariants,
     sessionRuntimeRouting: runtimeRouting,
   };
@@ -239,22 +220,6 @@ function cursorSdkRuntimeCapabilities(
 }
 
 /**
- * Supply a launchable model choice while project-local SDK discovery is
- * deferred. Cursor CLI and SDK model ids share the provider catalog. Preserve
- * `auto` as the documented server-selected SDK fallback; `auto-smart` is the
- * separately gated Cursor Router and must never be invented for an account
- * whose catalog could not be read. The real catalog is fetched before
- * Agent.create/resume and supplies any supported parameters.
- */
-function deferredProjectSdkModels(cliStatus: AgentStatus): CursorSdkModel[] {
-  const models = cliStatus.capabilities.models.map((model) => ({
-    id: model.id,
-    displayName: model.label,
-  }));
-  return models.length > 0 ? models : [{ id: "auto", displayName: "Auto" }];
-}
-
-/**
  * Probe the external SDK from the environment where it will actually run.
  *
  * This is intentionally worker-backed even on the native host: importing the
@@ -266,14 +231,14 @@ export async function probeCursorSdkRuntime(
   dependencies: CursorSdkDetectionDependencies = {},
 ): Promise<CursorSdkRuntimeProbe> {
   const projectLocation = detectProbeLocation(ctx);
-  const configuredPath = cursorSdkConfiguredPath(ctx?.agentSettings, projectLocation);
+  const configuredApiKey =
+    typeof ctx?.agentSettings?.sdkApiKey === "string" ? ctx.agentSettings.sdkApiKey.trim() : "";
   let worker: Pick<CursorSdkWorkerClient, "probe" | "dispose"> | undefined;
   try {
     worker = await (dependencies.spawnWorker ?? spawnCursorSdkWorker)({
       projectLocation,
-      ...(configuredPath ? { configuredPath } : {}),
     });
-    const result = await worker.probe();
+    const result = await worker.probe(configuredApiKey || undefined);
     return {
       installed: true,
       authState: "authenticated",
@@ -284,20 +249,13 @@ export async function probeCursorSdkRuntime(
   } catch (error) {
     const code = cursorSdkProbeErrorCode(error);
     const normalizedCode = code?.toLowerCase();
-    const projectDiscoveryDeferred =
-      (normalizedCode === "package_missing" && configuredPath === undefined) ||
-      normalizedCode === "auth_missing";
     return {
       // Once the helper booted, an unclassified failure is normally the
       // account catalog request (network/service), not package discovery.
       // Loader failures have stable codes and are classified above.
       installed: normalizedCode ? !NOT_INSTALLED_CODES.has(normalizedCode) : worker !== undefined,
-      authState:
-        normalizedCode && MISSING_AUTH_CODES.has(normalizedCode) && !projectDiscoveryDeferred
-          ? "missing"
-          : "unknown",
+      authState: normalizedCode && MISSING_AUTH_CODES.has(normalizedCode) ? "missing" : "unknown",
       models: [],
-      ...(projectDiscoveryDeferred ? { projectDiscoveryDeferred: true } : {}),
       ...(code ? { diagnosticCode: code } : {}),
       diagnosticMessage: cursorSdkProbeErrorMessage(error),
     };

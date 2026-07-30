@@ -1,4 +1,5 @@
 import { msg } from "@lingui/core/macro";
+import { CURSOR_SDK_INSTALL_SPEC } from "@/shared/agents/cursorSdkPackage";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 
@@ -56,8 +57,8 @@ function guardedCommand(
     : `if command -v ${tool} >/dev/null 2>&1; then ${body}; else printf '${missingMessage}\\n'; fi`;
 }
 
-/** Supported `@cursor/sdk` range — see sdkLoader's compatibility check. */
-const CURSOR_SDK_PACKAGE_SPEC = "'@cursor/sdk@^1.0.24'";
+/** Shell-quoted install spec; the range itself lives in `cursorSdkPackage.ts`. */
+const CURSOR_SDK_PACKAGE_SPEC = `'${CURSOR_SDK_INSTALL_SPEC}'`;
 const MISSING_CURL_MESSAGE =
   "curl is required to install Cursor. Install curl, then refresh detected agents.";
 const MISSING_WINDOWS_INSTALLER_MESSAGE =

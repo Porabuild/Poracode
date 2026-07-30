@@ -42,6 +42,7 @@ import {
 import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
+import { SAVED_CREDENTIAL_MASK } from "../secretMask";
 import { ClaudeProfileProviderSettings } from "../ClaudeProfileSettings";
 import { AgentSettingRow } from "./parts/AgentSettingRow";
 import { ModelVisibilityDropdown } from "./parts/ModelVisibilityDropdown";
@@ -56,8 +57,6 @@ import {
   statusEnvKey,
   supportsAcpLogoutStatus,
 } from "./parts/authHelpers";
-
-const SAVED_SECRET_MASK = "***********";
 
 export function SingleAgentSettings(props: {
   agentKind: string;
@@ -680,9 +679,23 @@ export function SingleAgentSettings(props: {
     );
   };
 
+  const environmentRows = (
+    <>
+      {installedHere.map(renderInstalledEnvironmentRow)}
+      {installableHere.map(renderInstallableEnvironmentRow)}
+      {installedWsl.map(renderInstalledEnvironmentRow)}
+      {installableWsl.map(renderInstallableEnvironmentRow)}
+    </>
+  );
+  // Panels that group several runtimes place these rows inside the runtime they
+  // belong to, so leaving them above the panel would strand one runtime's setup
+  // outside the grouping.
+  const panelOwnsInstallRows =
+    providerEntry?.settingsPanel !== undefined && providerEntry.ownsInstallRows === true;
+
   return (
     <div className="mx-auto max-w-[720px]">
-      <div className="mb-6">
+      <div className={panelOwnsInstallRows ? "mb-2" : "mb-6"}>
         <div className="flex items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <ProviderIcon
@@ -730,12 +743,9 @@ export function SingleAgentSettings(props: {
           </div>
         </div>
 
-        <div className="space-y-0.5 border-t border-border/10 pt-3">
-          {installedHere.map(renderInstalledEnvironmentRow)}
-          {installableHere.map(renderInstallableEnvironmentRow)}
-          {installedWsl.map(renderInstalledEnvironmentRow)}
-          {installableWsl.map(renderInstallableEnvironmentRow)}
-        </div>
+        {panelOwnsInstallRows ? null : (
+          <div className="space-y-0.5 border-t border-border/10 pt-3">{environmentRows}</div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -745,6 +755,7 @@ export function SingleAgentSettings(props: {
             statuses={installedStatuses}
             wslDistros={wslDistros}
             onOpenProfile={props.onOpenProfile}
+            {...(panelOwnsInstallRows ? { installRows: environmentRows } : {})}
           />
         ) : null}
 
@@ -783,7 +794,7 @@ export function SingleAgentSettings(props: {
                               hasAuthValue
                                 ? (authValues[variable.name] ?? "")
                                 : allEnvVarSaved
-                                  ? SAVED_SECRET_MASK
+                                  ? SAVED_CREDENTIAL_MASK
                                   : ""
                             }
                             onFocus={() => {
