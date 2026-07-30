@@ -11792,7 +11792,7 @@ msgstr "工作"
 msgid "Work in the current checkout"
 msgstr "在当前检出中工作"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Worked for {elapsed}"
 msgstr "已工作 {elapsed}"
@@ -11835,7 +11835,7 @@ msgstr "工作流程"
 msgid "Working"
 msgstr "工作中"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
 msgstr "已工作 {elapsed}"
 

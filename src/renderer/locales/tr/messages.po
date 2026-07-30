@@ -11793,7 +11793,7 @@ msgstr "İş"
 msgid "Work in the current checkout"
 msgstr "Mevcut çalışma kopyasında çalışın"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Worked for {elapsed}"
 msgstr "{elapsed} boyunca çalıştı"
@@ -11836,7 +11836,7 @@ msgstr "İş akışları"
 msgid "Working"
 msgstr "Çalışıyor"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
 msgstr "{elapsed} boyunca çalışıyor"
 

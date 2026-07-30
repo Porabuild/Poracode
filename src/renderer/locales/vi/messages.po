@@ -11793,7 +11793,7 @@ msgstr "công việc"
 msgid "Work in the current checkout"
 msgstr "Làm việc trong checkout hiện tại"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Worked for {elapsed}"
 msgstr "Đã làm việc trong {elapsed}"
@@ -11836,7 +11836,7 @@ msgstr "Quy trình làm việc"
 msgid "Working"
 msgstr "Đang làm việc"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
 msgstr "Đang làm việc trong {elapsed}"
 
