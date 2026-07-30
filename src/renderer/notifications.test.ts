@@ -312,7 +312,10 @@ describe("handleThreadStateNotification PWA path", () => {
     notifications[0]!.onclick?.();
 
     expect(bridgeMock.focusWindow).toHaveBeenCalledOnce();
-    expect(openThreadMock).toHaveBeenCalledWith("thread-1", { focusComposer: true });
+    expect(openThreadMock).toHaveBeenCalledWith("thread-1", {
+      focusComposer: true,
+      switchWorkspace: true,
+    });
     expect(notifications[0]!.close).toHaveBeenCalledOnce();
   });
 

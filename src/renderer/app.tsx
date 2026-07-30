@@ -433,8 +433,11 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);
       }),
-      readBridge().onThreadOpenRequested(({ threadId }) => {
-        openThread(threadId, { focusComposer: true });
+      readBridge().onThreadOpenRequested(({ threadId, source }) => {
+        openThread(threadId, {
+          focusComposer: true,
+          ...(source === "notification" ? { switchWorkspace: true } : {}),
+        });
       }),
       readBridge().onQuickComposerSubmit((submission) => {
         void (async () => {

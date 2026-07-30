@@ -1,5 +1,5 @@
 import { startTransition } from "react";
-import type { Thread } from "@/shared/contracts";
+import { isProjectInWorkspace, type Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
@@ -12,6 +12,7 @@ import {
   hydrateThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { getActiveWorkspaceId, useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { readWorktreeDeletePref } from "@/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog";
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
@@ -99,10 +100,24 @@ export function openNewThreadInWorktree(input: {
 
 export function openThread(
   threadId: string,
-  options?: { focusComposer?: boolean; standalone?: boolean },
+  options?: { focusComposer?: boolean; standalone?: boolean; switchWorkspace?: boolean },
 ): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
+  if (thread && options?.switchWorkspace) {
+    const project = store.projects.find((item) => item.id === thread.projectId);
+    const targetWorkspaceId = project?.workspaceId;
+    const knownWorkspaceIds = new Set(
+      (useSharedSettings.getState().workspaces ?? []).map((workspace) => workspace.id),
+    );
+    if (
+      project &&
+      targetWorkspaceId &&
+      !isProjectInWorkspace(project, getActiveWorkspaceId(), knownWorkspaceIds)
+    ) {
+      useWorkspaceStore.getState().setActiveWorkspaceId(targetWorkspaceId);
+    }
+  }
   const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
   const requestId = ++openThreadRequestId;
   const threadIdsToHydrate = getGuiThreadIdsToHydrateBeforeOpen(threadId, standalone);

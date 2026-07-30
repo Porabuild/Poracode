@@ -87,7 +87,7 @@ function isThreadInActivePanes(threadId: string): boolean {
 }
 
 function openNotificationThread(threadId: string): void {
-  openThread(threadId, { focusComposer: true });
+  openThread(threadId, { focusComposer: true, switchWorkspace: true });
 }
 
 function getProjectName(projectId: string): string {

@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RemoteThreadCommand, Thread } from "@/shared/contracts";
+import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import type {
   QuickComposerSubmission,
   SupervisorEvent,
@@ -13,6 +13,7 @@ import { useGitStore } from "./state/gitStore";
 import { usePanelStore } from "./state/panelStore";
 import { useSidebarUiStore } from "./state/sidebarUiStore";
 import { useExperimentStore } from "./state/experimentStore";
+import { useWorkspaceStore } from "./state/workspaceStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
@@ -22,6 +23,7 @@ const {
   projectStateChangedListeners,
   remoteThreadCommandListeners,
   runWorktreeSetupScript,
+  sharedSettingsState,
   supervisorEventListeners,
   threadOpenRequestedListeners,
 } = vi.hoisted(() => {
@@ -33,6 +35,17 @@ const {
   return {
     remoteThreadCommandListeners: listeners,
     runWorktreeSetupScript: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    sharedSettingsState: {
+      current: {
+        themeMode: "system",
+        staleThreadUnloadMinutes: 20,
+        autoArchiveDoneAfterDays: 7,
+        worktreeStorageMode: "global",
+        worktreeBasePath: "",
+        wslWorktreeBasePath: "",
+        workspaces: [] as Workspace[],
+      },
+    },
     quickComposerSubmitListeners: quickListeners,
     supervisorEventListeners: supervisorListeners,
     threadOpenRequestedListeners: threadOpenListeners,
@@ -370,23 +383,10 @@ vi.mock("@/renderer/components/thread/ThreadView", () => ({
 
 vi.mock("./state/sharedSettingsStore", () => ({
   useSharedSettings: Object.assign(
-    (selector: (s: Record<string, unknown>) => unknown) =>
-      selector({
-        themeMode: "system",
-        staleThreadUnloadMinutes: 20,
-        autoArchiveDoneAfterDays: 7,
-        worktreeStorageMode: "global",
-        worktreeBasePath: "",
-        wslWorktreeBasePath: "",
-      }),
+    (selector: (s: Record<string, unknown>) => unknown) => selector(sharedSettingsState.current),
     {
       getState: () => ({
-        themeMode: "system",
-        staleThreadUnloadMinutes: 20,
-        autoArchiveDoneAfterDays: 7,
-        worktreeStorageMode: "global",
-        worktreeBasePath: "",
-        wslWorktreeBasePath: "",
+        ...sharedSettingsState.current,
         setThemeMode: () => undefined,
       }),
     },
@@ -449,6 +449,8 @@ describe("App", () => {
       collapsedWorktrees: {},
       threadListLimits: {},
     });
+    sharedSettingsState.current.workspaces = [];
+    useWorkspaceStore.setState({ activeWorkspaceId: null });
   });
 
   afterEach(() => {
@@ -503,6 +505,57 @@ describe("App", () => {
 
     expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+  });
+
+  it("switches workspaces when a notification requests a thread in another workspace", async () => {
+    vi.useFakeTimers();
+    mockAnimationFrameWithFakeTimers();
+    const currentWorkspace = {
+      id: "workspace-current",
+      name: "Current",
+      createdAt: "2026-07-29T00:00:00.000Z",
+      icon: "briefcase" as const,
+    };
+    const threadWorkspace = {
+      id: "workspace-thread",
+      name: "Thread workspace",
+      createdAt: "2026-07-29T00:00:00.000Z",
+      icon: "rocket" as const,
+    };
+    const project = {
+      id: "project-in-thread-workspace",
+      name: "Repo",
+      location: { kind: "posix" as const, path: "/repo" },
+      workspaceId: threadWorkspace.id,
+      createdAt: "2026-07-29T00:00:00.000Z",
+    };
+    const thread: Thread = {
+      id: "thread-from-notification",
+      projectId: project.id,
+      title: "Requested thread",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-07-29T00:00:00.000Z",
+      updatedAt: "2026-07-29T00:00:00.000Z",
+    };
+    sharedSettingsState.current.workspaces = [currentWorkspace, threadWorkspace];
+    useWorkspaceStore.setState({ activeWorkspaceId: currentWorkspace.id });
+    useAppStore.setState({ projects: [project], threads: [thread] });
+
+    threadOpenRequestedListeners.at(-1)?.({
+      threadId: thread.id,
+      source: "notification",
+    });
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe(threadWorkspace.id);
+    await vi.advanceTimersByTimeAsync(16);
+    expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
   });
 
   it("acknowledges a remotely opened finished thread without navigating the desktop", () => {
