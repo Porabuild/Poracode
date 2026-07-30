@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { projectLocationSchema } from "./common";
+import { projectLocationSchema, threadPresentationModeSchema } from "./common";
 
 const SKILL_NAME_PATTERN = /^(?!.*--)[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const GITHUB_REPOSITORY_SOURCE_PATTERN = /^[a-z0-9_.-]+\/[a-z0-9_.-]+$/iu;
@@ -57,6 +57,8 @@ export const skillEntrySchema = z.object({
   scopeLabel: z.string().min(1),
   availability: skillAvailabilitySchema.optional(),
   origin: skillOriginSchema,
+  pluginId: z.string().min(1).optional(),
+  pluginName: z.string().min(1).optional(),
   enabled: z.boolean(),
   mutable: z.boolean(),
   valid: z.boolean(),
@@ -88,6 +90,7 @@ export const scanSkillsPayloadSchema = z.object({
   projectLocation: projectLocationSchema.optional(),
   wslDistro: z.string().min(1).optional(),
   agentKind: z.string().min(1).optional(),
+  presentationMode: threadPresentationModeSchema.optional(),
 });
 export type ScanSkillsPayload = z.infer<typeof scanSkillsPayloadSchema>;
 

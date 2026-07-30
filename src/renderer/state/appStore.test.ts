@@ -16,6 +16,7 @@ describe("appStore runtime config sync", () => {
       ...state,
       projects: [],
       threads: [],
+      runtimeLaunchConfigByThreadId: {},
       view: { kind: "home" },
     }));
   });
@@ -47,6 +48,52 @@ describe("appStore runtime config sync", () => {
     });
 
     expect(useAppStore.getState().threads[0]?.config.effort).toBe("high");
+  });
+
+  it("tracks and clears the supervisor's effective launch config separately", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4", browserMcp: true },
+      prompt: "hello",
+    });
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      config: thread.config,
+      launchConfig: { ...thread.config, browserMcp: false, subagentMcp: true },
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().threads[0]?.config.browserMcp).toBe(true);
+    expect(useAppStore.getState().runtimeLaunchConfigByThreadId[thread.id]).toMatchObject({
+      browserMcp: false,
+      subagentMcp: true,
+    });
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().runtimeLaunchConfigByThreadId[thread.id]).toMatchObject({
+      browserMcp: false,
+      subagentMcp: true,
+    });
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      config: thread.config,
+      launchConfig: null,
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().runtimeLaunchConfigByThreadId[thread.id]).toBeUndefined();
   });
 
   it("tags an existing thread with worktree metadata (set-worktree command path)", () => {

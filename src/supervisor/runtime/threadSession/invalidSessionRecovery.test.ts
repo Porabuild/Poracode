@@ -51,6 +51,7 @@ function createHarness() {
     adapter,
     projectLocation: PROJECT_LOCATION,
     config: CONFIG,
+    runtimeLaunchConfig: CONFIG,
     mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
     terminalSize: { cols: 100, rows: 30 },
     launchPrompt: "",
@@ -204,10 +205,6 @@ describe("InvalidSessionRecoveryCoordinator", () => {
       "dispose",
       "settle",
       "kill",
-      "browser",
-      "subagent",
-      "computer-use",
-      "chrome",
       "app-controls",
       "hooks",
       "compose",
@@ -225,6 +222,32 @@ describe("InvalidSessionRecoveryCoordinator", () => {
       launchPrompt: "",
       extraEnv: { PORACODE_HOOK_URL: "http://127.0.0.1/hook" },
     });
+  });
+
+  it("preserves the original runtime App policy during recovery", async () => {
+    const harness = createHarness();
+    harness.session.runtimeLaunchConfig = { ...CONFIG, browserMcp: true };
+    harness.resolveBrowserMcpForLaunch.mockResolvedValue({
+      url: "http://127.0.0.1/browser",
+      token: "browser-token",
+      headers: { Authorization: "Bearer browser-token" },
+    });
+
+    await harness.coordinator.recover(harness.session);
+
+    expect(harness.buildLaunchArgv).toHaveBeenCalledWith(
+      PROJECT_LOCATION,
+      { ...CONFIG, browserMcp: true },
+      "",
+      undefined,
+      expect.any(Object),
+    );
+    expect(harness.spawnThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: CONFIG,
+        runtimeLaunchConfig: { ...CONFIG, browserMcp: true },
+      }),
+    );
   });
 
   it("returns the same in-flight recovery when the banner repeats", async () => {
@@ -297,8 +320,19 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     expect(harness.spawnThread).not.toHaveBeenCalled();
   });
 
+  it("does not recover with fewer App transports than the original runtime", async () => {
+    const harness = createHarness();
+    harness.session.runtimeLaunchConfig = { ...CONFIG, browserMcp: true };
+
+    await expect(harness.coordinator.recover(harness.session)).rejects.toThrow(
+      "Unable to restore the thread's App transports",
+    );
+    expect(harness.spawnThread).not.toHaveBeenCalled();
+  });
+
   it("exposes launch failures through the awaitable recovery", async () => {
     const harness = createHarness();
+    harness.session.runtimeLaunchConfig = { ...CONFIG, browserMcp: true };
     harness.resolveBrowserMcpForLaunch.mockRejectedValue(new Error("browser MCP unavailable"));
 
     await expect(harness.coordinator.recover(harness.session)).rejects.toThrow(
@@ -309,6 +343,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
 
   it("reports a shared recovery failure only once when the banner repeats", async () => {
     const harness = createHarness();
+    harness.session.runtimeLaunchConfig = { ...CONFIG, browserMcp: true };
     const error = new Error("browser MCP unavailable");
     harness.resolveBrowserMcpForLaunch.mockRejectedValue(error);
 

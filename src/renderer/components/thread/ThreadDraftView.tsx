@@ -25,6 +25,7 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
+import { isBuiltInMcpServerAvailableByPlugin } from "@/shared/plugins/catalog";
 import {
   appendProviderComposerControls,
   buildModelPickerControls,
@@ -241,6 +242,7 @@ export function ThreadDraftView(props: {
   // Persistent composer MCP enablement (standing default across new threads).
   const enabledMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
+  const installedPlugins = useSharedSettings((s) => s.installedPlugins);
   const supportedPresentationModes = selectedAgent
     ? (selectedAgent.capabilities.presentationModes ?? [
         selectedAgent.capabilities.presentationMode,
@@ -932,11 +934,16 @@ export function ThreadDraftView(props: {
   // persistent standing default whose scope the current provider/presentation
   // actually supports. A persistent enable with a "none" scope must NOT set the
   // config flag — otherwise the composer would show a phantom "on" state and the
-  // scope-reset effect there would fight it.
+  // scope-reset effect there would fight it. Plugin-managed apps are applied by
+  // the supervisor at launch so their flags never become persisted thread choices.
   const hostPlatform = readBridge()?.platform;
-  const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) =>
-    disabledBuiltInMcpServers[id] !== true &&
-    (mention || (enabledMcpServers[id] === true && scope !== "none"));
+  const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) => {
+    return (
+      disabledBuiltInMcpServers[id] !== true &&
+      isBuiltInMcpServerAvailableByPlugin(installedPlugins, id) &&
+      (mention || (enabledMcpServers[id] === true && scope !== "none"))
+    );
+  };
   const effectiveBrowserMcp = effectiveMcp(
     "browser",
     browserMcpMention,

@@ -18,6 +18,7 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { normalizeRuntimeSnapshotLaunchConfig } from "./state/slices/threadSlice";
 import {
   archiveThread,
   deleteThread,
@@ -213,7 +214,7 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
     const oldThread = shouldCheckNotifications
       ? appStore.threads.find((t) => t.id === event.threadId)
       : undefined;
-    appStore.updateThreadRuntime(event.threadId, event);
+    appStore.updateThreadRuntime(event.threadId, normalizeRuntimeSnapshotLaunchConfig(event));
     if (shouldCheckNotifications) {
       const newThread = useAppStore.getState().threads.find((t) => t.id === event.threadId);
       handleThreadStateNotification(event, oldThread, newThread);

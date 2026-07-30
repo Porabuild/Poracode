@@ -125,6 +125,7 @@ describe("sharedSettingsFile", () => {
       mcpServers: [],
       disabledBuiltInMcpServers: {},
       disabledBuiltInMcpTools: {},
+      installedPlugins: {},
       browser: {
         allowEval: false,
         allowDataAccess: false,
@@ -240,6 +241,7 @@ describe("sharedSettingsFile", () => {
       mcpServers: [],
       disabledBuiltInMcpServers: {},
       disabledBuiltInMcpTools: {},
+      installedPlugins: {},
       browser: {
         allowEval: false,
         allowDataAccess: false,

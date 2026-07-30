@@ -3,7 +3,7 @@ import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentStatus, Thread } from "@/shared/contracts";
+import type { AgentStatus, SkillScanResult, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
@@ -17,6 +17,16 @@ const bridgeMock = vi.hoisted(() => ({
   refreshAgentStatuses: vi
     .fn<() => Promise<{ windows: AgentStatus[]; wsl: AgentStatus[] }>>()
     .mockResolvedValue({ windows: [], wsl: [] }),
+  scanSkills: vi.fn<() => Promise<SkillScanResult>>().mockResolvedValue({
+    skills: [],
+    effectiveSkillIds: [],
+    invocation: null,
+    issues: [],
+    canLinkToGlobal: true,
+  }),
+  searchProjectFiles: vi
+    .fn<() => Promise<{ entries: never[]; totalIndexed: number }>>()
+    .mockResolvedValue({ entries: [], totalIndexed: 0 }),
 }));
 
 const runtimeActions = vi.hoisted(() => ({
@@ -40,6 +50,8 @@ vi.mock("../../bridge", () => ({
     setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     refreshAgentStatuses: bridgeMock.refreshAgentStatuses,
+    scanSkills: bridgeMock.scanSkills,
+    searchProjectFiles: bridgeMock.searchProjectFiles,
   }),
 }));
 
@@ -162,7 +174,12 @@ const claudeTerminalStatus: AgentStatus = {
 
 describe("ThreadComposerSection", () => {
   beforeEach(() => {
-    useSharedSettings.setState({ collapseTerminalComposer: false });
+    useSharedSettings.setState({
+      agentSettings: {},
+      collapseTerminalComposer: false,
+      disabledBuiltInMcpServers: {},
+      installedPlugins: {},
+    });
     useThreadTodoDockStore.setState({
       defaultPlacement: "composer",
       defaultCollapsed: false,
@@ -172,6 +189,7 @@ describe("ThreadComposerSection", () => {
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
+      runtimeLaunchConfigByThreadId: {},
       pendingSteerByThreadId: {},
       threadDraftContents: {},
     });
@@ -179,6 +197,8 @@ describe("ThreadComposerSection", () => {
     bridgeMock.clearPendingSteer.mockClear();
     bridgeMock.clearPendingSteer.mockResolvedValue(undefined);
     bridgeMock.refreshAgentStatuses.mockClear();
+    bridgeMock.scanSkills.mockClear();
+    bridgeMock.searchProjectFiles.mockClear();
     bridgeMock.interruptThread.mockClear();
     bridgeMock.interruptThread.mockResolvedValue(undefined);
     runtimeActions.changeThreadConfig.mockClear();
@@ -258,6 +278,120 @@ describe("ThreadComposerSection", () => {
     });
 
     expect(screen.getByTestId("control-kinds")).toBeEmptyDOMElement();
+  });
+
+  it("scans active-thread skills for the launched presentation", async () => {
+    renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+    });
+
+    await waitFor(() =>
+      expect(bridgeMock.scanSkills).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentKind: "claude",
+          presentationMode: "terminal",
+        }),
+      ),
+    );
+  });
+
+  it("offers MCP mentions from the supervisor's effective launch config", async () => {
+    Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        bottom: 0,
+        height: 0,
+        left: 0,
+        right: 0,
+        top: 0,
+        width: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
+    useAppStore.setState({
+      runtimeLaunchConfigByThreadId: {
+        [guiThread.id]: { ...guiThread.config, browserMcp: true },
+      },
+    });
+    renderComposer();
+    const editor = screen.getByRole("textbox");
+    const text = document.createTextNode("@bro");
+    editor.appendChild(text);
+    const range = document.createRange();
+    range.setStart(text, text.length);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    await waitFor(() => expect(screen.getByText("Browser")).toBeInTheDocument());
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor).toHaveTextContent("@Browser");
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
+  });
+
+  it("previews Browser MCP from provider settings before an inactive thread launches", async () => {
+    Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        bottom: 0,
+        height: 0,
+        left: 0,
+        right: 0,
+        top: 0,
+        width: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
+    useSharedSettings.setState({
+      agentSettings: { codex: { browserMcp: true } },
+      installedPlugins: {
+        "browser-tools": {
+          version: "1.0.0",
+          enabled: true,
+          disabledSkillIds: [],
+          disabledAppIds: ["browser"],
+        },
+      },
+    });
+    renderComposer({
+      thread: { ...guiThread, status: "inactive" },
+      agentStatus: {
+        ...codexGuiStatus,
+        capabilities: {
+          ...codexGuiStatus.capabilities,
+          browserMcpScope: { terminal: "none", gui: "none" },
+        },
+      },
+    });
+
+    const editor = screen.getByRole("textbox");
+    const text = document.createTextNode("@bro");
+    editor.appendChild(text);
+    const range = document.createRange();
+    range.setStart(text, text.length);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    await waitFor(() => expect(screen.getByText("Browser")).toBeInTheDocument());
   });
 
   it("hides the terminal composer collapse button in remote sessions", () => {

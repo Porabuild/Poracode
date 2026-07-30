@@ -1,5 +1,6 @@
 import type {
   AgentCapability,
+  AgentKind,
   ProjectLocation,
   RuntimeEvent,
   ThreadConfig,
@@ -7,6 +8,7 @@ import type {
 } from "@/shared/contracts";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { PluginMcpConfigKey } from "@/shared/plugins/catalog";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
@@ -137,10 +139,22 @@ export interface SubagentRunHost {
   getParentContext(
     threadId: string,
   ): { projectLocation: ProjectLocation; config: ThreadConfig } | undefined;
-  /** Resolve the parent's non-recursive MCP access for a structured child. */
+  /** Apply plugin apps against the selected child's provider and presentation scope. */
+  applyPluginAppsToChild?(
+    parentThreadId: string,
+    agentKind: AgentKind,
+    config: ThreadConfig,
+  ): {
+    config: ThreadConfig;
+    disabledConfigKeys: readonly PluginMcpConfigKey[];
+  };
+  /** Resolve non-recursive MCP access for a structured child's effective config. */
   resolveParentMcpAccess?(
     threadId: string,
     identity: McpThreadIdentity,
+    agentKind: AgentKind,
+    config: ThreadConfig,
+    disabledConfigKeys: readonly PluginMcpConfigKey[],
   ): Promise<{
     browserMcp?: BrowserMcpHttpConfig;
     computerUseMcp?: ComputerUseMcpHttpConfig;

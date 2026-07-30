@@ -14,6 +14,19 @@ export interface OrchestratorThreadBridgeDeps {
   sendThreadCommand(command: RemoteThreadCommand): boolean;
 }
 
+export function enforcePersistedThreadLaunchInvariants(
+  payload: StartThreadPayload,
+  getThread: (threadId: string) => Pick<Thread, "parentThreadId"> | null = dbGetThread,
+): StartThreadPayload {
+  if (!payload.threadId || !getThread(payload.threadId)?.parentThreadId) return payload;
+  return {
+    ...payload,
+    invariantDisabledBuiltInMcpServerIds: [
+      ...new Set([...(payload.invariantDisabledBuiltInMcpServerIds ?? []), "subagents" as const]),
+    ],
+  };
+}
+
 /**
  * Main-process half of the subagents MCP orchestrator lane's `create_thread`.
  * Mirrors the proven remote (mobile) start ordering exactly:

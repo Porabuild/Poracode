@@ -1,9 +1,14 @@
 import type { SupervisorEvent } from "@/shared/ipc";
 import type {
+  AgentCapability,
   AgentKind,
+  BuiltInMcpDisabledTools,
+  BuiltInMcpServerId,
   McpServer,
   ProjectLocation,
   PromptSegment,
+  ThreadConfig,
+  ThreadPresentationMode,
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
@@ -15,6 +20,7 @@ import type {
 } from "@/supervisor/agents/subagentMcp";
 import type { AgentAdapter } from "../../agents/base";
 import type { WindowsShellPreference } from "../../shellPreference";
+import type { PluginManagedConfigKey } from "../sessionTypes";
 
 export interface ThreadSessionManagerOptions {
   emit(event: SupervisorEvent): void;
@@ -22,6 +28,8 @@ export interface ThreadSessionManagerOptions {
   logsDir: string;
   settingsPath: string;
   readDisableCliHookPlugin(): boolean;
+  readDisabledBuiltInMcpServerIds?(): BuiltInMcpServerId[];
+  readDisabledBuiltInMcpTools?(): BuiltInMcpDisabledTools;
   adapters: Map<AgentKind, AgentAdapter>;
   windowsShell: WindowsShellPreference;
   /**
@@ -88,6 +96,28 @@ export interface ThreadSessionManagerOptions {
   ): Promise<McpServer[]>;
   /** Synchronize Poracode-owned provider skill projections before a new agent process starts. */
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;
+  /** Drop bundled plugin skill segments that are not currently trusted for delivery. */
+  filterPluginSkillSegments?(
+    segments: PromptSegment[],
+    context: {
+      projectLocation: ProjectLocation;
+      agentKind: AgentKind;
+      presentationMode: ThreadPresentationMode;
+      launchConfig?: ThreadConfig;
+    },
+  ): PromptSegment[] | Promise<PromptSegment[]>;
+  /** Apply supported Poracode plugin app contributions before enforcing global MCP disables. */
+  applyPluginAppsToConfig?(
+    config: ThreadConfig,
+    context: {
+      capabilities: AgentCapability;
+      presentationMode: ThreadPresentationMode;
+      projectLocation: ProjectLocation;
+    },
+  ): {
+    config: ThreadConfig;
+    disabledConfigKeys: PluginManagedConfigKey[];
+  };
   /**
    * Portable-skills fallback for structured turns: returns inline SKILL.md
    * instructions for skill segments the provider can't load natively, or

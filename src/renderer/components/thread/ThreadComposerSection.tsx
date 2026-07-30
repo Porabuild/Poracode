@@ -12,6 +12,7 @@ import { ChevronDown, GitFork, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { resolvePluginLaunchPreview } from "@/shared/plugins/catalog";
 import { changeThreadConfig } from "@/renderer/actions/threadRuntimeActions";
 import { BranchSelector, type BranchSelection } from "../common/BranchSelector/BranchSelector";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
@@ -122,6 +123,27 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     errorDockStates,
   } = props;
   const { t } = useLingui();
+  const presentationMode =
+    thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
+  const runtimeLaunchConfig = useAppStore((s) => s.runtimeLaunchConfigByThreadId[thread.id]);
+  const installedPlugins = useSharedSettings((s) => s.installedPlugins);
+  const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
+  const agentSettings = useSharedSettings((s) => s.agentSettings[thread.agentKind]);
+  let anticipatedLaunchConfig = thread.config;
+  if (thread.status === "inactive" && agentStatus) {
+    const launchContext = {
+      capabilities: agentStatus.capabilities,
+      presentationMode,
+      projectLocation,
+      hostPlatform: readBridge()?.platform ?? ("linux" as const),
+    };
+    anticipatedLaunchConfig = resolvePluginLaunchPreview(thread.config, installedPlugins, {
+      ...launchContext,
+      disabledBuiltInMcpServers,
+      agentSettings,
+    });
+  }
+  const activeMcpConfig = runtimeLaunchConfig ?? anticipatedLaunchConfig;
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const isRemote = isRemoteSession();
@@ -180,15 +202,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     nonce: number;
   } | null>(null);
   const [contextDockOpen, setContextDockOpen] = useState(false);
-  const presentationMode =
-    thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
   const usesTerminalPresentation = presentationMode === "terminal";
   // Composer MCP servers are bound at session-create time for the active
   // thread. The toggles are hidden here; users set them in the draft composer
   // before launch.
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
-    enabled: thread.config[descriptor.configKey] === true,
+    enabled: activeMcpConfig[descriptor.configKey] === true,
     visible: false,
     onToggle: (next: boolean) =>
       changeThreadConfig(thread.id, {
@@ -198,7 +218,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }));
   const mcpMentions: McpMentionItem[] = [
     ...composerMcpServers
-      .filter((descriptor) => thread.config[descriptor.configKey] === true)
+      .filter((descriptor) => activeMcpConfig[descriptor.configKey] === true)
       .map((descriptor) => ({
         id: descriptor.id,
         name: t(descriptor.label),
@@ -206,7 +226,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         detail: t`MCP server`,
         enabled: true,
       })),
-    ...(thread.config.computerUse === true
+    ...(activeMcpConfig.computerUse === true
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
@@ -218,7 +238,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
-  const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind);
+  const skillCommands = useSkillSlashCommands(
+    projectLocation,
+    thread.agentKind,
+    presentationMode,
+    activeMcpConfig,
+  );
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     agentStatus?.capabilities.slashCommands,

@@ -24,6 +24,8 @@ describe("sharedSettingsStore", () => {
       recentModels: [],
       providerOrder: [],
       lastUsedProjectDirs: {},
+      enabledMcpServers: {},
+      installedPlugins: {},
     });
   });
 
@@ -87,6 +89,81 @@ describe("sharedSettingsStore", () => {
     useSharedSettings.getState().setLastUsedProjectDir("native", "/Users/me/b");
 
     expect(useSharedSettings.getState().lastUsedProjectDirs.native).toBe("/Users/me/b");
+  });
+
+  it("persists plugin lifecycle and contribution mutations", () => {
+    const persistedPlugins = () =>
+      JSON.parse(localStorage.getItem("poracode-shared-settings") ?? "null").installedPlugins;
+
+    useSharedSettings.getState().installPlugin("browser-tools");
+    expect(persistedPlugins()).toEqual({
+      "browser-tools": {
+        version: "1.0.0",
+        enabled: true,
+        disabledSkillIds: [],
+        disabledAppIds: [],
+      },
+    });
+
+    useSharedSettings.getState().setPluginEnabled("browser-tools", false);
+    useSharedSettings.getState().setPluginSkillEnabled("browser-tools", "browser-control", false);
+    useSharedSettings.getState().setPluginAppEnabled("browser-tools", "browser", false);
+    expect(persistedPlugins()["browser-tools"]).toEqual({
+      version: "1.0.0",
+      enabled: false,
+      disabledSkillIds: ["browser-control"],
+      disabledAppIds: ["browser"],
+    });
+
+    useSharedSettings.getState().uninstallPlugin("browser-tools");
+    expect(useSharedSettings.getState().installedPlugins).toEqual({});
+    expect(persistedPlugins()).toEqual({});
+  });
+
+  it("clears the legacy MCP setting when a plugin is installed", () => {
+    useSharedSettings.setState({
+      enabledMcpServers: { browser: true, subagents: true },
+    });
+
+    useSharedSettings.getState().installPlugin("browser-tools");
+
+    expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
+    expect(
+      JSON.parse(localStorage.getItem("poracode-shared-settings") ?? "null").enabledMcpServers,
+    ).toEqual({ subagents: true });
+  });
+
+  it("clears the legacy MCP setting when a plugin is disabled", () => {
+    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.setState({
+      enabledMcpServers: { browser: true, subagents: true },
+    });
+
+    useSharedSettings.getState().setPluginEnabled("browser-tools", false);
+
+    expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
+  });
+
+  it("clears the legacy MCP setting when a plugin app is disabled", () => {
+    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.setState({
+      enabledMcpServers: { browser: true, subagents: true },
+    });
+
+    useSharedSettings.getState().setPluginAppEnabled("browser-tools", "browser", false);
+
+    expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
+  });
+
+  it("clears the legacy MCP setting when a plugin is uninstalled", () => {
+    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.setState({
+      enabledMcpServers: { browser: true, subagents: true },
+    });
+
+    useSharedSettings.getState().uninstallPlugin("browser-tools");
+
+    expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
   });
 
   describe("toggleFavoriteModelAnyMode", () => {

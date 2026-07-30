@@ -336,6 +336,10 @@ export class OrchestratorThreadManager {
       initialSize: DEFAULT_TERMINAL_SIZE,
       presentationMode: "gui",
       ...parent.mcpLaunchSnapshot,
+      disabledBuiltInMcpServerIds: [
+        ...new Set([...parent.mcpLaunchSnapshot.disabledBuiltInMcpServerIds, "subagents" as const]),
+      ],
+      invariantDisabledBuiltInMcpServerIds: ["subagents"],
     };
 
     const record: ChildThreadRecord = {

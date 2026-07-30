@@ -5,6 +5,7 @@ import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 
 interface IdleCallbackHandle {
@@ -154,7 +155,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
           return;
         }
         for (const snapshot of snapshots) {
-          updateThreadRuntime(snapshot.threadId, snapshot);
+          updateThreadRuntime(snapshot.threadId, normalizeRuntimeSnapshotLaunchConfig(snapshot));
         }
       })
       .catch((error: unknown) => {

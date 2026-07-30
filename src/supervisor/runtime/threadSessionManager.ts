@@ -6,6 +6,14 @@ import { spawn } from "node-pty";
 import { defaultSharedSettings, normalizeSharedSettings } from "@/shared/settings";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
+  isBrowserMcpEnabledByConfigOrAgentSettings,
+  isBuiltInMcpServerSupportedForLaunch,
+  PLUGIN_MCP_CONFIG_ENTRIES,
+  type PluginMcpConfigKey,
+} from "@/shared/plugins/catalog";
+import {
+  type AgentKind,
+  type BuiltInMcpServerId,
   type ClearPendingSteerPayload,
   type AgentEventEnvelope,
   type CloseThreadPayload,
@@ -43,7 +51,11 @@ import type { AppControlsMcpHttpConfig } from "../agents/appControlsMcp";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import type { QueuedStructuredTurn, SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
-import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
+import {
+  buildThreadRuntimeSnapshot,
+  ThreadOutputPipeline,
+  resolveRuntimeLaunchConfig,
+} from "./threadOutputPipeline";
 import { rewriteSegmentsForWorkspace, rewriteSegmentsForWsl } from "./threadAttachments";
 
 import {
@@ -67,6 +79,7 @@ import { buildShellCommand } from "./threadSession/shellCommand";
 import {
   SpawnPipeline,
   effectiveLaunchConfig,
+  mergeBuiltInMcpDisabledTools,
   type SpawnThreadInput,
 } from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
@@ -132,6 +145,8 @@ export class ThreadSessionManager {
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
       resolveSkillTurnInjection: (session, segments) =>
         this.resolveSkillTurnInjection(session, segments),
+      filterPluginSkillSegments: async (session, segments) =>
+        (await this.filterPluginSkillSegments(session, segments)) ?? segments,
     });
     this.cliHookPlugin = new CliHookSessionCoordinator({
       sessions: this.sessions,
@@ -189,19 +204,9 @@ export class ThreadSessionManager {
   }
 
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
-    return [...this.sessions.values()].map((session) => ({
-      threadId: session.threadId,
-      status: session.status,
-      attention: session.attention,
-      config: session.config,
-      ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
-      ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
-      canResumeWithConfig: session.canResumeWithConfig,
-      threadStatusSource: resolveThreadStatusSource(
-        session,
-        this.options.readDisableCliHookPlugin(),
-      ),
-    }));
+    return [...this.sessions.values()].map((session) =>
+      buildThreadRuntimeSnapshot(session, this.options.readDisableCliHookPlugin()),
+    );
   }
 
   /**
@@ -226,6 +231,28 @@ export class ThreadSessionManager {
     this.runtimeEventRouter.append(threadId, event);
   }
 
+  private resolveCurrentMcpLaunchSnapshot(
+    session: SessionRuntime,
+    additionalInvariantIds: readonly BuiltInMcpServerId[] = [],
+  ): McpLaunchSnapshot {
+    const configuredIds = this.options.readDisabledBuiltInMcpServerIds?.();
+    const disabledBuiltInMcpServerIds = [
+      ...new Set([
+        ...(session.invariantDisabledBuiltInMcpServerIds ?? []),
+        ...additionalInvariantIds,
+        ...(configuredIds ?? session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds),
+      ]),
+    ];
+    const configuredTools = this.options.readDisabledBuiltInMcpTools?.();
+    return {
+      ...session.mcpLaunchSnapshot,
+      disabledBuiltInMcpServerIds,
+      disabledBuiltInMcpTools: configuredTools
+        ? mergeBuiltInMcpDisabledTools(configuredTools)
+        : (session.mcpLaunchSnapshot.disabledBuiltInMcpTools ?? {}),
+    };
+  }
+
   /**
    * Subagent host hook: resolve a live parent thread's project location + config
    * so a spawned child can inherit them. Returns undefined once the thread is
@@ -240,27 +267,61 @@ export class ThreadSessionManager {
     | undefined {
     const session = this.sessions.get(threadId);
     if (!session) return undefined;
-    // Children inherit the effective launch config: built-in disables applied,
-    // and browser forced on when the agent-settings toggle (not just the
-    // per-thread flag) enables it for the parent.
-    const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
-    const effectiveConfig = effectiveLaunchConfig(session.config, disabledIds);
-    const config =
-      !disabledIds.includes("browser") &&
-      this.isBrowserMcpEnabledForLaunch(session.adapter, session.config)
-        ? { ...effectiveConfig, browserMcp: true }
-        : effectiveConfig;
+    const mcpLaunchSnapshot = this.resolveCurrentMcpLaunchSnapshot(session);
     return {
       projectLocation: session.projectLocation,
-      config,
-      mcpLaunchSnapshot: session.mcpLaunchSnapshot,
+      config: resolveRuntimeLaunchConfig(session),
+      mcpLaunchSnapshot,
     };
   }
 
-  /** Resolve the parent's enabled MCP access for an ephemeral structured child. */
+  applyPluginAppsToSubagent(
+    parentThreadId: string,
+    agentKind: AgentKind,
+    config: ThreadConfig,
+  ): {
+    config: ThreadConfig;
+    disabledConfigKeys: readonly PluginMcpConfigKey[];
+  } {
+    const session = this.sessions.get(parentThreadId);
+    const adapter = this.options.adapters.get(agentKind);
+    if (!session || !adapter) return { config, disabledConfigKeys: [] };
+    const { pluginConfig, pluginDisabledConfigKeys } = this.spawnPipeline.applyPluginAppsForLaunch(
+      config,
+      adapter,
+      session.projectLocation,
+      "gui",
+    );
+    const mcpLaunchSnapshot = this.resolveCurrentMcpLaunchSnapshot(session, ["subagents"]);
+    let launchConfig = effectiveLaunchConfig(
+      pluginConfig,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+    );
+    const launchContext = {
+      capabilities: adapter.capabilities,
+      presentationMode: "gui",
+      projectLocation: session.projectLocation,
+      hostPlatform: process.platform,
+    } as const;
+    for (const [serverId, key] of PLUGIN_MCP_CONFIG_ENTRIES) {
+      if (
+        launchConfig[key] === true &&
+        !isBuiltInMcpServerSupportedForLaunch(serverId, launchContext)
+      ) {
+        launchConfig = { ...launchConfig };
+        delete launchConfig[key];
+      }
+    }
+    return { config: launchConfig, disabledConfigKeys: pluginDisabledConfigKeys };
+  }
+
+  /** Resolve enabled MCP access for an ephemeral structured child's effective config. */
   async resolveSubagentParentMcpAccess(
     threadId: string,
     identity: McpThreadIdentity,
+    agentKind: AgentKind,
+    config: ThreadConfig,
+    pluginDisabledConfigKeys: readonly PluginMcpConfigKey[],
   ): Promise<{
     browserMcp?: BrowserMcpHttpConfig;
     computerUseMcp?: ComputerUseMcpHttpConfig;
@@ -269,19 +330,21 @@ export class ThreadSessionManager {
     mcpServers?: McpLaunchSnapshot["mcpServers"];
   }> {
     const session = this.sessions.get(threadId);
-    if (!session) return {};
-    const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
+    const adapter = this.options.adapters.get(agentKind);
+    if (!session || !adapter) return {};
+    const mcpLaunchSnapshot = this.resolveCurrentMcpLaunchSnapshot(session, ["subagents"]);
     const { mcpServers } = mcpLaunchSnapshot;
     const launchConfig = effectiveLaunchConfig(
-      session.config,
+      config,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
     );
     const browserMcp = await this.spawnPipeline.resolveBrowserMcpForLaunch(
-      session.adapter,
+      adapter,
       session.projectLocation,
       launchConfig,
       mcpLaunchSnapshot,
       identity,
+      pluginDisabledConfigKeys,
     );
     const computerUseMcp = this.spawnPipeline.resolveComputerUseMcpForLaunch(
       session.projectLocation,
@@ -449,38 +512,65 @@ export class ThreadSessionManager {
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
     const session = this.requireSession(payload.threadId);
-    if (session.status === "inactive") {
-      if (session.sessionRef) {
-        await this.spawnPipeline.restartThread(session, payload.prompt, payload.config);
-        return;
-      }
+    if (session.status === "inactive" && !session.sessionRef) {
       throw new Error("This thread exited before a resumable session id was discovered.");
     }
 
     const usesStructuredFlow =
       session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
-    const effectiveSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
-          preserveImageAttachments: usesStructuredFlow,
-        })
-      : undefined;
-    const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
-
+    const shouldRestart =
+      session.status === "inactive" ||
+      (usesStructuredFlow &&
+        !session.structuredSession &&
+        session.status === "error" &&
+        session.sessionRef !== undefined);
     const effectiveConfig =
       session.presentationMode !== "gui" &&
       payload.config.mode === "plan" &&
       session.config.mode === undefined
         ? { ...payload.config, mode: undefined }
         : payload.config;
+    const restartMcpLaunchSnapshot = shouldRestart
+      ? this.resolveCurrentMcpLaunchSnapshot(session)
+      : undefined;
+    const resolvedRestartLaunch = shouldRestart
+      ? this.spawnPipeline.resolveConfigForLaunch(
+          effectiveConfig,
+          session.adapter,
+          session.projectLocation,
+          session.presentationMode ?? session.adapter.capabilities.presentationMode,
+          restartMcpLaunchSnapshot!.disabledBuiltInMcpServerIds,
+          restartMcpLaunchSnapshot!.disabledBuiltInMcpTools,
+        )
+      : undefined;
+    const trustedSegments = await this.filterPluginSkillSegments(
+      session,
+      payload.segments,
+      resolvedRestartLaunch?.launchConfig,
+    );
+    const pluginSegmentsFiltered = trustedSegments !== payload.segments;
+    const effectiveSegments = trustedSegments
+      ? await rewriteSegmentsForWsl(trustedSegments, session.projectLocation, {
+          preserveImageAttachments: usesStructuredFlow,
+        })
+      : undefined;
+    const prompt = this.formatSegmentsForPrompt(
+      session,
+      effectiveSegments,
+      payload.prompt,
+      pluginSegmentsFiltered,
+    );
 
     session.config = effectiveConfig;
-    if (
-      usesStructuredFlow &&
-      !session.structuredSession &&
-      session.status === "error" &&
-      session.sessionRef
-    ) {
-      await this.spawnPipeline.restartThread(session, prompt, effectiveConfig);
+    if (shouldRestart && usesStructuredFlow) {
+      const inlineInstructions = await this.resolveSkillTurnInjection(session, effectiveSegments);
+      await this.spawnPipeline.restartThread(session, prompt, effectiveConfig, {
+        ...(effectiveSegments ? { segments: effectiveSegments } : {}),
+        ...(effectiveSegments ? { policySegments: effectiveSegments } : {}),
+        ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
+        ...(inlineInstructions ? { inlineInstructions } : {}),
+        ...(resolvedRestartLaunch ? { resolvedLaunchConfig: resolvedRestartLaunch } : {}),
+      });
       return;
     }
     // Route through the structured session when either the adapter is
@@ -522,7 +612,6 @@ export class ThreadSessionManager {
       return;
     }
 
-    const pty = requireSessionPty(session);
     // Terminal skills fallback: skill segments the CLI can't resolve natively
     // become short path-hint text before the prompt is typed into the PTY.
     const terminalSegments = await this.resolveTerminalSkillSegments(session, effectiveSegments);
@@ -535,6 +624,14 @@ export class ThreadSessionManager {
       ptySegments === effectiveSegments
         ? prompt
         : this.formatSegmentsForPrompt(session, ptySegments, payload.prompt);
+    if (shouldRestart) {
+      await this.spawnPipeline.restartThread(session, ptyPrompt, effectiveConfig, {
+        ...(effectiveSegments ? { policySegments: effectiveSegments } : {}),
+        ...(resolvedRestartLaunch ? { resolvedLaunchConfig: resolvedRestartLaunch } : {}),
+      });
+      return;
+    }
+    const pty = requireSessionPty(session);
     await writeSubmittedPrompt(
       pty,
       session.adapter.buildDirectInput?.(
@@ -636,13 +733,20 @@ export class ThreadSessionManager {
     if (usesStructuredFlow) {
       throw new Error("stageThreadInput is only supported for terminal-native threads.");
     }
-    const wslSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+    const trustedSegments = await this.filterPluginSkillSegments(session, payload.segments);
+    const pluginSegmentsFiltered = trustedSegments !== payload.segments;
+    const wslSegments = trustedSegments
+      ? await rewriteSegmentsForWsl(trustedSegments, session.projectLocation, {
           preserveImageAttachments: false,
         })
       : undefined;
     const effectiveSegments = await this.localizeWorkspaceAttachments(session, wslSegments);
-    const formatted = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
+    const formatted = this.formatSegmentsForPrompt(
+      session,
+      effectiveSegments,
+      payload.prompt,
+      pluginSegmentsFiltered,
+    );
     // Collapse newlines so a raw PTY write cannot accidentally submit the line
     // (a bare \n reads as Enter to most shells/TUIs); the user submits manually.
     const singleLine = formatted.replace(/\s*\r?\n\s*/g, " ").trim();
@@ -656,10 +760,27 @@ export class ThreadSessionManager {
     session: SessionRuntime,
     segments: PromptSegment[] | undefined,
     fallbackPrompt: string,
+    suppressFallback = false,
   ): string {
     return segments && segments.length > 0
       ? (session.adapter.formatPromptSegments?.(segments) ?? defaultFormatPromptSegments(segments))
-      : fallbackPrompt;
+      : suppressFallback
+        ? ""
+        : fallbackPrompt;
+  }
+
+  private async filterPluginSkillSegments(
+    session: SessionRuntime,
+    segments: PromptSegment[] | undefined,
+    launchConfig: ThreadConfig = resolveRuntimeLaunchConfig(session),
+  ): Promise<PromptSegment[] | undefined> {
+    if (!segments) return undefined;
+    return await (this.options.filterPluginSkillSegments?.(segments, {
+      projectLocation: session.projectLocation,
+      agentKind: session.agentKind,
+      presentationMode: session.presentationMode ?? session.adapter.capabilities.presentationMode,
+      launchConfig,
+    }) ?? segments);
   }
 
   /** Portable-skills fallback for a structured turn (see managerOptions). */
@@ -1068,8 +1189,9 @@ export class ThreadSessionManager {
     adapter: AgentAdapter | undefined,
     config: ThreadConfig,
   ): boolean {
-    if (config.browserMcp === true) return true;
-    if (!adapter) return false;
-    return this.resolveAgentSettings(adapter).browserMcp === true;
+    return isBrowserMcpEnabledByConfigOrAgentSettings(
+      config,
+      adapter ? this.resolveAgentSettings(adapter) : undefined,
+    );
   }
 }

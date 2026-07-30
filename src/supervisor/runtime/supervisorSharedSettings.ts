@@ -28,6 +28,12 @@ export class SupervisorSharedSettingsCache {
     return this.cached;
   }
 
+  readFresh(): ReturnType<typeof readSupervisorSharedSettings> {
+    this.cached = readSupervisorSharedSettings(this.settingsPath);
+    this.ensureWatcher();
+    return this.cached;
+  }
+
   invalidate(): void {
     this.cached = undefined;
   }

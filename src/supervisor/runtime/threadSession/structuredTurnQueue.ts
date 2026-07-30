@@ -3,6 +3,7 @@ import type { PromptSegment } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
+import { effectiveStructuredTurnConfig } from "./spawnPipeline";
 
 export interface StructuredTurnQueueContext {
   emit(event: SupervisorEvent): void;
@@ -41,7 +42,7 @@ export class StructuredTurnQueue {
     };
     const startTurn = session.structuredSession.startTurn(
       turn.prompt,
-      turn.config,
+      effectiveStructuredTurnConfig(session, turn.config),
       turn.segments,
       Object.keys(startOptions).length > 0 ? startOptions : undefined,
     );
@@ -60,12 +61,14 @@ export class StructuredTurnQueue {
     }
     const prompt = session.pendingLaunchPrompt;
     session.pendingLaunchPrompt = undefined;
-    void session.structuredSession.startTurn(prompt, session.config).catch((error) => {
-      if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
-        return;
-      }
-      this.ctx.failStructuredSession(session, error);
-    });
+    void session.structuredSession
+      .startTurn(prompt, effectiveStructuredTurnConfig(session, session.config))
+      .catch((error) => {
+        if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+          return;
+        }
+        this.ctx.failStructuredSession(session, error);
+      });
   }
 
   /**

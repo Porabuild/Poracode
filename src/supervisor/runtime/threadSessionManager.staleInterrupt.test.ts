@@ -6,6 +6,7 @@ import type { AgentKind } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
+import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
 
 vi.mock("../agents/base", async (importActual) => {
   const actual = await importActual<typeof import("../agents/base")>();
@@ -113,7 +114,10 @@ function createAdapter(structuredSession: StructuredSessionHandle): AgentAdapter
   };
 }
 
-function createManager(adapter: AgentAdapter): {
+function createManager(
+  adapter: AgentAdapter,
+  extraOptions: Partial<ThreadSessionManagerOptions> = {},
+): {
   manager: ThreadSessionManager;
   events: SupervisorEvent[];
 } {
@@ -130,6 +134,7 @@ function createManager(adapter: AgentAdapter): {
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[AGENT_KIND, adapter]]),
     windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
+    ...extraOptions,
   });
   managersToDispose.push(manager);
   return { manager, events };
@@ -146,6 +151,7 @@ function createWorkingSession(
     adapter,
     projectLocation: { kind: "windows", path: "C:\\repo" },
     config: { model: `${AGENT_KIND}/model` },
+    runtimeLaunchConfig: { model: `${AGENT_KIND}/model` },
     terminalSize: { cols: 80, rows: 24 },
     launchPrompt: "",
     sessionRef: { providerSessionId: "ses_existing" },
@@ -255,6 +261,58 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacementSession);
   });
 
+  it("preserves plugin skill segments when resuming an inactive GUI session", async () => {
+    const oldSession = createStructuredSession();
+    const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    const replacementSession = createStructuredSession({ startTurn });
+    const adapter = createAdapter(replacementSession);
+    const buildSkillTurnInjection = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["buildSkillTurnInjection"]>
+    >(async () => "Inline browser skill instructions");
+    const { manager } = createManager(adapter, { buildSkillTurnInjection });
+    const session = createWorkingSession(adapter, oldSession);
+    session.status = "inactive";
+    session.attention = "none";
+    session.structuredSession = undefined;
+    manager.sessions.set(THREAD_ID, session);
+    const segments = [
+      {
+        kind: "skill" as const,
+        name: "browser-control",
+        path: "C:\\plugins\\browser-control\\SKILL.md",
+        invocation: "/browser-control",
+        provider: "Browser Tools",
+        scope: "global" as const,
+      },
+      { kind: "text" as const, content: " resume work" },
+    ];
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "/browser-control resume work",
+      config: { model: `${AGENT_KIND}/model` },
+      segments,
+      userMessageItemId: "user-resume",
+    });
+
+    expect(buildSkillTurnInjection).toHaveBeenCalledWith({
+      agentKind: AGENT_KIND,
+      projectLocation: session.projectLocation,
+      segments,
+    });
+    expect(startTurn).toHaveBeenCalledWith(
+      "/browser-control resume work",
+      { model: `${AGENT_KIND}/model` },
+      segments,
+      {
+        userMessageItemId: "user-resume",
+        inlineInstructions: "Inline browser skill instructions",
+      },
+    );
+  });
+
   it("clears the watchdog when the manager is disposed", async () => {
     const structuredSession = createStructuredSession();
     const adapter = createAdapter(structuredSession);
@@ -293,6 +351,100 @@ describe("ThreadSessionManager steer capability", () => {
       steerTurn?: typeof steerTurn;
     };
   }
+
+  it("reapplies plugin-managed apps to later turns without persisting them", async () => {
+    const structuredSession = steerableSession(true);
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    session.status = "idle";
+    session.runtimeLaunchConfig = {
+      ...session.config,
+      browserMcp: true,
+      computerUse: false,
+    };
+    session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds = ["computer-use"];
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "next turn",
+      config: { model: `${AGENT_KIND}/updated` },
+    });
+
+    expect(structuredSession.startTurn).toHaveBeenCalledWith(
+      "next turn",
+      {
+        model: `${AGENT_KIND}/updated`,
+        browserMcp: true,
+        computerUse: false,
+      },
+      undefined,
+      expect.objectContaining({ userMessageItemId: expect.any(String) }),
+    );
+    expect(session.config).toEqual({ model: `${AGENT_KIND}/updated` });
+  });
+
+  it("keeps apps from a globally disabled plugin off on later turns", async () => {
+    const structuredSession = steerableSession(true);
+    const adapter = createAdapter(structuredSession);
+    const applyPluginAppsToConfig = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["applyPluginAppsToConfig"]>
+    >((config) => ({
+      config: { ...config, browserMcp: false },
+      disabledConfigKeys: ["browserMcp"],
+    }));
+    const { manager } = createManager(adapter, { applyPluginAppsToConfig });
+    await manager.startThread({
+      threadId: THREAD_ID,
+      agentKind: AGENT_KIND,
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      config: { model: `${AGENT_KIND}/model` },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    const session = manager.sessions.get(THREAD_ID)!;
+
+    expect(session.runtimeLaunchConfig.browserMcp).toBe(false);
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "next turn",
+      config: { model: `${AGENT_KIND}/updated`, browserMcp: true },
+    });
+
+    expect(structuredSession.startTurn).toHaveBeenCalledWith(
+      "next turn",
+      { model: `${AGENT_KIND}/updated`, browserMcp: false },
+      undefined,
+      expect.objectContaining({ userMessageItemId: expect.any(String) }),
+    );
+    expect(session.config).toEqual({ model: `${AGENT_KIND}/updated`, browserMcp: true });
+  });
+
+  it("reapplies plugin-managed apps to non-interrupting steers", async () => {
+    const structuredSession = steerableSession(true);
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    session.runtimeLaunchConfig = { ...session.config, chromeMcp: true };
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "steer with plugins",
+      config: { model: `${AGENT_KIND}/updated` },
+    });
+
+    expect(structuredSession.steerTurn).toHaveBeenCalledWith(
+      "steer with plugins",
+      { model: `${AGENT_KIND}/updated`, chromeMcp: true },
+      undefined,
+      undefined,
+    );
+    expect(session.config).toEqual({ model: `${AGENT_KIND}/updated` });
+  });
 
   it("submit-while-working uses steerTurn without interrupting when available", async () => {
     const structuredSession = steerableSession(true);
@@ -350,6 +502,45 @@ describe("ThreadSessionManager steer capability", () => {
 
     expect(structuredSession.steerTurn).toHaveBeenCalledTimes(1);
     expect(structuredSession.interruptTurn).not.toHaveBeenCalled();
+  });
+
+  it("filters pending steer skills against the immutable runtime App snapshot", async () => {
+    const structuredSession = steerableSession(true);
+    const adapter = createAdapter(structuredSession);
+    const filterPluginSkillSegments = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>
+    >((segments, context) => (context.launchConfig?.browserMcp === true ? segments : []));
+    const { manager } = createManager(adapter, { filterPluginSkillSegments });
+    const session = createWorkingSession(adapter, structuredSession);
+    session.runtimeLaunchConfig = { ...session.config, browserMcp: false };
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.setPendingSteer({
+      threadId: THREAD_ID,
+      prompt: "/browser-control",
+      config: session.config,
+      segments: [
+        {
+          kind: "skill",
+          name: "browser-control",
+          path: "C:\\plugins\\browser-control\\SKILL.md",
+          invocation: "/browser-control",
+          provider: "Browser Tools",
+          scope: "global",
+        },
+      ],
+    });
+
+    expect(filterPluginSkillSegments).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ launchConfig: expect.objectContaining({ browserMcp: false }) }),
+    );
+    expect(structuredSession.steerTurn).toHaveBeenCalledWith(
+      "",
+      { ...session.config, browserMcp: false },
+      [],
+      undefined,
+    );
   });
 
   it("setPendingSteer falls back to interrupt-drain when steerTurn is absent", async () => {

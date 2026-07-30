@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
+import {
+  ThreadOutputPipeline,
+  resolveRuntimeLaunchConfig,
+  resolveThreadStatusSource,
+} from "./threadOutputPipeline";
 import type { SessionRuntime } from "./sessionTypes";
 
 function pipeline() {
@@ -89,7 +93,83 @@ describe("resolveThreadStatusSource", () => {
   });
 });
 
+describe("resolveRuntimeLaunchConfig", () => {
+  it("reports the immutable App transports actually attached for the runtime", () => {
+    const base = {
+      config: { model: "opencode" },
+      mcpLaunchSnapshot: {
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
+        disabledBuiltInMcpTools: {},
+      },
+    };
+
+    expect(
+      resolveRuntimeLaunchConfig({
+        ...base,
+        config: { model: "opencode", computerUse: true },
+        runtimeLaunchConfig: {
+          model: "opencode",
+          browserMcp: true,
+          subagentMcp: false,
+          computerUse: false,
+          chromeMcp: true,
+        },
+      } as unknown as SessionRuntime),
+    ).toMatchObject({ browserMcp: true, subagentMcp: false, computerUse: false, chromeMcp: true });
+  });
+});
+
 describe("ThreadOutputPipeline / CLI hook disables L2", () => {
+  it("emits the effective launch config for plugin-managed MCP state", () => {
+    const emit = vi.fn<() => void>();
+    const p = new ThreadOutputPipeline({
+      emit,
+      isDev: false,
+      logWriter: { append: vi.fn<() => void>() } as never,
+      resolveLogPath: () => "",
+      resolveHintLogPath: () => "",
+      readDisableCliHookPlugin: () => false,
+      onRecoverInvalidSessionRef: vi.fn<() => void>(),
+      onStartQueuedLaunchPrompt: vi.fn<() => void>(),
+      onStartSessionRefDiscovery: vi.fn<() => void>(),
+    });
+    const session = {
+      threadId: "plugin-thread",
+      status: "idle",
+      attention: "none",
+      config: { model: "test", browserMcp: true, computerUse: true },
+      runtimeLaunchConfig: {
+        model: "test",
+        browserMcp: false,
+        computerUse: false,
+        subagentMcp: true,
+      },
+      mcpLaunchSnapshot: {
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: ["computer-use"],
+        disabledBuiltInMcpTools: {},
+      },
+      adapter: { capabilities: { presentationMode: "gui" } },
+      canResumeWithConfig: true,
+    } as unknown as SessionRuntime;
+
+    p.emitState(session);
+
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-state",
+        config: session.config,
+        launchConfig: {
+          model: "test",
+          browserMcp: false,
+          computerUse: false,
+          subagentMcp: true,
+        },
+      }),
+    );
+  });
+
   it("getLatestTerminalStatusHint returns null without calling detectTerminalStatus when hook is active", () => {
     const p = pipeline();
     const detectTerminalStatus = vi.fn<
@@ -125,6 +205,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
       status: "idle",
       attention: "none",
       config: {},
+      runtimeLaunchConfig: {},
       hasCliHookPluginActivity: true,
       prevChunk: "",
       outputLength: 0,
@@ -153,6 +234,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
       status: "working",
       attention: "working",
       config: {},
+      runtimeLaunchConfig: {},
       cliHookEnvInjected: true,
       hasCliHookPluginActivity: true,
       prevChunk: "",
@@ -188,6 +270,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
       status: "working",
       attention: "working",
       config: {},
+      runtimeLaunchConfig: {},
       cliHookEnvInjected: true,
       hasCliHookPluginActivity: true,
       prevChunk: "",
@@ -230,6 +313,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
       status: "working",
       attention: "working",
       config: {},
+      runtimeLaunchConfig: {},
       hasCliHookPluginActivity: true,
       prevChunk: "",
       outputLength: 0,
@@ -273,6 +357,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
       status: "working",
       attention: "working",
       config: {},
+      runtimeLaunchConfig: {},
       hasCliHookPluginActivity: true,
       prevChunk: "",
       outputLength: 0,
@@ -315,6 +400,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
       status: "working",
       attention: "working",
       config: {},
+      runtimeLaunchConfig: {},
       cliHookEnvInjected: true,
       prevChunk: "",
       outputLength: 0,
@@ -351,6 +437,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
       status: "launching",
       attention: "none",
       config: {},
+      runtimeLaunchConfig: {},
       launchPrompt: "",
       prevChunk: "",
       outputLength: 0,
@@ -379,6 +466,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
       status: "launching",
       attention: "none",
       config: {},
+      runtimeLaunchConfig: {},
       launchPrompt: "",
       pendingLaunchPrompt: "Fix the bug",
       prevChunk: "",
@@ -421,6 +509,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
         status: "idle",
         attention: "none",
         config: {},
+        runtimeLaunchConfig: {},
         cliHookEnvInjected: true,
         launchPrompt: "",
         prevChunk: "",
@@ -483,6 +572,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
         status: "idle",
         attention: "none",
         config: {},
+        runtimeLaunchConfig: {},
         cliHookEnvInjected: true,
         launchPrompt: "",
         prevChunk: "",
@@ -535,6 +625,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
         status: "idle",
         attention: "none",
         config: {},
+        runtimeLaunchConfig: {},
         cliHookEnvInjected: true,
         prevChunk: "",
         outputLength: 0,
@@ -597,6 +688,7 @@ describe("ThreadOutputPipeline / invalid session-ref detection on launch", () =>
       status: "launching",
       attention: "none",
       config: {},
+      runtimeLaunchConfig: {},
       sessionRef: { value: "sess-1", source: "hook", discoveredAt: "2026-01-01T00:00:00.000Z" },
       launchPrompt: "",
       prevChunk: "",
@@ -693,6 +785,7 @@ describe("ThreadOutputPipeline / user-interrupt recovery timer", () => {
       status: "working",
       attention: "working",
       config: {},
+      runtimeLaunchConfig: {},
       hasCliHookPluginActivity: true,
       adapter: { capabilities: { presentationMode: "terminal" } },
       pty: { write: vi.fn<(data: string) => void>() },

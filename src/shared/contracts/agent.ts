@@ -6,6 +6,7 @@ import {
   liveInputModeSchema,
   threadModeSchema,
   threadPresentationModeSchema,
+  type ThreadPresentationMode,
 } from "./common";
 
 const agentToggleSettingDefSchema = z.object({
@@ -194,6 +195,16 @@ export const composerMcpScopesSchema = z.object({
   gui: composerMcpScopeSchema.optional(),
 });
 export type ComposerMcpScopes = z.infer<typeof composerMcpScopesSchema>;
+
+export function resolveComposerMcpScope(
+  scopes: ComposerMcpScopes | undefined,
+  presentationMode: ThreadPresentationMode,
+): ComposerMcpScope {
+  if (presentationMode === "gui") {
+    return scopes?.gui ?? "launch";
+  }
+  return scopes?.terminal ?? "none";
+}
 
 export const agentCapabilitySchema = z.object({
   models: z.array(labeledOptionSchema).default([]),

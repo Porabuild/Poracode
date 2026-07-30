@@ -10,6 +10,7 @@ import { defaultFormatPromptSegments } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
 import type { PendingSteerSlot, QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
+import { effectiveStructuredTurnConfig } from "./spawnPipeline";
 
 /**
  * Stopped states a staged steer can drain from. A failed turn ("error") still
@@ -63,6 +64,10 @@ export interface SteerCoordinatorContext {
     session: SessionRuntime,
     segments: readonly PromptSegment[] | undefined,
   ): Promise<string | undefined>;
+  filterPluginSkillSegments(
+    session: SessionRuntime,
+    segments: PromptSegment[],
+  ): Promise<PromptSegment[]>;
 }
 
 /**
@@ -143,8 +148,12 @@ export class SteerCoordinator {
     if (!usesStructuredFlow || !session.structuredSession?.startTurn) {
       throw new Error("Thread does not support structured turns.");
     }
-    const effectiveSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+    const trustedSegments = payload.segments
+      ? await this.ctx.filterPluginSkillSegments(session, payload.segments)
+      : undefined;
+    const pluginSegmentsFiltered = trustedSegments !== payload.segments;
+    const effectiveSegments = trustedSegments
+      ? await rewriteSegmentsForWsl(trustedSegments, session.projectLocation, {
           preserveImageAttachments: true,
         })
       : undefined;
@@ -152,7 +161,9 @@ export class SteerCoordinator {
       effectiveSegments && effectiveSegments.length > 0
         ? (session.adapter.formatPromptSegments?.(effectiveSegments) ??
           defaultFormatPromptSegments(effectiveSegments))
-        : payload.prompt;
+        : pluginSegmentsFiltered
+          ? ""
+          : payload.prompt;
     const inlineInstructions = await this.ctx.resolveSkillTurnInjection(session, effectiveSegments);
     const turn: QueuedStructuredTurn = {
       prompt,
@@ -198,7 +209,7 @@ export class SteerCoordinator {
     const steer = steerTurn.call(
       session.structuredSession,
       turn.prompt,
-      turn.config,
+      effectiveStructuredTurnConfig(session, turn.config),
       turn.segments,
       Object.keys(steerOptions).length > 0 ? steerOptions : undefined,
     );

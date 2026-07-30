@@ -25,6 +25,14 @@ import type {
   BuiltInMcpServerId,
   McpServer,
 } from "@/shared/contracts";
+import {
+  getBuiltInPluginManifest,
+  installBuiltInPlugin,
+  setInstalledPluginEnabled as updateInstalledPluginEnabled,
+  setPluginAppEnabled as updatePluginAppEnabled,
+  setPluginSkillEnabled as updatePluginSkillEnabled,
+  uninstallBuiltInPlugin,
+} from "@/shared/plugins/catalog";
 
 const STORAGE_KEY = "poracode-shared-settings";
 
@@ -96,6 +104,11 @@ interface SharedSettingsState extends SharedSettings {
   setMcpServers: (servers: McpServer[]) => void;
   setBuiltInMcpServerDisabled: (id: BuiltInMcpServerId, disabled: boolean) => void;
   setBuiltInMcpToolEnabled: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
+  installPlugin: (pluginId: string) => void;
+  uninstallPlugin: (pluginId: string) => void;
+  setPluginEnabled: (pluginId: string, enabled: boolean) => void;
+  setPluginSkillEnabled: (pluginId: string, skillId: string, enabled: boolean) => void;
+  setPluginAppEnabled: (pluginId: string, appId: string, enabled: boolean) => void;
   setBrowserSetting: <K extends keyof SharedSettings["browser"]>(
     key: K,
     value: SharedSettings["browser"][K],
@@ -215,6 +228,23 @@ function providerDraftConfigEqual(
 }
 
 const initialSettings = loadFallbackSettings();
+
+function clearPluginLegacyMcpSettings(
+  enabledMcpServers: SharedSettings["enabledMcpServers"],
+  pluginId: string,
+  appId?: string,
+): SharedSettings["enabledMcpServers"] {
+  const manifest = getBuiltInPluginManifest(pluginId);
+  const serverIds =
+    manifest?.apps
+      .filter((app) => appId === undefined || app.id === appId)
+      .map((app) => app.builtInMcpServerId) ?? [];
+  if (!serverIds.some((serverId) => serverId in enabledMcpServers)) return enabledMcpServers;
+
+  const next = { ...enabledMcpServers };
+  for (const serverId of serverIds) delete next[serverId];
+  return next;
+}
 
 export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   ...initialSettings,
@@ -497,6 +527,82 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ disabledBuiltInMcpTools: next });
     persistSettings(selectSharedSettings(get()));
   },
+  installPlugin: (pluginId) => {
+    const current = get();
+    const installedPlugins = installBuiltInPlugin(current.installedPlugins, pluginId);
+    const enabledMcpServers = clearPluginLegacyMcpSettings(current.enabledMcpServers, pluginId);
+    if (
+      installedPlugins === current.installedPlugins &&
+      enabledMcpServers === current.enabledMcpServers
+    ) {
+      return;
+    }
+    set({ installedPlugins, enabledMcpServers });
+    persistSettings(selectSharedSettings(get()));
+  },
+  uninstallPlugin: (pluginId) => {
+    const current = get();
+    const installedPlugins = uninstallBuiltInPlugin(current.installedPlugins, pluginId);
+    const enabledMcpServers = clearPluginLegacyMcpSettings(current.enabledMcpServers, pluginId);
+    if (
+      installedPlugins === current.installedPlugins &&
+      enabledMcpServers === current.enabledMcpServers
+    ) {
+      return;
+    }
+    set({ installedPlugins, enabledMcpServers });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPluginEnabled: (pluginId, enabled) => {
+    const current = get();
+    const installedPlugins = updateInstalledPluginEnabled(
+      current.installedPlugins,
+      pluginId,
+      enabled,
+    );
+    const enabledMcpServers = enabled
+      ? current.enabledMcpServers
+      : clearPluginLegacyMcpSettings(current.enabledMcpServers, pluginId);
+    if (
+      installedPlugins === current.installedPlugins &&
+      enabledMcpServers === current.enabledMcpServers
+    ) {
+      return;
+    }
+    set({ installedPlugins, enabledMcpServers });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPluginSkillEnabled: (pluginId, skillId, enabled) => {
+    const installedPlugins = updatePluginSkillEnabled(
+      get().installedPlugins,
+      pluginId,
+      skillId,
+      enabled,
+    );
+    if (installedPlugins === get().installedPlugins) return;
+    set({ installedPlugins });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPluginAppEnabled: (pluginId, appId, enabled) => {
+    const current = get();
+    const installedPlugins = updatePluginAppEnabled(
+      current.installedPlugins,
+      pluginId,
+      appId,
+      enabled,
+    );
+    const enabledMcpServers = enabled
+      ? current.enabledMcpServers
+      : clearPluginLegacyMcpSettings(current.enabledMcpServers, pluginId, appId);
+    if (
+      installedPlugins === current.installedPlugins &&
+      enabledMcpServers === current.enabledMcpServers
+    ) {
+      return;
+    }
+    set({ installedPlugins, enabledMcpServers });
+    persistSettings(selectSharedSettings(get()));
+  },
   setBrowserSetting: (key, value) => {
     const current = get().browser;
     if (current[key] === value) return;
@@ -773,6 +879,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     mcpServers: state.mcpServers,
     disabledBuiltInMcpServers: state.disabledBuiltInMcpServers,
     disabledBuiltInMcpTools: state.disabledBuiltInMcpTools,
+    installedPlugins: state.installedPlugins,
     notificationsEnabled: state.notificationsEnabled,
     notificationSound: state.notificationSound,
     notificationFilter: state.notificationFilter,

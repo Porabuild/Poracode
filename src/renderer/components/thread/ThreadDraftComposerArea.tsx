@@ -5,6 +5,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
   AgentStatus,
+  BuiltInMcpServerId,
   Project,
   PromptSegment,
   ThreadConfig,
@@ -12,6 +13,12 @@ import type {
 } from "@/shared/contracts";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
+import {
+  getInstalledPluginForMcpServer,
+  isBuiltInMcpServerAvailableByPlugin,
+  isBuiltInMcpServerEnabledByPlugin,
+  resolvePluginLaunchPreview,
+} from "@/shared/plugins/catalog";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
@@ -271,8 +278,11 @@ export function ThreadDraftComposerArea(props: {
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
+  const installedPlugins = useSharedSettings((s) => s.installedPlugins);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
+  const agentSettings = useSharedSettings((s) => s.agentSettings[props.selectedAgent.kind]);
   const setMcpServerEnabled = useSharedSettings((s) => s.setMcpServerEnabled);
+  const setPluginAppEnabled = useSharedSettings((s) => s.setPluginAppEnabled);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
   const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
   const updateProjectMcpServers = useAppStore((s) => s.updateProjectMcpServers);
@@ -320,49 +330,43 @@ export function ThreadDraftComposerArea(props: {
   attachmentsRef.current = attachments.attachments;
   const submittedRef = useRef(false);
   const initialDraftRef = useRef(useAppStore.getState().draftContents[props.project.id]);
-  const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
-    props.project.location,
-    props.selectedAgent.kind,
-  );
-  const availableCommands = resolveAvailableSlashCommands(
-    undefined,
-    props.selectedAgent.capabilities.slashCommands,
-    {
-      agentKind: props.selectedAgent.kind,
-      presentationMode: props.presentationMode,
-      hasEffort:
-        ((
-          props.selectedAgent.capabilities.modelEfforts?.[props.config.model] ??
-          props.selectedAgent.capabilities.efforts ??
-          []
-        ).length ?? 0) > 0,
-      supportsFast: supportsUsableFastMode(props.selectedAgent.capabilities, props.config.model),
-      skillCommands,
-      disabledSkillNames: props.selectedAgent.capabilities.disabledSkillNames,
-    },
-  );
-  const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
-  const showCommandPanel = filteredCommands.length > 0;
-  const authRequired = props.selectedAgent.authState === "missing";
   const isHomeScope = isHomeProjectId(props.project.id);
   // Registry-driven MCP toggles. The "+" add menu now flips the *persistent*
   // enablement (a standing default applied to every new thread), keyed by MCP
   // id — not the per-thread config flag. A new MCP server means adding one
   // descriptor to the registry.
+  const isPluginMcpAvailable = (id: BuiltInMcpServerId) =>
+    isBuiltInMcpServerAvailableByPlugin(installedPlugins, id);
   const availableComposerMcpServers = composerMcpServers.filter(
-    (descriptor) => disabledBuiltInMcpServers[descriptor.id] !== true,
+    (descriptor) =>
+      disabledBuiltInMcpServers[descriptor.id] !== true && isPluginMcpAvailable(descriptor.id),
   );
-  const mcpServers = availableComposerMcpServers.map((descriptor) => ({
-    descriptor,
-    enabled: persistentMcpServers[descriptor.id] === true,
-    visible:
-      descriptor.getScope(
-        props.selectedAgent.capabilities,
-        props.presentationMode,
-        props.project.location,
-      ) !== "none",
-    onToggle: (next: boolean) => setMcpServerEnabled(descriptor.id, next),
-  }));
+  const isPersistentlyEnabled = (id: BuiltInMcpServerId) =>
+    persistentMcpServers[id] === true || isBuiltInMcpServerEnabledByPlugin(installedPlugins, id);
+  const setPersistentEnabled = (id: BuiltInMcpServerId, enabled: boolean) => {
+    const manifest = getInstalledPluginForMcpServer(installedPlugins, id);
+    const state = manifest ? installedPlugins[manifest.id] : undefined;
+    const app = manifest?.apps.find((candidate) => candidate.builtInMcpServerId === id);
+    if (manifest && state && app) {
+      setPluginAppEnabled(manifest.id, app.id, enabled);
+      if (!enabled && persistentMcpServers[id] === true) setMcpServerEnabled(id, false);
+      return;
+    }
+    setMcpServerEnabled(id, enabled);
+  };
+  const mcpServers = availableComposerMcpServers.map((descriptor) => {
+    return {
+      descriptor,
+      enabled: isPersistentlyEnabled(descriptor.id),
+      visible:
+        descriptor.getScope(
+          props.selectedAgent.capabilities,
+          props.presentationMode,
+          props.project.location,
+        ) !== "none",
+      onToggle: (next: boolean) => setPersistentEnabled(descriptor.id, next),
+    };
+  });
   // User-configured MCP servers (global + this project's workspace scope).
   // Toggling flips the server's persistent `enabled` flag — the same switch as
   // the MCP Servers settings page — because custom servers bind at launch from
@@ -395,7 +399,7 @@ export function ThreadDraftComposerArea(props: {
   // enabled servers are on for every thread and show no chip.
   const mentionedMcpServers = availableComposerMcpServers.filter(
     (descriptor) =>
-      props.config[descriptor.configKey] === true && persistentMcpServers[descriptor.id] !== true,
+      props.config[descriptor.configKey] === true && !isPersistentlyEnabled(descriptor.id),
   );
 
   // Worktree creation lives in the composer toolbar. The "bring over uncommitted
@@ -449,11 +453,53 @@ export function ThreadDraftComposerArea(props: {
           readBridge()?.platform,
         );
   const computerUseEnabled = props.config.computerUse === true;
-  const computerUsePersistent = persistentMcpServers[COMPUTER_USE_MCP_ID] === true;
+  const computerUsePersistent = isPersistentlyEnabled(COMPUTER_USE_MCP_ID);
+  const launchContext = {
+    capabilities: props.selectedAgent.capabilities,
+    presentationMode: props.presentationMode,
+    projectLocation: props.project.location,
+    hostPlatform: readBridge()?.platform ?? "linux",
+    disabledBuiltInMcpServers,
+    agentSettings,
+  };
+  const draftLaunchConfig = resolvePluginLaunchPreview(
+    props.config,
+    installedPlugins,
+    launchContext,
+  );
+  const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
+    props.project.location,
+    props.selectedAgent.kind,
+    props.presentationMode,
+    draftLaunchConfig,
+  );
+  const availableCommands = resolveAvailableSlashCommands(
+    undefined,
+    props.selectedAgent.capabilities.slashCommands,
+    {
+      agentKind: props.selectedAgent.kind,
+      presentationMode: props.presentationMode,
+      hasEffort:
+        ((
+          props.selectedAgent.capabilities.modelEfforts?.[props.config.model] ??
+          props.selectedAgent.capabilities.efforts ??
+          []
+        ).length ?? 0) > 0,
+      supportsFast: supportsUsableFastMode(props.selectedAgent.capabilities, props.config.model),
+      skillCommands,
+      disabledSkillNames: props.selectedAgent.capabilities.disabledSkillNames,
+    },
+  );
+  const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
+  const showCommandPanel = filteredCommands.length > 0;
+  const authRequired = props.selectedAgent.authState === "missing";
   // Same chip rule as the registry servers: a chip only for a per-thread mention,
   // never for the persistent standing default.
   const showComputerUseChip =
-    computerUseScope !== "none" && computerUseEnabled && !computerUsePersistent;
+    computerUseScope !== "none" &&
+    isPluginMcpAvailable(COMPUTER_USE_MCP_ID) &&
+    computerUseEnabled &&
+    !computerUsePersistent;
   const onConfigChange = props.onConfigChange;
   // `@`-mention affordances: disabled servers enable the capability for this
   // draft; already-effective servers remain available and insert a textual
@@ -466,30 +512,32 @@ export function ThreadDraftComposerArea(props: {
             props.selectedAgent.capabilities,
             props.presentationMode,
             props.project.location,
-          ) !== "none",
+          ) !== "none" || draftLaunchConfig[descriptor.configKey] === true,
       )
       .map((descriptor) => ({
         id: descriptor.id,
         name: t(descriptor.label),
         icon: descriptor.icon,
         detail: t`MCP server`,
-        enabled: props.config[descriptor.configKey] === true,
+        enabled: draftLaunchConfig[descriptor.configKey] === true,
       })),
-    ...(computerUseScope !== "none"
+    ...(computerUseScope !== "none" && isPluginMcpAvailable(COMPUTER_USE_MCP_ID)
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
             name: t`Computer Use`,
             icon: Monitor,
             detail: t`Computer Use`,
-            enabled: computerUseEnabled,
+            enabled: draftLaunchConfig.computerUse === true,
           },
         ]
       : []),
   ];
   const onMcpMentionSelect = (id: string) => {
     if (id === COMPUTER_USE_MCP_ID) {
-      onConfigChange({ computerUse: true });
+      if (isPluginMcpAvailable(COMPUTER_USE_MCP_ID)) {
+        onConfigChange({ computerUse: true });
+      }
       return;
     }
     const descriptor = availableComposerMcpServers.find((server) => server.id === id);
@@ -899,8 +947,8 @@ export function ThreadDraftComposerArea(props: {
             voiceInputRef={voiceInputRef}
             computerUse={{
               enabled: computerUsePersistent,
-              visible: computerUseScope !== "none",
-              onToggle: (next) => setMcpServerEnabled(COMPUTER_USE_MCP_ID, next),
+              visible: computerUseScope !== "none" && isPluginMcpAvailable(COMPUTER_USE_MCP_ID),
+              onToggle: (next) => setPersistentEnabled(COMPUTER_USE_MCP_ID, next),
             }}
           />
         }

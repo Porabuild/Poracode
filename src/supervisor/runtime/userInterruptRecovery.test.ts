@@ -80,6 +80,7 @@ describe("user-interrupt recovery fallback / arm-and-expire", () => {
       attention:
         status === "working" ? "working" : status === "needs_approval" ? "needs_approval" : "none",
       config: {},
+      runtimeLaunchConfig: {},
       hasCliHookPluginActivity: true,
       adapter: { capabilities: { presentationMode: "terminal" } },
       pty: { write: vi.fn<(data: string) => void>() },

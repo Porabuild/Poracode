@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -85,6 +85,7 @@ afterEach(async () => {
   harness.spawn.mockClear();
   primeMock.mockReset();
   primeMock.mockImplementation(() => Promise.resolve(undefined));
+  vi.unstubAllEnvs();
 });
 
 function createManager(
@@ -229,6 +230,231 @@ describe("ThreadSessionManager terminal restart", () => {
     expect(restarted!.structuredSession).toBeUndefined();
   });
 
+  it("does not resume with the raw prompt when plugin policy filters every segment", async () => {
+    const adapter = createTerminalAdapter();
+    const filterPluginSkillSegments = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>
+    >(() => []);
+    const manager = createManager(adapter, { filterPluginSkillSegments });
+    seedInactiveSession(manager, adapter);
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "/browser-control",
+      config: CONFIG,
+      segments: [
+        {
+          kind: "skill",
+          name: "browser-control",
+          path: "/plugins/browser-control/SKILL.md",
+          invocation: "/browser-control",
+          provider: "Browser Tools",
+          scope: "global",
+        },
+      ],
+    });
+
+    expect(filterPluginSkillSegments).toHaveBeenCalledTimes(1);
+    expect(adapter.buildResumeArgv).toHaveBeenCalledWith(
+      PROJECT_LOCATION,
+      CONFIG,
+      "",
+      { providerSessionId: "ses_existing" },
+      expect.objectContaining({ agentSettings: expect.any(Object) }),
+    );
+  });
+
+  it("rewrites plugin skills to path hints before resuming a terminal-native thread", async () => {
+    const adapter = createTerminalAdapter();
+    const rewriteTerminalSkillSegments = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["rewriteTerminalSkillSegments"]>
+    >(async ({ segments }) => [
+      { kind: "text", content: "Read /plugins/browser-control/SKILL.md first. " },
+      ...segments.filter((segment) => segment.kind !== "skill"),
+    ]);
+    const manager = createManager(adapter, { rewriteTerminalSkillSegments });
+    seedInactiveSession(manager, adapter);
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "/browser-control resume work",
+      config: CONFIG,
+      segments: [
+        {
+          kind: "skill",
+          name: "browser-control",
+          path: "/plugins/browser-control/SKILL.md",
+          invocation: "/browser-control",
+          provider: "Browser Tools",
+          scope: "global",
+        },
+        { kind: "text", content: " resume work" },
+      ],
+    });
+
+    expect(rewriteTerminalSkillSegments).toHaveBeenCalledTimes(1);
+    expect(adapter.buildResumeArgv).toHaveBeenCalledWith(
+      PROJECT_LOCATION,
+      CONFIG,
+      "Read /plugins/browser-control/SKILL.md first.  resume work",
+      { providerSessionId: "ses_existing" },
+      expect.objectContaining({ agentSettings: expect.any(Object) }),
+    );
+  });
+
+  it("applies plugin apps before global built-in MCP disables on restart", async () => {
+    const adapter = createTerminalAdapter();
+    const pluginConfig: ThreadConfig = { ...CONFIG, browserMcp: true };
+    const applyPluginAppsToConfig = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["applyPluginAppsToConfig"]>
+    >(() => ({ config: pluginConfig, disabledConfigKeys: [] }));
+    const manager = createManager(adapter, { applyPluginAppsToConfig });
+    seedInactiveSession(manager, adapter, {
+      mcpLaunchSnapshot: {
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: ["browser"],
+      },
+    });
+
+    await restart(manager);
+
+    expect(applyPluginAppsToConfig).toHaveBeenCalledExactlyOnceWith(CONFIG, {
+      capabilities: adapter.capabilities,
+      presentationMode: "terminal",
+      projectLocation: PROJECT_LOCATION,
+    });
+    expect(adapter.buildResumeArgv).toHaveBeenCalledWith(
+      PROJECT_LOCATION,
+      { ...pluginConfig, browserMcp: false },
+      "resume work",
+      { providerSessionId: "ses_existing" },
+      expect.not.objectContaining({ browserMcp: expect.anything() }),
+    );
+    expect(manager.sessions.get(THREAD_ID)?.config).toEqual(CONFIG);
+    expect(manager.sessions.get(THREAD_ID)?.runtimeLaunchConfig).toEqual({
+      ...pluginConfig,
+      browserMcp: false,
+    });
+  });
+
+  it("preserves invariant subagent recursion denial across restart", async () => {
+    const adapter = createTerminalAdapter();
+    adapter.capabilities.subagentMcpScope = { terminal: "launch" };
+    const manager = createManager(adapter, {
+      readDisabledBuiltInMcpServerIds: () => [],
+      applyPluginAppsToConfig: (config) => ({
+        config: { ...config, subagentMcp: true },
+        disabledConfigKeys: [],
+      }),
+    });
+    seedInactiveSession(manager, adapter, {
+      invariantDisabledBuiltInMcpServerIds: ["subagents"],
+    });
+
+    await restart(manager);
+
+    expect(adapter.buildResumeArgv).toHaveBeenCalledWith(
+      PROJECT_LOCATION,
+      expect.objectContaining({ subagentMcp: false }),
+      "resume work",
+      { providerSessionId: "ses_existing" },
+      expect.not.objectContaining({ subagentMcp: expect.anything() }),
+    );
+    expect(manager.sessions.get(THREAD_ID)?.invariantDisabledBuiltInMcpServerIds).toEqual([
+      "subagents",
+    ]);
+  });
+
+  it("applies plugin-managed MCP flags to the parent's current config for a child", async () => {
+    const adapter = createTerminalAdapter();
+    const applyPluginAppsToConfig = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["applyPluginAppsToConfig"]>
+    >((config) => ({
+      config: { ...config, browserMcp: true },
+      disabledConfigKeys: [],
+    }));
+    const manager = createManager(adapter, { applyPluginAppsToConfig });
+    seedInactiveSession(manager, adapter);
+
+    await restart(manager);
+    const restarted = manager.sessions.get(THREAD_ID)!;
+    restarted.config = { model: "term-test/updated" };
+
+    const parentConfig = manager.getSubagentParentContext(THREAD_ID)?.config;
+    expect(parentConfig).toEqual({ model: "term-test/updated", browserMcp: false });
+    expect(manager.applyPluginAppsToSubagent(THREAD_ID, AGENT_KIND, parentConfig!)).toEqual({
+      config: {
+        model: "term-test/updated",
+        browserMcp: true,
+        subagentMcp: false,
+      },
+      disabledConfigKeys: [],
+    });
+  });
+
+  it("does not pass inherited or plugin MCP flags unsupported by the child adapter", () => {
+    const adapter = createTerminalAdapter();
+    adapter.capabilities.browserMcpScope = { gui: "none" };
+    const applyPluginAppsToConfig = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["applyPluginAppsToConfig"]>
+    >((config) => ({
+      config: { ...config, browserMcp: true },
+      disabledConfigKeys: [],
+    }));
+    const manager = createManager(adapter, { applyPluginAppsToConfig });
+    seedInactiveSession(manager, adapter);
+
+    expect(
+      manager.applyPluginAppsToSubagent(THREAD_ID, AGENT_KIND, {
+        ...CONFIG,
+        browserMcp: true,
+      }),
+    ).toEqual({ config: { ...CONFIG, subagentMcp: false }, disabledConfigKeys: [] });
+  });
+
+  it("keeps a disabled Browser plugin authoritative for child provider settings", async () => {
+    const adapter = createTerminalAdapter();
+    adapter.capabilities.browserMcpScope = { gui: "launch" };
+    const settingsDir = mkdtempSync(join(tmpdir(), "poracode-subagent-settings-"));
+    tempDirs.push(settingsDir);
+    const settingsPath = join(settingsDir, "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ agentSettings: { [AGENT_KIND]: { browserMcp: true } } }),
+      "utf8",
+    );
+    vi.stubEnv("PORACODE_BROWSER_MCP_URL", "http://127.0.0.1:12345");
+    vi.stubEnv("PORACODE_BROWSER_MCP_TOKEN", "test-token");
+    const manager = createManager(adapter, {
+      settingsPath,
+      applyPluginAppsToConfig: (config) => ({
+        config: { ...config, browserMcp: false },
+        disabledConfigKeys: ["browserMcp"],
+      }),
+    });
+    seedInactiveSession(manager, adapter);
+
+    const applied = manager.applyPluginAppsToSubagent(THREAD_ID, AGENT_KIND, CONFIG);
+    await expect(
+      manager.resolveSubagentParentMcpAccess(
+        THREAD_ID,
+        { threadId: "child-thread" },
+        AGENT_KIND,
+        applied.config,
+        [],
+      ),
+    ).resolves.toMatchObject({ browserMcp: { token: "test-token" } });
+    await expect(
+      manager.resolveSubagentParentMcpAccess(
+        THREAD_ID,
+        { threadId: "child-thread" },
+        AGENT_KIND,
+        applied.config,
+        applied.disabledConfigKeys,
+      ),
+    ).resolves.not.toHaveProperty("browserMcp");
+  });
+
   it("merges CLI hook extras into the resume argv and injects the hook env into the PTY", async () => {
     const adapter = createTerminalAdapter();
     const manager = createManager(adapter, {
@@ -254,12 +480,35 @@ describe("ThreadSessionManager terminal restart", () => {
   });
 
   it("keeps the replacement structured session on a server-controlled terminal restart", async () => {
-    const structuredSession = createStructuredSession();
+    const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    const structuredSession = createStructuredSession({ startTurn });
     const adapter = createTerminalAdapter({ liveInputMode: "server", structuredSession });
-    const manager = createManager(adapter);
+    const buildSkillTurnInjection = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["buildSkillTurnInjection"]>
+    >(async () => "Inline browser skill instructions");
+    const manager = createManager(adapter, { buildSkillTurnInjection });
     seedInactiveSession(manager, adapter);
 
-    await restart(manager);
+    const segments = [
+      {
+        kind: "skill" as const,
+        name: "browser-control",
+        path: "/plugins/browser-control/SKILL.md",
+        invocation: "/browser-control",
+        provider: "Browser Tools",
+        scope: "global" as const,
+      },
+      { kind: "text" as const, content: " resume work" },
+    ];
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "/browser-control resume work",
+      config: CONFIG,
+      segments,
+      userMessageItemId: "user-resume",
+    });
 
     expect(structuredSession.activate).toHaveBeenCalledTimes(1);
     expect(structuredSession.openThread).toHaveBeenCalledWith(CONFIG, {
@@ -276,6 +525,10 @@ describe("ThreadSessionManager terminal restart", () => {
       { providerSessionId: "ses_existing" },
       expect.anything(),
     );
+    expect(startTurn).toHaveBeenCalledWith("/browser-control resume work", CONFIG, segments, {
+      userMessageItemId: "user-resume",
+      inlineInstructions: "Inline browser skill instructions",
+    });
     const restarted = manager.sessions.get(THREAD_ID);
     expect(restarted?.structuredSession).toBe(structuredSession);
     expect(harness.spawn).toHaveBeenCalledTimes(1);

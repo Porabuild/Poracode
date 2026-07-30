@@ -17,6 +17,7 @@ import {
   threadRemoveActionSchema,
   worktreeStorageModeSchema,
   mcpServerListSchema,
+  installedPluginsSchema,
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
@@ -407,6 +408,8 @@ export const sharedSettingsSchema = z.object({
   disabledBuiltInMcpServers: builtInMcpServerDisabledSchema,
   /** Disabled tools for Poracode-owned built-in MCP servers. */
   disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema,
+  /** First-party Poracode plugins installed from the built-in marketplace. */
+  installedPlugins: installedPluginsSchema,
   /**
    * In-app browser panel + agent MCP bridge settings. Whether the Browser MCP
    * attaches to a thread is decided per thread: a persistent default in
@@ -528,6 +531,7 @@ export const defaultSharedSettings: SharedSettings = {
   mcpServers: [],
   disabledBuiltInMcpServers: {},
   disabledBuiltInMcpTools: {},
+  installedPlugins: {},
   browser: {
     allowEval: false,
     allowDataAccess: false,

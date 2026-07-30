@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
+import { BUILT_IN_MCP_SERVER_IDS } from "@/shared/contracts";
 import type {
   AgentKind,
   CloneRepoPayload,
@@ -60,6 +61,7 @@ import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 import { SkillsService } from "./skills/SkillsService";
+import { resolvePluginAppsForThreadConfig } from "@/shared/plugins/catalog";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
 
@@ -152,7 +154,10 @@ export class SupervisorRuntime {
       getAgentStatusService: () => this.agentStatusService,
     });
     this.agentRegistryService.refreshAgentRegistryAdapters();
-    this.skillsService = new SkillsService({ adapters: this.adapters });
+    this.skillsService = new SkillsService({
+      adapters: this.adapters,
+      readInstalledPlugins: () => this.sharedSettingsCache.readFresh().installedPlugins,
+    });
     mkdirSync(paths.cacheDir, { recursive: true });
     mkdirSync(this.logsDir, { recursive: true });
 
@@ -281,8 +286,16 @@ export class SupervisorRuntime {
       host: {
         getParentContext: (threadId) =>
           this.threadSessionManager.getSubagentParentContext(threadId),
-        resolveParentMcpAccess: (threadId, identity) =>
-          this.threadSessionManager.resolveSubagentParentMcpAccess(threadId, identity),
+        applyPluginAppsToChild: (threadId, agentKind, config) =>
+          this.threadSessionManager.applyPluginAppsToSubagent(threadId, agentKind, config),
+        resolveParentMcpAccess: (threadId, identity, agentKind, config, disabledConfigKeys) =>
+          this.threadSessionManager.resolveSubagentParentMcpAccess(
+            threadId,
+            identity,
+            agentKind,
+            config,
+            disabledConfigKeys,
+          ),
         appendRuntimeEvent: (parentThreadId, event) =>
           this.threadSessionManager.appendSubagentRuntimeEvent(parentThreadId, event),
       },
@@ -372,6 +385,12 @@ export class SupervisorRuntime {
       logsDir: this.logsDir,
       settingsPath: this.settingsPath,
       readDisableCliHookPlugin: () => this.sharedSettingsCache.read().disableCliHookPlugin,
+      readDisabledBuiltInMcpServerIds: () => {
+        const disabled = this.sharedSettingsCache.readFresh().disabledBuiltInMcpServers;
+        return BUILT_IN_MCP_SERVER_IDS.filter((id) => disabled[id] === true);
+      },
+      readDisabledBuiltInMcpTools: () =>
+        this.sharedSettingsCache.readFresh().disabledBuiltInMcpTools,
       adapters: this.adapters,
       windowsShell: this.windowsShell,
       ...(this.wslHookBridge ? { wslBridge: this.wslHookBridge } : {}),
@@ -390,6 +409,13 @@ export class SupervisorRuntime {
       },
       applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
       prepareMcpToolFilters,
+      applyPluginAppsToConfig: (config, context) => {
+        const installedPlugins = this.sharedSettingsCache.readFresh().installedPlugins;
+        return resolvePluginAppsForThreadConfig(config, installedPlugins, {
+          ...context,
+          hostPlatform: process.platform,
+        });
+      },
       prepareSkillsForLaunch: async (projectLocation, agentKind) => {
         try {
           await this.skillsService.prepareForLaunch(projectLocation, agentKind);
@@ -397,6 +423,8 @@ export class SupervisorRuntime {
           console.warn("[skills] failed to prepare provider skill projections:", error);
         }
       },
+      filterPluginSkillSegments: (segments, context) =>
+        this.skillsService.filterPluginSkillSegments(segments, context),
       buildSkillTurnInjection: async (input) => {
         try {
           return await this.skillsService.buildTurnSkillInjection(input);

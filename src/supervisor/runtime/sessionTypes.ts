@@ -2,6 +2,7 @@ import type { IPty } from "node-pty";
 import type {
   AgentKind,
   AgentSlashCommand,
+  BuiltInMcpServerId,
   ProjectLocation,
   PromptSegment,
   SessionRef,
@@ -12,6 +13,7 @@ import type {
   ThreadStatus,
   McpLaunchSnapshot,
 } from "@/shared/contracts";
+import type { PluginMcpConfigKey } from "@/shared/plugins/catalog";
 import type { AgentAdapter, StructuredSessionHandle, TerminalStatusHint } from "../agents/base";
 import type { TranscriptBuffer } from "./transcriptBuffer";
 
@@ -40,6 +42,8 @@ export interface PendingSteerSlot extends QueuedStructuredTurn {
   stagedAt: number;
 }
 
+export type PluginManagedConfigKey = PluginMcpConfigKey;
+
 export interface SessionRuntime {
   instanceId: string;
   threadId: string;
@@ -48,6 +52,10 @@ export interface SessionRuntime {
   pty?: IPty;
   projectLocation: ProjectLocation;
   config: ThreadConfig;
+  /** Effective MCP/App config actually attached for this process lifetime. */
+  runtimeLaunchConfig: ThreadConfig;
+  /** Built-in MCP restrictions that remain enforced across this runtime's restarts. */
+  invariantDisabledBuiltInMcpServerIds?: BuiltInMcpServerId[];
   /** MCP launch snapshot reused by restart and recovery paths. */
   mcpLaunchSnapshot: McpLaunchSnapshot;
   sessionRef?: SessionRef;

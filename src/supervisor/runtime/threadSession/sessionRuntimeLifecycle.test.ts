@@ -67,6 +67,7 @@ function createHarness(
     adapter,
     projectLocation: { kind: "posix", path: "/repo" },
     config: { model: "model-1" },
+    runtimeLaunchConfig: { model: "model-1" },
     terminalSize: { cols: 100, rows: 30 },
     launchPrompt: "",
     status: "working",
@@ -77,6 +78,7 @@ function createHarness(
     lastStrippedPtyChunk: "",
     ptyOscCarry: "",
     presentationMode: "gui",
+    mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
     ...(options.withPty === false ? {} : { pty }),
     ...(options.withStructuredSession === false ? {} : { structuredSession }),
     ...options.session,
@@ -300,6 +302,45 @@ describe("SessionRuntimeLifecycle", () => {
 
     expect(harness.mocks.touchStructuredInterruptWatchdog).toHaveBeenCalledWith(harness.session);
     expect(harness.mocks.emitState).toHaveBeenCalledExactlyOnceWith(harness.session);
+  });
+
+  it("does not persist launch-only plugin flags from a structured session config replay", () => {
+    const harness = createHarness({
+      session: {
+        config: { model: "model-1" },
+        runtimeLaunchConfig: { model: "model-1", browserMcp: true, computerUse: true },
+      },
+    });
+    harness.lifecycle.attach(harness.session);
+
+    harness.structuredListener?.onUpdate({
+      status: "idle",
+      attention: "none",
+      config: { model: "model-2", browserMcp: true, computerUse: true },
+    });
+
+    expect(harness.session.config).toEqual({ model: "model-2" });
+  });
+
+  it("preserves user MCP choices forced off by a global launch disable", () => {
+    const harness = createHarness({
+      session: {
+        config: { model: "model-1", browserMcp: true },
+        mcpLaunchSnapshot: {
+          mcpServers: [],
+          disabledBuiltInMcpServerIds: ["browser", "chrome"],
+        },
+      },
+    });
+    harness.lifecycle.attach(harness.session);
+
+    harness.structuredListener?.onUpdate({
+      status: "idle",
+      attention: "none",
+      config: { model: "model-2", browserMcp: false, chromeMcp: false },
+    });
+
+    expect(harness.session.config).toEqual({ model: "model-2", browserMcp: true });
   });
 
   it("ignores structured events for stale and ignored sessions", () => {

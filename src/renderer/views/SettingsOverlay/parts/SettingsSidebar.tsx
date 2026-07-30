@@ -20,6 +20,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Palette,
+  Puzzle,
   QrCode,
   RefreshCw,
   Search,
@@ -60,6 +61,7 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "agents",
   "skills",
   "mcpServers",
+  "plugins",
   "browser",
   "archived",
   "about",
@@ -227,6 +229,7 @@ export function SettingsSidebar(props: {
   const sectionsAfterAgents: { id: SettingsSection; icon: ReactNode; label: string }[] = [
     { id: "skills", icon: <Box className="size-4" />, label: t`Skills` },
     { id: "mcpServers", icon: <Cable className="size-4" />, label: t`MCP Servers` },
+    { id: "plugins", icon: <Puzzle className="size-4" />, label: t`Plugins` },
     { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },
     { id: "usage", icon: <Gauge className="size-4" />, label: t`Usage` },
     { id: "archived", icon: <Archive className="size-4" />, label: t`Archived Threads` },
@@ -502,6 +505,15 @@ export function SettingsSidebar(props: {
                 label={t`MCP Servers`}
                 isActive={activeSection === "mcpServers"}
                 onPress={() => onSectionChange("mcpServers")}
+              />
+            )}
+            {!remoteSession && (
+              <SidebarButton
+                iconOnly
+                icon={<Puzzle className="size-4" />}
+                label={t`Plugins`}
+                isActive={activeSection === "plugins"}
+                onPress={() => onSectionChange("plugins")}
               />
             )}
             <SidebarButton

@@ -30,6 +30,11 @@ msgstr "(dal yok)"
 msgid "(no message)"
 msgstr "(mesaj yok)"
 
+#. placeholder {0}: plugin.apps.length
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "{0, plural, one {# app} other {# apps}}"
+msgstr "{0, plural, one {# uygulama} other {# uygulama}}"
+
 #. placeholder {0}: details.changedFiles
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
@@ -60,8 +65,10 @@ msgstr "{0, plural, one {# proje} other {# proje}}"
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# sağlayıcı hazır} other {# sağlayıcı hazır}}"
 
+#. placeholder {0}: plugin.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "{0, plural, one {# skill} other {# skills}}"
@@ -994,6 +1001,10 @@ msgstr "onaylandı"
 msgid "Approved"
 msgstr "Onaylandı"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Apps"
+msgstr "Uygulamalar"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Archive"
@@ -1173,6 +1184,10 @@ msgstr "Terminal panelini otomatik göster"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Komutları çalıştırırken veya çalışma ağaçları oluştururken terminal panelini otomatik olarak gösterin."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Automation"
+msgstr "Otomasyon"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Availability"
 msgstr "Kullanılabilirlik"
@@ -1218,6 +1233,10 @@ msgstr "Dosyalara dön"
 #: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
 msgstr "Genel bakışa dön"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Back to plugins"
+msgstr "Eklentilere dön"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1355,6 +1374,10 @@ msgstr "Ana klasöre göz atın"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browse, inspect, and test websites in Poracode's isolated in-app browser."
+msgstr "Poracode'un yalıtılmış uygulama içi tarayıcısında web sitelerine göz atın, siteleri inceleyin ve test edin."
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
@@ -1363,6 +1386,7 @@ msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
@@ -1370,6 +1394,10 @@ msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "Tarayıcı"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browser Control"
+msgstr "Tarayıcı Denetimi"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
@@ -1403,6 +1431,10 @@ msgstr "CLI konuları için tarayıcı seçim hedefi"
 #: src/mobile/views/BrowserView.tsx
 msgid "Browser tabs"
 msgstr "Tarayıcı sekmeleri"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Browser Tools"
+msgstr "Tarayıcı Araçları"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
@@ -1529,6 +1561,10 @@ msgstr "Dal adı olmadan varsayılan çalışma ağacı yolu oluşturulamıyor"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Dallar değiştirilemiyor; önce değişikliklerinizi commit edin veya saklayın (stash)"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Category"
+msgstr "Kategori"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
@@ -1716,14 +1752,27 @@ msgstr "Poracode ve tarayıcı açılır pencerelerindeki bağlantıların Porac
 msgid "Choose worktree base folder"
 msgstr "Çalışma ağacı temel klasörünü seçin"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Choose, brief, and coordinate subagents for parallel work."
+msgstr "Paralel çalışma için alt aracıları seçin, bilgilendirin ve koordine edin."
+
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 msgid "Chrome"
 msgstr "Chrome"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Chrome Control"
+msgstr "Chrome Denetimi"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Chrome MCP enabled for this thread"
 msgstr "Bu konu için Chrome MCP etkinleştirildi"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Chrome Tools"
+msgstr "Chrome Araçları"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2199,6 +2248,7 @@ msgstr "Composer denetimleri"
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Computer Use"
@@ -2387,9 +2437,33 @@ msgstr "Başka bir sağlayıcıda devam et"
 msgid "Continue in..."
 msgstr "Şurada devam et..."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps and complete visual workflows."
+msgstr "Masaüstü uygulamalarını denetleyin ve görsel iş akışlarını tamamlayın."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control Poracode's isolated in-app browser."
+msgstr "Poracode'un yalıtılmış uygulama içi tarayıcısını denetleyin."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control supported desktop apps and windows."
+msgstr "Desteklenen masaüstü uygulamalarını ve pencerelerini denetleyin."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "Control supported Windows apps and windows."
+#~ msgstr "Desteklenen Windows uygulamalarını ve pencerelerini denetleyin."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control the user's Chrome browser through Poracode."
+msgstr "Kullanıcının Chrome tarayıcısını Poracode üzerinden denetleyin."
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
 msgstr "@file bahsetme aramasında hangi dosyaların görüneceğini kontrol edin. Projeye özel geçersiz kılmalar her projenin ayarlarında bulunur."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "Control Windows apps and complete visual desktop workflows."
+#~ msgstr "Windows uygulamalarını denetleyin ve görsel masaüstü iş akışlarını tamamlayın."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Controls the paired desktop while the agent clicks or types"
@@ -2618,6 +2692,10 @@ msgstr "Oluştur"
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Tek tıklamayla yararlı bir rutin oluşturun ve istediğiniz zaman ayarlayın."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Create and coordinate Poracode agent threads."
+msgstr "Poracode aracı konuları oluşturun ve koordine edin."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
 msgstr "Taslak PR Oluştur"
@@ -2798,6 +2876,10 @@ msgstr "Varsayılan izinler"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "Varsayılan konu kaldırma"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Delegate focused work to other installed agents and coordinate the results."
+msgstr "Odaklanmış işleri diğer yüklü aracılara devredin ve sonuçları koordine edin."
 
 #. Thread remove action: delete permanently
 #: src/mobile/views/FilesView.tsx
@@ -2994,6 +3076,10 @@ msgstr "Geliştirici"
 msgid "Dev servers listening on your desktop's localhost."
 msgstr "Masaüstünüzün localhost'unda dinleyen geliştirme sunucuları."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Developer tools"
+msgstr "Geliştirici araçları"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Yalnızca geliştirme amaçlı geçersiz kılmalar. Yalnızca PORACODE DEV yapısında görünür."
@@ -3106,6 +3192,14 @@ msgstr "Kaydedilmemiş düzenleyici değişiklikleri silinsin mi?"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Disconnect server"
 msgstr "Sunucu bağlantısını kes"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Discover"
+msgstr "Keşfet"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Discover plugins"
+msgstr "Eklentileri keşfet"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
@@ -3332,6 +3426,10 @@ msgstr "Sistem ayarlarınızdan mikrofon erişimini etkinleştirin ve tekrar den
 msgid "Enable notifications"
 msgstr "Bildirimleri etkinleştir"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Enable plugin"
+msgstr "Eklentiyi etkinleştir"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Enable Project"
 msgstr "Projeyi Etkinleştir"
@@ -3339,6 +3437,10 @@ msgstr "Projeyi Etkinleştir"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "Ayarlarda sağlayıcıları etkinleştirin"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Enable this plugin's active skills and apps for new threads."
+msgstr "Yeni konular için bu eklentinin etkin becerilerini ve uygulamalarını etkinleştirin."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -3623,6 +3725,10 @@ msgstr "En hızlı, Whisper tiny modelini kullanır; Daha iyi, Whisper base mode
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Favorites"
 msgstr "Favoriler"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Featured"
+msgstr "Öne çıkanlar"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
@@ -4329,6 +4435,10 @@ msgstr "Uygulama içi kamera taraması yalnızca HTTPS üzerinden çalışır. M
 msgid "Inactive"
 msgstr "Etkin değil"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Information"
+msgstr "Bilgiler"
+
 #. Badge on an exclude pattern inherited from a lower scope
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "inherited"
@@ -4363,6 +4473,8 @@ msgstr "Kanonik çalışma zamanı öğelerini incele"
 msgid "install"
 msgstr "yükle"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -4415,6 +4527,11 @@ msgstr "Windows'a yükleyin"
 msgid "Install packages"
 msgstr "Paketleri yükle"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Install Poracode-managed bundles of skills and MCP-powered apps for every supported agent."
+msgstr "Desteklenen her aracı için Poracode tarafından yönetilen beceri ve MCP destekli uygulama paketlerini yükleyin."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Install Tailscale"
 msgstr "Tailscale'i yükle"
@@ -4436,6 +4553,7 @@ msgstr "v{updateVersion} sürümünü yükle"
 msgid "Install v{version}"
 msgstr "v{version} sürümünü yükle"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -4787,6 +4905,10 @@ msgstr "Geliştirme sunucuları aranıyor…"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Kenar çubuğunu yarı saydam yapın — Windows 11'de sistem bulanıklık materyali, diğerlerinde yarı saydam bir ton."
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Manage"
+msgstr "Yönet"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "Diğer sağlayıcılardan içe aktarılanlar dahil olmak üzere genel ve proje aracı becerilerini yönetin."
@@ -4828,6 +4950,15 @@ msgstr "Poracode'un desteklenen aracıları başlatırken eklediği MCP sunucusu
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
 #~ msgstr "Yönetiliyor"
+
+#. placeholder {0}: props.managedByPlugin
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Managed by {0}"
+msgstr "{0} tarafından yönetiliyor"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Managed by {pluginName}"
+msgstr "{pluginName} tarafından yönetiliyor"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Managed by Poracode"
@@ -4906,6 +5037,10 @@ msgstr "Büyüt"
 msgid "Maximize browser"
 msgstr "Tarayıcıyı büyüt"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "MCP"
+msgstr "MCP"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "MCP Market"
 #~ msgstr "MCP Market"
@@ -4983,6 +5118,10 @@ msgstr "MCP araç çağrıları"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP transport type"
 msgstr "MCP aktarım türü"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "MCP-powered tools contributed by this plugin."
+msgstr "Bu eklentinin sağladığı MCP destekli araçlar."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -5288,6 +5427,10 @@ msgstr "Yerel Sağlayıcılar"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native support"
 msgstr "Yerel destek"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
+msgstr "Uygulama içi tarayıcı MCP ile sayfalarda gezinin, sayfaları inceleyin ve test edin."
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -5712,6 +5855,14 @@ msgstr "Desen yok."
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "Henüz aşama yok."
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "No plugins installed yet"
+msgstr "Henüz eklenti yüklenmedi"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "No plugins match your search."
+msgstr "Aramanızla eşleşen eklenti yok."
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
@@ -6218,6 +6369,14 @@ msgstr "{0} açıldı (#{1})"
 msgid "OpenSSH private key"
 msgstr "OpenSSH özel anahtarı"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Operate desktop apps through Poracode's desktop-control tools."
+msgstr "Poracode'un masaüstü denetim araçlarıyla masaüstü uygulamalarını yönetin."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "Operate Windows apps through Poracode's desktop-control tools."
+#~ msgstr "Poracode'un masaüstü denetim araçlarıyla Windows uygulamalarını yönetin."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Optional"
 msgstr "İsteğe bağlı"
@@ -6499,6 +6658,16 @@ msgstr "Bildirim sesini çal"
 msgid "Plugin"
 msgstr "Eklenti"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Plugin marketplace views"
+msgstr "Eklenti mağazası görünümleri"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Plugins"
+msgstr "Eklentiler"
+
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Ayarlar → Uzaktan Erişim'deki QR koduna doğrultun"
@@ -6647,6 +6816,10 @@ msgstr "Önceki sekme"
 msgid "Private key"
 msgstr "Özel anahtar"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Productivity"
+msgstr "Üretkenlik"
+
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -6772,6 +6945,10 @@ msgstr "Genel URL"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Public URL updated."
 msgstr "Genel URL güncellendi."
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Publisher"
+msgstr "Yayıncı"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
@@ -7400,6 +7577,10 @@ msgstr "Yönetici ile tekrar dene"
 msgid "Return to app"
 msgstr "Uygulamaya dön"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Reusable guidance delivered across supported agents."
+msgstr "Desteklenen aracılarda sunulan yeniden kullanılabilir yönergeler."
+
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Reveal in File Explorer"
@@ -7772,6 +7953,14 @@ msgstr "Modelleri ara..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Adres arayın veya girin"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Search plugins"
+msgstr "Eklentilerde ara"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Search plugins, skills, and apps..."
+msgstr "Eklentilerde, becerilerde ve uygulamalarda ara..."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
@@ -8230,6 +8419,10 @@ msgstr "{env} oturumu kapatılıyor. Algılanan aracılar tamamlandığında yen
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Çıkış yapılıyor. Algılanan aracılar tamamlandığında yenilenecektir."
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Skill"
+msgstr "Beceri"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
@@ -8263,6 +8456,7 @@ msgstr "SKILL.md eksik."
 msgid "SKILL.md is too large."
 msgstr "SKILL.md çok büyük."
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -8612,6 +8806,10 @@ msgstr "Bu cihazda saklanır; masaüstü kendi değerlerini korur."
 msgid "Subagent"
 msgstr "Alt aracı"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Subagent Delegation"
+msgstr "Alt Aracı Delegasyonu"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent not found."
 msgstr "Alt aracı bulunamadı."
@@ -8631,6 +8829,7 @@ msgstr "Alt ajan çalıştırmaları"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Subagents"
@@ -9611,6 +9810,11 @@ msgstr "Atanmamış"
 msgid "Unavailable"
 msgstr "Kullanılamıyor"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Unavailable on this device"
+msgstr "Bu cihazda kullanılamıyor"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "Kullanılamayan proje"
@@ -9629,6 +9833,7 @@ msgstr "Tüm grupları çöz"
 msgid "Unified view"
 msgstr "Birleşik görünüm"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Uninstall"
 msgstr "Kaldır"
@@ -9838,6 +10043,10 @@ msgstr "Doğrudan eşleştirmek veya SSH üzerinden uzak bir makineye bağlanmak
 msgid "Use an existing folder"
 msgstr "Mevcut bir klasörü kullan"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Use Chrome safely when a task needs an existing browser session."
+msgstr "Bir görev mevcut bir tarayıcı oturumu gerektirdiğinde Chrome'u güvenle kullanın."
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "Yapılandırmayı kullan"
@@ -9919,6 +10128,7 @@ msgid "Verify SSH host key"
 msgstr "SSH ana makine anahtarını doğrula"
 
 #. About page label: app version row
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Version"
 msgstr "Sürüm"
@@ -9935,8 +10145,12 @@ msgstr "Görüntüle"
 
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "View {0}"
-msgstr "{0} görüntüle"
+#~ msgid "View {0}"
+#~ msgstr "{0} görüntüle"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "View {displayName}"
+msgstr "{displayName} öğesini görüntüle"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "View all releases on GitHub"
@@ -10183,6 +10397,10 @@ msgstr "İş"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "Mevcut çalışma kopyasında çalışın"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Work with the pages and signed-in sessions already open in Chrome."
+msgstr "Chrome'da zaten açık olan sayfalarla ve giriş yapılmış oturumlarla çalışın."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx

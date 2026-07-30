@@ -13,6 +13,10 @@ import {
   initDatabase,
 } from "@/main/db";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
+import {
+  enforcePersistedThreadLaunchInvariants,
+  handleOrchestratorThreadCreated,
+} from "@/main/orchestratorThreadBridge";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "@/main/sharedSettingsFile";
 import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
 import {
@@ -177,6 +181,7 @@ export async function createHeadlessRemoteHost(
     wslHelpersDir: options.wslHelpersDir,
     ...(options.bundledSkillsDir ? { bundledSkillsDir: options.bundledSkillsDir } : {}),
     secretStorageKey: options.secretStorageKey,
+    prepareStartThread: enforcePersistedThreadLaunchInvariants,
     resolveExtraEnv: () => {
       const info = appControlsMcpIngress?.getInfo();
       return info
@@ -188,6 +193,13 @@ export async function createHeadlessRemoteHost(
     },
     ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
     onEvent: (event) => {
+      if (event.type === "orchestrator-thread-created") {
+        void handleOrchestratorThreadCreated(event, {
+          startThread: (payload) => supervisorClient.call("startThread", payload),
+          sendThreadCommand: () => false,
+        });
+        return;
+      }
       options.onSupervisorEvent?.(event);
       scheduleRunCoordinator?.observeSupervisorEvent(event);
       serverRef?.publishSupervisorEvent(event);

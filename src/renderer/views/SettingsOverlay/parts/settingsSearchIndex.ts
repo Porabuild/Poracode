@@ -432,6 +432,16 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     desktopOnly: true,
   },
 
+  // Plugins
+  {
+    section: "plugins",
+    anchor: "plugins.marketplace",
+    title: msg`Plugins`,
+    description: msg`Install Poracode-managed bundles of skills and MCP-powered apps for every supported agent.`,
+    keywords: "plugins marketplace extensions apps mcp skills bundles install",
+    desktopOnly: true,
+  },
+
   // Browser
   {
     section: "browser",

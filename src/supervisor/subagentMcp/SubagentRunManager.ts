@@ -9,6 +9,7 @@ import type {
 } from "@/shared/contracts";
 import { capabilitiesForPresentation, validateAgentModelSelection } from "@/shared/agentSelection";
 import { formatReasoningLabel } from "@/shared/modelLabels";
+import type { PluginMcpConfigKey } from "@/shared/plugins/catalog";
 import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/base";
 import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
 import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
@@ -175,7 +176,7 @@ export class SubagentRunManager {
     const runId = randomBytes(6).toString("hex");
     const childThreadId = `${parentThreadId}::sub::${runId}`;
 
-    const childConfig = buildUnrestrictedChildConfig(
+    let childConfig = buildUnrestrictedChildConfig(
       {
         model,
         ...(request.effort ? { effort: request.effort } : {}),
@@ -184,6 +185,16 @@ export class SubagentRunManager {
       capabilities,
       parent.config,
     );
+    const pluginApps = this.deps.host.applyPluginAppsToChild?.(
+      parentThreadId,
+      adapter.kind,
+      childConfig,
+    );
+    childConfig = pluginApps?.config ?? childConfig;
+    if (Object.hasOwn(childConfig, "subagentMcp")) {
+      childConfig = { ...childConfig };
+      delete childConfig.subagentMcp;
+    }
 
     let resolveSettled!: () => void;
     const settledPromise = new Promise<void>((resolve) => {
@@ -218,7 +229,14 @@ export class SubagentRunManager {
       payload: startPayload,
     });
 
-    void this.runChild(record, adapter, parent.projectLocation, childConfig, prompt);
+    void this.runChild(
+      record,
+      adapter,
+      parent.projectLocation,
+      childConfig,
+      pluginApps?.disabledConfigKeys ?? [],
+      prompt,
+    );
 
     return { runId };
   }
@@ -307,6 +325,7 @@ export class SubagentRunManager {
     adapter: AgentAdapter,
     projectLocation: ProjectLocation,
     childConfig: ThreadConfig,
+    disabledConfigKeys: readonly PluginMcpConfigKey[],
     prompt: string,
   ): Promise<void> {
     // CLI-only agents (no structured runtime) run through the one-shot child
@@ -317,14 +336,29 @@ export class SubagentRunManager {
       return;
     }
     try {
-      const mcpAccess = await this.deps.host.resolveParentMcpAccess?.(record.parentThreadId, {
-        threadId: record.childThreadId,
-        title: record.label,
-      });
+      const mcpAccess = await this.deps.host.resolveParentMcpAccess?.(
+        record.parentThreadId,
+        {
+          threadId: record.childThreadId,
+          title: record.label,
+        },
+        adapter.kind,
+        childConfig,
+        disabledConfigKeys,
+      );
+      const runtimeConfig = { ...childConfig };
+      for (const [key, attached] of [
+        ["browserMcp", mcpAccess?.browserMcp !== undefined],
+        ["computerUse", mcpAccess?.computerUseMcp !== undefined],
+        ["chromeMcp", mcpAccess?.chromeMcp !== undefined],
+      ] as const) {
+        if (attached) runtimeConfig[key] = true;
+        else if (runtimeConfig[key] === true) runtimeConfig[key] = false;
+      }
       const handle = await adapter.createStructuredSession?.({
         threadId: record.childThreadId,
         projectLocation,
-        config: childConfig,
+        config: runtimeConfig,
         presentationMode: "gui",
         ...(mcpAccess ?? {}),
       });
@@ -346,9 +380,9 @@ export class SubagentRunManager {
 
       if (handle.activate) await handle.activate();
       if (record.cancelRequested) return void this.settle(record, "cancelled");
-      if (handle.openThread) await handle.openThread(childConfig);
+      if (handle.openThread) await handle.openThread(runtimeConfig);
       if (record.cancelRequested) return void this.settle(record, "cancelled");
-      if (handle.startTurn) await handle.startTurn(prompt, childConfig);
+      if (handle.startTurn) await handle.startTurn(prompt, runtimeConfig);
     } catch (error) {
       this.settle(
         record,

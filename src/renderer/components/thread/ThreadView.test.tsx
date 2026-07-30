@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import type { Thread } from "@/shared/contracts";
@@ -92,23 +92,30 @@ describe("ThreadView", () => {
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
+      runtimeLaunchConfigByThreadId: {},
     });
   });
 
-  it("renders Browser MCP as a read-only header icon in active threads", () => {
+  it("renders the supervisor's effective Browser MCP state in active threads", async () => {
     // Mid-thread toggles can't re-attach an MCP server to a running session,
     // so the active-thread chip is informational only. The toggle lives in
     // the draft composer.
 
+    const threadId = "thread-browser-mcp";
+    useAppStore.setState({
+      runtimeLaunchConfigByThreadId: {
+        [threadId]: { model: "gpt-5.4", browserMcp: true },
+      },
+    });
+
     renderThreadView({
       thread: {
-        id: "thread-browser-mcp",
+        id: threadId,
         projectId: "project-1",
         title: "Browser thread",
         agentKind: "codex",
         config: {
           model: "gpt-5.4",
-          browserMcp: true,
         },
         status: "idle",
         attention: "none",
@@ -150,12 +157,29 @@ describe("ThreadView", () => {
     );
     expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();
     expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
+
+    await act(async () =>
+      useAppStore.setState({
+        runtimeLaunchConfigByThreadId: {
+          [threadId]: { model: "gpt-5.4", browserMcp: false },
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Browser MCP enabled for this thread")).toBeNull(),
+    );
   });
 
-  it("renders OpenCode Browser MCP as a read-only header icon when provider setting is enabled", () => {
+  it("renders OpenCode Browser MCP when the supervisor reports an attached transport", () => {
+    const threadId = "thread-opencode-browser-mcp";
+    useAppStore.setState({
+      runtimeLaunchConfigByThreadId: {
+        [threadId]: { model: "opencode/big-pickle", browserMcp: true },
+      },
+    });
     renderThreadView({
       thread: {
-        id: "thread-opencode-browser-mcp",
+        id: threadId,
         projectId: "project-1",
         title: "OpenCode browser thread",
         agentKind: "opencode",
@@ -201,7 +225,7 @@ describe("ThreadView", () => {
     expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
   });
 
-  it("starts a queued launch after the terminal reports its first size", async () => {
+  it("starts a queued child launch with its durable non-recursion guard", async () => {
     const onLaunchConsumed = vi.fn<() => void>();
 
     renderThreadView({
@@ -219,6 +243,7 @@ describe("ThreadView", () => {
         archived: false,
         done: false,
         starred: false,
+        parentThreadId: "parent-thread",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -268,6 +293,7 @@ describe("ThreadView", () => {
         prompt: "hi",
         mcpServers: [],
         disabledBuiltInMcpServerIds: [],
+        invariantDisabledBuiltInMcpServerIds: ["subagents"],
         disabledBuiltInMcpTools: {},
         initialSize: {
           cols: 120,

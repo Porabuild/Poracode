@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import type {
   AgentAdapter,
@@ -65,6 +65,12 @@ interface Harness {
   handles: FakeHandle[];
   inputs: CreateStructuredSessionInput[];
   appended: Array<{ threadId: string; event: RuntimeEvent }>;
+  applyPluginAppsToChild: ReturnType<
+    typeof vi.fn<NonNullable<SubagentRunHost["applyPluginAppsToChild"]>>
+  >;
+  resolveParentMcpAccess: ReturnType<
+    typeof vi.fn<NonNullable<SubagentRunHost["resolveParentMcpAccess"]>>
+  >;
 }
 
 function makeHarness(options?: { models?: Array<{ id: string; label: string }> }): Harness {
@@ -99,23 +105,11 @@ function makeHarness(options?: { models?: Array<{ id: string; label: string }> }
     },
   } as unknown as AgentAdapter;
 
-  const host: SubagentRunHost = {
-    getParentContext: (threadId) =>
-      threadId === PARENT
-        ? {
-            projectLocation: PROJECT,
-            config: {
-              model: "parent-model",
-              approvalPolicy: "never",
-              sandboxMode: "workspace-write",
-              browserMcp: true,
-              subagentMcp: true,
-              computerUse: true,
-              chromeMcp: true,
-            },
-          }
-        : undefined,
-    resolveParentMcpAccess: async () => ({
+  const applyPluginAppsToChild = vi.fn<NonNullable<SubagentRunHost["applyPluginAppsToChild"]>>(
+    (_parentThreadId, _agentKind, config) => ({ config, disabledConfigKeys: [] }),
+  );
+  const resolveParentMcpAccess = vi.fn<NonNullable<SubagentRunHost["resolveParentMcpAccess"]>>(
+    async () => ({
       browserMcp: {
         url: "http://browser/mcp",
         token: "browser-token",
@@ -132,6 +126,25 @@ function makeHarness(options?: { models?: Array<{ id: string; label: string }> }
         headers: { Authorization: "Bearer chrome-token" },
       },
     }),
+  );
+  const host: SubagentRunHost = {
+    getParentContext: (threadId) =>
+      threadId === PARENT
+        ? {
+            projectLocation: PROJECT,
+            config: {
+              model: "parent-model",
+              approvalPolicy: "never",
+              sandboxMode: "workspace-write",
+              browserMcp: true,
+              subagentMcp: true,
+              computerUse: true,
+              chromeMcp: true,
+            },
+          }
+        : undefined,
+    applyPluginAppsToChild,
+    resolveParentMcpAccess,
     appendRuntimeEvent: (threadId, event) => appended.push({ threadId, event }),
   };
 
@@ -139,7 +152,7 @@ function makeHarness(options?: { models?: Array<{ id: string; label: string }> }
     adapters: new Map([["codex" as never, adapter]]),
     host,
   });
-  return { manager, handles, inputs, appended };
+  return { manager, handles, inputs, appended, applyPluginAppsToChild, resolveParentMcpAccess };
 }
 
 describe("SubagentRunManager", () => {
@@ -383,6 +396,10 @@ describe("SubagentRunManager", () => {
 
   it("uses unrestricted permissions and inherits non-recursive MCPs", async () => {
     const h = makeHarness();
+    h.applyPluginAppsToChild.mockImplementation((_parentThreadId, _agentKind, config) => ({
+      config: { ...config, subagentMcp: true },
+      disabledConfigKeys: [],
+    }));
     h.manager.spawn(PARENT, {
       agent: "codex",
       prompt: "go",
@@ -408,6 +425,58 @@ describe("SubagentRunManager", () => {
       browserMcp: { url: "http://browser/mcp" },
       computerUseMcp: { url: "http://computer/mcp" },
       chromeMcp: { url: "http://chrome/mcp" },
+    });
+    expect(h.applyPluginAppsToChild).toHaveBeenCalledWith(
+      PARENT,
+      "codex",
+      expect.not.objectContaining({ subagentMcp: expect.anything() }),
+    );
+    expect(h.resolveParentMcpAccess).toHaveBeenCalledWith(
+      PARENT,
+      expect.objectContaining({ threadId: expect.stringContaining(`${PARENT}::sub::`) }),
+      "codex",
+      expect.objectContaining({ browserMcp: true, computerUse: true, chromeMcp: true }),
+      [],
+    );
+    expect(h.resolveParentMcpAccess.mock.calls[0]![3]).not.toHaveProperty("subagentMcp");
+  });
+
+  it("threads plugin master-disable policy into child MCP resolution", async () => {
+    const h = makeHarness();
+    h.applyPluginAppsToChild.mockImplementation((_parentThreadId, _agentKind, config) => ({
+      config: { ...config, browserMcp: false },
+      disabledConfigKeys: ["browserMcp"],
+    }));
+    h.resolveParentMcpAccess.mockResolvedValueOnce({});
+
+    h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    expect(h.resolveParentMcpAccess).toHaveBeenCalledWith(
+      PARENT,
+      expect.objectContaining({ threadId: expect.stringContaining(`${PARENT}::sub::`) }),
+      "codex",
+      expect.objectContaining({ browserMcp: false }),
+      ["browserMcp"],
+    );
+  });
+
+  it("clears requested App flags when their child transports do not attach", async () => {
+    const h = makeHarness();
+    h.resolveParentMcpAccess.mockResolvedValueOnce({});
+
+    h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    expect(h.inputs[0]?.config).toMatchObject({
+      browserMcp: false,
+      computerUse: false,
+      chromeMcp: false,
+    });
+    expect(h.handles[0]?.startTurns[0]?.config).toMatchObject({
+      browserMcp: false,
+      computerUse: false,
+      chromeMcp: false,
     });
   });
 

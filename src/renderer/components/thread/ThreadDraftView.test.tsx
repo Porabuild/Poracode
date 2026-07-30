@@ -390,9 +390,11 @@ describe("ThreadDraftView", () => {
       providerConfigs: {},
       hiddenModels: {},
       disabledAgents: [],
+      agentSettings: {},
       lastPresentationModeByAgent: {},
       enabledMcpServers: {},
       disabledBuiltInMcpServers: {},
+      installedPlugins: {},
       sharedSettingsHydrated: true,
     });
   });
@@ -625,6 +627,7 @@ describe("ThreadDraftView", () => {
   it("keeps a globally disabled built-in out of the composer and launch config", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useSharedSettings.setState({
+      agentSettings: { codex: { browserMcp: true } },
       enabledMcpServers: { browser: true },
       disabledBuiltInMcpServers: { browser: true },
     });
@@ -647,6 +650,127 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("submit"));
 
     expect(onStart).toHaveBeenCalledTimes(1);
+    expect((onStart.mock.lastCall![0] as { config: object }).config).not.toHaveProperty(
+      "browserMcp",
+    );
+  });
+
+  it("leaves plugin app enablement for the supervisor without persisting it in thread config", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useSharedSettings.setState({
+      installedPlugins: {
+        "browser-tools": {
+          version: "1.0.0",
+          enabled: true,
+          disabledSkillIds: [],
+          disabledAppIds: [],
+        },
+      },
+    });
+
+    render(
+      <ThreadDraftView project={project} agentStatuses={[dualModeCodexStatus]} onStart={onStart} />,
+    );
+
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect((onStart.mock.lastCall![0] as { config: object }).config).not.toHaveProperty(
+      "browserMcp",
+    );
+  });
+
+  it("previews provider-enabled Browser MCP without persisting it in the draft config", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useSharedSettings.setState({
+      agentSettings: { codex: { browserMcp: true } },
+      installedPlugins: {
+        "browser-tools": {
+          version: "1.0.0",
+          enabled: true,
+          disabledSkillIds: [],
+          disabledAppIds: ["browser"],
+        },
+      },
+    });
+    const browserCapableCodexStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        browserMcpScope: { terminal: "none", gui: "none" },
+      },
+    };
+
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[browserCapableCodexStatus]}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    const props = composerSpy.mock.lastCall?.[0] as {
+      inputContent?: ReactElement<{
+        mcpMentions: Array<{ id: string; enabled: boolean }>;
+      }>;
+    };
+    expect(props.inputContent?.props.mcpMentions).toContainEqual(
+      expect.objectContaining({ id: "browser", enabled: true }),
+    );
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    expect((onStart.mock.lastCall![0] as { config: object }).config).not.toHaveProperty(
+      "browserMcp",
+    );
+  });
+
+  it("does not let the composer bypass a globally disabled plugin", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useSharedSettings.setState({
+      agentSettings: { codex: { browserMcp: true } },
+      enabledMcpServers: {},
+      installedPlugins: {
+        "browser-tools": {
+          version: "1.0.0",
+          enabled: false,
+          disabledSkillIds: [],
+          disabledAppIds: [],
+        },
+      },
+    });
+
+    render(
+      <ThreadDraftView project={project} agentStatuses={[dualModeCodexStatus]} onStart={onStart} />,
+    );
+
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    const props = composerSpy.mock.lastCall?.[0] as {
+      afterControls?: ReactNode;
+      inputContent?: ReactElement<{
+        mcpMentions: Array<{ id: string }>;
+        onMcpMentionSelect: (id: string) => void;
+      }>;
+    };
+    const mcpServers = (
+      props.afterControls as ReactElement<{
+        mcpServers: Array<{
+          descriptor: { id: string };
+        }>;
+      }>
+    ).props.mcpServers;
+    const mentionInput = props.inputContent!;
+
+    expect(mcpServers.some((server) => server.descriptor.id === "browser")).toBe(false);
+    expect(mentionInput.props.mcpMentions.some((mention) => mention.id === "browser")).toBe(false);
+    act(() => mentionInput.props.onMcpMentionSelect("browser"));
+    expect(useSharedSettings.getState().enabledMcpServers.browser).toBeUndefined();
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
     expect((onStart.mock.lastCall![0] as { config: object }).config).not.toHaveProperty(
       "browserMcp",
     );

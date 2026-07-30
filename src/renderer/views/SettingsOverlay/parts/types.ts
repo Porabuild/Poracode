@@ -18,6 +18,7 @@ export type SettingsSection =
   | "agents"
   | "skills"
   | "mcpServers"
+  | "plugins"
   | "browser"
   | "usage"
   | "archived"

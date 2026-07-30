@@ -88,6 +88,17 @@ export const functionalAreas = [
     manual: [],
   },
   {
+    id: "plugins-marketplace",
+    title: "Plugin marketplace, installation, and contributed apps and skills",
+    patterns: [
+      /components\/plugins\//i,
+      /shared\/(?:contracts\/plugin|plugins\/)/i,
+      /PluginsSettings/i,
+    ],
+    automated: ["settings"],
+    manual: [],
+  },
+  {
     id: "updates-auth-usage",
     title: "Updates, authentication, usage, notifications, and diagnostics",
     patterns: [/update/i, /auth/i, /login/i, /usage/i, /notification/i, /diagnostic/i, /sentry/i],

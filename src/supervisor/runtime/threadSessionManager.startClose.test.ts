@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
+import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
 
 vi.mock("../agents/base", async (importActual) => {
   const actual = await importActual<typeof import("../agents/base")>();
@@ -60,7 +61,11 @@ function deferred<T = void>(): {
   return { promise, resolve, reject };
 }
 
-function createManager(agentKind: AgentKind, adapter: AgentAdapter): ThreadSessionManager {
+function createManager(
+  agentKind: AgentKind,
+  adapter: AgentAdapter,
+  extraOptions: Partial<ThreadSessionManagerOptions> = {},
+): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
   const manager = new ThreadSessionManager({
@@ -71,6 +76,7 @@ function createManager(agentKind: AgentKind, adapter: AgentAdapter): ThreadSessi
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[agentKind, adapter]]),
     windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
+    ...extraOptions,
   });
   managersToDispose.push(manager);
   return manager;
@@ -172,6 +178,173 @@ afterEach(async () => {
 });
 
 describe("ThreadSessionManager start guards", () => {
+  it("does not launch with the raw prompt when plugin policy filters every segment", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const filterPluginSkillSegments = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>
+    >(() => []);
+    const manager = createManager("codex", adapter, { filterPluginSkillSegments });
+
+    await manager.startThread({
+      threadId: "thread-filtered-skill",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "codex",
+      config: { model: "codex/model" },
+      prompt: "/browser-control",
+      segments: [
+        {
+          kind: "skill",
+          name: "browser-control",
+          path: "C:\\plugins\\browser-control\\SKILL.md",
+          invocation: "/browser-control",
+          provider: "Browser Tools",
+          scope: "global",
+        },
+      ],
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "terminal",
+    });
+
+    expect(filterPluginSkillSegments).toHaveBeenCalledTimes(1);
+    expect(adapter.buildLaunchArgv).toHaveBeenCalledWith(
+      { kind: "windows", path: "C:\\repo" },
+      { model: "codex/model" },
+      "",
+      undefined,
+      expect.objectContaining({ agentSettings: expect.any(Object) }),
+    );
+  });
+
+  it("unions supervisor and caller hard-disables after plugin App defaults", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    adapter.capabilities.browserMcpScope = { terminal: "launch" };
+    adapter.capabilities.subagentMcpScope = { terminal: "launch" };
+    const manager = createManager("codex", adapter, {
+      readDisabledBuiltInMcpServerIds: () => ["browser"],
+      readDisabledBuiltInMcpTools: () => ({ browser: ["server-disabled-tool"] }),
+      applyPluginAppsToConfig: (config) => ({
+        config: { ...config, browserMcp: true, subagentMcp: true },
+        disabledConfigKeys: [],
+      }),
+    });
+
+    await manager.startThread({
+      threadId: "thread-authoritative-mcp-disables",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "codex",
+      config: { model: "codex/model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "terminal",
+      disabledBuiltInMcpServerIds: ["subagents"],
+      disabledBuiltInMcpTools: { browser: ["caller-disabled-tool"] },
+    });
+
+    expect(adapter.buildLaunchArgv).toHaveBeenCalledWith(
+      { kind: "windows", path: "C:\\repo" },
+      expect.objectContaining({ browserMcp: false, subagentMcp: false }),
+      "",
+      undefined,
+      expect.not.objectContaining({
+        browserMcp: expect.anything(),
+        subagentMcp: expect.anything(),
+      }),
+    );
+    expect(manager.sessions.get("thread-authoritative-mcp-disables")?.runtimeLaunchConfig).toEqual(
+      expect.objectContaining({ browserMcp: false, subagentMcp: false }),
+    );
+    expect(
+      manager.sessions.get("thread-authoritative-mcp-disables")?.mcpLaunchSnapshot
+        .disabledBuiltInMcpTools,
+    ).toEqual({ browser: ["caller-disabled-tool", "server-disabled-tool"] });
+  });
+
+  it("rejects renderer App flags outside the provider launch scope", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+
+    await manager.startThread({
+      threadId: "thread-unsupported-app-flags",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "codex",
+      config: {
+        model: "codex/model",
+        browserMcp: true,
+        subagentMcp: true,
+        computerUse: true,
+        chromeMcp: true,
+      },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "terminal",
+    });
+
+    expect(adapter.buildLaunchArgv).toHaveBeenCalledWith(
+      { kind: "windows", path: "C:\\repo" },
+      expect.objectContaining({
+        browserMcp: false,
+        subagentMcp: false,
+        computerUse: false,
+        chromeMcp: false,
+      }),
+      "",
+      undefined,
+      expect.not.objectContaining({
+        browserMcp: expect.anything(),
+        subagentMcp: expect.anything(),
+        computerUseMcp: expect.anything(),
+        chromeMcp: expect.anything(),
+      }),
+    );
+  });
+
+  it("fails a selected plugin skill when its requested App transport cannot attach", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    adapter.capabilities.browserMcpScope = { terminal: "launch" };
+    const filterPluginSkillSegments = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>
+    >((segments, context) => (context.launchConfig?.browserMcp === true ? segments : []));
+    const manager = createManager("codex", adapter, {
+      applyPluginAppsToConfig: (config) => ({
+        config: { ...config, browserMcp: true },
+        disabledConfigKeys: [],
+      }),
+      filterPluginSkillSegments,
+    });
+
+    await expect(
+      manager.startThread({
+        threadId: "thread-missing-required-app",
+        projectLocation: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+        },
+        agentKind: "codex",
+        config: { model: "codex/model" },
+        prompt: "/browser-control",
+        segments: [
+          {
+            kind: "skill",
+            name: "browser-control",
+            path: "C:\\plugins\\browser-control\\SKILL.md",
+            invocation: "/browser-control",
+            provider: "Browser Tools",
+            scope: "global",
+          },
+        ],
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "terminal",
+      }),
+    ).rejects.toThrow("A required plugin App could not be attached");
+    expect(adapter.buildLaunchArgv).not.toHaveBeenCalled();
+  });
+
   it.each(guardedStructuredProviders)(
     "disposes a %s structured GUI session that is closed before activation completes",
     async (agentKind) => {

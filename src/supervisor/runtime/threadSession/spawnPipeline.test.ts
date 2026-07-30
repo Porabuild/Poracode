@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { ThreadConfig } from "@/shared/contracts";
-import { effectiveLaunchConfig } from "./spawnPipeline";
+import type { AgentAdapter } from "../../agents/base";
+import { installBuiltInPlugin, resolvePluginAppsForThreadConfig } from "@/shared/plugins/catalog";
+import {
+  effectiveLaunchConfig,
+  effectiveStructuredTurnConfig,
+  mergeBuiltInMcpDisabledTools,
+  resolveAttachedAppLaunchConfig,
+  SpawnPipeline,
+} from "./spawnPipeline";
 
 const baseConfig: ThreadConfig = {
   model: "test-model",
@@ -44,5 +52,97 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
   it("does not mutate the original config", () => {
     effectiveLaunchConfig(baseConfig, ["browser"]);
     expect(baseConfig.browserMcp).toBe(true);
+  });
+
+  it("lets installed plugin apps opt in before global MCP disables are enforced", () => {
+    const config: ThreadConfig = { model: "test-model" };
+    const pluginConfig = resolvePluginAppsForThreadConfig(
+      config,
+      installBuiltInPlugin({}, "browser-tools"),
+      {
+        capabilities: { browserMcpScope: { terminal: "launch" } },
+        presentationMode: "terminal",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        hostPlatform: "win32",
+      },
+    ).config;
+
+    expect(effectiveLaunchConfig(pluginConfig, []).browserMcp).toBe(true);
+    expect(effectiveLaunchConfig(pluginConfig, ["browser"]).browserMcp).toBe(false);
+    expect(config.browserMcp).toBeUndefined();
+  });
+});
+
+describe("runtime App launch config", () => {
+  it("keeps plugin master-disable authoritative over legacy Browser settings", async () => {
+    const pipeline = new SpawnPipeline({
+      options: {
+        applyPluginAppsToConfig: (config: ThreadConfig) => ({
+          config: { ...config, browserMcp: false },
+          disabledConfigKeys: ["browserMcp"],
+        }),
+      },
+      isBrowserMcpEnabledForLaunch: () => true,
+    } as never);
+    const adapter = {
+      capabilities: { browserMcpScope: { terminal: "launch" } },
+    } as unknown as AgentAdapter;
+
+    const resolved = pipeline.resolveConfigForLaunch(
+      { model: "test-model" },
+      adapter,
+      { kind: "windows", path: "C:\\repo" },
+      "terminal",
+      [],
+    );
+    expect(resolved.launchConfig.browserMcp).toBe(false);
+    await expect(
+      pipeline.resolveBrowserMcpForLaunch(
+        adapter,
+        { kind: "windows", path: "C:\\repo" },
+        resolved.launchConfig,
+        { mcpServers: [], disabledBuiltInMcpServerIds: [] },
+        undefined,
+        resolved.pluginDisabledConfigKeys,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("unions caller and supervisor disabled-tool policy", () => {
+    expect(
+      mergeBuiltInMcpDisabledTools(
+        { browser: ["navigate", "shared"] },
+        { browser: ["shared", "click"], chrome: ["open_tab"] },
+      ),
+    ).toEqual({ browser: ["navigate", "shared", "click"], chrome: ["open_tab"] });
+  });
+
+  it("uses actual attachments while preserving explicit hard-disabled flags", () => {
+    expect(
+      resolveAttachedAppLaunchConfig(
+        { model: "test-model", browserMcp: true, computerUse: false },
+        {
+          browserMcp: false,
+          subagentMcp: false,
+          computerUse: false,
+          chromeMcp: true,
+        },
+      ),
+    ).toEqual({ model: "test-model", computerUse: false, chromeMcp: true });
+  });
+
+  it("overlays immutable App state onto the latest structured turn config", () => {
+    expect(
+      effectiveStructuredTurnConfig(
+        {
+          runtimeLaunchConfig: {
+            model: "original-model",
+            browserMcp: true,
+            computerUse: false,
+          },
+        },
+        { model: "updated-model", browserMcp: false, computerUse: true },
+      ),
+    ).toEqual({ model: "updated-model", browserMcp: true, computerUse: false });
   });
 });

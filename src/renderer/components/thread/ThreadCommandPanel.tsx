@@ -12,6 +12,14 @@ interface ThreadCommandPanelProps {
   listId: string;
 }
 
+function commandDisplayName(command: AgentSlashCommand): string {
+  if (command.section !== "skills") return command.id;
+  const descriptionSuffix = command.description ? ` — ${command.description}` : "";
+  return descriptionSuffix && command.label.endsWith(descriptionSuffix)
+    ? command.label.slice(0, -descriptionSuffix.length)
+    : command.label;
+}
+
 export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
   const { commands, activeIndex, onSelect } = props;
   const { t } = useLingui();
@@ -66,6 +74,7 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                   const isActive = index === activeIndex;
                   const key =
                     cmd.section === "skills" ? `skill:${cmd.skillPath ?? cmd.id}` : cmd.id;
+                  const displayName = commandDisplayName(cmd);
                   return (
                     <div key={key} onMouseEnter={() => props.onActiveIndexChange(index)}>
                       <button
@@ -82,6 +91,11 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                         onClick={() => onSelect(cmd)}
                       >
                         <span className="shrink-0 font-bold text-foreground">/{cmd.id}</span>
+                        {cmd.section === "skills" && displayName !== cmd.id ? (
+                          <span className="min-w-0 max-w-40 truncate font-medium text-foreground/80">
+                            {displayName}
+                          </span>
+                        ) : null}
                         {cmd.description && (
                           <span className="min-w-0 flex-1 truncate font-normal text-[color:var(--muted)]">
                             {cmd.description}

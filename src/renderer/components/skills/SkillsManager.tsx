@@ -25,6 +25,11 @@ import { SkillViewModal } from "./SkillViewModal";
 import { groupSkills } from "./skillGrouping";
 import { hostGlobalScopeLabel, resolveSkillTarget, skillTargetRequest } from "./skillTargets";
 import { useSkills } from "./useSkills";
+import {
+  resolveLocalizedPluginSkill,
+  useLocalizedPluginCatalog,
+  type LocalizedPlugin,
+} from "@/renderer/components/plugins/pluginCopy";
 
 type StatusFilter = "all" | "enabled" | "disabled";
 
@@ -33,6 +38,7 @@ export function SkillsManager(props: {
   defaultDestinationId?: string;
 }) {
   const { t } = useLingui();
+  const localizedPlugins = useLocalizedPluginCatalog();
   const [destinationId, setDestinationId] = useState(
     props.defaultDestinationId ?? GLOBAL_MCP_DESTINATION_ID,
   );
@@ -78,12 +84,19 @@ export function SkillsManager(props: {
   const visibleSkills = targetSkills.filter((skill) => {
     if (statusFilter === "enabled" && !skill.enabled) return false;
     if (statusFilter === "disabled" && skill.enabled) return false;
+    const { localizedPlugin, localizedSkill } = resolveLocalizedPluginSkill(
+      localizedPlugins,
+      skill,
+    );
     return [
       skill.name,
       skill.description,
       skill.providerLabel,
       skill.scopeLabel,
       skill.absolutePath,
+      localizedPlugin?.name,
+      localizedSkill?.name,
+      localizedSkill?.description,
     ]
       .join(" ")
       .toLowerCase()
@@ -106,9 +119,12 @@ export function SkillsManager(props: {
       const roots = new Set(skills.map((skill) => skill.rootPath));
       return {
         key,
-        title:
-          skills.find((skill) => skill.providerGroupLabel)?.providerGroupLabel ??
-          first.providerLabel,
+        title: first.pluginId
+          ? (localizedPlugins.find((plugin) => plugin.manifest.id === first.pluginId)?.name ??
+            first.pluginName ??
+            first.providerLabel)
+          : (skills.find((skill) => skill.providerGroupLabel)?.providerGroupLabel ??
+            first.providerLabel),
         ...(roots.size === 1 ? { subtitle: first.rootPath } : {}),
         skills,
         order: Math.min(...skills.map((skill) => skill.providerGroupOrder ?? 0)),
@@ -123,6 +139,10 @@ export function SkillsManager(props: {
   const externalCount = targetSkills.filter(
     (skill) => skill.origin === "external" && skill.valid && skill.portable !== false,
   ).length;
+  const viewingSkillDisplayName = viewingSkill
+    ? (resolveLocalizedPluginSkill(localizedPlugins, viewingSkill).localizedSkill?.name ??
+      viewingSkill.name)
+    : undefined;
 
   const runMutation = async (skill: SkillEntry, action: () => Promise<void>) => {
     setPending((current) => new Set(current).add(skill.id));
@@ -222,6 +242,7 @@ export function SkillsManager(props: {
       {viewingSkill ? (
         <SkillViewModal
           skill={viewingSkill}
+          displayName={viewingSkillDisplayName ?? viewingSkill.name}
           {...(target.project ? { projectLocation: target.project.location } : {})}
           {...(target.wslDistro ? { wslDistro: target.wslDistro } : {})}
           onClose={() => setViewingSkill(undefined)}
@@ -415,6 +436,7 @@ export function SkillsManager(props: {
           title={section.title}
           {...("subtitle" in section ? { subtitle: section.subtitle } : {})}
           skills={section.skills}
+          localizedPlugins={localizedPlugins}
           pending={pending}
           onEnabledChange={setEnabled}
           onView={setViewingSkill}
@@ -450,6 +472,7 @@ function SkillSection(props: {
   title: string;
   subtitle?: string;
   skills: SkillEntry[];
+  localizedPlugins: readonly LocalizedPlugin[];
   pending: ReadonlySet<string>;
   onEnabledChange: (skill: SkillEntry, enabled: boolean) => Promise<void>;
   onView: (skill: SkillEntry) => void;
@@ -473,6 +496,7 @@ function SkillSection(props: {
           <SkillRow
             key={skill.id}
             skill={skill}
+            localizedPlugins={props.localizedPlugins}
             pending={props.pending.has(skill.id)}
             onEnabledChange={props.onEnabledChange}
             onView={props.onView}
@@ -486,6 +510,7 @@ function SkillSection(props: {
 
 function SkillRow(props: {
   skill: SkillEntry;
+  localizedPlugins: readonly LocalizedPlugin[];
   pending: boolean;
   onEnabledChange: (skill: SkillEntry, enabled: boolean) => Promise<void>;
   onView: (skill: SkillEntry) => void;
@@ -493,6 +518,13 @@ function SkillRow(props: {
 }) {
   const { t } = useLingui();
   const skill = props.skill;
+  const { localizedPlugin, localizedSkill: pluginSkillCopy } = resolveLocalizedPluginSkill(
+    props.localizedPlugins,
+    skill,
+  );
+  const pluginName = localizedPlugin?.name ?? skill.pluginName;
+  const displayName = pluginSkillCopy?.name ?? skill.name;
+  const displayDescription = pluginSkillCopy?.description ?? skill.description;
   const providerOwnedLabel =
     skill.origin === "built-in" ? (
       <Trans>Built-in</Trans>
@@ -530,10 +562,10 @@ function SkillRow(props: {
             size="sm"
             variant="ghost"
             className="!h-auto min-w-0 max-w-full justify-start !p-0 text-sm font-medium text-foreground hover:underline"
-            aria-label={t`View ${skill.name}`}
+            aria-label={t`View ${displayName}`}
             onPress={() => props.onView(skill)}
           >
-            <span className="truncate">{skill.name}</span>
+            <span className="truncate">{displayName}</span>
           </Button>
           {providerOwnedLabel ? (
             <span className="shrink-0 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-muted">
@@ -553,9 +585,14 @@ function SkillRow(props: {
           {importLabel ? (
             <span className="shrink-0 text-[10px] text-warning">{importLabel}</span>
           ) : null}
+          {!skill.mutable && !skill.enabled ? (
+            <span className="shrink-0 rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-muted">
+              <Trans>Disabled</Trans>
+            </span>
+          ) : null}
         </div>
         <p className="truncate text-xs text-muted">
-          {(invalidReason ?? skill.description) || t`No description`}
+          {(invalidReason ?? displayDescription) || t`No description`}
         </p>
         <p className="truncate font-mono text-[10px] text-muted/70">{skill.absolutePath}</p>
       </div>
@@ -588,7 +625,7 @@ function SkillRow(props: {
         </>
       ) : (
         <span className="shrink-0 text-xs text-muted">
-          <Trans>Managed by provider</Trans>
+          {pluginName ? <Trans>Managed by {pluginName}</Trans> : <Trans>Managed by provider</Trans>}
         </span>
       )}
     </div>

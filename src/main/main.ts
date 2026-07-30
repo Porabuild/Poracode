@@ -24,7 +24,10 @@ import {
   initDatabase,
 } from "./db";
 import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeData";
-import { handleOrchestratorThreadCreated } from "./orchestratorThreadBridge";
+import {
+  enforcePersistedThreadLaunchInvariants,
+  handleOrchestratorThreadCreated,
+} from "./orchestratorThreadBridge";
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { createSleepInhibitor } from "./sleepInhibitor";
@@ -642,6 +645,7 @@ if (!hasSingleInstanceLock) {
         wslHelpersDir,
         bundledSkillsDir,
         secretStorageKey,
+        prepareStartThread: enforcePersistedThreadLaunchInvariants,
         resolveExtraEnv: () => {
           const env: Record<string, string> = {};
           const browserInfo = browserMcpIngress?.getInfo();

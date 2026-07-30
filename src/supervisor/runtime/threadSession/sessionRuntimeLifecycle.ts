@@ -3,6 +3,7 @@ import {
   isThreadConfigEqual,
   type RuntimeEvent,
 } from "@/shared/contracts";
+import { PLUGIN_MCP_CONFIG_ENTRIES } from "@/shared/plugins/catalog";
 import type { StructuredSessionUpdate } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import type { SessionRuntime } from "../sessionTypes";
@@ -33,6 +34,22 @@ export interface SessionRuntimeLifecycleContext {
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   indexSessionRef(session: SessionRuntime, prevId: string | undefined): void;
   pollSessionRefDiscovery(session: SessionRuntime): void;
+}
+
+function withoutLaunchManagedConfig(
+  session: SessionRuntime,
+  config: NonNullable<StructuredSessionUpdate["config"]>,
+): NonNullable<StructuredSessionUpdate["config"]> {
+  const keys = PLUGIN_MCP_CONFIG_ENTRIES.map(([, key]) => key);
+  const next = { ...config };
+  for (const key of keys) {
+    if (Object.hasOwn(session.config, key)) {
+      next[key] = session.config[key];
+    } else {
+      delete next[key];
+    }
+  }
+  return next;
 }
 
 /** Registers a newly-created runtime and owns its structured-session / PTY event bindings. */
@@ -99,8 +116,11 @@ export class SessionRuntimeLifecycle {
       context.indexSessionRef(session, prevId);
     }
 
+    const nextConfig = update.config
+      ? withoutLaunchManagedConfig(session, update.config)
+      : undefined;
     const configChanged =
-      update.config !== undefined && !isThreadConfigEqual(session.config, update.config);
+      nextConfig !== undefined && !isThreadConfigEqual(session.config, nextConfig);
     const slashCommandsChanged =
       update.slashCommands !== undefined &&
       !areAgentSlashCommandsEqual(session.slashCommands, update.slashCommands);
@@ -108,8 +128,8 @@ export class SessionRuntimeLifecycle {
       session.status !== update.status ||
       session.attention !== update.attention ||
       update.errorMessage !== undefined;
-    if (update.config) {
-      session.config = update.config;
+    if (nextConfig) {
+      session.config = nextConfig;
     }
     if (update.slashCommands !== undefined) {
       session.slashCommands = update.slashCommands;

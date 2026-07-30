@@ -16,7 +16,6 @@ import {
   resolveMcpLaunchSnapshot,
 } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 
 import { useAppStore } from "@/renderer/state/appStore";
@@ -178,9 +177,8 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const launchRequestRef = useRef<string | null>(null);
   const titleRef = useRef<HTMLSpanElement>(null);
   const [isTitleTooltipOpen, setIsTitleTooltipOpen] = useState(false);
-  const opencodeBrowserMcpEnabled = useSharedSettings((s) =>
-    isOpenCodeBrowserMcpEnabled(s.agentSettings.opencode),
-  );
+  const runtimeLaunchConfig = useAppStore((s) => s.runtimeLaunchConfigByThreadId[thread.id]);
+  const activeMcpConfig = runtimeLaunchConfig ?? thread.config;
 
   // Thread-level mode wins over the adapter-declared default. Existing rows
   // load from DB with `presentationMode: "terminal"` thanks to the schema
@@ -195,11 +193,9 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   // active-thread header is informational only — disabling it would mislead
   // the user into thinking the tool is no longer in scope. The toggle lives
   // exclusively in the draft composer's ComposerAddMenu.
-  const showBrowserChip =
-    thread.config.browserMcp === true ||
-    (thread.agentKind === "opencode" && opencodeBrowserMcpEnabled);
+  const showBrowserChip = activeMcpConfig.browserMcp === true;
   const showComputerUseChip =
-    thread.config.computerUse === true && !isWsl && readBridge().platform !== "linux";
+    activeMcpConfig.computerUse === true && !isWsl && readBridge().platform !== "linux";
 
   useEffect(() => {
     const presentation =
@@ -307,6 +303,9 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         initialSize: launchTerminalSize,
         ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
         ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
+        ...(thread.parentThreadId
+          ? { invariantDisabledBuiltInMcpServerIds: ["subagents" as const] }
+          : {}),
         ...mcpLaunchSnapshot,
         ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
       });
@@ -337,6 +336,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     thread.canResumeWithConfig,
     thread.config,
     thread.id,
+    thread.parentThreadId,
     thread.presentationMode,
     thread.projectId,
     thread.sessionRef,

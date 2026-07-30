@@ -1,15 +1,33 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   AgentSlashCommand,
+  InstalledPlugins,
   ProjectLocation,
   ScanSkillsPayload,
   SkillScanResult,
+  ThreadConfig,
+  ThreadPresentationMode,
 } from "@/shared/contracts";
+import { arePluginSkillRequiredAppsEnabled } from "@/shared/plugins/catalog";
 import { readBridge } from "@/renderer/bridge";
+import {
+  resolveLocalizedPluginSkill,
+  useLocalizedPluginCatalog,
+  type LocalizedPlugin,
+} from "@/renderer/components/plugins/pluginCopy";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 const scanCache = new Map<string, SkillScanResult>();
 const pendingScans = new Map<string, Promise<SkillScanResult>>();
 const scanVersions = new Map<string, number>();
+
+function pluginSkillScanKey(installedPlugins: InstalledPlugins): string {
+  return JSON.stringify(
+    Object.entries(installedPlugins)
+      .toSorted(([left], [right]) => left.localeCompare(right))
+      .map(([id, state]) => [id, state.version, state.enabled, state.disabledSkillIds.toSorted()]),
+  );
+}
 
 function requestSkillScan(
   requestKey: string,
@@ -39,8 +57,10 @@ export function useSkills(
   projectLocation?: ProjectLocation,
   agentKind?: string,
   wslDistro?: string,
+  presentationMode?: ThreadPresentationMode,
 ) {
-  const requestKey = `${agentKind ?? ""}\0${wslDistro ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}`;
+  const installedPlugins = useSharedSettings((state) => state.installedPlugins);
+  const requestKey = `${agentKind ?? ""}\0${wslDistro ?? ""}\0${presentationMode ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}\0${pluginSkillScanKey(installedPlugins)}`;
   const cachedScan = scanCache.get(requestKey);
   const [scanState, setScanState] = useState<
     | {
@@ -64,6 +84,7 @@ export function useSkills(
           ...(projectLocation ? { projectLocation } : {}),
           ...(wslDistro ? { wslDistro } : {}),
           ...(agentKind ? { agentKind } : {}),
+          ...(presentationMode ? { presentationMode } : {}),
         },
         reusePending,
       );
@@ -96,23 +117,55 @@ export function useSkills(
 export function useSkillSlashCommands(
   projectLocation: ProjectLocation,
   agentKind: string,
+  presentationMode?: ThreadPresentationMode,
+  launchConfig?: ThreadConfig,
 ): AgentSlashCommand[] {
-  return useSkillSlashCommandState(projectLocation, agentKind).commands;
+  return useSkillSlashCommandState(projectLocation, agentKind, presentationMode, launchConfig)
+    .commands;
 }
 
-export function useSkillSlashCommandState(projectLocation: ProjectLocation, agentKind: string) {
-  const { scan, loading, error } = useSkills(projectLocation, agentKind);
+export function useSkillSlashCommandState(
+  projectLocation: ProjectLocation,
+  agentKind: string,
+  presentationMode?: ThreadPresentationMode,
+  launchConfig?: ThreadConfig,
+) {
+  const { scan, loading, error } = useSkills(
+    projectLocation,
+    agentKind,
+    undefined,
+    presentationMode,
+  );
+  const localizedPlugins = useLocalizedPluginCatalog();
   return {
-    commands: buildSkillSlashCommands(scan),
+    commands: buildSkillSlashCommands(scan, localizedPlugins, launchConfig),
     resolved: !loading && (scan !== null || error !== undefined),
   };
 }
 
-export function buildSkillSlashCommands(scan: SkillScanResult | null): AgentSlashCommand[] {
+export function buildSkillSlashCommands(
+  scan: SkillScanResult | null,
+  localizedPlugins: readonly LocalizedPlugin[] = [],
+  launchConfig?: ThreadConfig,
+): AgentSlashCommand[] {
   if (!scan?.invocation) return [];
   const effective = new Set(scan.effectiveSkillIds);
   return scan.skills.flatMap((skill) => {
     if (!effective.has(skill.id)) return [];
+    const { localizedPlugin, pluginSkill, localizedSkill } = resolveLocalizedPluginSkill(
+      localizedPlugins,
+      skill,
+    );
+    if (
+      launchConfig &&
+      localizedPlugin &&
+      pluginSkill &&
+      !arePluginSkillRequiredAppsEnabled(localizedPlugin.manifest, pluginSkill, launchConfig)
+    ) {
+      return [];
+    }
+    const displayName = localizedSkill?.name ?? skill.name;
+    const description = localizedSkill?.description ?? skill.description;
     const invocation =
       scan.invocation === "dollar"
         ? `$${skill.name}`
@@ -122,13 +175,13 @@ export function buildSkillSlashCommands(scan: SkillScanResult | null): AgentSlas
     return [
       {
         id: skill.name,
-        label: skill.description ? `${skill.name} — ${skill.description}` : skill.name,
-        ...(skill.description ? { description: skill.description } : {}),
+        label: description ? `${displayName} — ${description}` : displayName,
+        ...(description ? { description } : {}),
         section: "skills" as const,
         skillName: skill.name,
         skillPath: skill.skillFilePath,
         skillInvocation: invocation,
-        skillProvider: skill.providerLabel,
+        skillProvider: localizedPlugin?.name ?? skill.providerLabel,
         skillScope: skill.scope,
       },
     ];

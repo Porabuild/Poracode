@@ -6,6 +6,7 @@ import type { AgentCapability, AgentKind, ThreadStatus } from "@/shared/contract
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter } from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
+import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
 
 vi.mock("node-pty", () => ({
   spawn: vi.fn<() => unknown>(() => ({
@@ -68,7 +69,10 @@ function createAdapter(
   } as unknown as AgentAdapter;
 }
 
-function createManager(adapter: AgentAdapter): ThreadSessionManager {
+function createManager(
+  adapter: AgentAdapter,
+  extraOptions: Partial<ThreadSessionManagerOptions> = {},
+): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-stage-input-"));
   tempDirs.push(tempDir);
   const manager = new ThreadSessionManager({
@@ -79,6 +83,7 @@ function createManager(adapter: AgentAdapter): ThreadSessionManager {
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[AGENT_KIND, adapter]]),
     windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
+    ...extraOptions,
   });
   managersToDispose.push(manager);
   return manager;
@@ -96,6 +101,7 @@ function createSession(
     adapter,
     projectLocation: { kind: "windows", path: "C:\\repo" },
     config: { model: `${AGENT_KIND}/model` },
+    runtimeLaunchConfig: { model: `${AGENT_KIND}/model` },
     terminalSize: { cols: 80, rows: 24 },
     launchPrompt: "",
     status,
@@ -187,5 +193,33 @@ describe("ThreadSessionManager.stageThreadInput", () => {
     expect(written).toContain("shot.png");
     // The pick references the in-project copy, not the original outside path.
     expect(written).not.toContain(outsideDir);
+  });
+
+  it("does not stage the raw prompt when plugin policy filters every segment", async () => {
+    const adapter = createAdapter("terminal");
+    const filterPluginSkillSegments = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>
+    >(() => []);
+    const manager = createManager(adapter, { filterPluginSkillSegments });
+    const write = vi.fn<(data: string) => void>();
+    manager.sessions.set(THREAD_ID, createSession(adapter, write));
+
+    await manager.stageThreadInput({
+      threadId: THREAD_ID,
+      prompt: "/browser-control",
+      segments: [
+        {
+          kind: "skill",
+          name: "browser-control",
+          path: "C:\\plugins\\browser-control\\SKILL.md",
+          invocation: "/browser-control",
+          provider: "Browser Tools",
+          scope: "global",
+        },
+      ],
+    });
+
+    expect(filterPluginSkillSegments).toHaveBeenCalledTimes(1);
+    expect(write).not.toHaveBeenCalled();
   });
 });

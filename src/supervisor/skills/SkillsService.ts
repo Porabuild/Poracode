@@ -38,6 +38,7 @@ import type {
   SkillScanIssue,
   SkillScanResult,
   SkillScope,
+  InstalledPlugins,
 } from "@/shared/contracts";
 import {
   deleteSkillPayloadSchema,
@@ -64,14 +65,19 @@ import {
   isPathUnderAny,
   selectSkillSegmentsForInjection,
 } from "./skillPromptInjection";
+import {
+  BUNDLED_PROVIDER_ID,
+  PluginSkillPolicy,
+  type PluginSkillPolicyContext,
+} from "./pluginSkillPolicy";
 
 const SKILL_FILE = "SKILL.md";
 const MANIFEST_FILE = ".poracode-skill.json";
 /** Root id/label for read-only skills shipped with the app (resources/skills). */
-const BUNDLED_PROVIDER_ID = "poracode-built-in";
 const BUNDLED_PROVIDER_LABEL = "Poracode built-ins";
 const PORACODE_PROVIDER_GROUP_ID = "poracode";
 const PORACODE_PROVIDER_GROUP_LABEL = "Poracode";
+
 const PORACODE_PROVIDER_GROUP_ORDER = -1;
 const DISABLED_SUFFIX = ".poracode-disabled";
 const MAX_SKILL_FILE_BYTES = 1024 * 1024;
@@ -146,8 +152,15 @@ export interface SkillsServiceOptions {
     distro: string,
     paths: readonly string[],
   ) => Promise<readonly (string | undefined)[]>;
+  resolveHostPathForWsl?: (distro: string, hostPath: string) => Promise<string | undefined>;
+  resolveWslWindowsPaths?: (
+    distro: string,
+    paths: readonly string[],
+  ) => Promise<readonly (string | undefined)[]>;
   wslFsPath?: (distro: string, linuxPath: string) => string;
   fetch?: typeof fetch;
+  readInstalledPlugins?: () => InstalledPlugins;
+  hostPlatform?: NodeJS.Platform;
 }
 
 async function resolveWslEnvironment(
@@ -452,6 +465,7 @@ export class SkillsService {
   ) => Promise<readonly (string | undefined)[]>;
   private readonly wslFsPath: (distro: string, linuxPath: string) => string;
   private readonly fetchImpl: typeof fetch;
+  private readonly pluginSkillPolicy: PluginSkillPolicy;
   private readonly marketplaceCache = new Map<
     string,
     { expiresAt: number; result: SkillMarketplaceResult }
@@ -467,6 +481,18 @@ export class SkillsService {
     this.resolveWslRealPaths = options.resolveWslRealPaths ?? resolveWslRealPaths;
     this.wslFsPath = options.wslFsPath ?? toWslUncPath;
     this.fetchImpl = options.fetch ?? fetch;
+    this.pluginSkillPolicy = new PluginSkillPolicy({
+      bundledRoot: () => this.bundledRoot()?.fsPath,
+      readInstalledPlugins: options.readInstalledPlugins ?? (() => ({})),
+      hostPlatform: options.hostPlatform ?? process.platform,
+      resolveWslRealPaths: this.resolveWslRealPaths,
+      ...(options.resolveHostPathForWsl
+        ? { resolveHostPathForWsl: options.resolveHostPathForWsl }
+        : {}),
+      ...(options.resolveWslWindowsPaths
+        ? { resolveWslWindowsPaths: options.resolveWslWindowsPaths }
+        : {}),
+    });
   }
 
   async listMarketplace(input: ListSkillMarketplacePayload): Promise<SkillMarketplaceResult> {
@@ -716,10 +742,17 @@ export class SkillsService {
       ),
       this.scanProviderBuiltIns(roots, builtInIssues),
     ]);
-    for (const result of rootScans) {
-      skills.push(...result.skills);
-      issues.push(...result.issues);
-    }
+    skills.push(
+      ...this.pluginSkillPolicy.resolveScanEntries(
+        rootScans.flatMap((result) => result.skills),
+        {
+          ...(payload.projectLocation ? { projectLocation: payload.projectLocation } : {}),
+          ...(activeAdapter ? { capabilities: activeAdapter.capabilities } : {}),
+          ...(payload.presentationMode ? { presentationMode: payload.presentationMode } : {}),
+        },
+      ),
+    );
+    for (const result of rootScans) issues.push(...result.issues);
     skills.push(...builtInSkills);
     issues.push(...builtInIssues);
 
@@ -850,7 +883,7 @@ export class SkillsService {
         if (!skill.enabled || !skill.valid || disabledNames.has(skill.name.toLowerCase())) {
           return false;
         }
-        if (skill.origin === "managed") return true;
+        if (skill.origin === "managed" || skill.origin === "plugin") return true;
         if (skill.origin === "built-in") {
           // App-bundled skills reach every provider through prompt injection
           // or path hints. Provider-native built-ins stay with their adapter.
@@ -878,7 +911,7 @@ export class SkillsService {
         // all other provider-declared ordering stays intact. App-bundled
         // defaults remain the final fallback.
         const originWeight = (skill: SkillEntry) =>
-          skill.providerId === BUNDLED_PROVIDER_ID
+          skill.providerId === BUNDLED_PROVIDER_ID || skill.origin === "plugin"
             ? 3
             : skill.origin !== "managed"
               ? 0
@@ -1066,6 +1099,24 @@ export class SkillsService {
       await this.resolveEnvironment(projectLocation),
       adapter ? [adapter] : undefined,
     );
+  }
+
+  /**
+   * Enforce plugin installation policy at the supervisor boundary. Renderer
+   * discovery is advisory: a stale or crafted bundled-plugin segment must not
+   * reach a provider after the plugin or contribution has been disabled.
+   */
+  async filterPluginSkillSegments(
+    segments: PromptSegment[],
+    context: Omit<PluginSkillPolicyContext, "capabilities"> & { agentKind?: AgentKind } = {},
+  ): Promise<PromptSegment[]> {
+    const adapter = context.agentKind ? this.adapters.get(context.agentKind) : undefined;
+    return this.pluginSkillPolicy.filterSegments(segments, {
+      ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
+      ...(adapter ? { capabilities: adapter.capabilities } : {}),
+      ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
+      ...(context.launchConfig ? { launchConfig: context.launchConfig } : {}),
+    });
   }
 
   /**

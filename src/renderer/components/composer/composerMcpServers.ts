@@ -1,10 +1,10 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { AppWindow, Globe, Users, type LucideIcon } from "lucide-react";
+import { resolveComposerMcpScope } from "@/shared/contracts";
 import type {
   AgentCapability,
   ComposerMcpScope,
-  ComposerMcpScopes,
   ProjectLocation,
   ThreadConfig,
   ThreadPresentationMode,
@@ -32,13 +32,10 @@ export type ComposerMcpConfigKey = "browserMcp" | "subagentMcp" | "chromeMcp";
  * terminal TUIs have no per-thread gating point ("none").
  */
 export function resolveMcpScope(
-  scopes: ComposerMcpScopes | undefined,
+  scopes: AgentCapability["browserMcpScope"],
   presentationMode: ThreadPresentationMode,
 ): ComposerMcpScope {
-  if (presentationMode === "gui") {
-    return scopes?.gui ?? "launch";
-  }
-  return scopes?.terminal ?? "none";
+  return resolveComposerMcpScope(scopes, presentationMode);
 }
 
 export interface ComposerMcpServerDescriptor {

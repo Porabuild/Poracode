@@ -46,6 +46,8 @@ export type SupervisorEvent =
       status: ThreadStatus;
       attention: ThreadAttention;
       config?: ThreadConfig;
+      /** Effective launch-time config after plugin and global MCP policy is applied. */
+      launchConfig?: ThreadConfig;
       sessionRef?: { providerSessionId: string; discoveredAt: string };
       canResumeWithConfig: boolean;
       errorMessage?: string;

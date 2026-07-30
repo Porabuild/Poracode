@@ -222,6 +222,8 @@ describe("OrchestratorThreadManager.createThread", () => {
       expect(config.approvalPolicy).toBe("never");
       expect(config.sandboxMode).toBe("danger-full-access");
     }
+    expect(start.disabledBuiltInMcpServerIds).toContain("subagents");
+    expect(start.invariantDisabledBuiltInMcpServerIds).toEqual(["subagents"]);
   });
 
   it("creates a worktree with a generated poracode/ branch and launches inside it", async () => {
