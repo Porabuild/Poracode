@@ -288,6 +288,11 @@ msgstr "{agentLabel}: {statusLabel}. Najedź kursorem, aby wyświetlić szczegó
 msgid "{agentLead} needs your input to continue."
 msgstr "{agentLead} potrzebuje Twojej odpowiedzi, aby kontynuować."
 
+#. placeholder {0}: task.recurrence.timeZone
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{cadence} in {0}"
+msgstr "{cadence} — strefa {0}"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# commit} few {# commity} many {# commitów} other {# commita}}"
@@ -314,6 +319,18 @@ msgstr "{days} dni temu"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel} wymaga uwierzytelnienia."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every day} other {Every # days}}"
+msgstr "{every, plural, one {Codziennie} few {Co # dni} many {Co # dni} other {Co # dnia}}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every hour} other {Every # hours}}"
+msgstr "{every, plural, one {Co godzinę} few {Co # godziny} many {Co # godzin} other {Co # godziny}}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every minute} other {Every # minutes}}"
+msgstr "{every, plural, one {Co minutę} few {Co # minuty} many {Co # minut} other {Co # minuty}}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -490,6 +507,10 @@ msgstr "~{money}{tokens} · {0} · szac."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "≈{0}% by reset"
 msgstr "≈{0}% do resetu"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "0 9 * * 1-5"
+msgstr "0 9 * * 1-5"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
@@ -840,6 +861,10 @@ msgstr "Akcje AI w git"
 msgid "AI providers"
 msgstr "Dostawcy AI"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "AI stop condition"
+msgstr "Warunek zatrzymania przez AI"
+
 #: src/mobile/views/MoreView.tsx
 #~ msgid "AI, agents, and archived threads on the paired desktop"
 #~ msgstr "AI, agenci i zarchiwizowane wątki na sparowanym pulpicie"
@@ -851,6 +876,7 @@ msgstr "Alerty, gdy wątki wymagają Twojej uwagi"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -943,6 +969,10 @@ msgstr "Zawsze wykluczone"
 msgid "An MCP server with this name already exists."
 msgstr "Serwer MCP o tej nazwie już istnieje."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another automation is already using this conversation."
+msgstr "Inna automatyzacja korzysta już z tej rozmowy."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Inny czat korzysta z tego samego drzewa. Przywrócenie pliku może zastąpić zmiany wprowadzone w czacie."
@@ -1014,6 +1044,10 @@ msgstr "Archiwizuj wszystko"
 msgid "Archive all threads"
 msgstr "Archiwizuj wszystkie wątki"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Archive finding"
+msgstr "Archiwizuj ustalenie"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "Archiwizuj bieżący wątek"
@@ -1027,6 +1061,10 @@ msgstr "Archiwizuj wątek"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "Archiwum wątku"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Archived"
+msgstr "Zarchiwizowane"
 
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/SettingsView.tsx
@@ -1172,6 +1210,16 @@ msgstr "Automatyczne wyświetlanie panelu terminali"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Automatycznie pokazuj panel terminala podczas uruchamiania poleceń lub tworzenia drzew roboczych."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Automation sections"
+msgstr "Sekcje automatyzacji"
+
+#: src/mobile/settingsSections.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Automations"
+msgstr "Automatyzacje"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Availability"
@@ -1459,6 +1507,10 @@ msgstr "Omiń reguły ochrony gałęzi (scalanie administracyjne)"
 msgid "Cached only"
 msgstr "Tylko z pamięci podręcznej"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Calculated on desktop after saving"
+msgstr "Obliczane na komputerze po zapisaniu"
+
 #: src/mobile/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Dostęp do kamery zablokowany"
@@ -1513,11 +1565,16 @@ msgstr "Anuluj selektor"
 msgid "Cancel removing project"
 msgstr "Anuluj usuwanie projektu"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Cancel run"
+msgstr "Anuluj uruchomienie"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "anulowane"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Cancelled"
 msgstr "Anulowano"
 
@@ -1705,6 +1762,10 @@ msgstr "Wybierz język wyświetlania interfejsu Poracode."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Wybierz wątek, do którego chcesz dołączyć"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Choose what happens after a scheduled time was missed."
+msgstr "Wybierz, co ma się stać po pominięciu zaplanowanego terminu."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2185,6 +2246,14 @@ msgstr "ukończone"
 msgid "Completed"
 msgstr "Ukończono"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Completion evaluation failed: {detail}"
+msgstr "Ocena zakończenia nie powiodła się: {detail}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Completion evaluation is unavailable."
+msgstr "Ocena zakończenia jest niedostępna."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -2222,6 +2291,14 @@ msgstr "Computer Use włączone — działania interaktywne przejmują pulpit; n
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
 #~ msgstr "Włączono obsługę komputera dla tego wątku"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Confidence"
+msgstr "Pewność"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Confidence percent"
+msgstr "Procent pewności"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2386,6 +2463,14 @@ msgstr "Kontynuuj u innego dostawcy"
 msgid "Continue in..."
 msgstr "Kontynuuj w..."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Continue one conversation until a stop condition or limit is reached."
+msgstr "Kontynuuj jedną rozmowę, aż zostanie spełniony warunek zatrzymania lub osiągnięty limit."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Control how each scheduled run continues and stops."
+msgstr "Określ, jak każde zaplanowane uruchomienie ma być kontynuowane i zatrzymywane."
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
 msgstr "Kontroluj, które pliki pojawiają się w wyszukiwaniu wzmianek @plik. Zastąpienia poszczególnych projektów są dostępne w ustawieniach każdego projektu."
@@ -2397,6 +2482,7 @@ msgstr "Steruje sparowanym pulpitem, gdy agent klika lub pisze"
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Conversation"
 msgstr "Rozmowa"
 
@@ -2697,6 +2783,24 @@ msgstr "Poświadczenia są skonfigurowane."
 msgid "Credits"
 msgstr "Kredyty"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Critical"
+msgstr "Krytyczne"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Cron"
+msgstr "Cron"
+
+#. placeholder {0}: task.recurrence.expression
+#. placeholder {1}: task.recurrence.timeZone
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Cron {0} in {1}"
+msgstr "Cron {0} — strefa {1}"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Cron expression"
+msgstr "Wyrażenie Cron"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Wyselekcjonowane bezpłatne i premium skille zarządzane przez MCP Market."
@@ -2762,9 +2866,9 @@ msgstr "Codzienne podsumowanie"
 msgid "Dark"
 msgstr "Ciemny"
 
-#: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Days"
-#~ msgstr "Dni"
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Days"
+msgstr "Dni"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Decline"
@@ -2911,6 +3015,10 @@ msgstr "Usuń drzewo robocze {0}"
 #~ msgid "Delete:"
 #~ msgstr "Usuń:"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Deleted schedule"
+msgstr "Usunięty harmonogram"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Deleting"
 msgstr "Usuwanie"
@@ -2922,6 +3030,10 @@ msgstr "Odmów"
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Odmów i powiedz agentowi, co ma zrobić inaczej…"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Describe the result that completes this heartbeat."
+msgstr "Opisz wynik, który kończy ten heartbeat."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
@@ -2943,6 +3055,10 @@ msgstr "Punkt końcowy pulpitu"
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "Desktop jest niedostępny."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Desktop local time"
+msgstr "Czas lokalny komputera"
 
 #: src/mobile/chrome.ts
 #: src/mobile/views/MoreView.tsx
@@ -3055,6 +3171,10 @@ msgstr "Wyłącz projekt"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Disable Subagents"
 msgstr "Wyłącz subagentów"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Disable the automation after retries are exhausted."
+msgstr "Wyłącz automatyzację po wyczerpaniu wszystkich ponownych prób."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
@@ -3356,6 +3476,10 @@ msgstr "Włączone serwery pozostają aktywne dla nowych wątków"
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Włącza <0>pliki cookie</0> i <1>przechowywanie</1>. Pliki cookie mogą zawierać tokeny sesji, a pamięć często przechowuje stan uwierzytelnienia — włącz tę opcję tylko wtedy, gdy ufasz zarówno agentowi, jak i odwiedzanym przez niego witrynom."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+#~ msgid "End the heartbeat after retries are exhausted."
+#~ msgstr "Zakończ heartbeat po wyczerpaniu prób ponowienia."
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Endpoint"
@@ -3392,6 +3516,10 @@ msgstr "Wpisz prawidłowy punkt końcowy desktopa."
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter a valid HTTP or HTTPS URL."
 msgstr "Wprowadź prawidłowy adres URL HTTP lub HTTPS."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Enter a valid schedule"
+msgstr "Wprowadź prawidłowy harmonogram"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
@@ -3463,6 +3591,14 @@ msgstr "Błąd"
 msgid "Error · Agent encountered an error"
 msgstr "Błąd · Agent napotkał błąd"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Evaluate the result after every iteration."
+msgstr "Oceniaj wynik po każdej iteracji."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Every"
+msgstr "Co"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
 msgstr "Codziennie o {time}"
@@ -3484,6 +3620,14 @@ msgstr "Co godzinę, {0} minut po pełnej godzinie"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Wyklucz wzorce"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Execution"
+msgstr "Wykonanie"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Execution mode"
+msgstr "Tryb wykonania"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
@@ -3533,6 +3677,10 @@ msgstr "Rozwiń, aby sprawdzić lub odebrać dostęp."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Rozwiń dok zadań do wykonania"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Exponential backoff"
+msgstr "Wykładnicze wydłużanie opóźnienia"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
@@ -3716,6 +3864,10 @@ msgstr "Znajdź w różnicach"
 msgid "Find in terminal"
 msgstr "Znajdź w terminalu"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Finding status"
+msgstr "Stan ustalenia"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "Zakończ swoją recenzję"
@@ -3776,6 +3928,10 @@ msgstr "Napraw w Agencie"
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
 msgstr "Naprawiono"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Fixed delay"
+msgstr "Stałe opóźnienie"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -4097,6 +4253,26 @@ msgstr "Zawiera niewysłaną wersję roboczą"
 msgid "Headers"
 msgstr "Nagłówki"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeat"
+msgstr "Heartbeat"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Heartbeat automations require a native chat conversation."
+msgstr "Automatyzacje heartbeat wymagają natywnej rozmowy na czacie."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeat continues this conversation in the selected project."
+msgstr "Heartbeat kontynuuje tę rozmowę w wybranym projekcie."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Heartbeat execution is unavailable."
+msgstr "Wykonanie heartbeat jest niedostępne."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeats can continue making changes while you're away. Set hard limits below."
+msgstr "Automatyzacje heartbeat mogą nadal wprowadzać zmiany podczas Twojej nieobecności. Ustaw poniżej sztywne limity."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Pomóż mi utworzyć harmonogram. Zapytaj o brakujące szczegóły, a następnie użyj kontrolek harmonogramu Poracode, aby go utworzyć."
@@ -4197,6 +4373,10 @@ msgstr "host.com, alias lub użytkownik@host.com"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hourly"
 msgstr "Co godzinę"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Hours"
+msgstr "Godziny"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
@@ -4328,6 +4508,14 @@ msgstr "Skanowanie kamerą w aplikacji działa tylko przez HTTPS. Użyj aplikacj
 msgid "Inactive"
 msgstr "Nieaktywny"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Includes the first attempt."
+msgstr "Obejmuje pierwszą próbę."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Info"
+msgstr "Informacje"
+
 #. Badge on an exclude pattern inherited from a lower scope
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "inherited"
@@ -4337,6 +4525,14 @@ msgstr "odziedziczone"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "Dziedziczenie ustawienia globalnego (obecnie {0})."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Initial retry delay"
+msgstr "Początkowe opóźnienie ponowienia"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Initial retry delay in seconds"
+msgstr "Początkowe opóźnienie ponowienia w sekundach"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
@@ -4476,6 +4672,18 @@ msgstr "Przerwano"
 msgid "Interrupted: agent session ended before completion."
 msgstr "Przerwano: sesja agenta zakończyła się przed jej ukończeniem."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval"
+msgstr "Interwał"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval amount"
+msgstr "Wartość interwału"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval unit"
+msgstr "Jednostka interwału"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Kursywa"
@@ -4560,6 +4768,14 @@ msgstr "Uruchamiam…"
 msgid "Leave a comment"
 msgstr "Zostaw komentarz"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Leave blank for no run limit."
+msgstr "Pozostaw puste, aby nie ograniczać liczby uruchomień."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+#~ msgid "Leave blank to rely on the time limit."
+#~ msgstr "Pozostaw puste, aby polegać na limicie czasu."
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Mniej"
@@ -4639,6 +4855,10 @@ msgstr "Ładowanie edytora…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "Ładowanie pliku…"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Loading findings"
+msgstr "Wczytywanie ustaleń"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
@@ -4864,6 +5084,14 @@ msgstr "Oznacz jako gotowe"
 msgid "Mark as not done"
 msgstr "Oznacz jako niezrobione"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Mark as read"
+msgstr "Oznacz jako przeczytane"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Mark as unread"
+msgstr "Oznacz jako nieprzeczytane"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Mark done"
 msgstr "Oznacz gotowe"
@@ -4903,6 +5131,22 @@ msgstr "Maksymalizuj"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "Zmaksymalizuj przeglądarkę"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum attempts"
+msgstr "Maksymalna liczba prób"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum iterations"
+msgstr "Maksymalna liczba iteracji"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum retry delay"
+msgstr "Maksymalne opóźnienie ponowienia"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum retry delay in seconds"
+msgstr "Maksymalne opóźnienie ponowienia w sekundach"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "MCP Market"
@@ -5110,6 +5354,18 @@ msgstr "Minimalizuj do panelu"
 msgid "Minute"
 msgstr "Minuta"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minute, hour, day of month, month, and weekday."
+msgstr "Minuta, godzina, dzień miesiąca, miesiąc i dzień tygodnia."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "minutes"
+msgstr "minuty"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minutes"
+msgstr "Minuty"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirrored desktop browser tab"
 msgstr "Lustrzana karta przeglądarki desktopa"
@@ -5117,6 +5373,10 @@ msgstr "Lustrzana karta przeglądarki desktopa"
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirroring is unavailable."
 msgstr "Kopia lustrzana jest niedostępna."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Missed runs"
+msgstr "Pominięte uruchomienia"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Mobile push notifications"
@@ -5469,6 +5729,10 @@ msgstr "Następne dopasowanie"
 msgid "Next recently viewed chat"
 msgstr "Następny ostatnio wyświetlany czat"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Next run"
+msgstr "Następne uruchomienie"
+
 #. placeholder {0}: dateTimeFormatter.format(new Date(task.nextRunAt))
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Next run {0}"
@@ -5513,6 +5777,10 @@ msgstr "Brak zainstalowanych agentów."
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Nie zarejestrowano jeszcze żadnych commitów AI, PR ani rozwiązanych konfliktów."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No archived findings."
+msgstr "Brak zarchiwizowanych ustaleń."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
@@ -5610,6 +5878,10 @@ msgstr "Brak dostępnych różnic dla {0}"
 msgid "No diff for {visiblePath}"
 msgstr "Brak różnicy dla {visiblePath}"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No eligible conversations in this project."
+msgstr "Brak odpowiednich rozmów w tym projekcie."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "No external skills were found in this scope."
 msgstr "Nie znaleziono zewnętrznych umiejętności w tym zakresie."
@@ -5625,6 +5897,10 @@ msgstr "Dla tej wiadomości nie jest przechowywany żaden punkt kontrolny pliku.
 msgid "No files match \"{0}\"."
 msgstr "Żadne pliki nie pasują do „{0}”."
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No findings yet."
+msgstr "Nie ma jeszcze żadnych ustaleń."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
 msgstr "Nie znaleziono kont GitHub CLI. Zaloguj się za pomocą <0>gh auth login</0> lub <1>wklej sklonowany adres URL</1>."
@@ -5636,6 +5912,10 @@ msgstr "Brak historii"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
 msgstr "Nie znaleziono danych Lightcode."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No limit"
+msgstr "Bez limitu"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
@@ -5652,6 +5932,10 @@ msgstr "Brak dopasowań."
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "No matching agents."
 msgstr "Brak pasujących agentów."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No matching findings."
+msgstr "Brak pasujących ustaleń."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "No matching pull requests."
@@ -5762,6 +6046,10 @@ msgstr "Nie znaleziono repozytoriów."
 msgid "No results"
 msgstr "Brak wyników"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No retries"
+msgstr "Bez ponowień"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "No runs yet."
 msgstr "Brak uruchomień."
@@ -5798,6 +6086,10 @@ msgstr "Nie wykryto mowy."
 msgid "No staged changes"
 msgstr "Żadnych zmian etapowych"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No summary was provided."
+msgstr "Nie podano podsumowania."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 msgstr "Na tym komputerze zdalnym nie zainstalowano obsługiwanych agentów. Zainstaluj agenta i zaloguj się zdalnie przed rozpoczęciem wątku."
@@ -5826,6 +6118,10 @@ msgstr "Nie ma jeszcze wątków"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "Brak wątków."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "No upcoming run"
+msgstr "Brak zaplanowanego uruchomienia"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -6041,6 +6337,11 @@ msgstr "Otwórz commit na GitHubie"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Open conflict resolver in"
 msgstr "Otwórz narzędzie do rozwiązywania konfliktów w"
+
+#. placeholder {0}: props.scheduleName
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Open conversation for {0}"
+msgstr "Otwórz rozmowę dla {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
@@ -6677,6 +6978,10 @@ msgstr "Zaktualizowano folder projektu. Otwórz ponownie wszystkie terminale w t
 msgid "Project name"
 msgstr "Nazwa projektu"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Project no longer exists."
+msgstr "Projekt już nie istnieje."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Notatki projektowe"
@@ -7275,6 +7580,10 @@ msgstr "Szczegóły żądania"
 msgid "requested changes"
 msgstr "żądane zmiany"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Required confidence before stopping."
+msgstr "Wymagany poziom pewności przed zatrzymaniem."
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
@@ -7346,6 +7655,10 @@ msgstr "Przywróć przeglądarkę"
 msgid "Restore default worktree base folder"
 msgstr "Przywróć domyślny folder bazowy drzew roboczych"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Restore finding"
+msgstr "Przywróć ustalenie"
+
 #: src/mobile/settingsSections.ts
 msgid "Restore or delete"
 msgstr "Przywróć lub usuń"
@@ -7376,9 +7689,25 @@ msgstr "Ponów sprawdzanie {serverName}"
 msgid "Retry check"
 msgstr "Ponów sprawdzanie"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry delay"
+msgstr "Opóźnienie ponowienia"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry delay in seconds"
+msgstr "Opóźnienie ponowienia w sekundach"
+
 #: src/mobile/components.tsx
 msgid "Retry now"
 msgstr "Spróbuj teraz"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry policy"
+msgstr "Zasady ponawiania"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry when a run fails before it completes."
+msgstr "Ponów, gdy uruchomienie nie powiedzie się przed zakończeniem."
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
@@ -7535,17 +7864,25 @@ msgstr "Uruchom lokalną transkrypcję na GPU, jeśli jest dostępna."
 msgid "Run now"
 msgstr "Uruchom teraz"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run once after reopening"
+msgstr "Uruchom raz po ponownym otwarciu"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Run standalone tasks on this device without a project."
 #~ msgstr "Uruchamiaj samodzielne zadania na tym urządzeniu bez projektu."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
-msgstr "Uruchamiaj niezależne zadania na tym urządzeniu. Harmonogramy działają, gdy urządzenie jest aktywne, a Poracode otwarte."
+#~ msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
+#~ msgstr "Uruchamiaj niezależne zadania na tym urządzeniu. Harmonogramy działają, gdy urządzenie jest aktywne, a Poracode otwarte."
 
 #: src/renderer/commands/registry.ts
 msgid "Run Terminal Command"
 msgstr "Uruchom polecenie terminala"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run the latest missed run"
+msgstr "Wykonaj ostatnie pominięte uruchomienie"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Run this schedule automatically at the times above."
@@ -7562,6 +7899,7 @@ msgstr "uruchomiony"
 
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Running"
 msgstr "W trakcie"
 
@@ -7584,6 +7922,10 @@ msgstr "Wyczerpie się wcześnie"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Runs out in {runOut}"
 msgstr "Wyczerpie się za {runOut}"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Runs that need attention will appear here."
+msgstr "Uruchomienia wymagające uwagi pojawią się tutaj."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -7661,6 +8003,10 @@ msgstr "Skanowanie systemu Windows i WSL w poszukiwaniu zainstalowanych interfej
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "Skanowanie systemu w poszukiwaniu zainstalowanych interfejsów CLI. Zwykle zajmuje to kilka sekund."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule autonomous work and review results that need your attention. Automations run while this device is awake and Poracode is open."
+msgstr "Planuj autonomiczną pracę i przeglądaj wyniki wymagające Twojej uwagi. Automatyzacje działają, gdy to urządzenie jest aktywne, a Poracode otwarte."
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "Nazwa harmonogramu"
@@ -7669,20 +8015,31 @@ msgstr "Nazwa harmonogramu"
 msgid "Schedule status"
 msgstr "Stan harmonogramu"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scheduled retry was cancelled."
+msgstr "Zaplanowane ponowienie zostało anulowane."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scheduled task was deleted before retrying."
+msgstr "Zaplanowane zadanie zostało usunięte przed ponowieniem."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-msgid "Scheduled tasks"
-msgstr "Zaplanowane zadania"
+#~ msgid "Scheduled tasks"
+#~ msgstr "Zaplanowane zadania"
 
 #: src/mobile/settingsSections.ts
-msgid "Scheduled tasks on this desktop"
-msgstr "Zaplanowane zadania na tym komputerze"
+#~ msgid "Scheduled tasks on this desktop"
+#~ msgstr "Zaplanowane zadania na tym komputerze"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
 #~ msgstr "Zaplanowane zadania są uruchamiane tylko wtedy, gdy urządzenie jest aktywne, a Poracode jest otwarty."
 
 #: src/mobile/settingsSections.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Scheduled work and triage on this desktop"
+msgstr "Zaplanowana praca i weryfikacja na tym komputerze"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Schedules"
 msgstr "Harmonogramy"
 
@@ -7736,6 +8093,10 @@ msgstr "Szukaj gałęzi..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Wyszukaj pliki"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Search findings"
+msgstr "Szukaj ustaleń"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Search marketplace skills"
@@ -7830,6 +8191,10 @@ msgstr "Wyszukiwanie..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
 msgstr "Wyszukiwanie…"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "seconds"
+msgstr "sekundy"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
@@ -8221,6 +8586,10 @@ msgstr "Wylogowywanie z {env}. Wykryci agenci zostaną odświeżeni po zakończe
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Wylogowanie. Wykryci agenci zostaną odświeżeni po zakończeniu."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Single pass"
+msgstr "Pojedyncze wykonanie"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
@@ -8285,7 +8654,12 @@ msgstr "Marketplace umiejętności"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Skip missed runs"
+msgstr "Pomijaj nieodbyte uruchomienia"
+
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Skipped"
 msgstr "Pominięto"
 
@@ -8423,6 +8797,10 @@ msgstr "Uruchom {appName}, aby zobaczyć użycie"
 #: src/mobile/views/PortsView.tsx
 msgid "Start a dev server on your desktop, then tap refresh."
 msgstr "Uruchom serwer deweloperski na komputerze, a następnie dotknij Odśwież."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Start a new conversation for each run."
+msgstr "Rozpocznij nową rozmowę dla każdego uruchomienia."
 
 #: src/renderer/commands/registry.ts
 msgid "Start a new thread as panel instead of page"
@@ -8562,6 +8940,10 @@ msgstr "Zatrzymaj"
 msgid "Stop forwarding"
 msgstr "Zatrzymaj przekierowywanie"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop on error"
+msgstr "Zatrzymaj po błędzie"
+
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Stop response"
 msgstr "Zatrzymaj odpowiedź"
@@ -8574,9 +8956,17 @@ msgstr "Zatrzymaj zadanie"
 msgid "Stop the project's running threads before changing its folder."
 msgstr "Zatrzymaj uruchomione wątki projektu przed zmianą jego folderu."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop the run when this total time is reached."
+msgstr "Zatrzymaj uruchomienie po osiągnięciu tego łącznego czasu."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Zatrzymaj wprowadzanie głosowe"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop when"
+msgstr "Zatrzymaj, gdy"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -8922,6 +9312,22 @@ msgstr "Agent"
 msgid "the app"
 msgstr "aplikacja"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation conversation exited before the turn completed."
+msgstr "Rozmowa automatyzacji zakończyła się przed ukończeniem tury."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation exceeded its time limit."
+msgstr "Automatyzacja przekroczyła limit czasu."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation needs a reply before it can continue."
+msgstr "Automatyzacja wymaga odpowiedzi, zanim będzie mogła kontynuować."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation needs approval before it can continue."
+msgstr "Automatyzacja wymaga zatwierdzenia, zanim będzie mogła kontynuować."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "wybrany folder"
@@ -8935,10 +9341,38 @@ msgstr "Domyślna częstotliwość odświeżania w tle, używana dla każdego do
 msgid "The desktop server is still coming online."
 msgstr "Serwer komputera nadal się uruchamia."
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "The finding is no longer available."
+msgstr "Ustalenie nie jest już dostępne."
+
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "globalny zakres WSL {0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation belongs to a different project."
+msgstr "Rozmowa heartbeat należy do innego projektu."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation cannot be resumed."
+msgstr "Rozmowy heartbeat nie można wznowić."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation is archived."
+msgstr "Konwersacja heartbeat jest zarchiwizowana."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation is currently busy."
+msgstr "Rozmowa heartbeat jest obecnie zajęta."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation no longer exists."
+msgstr "Rozmowa heartbeat już nie istnieje."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation uses a different agent."
+msgstr "Rozmowa heartbeat używa innego agenta."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -8971,6 +9405,14 @@ msgstr "Serwer zdalny nie zwrócił danych uwierzytelniających parowania."
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Lokalizacja repozytorium na dysku. Zaktualizuj ją, jeśli przeniesiono folder."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "The run could not be cancelled."
+msgstr "Nie udało się anulować uruchomienia."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The scheduled automation failed."
+msgstr "Zaplanowana automatyzacja nie powiodła się."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "The selected file does not contain valid MCP server configurations."
@@ -9227,6 +9669,18 @@ msgstr "Wątki oznaczone jako zakończone, które nie były poruszane przez tyle
 msgid "Time"
 msgstr "Godzina"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Time limit"
+msgstr "Limit czasu"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Time limit in minutes"
+msgstr "Limit czasu w minutach"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Time zone"
+msgstr "Strefa czasowa"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
 msgstr "Limit czasu (ms)"
@@ -9355,6 +9809,10 @@ msgstr "Półprzezroczysty pasek boczny"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "Popularne teraz"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Triage"
+msgstr "Weryfikacja"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -9598,6 +10056,10 @@ msgstr "Nieprzypisany"
 msgid "Unavailable"
 msgstr "Niedostępny"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Unavailable conversation"
+msgstr "Niedostępna rozmowa"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "Niedostępny projekt"
@@ -9675,6 +10137,10 @@ msgstr "Bez fazy:"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unpin"
 msgstr "Odepnij"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Unread"
+msgstr "Nieprzeczytane"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -10002,6 +10468,12 @@ msgstr "Oczekiwanie na uwierzytelnienie {methodName}. Wykryci agenci zostaną od
 msgid "waiting for agent to stop"
 msgstr "czekanie, aż agent się zatrzyma"
 
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Waiting for approval"
+msgstr "Oczekiwanie na zatwierdzenie"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"
 msgstr "Oczekiwanie, aż przepływ pracy utworzy agentów…"
@@ -10033,6 +10505,10 @@ msgstr "Rozgrzewanie środowisk powłoki..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Rozgrzewanie środowiska powłoki WSL…"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Warning"
+msgstr "Ostrzeżenie"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -10325,6 +10801,10 @@ msgstr "Folder bazowy WSL"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "WSL user"
 #~ msgstr "Użytkownik WSL"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "You’re all caught up."
+msgstr "Wszystko gotowe."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

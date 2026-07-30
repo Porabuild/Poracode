@@ -8,7 +8,16 @@ import {
 import { connect, createServer as createNetServer, type AddressInfo, type Socket } from "node:net";
 import { WebSocket, WebSocketServer } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Project, ScheduledTask, ScheduledTaskInput, Thread } from "@/shared/contracts";
+import {
+  DEFAULT_SCHEDULE_AUTOMATION,
+  type Project,
+  type ScheduleRunInboxQuery,
+  type ScheduledTask,
+  type ScheduledTaskInput,
+  type ScheduledTaskRun,
+  type Thread,
+  type UpdateScheduleRunStatePayload,
+} from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { pickRemoteSettings, type RemoteSettings } from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
@@ -2996,6 +3005,30 @@ describe("RemoteAccessServer", () => {
 
   it("lists and modifies device schedules with read and operate scopes", async () => {
     let stored: ScheduledTask[] = [];
+    const run: ScheduledTaskRun = {
+      id: "6f3b1a2c-1111-4d5e-8a9b-0c1d2e3f4a5b",
+      scheduleId: "d2ac39e9-14ac-4776-9279-37a1e455a5db",
+      threadId: "thread-schedule-run",
+      scheduledFor: "2026-07-13T15:00:00.000Z",
+      trigger: "scheduled",
+      attempt: 1,
+      iteration: 1,
+      startedAt: "2026-07-13T15:00:00.000Z",
+      completedAt: "2026-07-13T15:01:00.000Z",
+      status: "succeeded",
+      summary: "Found one item.",
+      error: null,
+      result: {
+        outcome: "findings",
+        summary: "Found one item.",
+        severity: "warning",
+        unread: true,
+        archivedAt: null,
+        changedFiles: [],
+        stopReason: null,
+      },
+      automationSnapshot: DEFAULT_SCHEDULE_AUTOMATION,
+    };
     const input: ScheduledTaskInput = {
       name: "Daily brief",
       prompt: "Summarize my priorities.",
@@ -3020,6 +3053,15 @@ describe("RemoteAccessServer", () => {
       stored = [created];
       return created;
     });
+    const listRuns = vi.fn<(scheduleId: string) => ScheduledTaskRun[]>(() => [run]);
+    const listInbox = vi.fn<(query: ScheduleRunInboxQuery) => ScheduledTaskRun[]>(() => [run]);
+    const updateRunState = vi.fn<
+      (payload: UpdateScheduleRunStatePayload) => ScheduledTaskRun | null
+    >(() => ({
+      ...run,
+      result: run.result ? { ...run.result, unread: false } : null,
+    }));
+    const cancelRun = vi.fn<(runId: string) => boolean>(() => true);
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
@@ -3042,6 +3084,10 @@ describe("RemoteAccessServer", () => {
           stored = [next];
           return next;
         },
+        listRuns,
+        listInbox,
+        updateRunState,
+        cancelRun,
       },
     });
     servers.push(server);
@@ -3061,6 +3107,37 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({ kind: "create", task: input }),
     });
     expect(denied.status).toBe(403);
+
+    const scheduleRunsResponse = await fetch(
+      new URL("/api/schedules/runs/query", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers: { ...readHeaders, "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "schedule",
+          payload: { id: run.scheduleId },
+        }),
+      },
+    );
+    expect(scheduleRunsResponse.status).toBe(200);
+    await expect(scheduleRunsResponse.json()).resolves.toEqual({ runs: [run] });
+    expect(listRuns).toHaveBeenCalledWith(run.scheduleId);
+
+    const inboxResponse = await fetch(new URL("/api/schedules/runs/query", info.httpBaseUrl), {
+      method: "POST",
+      headers: { ...readHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ kind: "inbox", query: { filter: "unread", limit: 25 } }),
+    });
+    expect(inboxResponse.status).toBe(200);
+    await expect(inboxResponse.json()).resolves.toEqual({ runs: [run] });
+    expect(listInbox).toHaveBeenCalledWith({ filter: "unread", limit: 25 });
+
+    const deniedRunCommand = await fetch(new URL("/api/schedules/runs/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: { ...readHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ kind: "cancel", id: run.id }),
+    });
+    expect(deniedRunCommand.status).toBe(403);
 
     const pairing = new URL(server.issuePairingUrl());
     const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
@@ -3088,6 +3165,36 @@ describe("RemoteAccessServer", () => {
       schedules: [{ name: "Daily brief" }],
     });
     expect(create).toHaveBeenCalledWith(input);
+
+    const operateHeaders = {
+      authorization: `Bearer ${operateToken}`,
+      "content-type": "application/json",
+    };
+    const updateRunResponse = await fetch(
+      new URL("/api/schedules/runs/command", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers: operateHeaders,
+        body: JSON.stringify({
+          kind: "update-state",
+          payload: { id: run.id, unread: false },
+        }),
+      },
+    );
+    expect(updateRunResponse.status).toBe(200);
+    await expect(updateRunResponse.json()).resolves.toMatchObject({
+      run: { id: run.id, result: { unread: false } },
+    });
+    expect(updateRunState).toHaveBeenCalledWith({ id: run.id, unread: false });
+
+    const cancelResponse = await fetch(new URL("/api/schedules/runs/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify({ kind: "cancel", id: run.id }),
+    });
+    expect(cancelResponse.status).toBe(200);
+    await expect(cancelResponse.json()).resolves.toEqual({ cancelled: true });
+    expect(cancelRun).toHaveBeenCalledWith(run.id);
   });
 
   it("serves profile devices/stats reads and the identity write, gated by scope", async () => {

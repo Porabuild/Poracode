@@ -13,8 +13,11 @@ import {
 import type {
   McpLaunchSnapshot,
   RemoteThreadCommand,
+  ScheduleRunInboxQuery,
   ScheduledTask,
   ScheduledTaskInput,
+  ScheduledTaskRun,
+  UpdateScheduleRunStatePayload,
 } from "@/shared/contracts";
 import type {
   IpcProcedurePayload,
@@ -148,6 +151,10 @@ export interface RemoteAccessServerOptions {
     update(id: string, task: ScheduledTaskInput): ScheduledTask;
     delete(id: string): void;
     runNow(id: string): ScheduledTask;
+    listRuns(scheduleId: string): ScheduledTaskRun[];
+    listInbox(query: ScheduleRunInboxQuery): ScheduledTaskRun[];
+    updateRunState(payload: UpdateScheduleRunStatePayload): ScheduledTaskRun | null;
+    cancelRun(runId: string): boolean;
   };
   /** Latest per-thread git/PR summaries published by the desktop renderer. */
   gitSummaries?(): RemoteGitSummaries;

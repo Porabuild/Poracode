@@ -356,7 +356,7 @@ export function Sidebar() {
             <SidebarButton
               iconOnly
               icon={<CalendarClock className="size-4" />}
-              label={t`Schedules`}
+              label={t`Automations`}
               isActive={appView.kind === "schedules"}
               onPress={() => startTransition(() => openSchedules())}
             />
@@ -457,7 +457,7 @@ export function Sidebar() {
           />
           <SidebarButton
             icon={<CalendarClock className="size-4" />}
-            label={t`Schedules`}
+            label={t`Automations`}
             isActive={appView.kind === "schedules"}
             onPress={() => startTransition(() => openSchedules())}
           />

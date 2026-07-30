@@ -12,6 +12,8 @@ import {
   remotePushUnregisterSchema,
   remoteSettingsPatchSchema,
   remoteScheduleCommandSchema,
+  remoteScheduleRunCommandSchema,
+  remoteScheduleRunsQuerySchema,
   remoteTokenExchangePayloadSchema,
   REMOTE_COMMAND_ID_HEADER,
   type RemoteAccessScope,
@@ -411,6 +413,32 @@ export async function handleHttp(
             ? schedules.update(command.id, command.task)
             : schedules.runNow(command.id);
       writeJson(res, 200, { schedule, schedules: schedules.list() });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/schedules/runs/query") {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const request = remoteScheduleRunsQuerySchema.parse(await readJsonBody(req));
+      const schedules = ctx.requireSchedulesGateway();
+      const runs =
+        request.kind === "schedule"
+          ? schedules.listRuns(request.payload.id)
+          : schedules.listInbox(request.query);
+      writeJson(res, 200, { runs });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/schedules/runs/command") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const command = remoteScheduleRunCommandSchema.parse(await readJsonBody(req));
+      const schedules = ctx.requireSchedulesGateway();
+      if (command.kind === "cancel") {
+        writeJson(res, 200, { cancelled: schedules.cancelRun(command.id) });
+        return;
+      }
+      const run = schedules.updateRunState(command.payload);
+      if (!run) {
+        throw new RemoteHttpError("schedule_run_not_found", "Schedule run not found.", 404);
+      }
+      writeJson(res, 200, { run });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/browser/state") {

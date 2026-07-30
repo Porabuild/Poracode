@@ -16,10 +16,15 @@ import {
   dbDeleteThread,
   dbGetProject,
   dbGetThread,
+  dbGetThreadRuntimeItemCursor,
+  dbGetThreadRuntimeItemsAfter,
   dbGetThreads,
   dbInsertScheduleRun,
   dbInterruptScheduleRuns,
+  dbListScheduleRunInbox,
+  dbListScheduleRuns,
   dbUpdateScheduleRun,
+  dbUpdateScheduleRunState,
   dbUpsertThread,
   initDatabase,
 } from "./db";
@@ -694,12 +699,17 @@ if (!hasSingleInstanceLock) {
           forwardAgentStatusEventToQuickComposer(event);
         },
         onReset: () => {
+          scheduleRunCoordinator?.handleSupervisorReset();
           workingThreads.clear();
           updatePowerSaveBlocker();
         },
       });
       const scheduleCoordinator = new ScheduleRunCoordinator({
         startThread: (payload) => supervisorClient.call("startThread", payload),
+        sendThreadInput: (payload) => supervisorClient.call("sendThreadInput", payload),
+        interruptThread: (threadId) => supervisorClient.call("interruptThread", { threadId }),
+        evaluateCompletion: (payload) =>
+          supervisorClient.call("evaluateScheduleCompletion", payload),
         getAgentStatuses: (wslDistros) => supervisorClient.call("getAgentStatuses", { wslDistros }),
         sendThreadCommand: (command) => {
           if (!mainWindow) return false;
@@ -708,6 +718,9 @@ if (!hasSingleInstanceLock) {
         },
         ensureHomeProject: ensureHomeProjectRow,
         getProject: dbGetProject,
+        getThread: dbGetThread,
+        getThreadRuntimeItemCursor: dbGetThreadRuntimeItemCursor,
+        getThreadRuntimeItemsAfter: dbGetThreadRuntimeItemsAfter,
         getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
         upsertThread: dbUpsertThread,
         deleteThread: dbDeleteThread,
@@ -717,11 +730,20 @@ if (!hasSingleInstanceLock) {
       });
       scheduleRunCoordinator = scheduleCoordinator;
       const scheduleService = createDeviceScheduleService({
-        runTask: (task) => scheduleCoordinator.runScheduleAsThread(task),
+        runTask: (task, context) => scheduleCoordinator.runScheduleAsThread(task, context),
+        cancelRun: (runId) => scheduleCoordinator.cancelRun(runId),
+        recordSkipped: (task, context) => scheduleCoordinator.recordSkippedRun(task, context),
+        onRetryingRun: (runId) => {
+          dbUpdateScheduleRunState({ id: runId, unread: false, archived: true });
+        },
         onStartupInterrupted: (scheduleId) =>
           dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
       });
-      appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread);
+      appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread, {
+        listScheduleRuns: dbListScheduleRuns,
+        listScheduleRunInbox: dbListScheduleRunInbox,
+        updateScheduleRunState: dbUpdateScheduleRunState,
+      });
 
       const autoUpdaterController = createAutoUpdaterController(
         (status) => {

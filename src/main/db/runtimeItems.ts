@@ -160,6 +160,30 @@ export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[
   return rows.map(mapRuntimeItemRow);
 }
 
+export function dbGetThreadRuntimeItemCursor(threadId: string): number {
+  const row = getSqlite()
+    .prepare(
+      "SELECT COALESCE(MAX(position), -1) AS position FROM thread_runtime_items WHERE thread_id = ?",
+    )
+    .get(threadId) as { position: number };
+  return row.position;
+}
+
+export function dbGetThreadRuntimeItemsAfter(
+  threadId: string,
+  cursor: number,
+): PersistedRuntimeItem[] {
+  const rows = getSqlite()
+    .prepare(
+      `SELECT item_id, type, state, payload, streams, parent_item_id
+       FROM thread_runtime_items
+       WHERE thread_id = ? AND position > ?
+       ORDER BY position ASC`,
+    )
+    .all(threadId, cursor) as PersistedRuntimeItemRow[];
+  return rows.map(mapRuntimeItemRow);
+}
+
 export function dbGetThreadRuntimeItemsPage(
   threadId: string,
   beforePosition: number | undefined,

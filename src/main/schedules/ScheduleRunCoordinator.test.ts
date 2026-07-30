@@ -8,9 +8,10 @@ import type {
   Thread,
   ThreadStatus,
 } from "@/shared/contracts";
-import { agentStatusesResponseSchema } from "@/shared/contracts";
+import { agentStatusesResponseSchema, DEFAULT_SCHEDULE_AUTOMATION } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { defaultSharedSettings } from "@/shared/settings";
+import type { PersistedRuntimeItem } from "../db/runtimeItems";
 import { ScheduleRunCoordinator, type ScheduleRunCoordinatorDeps } from "./ScheduleRunCoordinator";
 
 const HOME_PROJECT: Project = {
@@ -46,6 +47,39 @@ const task: ScheduledTask = {
   updatedAt: "2026-07-10T00:00:00.000Z",
 };
 
+function heartbeatTask(
+  automation: Partial<NonNullable<ScheduledTask["automation"]>> = {},
+): ScheduledTask {
+  return {
+    ...task,
+    automation: {
+      ...DEFAULT_SCHEDULE_AUTOMATION,
+      ...automation,
+      mode: { kind: "heartbeat", targetThreadId: "target-thread" },
+    },
+  };
+}
+
+function targetThread(overrides: Partial<Thread> = {}): Thread {
+  return {
+    id: "target-thread",
+    projectId: HOME_PROJECT.id,
+    title: "Ongoing automation",
+    agentKind: task.agentKind,
+    config: { model: task.config.model },
+    status: "idle",
+    attention: "none",
+    canResumeWithConfig: true,
+    archived: false,
+    done: false,
+    starred: false,
+    presentationMode: "gui",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-07-10T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 /** Codex-like posture: bypass options advertised for both approval and sandbox. */
 function agentStatuses(
   capabilities: Record<string, unknown> = {
@@ -80,18 +114,24 @@ interface Harness {
   runs: Map<string, ScheduledTaskRun>;
   sent: RemoteThreadCommand[];
   startThread: ReturnType<typeof vi.fn>;
+  sendThreadInput: ReturnType<typeof vi.fn>;
+  runtimeItems: Map<string, PersistedRuntimeItem[]>;
 }
 
 function makeHarness(overrides: Partial<ScheduleRunCoordinatorDeps> = {}): Harness {
   const threads = new Map<string, Thread>();
   const runs = new Map<string, ScheduledTaskRun>();
   const sent: RemoteThreadCommand[] = [];
+  const runtimeItems = new Map<string, PersistedRuntimeItem[]>();
   const ids = ["thread-1", "run-1"];
   let idx = 0;
   const startThread = vi.fn<() => Promise<unknown>>().mockResolvedValue(undefined);
+  const sendThreadInput = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
   const deps: ScheduleRunCoordinatorDeps = {
     startThread,
+    sendThreadInput,
+    interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     getAgentStatuses: async () => agentStatuses(),
     sendThreadCommand: (command) => {
       sent.push(command);
@@ -99,6 +139,10 @@ function makeHarness(overrides: Partial<ScheduleRunCoordinatorDeps> = {}): Harne
     },
     ensureHomeProject: () => HOME_PROJECT,
     getProject: (projectId) => (projectId === WORK_PROJECT.id ? WORK_PROJECT : null),
+    getThread: (threadId) => threads.get(threadId) ?? null,
+    getThreadRuntimeItemCursor: (threadId) => (runtimeItems.get(threadId)?.length ?? 0) - 1,
+    getThreadRuntimeItemsAfter: (threadId, cursor) =>
+      (runtimeItems.get(threadId) ?? []).slice(cursor + 1),
     upsertThread: (thread) => {
       threads.set(thread.id, thread);
     },
@@ -118,6 +162,7 @@ function makeHarness(overrides: Partial<ScheduleRunCoordinatorDeps> = {}): Harne
         ...(patch.status !== undefined ? { status: patch.status } : {}),
         ...(patch.summary !== undefined ? { summary: patch.summary } : {}),
         ...(patch.error !== undefined ? { error: patch.error } : {}),
+        ...(patch.result !== undefined ? { result: patch.result } : {}),
       });
     },
     newId: () => ids[idx++] ?? `id-${idx}`,
@@ -125,7 +170,15 @@ function makeHarness(overrides: Partial<ScheduleRunCoordinatorDeps> = {}): Harne
     ...overrides,
   };
 
-  return { coordinator: new ScheduleRunCoordinator(deps), threads, runs, sent, startThread };
+  return {
+    coordinator: new ScheduleRunCoordinator(deps),
+    threads,
+    runs,
+    sent,
+    startThread,
+    sendThreadInput,
+    runtimeItems,
+  };
 }
 
 function threadState(
@@ -192,7 +245,7 @@ describe("ScheduleRunCoordinator", () => {
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
 
-    await expect(settled).resolves.toBe("");
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
     expect(runs.get("run-1")).toMatchObject({ status: "succeeded", summary: null });
     expect(runs.get("run-1")?.completedAt).not.toBeNull();
   });
@@ -205,7 +258,7 @@ describe("ScheduleRunCoordinator", () => {
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "error", "model exploded"));
 
-    await expect(settled).rejects.toThrow("model exploded");
+    await expect(settled).resolves.toMatchObject({ status: "failed", error: "model exploded" });
     expect(runs.get("run-1")).toMatchObject({ status: "failed", error: "model exploded" });
   });
 
@@ -220,7 +273,7 @@ describe("ScheduleRunCoordinator", () => {
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "finished"));
 
-    await expect(settled).resolves.toBe("");
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
     expect(runs.get("run-1")?.status).toBe("succeeded");
   });
 
@@ -229,7 +282,10 @@ describe("ScheduleRunCoordinator", () => {
       startThread: vi.fn<() => Promise<unknown>>().mockRejectedValue(new Error("supervisor down")),
     });
 
-    await expect(coordinator.runScheduleAsThread(task)).rejects.toThrow("supervisor down");
+    await expect(coordinator.runScheduleAsThread(task)).resolves.toMatchObject({
+      status: "failed",
+      error: "supervisor down",
+    });
     expect(threads.has("thread-1")).toBe(false);
     expect(sent.some((command) => command.kind === "delete")).toBe(true);
     expect(runs.get("run-1")).toMatchObject({ status: "failed", error: "supervisor down" });
@@ -246,7 +302,7 @@ describe("ScheduleRunCoordinator", () => {
 
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
-    await expect(settled).resolves.toBe("");
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
     expect(runs.get("run-1")?.status).toBe("succeeded");
   });
 
@@ -263,7 +319,7 @@ describe("ScheduleRunCoordinator", () => {
 
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
-    await expect(settled).resolves.toBe("");
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
   });
 
   it("resolves global and project MCP settings for scheduled launches", async () => {
@@ -304,7 +360,7 @@ describe("ScheduleRunCoordinator", () => {
 
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
-    await expect(settled).resolves.toBe("");
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
   });
 
   it("launches scheduled runs with the provider's most-permissive policy", async () => {
@@ -325,7 +381,7 @@ describe("ScheduleRunCoordinator", () => {
 
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
-    await expect(settled).resolves.toBe("");
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
   });
 
   it("falls back to the declared bypass posture when no options are advertised", async () => {
@@ -348,7 +404,7 @@ describe("ScheduleRunCoordinator", () => {
 
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
-    await expect(settled).resolves.toBe("");
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
   });
 
   it("keeps provider defaults when the capability lookup fails", async () => {
@@ -366,7 +422,7 @@ describe("ScheduleRunCoordinator", () => {
 
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
     coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
-    await expect(settled).resolves.toBe("");
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
   });
 
   it("fails the run when the task's project no longer exists", async () => {
@@ -374,9 +430,258 @@ describe("ScheduleRunCoordinator", () => {
 
     await expect(
       coordinator.runScheduleAsThread({ ...task, projectId: "deleted-project-id" }),
-    ).rejects.toThrow("Project no longer exists.");
-    // No thread row or run row is created when the project can't be resolved.
+    ).resolves.toMatchObject({ status: "failed", error: "Project no longer exists." });
+    // Configuration failures are durable even when no thread can be created.
     expect(threads.size).toBe(0);
-    expect(runs.size).toBe(0);
+    expect(runs.size).toBe(1);
+  });
+
+  it("captures fresh assistant text and changed files as a typed finding", async () => {
+    const { coordinator, runtimeItems, runs } = makeHarness();
+    const settled = coordinator.runScheduleAsThread(task);
+    await flush();
+    runtimeItems.set("thread-1", [
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Updated the release notes." },
+      },
+      {
+        id: "file-1",
+        type: "file_change",
+        state: "completed",
+        payload: { path: "CHANGELOG.md", changeKind: "edit", status: "success" },
+        streams: {},
+      },
+    ]);
+
+    coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
+    coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
+
+    await expect(settled).resolves.toMatchObject({
+      summary: "Updated the release notes.",
+      result: {
+        outcome: "changed-files",
+        unread: true,
+        changedFiles: ["CHANGELOG.md"],
+      },
+    });
+    expect(runs.get("run-1")?.summary).toBe("Updated the release notes.");
+  });
+
+  it("keeps text-only successful results unknown instead of inventing findings", async () => {
+    const { coordinator, runtimeItems } = makeHarness();
+    const settled = coordinator.runScheduleAsThread(task);
+    await flush();
+    runtimeItems.set("thread-1", [
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "No issues found." },
+      },
+    ]);
+
+    coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
+    coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
+
+    await expect(settled).resolves.toMatchObject({
+      summary: "No issues found.",
+      result: { outcome: "unknown", unread: true },
+    });
+  });
+
+  it("runs a heartbeat in an idle conversation and excludes its prior items", async () => {
+    const { coordinator, threads, runtimeItems, sendThreadInput } = makeHarness();
+    threads.set("target-thread", targetThread());
+    runtimeItems.set("target-thread", [
+      {
+        id: "old-assistant",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Old result" },
+      },
+    ]);
+    const settled = coordinator.runScheduleAsThread(heartbeatTask());
+    await flush();
+    expect(sendThreadInput).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: "target-thread", prompt: task.prompt }),
+    );
+    runtimeItems.get("target-thread")!.push({
+      id: "new-assistant",
+      type: "assistant_message",
+      state: "completed",
+      streams: { assistant_text: "Fresh result" },
+    });
+
+    coordinator.observeSupervisorEvent(threadState("target-thread", "working"));
+    coordinator.observeSupervisorEvent(threadState("target-thread", "idle"));
+
+    await expect(settled).resolves.toMatchObject({
+      status: "succeeded",
+      summary: "Fresh result",
+    });
+  });
+
+  it("resumes a persisted heartbeat session before sending its turn", async () => {
+    const { coordinator, threads, sendThreadInput, startThread } = makeHarness();
+    threads.set(
+      "target-thread",
+      targetThread({
+        status: "inactive",
+        sessionRef: {
+          providerSessionId: "provider-session",
+          discoveredAt: "2026-07-10T00:00:00.000Z",
+        },
+      }),
+    );
+    sendThreadInput.mockRejectedValueOnce(new Error("Unknown thread session"));
+    const settled = coordinator.runScheduleAsThread(heartbeatTask());
+    await flush();
+
+    expect(startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: "target-thread",
+        prompt: "",
+        sessionRef: expect.objectContaining({ providerSessionId: "provider-session" }),
+      }),
+    );
+    expect(sendThreadInput).toHaveBeenCalledTimes(2);
+
+    coordinator.observeSupervisorEvent(threadState("target-thread", "working"));
+    coordinator.observeSupervisorEvent(threadState("target-thread", "idle"));
+    await expect(settled).resolves.toMatchObject({ status: "succeeded" });
+  });
+
+  it("rejects a heartbeat target that is already working", async () => {
+    const { coordinator, threads, sendThreadInput } = makeHarness();
+    threads.set("target-thread", targetThread({ status: "working" }));
+
+    await expect(coordinator.runScheduleAsThread(heartbeatTask())).resolves.toMatchObject({
+      status: "failed",
+      error: "The heartbeat conversation is currently busy.",
+    });
+    expect(sendThreadInput).not.toHaveBeenCalled();
+  });
+
+  it("rejects an archived heartbeat target", async () => {
+    const { coordinator, threads, sendThreadInput } = makeHarness();
+    threads.set("target-thread", targetThread({ archived: true }));
+
+    await expect(coordinator.runScheduleAsThread(heartbeatTask())).resolves.toMatchObject({
+      status: "failed",
+      error: "The heartbeat conversation is archived.",
+    });
+    expect(sendThreadInput).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an unattended approval request in triage", async () => {
+    const { coordinator } = makeHarness();
+    const settled = coordinator.runScheduleAsThread(task);
+    await flush();
+    coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
+    coordinator.observeSupervisorEvent(threadState("thread-1", "needs_approval"));
+
+    await expect(settled).resolves.toMatchObject({
+      status: "waiting-for-approval",
+      result: { outcome: "needs-attention", unread: true },
+    });
+  });
+
+  it("evaluates a heartbeat completion condition after a successful turn", async () => {
+    const { coordinator, threads, runtimeItems } = makeHarness({
+      evaluateCompletion: vi
+        .fn<NonNullable<ScheduleRunCoordinatorDeps["evaluateCompletion"]>>()
+        .mockResolvedValue({
+          stopMatched: true,
+          confidence: 0.95,
+          reason: "The requested artifact exists.",
+        }),
+    });
+    threads.set("target-thread", targetThread());
+    const scheduled = heartbeatTask({
+      completionPolicy: {
+        kind: "ai-evaluated",
+        stopWhen: "The artifact exists",
+        confidenceThreshold: 0.9,
+      },
+    });
+    const settled = coordinator.runScheduleAsThread(scheduled);
+    await flush();
+    runtimeItems.set("target-thread", [
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Created the artifact." },
+      },
+    ]);
+    coordinator.observeSupervisorEvent(threadState("target-thread", "working"));
+    coordinator.observeSupervisorEvent(threadState("target-thread", "idle"));
+
+    await expect(settled).resolves.toMatchObject({
+      stopMatched: true,
+      result: {
+        stopReason: "completion-condition",
+        completionEvaluation: {
+          condition: "The artifact exists",
+          stopMatched: true,
+        },
+      },
+    });
+  });
+
+  it("cancels an active automation by run id", async () => {
+    const { coordinator, runs } = makeHarness();
+    const settled = coordinator.runScheduleAsThread(task);
+    await flush();
+    const runId = [...runs.keys()][0]!;
+
+    expect(coordinator.cancelRun(runId)).toBe(true);
+    await expect(settled).resolves.toMatchObject({ status: "cancelled" });
+    expect(coordinator.cancelRun(runId)).toBe(false);
+  });
+
+  it("cancels an automation while its completion condition is being evaluated", async () => {
+    const evaluateCompletion = vi.fn<NonNullable<ScheduleRunCoordinatorDeps["evaluateCompletion"]>>(
+      () => new Promise(() => undefined),
+    );
+    const { coordinator, runs, threads } = makeHarness({ evaluateCompletion });
+    threads.set("target-thread", targetThread());
+    const scheduled = heartbeatTask({
+      completionPolicy: {
+        kind: "ai-evaluated",
+        stopWhen: "The artifact exists",
+        confidenceThreshold: 0.9,
+      },
+    });
+    const settled = coordinator.runScheduleAsThread(scheduled);
+    await flush();
+    const runId = [...runs.keys()][0]!;
+    coordinator.observeSupervisorEvent(threadState("target-thread", "working"));
+    coordinator.observeSupervisorEvent(threadState("target-thread", "idle"));
+    await vi.waitFor(() => expect(evaluateCompletion).toHaveBeenCalledOnce());
+
+    expect(coordinator.cancelRun(runId)).toBe(true);
+    await expect(settled).resolves.toMatchObject({
+      status: "cancelled",
+      result: { stopReason: "cancelled" },
+    });
+    expect(runs.get(runId)).toMatchObject({ status: "cancelled" });
+    expect(coordinator.cancelRun(runId)).toBe(false);
+  });
+
+  it("interrupts active automations when the supervisor resets", async () => {
+    const { coordinator } = makeHarness();
+    const settled = coordinator.runScheduleAsThread(task);
+    await flush();
+
+    coordinator.handleSupervisorReset();
+
+    await expect(settled).resolves.toMatchObject({
+      status: "interrupted",
+      result: { stopReason: "supervisor-reset" },
+    });
   });
 });

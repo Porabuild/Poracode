@@ -288,6 +288,11 @@ msgstr "{agentLabel}: {statusLabel}. Наведіть для деталей ст
 msgid "{agentLead} needs your input to continue."
 msgstr "{agentLead} потребує вашого введення, щоб продовжити."
 
+#. placeholder {0}: task.recurrence.timeZone
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{cadence} in {0}"
+msgstr "{cadence} — часовий пояс {0}"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# коміт} few {# коміти} many {# комітів} other {# коміта}}"
@@ -314,6 +319,18 @@ msgstr "{days}д тому"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel} потребує автентифікації."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every day} other {Every # days}}"
+msgstr "{every, plural, one {Щодня} few {Кожні # дні} many {Кожні # днів} other {Кожні # дня}}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every hour} other {Every # hours}}"
+msgstr "{every, plural, one {Щогодини} few {Кожні # години} many {Кожні # годин} other {Кожні # години}}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every minute} other {Every # minutes}}"
+msgstr "{every, plural, one {Щохвилини} few {Кожні # хвилини} many {Кожні # хвилин} other {Кожні # хвилини}}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -490,6 +507,10 @@ msgstr "~{money}{tokens} · {0} · прибл."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "≈{0}% by reset"
 msgstr "≈{0}% до скидання"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "0 9 * * 1-5"
+msgstr "0 9 * * 1-5"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
@@ -840,6 +861,10 @@ msgstr "Дії AI у git"
 msgid "AI providers"
 msgstr "Постачальники AI"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "AI stop condition"
+msgstr "Умова зупинки ШІ"
+
 #: src/mobile/views/MoreView.tsx
 #~ msgid "AI, agents, and archived threads on the paired desktop"
 #~ msgstr "ШІ, агенти й архівовані треди на спареному робочому столі"
@@ -851,6 +876,7 @@ msgstr "Сповіщення, коли потокам потрібна ваша 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -943,6 +969,10 @@ msgstr "Завжди виключено"
 msgid "An MCP server with this name already exists."
 msgstr "Сервер MCP із такою назвою вже існує."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another automation is already using this conversation."
+msgstr "Цю розмову вже використовує інша автоматизація."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Інший чат використовує це саме дерево. Відновлення файлів може перезаписати зміни цього чату."
@@ -1014,6 +1044,10 @@ msgstr "Архівувати все"
 msgid "Archive all threads"
 msgstr "Архівувати всі потоки"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Archive finding"
+msgstr "Архівувати результат"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "Архівувати поточний тред"
@@ -1027,6 +1061,10 @@ msgstr "Архівувати тред"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "Архівувати тред"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Archived"
+msgstr "В архіві"
 
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/SettingsView.tsx
@@ -1172,6 +1210,16 @@ msgstr "Автоматично показувати панель терміна�
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Автоматично показувати панель термінала під час виконання команд або створення робочих дерев."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Automation sections"
+msgstr "Розділи автоматизації"
+
+#: src/mobile/settingsSections.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Automations"
+msgstr "Автоматизації"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Availability"
@@ -1459,6 +1507,10 @@ msgstr "Обійти правила захисту гілки (злиття ад
 msgid "Cached only"
 msgstr "Лише кеш"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Calculated on desktop after saving"
+msgstr "Обчислюється на комп’ютері після збереження"
+
 #: src/mobile/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Доступ до камери заблоковано"
@@ -1513,11 +1565,16 @@ msgstr "Скасувати вибір"
 msgid "Cancel removing project"
 msgstr "Скасувати видалення проєкту"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Cancel run"
+msgstr "Скасувати запуск"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "скасовано"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Cancelled"
 msgstr "Скасовано"
 
@@ -1705,6 +1762,10 @@ msgstr "Виберіть мову відображення інтерфейсу 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Виберіть тред для прикріплення"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Choose what happens after a scheduled time was missed."
+msgstr "Виберіть, що робити, якщо запланований час було пропущено."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2185,6 +2246,14 @@ msgstr "завершено"
 msgid "Completed"
 msgstr "Завершено"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Completion evaluation failed: {detail}"
+msgstr "Не вдалося оцінити завершення: {detail}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Completion evaluation is unavailable."
+msgstr "Оцінювання завершення недоступне."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -2222,6 +2291,14 @@ msgstr "Computer Use увімкнено — інтерактивні дії за
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
 #~ msgstr "Керування комп'ютером увімкнено для цього треду"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Confidence"
+msgstr "Впевненість"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Confidence percent"
+msgstr "Впевненість у відсотках"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2386,6 +2463,14 @@ msgstr "Продовжити в іншому провайдері"
 msgid "Continue in..."
 msgstr "Продовжити в..."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Continue one conversation until a stop condition or limit is reached."
+msgstr "Продовжувати одну розмову, доки не буде виконано умову зупинки або досягнуто обмеження."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Control how each scheduled run continues and stops."
+msgstr "Налаштуйте, як продовжується та зупиняється кожен запланований запуск."
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
 msgstr "Керуйте тим, які файли з'являються у пошуку згадок @file. Перевизначення для окремих проєктів зберігаються в налаштуваннях кожного проєкту."
@@ -2397,6 +2482,7 @@ msgstr "Керує спареним робочим столом, поки аге
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Conversation"
 msgstr "Розмова"
 
@@ -2697,6 +2783,24 @@ msgstr "Облікові дані налаштовано."
 msgid "Credits"
 msgstr "Кредити"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Critical"
+msgstr "Критичний"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Cron"
+msgstr "Cron"
+
+#. placeholder {0}: task.recurrence.expression
+#. placeholder {1}: task.recurrence.timeZone
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Cron {0} in {1}"
+msgstr "Cron {0} — часовий пояс {1}"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Cron expression"
+msgstr "Вираз Cron"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Відібрані безкоштовні та преміальні навички під керуванням MCP Market."
@@ -2762,9 +2866,9 @@ msgstr "Щоденний огляд"
 msgid "Dark"
 msgstr "Темна"
 
-#: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Days"
-#~ msgstr "Дні"
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Days"
+msgstr "Дні"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Decline"
@@ -2911,6 +3015,10 @@ msgstr "Видалити worktree {0}"
 #~ msgid "Delete:"
 #~ msgstr "Видалити:"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Deleted schedule"
+msgstr "Видалений розклад"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Deleting"
 msgstr "Видалення"
@@ -2922,6 +3030,10 @@ msgstr "Заборонити"
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Заборонити й сказати агенту, що зробити інакше…"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Describe the result that completes this heartbeat."
+msgstr "Опишіть результат, за якого цей пульс буде завершено."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
@@ -2943,6 +3055,10 @@ msgstr "Кінцева точка робочого стола"
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "Десктоп недоступний."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Desktop local time"
+msgstr "Локальний час комп’ютера"
 
 #: src/mobile/chrome.ts
 #: src/mobile/views/MoreView.tsx
@@ -3055,6 +3171,10 @@ msgstr "Вимкнути проект"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Disable Subagents"
 msgstr "Вимкнути субагентів"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Disable the automation after retries are exhausted."
+msgstr "Вимкнути автоматизацію після вичерпання всіх повторних спроб."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
@@ -3356,6 +3476,10 @@ msgstr "Увімкнені сервери залишаються активни�
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Вмикає <0>файли cookie</0> та <1>сховище</1>. Файли cookie можуть містити сеансові токени, а сховище часто зберігає стан авторизації — вмикайте лише тоді, коли довіряєте і агенту, і сайтам, які він відвідує."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+#~ msgid "End the heartbeat after retries are exhausted."
+#~ msgstr "Завершити пульс після вичерпання повторних спроб."
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Endpoint"
@@ -3392,6 +3516,10 @@ msgstr "Введіть дійсну кінцеву точку десктопа."
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter a valid HTTP or HTTPS URL."
 msgstr "Введіть допустиму URL-адресу з протоколом HTTP або HTTPS."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Enter a valid schedule"
+msgstr "Введіть коректний розклад"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
@@ -3463,6 +3591,14 @@ msgstr "Помилка"
 msgid "Error · Agent encountered an error"
 msgstr "Помилка · Агент зіткнувся з помилкою"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Evaluate the result after every iteration."
+msgstr "Оцінювати результат після кожної ітерації."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Every"
+msgstr "Кожні"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
 msgstr "Щодня о {time}"
@@ -3484,6 +3620,14 @@ msgstr "Щогодини о {0} хв."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Шаблони виключення"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Execution"
+msgstr "Виконання"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Execution mode"
+msgstr "Режим виконання"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
@@ -3533,6 +3677,10 @@ msgstr "Розгорніть, щоб переглянути або відкли�
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Розгорнути панель завдань"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Exponential backoff"
+msgstr "Експоненційна затримка"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
@@ -3716,6 +3864,10 @@ msgstr "Пошук у diff"
 msgid "Find in terminal"
 msgstr "Пошук у терміналі"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Finding status"
+msgstr "Стан результату"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "Завершіть перевірку"
@@ -3776,6 +3928,10 @@ msgstr "Виправити в агенті"
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
 msgstr "Виправлено"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Fixed delay"
+msgstr "Фіксована затримка"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -4097,6 +4253,26 @@ msgstr "Є невідправлена чернетка"
 msgid "Headers"
 msgstr "Заголовки"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeat"
+msgstr "Пульс"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Heartbeat automations require a native chat conversation."
+msgstr "Для автоматизації пульсу потрібна розмова у вбудованому чаті."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeat continues this conversation in the selected project."
+msgstr "Пульс продовжує цю розмову у вибраному проєкті."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Heartbeat execution is unavailable."
+msgstr "Виконання пульсу недоступне."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeats can continue making changes while you're away. Set hard limits below."
+msgstr "Пульс може продовжувати вносити зміни за вашої відсутності. Установіть нижче жорсткі обмеження."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Допоможи мені створити розклад. Запитай відсутні деталі, а потім створи його за допомогою елементів керування розкладами Poracode."
@@ -4197,6 +4373,10 @@ msgstr "host.com, псевдонім або користувач@host.com"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hourly"
 msgstr "Щогодини"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Hours"
+msgstr "Години"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
@@ -4328,6 +4508,14 @@ msgstr "Сканування камерою в застосунку працює
 msgid "Inactive"
 msgstr "Неактивно"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Includes the first attempt."
+msgstr "Ураховує першу спробу."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Info"
+msgstr "Інформація"
+
 #. Badge on an exclude pattern inherited from a lower scope
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "inherited"
@@ -4337,6 +4525,14 @@ msgstr "успадковано"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "Успадковується глобальне налаштування (зараз {0})."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Initial retry delay"
+msgstr "Початкова затримка повтору"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Initial retry delay in seconds"
+msgstr "Початкова затримка повтору в секундах"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
@@ -4476,6 +4672,18 @@ msgstr "Перервано"
 msgid "Interrupted: agent session ended before completion."
 msgstr "Перервано: сесія агента завершилася до завершення."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval"
+msgstr "Інтервал"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval amount"
+msgstr "Значення інтервалу"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval unit"
+msgstr "Одиниця інтервалу"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Курсив"
@@ -4560,6 +4768,14 @@ msgstr "Запуск…"
 msgid "Leave a comment"
 msgstr "Залишити коментар"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Leave blank for no run limit."
+msgstr "Залиште поле порожнім, щоб не обмежувати кількість запусків."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+#~ msgid "Leave blank to rely on the time limit."
+#~ msgstr "Залиште порожнім, щоб використовувати лише обмеження часу."
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Менше"
@@ -4639,6 +4855,10 @@ msgstr "Завантаження редактора…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "Завантаження файлу…"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Loading findings"
+msgstr "Завантаження результатів"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
@@ -4864,6 +5084,14 @@ msgstr "Позначити як виконане"
 msgid "Mark as not done"
 msgstr "Позначити як невиконане"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Mark as read"
+msgstr "Позначити як прочитане"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Mark as unread"
+msgstr "Позначити як непрочитане"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Mark done"
 msgstr "Позначити виконаним"
@@ -4903,6 +5131,22 @@ msgstr "Розгорнути"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "Розгорнути браузер"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum attempts"
+msgstr "Максимум спроб"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum iterations"
+msgstr "Максимум ітерацій"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum retry delay"
+msgstr "Максимальна затримка повтору"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum retry delay in seconds"
+msgstr "Максимальна затримка повтору в секундах"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "MCP Market"
@@ -5110,6 +5354,18 @@ msgstr "Згорнути в панель"
 msgid "Minute"
 msgstr "Хвилина"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minute, hour, day of month, month, and weekday."
+msgstr "Хвилина, година, день місяця, місяць і день тижня."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "minutes"
+msgstr "хвилин"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minutes"
+msgstr "Хвилини"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirrored desktop browser tab"
 msgstr "Дзеркальна вкладка браузера десктопа"
@@ -5117,6 +5373,10 @@ msgstr "Дзеркальна вкладка браузера десктопа"
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirroring is unavailable."
 msgstr "Дзеркалювання недоступне."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Missed runs"
+msgstr "Пропущені запуски"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Mobile push notifications"
@@ -5469,6 +5729,10 @@ msgstr "Наступний збіг"
 msgid "Next recently viewed chat"
 msgstr "Наступний нещодавно переглянутий чат"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Next run"
+msgstr "Наступний запуск"
+
 #. placeholder {0}: dateTimeFormatter.format(new Date(task.nextRunAt))
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Next run {0}"
@@ -5513,6 +5777,10 @@ msgstr "Немає встановлених агентів."
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Ще не відстежено жодних комітів, PR чи розв'язань конфліктів від AI."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No archived findings."
+msgstr "В архіві немає результатів."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
@@ -5610,6 +5878,10 @@ msgstr "Немає доступного diff для {0}"
 msgid "No diff for {visiblePath}"
 msgstr "Немає diff для {visiblePath}"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No eligible conversations in this project."
+msgstr "У цьому проєкті немає придатних розмов."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "No external skills were found in this scope."
 msgstr "У цій області не знайдено зовнішніх навичок."
@@ -5625,6 +5897,10 @@ msgstr "Для цього повідомлення не збережено ко�
 msgid "No files match \"{0}\"."
 msgstr "Немає файлів, що відповідають \"{0}\"."
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No findings yet."
+msgstr "Результатів ще немає."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
 msgstr "Облікові записи GitHub CLI не знайдено. Увійдіть за допомогою <0>gh auth login</0> або <1>вставте URL для клонування</1>."
@@ -5636,6 +5912,10 @@ msgstr "Історії ще немає"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
 msgstr "Дані Lightcode не знайдено."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No limit"
+msgstr "Без обмежень"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
@@ -5652,6 +5932,10 @@ msgstr "Збігів немає."
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "No matching agents."
 msgstr "Відповідних агентів немає."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No matching findings."
+msgstr "Немає відповідних результатів."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "No matching pull requests."
@@ -5762,6 +6046,10 @@ msgstr "Репозиторії не знайдено."
 msgid "No results"
 msgstr "Немає результатів"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No retries"
+msgstr "Без повторних спроб"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "No runs yet."
 msgstr "Запусків ще немає."
@@ -5798,6 +6086,10 @@ msgstr "Мовлення не виявлено."
 msgid "No staged changes"
 msgstr "Немає підготовлених змін"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No summary was provided."
+msgstr "Підсумок не надано."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 msgstr "На цьому віддаленому комп’ютері не встановлено підтримуваних агентів. Установіть агент і ввійдіть у нього віддалено перед запуском потоку."
@@ -5826,6 +6118,10 @@ msgstr "Потоків ще немає"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "Гілок ще немає."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "No upcoming run"
+msgstr "Немає запланованих запусків"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -6041,6 +6337,11 @@ msgstr "Відкрити коміт на GitHub"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Open conflict resolver in"
 msgstr "Відкрити засіб розв'язання конфліктів у"
+
+#. placeholder {0}: props.scheduleName
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Open conversation for {0}"
+msgstr "Відкрити розмову для {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
@@ -6677,6 +6978,10 @@ msgstr "Папку проєкту оновлено. Повторно відкр�
 msgid "Project name"
 msgstr "Назва проєкту"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Project no longer exists."
+msgstr "Проєкт більше не існує."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Нотатки проєкту"
@@ -7275,6 +7580,10 @@ msgstr "Деталі запиту"
 msgid "requested changes"
 msgstr "запитані зміни"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Required confidence before stopping."
+msgstr "Необхідна впевненість для зупинки."
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
@@ -7346,6 +7655,10 @@ msgstr "Відновити браузер"
 msgid "Restore default worktree base folder"
 msgstr "Відновити базову папку worktree за замовчуванням"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Restore finding"
+msgstr "Відновити результат"
+
 #: src/mobile/settingsSections.ts
 msgid "Restore or delete"
 msgstr "Восстановить или удалить"
@@ -7376,9 +7689,25 @@ msgstr "Повторити перевірку {serverName}"
 msgid "Retry check"
 msgstr "Повторити перевірку"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry delay"
+msgstr "Затримка повтору"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry delay in seconds"
+msgstr "Затримка повтору в секундах"
+
 #: src/mobile/components.tsx
 msgid "Retry now"
 msgstr "Повторить сейчас"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry policy"
+msgstr "Політика повторів"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry when a run fails before it completes."
+msgstr "Повторити, якщо запуск завершиться помилкою до закінчення."
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
@@ -7535,17 +7864,25 @@ msgstr "Виконувати локальне транскрибування н�
 msgid "Run now"
 msgstr "Запустити зараз"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run once after reopening"
+msgstr "Виконати один раз після повторного відкриття"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Run standalone tasks on this device without a project."
 #~ msgstr "Запускайте автономні завдання на цьому пристрої без проєкту."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
-msgstr "Запускайте автономні завдання на цьому пристрої. Розклади виконуються, доки пристрій активний і Poracode відкрито."
+#~ msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
+#~ msgstr "Запускайте автономні завдання на цьому пристрої. Розклади виконуються, доки пристрій активний і Poracode відкрито."
 
 #: src/renderer/commands/registry.ts
 msgid "Run Terminal Command"
 msgstr "Виконати команду терміналу"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run the latest missed run"
+msgstr "Виконати останній пропущений запуск"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Run this schedule automatically at the times above."
@@ -7562,6 +7899,7 @@ msgstr "виконується"
 
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Running"
 msgstr "Виконується"
 
@@ -7584,6 +7922,10 @@ msgstr "Закінчиться раніше"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Runs out in {runOut}"
 msgstr "Закінчиться через {runOut}"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Runs that need attention will appear here."
+msgstr "Тут з’являться запуски, що потребують уваги."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -7661,6 +8003,10 @@ msgstr "Сканування Windows та WSL на наявність встан
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "Сканування вашої системи на наявність встановлених CLI. Зазвичай це триває кілька секунд."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule autonomous work and review results that need your attention. Automations run while this device is awake and Poracode is open."
+msgstr "Плануйте автономну роботу та переглядайте результати, що потребують уваги. Автоматизації виконуються, поки пристрій активний і Poracode відкрито."
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "Назва розкладу"
@@ -7669,20 +8015,31 @@ msgstr "Назва розкладу"
 msgid "Schedule status"
 msgstr "Стан розкладу"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scheduled retry was cancelled."
+msgstr "Заплановану повторну спробу скасовано."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scheduled task was deleted before retrying."
+msgstr "Заплановане завдання було видалено до повторної спроби."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-msgid "Scheduled tasks"
-msgstr "Заплановані завдання"
+#~ msgid "Scheduled tasks"
+#~ msgstr "Заплановані завдання"
 
 #: src/mobile/settingsSections.ts
-msgid "Scheduled tasks on this desktop"
-msgstr "Заплановані завдання на цьому комп’ютері"
+#~ msgid "Scheduled tasks on this desktop"
+#~ msgstr "Заплановані завдання на цьому комп’ютері"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
 #~ msgstr "Заплановані завдання виконуються лише коли пристрій активний і Poracode відкрито."
 
 #: src/mobile/settingsSections.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Scheduled work and triage on this desktop"
+msgstr "Запланована робота та опрацювання на цьому комп’ютері"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Schedules"
 msgstr "Розклади"
 
@@ -7736,6 +8093,10 @@ msgstr "Пошук гілок..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Пошук файлів"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Search findings"
+msgstr "Пошук результатів"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Search marketplace skills"
@@ -7830,6 +8191,10 @@ msgstr "Пошук..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
 msgstr "Пошук…"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "seconds"
+msgstr "секунд"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
@@ -8221,6 +8586,10 @@ msgstr "Вихід із {env}. Виявлені агенти оновлятьс�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Вихід. Виявлені агенти оновляться після завершення."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Single pass"
+msgstr "Один прохід"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
@@ -8285,7 +8654,12 @@ msgstr "Маркетплейс навичок"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Skip missed runs"
+msgstr "Пропускати пропущені запуски"
+
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Skipped"
 msgstr "Пропущено"
 
@@ -8423,6 +8797,10 @@ msgstr "Запустіть {appName}, щоб побачити використа
 #: src/mobile/views/PortsView.tsx
 msgid "Start a dev server on your desktop, then tap refresh."
 msgstr "Запустіть сервер розробки на комп'ютері, потім торкніться «Оновити»."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Start a new conversation for each run."
+msgstr "Починати нову розмову для кожного запуску."
 
 #: src/renderer/commands/registry.ts
 msgid "Start a new thread as panel instead of page"
@@ -8562,6 +8940,10 @@ msgstr "Зупинити"
 msgid "Stop forwarding"
 msgstr "Зупинити переспрямування"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop on error"
+msgstr "Зупиняти в разі помилки"
+
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Stop response"
 msgstr "Зупинити відповідь"
@@ -8574,9 +8956,17 @@ msgstr "Зупинити завдання"
 msgid "Stop the project's running threads before changing its folder."
 msgstr "Зупиніть запущені треди проєкту перед зміною його папки."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop the run when this total time is reached."
+msgstr "Зупинити запуск, коли буде досягнуто цього загального часу."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Зупинити голосове введення"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop when"
+msgstr "Умова зупинки"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -8922,6 +9312,22 @@ msgstr "Агент"
 msgid "the app"
 msgstr "програму"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation conversation exited before the turn completed."
+msgstr "Розмова автоматизації завершилася до закінчення ходу."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation exceeded its time limit."
+msgstr "Автоматизація перевищила обмеження часу."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation needs a reply before it can continue."
+msgstr "Для продовження автоматизації потрібна відповідь."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation needs approval before it can continue."
+msgstr "Для продовження автоматизації потрібне схвалення."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "обрана папка"
@@ -8935,10 +9341,38 @@ msgstr "Періодичність фонового оновлення за за
 msgid "The desktop server is still coming online."
 msgstr "Сервер робочого стола ще запускається."
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "The finding is no longer available."
+msgstr "Результат більше недоступний."
+
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "глобальну область WSL {0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation belongs to a different project."
+msgstr "Розмова пульсу належить до іншого проєкту."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation cannot be resumed."
+msgstr "Розмову пульсу неможливо відновити."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation is archived."
+msgstr "Діалог пульсу заархівовано."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation is currently busy."
+msgstr "Розмова пульсу зараз зайнята."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation no longer exists."
+msgstr "Розмова пульсу більше не існує."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation uses a different agent."
+msgstr "Розмова пульсу використовує іншого агента."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -8971,6 +9405,14 @@ msgstr "Віддалений сервер не повернув облікові
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Розташування репозиторію на диску. Оновіть його, якщо ви перемістили папку."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "The run could not be cancelled."
+msgstr "Не вдалося скасувати запуск."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The scheduled automation failed."
+msgstr "Запланована автоматизація завершилася помилкою."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "The selected file does not contain valid MCP server configurations."
@@ -9227,6 +9669,18 @@ msgstr "Треди, позначені як завершені, до яких н
 msgid "Time"
 msgstr "Час"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Time limit"
+msgstr "Обмеження часу"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Time limit in minutes"
+msgstr "Обмеження часу у хвилинах"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Time zone"
+msgstr "Часовий пояс"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
 msgstr "Тайм-аут (мс)"
@@ -9355,6 +9809,10 @@ msgstr "Напівпрозора бічна панель"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "Зараз у тренді"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Triage"
+msgstr "Опрацювання"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -9598,6 +10056,10 @@ msgstr "Не призначено"
 msgid "Unavailable"
 msgstr "Недоступно"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Unavailable conversation"
+msgstr "Недоступна розмова"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "Недоступний проєкт"
@@ -9675,6 +10137,10 @@ msgstr "Без фази:"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unpin"
 msgstr "Відкріпити"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Unread"
+msgstr "Непрочитане"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -10002,6 +10468,12 @@ msgstr "Очікування автентифікації {methodName}. Вияв
 msgid "waiting for agent to stop"
 msgstr "очікування зупинки агента"
 
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Waiting for approval"
+msgstr "Очікує на схвалення"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"
 msgstr "Очікування створення агентів робочим процесом…"
@@ -10033,6 +10505,10 @@ msgstr "Підготовка середовищ оболонки..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Підготовка середовища оболонки WSL…"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Warning"
+msgstr "Попередження"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -10325,6 +10801,10 @@ msgstr "Базова папка WSL"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "WSL user"
 #~ msgstr "Користувач WSL"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "You’re all caught up."
+msgstr "Усе переглянуто."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

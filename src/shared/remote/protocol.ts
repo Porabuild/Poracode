@@ -2,18 +2,23 @@ import { z } from "zod";
 import {
   agentStatusSchema,
   cloneRepoSourceSchema,
+  getScheduleRunsPayloadSchema,
   projectSchema,
+  scheduleRunIdPayloadSchema,
+  scheduleRunInboxQuerySchema,
+  scheduledTaskRunSchema,
   scheduledTaskIdPayloadSchema,
   scheduledTaskInputSchema,
   scheduledTaskSchema,
   terminalSizeSchema,
   threadContextUsageSchema,
   threadSchema,
+  updateScheduleRunStatePayloadSchema,
 } from "../contracts";
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
 import { sharedSettingsSchema } from "../settings";
 
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 1;
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 3;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
@@ -241,6 +246,31 @@ export const remoteSchedulesResponseSchema = z.object({
   schedule: scheduledTaskSchema.optional(),
 });
 export type RemoteSchedulesResponse = z.infer<typeof remoteSchedulesResponseSchema>;
+
+export const remoteScheduleRunsQuerySchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("schedule"), payload: getScheduleRunsPayloadSchema }),
+  z.object({ kind: z.literal("inbox"), query: scheduleRunInboxQuerySchema }),
+]);
+export type RemoteScheduleRunsQuery = z.infer<typeof remoteScheduleRunsQuerySchema>;
+
+export const remoteScheduleRunsResponseSchema = z.object({
+  runs: z.array(scheduledTaskRunSchema),
+});
+export type RemoteScheduleRunsResponse = z.infer<typeof remoteScheduleRunsResponseSchema>;
+
+export const remoteScheduleRunCommandSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("update-state"), payload: updateScheduleRunStatePayloadSchema }),
+  scheduleRunIdPayloadSchema.extend({ kind: z.literal("cancel") }),
+]);
+export type RemoteScheduleRunCommand = z.infer<typeof remoteScheduleRunCommandSchema>;
+
+export const remoteScheduleRunCommandResponseSchema = z.object({
+  run: scheduledTaskRunSchema.optional(),
+  cancelled: z.boolean().optional(),
+});
+export type RemoteScheduleRunCommandResponse = z.infer<
+  typeof remoteScheduleRunCommandResponseSchema
+>;
 
 /** Broadcast on the WS event stream after a project change so clients refresh
  * the shell snapshot. Rides the same stream as supervisor/git events. */

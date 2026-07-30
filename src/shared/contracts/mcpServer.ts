@@ -129,6 +129,13 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "update_schedule",
     "run_schedule",
     "delete_schedule",
+    "list_schedule_runs",
+    "list_schedule_run_inbox",
+    "mark_schedule_run_read",
+    "mark_schedule_run_unread",
+    "archive_schedule_run",
+    "restore_schedule_run",
+    "cancel_schedule_run",
   ],
 } as const satisfies Record<BuiltInMcpServerId, readonly string[]>;
 

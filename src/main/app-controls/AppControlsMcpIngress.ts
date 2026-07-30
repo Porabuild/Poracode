@@ -10,6 +10,7 @@ import {
   dispatchTool,
   formatToolResult,
   isKnownToolName,
+  type AppControlsScheduleRunControls,
   type AppControlsToolContext,
 } from "./mcp/toolRegistry";
 
@@ -18,13 +19,17 @@ export type AppControlsMcpIngressInfo = StreamableHttpMcpIngressInfo;
 export class AppControlsMcpIngress {
   private readonly ingress: StreamableHttpMcpIngress<AppControlsToolContext>;
 
-  constructor(scheduleService: ScheduleService, getThread: (threadId: string) => Thread | null) {
+  constructor(
+    scheduleService: ScheduleService,
+    getThread: (threadId: string) => Thread | null,
+    scheduleRuns: AppControlsScheduleRunControls,
+  ) {
     this.ingress = new StreamableHttpMcpIngress<AppControlsToolContext>({
       serverInfo: { name: "poracode", version: "1.0.0" },
       instructions: APP_CONTROLS_MCP_INSTRUCTIONS,
       tools: TOOLS,
       isKnownToolName,
-      buildContext: (identity) => ({ identity, scheduleService, getThread }),
+      buildContext: (identity) => ({ identity, scheduleService, scheduleRuns, getThread }),
       dispatchTool,
       formatToolResult,
     });

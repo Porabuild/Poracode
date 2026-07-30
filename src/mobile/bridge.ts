@@ -15,6 +15,8 @@ import type {
   StartThreadPayload,
   WriteTerminalPayload,
   ScheduledTaskInput,
+  ScheduleRunInboxQuery,
+  UpdateScheduleRunStatePayload,
 } from "@/shared/contracts";
 import type { BrowserState, BrowserTabInfo, PoracodeBridge } from "@/shared/ipc";
 import {
@@ -159,11 +161,30 @@ const remoteBridge = {
   setProfileIdentity: (identity: ProfileIdentity) => requireClient().setProfileIdentity(identity),
 
   getSchedules: () => requireClient().schedules(),
+  getAutomationsSnapshot: async (query: ScheduleRunInboxQuery) => {
+    const [schedules, runs, unreadRuns] = await Promise.all([
+      requireClient().schedules(),
+      requireClient().scheduleRunInbox(query),
+      query.filter === "unread"
+        ? Promise.resolve(null)
+        : requireClient().scheduleRunInbox({ filter: "unread", limit: 100 }),
+    ]);
+    return {
+      schedules,
+      runs,
+      unreadCount: (unreadRuns ?? runs).length,
+    };
+  },
   createSchedule: (task: ScheduledTaskInput) => requireClient().createSchedule(task),
   updateSchedule: ({ id, task }: { id: string; task: ScheduledTaskInput }) =>
     requireClient().updateSchedule(id, task),
   deleteSchedule: ({ id }: { id: string }) => requireClient().deleteSchedule(id),
   runScheduleNow: ({ id }: { id: string }) => requireClient().runScheduleNow(id),
+  getScheduleRuns: ({ id }: { id: string }) => requireClient().scheduleRuns(id),
+  getScheduleRunInbox: (query: ScheduleRunInboxQuery) => requireClient().scheduleRunInbox(query),
+  updateScheduleRunState: (payload: UpdateScheduleRunStatePayload) =>
+    requireClient().updateScheduleRunState(payload),
+  cancelScheduleRun: ({ id }: { id: string }) => requireClient().cancelScheduleRun(id),
 
   // Shared settings persist per device via the store's localStorage fallback.
   // Remote-editable keys (the desktop's AI helpers) are additionally diffed

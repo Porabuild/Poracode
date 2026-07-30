@@ -114,6 +114,7 @@
     "@xterm/addon-webgl": "0.20.0-beta.218",
     "@xterm/xterm": "6.1.0-beta.219",
     "better-sqlite3": "^12.11.1",
+    "cron-parser": "5.6.1",
     "dexie": "^4.4.4",
     "drizzle-orm": "1.0.0-rc.1",
     "electron-updater": "^6.8.9",

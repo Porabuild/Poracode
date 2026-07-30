@@ -24,7 +24,11 @@ describe("AppControlsMcpIngress", () => {
       agentKind: "codex",
       config: { model: "gpt-5.6", effort: "high" },
     } as Thread;
-    ingress = new AppControlsMcpIngress(service, (id) => (id === thread.id ? thread : null));
+    ingress = new AppControlsMcpIngress(service, (id) => (id === thread.id ? thread : null), {
+      listScheduleRuns: vi.fn<() => never[]>(() => []),
+      listScheduleRunInbox: vi.fn<() => never[]>(() => []),
+      updateScheduleRunState: vi.fn<() => null>(() => null),
+    });
     const info = await ingress.start();
 
     const response = await fetch(`${info.url}/mcp?thread=thread-1`, {

@@ -154,10 +154,11 @@ describe("McpServersManager", () => {
 
     const row = document.querySelector('[data-built-in-mcp-server="app-controls"]');
     expect(row).not.toBeNull();
-    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "5 tools" }));
+    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "12 tools" }));
 
     const dialog = screen.getByRole("dialog", { name: "App Controls" });
     expect(within(dialog).getByText("list_schedules")).toBeInTheDocument();
+    expect(within(dialog).getByText("list_schedule_run_inbox")).toBeInTheDocument();
     expect(within(dialog).getByText("delete_schedule")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("switch", { name: "Enable delete_schedule" }));
     expect(onBuiltInToolEnabledChange).toHaveBeenCalledWith(

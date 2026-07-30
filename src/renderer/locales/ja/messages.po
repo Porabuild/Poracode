@@ -288,6 +288,11 @@ msgstr "{agentLabel}:{statusLabel}。マウスを移動するとステータス�
 msgid "{agentLead} needs your input to continue."
 msgstr "{agentLead}が続行するには入力が必要です。"
 
+#. placeholder {0}: task.recurrence.timeZone
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{cadence} in {0}"
+msgstr "{cadence}（{0}）"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# 件のコミット} other {# 件のコミット}}"
@@ -314,6 +319,18 @@ msgstr "{days}日前"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel}には認証が必要です。"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every day} other {Every # days}}"
+msgstr "{every, plural, one {毎日} other {#日ごと}}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every hour} other {Every # hours}}"
+msgstr "{every, plural, one {毎時} other {#時間ごと}}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{every, plural, one {Every minute} other {Every # minutes}}"
+msgstr "{every, plural, one {毎分} other {#分ごと}}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -489,6 +506,10 @@ msgstr "~{money}{tokens}·{0}· 推定。"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "≈{0}% by reset"
 msgstr "≈{0}% (リセットまでに)"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "0 9 * * 1-5"
+msgstr "0 9 * * 1-5"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
@@ -839,6 +860,10 @@ msgstr "AIによるgit操作"
 msgid "AI providers"
 msgstr "AI プロバイダー"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "AI stop condition"
+msgstr "AIによる停止条件"
+
 #: src/mobile/views/MoreView.tsx
 #~ msgid "AI, agents, and archived threads on the paired desktop"
 #~ msgstr "ペアリング済みデスクトップ上の AI、エージェント、アーカイブ済みスレッド"
@@ -850,6 +875,7 @@ msgstr "スレッドが対応を必要としたら通知"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -942,6 +968,10 @@ msgstr "常に除外される"
 msgid "An MCP server with this name already exists."
 msgstr "この名前のMCPサーバーはすでに存在します。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another automation is already using this conversation."
+msgstr "別の自動化がこの会話をすでに使用しています。"
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "別のチャットはこれと同じツリーを使用します。ファイルを復元すると、チャットの変更が上書きされる可能性があります。"
@@ -1013,6 +1043,10 @@ msgstr "すべてをアーカイブする"
 msgid "Archive all threads"
 msgstr "すべてのスレッドをアーカイブ"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Archive finding"
+msgstr "検出結果をアーカイブ"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "現在のスレッドをアーカイブ"
@@ -1026,6 +1060,10 @@ msgstr "スレッドをアーカイブ"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "アーカイブスレッド"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Archived"
+msgstr "アーカイブ済み"
 
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/SettingsView.tsx
@@ -1171,6 +1209,16 @@ msgstr "端末パネルの自動表示"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "コマンドの実行時またはワークツリーの作成時に、端末パネルを自動的に表示します。"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Automation sections"
+msgstr "自動化セクション"
+
+#: src/mobile/settingsSections.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Automations"
+msgstr "自動化"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Availability"
@@ -1458,6 +1506,10 @@ msgstr "ブランチ保護ルールをバイパスする (管理マージ)"
 msgid "Cached only"
 msgstr "キャッシュのみ"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Calculated on desktop after saving"
+msgstr "保存後にデスクトップで計算されます"
+
 #: src/mobile/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "カメラアクセスがブロックされています"
@@ -1512,11 +1564,16 @@ msgstr "ピッカーのキャンセル"
 msgid "Cancel removing project"
 msgstr "プロジェクトの削除をキャンセル"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Cancel run"
+msgstr "実行をキャンセル"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "キャンセルされました"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Cancelled"
 msgstr "キャンセル済み"
 
@@ -1704,6 +1761,10 @@ msgstr "Poracode のインターフェースの表示言語を選択します。
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "接続するスレッドを選択してください"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Choose what happens after a scheduled time was missed."
+msgstr "スケジュール時刻を逃した場合の動作を選択します。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2184,6 +2245,14 @@ msgstr "完了しました"
 msgid "Completed"
 msgstr "完了"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Completion evaluation failed: {detail}"
+msgstr "完了評価に失敗しました: {detail}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Completion evaluation is unavailable."
+msgstr "完了評価を利用できません。"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -2221,6 +2290,14 @@ msgstr "Computer Use が有効です — インタラクティブ操作はデス
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
 #~ msgstr "このスレッドに対してコンピュータ操作が有効になっています"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Confidence"
+msgstr "信頼度"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Confidence percent"
+msgstr "信頼度（パーセント）"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2385,6 +2462,14 @@ msgstr "別のプロバイダーで続行する"
 msgid "Continue in..."
 msgstr "...で続行"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Continue one conversation until a stop condition or limit is reached."
+msgstr "停止条件または上限に達するまで、1つの会話を継続します。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Control how each scheduled run continues and stops."
+msgstr "各スケジュール実行の継続方法と停止方法を設定します。"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
 msgstr "@file メンション検索に表示されるファイルを制御します。プロジェクトごとのオーバーライドは、各プロジェクトの設定に反映されます。"
@@ -2396,6 +2481,7 @@ msgstr "エージェントがクリックや入力をしている間、ペアリ
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Conversation"
 msgstr "会話"
 
@@ -2696,6 +2782,24 @@ msgstr "資格情報が設定されています。"
 msgid "Credits"
 msgstr "クレジット"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Critical"
+msgstr "重大"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Cron"
+msgstr "Cron"
+
+#. placeholder {0}: task.recurrence.expression
+#. placeholder {1}: task.recurrence.timeZone
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Cron {0} in {1}"
+msgstr "Cron {0}（{1}）"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Cron expression"
+msgstr "Cron 式"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market が管理する厳選された無料およびプレミアムスキル。"
@@ -2761,9 +2865,9 @@ msgstr "デイリーブリーフ"
 msgid "Dark"
 msgstr "ダーク"
 
-#: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Days"
-#~ msgstr "曜日"
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Days"
+msgstr "曜日"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Decline"
@@ -2910,6 +3014,10 @@ msgstr "ワークツリー{0}を削除します"
 #~ msgid "Delete:"
 #~ msgstr "削除:"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Deleted schedule"
+msgstr "削除されたスケジュール"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Deleting"
 msgstr "削除中"
@@ -2921,6 +3029,10 @@ msgstr "拒否する"
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Deny and tell the agent what to do differently…"
 msgstr "拒否し、エージェントに別の対処法を伝えます..."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Describe the result that completes this heartbeat."
+msgstr "このハートビートを完了する結果を記述します。"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
@@ -2942,6 +3054,10 @@ msgstr "デスクトップエンドポイント"
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "デスクトップに到達できません。"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Desktop local time"
+msgstr "デスクトップのローカル時刻"
 
 #: src/mobile/chrome.ts
 #: src/mobile/views/MoreView.tsx
@@ -3054,6 +3170,10 @@ msgstr "プロジェクトを無効にする"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Disable Subagents"
 msgstr "サブエージェントを無効にする"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Disable the automation after retries are exhausted."
+msgstr "再試行をすべて使い切った後にオートメーションを無効にします。"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
@@ -3355,6 +3475,10 @@ msgstr "有効なサーバーは新しいスレッドでも有効なままです
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "<0>Cookie</0> と <1>ストレージ</1> を有効にします。Cookie にはセッション トークンが含まれることがあり、ストレージには認証状態が保持されることが多いため、エージェントとエージェントが訪問するサイトの両方を信頼できる場合にのみ有効にしてください。"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+#~ msgid "End the heartbeat after retries are exhausted."
+#~ msgstr "再試行を使い切ったらハートビートを終了します。"
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Endpoint"
@@ -3391,6 +3515,10 @@ msgstr "有効なデスクトップエンドポイントを入力してくださ
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter a valid HTTP or HTTPS URL."
 msgstr "有効なHTTPまたはHTTPSのURLを入力してください。"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Enter a valid schedule"
+msgstr "有効なスケジュールを入力してください"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
@@ -3462,6 +3590,14 @@ msgstr "エラー"
 msgid "Error · Agent encountered an error"
 msgstr "エラー · エージェントでエラーが発生しました"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Evaluate the result after every iteration."
+msgstr "各反復の後に結果を評価します。"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Every"
+msgstr "間隔"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
 msgstr "毎日{time}"
@@ -3483,6 +3619,14 @@ msgstr "毎時{0}分"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "パターンを除外する"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Execution"
+msgstr "実行"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Execution mode"
+msgstr "実行モード"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
@@ -3532,6 +3676,10 @@ msgstr "展開してアクセスを確認または取り消します。"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Todo ドックを展開する"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Exponential backoff"
+msgstr "指数バックオフ"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
@@ -3715,6 +3863,10 @@ msgstr "差分内を検索"
 msgid "Find in terminal"
 msgstr "ターミナル内を検索"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Finding status"
+msgstr "検出結果の状態"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "レビューを完了する"
@@ -3775,6 +3927,10 @@ msgstr "エージェントで修正する"
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
 msgstr "修正"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Fixed delay"
+msgstr "固定遅延"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -4096,6 +4252,26 @@ msgstr "未送信の下書きがあります"
 msgid "Headers"
 msgstr "ヘッダー"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeat"
+msgstr "ハートビート"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Heartbeat automations require a native chat conversation."
+msgstr "ハートビートの自動化にはネイティブチャットの会話が必要です。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeat continues this conversation in the selected project."
+msgstr "ハートビートは選択したプロジェクトでこの会話を継続します。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Heartbeat execution is unavailable."
+msgstr "ハートビートを実行できません。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeats can continue making changes while you're away. Set hard limits below."
+msgstr "離席中もハートビートが変更を続ける場合があります。以下で厳格な上限を設定してください。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "スケジュール作成を手伝ってください。不足している詳細を確認し、Poracodeのスケジュール操作を使って作成してください。"
@@ -4196,6 +4372,10 @@ msgstr "host.com、エイリアス、または user@host.com"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hourly"
 msgstr "毎時"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Hours"
+msgstr "時間"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
@@ -4327,6 +4507,14 @@ msgstr "アプリ内のカメラスキャンは HTTPS でのみ動作します�
 msgid "Inactive"
 msgstr "非アクティブ"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Includes the first attempt."
+msgstr "最初の試行を含みます。"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Info"
+msgstr "情報"
+
 #. Badge on an exclude pattern inherited from a lower scope
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "inherited"
@@ -4336,6 +4524,14 @@ msgstr "継承された"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "グローバル設定 (現在{0}) を継承します。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Initial retry delay"
+msgstr "初回の再試行遅延"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Initial retry delay in seconds"
+msgstr "初回の再試行遅延（秒）"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
@@ -4475,6 +4671,18 @@ msgstr "中断"
 msgid "Interrupted: agent session ended before completion."
 msgstr "中断されました: エージェントセッションが完了前に終了しました。"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval"
+msgstr "間隔"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval amount"
+msgstr "間隔の値"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval unit"
+msgstr "間隔の単位"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "イタリック体"
@@ -4559,6 +4767,14 @@ msgstr "起動中…"
 msgid "Leave a comment"
 msgstr "コメントを残す"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Leave blank for no run limit."
+msgstr "実行回数を制限しない場合は空欄にします。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+#~ msgid "Leave blank to rely on the time limit."
+#~ msgstr "空欄にすると時間制限のみが適用されます。"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "少ない"
@@ -4638,6 +4854,10 @@ msgstr "エディターを読み込み中…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "ファイルをロード中…"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Loading findings"
+msgstr "検出結果を読み込み中"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
@@ -4863,6 +5083,14 @@ msgstr "完了としてマークする"
 msgid "Mark as not done"
 msgstr "未完了としてマークする"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Mark as read"
+msgstr "既読にする"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Mark as unread"
+msgstr "未読にする"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Mark done"
 msgstr "完了マークを付ける"
@@ -4902,6 +5130,22 @@ msgstr "最大化する"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "ブラウザを最大化する"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum attempts"
+msgstr "最大試行回数"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum iterations"
+msgstr "最大反復回数"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum retry delay"
+msgstr "最大再試行遅延"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum retry delay in seconds"
+msgstr "最大再試行遅延（秒）"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "MCP Market"
@@ -5108,6 +5352,18 @@ msgstr "パネルに最小化する"
 msgid "Minute"
 msgstr "分"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minute, hour, day of month, month, and weekday."
+msgstr "分、時、日、月、曜日。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "minutes"
+msgstr "分"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minutes"
+msgstr "分"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirrored desktop browser tab"
 msgstr "ミラーされたデスクトップブラウザタブ"
@@ -5115,6 +5371,10 @@ msgstr "ミラーされたデスクトップブラウザタブ"
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirroring is unavailable."
 msgstr "ミラーリングは利用できません。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Missed runs"
+msgstr "実行できなかった回"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Mobile push notifications"
@@ -5467,6 +5727,10 @@ msgstr "次の一致"
 msgid "Next recently viewed chat"
 msgstr "次の最近表示したチャット"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Next run"
+msgstr "次回の実行"
+
 #. placeholder {0}: dateTimeFormatter.format(new Date(task.nextRunAt))
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Next run {0}"
@@ -5511,6 +5775,10 @@ msgstr "エージェントがインストールされていません。"
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "AIによるコミット、PR、競合解決はまだ記録されていません。"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No archived findings."
+msgstr "アーカイブ済みの検出結果はありません。"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
@@ -5608,6 +5876,10 @@ msgstr "{0}に利用できる差分はありません"
 msgid "No diff for {visiblePath}"
 msgstr "{visiblePath}の差分はありません"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No eligible conversations in this project."
+msgstr "このプロジェクトには対象となる会話がありません。"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "No external skills were found in this scope."
 msgstr "このスコープには外部スキルが見つかりませんでした。"
@@ -5623,6 +5895,10 @@ msgstr "このメッセージにはファイル チェックポイントは保�
 msgid "No files match \"{0}\"."
 msgstr "「{0}」に一致するファイルはありません。"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No findings yet."
+msgstr "検出結果はまだありません。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
 msgstr "GitHub CLI アカウントが見つかりません。 <0>gh auth login</0>でサインインするか、<1>クローン URL を貼り付け</1>ます。"
@@ -5634,6 +5910,10 @@ msgstr "履歴はまだありません"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
 msgstr "Lightcode データが見つかりませんでした。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No limit"
+msgstr "制限なし"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
@@ -5650,6 +5930,10 @@ msgstr "一致はありません。"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "No matching agents."
 msgstr "一致するエージェントはありません。"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No matching findings."
+msgstr "一致する検出結果はありません。"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "No matching pull requests."
@@ -5760,6 +6044,10 @@ msgstr "リポジトリが見つかりません。"
 msgid "No results"
 msgstr "結果なし"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No retries"
+msgstr "再試行なし"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "No runs yet."
 msgstr "まだ実行はありません。"
@@ -5796,6 +6084,10 @@ msgstr "音声が検出されませんでした。"
 msgid "No staged changes"
 msgstr "ステージされた変更はありません"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No summary was provided."
+msgstr "概要はありません。"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 msgstr "このリモートマシンには対応エージェントがインストールされていません。スレッドを開始する前に、リモートでエージェントをインストールしてサインインしてください。"
@@ -5824,6 +6116,10 @@ msgstr "まだスレッドはありません"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "まだスレッドがありません。"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "No upcoming run"
+msgstr "今後の実行はありません"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -6039,6 +6335,11 @@ msgstr "GitHub でコミットを開く"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Open conflict resolver in"
 msgstr "競合リゾルバーを開く"
+
+#. placeholder {0}: props.scheduleName
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Open conversation for {0}"
+msgstr "{0} の会話を開く"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
@@ -6675,6 +6976,10 @@ msgstr "プロジェクトフォルダーを更新しました。このプロジ
 msgid "Project name"
 msgstr "プロジェクト名"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Project no longer exists."
+msgstr "プロジェクトは存在しません。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "プロジェクトノート"
@@ -7273,6 +7578,10 @@ msgstr "リクエストの詳細"
 msgid "requested changes"
 msgstr "要求された変更"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Required confidence before stopping."
+msgstr "停止に必要な信頼度です。"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
@@ -7344,6 +7653,10 @@ msgstr "ブラウザを復元する"
 msgid "Restore default worktree base folder"
 msgstr "デフォルトのワークツリーのベースフォルダーに戻す"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Restore finding"
+msgstr "検出結果を復元"
+
 #: src/mobile/settingsSections.ts
 msgid "Restore or delete"
 msgstr "復元または削除"
@@ -7374,9 +7687,25 @@ msgstr "{serverName} の確認を再試行"
 msgid "Retry check"
 msgstr "確認を再試行"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry delay"
+msgstr "再試行遅延"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry delay in seconds"
+msgstr "再試行遅延（秒）"
+
 #: src/mobile/components.tsx
 msgid "Retry now"
 msgstr "今すぐ再試行"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry policy"
+msgstr "再試行ポリシー"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry when a run fails before it completes."
+msgstr "完了前に実行が失敗した場合に再試行します。"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
@@ -7533,17 +7862,25 @@ msgstr "利用可能な場合は、GPU 上でローカル トランスクリプ�
 msgid "Run now"
 msgstr "今すぐ実行"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run once after reopening"
+msgstr "再度開いた後に1回実行"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Run standalone tasks on this device without a project."
 #~ msgstr "プロジェクトなしで、このデバイス上の独立したタスクを実行します。"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
-msgstr "このデバイスで単独タスクを実行します。スケジュールはデバイスが起動し、Poracodeが開いている間に実行されます。"
+#~ msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
+#~ msgstr "このデバイスで単独タスクを実行します。スケジュールはデバイスが起動し、Poracodeが開いている間に実行されます。"
 
 #: src/renderer/commands/registry.ts
 msgid "Run Terminal Command"
 msgstr "ターミナルコマンドを実行する"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run the latest missed run"
+msgstr "実行できなかった最新の回を実行"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Run this schedule automatically at the times above."
@@ -7560,6 +7897,7 @@ msgstr "実行中"
 
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Running"
 msgstr "実行中"
 
@@ -7582,6 +7920,10 @@ msgstr "早めになくなります"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Runs out in {runOut}"
 msgstr "あと{runOut}でなくなります"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Runs that need attention will appear here."
+msgstr "対応が必要な実行がここに表示されます。"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -7659,6 +8001,10 @@ msgstr "Windows と WSL をスキャンして、インストールされてい�
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "システムをスキャンして、インストールされている CLI を探します。通常、これには数秒かかります。"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule autonomous work and review results that need your attention. Automations run while this device is awake and Poracode is open."
+msgstr "自律作業をスケジュールし、対応が必要な結果を確認します。自動化は、このデバイスが起動中で Poracode が開いている間に実行されます。"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "スケジュール名"
@@ -7667,20 +8013,31 @@ msgstr "スケジュール名"
 msgid "Schedule status"
 msgstr "スケジュールの状態"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scheduled retry was cancelled."
+msgstr "スケジュールされた再試行はキャンセルされました。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scheduled task was deleted before retrying."
+msgstr "再試行前にスケジュールタスクが削除されました。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-msgid "Scheduled tasks"
-msgstr "スケジュールタスク"
+#~ msgid "Scheduled tasks"
+#~ msgstr "スケジュールタスク"
 
 #: src/mobile/settingsSections.ts
-msgid "Scheduled tasks on this desktop"
-msgstr "このデスクトップのスケジュールタスク"
+#~ msgid "Scheduled tasks on this desktop"
+#~ msgstr "このデスクトップのスケジュールタスク"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
 #~ msgstr "スケジュールタスクは、このデバイスが起動中でPoracodeが開いている間のみ実行されます。"
 
 #: src/mobile/settingsSections.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Scheduled work and triage on this desktop"
+msgstr "このデスクトップのスケジュール作業とトリアージ"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Schedules"
 msgstr "スケジュール"
 
@@ -7734,6 +8091,10 @@ msgstr "ブランチを検索..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "ファイルの検索"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Search findings"
+msgstr "検出結果を検索"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Search marketplace skills"
@@ -7828,6 +8189,10 @@ msgstr "検索中..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
 msgstr "検索中…"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "seconds"
+msgstr "秒"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
@@ -8219,6 +8584,10 @@ msgstr "{env}からサインアウトします。検出されたエージェン�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "サインアウトしています。検出されたエージェントは終了時に更新されます。"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Single pass"
+msgstr "1回のみ実行"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
@@ -8283,7 +8652,12 @@ msgstr "スキルマーケットプレイス"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Skip missed runs"
+msgstr "実行できなかった回をスキップ"
+
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Skipped"
 msgstr "スキップ済み"
 
@@ -8421,6 +8795,10 @@ msgstr "使用状況を見るには{appName}を起動してください"
 #: src/mobile/views/PortsView.tsx
 msgid "Start a dev server on your desktop, then tap refresh."
 msgstr "デスクトップで開発サーバーを起動し、更新をタップしてください。"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Start a new conversation for each run."
+msgstr "実行ごとに新しい会話を開始します。"
 
 #: src/renderer/commands/registry.ts
 msgid "Start a new thread as panel instead of page"
@@ -8560,6 +8938,10 @@ msgstr "停止"
 msgid "Stop forwarding"
 msgstr "転送を停止"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop on error"
+msgstr "エラー時に停止"
+
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Stop response"
 msgstr "応答停止"
@@ -8572,9 +8954,17 @@ msgstr "タスクの停止"
 msgid "Stop the project's running threads before changing its folder."
 msgstr "フォルダーを変更する前に、プロジェクトの実行中のスレッドを停止してください。"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop the run when this total time is reached."
+msgstr "合計時間がこの値に達したら実行を停止します。"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "音声入力を停止する"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop when"
+msgstr "停止条件"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -8920,6 +9310,22 @@ msgstr "エージェント"
 msgid "the app"
 msgstr "アプリ"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation conversation exited before the turn completed."
+msgstr "自動化の会話はターンの完了前に終了しました。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation exceeded its time limit."
+msgstr "自動化が時間制限を超えました。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation needs a reply before it can continue."
+msgstr "自動化を続行するには返信が必要です。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation needs approval before it can continue."
+msgstr "自動化を続行するには承認が必要です。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "選択したフォルダー"
@@ -8933,10 +9339,38 @@ msgstr "既定のバックグラウンド更新間隔です。下で独自の間
 msgid "The desktop server is still coming online."
 msgstr "デスクトップサーバーはまだ起動中です。"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "The finding is no longer available."
+msgstr "検出結果は利用できなくなりました。"
+
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "{0} のグローバル WSL スコープ"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation belongs to a different project."
+msgstr "ハートビートの会話は別のプロジェクトに属しています。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation cannot be resumed."
+msgstr "ハートビートの会話を再開できません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation is archived."
+msgstr "ハートビートの会話はアーカイブされています。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation is currently busy."
+msgstr "ハートビートの会話は現在使用中です。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation no longer exists."
+msgstr "ハートビートの会話は存在しません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation uses a different agent."
+msgstr "ハートビートの会話では別のエージェントが使用されています。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -8969,6 +9403,14 @@ msgstr "リモートサーバーからペアリング資格情報が返されま
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "ディスク上のリポジトリの場所。フォルダーを移動した場合は更新してください。"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "The run could not be cancelled."
+msgstr "実行をキャンセルできませんでした。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The scheduled automation failed."
+msgstr "スケジュールされた自動化に失敗しました。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "The selected file does not contain valid MCP server configurations."
@@ -9225,6 +9667,18 @@ msgstr "完了とマークされ、この日数タッチされていないスレ
 msgid "Time"
 msgstr "時刻"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Time limit"
+msgstr "時間制限"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Time limit in minutes"
+msgstr "時間制限（分）"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Time zone"
+msgstr "タイムゾーン"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
 msgstr "タイムアウト（ms）"
@@ -9353,6 +9807,10 @@ msgstr "半透明のサイドバー"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "現在のトレンド"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Triage"
+msgstr "トリアージ"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -9596,6 +10054,10 @@ msgstr "未割り当て"
 msgid "Unavailable"
 msgstr "利用不可"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Unavailable conversation"
+msgstr "利用できない会話"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "利用できないプロジェクト"
@@ -9673,6 +10135,10 @@ msgstr "フェーズなし:"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unpin"
 msgstr "固定を解除する"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Unread"
+msgstr "未読"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -10000,6 +10466,12 @@ msgstr "{methodName}認証を待機しています。検出されたエージェ
 msgid "waiting for agent to stop"
 msgstr "エージェントが停止するのを待っています"
 
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Waiting for approval"
+msgstr "承認待ち"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"
 msgstr "ワークフローがエージェントを生成するのを待っています…"
@@ -10031,6 +10503,10 @@ msgstr "シェル環境をウォームアップしています..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "WSL シェル環境をウォームアップしています…"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Warning"
+msgstr "警告"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -10323,6 +10799,10 @@ msgstr "WSL ベースフォルダー"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "WSL user"
 #~ msgstr "WSL ユーザー"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "You’re all caught up."
+msgstr "すべて確認済みです。"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

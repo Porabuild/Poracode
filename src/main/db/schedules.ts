@@ -1,4 +1,6 @@
 import {
+  resolveScheduleAutomation,
+  scheduleAutomationSchema,
   scheduledTaskConfigSchema,
   scheduledTaskSchema,
   scheduleRecurrenceSchema,
@@ -13,6 +15,7 @@ interface ScheduledTaskRow {
   agent_kind: string;
   config: string;
   recurrence: string;
+  automation: string | null;
   enabled: number;
   project_id: string | null;
   next_run_at: string | null;
@@ -21,6 +24,7 @@ interface ScheduledTaskRow {
   last_status: string;
   last_result: string | null;
   last_error: string | null;
+  iteration_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +37,9 @@ function fromRow(row: ScheduledTaskRow): ScheduledTask {
     agentKind: row.agent_kind,
     config: scheduledTaskConfigSchema.parse(JSON.parse(row.config)),
     recurrence: scheduleRecurrenceSchema.parse(JSON.parse(row.recurrence)),
+    automation: row.automation
+      ? scheduleAutomationSchema.parse(JSON.parse(row.automation))
+      : resolveScheduleAutomation(undefined),
     enabled: row.enabled === 1,
     projectId: row.project_id,
     nextRunAt: row.next_run_at,
@@ -41,6 +48,7 @@ function fromRow(row: ScheduledTaskRow): ScheduledTask {
     lastStatus: row.last_status,
     lastResult: row.last_result,
     lastError: row.last_error,
+    iterationCount: row.iteration_count ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -62,19 +70,21 @@ export function dbGetSchedule(id: string): ScheduledTask | null {
 
 export function dbUpsertSchedule(task: ScheduledTask): void {
   const parsed = scheduledTaskSchema.parse(task);
+  const automation = resolveScheduleAutomation(parsed.automation);
   getSqlite()
     .prepare(
       `INSERT INTO scheduled_tasks (
-        id, name, prompt, agent_kind, config, recurrence, enabled, project_id,
+        id, name, prompt, agent_kind, config, recurrence, automation, enabled, project_id,
         next_run_at, last_run_at, last_completed_at, last_status,
-        last_result, last_error, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        last_result, last_error, iteration_count, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         prompt = excluded.prompt,
         agent_kind = excluded.agent_kind,
         config = excluded.config,
         recurrence = excluded.recurrence,
+        automation = excluded.automation,
         enabled = excluded.enabled,
         project_id = excluded.project_id,
         next_run_at = excluded.next_run_at,
@@ -83,6 +93,7 @@ export function dbUpsertSchedule(task: ScheduledTask): void {
         last_status = excluded.last_status,
         last_result = excluded.last_result,
         last_error = excluded.last_error,
+        iteration_count = excluded.iteration_count,
         updated_at = excluded.updated_at`,
     )
     .run(
@@ -92,6 +103,7 @@ export function dbUpsertSchedule(task: ScheduledTask): void {
       parsed.agentKind,
       JSON.stringify(parsed.config),
       JSON.stringify(parsed.recurrence),
+      JSON.stringify(automation),
       parsed.enabled ? 1 : 0,
       parsed.projectId ?? null,
       parsed.nextRunAt,
@@ -100,6 +112,7 @@ export function dbUpsertSchedule(task: ScheduledTask): void {
       parsed.lastStatus,
       parsed.lastResult,
       parsed.lastError,
+      parsed.iterationCount ?? 0,
       parsed.createdAt,
       parsed.updatedAt,
     );

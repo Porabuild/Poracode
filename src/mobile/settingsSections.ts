@@ -24,7 +24,7 @@ export const MOBILE_SETTINGS_SECTION_LABELS: Record<MobileSettingsSectionId, Mes
   general: msg`General`,
   appearance: msg`Appearance`,
   notifications: msg`Notifications`,
-  schedules: msg`Schedules`,
+  schedules: msg`Automations`,
   terminal: msg`Terminal`,
   git: msg`Git`,
   usage: msg`Usage`,
@@ -100,7 +100,7 @@ export const DESKTOP_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
   {
     id: "schedules",
     label: MOBILE_SETTINGS_SECTION_LABELS.schedules,
-    hint: msg`Scheduled tasks on this desktop`,
+    hint: msg`Scheduled work and triage on this desktop`,
     icon: CalendarClock,
   },
   {

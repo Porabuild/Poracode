@@ -26,20 +26,66 @@ const run: ScheduledTaskRun = {
   id: "6f3b1a2c-1111-4d5e-8a9b-0c1d2e3f4a5b",
   scheduleId: task.id,
   threadId: "aa11bb22-cc33-4d44-9e55-6f77aa88bb99",
+  scheduledFor: "2026-07-10T09:00:00.000Z",
+  trigger: "scheduled",
+  attempt: 1,
+  iteration: 1,
   startedAt: "2026-07-10T09:00:00.000Z",
   completedAt: "2026-07-10T09:01:00.000Z",
   status: "succeeded",
   summary: "Reviewed priorities for today.",
   error: null,
+  result: {
+    outcome: "findings",
+    summary: "Reviewed priorities for today.",
+    severity: "warning",
+    unread: true,
+    archivedAt: null,
+    changedFiles: [],
+    stopReason: null,
+  },
+  automationSnapshot: {
+    version: 1,
+    mode: { kind: "new-thread" },
+    maxRuntimeSeconds: 3_600,
+    maxIterations: null,
+    stopOnError: false,
+    misfirePolicy: "coalesce",
+    retryPolicy: { kind: "none" },
+    completionPolicy: { kind: "none" },
+  },
 };
 
 const bridge = vi.hoisted(() => ({
   getSchedules: vi.fn<() => Promise<ScheduledTask[]>>(),
+  getAutomationsSnapshot: vi.fn<
+    (input: { filter: "unread" | "all" | "archived"; limit?: number }) => Promise<{
+      schedules: ScheduledTask[];
+      runs: ScheduledTaskRun[];
+      unreadCount: number;
+    }>
+  >(),
   createSchedule: vi.fn<(input: unknown) => Promise<ScheduledTask>>(),
   updateSchedule: vi.fn<(input: { id: string; task: unknown }) => Promise<ScheduledTask>>(),
   deleteSchedule: vi.fn<() => Promise<void>>(),
   runScheduleNow: vi.fn<() => Promise<ScheduledTask>>(),
   getScheduleRuns: vi.fn<(input: { id: string }) => Promise<ScheduledTaskRun[]>>(),
+  getScheduleRunInbox:
+    vi.fn<
+      (input: {
+        filter: "unread" | "all" | "archived";
+        limit?: number;
+      }) => Promise<ScheduledTaskRun[]>
+    >(),
+  updateScheduleRunState:
+    vi.fn<
+      (input: {
+        id: string;
+        unread?: boolean;
+        archived?: boolean;
+      }) => Promise<ScheduledTaskRun | null>
+    >(),
+  cancelScheduleRun: vi.fn<(input: { id: string }) => Promise<boolean>>(),
 }));
 
 const agentCreation = vi.hoisted(() => ({
@@ -121,6 +167,7 @@ vi.mock("@/renderer/state/appStore", () => {
 });
 
 import { SchedulesView } from "./SchedulesView";
+import { deviceTimeZone } from "./scheduleDraft";
 
 describe("SchedulesView", () => {
   beforeEach(() => {
@@ -133,6 +180,29 @@ describe("SchedulesView", () => {
     bridge.deleteSchedule.mockReset().mockResolvedValue(undefined);
     bridge.runScheduleNow.mockReset().mockResolvedValue({ ...task, lastStatus: "running" });
     bridge.getScheduleRuns.mockReset().mockResolvedValue([run]);
+    bridge.getScheduleRunInbox.mockReset().mockResolvedValue([run]);
+    bridge.getAutomationsSnapshot.mockReset().mockImplementation(async (input) => {
+      const schedules = await bridge.getSchedules();
+      const runs = await bridge.getScheduleRunInbox(input);
+      const unreadRuns =
+        input.filter === "unread"
+          ? runs
+          : await bridge.getScheduleRunInbox({ filter: "unread", limit: 100 });
+      return { schedules, runs, unreadCount: unreadRuns.length };
+    });
+    bridge.updateScheduleRunState.mockReset().mockImplementation(async (input) => ({
+      ...run,
+      result: run.result
+        ? {
+            ...run.result,
+            ...(input.unread !== undefined ? { unread: input.unread } : {}),
+            ...(input.archived !== undefined
+              ? { archivedAt: input.archived ? "2026-07-10T10:00:00.000Z" : null }
+              : {}),
+          }
+        : null,
+    }));
+    bridge.cancelScheduleRun.mockReset().mockResolvedValue(true);
     agentCreation.ensureHomeScopeProject.mockReset().mockResolvedValue({ id: "home" });
     agentCreation.setComposerSeed.mockReset();
     agentCreation.openDraft.mockReset();
@@ -163,6 +233,46 @@ describe("SchedulesView", () => {
         task: expect.objectContaining({ enabled: false, prompt: task.prompt }),
       }),
     );
+  });
+
+  it("uses an explicit time zone when a legacy local schedule changes to cron", async () => {
+    render(<SchedulesView />);
+
+    await screen.findByText("Daily brief");
+    fireEvent.click(screen.getByRole("button", { name: "Edit schedule" }));
+    fireEvent.click(await screen.findByLabelText("Repeat"));
+    fireEvent.click(await screen.findByRole("option", { name: "Cron" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(bridge.updateSchedule).toHaveBeenCalledTimes(1));
+    expect(bridge.updateSchedule.mock.calls[0]?.[0]).toEqual({
+      id: task.id,
+      task: expect.objectContaining({
+        recurrence: {
+          kind: "cron",
+          expression: "0 9 * * 1-5",
+          timeZone: deviceTimeZone(),
+        },
+      }),
+    });
+  });
+
+  it("preserves legacy local time when cron selection is toggled back", async () => {
+    render(<SchedulesView />);
+
+    await screen.findByText("Daily brief");
+    fireEvent.click(screen.getByRole("button", { name: "Edit schedule" }));
+    fireEvent.click(await screen.findByLabelText("Repeat"));
+    fireEvent.click(await screen.findByRole("option", { name: "Cron" }));
+    fireEvent.click(screen.getByLabelText("Repeat"));
+    fireEvent.click(await screen.findByRole("option", { name: "Weekdays" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(bridge.updateSchedule).toHaveBeenCalledTimes(1));
+    expect(bridge.updateSchedule.mock.calls[0]?.[0]).toEqual({
+      id: task.id,
+      task: expect.objectContaining({ recurrence: task.recurrence }),
+    });
   });
 
   it("creates a Home-scoped schedule from the shared editor", async () => {
@@ -201,7 +311,12 @@ describe("SchedulesView", () => {
     expect(bridge.createSchedule.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         name: "Daily brief",
-        recurrence: { kind: "weekly", days: [1, 2, 3, 4, 5], time: "08:00" },
+        recurrence: {
+          kind: "weekly",
+          days: [1, 2, 3, 4, 5],
+          time: "08:00",
+          timeZone: deviceTimeZone(),
+        },
       }),
     );
   });
@@ -264,7 +379,90 @@ describe("SchedulesView", () => {
     // duplicates the schedule name.
     expect(await screen.findByLabelText("Succeeded")).toBeInTheDocument();
     expect(screen.getByText("Fable 5 · High")).toBeInTheDocument();
+    expect(screen.getByText("Reviewed priorities for today.")).toBeInTheDocument();
     expect(screen.queryByText("Daily brief run thread")).not.toBeInTheDocument();
+  });
+
+  it("shows unread findings in triage and marks one read before opening its conversation", async () => {
+    bridge.getScheduleRunInbox
+      .mockResolvedValueOnce([run])
+      .mockResolvedValueOnce([run])
+      .mockResolvedValueOnce([]);
+    render(<SchedulesView />);
+
+    const triageTab = await screen.findByRole("tab", { name: /Triage/ });
+    expect(triageTab).toHaveTextContent("1");
+    fireEvent.click(triageTab);
+
+    expect(await screen.findByText("Reviewed priorities for today.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: `Open conversation for ${task.name}` }));
+
+    await waitFor(() =>
+      expect(bridge.updateScheduleRunState).toHaveBeenCalledWith({ id: run.id, unread: false }),
+    );
+    expect(nav.openThread).toHaveBeenCalledWith(run.threadId);
+  });
+
+  it("archives a triage finding", async () => {
+    render(<SchedulesView />);
+    fireEvent.click(await screen.findByRole("tab", { name: /Triage/ }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Archive finding" }));
+
+    await waitFor(() =>
+      expect(bridge.updateScheduleRunState).toHaveBeenCalledWith({
+        id: run.id,
+        archived: true,
+      }),
+    );
+  });
+
+  it("restores an archived triage finding", async () => {
+    const archivedRun: ScheduledTaskRun = {
+      ...run,
+      result: {
+        ...run.result!,
+        unread: false,
+        archivedAt: "2026-07-10T10:00:00.000Z",
+      },
+    };
+    bridge.getScheduleRunInbox.mockImplementation(async ({ filter }) =>
+      filter === "archived" ? [archivedRun] : [run],
+    );
+    render(<SchedulesView />);
+    fireEvent.click(await screen.findByRole("tab", { name: /Triage/ }));
+    fireEvent.click(await screen.findByRole("tab", { name: "Archived" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Restore finding" }));
+
+    await waitFor(() =>
+      expect(bridge.updateScheduleRunState).toHaveBeenCalledWith({
+        id: run.id,
+        archived: false,
+      }),
+    );
+  });
+
+  it("cancels an active run from triage", async () => {
+    const runningTask: ScheduledTask = { ...task, lastStatus: "running" };
+    const runningRun: ScheduledTaskRun = {
+      ...run,
+      completedAt: null,
+      status: "running",
+      summary: null,
+      result: null,
+    };
+    bridge.getSchedules.mockResolvedValue([runningTask]);
+    bridge.getScheduleRunInbox.mockImplementation(async ({ filter }) =>
+      filter === "all" ? [runningRun] : [],
+    );
+    render(<SchedulesView />);
+    fireEvent.click(await screen.findByRole("tab", { name: /Triage/ }));
+    fireEvent.click(await screen.findByRole("tab", { name: "All" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel run" }));
+
+    await waitFor(() => expect(bridge.cancelScheduleRun).toHaveBeenCalledWith({ id: run.id }));
   });
 
   it("shows an empty state when a schedule has no runs", async () => {

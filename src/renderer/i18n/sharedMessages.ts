@@ -59,6 +59,51 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "supervisor.restarted": msg({ message: "Background process restarted" }),
   "supervisor.exited": msg({ message: "Background process exited unexpectedly" }),
   "supervisor.notRunning": msg({ message: "Background process is not running" }),
+  "automation.run.exited": msg({
+    message: "The automation conversation exited before the turn completed.",
+  }),
+  "automation.run.replyRequired": msg({
+    message: "The automation needs a reply before it can continue.",
+  }),
+  "automation.run.approvalRequired": msg({
+    message: "The automation needs approval before it can continue.",
+  }),
+  "automation.run.failed": msg({ message: "The scheduled automation failed." }),
+  "automation.run.targetInUse": msg({
+    message: "Another automation is already using this conversation.",
+  }),
+  "automation.run.timeLimit": msg({ message: "The automation exceeded its time limit." }),
+  "automation.run.completionUnavailable": msg({
+    message: "Completion evaluation is unavailable.",
+  }),
+  "automation.run.completionFailed": msg({
+    message: "Completion evaluation failed: {detail}",
+  }),
+  "automation.run.projectMissing": msg({ message: "Project no longer exists." }),
+  "automation.heartbeat.missing": msg({
+    message: "The heartbeat conversation no longer exists.",
+  }),
+  "automation.heartbeat.archived": msg({
+    message: "The heartbeat conversation is archived.",
+  }),
+  "automation.heartbeat.nativeChatRequired": msg({
+    message: "Heartbeat automations require a native chat conversation.",
+  }),
+  "automation.heartbeat.differentProject": msg({
+    message: "The heartbeat conversation belongs to a different project.",
+  }),
+  "automation.heartbeat.differentAgent": msg({
+    message: "The heartbeat conversation uses a different agent.",
+  }),
+  "automation.heartbeat.busy": msg({
+    message: "The heartbeat conversation is currently busy.",
+  }),
+  "automation.heartbeat.unavailable": msg({ message: "Heartbeat execution is unavailable." }),
+  "automation.heartbeat.cannotResume": msg({
+    message: "The heartbeat conversation cannot be resumed.",
+  }),
+  "automation.retry.cancelled": msg({ message: "Scheduled retry was cancelled." }),
+  "automation.retry.taskDeleted": msg({ message: "Scheduled task was deleted before retrying." }),
   "update.error": msg({ message: "Update error: {detail}" }),
 };
 

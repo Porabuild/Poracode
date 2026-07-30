@@ -976,14 +976,14 @@ async function schedulesScenario(client) {
       client,
       `(() => {
         const button = [...document.querySelectorAll('button, [role="button"]')].find(
-          (candidate) => candidate.getAttribute("aria-label") === "Schedules" || candidate.textContent?.trim() === "Schedules",
+          (candidate) => candidate.getAttribute("aria-label") === "Automations" || candidate.textContent?.trim() === "Automations",
         );
         if (!(button instanceof HTMLElement)) return false;
         button.click();
         return true;
       })()`,
     );
-    assert(opened, "Schedules was not available in the main sidebar");
+    assert(opened, "Automations was not available in the main sidebar");
     const rendered = await waitForValue(
       () =>
         evaluate(

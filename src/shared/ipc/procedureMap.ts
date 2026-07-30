@@ -168,11 +168,15 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "copyShareImage",
   "appendUsageEvents",
   "getSchedules",
+  "getAutomationsSnapshot",
   "createSchedule",
   "updateSchedule",
   "deleteSchedule",
   "runScheduleNow",
   "getScheduleRuns",
+  "getScheduleRunInbox",
+  "updateScheduleRunState",
+  "cancelScheduleRun",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

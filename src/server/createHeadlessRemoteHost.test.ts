@@ -38,7 +38,8 @@ vi.mock("@/main/db", () => ({
   ),
   dbGetThreads: vi.fn<() => unknown[]>(() => []),
   dbGetThread: vi.fn<() => unknown>(() => null),
-  dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
+  dbGetThreadRuntimeItemCursor: vi.fn<() => number>(() => -1),
+  dbGetThreadRuntimeItemsAfter: vi.fn<() => unknown[]>(() => []),
   dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
   dbGetThreadContextUsage: vi.fn<() => unknown>(() => null),
   dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
@@ -58,6 +59,8 @@ vi.mock("@/main/db", () => ({
   dbInsertScheduleRun: vi.fn<() => void>(),
   dbUpdateScheduleRun: vi.fn<() => void>(),
   dbListScheduleRuns: vi.fn<() => unknown[]>(() => []),
+  dbListScheduleRunInbox: vi.fn<() => unknown[]>(() => []),
+  dbUpdateScheduleRunState: vi.fn<() => unknown>(() => null),
   dbDeleteScheduleRuns: vi.fn<() => void>(),
   dbInterruptScheduleRuns: vi.fn<() => void>(),
 }));

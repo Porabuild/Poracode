@@ -4,11 +4,16 @@ import {
   dbGetProject,
   dbGetProjects,
   dbGetThread,
+  dbGetThreadRuntimeItemCursor,
+  dbGetThreadRuntimeItemsAfter,
   dbGetThreads,
   dbInsertScheduleRun,
   dbInterruptScheduleRuns,
+  dbListScheduleRunInbox,
+  dbListScheduleRuns,
   dbMarkLiveThreadsInactive,
   dbUpdateScheduleRun,
+  dbUpdateScheduleRunState,
   dbUpsertThread,
   initDatabase,
 } from "@/main/db";
@@ -189,11 +194,12 @@ export async function createHeadlessRemoteHost(
     ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
     onEvent: (event) => {
       options.onSupervisorEvent?.(event);
-      scheduleRunCoordinator?.observeSupervisorEvent(event);
       serverRef?.publishSupervisorEvent(event);
+      scheduleRunCoordinator?.observeSupervisorEvent(event);
       pushCoordinator.handleSupervisorEvent(event);
     },
     onReset: () => {
+      scheduleRunCoordinator?.handleSupervisorReset();
       // Supervisor restarted/exited: in-flight requests are already rejected by
       // the client. Connected remote clients self-heal on their next request or
       // WebSocket reconnect (the replay window covers transient drops).
@@ -201,12 +207,18 @@ export async function createHeadlessRemoteHost(
   });
   const scheduleCoordinator = new ScheduleRunCoordinator({
     startThread: (payload) => supervisorClient.call("startThread", payload),
+    sendThreadInput: (payload) => supervisorClient.call("sendThreadInput", payload),
+    interruptThread: (threadId) => supervisorClient.call("interruptThread", { threadId }),
+    evaluateCompletion: (payload) => supervisorClient.call("evaluateScheduleCompletion", payload),
     getAgentStatuses: (wslDistros) => supervisorClient.call("getAgentStatuses", { wslDistros }),
     // Headless has no desktop renderer to mirror to; the DB thread row (written
     // below) is the source of truth and connected remote clients pick it up.
     sendThreadCommand: () => false,
     ensureHomeProject: ensureHomeProjectRow,
     getProject: dbGetProject,
+    getThread: dbGetThread,
+    getThreadRuntimeItemCursor: dbGetThreadRuntimeItemCursor,
+    getThreadRuntimeItemsAfter: dbGetThreadRuntimeItemsAfter,
     getSharedSettings,
     upsertThread: dbUpsertThread,
     deleteThread: dbDeleteThread,
@@ -216,11 +228,20 @@ export async function createHeadlessRemoteHost(
   });
   scheduleRunCoordinator = scheduleCoordinator;
   const scheduleService = createDeviceScheduleService({
-    runTask: (task) => scheduleCoordinator.runScheduleAsThread(task),
+    runTask: (task, context) => scheduleCoordinator.runScheduleAsThread(task, context),
+    cancelRun: (runId) => scheduleCoordinator.cancelRun(runId),
+    recordSkipped: (task, context) => scheduleCoordinator.recordSkippedRun(task, context),
+    onRetryingRun: (runId) => {
+      dbUpdateScheduleRunState({ id: runId, unread: false, archived: true });
+    },
     onStartupInterrupted: (scheduleId) =>
       dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
   });
-  appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread);
+  appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread, {
+    listScheduleRuns: dbListScheduleRuns,
+    listScheduleRunInbox: dbListScheduleRunInbox,
+    updateScheduleRunState: dbUpdateScheduleRunState,
+  });
 
   // In dev, advertise loopback by default so the iOS simulator's WebView can
   // reach the server (iOS ATS `NSAllowsLocalNetworking` permits loopback but not
@@ -253,9 +274,17 @@ export async function createHeadlessRemoteHost(
       read: () => pickRemoteSettings(readSharedSettingsFile(paths.settingsPath)),
       update: (patch) => pickRemoteSettings(patchSharedSettingsFile(paths.settingsPath, patch)),
     },
-    // `ScheduleService`'s public methods already match the gateway interface,
-    // so pass it directly instead of re-wrapping each method.
-    schedules: scheduleService,
+    schedules: {
+      list: () => scheduleService.list(),
+      create: (task) => scheduleService.create(task),
+      update: (id, task) => scheduleService.update(id, task),
+      delete: (id) => scheduleService.delete(id),
+      runNow: (id) => scheduleService.runNow(id),
+      listRuns: (scheduleId) => dbListScheduleRuns(scheduleId),
+      listInbox: (query) => dbListScheduleRunInbox(query),
+      updateRunState: (payload) => dbUpdateScheduleRunState(payload),
+      cancelRun: (runId) => scheduleService.cancelRun(runId),
+    },
     pushRegistrations: {
       upsert: (registration) => pushStore.upsert(registration),
       remove: (deviceId) => pushStore.remove(deviceId),

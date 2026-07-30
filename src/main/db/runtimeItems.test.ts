@@ -9,7 +9,9 @@ import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
   dbGetThreadContextUsage,
+  dbGetThreadRuntimeItemCursor,
   dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeItemsAfter,
   dbGetThreadRuntimeItemsPage,
   dbReplaceThreadRuntimeItems,
   dbTruncateThreadRuntimeAfter,
@@ -208,5 +210,38 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     dbTruncateThreadRuntimeAfter("thread-1", "item-124");
     expect(dbGetThreadRuntimeItems("thread-1")).toHaveLength(125);
     expect(dbGetThreadRuntimeItems("thread-1").at(-1)?.id).toBe("item-124");
+  });
+
+  it("reads only runtime items appended after a cursor", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      { id: "old-assistant", type: "assistant_message", state: "completed", streams: {} },
+    ]);
+    const cursor = dbGetThreadRuntimeItemCursor("thread-1");
+
+    dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "new-assistant",
+        itemType: "assistant_message",
+      },
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "new-assistant",
+        stream: "assistant_text",
+        delta: "Fresh result",
+      },
+    ]);
+
+    expect(cursor).toBe(0);
+    expect(dbGetThreadRuntimeItemsAfter("thread-1", cursor)).toEqual([
+      {
+        id: "new-assistant",
+        type: "assistant_message",
+        state: "updated",
+        streams: { assistant_text: "Fresh result" },
+      },
+    ]);
   });
 });

@@ -1,11 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, ButtonGroup, Dropdown, Input, Label, TextField } from "@heroui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Bot, CalendarClock, ChevronDown, Clock3, Loader2, Plus, Sparkles } from "lucide-react";
-import type { ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
+import type {
+  AutomationsSnapshot,
+  ScheduledTask,
+  ScheduledTaskInput,
+  ScheduledTaskRun,
+  ScheduleRunInboxQuery,
+} from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
-import { LightballTabs } from "@/renderer/components/common/LightballTabs";
+import {
+  LightballTabs,
+  makeLightballCountTrailing,
+} from "@/renderer/components/common/LightballTabs";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -14,7 +23,9 @@ import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsFor
 import { ScheduleEditor } from "./ScheduleEditor";
 import { PreviousRunsModal } from "./parts/PreviousRunsModal";
 import { ScheduleRow } from "./parts/ScheduleRow";
+import { TriagePanel } from "./parts/TriagePanel";
 import {
+  deviceTimeZone,
   type ScheduleDraft,
   newScheduleDraft,
   scheduleDraftInput,
@@ -25,6 +36,8 @@ import {
 } from "./scheduleDraft";
 
 type FilterMode = "all" | "active" | "paused";
+type AutomationSection = "schedules" | "triage";
+type TriageFilter = ScheduleRunInboxQuery["filter"];
 
 function replaceTask(tasks: ScheduledTask[], next: ScheduledTask): ScheduledTask[] {
   return tasks.map((task) => (task.id === next.id ? next : task));
@@ -38,6 +51,10 @@ export function SchedulesView() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterMode>("all");
+  const [section, setSection] = useState<AutomationSection>("schedules");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [triageFilter, setTriageFilter] = useState<TriageFilter>("unread");
+  const [triageRuns, setTriageRuns] = useState<ScheduledTaskRun[] | null>(null);
   const [draft, setDraft] = useState<ScheduleDraft | null>(null);
   const [deleteTask, setDeleteTask] = useState<ScheduledTask | null>(null);
   const [runsTaskId, setRunsTaskId] = useState<string | null>(null);
@@ -50,39 +67,50 @@ export function SchedulesView() {
       agent.capabilities.models.length > 0,
   );
 
+  // Scheduled runs can start without a renderer event. Keep a low-frequency
+  // idle poll so the page discovers them, then tighten the cadence while one
+  // is active. This is the single polling owner for schedules and Triage.
+  const hasActiveAutomation =
+    tasks.some((task) => task.lastStatus === "running") ||
+    triageRuns?.some((run) => run.status === "running") === true;
+
+  function applyAutomationsSnapshot(snapshot: AutomationsSnapshot) {
+    setTasks(snapshot.schedules);
+    setTriageRuns(snapshot.runs);
+    setUnreadCount(snapshot.unreadCount);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    void readBridge()
-      .getSchedules()
-      .then((next) => {
-        if (!cancelled) setTasks(next);
-      })
-      .catch((loadError: unknown) => {
-        if (!cancelled)
+    const loadSnapshot = () => {
+      void readBridge()
+        .getAutomationsSnapshot({ filter: triageFilter, limit: 100 })
+        .then((snapshot) => {
+          if (cancelled) return;
+          applyAutomationsSnapshot(snapshot);
+          setLoading(false);
+        })
+        .catch((loadError: unknown) => {
+          if (cancelled) return;
           setError(loadError instanceof Error ? loadError.message : String(loadError));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+          setLoading(false);
+        });
+    };
+    loadSnapshot();
+    const timer = window.setInterval(loadSnapshot, hasActiveAutomation ? 2_000 : 15_000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
-  }, []);
+  }, [triageFilter, hasActiveAutomation]);
 
-  // Poll only while a run is active. Depend on the derived boolean (not the
-  // whole `tasks` array) so the interval is recreated when the running state
-  // flips — not torn down and rebuilt on every 2s poll result.
-  const hasRunningTask = tasks.some((task) => task.lastStatus === "running");
-  useEffect(() => {
-    if (!hasRunningTask) return;
-    const timer = window.setInterval(() => {
-      void readBridge()
-        .getSchedules()
-        .then(setTasks)
-        .catch(() => undefined);
-    }, 2_000);
-    return () => window.clearInterval(timer);
-  }, [hasRunningTask]);
+  async function refreshAutomations() {
+    const snapshot = await readBridge().getAutomationsSnapshot({
+      filter: triageFilter,
+      limit: 100,
+    });
+    applyAutomationsSnapshot(snapshot);
+  }
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleTasks = tasks.filter((task) => {
@@ -109,7 +137,7 @@ export function SchedulesView() {
     minute: "2-digit",
   });
 
-  function describeRecurrence(task: ScheduledTask): string {
+  function describeRecurrence(task: ScheduledTask): ReactNode {
     if (task.recurrence.kind === "once") {
       return t`Once on ${dateTimeFormatter.format(new Date(task.recurrence.runAt))}`;
     }
@@ -118,16 +146,36 @@ export function SchedulesView() {
         ? t`Every hour`
         : t`Every hour at ${task.recurrence.minute} minutes past`;
     }
+    if (task.recurrence.kind === "interval") {
+      const { every, unit } = task.recurrence;
+      if (unit === "minutes") {
+        return <Plural value={every} one="Every minute" other="Every # minutes" />;
+      }
+      if (unit === "hours") {
+        return <Plural value={every} one="Every hour" other="Every # hours" />;
+      }
+      return <Plural value={every} one="Every day" other="Every # days" />;
+    }
+    if (task.recurrence.kind === "cron") {
+      return t`Cron ${task.recurrence.expression} in ${task.recurrence.timeZone}`;
+    }
     const [hour, minute] = task.recurrence.time.split(":").map(Number);
     const time = timeFormatter.format(new Date(2026, 0, 1, hour, minute));
     const days = task.recurrence.days;
-    if (days.length === 7) return t`Every day at ${time}`;
-    if (days.join(",") === "1,2,3,4,5") return t`Weekdays at ${time}`;
-    return t`${days.map((day) => weekdayNames[day]).join(", ")} at ${time}`;
+    const cadence =
+      days.length === 7
+        ? t`Every day at ${time}`
+        : days.join(",") === "1,2,3,4,5"
+          ? t`Weekdays at ${time}`
+          : t`${days.map((day) => weekdayNames[day]).join(", ")} at ${time}`;
+    return task.recurrence.timeZone && task.recurrence.timeZone !== deviceTimeZone()
+      ? t`${cadence} in ${task.recurrence.timeZone}`
+      : cadence;
   }
 
   function formatNextRun(task: ScheduledTask): string {
     if (task.lastStatus === "running") return t`Running now`;
+    if (task.lastStatus === "waiting-for-approval") return t`Waiting for approval`;
     if (!task.enabled || !task.nextRunAt) return t`Paused`;
     return t`Next run ${dateTimeFormatter.format(new Date(task.nextRunAt))}`;
   }
@@ -302,171 +350,212 @@ export function SchedulesView() {
 
   return (
     <SettingsPage
-      title={t`Scheduled tasks`}
+      title={t`Automations`}
       description={
         <Trans>
-          Run standalone tasks on this device. Schedules run while the device is awake and Poracode
-          is open.
+          Schedule autonomous work and review results that need your attention. Automations run
+          while this device is awake and Poracode is open.
         </Trans>
       }
       bodyClassName="space-y-5"
       actions={
-        <ButtonGroup className="w-full">
-          <Button
-            variant="tertiary"
-            size="sm"
-            className="flex-1 text-foreground"
-            isDisabled={agents.length === 0}
-            onPress={() => void createWithAgent()}
-          >
-            <Plus className="size-4" />
-            <Trans>New schedule</Trans>
-          </Button>
-          <Dropdown>
+        section === "schedules" ? (
+          <ButtonGroup className="w-full">
             <Button
-              isIconOnly
               variant="tertiary"
               size="sm"
-              aria-label={t`More schedule options`}
+              className="flex-1 text-foreground"
               isDisabled={agents.length === 0}
+              onPress={() => void createWithAgent()}
             >
-              <ButtonGroup.Separator />
-              <ChevronDown className="size-3.5" />
+              <Plus className="size-4" />
+              <Trans>New schedule</Trans>
             </Button>
-            <Dropdown.Popover placement="bottom end">
-              <Dropdown.Menu
-                aria-label={t`Create schedule`}
-                onAction={(key) => {
-                  if (key === "agent") void createWithAgent();
-                  else setDraft(newScheduleDraft(agents[0]));
-                }}
+            <Dropdown>
+              <Button
+                isIconOnly
+                variant="tertiary"
+                size="sm"
+                aria-label={t`More schedule options`}
+                isDisabled={agents.length === 0}
               >
-                <Dropdown.Item id="manual" textValue={t`Create schedule`}>
-                  <CalendarClock className="size-4 text-muted" />
-                  <Label>
-                    <Trans>Create schedule</Trans>
-                  </Label>
-                </Dropdown.Item>
-                <Dropdown.Item id="agent" textValue={t`Create with Agent`}>
-                  <Bot className="size-4 text-muted" />
-                  <Label>
-                    <Trans>Create with Agent</Trans>
-                  </Label>
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
-        </ButtonGroup>
+                <ButtonGroup.Separator />
+                <ChevronDown className="size-3.5" />
+              </Button>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu
+                  aria-label={t`Create schedule`}
+                  onAction={(key) => {
+                    if (key === "agent") void createWithAgent();
+                    else setDraft(newScheduleDraft(agents[0]));
+                  }}
+                >
+                  <Dropdown.Item id="manual" textValue={t`Create schedule`}>
+                    <CalendarClock className="size-4 text-muted" />
+                    <Label>
+                      <Trans>Create schedule</Trans>
+                    </Label>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="agent" textValue={t`Create with Agent`}>
+                    <Bot className="size-4 text-muted" />
+                    <Label>
+                      <Trans>Create with Agent</Trans>
+                    </Label>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </ButtonGroup>
+        ) : null
       }
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <TextField
-          aria-label={t`Search scheduled tasks`}
-          className="min-w-56 flex-1"
-          value={query}
-          onChange={setQuery}
-        >
-          <Input placeholder={t`Search scheduled tasks`} />
-        </TextField>
-        <LightballTabs<FilterMode>
-          tabs={[
-            { id: "all", label: t`All` },
-            { id: "active", label: t`Active` },
-            { id: "paused", label: t`Paused` },
-          ]}
-          active={filter}
-          onChange={setFilter}
-          ariaLabel={t`Schedule status`}
-        />
-      </div>
+      <LightballTabs<AutomationSection>
+        className="w-fit"
+        tabs={[
+          { id: "schedules", label: t`Schedules` },
+          {
+            id: "triage",
+            label: t`Triage`,
+            ...(unreadCount > 0
+              ? {
+                  trailing: makeLightballCountTrailing(unreadCount),
+                }
+              : {}),
+          },
+        ]}
+        active={section}
+        onChange={setSection}
+        ariaLabel={t`Automation sections`}
+      />
 
       {error ? <p className="text-sm whitespace-pre-wrap text-danger">{error}</p> : null}
 
-      {loading ? (
-        <div className="flex justify-center py-12 text-muted">
-          <Loader2 className="size-5 animate-spin" aria-label={t`Loading scheduled tasks`} />
-        </div>
+      {section === "triage" ? (
+        <TriagePanel
+          tasks={tasks}
+          runs={triageRuns}
+          filter={triageFilter}
+          formatDateTime={(iso) => dateTimeFormatter.format(new Date(iso))}
+          onOpenRunThread={openRunThread}
+          onFilterChange={(nextFilter) => {
+            setTriageRuns(null);
+            setTriageFilter(nextFilter);
+          }}
+          onRefresh={refreshAutomations}
+          onError={setError}
+        />
       ) : (
         <>
-          {tasks.length === 0 ? (
-            <div className="py-4 text-center">
-              <Sparkles className="mx-auto mb-3 size-8 text-muted" />
-              <p className="text-sm font-medium text-foreground">
-                <Trans>Start with a schedule</Trans>
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                <Trans>Create a useful routine with one click, then adjust it anytime.</Trans>
-              </p>
-            </div>
-          ) : visibleTasks.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-14 text-center text-muted">
-              <CalendarClock className="size-9" />
-              <p className="text-sm">
-                <Trans>No matching schedules.</Trans>
-              </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <TextField
+              aria-label={t`Search scheduled tasks`}
+              className="min-w-56 flex-1"
+              value={query}
+              onChange={setQuery}
+            >
+              <Input placeholder={t`Search scheduled tasks`} />
+            </TextField>
+            <LightballTabs<FilterMode>
+              tabs={[
+                { id: "all", label: t`All` },
+                { id: "active", label: t`Active` },
+                { id: "paused", label: t`Paused` },
+              ]}
+              active={filter}
+              onChange={setFilter}
+              ariaLabel={t`Schedule status`}
+            />
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12 text-muted">
+              <Loader2 className="size-5 animate-spin" aria-label={t`Loading scheduled tasks`} />
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
-              {visibleTasks.map((task) => (
-                <ScheduleRow
-                  key={task.id}
-                  task={task}
-                  recurrenceLabel={describeRecurrence(task)}
-                  nextRunLabel={formatNextRun(task)}
-                  onRunNow={runNow}
-                  onToggleEnabled={toggleEnabled}
-                  onEdit={(target) => setDraft(taskScheduleDraft(target))}
-                  onDelete={setDeleteTask}
-                  onShowRuns={(target) => setRunsTaskId(target.id)}
-                />
-              ))}
-            </div>
+            <>
+              {tasks.length === 0 ? (
+                <div className="py-4 text-center">
+                  <Sparkles className="mx-auto mb-3 size-8 text-muted" />
+                  <p className="text-sm font-medium text-foreground">
+                    <Trans>Start with a schedule</Trans>
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    <Trans>Create a useful routine with one click, then adjust it anytime.</Trans>
+                  </p>
+                </div>
+              ) : visibleTasks.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-14 text-center text-muted">
+                  <CalendarClock className="size-9" />
+                  <p className="text-sm">
+                    <Trans>No matching schedules.</Trans>
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+                  {visibleTasks.map((task) => (
+                    <ScheduleRow
+                      key={task.id}
+                      task={task}
+                      recurrenceLabel={describeRecurrence(task)}
+                      nextRunLabel={formatNextRun(task)}
+                      onRunNow={runNow}
+                      onToggleEnabled={toggleEnabled}
+                      onEdit={(target) => setDraft(taskScheduleDraft(target))}
+                      onDelete={setDeleteTask}
+                      onShowRuns={(target) => setRunsTaskId(target.id)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {suggestions}
+
+              {agents.length === 0 ? (
+                <p className="text-center text-xs text-muted">
+                  <Trans>Connect an agent to create schedules.</Trans>
+                </p>
+              ) : null}
+            </>
           )}
 
-          {suggestions}
+          <ScheduleEditor
+            agents={agents}
+            busy={busy}
+            draft={draft}
+            onChange={setDraft}
+            onClose={() => setDraft(null)}
+            onSave={() => void saveDraft()}
+          />
 
-          {agents.length === 0 ? (
-            <p className="text-center text-xs text-muted">
-              <Trans>Connect an agent to create schedules.</Trans>
-            </p>
-          ) : null}
+          <PreviousRunsModal
+            task={runsTask}
+            formatDateTime={(iso) => dateTimeFormatter.format(new Date(iso))}
+            onOpenRunThread={openRunThread}
+            onClose={() => setRunsTaskId(null)}
+          />
+
+          <ConfirmDialog
+            isOpen={deleteTask !== null}
+            title={t`Delete schedule?`}
+            body={<Trans>This removes the schedule and its latest result from this device.</Trans>}
+            confirmLabel={t`Delete`}
+            onClose={() => setDeleteTask(null)}
+            onConfirm={() => {
+              if (!deleteTask) return;
+              const id = deleteTask.id;
+              setDeleteTask(null);
+              void readBridge()
+                .deleteSchedule({ id })
+                .then(() => setTasks((current) => current.filter((task) => task.id !== id)))
+                .catch((deleteError: unknown) =>
+                  setError(
+                    deleteError instanceof Error ? deleteError.message : String(deleteError),
+                  ),
+                );
+            }}
+          />
         </>
       )}
-
-      <ScheduleEditor
-        agents={agents}
-        busy={busy}
-        draft={draft}
-        onChange={setDraft}
-        onClose={() => setDraft(null)}
-        onSave={() => void saveDraft()}
-      />
-
-      <PreviousRunsModal
-        task={runsTask}
-        formatDateTime={(iso) => dateTimeFormatter.format(new Date(iso))}
-        onOpenRunThread={openRunThread}
-        onClose={() => setRunsTaskId(null)}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteTask !== null}
-        title={t`Delete schedule?`}
-        body={<Trans>This removes the schedule and its latest result from this device.</Trans>}
-        confirmLabel={t`Delete`}
-        onClose={() => setDeleteTask(null)}
-        onConfirm={() => {
-          if (!deleteTask) return;
-          const id = deleteTask.id;
-          setDeleteTask(null);
-          void readBridge()
-            .deleteSchedule({ id })
-            .then(() => setTasks((current) => current.filter((task) => task.id !== id)))
-            .catch((deleteError: unknown) =>
-              setError(deleteError instanceof Error ? deleteError.message : String(deleteError)),
-            );
-        }}
-      />
     </SettingsPage>
   );
 }

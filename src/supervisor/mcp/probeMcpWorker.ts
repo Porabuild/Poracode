@@ -5,7 +5,7 @@ import {
   mcpServerSchema,
   type McpProbeEnvironment,
   type McpProbeResult,
-} from "@/shared/contracts";
+} from "@/shared/contracts/mcpServer";
 import { probeMcpServer, unavailableMcpProbeResult } from "./probeMcpServer";
 
 const MAX_INPUT_BYTES = 2 * 1024 * 1024;

@@ -15,6 +15,8 @@ import {
   remotePortsStateSchema,
   remotePushRegistrationResultSchema,
   remoteSettingsSchema,
+  remoteScheduleRunCommandResponseSchema,
+  remoteScheduleRunsResponseSchema,
   remoteSchedulesResponseSchema,
   remoteProjectCommandResultSchema,
   remoteShellSnapshotSchema,
@@ -38,6 +40,7 @@ import {
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteScheduleCommand,
+  type RemoteScheduleRunCommand,
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
   type RemoteWebSocketServerMessage,
@@ -68,6 +71,9 @@ import {
   type ThreadServerRequestId,
   type ScheduledTask,
   type ScheduledTaskInput,
+  type ScheduledTaskRun,
+  type ScheduleRunInboxQuery,
+  type UpdateScheduleRunStatePayload,
 } from "@/shared/contracts";
 import { readBoundedResponseBody } from "@/shared/http";
 
@@ -382,6 +388,49 @@ export class RemoteDesktopClient {
     const schedule = await this.scheduleCommand({ kind: "run", id });
     if (!schedule) throw new Error("The desktop did not return the running schedule.");
     return schedule;
+  }
+
+  async scheduleRuns(id: string): Promise<ScheduledTaskRun[]> {
+    const result = parseResponse(
+      remoteScheduleRunsResponseSchema,
+      await this.requestJson("/api/schedules/runs/query", {
+        method: "POST",
+        body: { kind: "schedule", payload: { id } },
+      }),
+      "schedule runs",
+    );
+    return result.runs;
+  }
+
+  async scheduleRunInbox(query: ScheduleRunInboxQuery): Promise<ScheduledTaskRun[]> {
+    const result = parseResponse(
+      remoteScheduleRunsResponseSchema,
+      await this.requestJson("/api/schedules/runs/query", {
+        method: "POST",
+        body: { kind: "inbox", query },
+      }),
+      "schedule run inbox",
+    );
+    return result.runs;
+  }
+
+  private async scheduleRunCommand(command: RemoteScheduleRunCommand) {
+    return parseResponse(
+      remoteScheduleRunCommandResponseSchema,
+      await this.requestJson("/api/schedules/runs/command", { method: "POST", body: command }),
+      "schedule run command",
+    );
+  }
+
+  async updateScheduleRunState(payload: UpdateScheduleRunStatePayload): Promise<ScheduledTaskRun> {
+    const result = await this.scheduleRunCommand({ kind: "update-state", payload });
+    if (!result.run) throw new Error("The desktop did not return the updated schedule run.");
+    return result.run;
+  }
+
+  async cancelScheduleRun(id: string): Promise<boolean> {
+    const result = await this.scheduleRunCommand({ kind: "cancel", id });
+    return result.cancelled ?? false;
   }
 
   /**

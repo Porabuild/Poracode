@@ -8,6 +8,8 @@ import type {
   GeneratePrSummaryResult,
   GenerateTitlePayload,
   GenerateTitleResult,
+  ScheduleCompletionEvaluationInput,
+  ScheduleCompletionEvaluationResult,
 } from "@/shared/contracts";
 import { generateCommitMessage } from "../commitMessageGenerator";
 import {
@@ -15,6 +17,7 @@ import {
   extractContextFromScrollback,
 } from "../contextExtractor";
 import { generatePrSummary } from "../prSummaryGenerator";
+import { evaluateScheduleCompletion as evaluateScheduleCompletionFn } from "../scheduleCompletionEvaluator";
 import { generateTitle } from "../titleGenerator";
 import type { AgentAdapter } from "../agents/base";
 
@@ -84,6 +87,13 @@ export class GenerationService {
       payload.effort,
       payload.language,
     );
+  }
+
+  async evaluateScheduleCompletion(
+    payload: ScheduleCompletionEvaluationInput,
+  ): Promise<ScheduleCompletionEvaluationResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    return evaluateScheduleCompletionFn(payload, adapter);
   }
 
   async extractContext(payload: ExtractContextPayload): Promise<ExtractContextResult> {

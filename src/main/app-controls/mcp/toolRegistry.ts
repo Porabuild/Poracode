@@ -1,50 +1,44 @@
-import { z } from "zod";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import { isHomeProjectId } from "@/shared/homeScope";
 import {
-  agentKindSchema,
-  scheduleRecurrenceSchema,
+  type ScheduleRunInboxQuery,
   type ScheduledTask,
   type ScheduledTaskInput,
+  type ScheduledTaskRun,
   type Thread,
+  type UpdateScheduleRunStatePayload,
 } from "@/shared/contracts";
 import type {
   StreamableHttpMcpToolResult,
   StreamableHttpMcpToolSpec,
 } from "../../mcp/StreamableHttpMcpIngress";
 import type { ScheduleService } from "../../schedules/ScheduleService";
+import {
+  automationJsonSchema,
+  createScheduleArgsSchema,
+  idArgsSchema,
+  idJsonSchema,
+  recurrenceJsonSchema,
+  scheduleRunInboxArgsSchema,
+  scheduleRunsArgsSchema,
+  updateScheduleArgsSchema,
+} from "./scheduleToolSchemas";
 
 export interface AppControlsToolContext {
   identity: McpThreadIdentity;
   scheduleService: ScheduleService;
+  scheduleRuns: AppControlsScheduleRunControls;
   getThread(threadId: string): Thread | null;
 }
 
-const createArgsSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  prompt: z.string().trim().min(1).max(50_000),
-  recurrence: scheduleRecurrenceSchema,
-  enabled: z.boolean().optional().default(true),
-  agentKind: agentKindSchema.optional(),
-  model: z.string().min(1).optional(),
-  effort: z.string().min(1).optional(),
-});
-
-const updateArgsSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().trim().min(1).max(120).optional(),
-  prompt: z.string().trim().min(1).max(50_000).optional(),
-  recurrence: scheduleRecurrenceSchema.optional(),
-  enabled: z.boolean().optional(),
-  agentKind: agentKindSchema.optional(),
-  model: z.string().min(1).optional(),
-  effort: z.string().min(1).nullable().optional(),
-});
-
-const idArgsSchema = z.object({ id: z.string().uuid() });
+export interface AppControlsScheduleRunControls {
+  listScheduleRuns(scheduleId: string): ScheduledTaskRun[];
+  listScheduleRunInbox(query: ScheduleRunInboxQuery): ScheduledTaskRun[];
+  updateScheduleRunState(payload: UpdateScheduleRunStatePayload): ScheduledTaskRun | null;
+}
 
 export const APP_CONTROLS_MCP_INSTRUCTIONS =
-  "Use these Poracode controls to list, create, update, run, and delete the user's device schedules. Explain consequential changes before making them. Schedules run only while the device is awake and Poracode is open.";
+  "Use these Poracode controls to manage the user's device schedules, automation policies, and run-result inbox. Explain consequential changes before making them. Schedules run only while the device is awake and Poracode is open.";
 
 export const TOOLS: readonly StreamableHttpMcpToolSpec[] = [
   {
@@ -68,6 +62,7 @@ export const TOOLS: readonly StreamableHttpMcpToolSpec[] = [
         agentKind: { type: "string" },
         model: { type: "string" },
         effort: { type: "string" },
+        automation: automationJsonSchema(),
       },
     },
   },
@@ -87,6 +82,7 @@ export const TOOLS: readonly StreamableHttpMcpToolSpec[] = [
         agentKind: { type: "string" },
         model: { type: "string" },
         effort: { type: ["string", "null"] },
+        automation: automationJsonSchema(),
       },
     },
   },
@@ -98,6 +94,53 @@ export const TOOLS: readonly StreamableHttpMcpToolSpec[] = [
   {
     name: "delete_schedule",
     description: "Permanently delete an existing schedule from this device.",
+    inputSchema: idJsonSchema(),
+  },
+  {
+    name: "list_schedule_runs",
+    description: "List the newest run results for one schedule.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["scheduleId"],
+      properties: { scheduleId: { type: "string", format: "uuid" } },
+    },
+  },
+  {
+    name: "list_schedule_run_inbox",
+    description: "List unread, current, or archived schedule run results across all schedules.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        filter: { enum: ["unread", "all", "archived"], default: "unread" },
+        limit: { type: "integer", minimum: 1, maximum: 100 },
+      },
+    },
+  },
+  {
+    name: "mark_schedule_run_read",
+    description: "Mark a schedule run result as read.",
+    inputSchema: idJsonSchema(),
+  },
+  {
+    name: "mark_schedule_run_unread",
+    description: "Mark a schedule run result as unread.",
+    inputSchema: idJsonSchema(),
+  },
+  {
+    name: "archive_schedule_run",
+    description: "Archive a schedule run result and mark it read.",
+    inputSchema: idJsonSchema(),
+  },
+  {
+    name: "restore_schedule_run",
+    description: "Restore an archived schedule run result to the current inbox.",
+    inputSchema: idJsonSchema(),
+  },
+  {
+    name: "cancel_schedule_run",
+    description: "Cancel an active schedule run by its run ID.",
     inputSchema: idJsonSchema(),
   },
 ];
@@ -115,7 +158,7 @@ export async function dispatchTool(
 ): Promise<unknown> {
   if (name === "list_schedules") return ctx.scheduleService.list();
   if (name === "create_schedule") {
-    const parsed = createArgsSchema.parse(args);
+    const parsed = createScheduleArgsSchema.parse(args);
     const sourceThread = ctx.identity.threadId ? ctx.getThread(ctx.identity.threadId) : null;
     const agentKind = parsed.agentKind ?? sourceThread?.agentKind;
     const model = parsed.model ?? sourceThread?.config.model;
@@ -134,6 +177,7 @@ export async function dispatchTool(
       enabled: parsed.enabled,
       agentKind,
       ...(projectId ? { projectId } : {}),
+      ...(parsed.automation ? { automation: parsed.automation } : {}),
       config: {
         model,
         ...((parsed.effort ?? sourceThread?.config.effort)
@@ -145,14 +189,17 @@ export async function dispatchTool(
     return ctx.scheduleService.create(input);
   }
   if (name === "update_schedule") {
-    const parsed = updateArgsSchema.parse(args);
+    const parsed = updateScheduleArgsSchema.parse(args);
     const current = requireSchedule(ctx, parsed.id);
+    const automation = parsed.automation ?? current.automation;
     return ctx.scheduleService.update(parsed.id, {
       name: parsed.name ?? current.name,
       prompt: parsed.prompt ?? current.prompt,
       recurrence: parsed.recurrence ?? current.recurrence,
       enabled: parsed.enabled ?? current.enabled,
       agentKind: parsed.agentKind ?? current.agentKind,
+      projectId: current.projectId ?? null,
+      ...(automation ? { automation } : {}),
       config: {
         model: parsed.model ?? current.config.model,
         ...(parsed.effort === null
@@ -175,6 +222,30 @@ export async function dispatchTool(
     ctx.scheduleService.delete(id);
     return { deleted: true, id };
   }
+  if (name === "list_schedule_runs") {
+    const { scheduleId } = scheduleRunsArgsSchema.parse(args);
+    requireSchedule(ctx, scheduleId);
+    return ctx.scheduleRuns.listScheduleRuns(scheduleId);
+  }
+  if (name === "list_schedule_run_inbox") {
+    return ctx.scheduleRuns.listScheduleRunInbox(scheduleRunInboxArgsSchema.parse(args));
+  }
+  if (name === "mark_schedule_run_read") {
+    return updateScheduleRunState(ctx, idArgsSchema.parse(args).id, { unread: false });
+  }
+  if (name === "mark_schedule_run_unread") {
+    return updateScheduleRunState(ctx, idArgsSchema.parse(args).id, { unread: true });
+  }
+  if (name === "archive_schedule_run") {
+    return updateScheduleRunState(ctx, idArgsSchema.parse(args).id, { archived: true });
+  }
+  if (name === "restore_schedule_run") {
+    return updateScheduleRunState(ctx, idArgsSchema.parse(args).id, { archived: false });
+  }
+  if (name === "cancel_schedule_run") {
+    const { id } = idArgsSchema.parse(args);
+    return { id, cancelled: ctx.scheduleService.cancelRun(id) };
+  }
   throw new Error(`Unknown tool: ${name}`);
 }
 
@@ -188,50 +259,12 @@ function requireSchedule(ctx: AppControlsToolContext, id: string): ScheduledTask
   return task;
 }
 
-function idJsonSchema(): Record<string, unknown> {
-  return {
-    type: "object",
-    additionalProperties: false,
-    required: ["id"],
-    properties: { id: { type: "string", format: "uuid" } },
-  };
-}
-
-function recurrenceJsonSchema(): Record<string, unknown> {
-  return {
-    oneOf: [
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["kind", "minute"],
-        properties: {
-          kind: { const: "hourly" },
-          minute: { type: "integer", minimum: 0, maximum: 59 },
-        },
-      },
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["kind", "days", "time"],
-        properties: {
-          kind: { const: "weekly" },
-          days: {
-            type: "array",
-            minItems: 1,
-            items: { type: "integer", minimum: 0, maximum: 6 },
-          },
-          time: { type: "string", pattern: "^([01]\\d|2[0-3]):[0-5]\\d$" },
-        },
-      },
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["kind", "runAt"],
-        properties: {
-          kind: { const: "once" },
-          runAt: { type: "string", format: "date-time" },
-        },
-      },
-    ],
-  };
+function updateScheduleRunState(
+  ctx: AppControlsToolContext,
+  id: string,
+  patch: Omit<UpdateScheduleRunStatePayload, "id">,
+): ScheduledTaskRun {
+  const run = ctx.scheduleRuns.updateScheduleRunState({ id, ...patch });
+  if (!run) throw new Error("Scheduled run not found.");
+  return run;
 }

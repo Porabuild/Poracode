@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_SCHEDULE_AUTOMATION, type ScheduledTaskRun } from "@/shared/contracts";
 import { RemoteDesktopClient } from "./client";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./protocol";
 
 describe("RemoteDesktopClient", () => {
   afterEach(() => {
@@ -259,7 +261,7 @@ describe("RemoteDesktopClient", () => {
           },
         );
       }
-      return descriptorResponse(1, ["session:read"]);
+      return descriptorResponse(PORACODE_REMOTE_PROTOCOL_VERSION, ["session:read"]);
     });
 
     await expect(client.environment()).resolves.toMatchObject({ desktopId: "desktop-1" });
@@ -271,7 +273,11 @@ describe("RemoteDesktopClient", () => {
 
   it("drops server-advertised scopes this build does not know instead of failing to parse", async () => {
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
-      descriptorResponse(1, ["session:read", "session:operate", "future:capability"]),
+      descriptorResponse(PORACODE_REMOTE_PROTOCOL_VERSION, [
+        "session:read",
+        "session:operate",
+        "future:capability",
+      ]),
     );
 
     const descriptor = await client.environment();
@@ -348,5 +354,77 @@ describe("RemoteDesktopClient", () => {
     // Once the long deadline elapses it times out (rather than never).
     await vi.advanceTimersByTimeAsync(5 * 60_000);
     await expect(push).resolves.toMatchObject({ code: "timeout" });
+  });
+
+  it("queries and updates schedule runs through the remote API", async () => {
+    const run: ScheduledTaskRun = {
+      id: "6f3b1a2c-1111-4d5e-8a9b-0c1d2e3f4a5b",
+      scheduleId: "d2ac39e9-14ac-4776-9279-37a1e455a5db",
+      threadId: "thread-schedule-run",
+      scheduledFor: "2026-07-13T15:00:00.000Z",
+      trigger: "scheduled",
+      attempt: 1,
+      iteration: 1,
+      startedAt: "2026-07-13T15:00:00.000Z",
+      completedAt: "2026-07-13T15:01:00.000Z",
+      status: "succeeded",
+      summary: "Found one item.",
+      error: null,
+      result: {
+        outcome: "findings",
+        summary: "Found one item.",
+        severity: "warning",
+        unread: true,
+        archivedAt: null,
+        changedFiles: [],
+        stopReason: null,
+      },
+      automationSnapshot: DEFAULT_SCHEDULE_AUTOMATION,
+    };
+    const requests: Array<{ pathname: string; body: unknown }> = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+        const pathname = new URL(url).pathname;
+        requests.push({ pathname, body });
+        const response = pathname.endsWith("/query")
+          ? { runs: [run] }
+          : body.kind === "cancel"
+            ? { cancelled: true }
+            : { run: { ...run, result: { ...run.result!, unread: false } } };
+        return new Response(JSON.stringify(response), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(client.scheduleRuns(run.scheduleId)).resolves.toEqual([run]);
+    await expect(client.scheduleRunInbox({ filter: "unread", limit: 25 })).resolves.toEqual([run]);
+    await expect(
+      client.updateScheduleRunState({ id: run.id, unread: false }),
+    ).resolves.toMatchObject({ id: run.id, result: { unread: false } });
+    await expect(client.cancelScheduleRun(run.id)).resolves.toBe(true);
+
+    expect(requests).toEqual([
+      {
+        pathname: "/api/schedules/runs/query",
+        body: { kind: "schedule", payload: { id: run.scheduleId } },
+      },
+      {
+        pathname: "/api/schedules/runs/query",
+        body: { kind: "inbox", query: { filter: "unread", limit: 25 } },
+      },
+      {
+        pathname: "/api/schedules/runs/command",
+        body: { kind: "update-state", payload: { id: run.id, unread: false } },
+      },
+      {
+        pathname: "/api/schedules/runs/command",
+        body: { kind: "cancel", id: run.id },
+      },
+    ]);
   });
 });

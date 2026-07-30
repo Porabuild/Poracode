@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import {
   __resetRemoteServersStoreForTest,
   filterRemoteThreadEvent,
@@ -117,7 +118,7 @@ function makeClient(opts?: {
       scopes: ["session:read", "projects:manage"],
     }),
     environment: async () => ({
-      protocolVersion: 1,
+      protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       desktopId: "d1",
       label: "Server One",
       appVersion: "1.0",

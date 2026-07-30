@@ -1,5 +1,12 @@
 import type { BrowserPanelManager } from "../browser";
-import { dbGetProject, dbGetProjects, dbGetThreads } from "../db";
+import {
+  dbGetProject,
+  dbGetProjects,
+  dbGetThreads,
+  dbListScheduleRunInbox,
+  dbListScheduleRuns,
+  dbUpdateScheduleRunState,
+} from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
@@ -311,9 +318,17 @@ export function createDesktopRemoteAccessController(
             return pickRemoteSettings(next);
           },
         },
-        // `ScheduleService`'s public methods already match the gateway
-        // interface, so pass it directly instead of re-wrapping each method.
-        schedules: options.scheduleService,
+        schedules: {
+          list: () => options.scheduleService.list(),
+          create: (task) => options.scheduleService.create(task),
+          update: (id, task) => options.scheduleService.update(id, task),
+          delete: (id) => options.scheduleService.delete(id),
+          runNow: (id) => options.scheduleService.runNow(id),
+          listRuns: (scheduleId) => dbListScheduleRuns(scheduleId),
+          listInbox: (query) => dbListScheduleRunInbox(query),
+          updateRunState: (payload) => dbUpdateScheduleRunState(payload),
+          cancelRun: (runId) => options.scheduleService.cancelRun(runId),
+        },
         pushRegistrations: {
           upsert: (registration) => pushStore.upsert(registration),
           remove: (deviceId) => pushStore.remove(deviceId),

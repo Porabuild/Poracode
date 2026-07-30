@@ -2,7 +2,11 @@ import { FileDiff, GitCommit, MessageSquare, ShieldCheck } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { LightballTabs, type LightballTab } from "@/renderer/components/common";
+import {
+  LightballTabs,
+  makeLightballCountTrailing,
+  type LightballTab,
+} from "@/renderer/components/common";
 import {
   getChecksStatusTone,
   type PrChecksStatus,
@@ -35,24 +39,6 @@ const CHECKS_ICON_TONE_CLASS: Record<PrChecksTone, string> = {
   danger: "text-danger",
 };
 
-function CountChip(props: { value: number; active: boolean }) {
-  return (
-    <span
-      className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1.5 text-[10px] font-medium leading-none transition-colors ${
-        props.active ? "bg-foreground/[0.12] text-foreground" : "bg-foreground/[0.08] text-muted"
-      }`}
-    >
-      {props.value}
-    </span>
-  );
-}
-
-/** Builds the `trailing` render function for a tab's count chip, capturing
- *  `count` as a parameter instead of a render-time closure. */
-function makeCountTrailing(count: number) {
-  return (isActive: boolean) => <CountChip value={count} active={isActive} />;
-}
-
 export function PrTabsPill(props: {
   active: PrTabKey;
   onChange: (key: PrTabKey) => void;
@@ -74,7 +60,7 @@ export function PrTabsPill(props: {
       id: def.id,
       label: t(def.label),
       icon: <Icon className={iconClassName} />,
-      ...(count > 0 ? { trailing: makeCountTrailing(count) } : {}),
+      ...(count > 0 ? { trailing: makeLightballCountTrailing(count) } : {}),
     };
   });
 

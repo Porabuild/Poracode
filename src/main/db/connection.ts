@@ -186,6 +186,7 @@ export function initDatabase(dbPath: string) {
       agent_kind TEXT NOT NULL,
       config TEXT NOT NULL,
       recurrence TEXT NOT NULL,
+      automation TEXT,
       enabled INTEGER NOT NULL DEFAULT 1,
       project_id TEXT,
       next_run_at TEXT,
@@ -194,6 +195,7 @@ export function initDatabase(dbPath: string) {
       last_status TEXT NOT NULL DEFAULT 'never',
       last_result TEXT,
       last_error TEXT,
+      iteration_count INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -203,11 +205,19 @@ export function initDatabase(dbPath: string) {
       id TEXT PRIMARY KEY,
       schedule_id TEXT NOT NULL REFERENCES scheduled_tasks(id) ON DELETE CASCADE,
       thread_id TEXT NOT NULL,
+      scheduled_for TEXT NOT NULL,
+      trigger TEXT NOT NULL DEFAULT 'scheduled',
+      attempt INTEGER NOT NULL DEFAULT 1,
+      iteration INTEGER NOT NULL DEFAULT 1,
       started_at TEXT NOT NULL,
       completed_at TEXT,
       status TEXT NOT NULL,
       summary TEXT,
-      error TEXT
+      error TEXT,
+      result TEXT,
+      automation_snapshot TEXT,
+      unread INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_schedule
       ON scheduled_task_runs (schedule_id, started_at DESC);
@@ -225,7 +235,7 @@ export function initDatabase(dbPath: string) {
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 25;
+  const SCHEMA_VERSION = 26;
 
   const storedVersion = Number(
     (
@@ -419,6 +429,7 @@ export function initDatabase(dbPath: string) {
           agent_kind TEXT NOT NULL,
           config TEXT NOT NULL,
           recurrence TEXT NOT NULL,
+          automation TEXT,
           enabled INTEGER NOT NULL DEFAULT 1,
           next_run_at TEXT,
           last_run_at TEXT,
@@ -426,6 +437,7 @@ export function initDatabase(dbPath: string) {
           last_status TEXT NOT NULL DEFAULT 'never',
           last_result TEXT,
           last_error TEXT,
+          iteration_count INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
@@ -443,11 +455,19 @@ export function initDatabase(dbPath: string) {
           id TEXT PRIMARY KEY,
           schedule_id TEXT NOT NULL REFERENCES scheduled_tasks(id) ON DELETE CASCADE,
           thread_id TEXT NOT NULL,
+          scheduled_for TEXT NOT NULL,
+          trigger TEXT NOT NULL DEFAULT 'scheduled',
+          attempt INTEGER NOT NULL DEFAULT 1,
+          iteration INTEGER NOT NULL DEFAULT 1,
           started_at TEXT NOT NULL,
           completed_at TEXT,
           status TEXT NOT NULL,
           summary TEXT,
-          error TEXT
+          error TEXT,
+          result TEXT,
+          automation_snapshot TEXT,
+          unread INTEGER NOT NULL DEFAULT 0,
+          archived_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_schedule
           ON scheduled_task_runs (schedule_id, started_at DESC);
@@ -483,6 +503,61 @@ export function initDatabase(dbPath: string) {
         );
         CREATE INDEX IF NOT EXISTS idx_remote_command_receipts_updated
           ON remote_command_receipts (updated_at);
+      `);
+    }
+
+    if (storedVersion < 26) {
+      const taskColumns = sqlite.prepare("PRAGMA table_info(scheduled_tasks)").all() as {
+        name: string;
+      }[];
+      if (!taskColumns.some((column) => column.name === "automation")) {
+        sqlite.exec("ALTER TABLE scheduled_tasks ADD COLUMN automation TEXT");
+      }
+      if (!taskColumns.some((column) => column.name === "iteration_count")) {
+        sqlite.exec(
+          "ALTER TABLE scheduled_tasks ADD COLUMN iteration_count INTEGER NOT NULL DEFAULT 0",
+        );
+      }
+
+      const runColumns = sqlite.prepare("PRAGMA table_info(scheduled_task_runs)").all() as {
+        name: string;
+      }[];
+      if (!runColumns.some((column) => column.name === "scheduled_for")) {
+        sqlite.exec("ALTER TABLE scheduled_task_runs ADD COLUMN scheduled_for TEXT");
+      }
+      if (!runColumns.some((column) => column.name === "trigger")) {
+        sqlite.exec(
+          "ALTER TABLE scheduled_task_runs ADD COLUMN trigger TEXT NOT NULL DEFAULT 'scheduled'",
+        );
+      }
+      if (!runColumns.some((column) => column.name === "attempt")) {
+        sqlite.exec(
+          "ALTER TABLE scheduled_task_runs ADD COLUMN attempt INTEGER NOT NULL DEFAULT 1",
+        );
+      }
+      if (!runColumns.some((column) => column.name === "iteration")) {
+        sqlite.exec(
+          "ALTER TABLE scheduled_task_runs ADD COLUMN iteration INTEGER NOT NULL DEFAULT 1",
+        );
+      }
+      if (!runColumns.some((column) => column.name === "result")) {
+        sqlite.exec("ALTER TABLE scheduled_task_runs ADD COLUMN result TEXT");
+      }
+      if (!runColumns.some((column) => column.name === "automation_snapshot")) {
+        sqlite.exec("ALTER TABLE scheduled_task_runs ADD COLUMN automation_snapshot TEXT");
+      }
+      if (!runColumns.some((column) => column.name === "unread")) {
+        sqlite.exec("ALTER TABLE scheduled_task_runs ADD COLUMN unread INTEGER NOT NULL DEFAULT 0");
+      }
+      if (!runColumns.some((column) => column.name === "archived_at")) {
+        sqlite.exec("ALTER TABLE scheduled_task_runs ADD COLUMN archived_at TEXT");
+      }
+      sqlite.exec(`
+        UPDATE scheduled_task_runs
+          SET scheduled_for = started_at
+          WHERE scheduled_for IS NULL;
+        CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_inbox
+          ON scheduled_task_runs (unread, archived_at, started_at DESC);
       `);
     }
 

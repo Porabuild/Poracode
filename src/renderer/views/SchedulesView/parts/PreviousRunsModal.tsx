@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { CheckCircle2, CircleSlash, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, CircleSlash, Clock3, Loader2, XCircle } from "lucide-react";
 import type { ScheduledTask, ScheduledTaskRun } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
@@ -20,6 +20,9 @@ interface PreviousRunsModalProps {
 function RunStatusIcon({ status, label }: { status: ScheduledTaskRun["status"]; label: string }) {
   if (status === "running") {
     return <Loader2 className="size-3.5 shrink-0 animate-spin text-accent" aria-label={label} />;
+  }
+  if (status === "waiting-for-approval") {
+    return <Clock3 className="size-3.5 shrink-0 text-warning" aria-label={label} />;
   }
   if (status === "succeeded") {
     return <CheckCircle2 className="size-3.5 shrink-0 text-success" aria-label={label} />;
@@ -65,6 +68,10 @@ function RunRow({
   const errorLine = run.error ? (
     <p className="line-clamp-2 text-xs whitespace-pre-wrap text-danger">{run.error}</p>
   ) : null;
+  const summary = run.result?.summary ?? run.summary;
+  const summaryLine = summary ? (
+    <p className="line-clamp-2 text-xs whitespace-pre-wrap text-foreground/80">{summary}</p>
+  ) : null;
 
   if (!thread) {
     // The linked thread was deleted: nothing to navigate to (openRunThread
@@ -73,6 +80,7 @@ function RunRow({
       <div className="w-full border-b border-[var(--hairline)] px-3 py-2.5 text-left opacity-60 last:border-b-0">
         <div className="flex items-center justify-between gap-2.5">{trailing}</div>
         {errorLine}
+        {summaryLine}
       </div>
     );
   }
@@ -89,6 +97,7 @@ function RunRow({
         {trailing}
       </div>
       {errorLine}
+      {summaryLine}
     </button>
   );
 }
@@ -143,11 +152,17 @@ export function PreviousRunsModal({
     switch (status) {
       case "running":
         return t`Running`;
+      case "waiting-for-approval":
+        return t`Waiting for approval`;
       case "succeeded":
         return t`Succeeded`;
       case "failed":
         return t`Failed`;
-      default:
+      case "cancelled":
+        return t`Cancelled`;
+      case "skipped":
+        return t`Skipped`;
+      case "interrupted":
         return t`Interrupted`;
     }
   }
