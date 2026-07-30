@@ -580,7 +580,8 @@ if (!hasSingleInstanceLock) {
       installLocalFileProtocolHandler();
       installPickerProtocolHandler();
       // Keep the pre-rebrand partition so browser cookies and sign-ins survive.
-      electronSession.fromPartition("persist:lightcode-browser").setUserAgent(browserUserAgent);
+      const browserSession = electronSession.fromPartition("persist:lightcode-browser");
+      browserSession.setUserAgent(browserUserAgent);
 
       const paths = requirePoracodePaths();
       const initialSettings = readSharedSettingsFile(paths.settingsPath);
@@ -738,6 +739,7 @@ if (!hasSingleInstanceLock) {
       browserPanelManager = new BrowserPanelManager(paths, browserUserAgent, {
         isExtracted: () => browserExtractWindow !== null && !browserExtractWindow.isDestroyed(),
         focusExtractedWindow: focusBrowserExtractWindow,
+        browserSession,
       });
       browserMcpIngress = new BrowserMcpIngress();
       browserMcpIngress.setManagerAccessor(() => browserPanelManager);

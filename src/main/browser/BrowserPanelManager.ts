@@ -1,8 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { BrowserWindow, shell } from "electron";
+import { BrowserWindow, shell, type Session } from "electron";
 import {
   IPC_EVENT_CHANNELS,
   type BrowserEvent,
+  type BrowserCredentialInfo,
+  type BrowserDeviceEmulation,
+  type BrowserDownloadInfo,
+  type BrowserInternalPage,
+  type BrowserImportResult,
+  type BrowserImportSourceInfo,
+  type BrowserPrintResult,
   type BrowserState,
   type BrowserStartPickerResult,
   type BrowserTabGroupInfo,
@@ -15,7 +22,10 @@ import { dbGetState, dbSetState } from "../db";
 import { readSharedSettingsFile } from "../sharedSettingsFile";
 import { saveClipboardImageFile } from "../attachments/localFiles";
 import { BrowserLoginCaptureCoordinator } from "./BrowserLoginCaptureCoordinator";
-import { BrowserTab, resolveWebContentsById } from "./BrowserTab";
+import { BrowserCredentialStore } from "./BrowserCredentialStore";
+import { BrowserDownloadManager } from "./BrowserDownloadManager";
+import { BrowserTab, resolveWebContentsById, type BrowserTabSnapshot } from "./BrowserTab";
+import { WindowsChromiumImportService } from "./WindowsChromiumImportService";
 import { BrowserTabGroups } from "./BrowserTabGroups";
 import { BrowserHistoryStore, fetchSearchSuggestions } from "./browserHistory";
 import { BrowserBookmarkStore, type BrowserBookmark } from "./browserBookmarks";
@@ -30,6 +40,10 @@ const ATTACH_TIMEOUT_MS = 8000;
 const AUTOMATION_GRACE_MS = 45_000;
 const INTERNAL_BROWSER_PROTOCOLS = new Set(["http:", "https:"]);
 const SYSTEM_BROWSER_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+const INTERNAL_PAGES: Record<BrowserInternalPage, { url: string; title: string }> = {
+  downloads: { url: "chrome://downloads/", title: "Download history" },
+  passwords: { url: "chrome://password-manager/passwords", title: "Password Manager" },
+};
 
 interface PersistedTabsState {
   tabs: Array<{ url: string; title: string; groupId?: string }>;
@@ -57,6 +71,7 @@ type PickerPayload =
 interface BrowserPanelManagerOptions {
   isExtracted?: () => boolean;
   focusExtractedWindow?: () => void;
+  browserSession?: Session;
 }
 
 export class BrowserPanelManager {
@@ -72,6 +87,10 @@ export class BrowserPanelManager {
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly history = new BrowserHistoryStore();
   private readonly bookmarks = new BrowserBookmarkStore();
+  private readonly credentials = new BrowserCredentialStore();
+  private readonly downloads: BrowserDownloadManager | null;
+  private readonly importer: WindowsChromiumImportService | null;
+  private readonly internalPages = new Map<string, BrowserInternalPage>();
   private restored = false;
   private automationActive = false;
   private automationTimer: ReturnType<typeof setTimeout> | null = null;
@@ -89,6 +108,20 @@ export class BrowserPanelManager {
     private readonly browserUserAgent: string,
     private readonly options: BrowserPanelManagerOptions = {},
   ) {
+    this.downloads = options.browserSession
+      ? new BrowserDownloadManager(options.browserSession, {
+          onEvent: (event) => {
+            if (event.type === "removed") {
+              this.emit({ type: "download-removed", downloadId: event.downloadId });
+            } else {
+              this.emit({ type: "download-updated", download: event.download });
+            }
+          },
+        })
+      : null;
+    this.importer = options.browserSession
+      ? new WindowsChromiumImportService(options.browserSession, this.credentials)
+      : null;
     this.unsubscribePicker = onPickerCommit((commit) => {
       void this.onPickerCommit(commit);
     });
@@ -102,7 +135,7 @@ export class BrowserPanelManager {
         const groups = this.tabGroups.serialize();
         const state: PersistedTabsState = {
           tabs: this.tabs.map((t) => {
-            const s = t.snapshot();
+            const s = this.toInfo(t);
             const groupId = this.tabGroups.groupIdForTab(t.tabId);
             return { url: s.url, title: s.title, ...(groupId ? { groupId } : {}) };
           }),
@@ -179,10 +212,12 @@ export class BrowserPanelManager {
     }
     this.clearPickerShortcut();
     this.loginCoordinator.cancelLoginConfirmations();
+    this.downloads?.dispose();
     for (const t of this.tabs) {
       void t.destroy();
     }
     this.tabs = [];
+    this.internalPages.clear();
     this.activeTabId = null;
     this.hosts.clear();
   }
@@ -278,7 +313,7 @@ export class BrowserPanelManager {
   async ensureTabReady(tabId: string): Promise<void> {
     this.markAutomationActivity();
     const tab = this.findTab(tabId);
-    if (!tab || tab.isAttached()) return;
+    if (!tab || this.internalPages.has(tabId) || tab.isAttached()) return;
     await this.awaitAttach(tab);
   }
 
@@ -346,18 +381,22 @@ export class BrowserPanelManager {
     return true;
   }
 
-  private toInfo(t: BrowserTab): BrowserTabInfo {
-    const s = t.snapshot();
+  private toInfo(t: BrowserTab, s: BrowserTabSnapshot = t.snapshot()): BrowserTabInfo {
     const groupId = this.tabGroups.groupIdForTab(s.tabId);
+    const internalPage = this.internalPages.get(s.tabId);
+    const internal = internalPage ? INTERNAL_PAGES[internalPage] : null;
     return {
       tabId: s.tabId,
-      url: s.url,
-      title: s.title,
-      loading: s.loading,
-      canGoBack: s.canGoBack,
-      canGoForward: s.canGoForward,
+      url: internal?.url ?? s.url,
+      title: internal?.title ?? s.title,
+      loading: internal ? false : s.loading,
+      canGoBack: internal ? false : s.canGoBack,
+      canGoForward: internal ? false : s.canGoForward,
       devToolsOpen: s.devToolsOpen,
-      ...(s.faviconUrl ? { faviconUrl: s.faviconUrl } : {}),
+      zoomFactor: s.zoomFactor,
+      ...(internalPage ? { internalPage } : {}),
+      ...(!internal && s.deviceEmulation ? { deviceEmulation: s.deviceEmulation } : {}),
+      ...(!internal && s.faviconUrl ? { faviconUrl: s.faviconUrl } : {}),
       ...(groupId ? { groupId } : {}),
     };
   }
@@ -438,7 +477,7 @@ export class BrowserPanelManager {
 
   attachWebContents(tabId: string, webContentsId: number): void {
     const tab = this.findTab(tabId);
-    if (!tab) return;
+    if (!tab || this.internalPages.has(tabId)) return;
     // Reject a host window's own WebContents by id first, before resolving it.
     for (const host of this.hosts) {
       if (host.webContents.id === webContentsId) return;
@@ -465,13 +504,18 @@ export class BrowserPanelManager {
     // passes markActivity:false so reopening the app doesn't wake dormant tabs.
     if (opts.markActivity !== false) this.markAutomationActivity();
     const tabId = `tab-${randomUUID()}`;
+    const internalPage = payload.url ? internalPageForUrl(payload.url) : undefined;
+    if (internalPage) this.internalPages.set(tabId, internalPage);
     const tab = new BrowserTab({
       tabId,
-      ...(payload.url ? { initialUrl: payload.url } : {}),
+      ...(payload.url && !internalPage ? { initialUrl: payload.url } : {}),
       userAgent: this.browserUserAgent,
-      onUpdate: (snap) => {
-        this.emit({ type: "tab-updated", tab: { ...snap } });
-        if (!snap.loading) this.history.record(snap.url, snap.title, Date.now());
+      onUpdate: (snapshot) => {
+        const info = this.toInfo(tab, snapshot);
+        this.emit({ type: "tab-updated", tab: info });
+        if (!info.loading && !info.internalPage) {
+          this.history.record(info.url, info.title, Date.now());
+        }
         this.schedulePersist();
       },
       onAttention: (id) => {
@@ -479,6 +523,12 @@ export class BrowserPanelManager {
       },
       onPopup: (_sourceTabId, popupUrl) => {
         void this.openLink(popupUrl).catch(() => {});
+      },
+      onFindRequested: (id) => {
+        this.emit({ type: "find-open-requested", tabId: id });
+      },
+      onFindResult: (id, result) => {
+        this.emit({ type: "find-result", result: { tabId: id, ...result } });
       },
     });
     this.tabs.push(tab);
@@ -497,7 +547,7 @@ export class BrowserPanelManager {
     this.schedulePersist();
     // Wait for the renderer to mount the <webview> and attach its webContents
     // so callers (e.g. MCP) can immediately use cdp / dialogs / network.
-    if (opts.awaitAttach !== false) {
+    if (opts.awaitAttach !== false && !internalPage) {
       await this.awaitAttach(tab);
     }
     return this.toInfo(tab);
@@ -535,6 +585,7 @@ export class BrowserPanelManager {
     if (idx < 0) return;
     const [tab] = this.tabs.splice(idx, 1);
     if (!tab) return;
+    this.internalPages.delete(tabId);
     await tab.destroy();
     this.tabGroups.removeTab(tabId);
     if (this.activeTabId === tabId) {
@@ -548,12 +599,32 @@ export class BrowserPanelManager {
   async navigate(tabId: string, url: string): Promise<void> {
     const t = this.findTab(tabId);
     if (!t) throw new Error(`No browser tab: ${tabId}`);
+    const internalPage = internalPageForUrl(url);
+    if (internalPage) {
+      this.internalPages.set(tabId, internalPage);
+      this.emitState();
+      this.schedulePersist();
+      return;
+    }
+    this.internalPages.delete(tabId);
     await t.loadURL(url);
+  }
+
+  async openInternalPage(page: BrowserInternalPage): Promise<BrowserTabInfo> {
+    const existing = this.tabs.find((tab) => this.internalPages.get(tab.tabId) === page);
+    if (existing) {
+      this.setActiveTab(existing.tabId);
+      return this.toInfo(existing);
+    }
+    return await this.createTab(
+      { url: INTERNAL_PAGES[page].url, activate: true },
+      { awaitAttach: false },
+    );
   }
 
   async back(tabId: string): Promise<void> {
     const t = this.findTab(tabId);
-    if (!t || !t.isAttached()) return;
+    if (!t || this.internalPages.has(tabId) || !t.isAttached()) return;
     const wc = t.webContents;
     if (wc.navigationHistory.canGoBack()) {
       wc.navigationHistory.goBack();
@@ -562,7 +633,7 @@ export class BrowserPanelManager {
 
   async forward(tabId: string): Promise<void> {
     const t = this.findTab(tabId);
-    if (!t || !t.isAttached()) return;
+    if (!t || this.internalPages.has(tabId) || !t.isAttached()) return;
     const wc = t.webContents;
     if (wc.navigationHistory.canGoForward()) {
       wc.navigationHistory.goForward();
@@ -571,20 +642,121 @@ export class BrowserPanelManager {
 
   async reload(tabId: string): Promise<void> {
     const t = this.findTab(tabId);
-    if (!t || !t.isAttached()) return;
+    if (!t || this.internalPages.has(tabId) || !t.isAttached()) return;
     t.webContents.reload();
   }
 
   async hardReload(tabId: string): Promise<void> {
     const t = this.findTab(tabId);
-    if (!t) return;
+    if (!t || this.internalPages.has(tabId)) return;
     t.hardReload();
   }
 
   async toggleDevTools(tabId: string): Promise<void> {
     const t = this.findTab(tabId);
-    if (!t) return;
+    if (!t || this.internalPages.has(tabId)) return;
     t.toggleDevTools();
+  }
+
+  findInPage(
+    tabId: string,
+    text: string,
+    options: { forward: boolean; findNext: boolean; matchCase: boolean },
+  ): void {
+    if (this.internalPages.has(tabId)) return;
+    this.findTab(tabId)?.findInPage(text, options);
+  }
+
+  stopFindInPage(
+    tabId: string,
+    action: "clearSelection" | "keepSelection" | "activateSelection",
+  ): void {
+    if (this.internalPages.has(tabId)) return;
+    this.findTab(tabId)?.stopFindInPage(action);
+  }
+
+  async print(tabId: string): Promise<BrowserPrintResult> {
+    const tab = this.findTab(tabId);
+    if (!tab || this.internalPages.has(tabId)) return { ok: false };
+    return await tab.print();
+  }
+
+  setZoomFactor(tabId: string, zoomFactor: number): void {
+    if (this.internalPages.has(tabId)) return;
+    this.findTab(tabId)?.setZoomFactor(zoomFactor);
+  }
+
+  setDeviceEmulation(tabId: string, emulation: BrowserDeviceEmulation | null): void {
+    if (this.internalPages.has(tabId)) return;
+    this.findTab(tabId)?.setDeviceEmulation(emulation);
+  }
+
+  getDownloads(): BrowserDownloadInfo[] {
+    return this.downloads?.list() ?? [];
+  }
+
+  async downloadAction(
+    downloadId: string,
+    action: "pause" | "resume" | "cancel" | "remove" | "open" | "show-in-folder",
+  ): Promise<void> {
+    if (!this.downloads) return;
+    if (action === "pause") this.downloads.pause(downloadId);
+    else if (action === "resume") this.downloads.resume(downloadId);
+    else if (action === "cancel") this.downloads.cancel(downloadId);
+    else if (action === "remove") this.downloads.remove(downloadId);
+    else if (action === "open") {
+      if (!(await this.downloads.open(downloadId))) throw new Error("Unable to open download");
+    } else if (!this.downloads.reveal(downloadId)) {
+      throw new Error("Unable to show download in folder");
+    }
+  }
+
+  listCredentials(): BrowserCredentialInfo[] {
+    return this.credentials.list();
+  }
+
+  getCredentialPassword(id: string): string | null {
+    return this.credentials.get(id)?.password ?? null;
+  }
+
+  upsertCredential(input: {
+    id?: string;
+    origin: string;
+    username: string;
+    password: string;
+  }): BrowserCredentialInfo {
+    const credential = this.credentials.upsert(input);
+    this.emit({ type: "credentials-updated" });
+    return credential;
+  }
+
+  deleteCredential(id: string): void {
+    if (this.credentials.delete(id)) this.emit({ type: "credentials-updated" });
+  }
+
+  async listImportSources(): Promise<BrowserImportSourceInfo[]> {
+    return (await this.importer?.listSources()) ?? [];
+  }
+
+  async importBrowserData(input: {
+    sourceId: string;
+    passwords: boolean;
+    cookies: boolean;
+    acknowledgeProtectedData: boolean;
+  }): Promise<BrowserImportResult> {
+    if (!this.importer) {
+      return {
+        passwordsImported: 0,
+        cookiesImported: 0,
+        passwordsSkipped: 0,
+        cookiesSkipped: 0,
+        protectedItemsSkipped: 0,
+        errors: ["browser-import-unavailable"],
+      };
+    }
+    const result = await this.importer.importData(input);
+    if (result.passwordsImported > 0) this.emit({ type: "credentials-updated" });
+    return result;
   }
 
   async clearHistory(tabId: string): Promise<void> {
@@ -608,12 +780,20 @@ export class BrowserPanelManager {
   }
 
   async clearCookies(tabId: string): Promise<void> {
+    if (this.options.browserSession) {
+      await this.options.browserSession.clearStorageData({ storages: ["cookies"] });
+      return;
+    }
     const t = this.findTab(tabId);
     if (!t) return;
     await t.clearCookies();
   }
 
   async clearCache(tabId: string): Promise<void> {
+    if (this.options.browserSession) {
+      await this.options.browserSession.clearCache();
+      return;
+    }
     const t = this.findTab(tabId);
     if (!t) return;
     await t.clearCache();
@@ -621,7 +801,7 @@ export class BrowserPanelManager {
 
   async capturePng(tabId: string): Promise<Buffer | null> {
     const t = this.findTab(tabId);
-    if (!t || !t.isAttached()) return null;
+    if (!t || this.internalPages.has(tabId) || !t.isAttached()) return null;
     return await t.capturePng();
   }
 
@@ -681,10 +861,12 @@ export class BrowserPanelManager {
   }
 
   getActiveTab(): BrowserTab | null {
-    return this.activeTabId ? (this.findTab(this.activeTabId) ?? null) : null;
+    if (!this.activeTabId || this.internalPages.has(this.activeTabId)) return null;
+    return this.findTab(this.activeTabId) ?? null;
   }
 
   getTab(tabId: string): BrowserTab | null {
+    if (this.internalPages.has(tabId)) return null;
     return this.findTab(tabId) ?? null;
   }
 
@@ -693,7 +875,7 @@ export class BrowserPanelManager {
     tabId: string;
   }): Promise<BrowserStartPickerResult> {
     const tab = this.findTab(payload.tabId);
-    if (!tab) {
+    if (!tab || this.internalPages.has(payload.tabId)) {
       return { ok: false, error: `No browser tab: ${payload.tabId}` };
     }
     if (!tab.isAttached()) {
@@ -819,6 +1001,12 @@ export class BrowserPanelManager {
 function isEscapeKeyDown(input: Electron.Input): boolean {
   if (input.type !== "keyDown") return false;
   return input.key === "Escape" || input.key === "Esc" || input.code === "Escape";
+}
+
+function internalPageForUrl(url: string): BrowserInternalPage | undefined {
+  return (
+    Object.entries(INTERNAL_PAGES) as Array<[BrowserInternalPage, { url: string; title: string }]>
+  ).find(([, page]) => page.url === url)?.[0];
 }
 
 function isPickerPayload(value: unknown): value is PickerPayload {

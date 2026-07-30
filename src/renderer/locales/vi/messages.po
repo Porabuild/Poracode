@@ -503,6 +503,10 @@ msgstr "22"
 msgid "30d"
 msgstr "30 ngày"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "4K"
+msgstr "4K"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7 ngày"
@@ -618,6 +622,10 @@ msgstr "Thêm vào"
 msgid "Add a local project"
 msgstr "Thêm một dự án cục bộ"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Add a password or import one from another browser."
+msgstr "Thêm mật khẩu hoặc nhập từ một trình duyệt khác."
+
 #: src/mobile/setupEmptyState.tsx
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -698,6 +706,10 @@ msgstr "Thêm mô hình"
 msgid "Add one manually or import from another agent."
 msgstr "Thêm thủ công hoặc nhập từ một tác nhân khác."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Add password"
+msgstr "Thêm mật khẩu"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
 msgstr "Thêm mẫu"
@@ -750,6 +762,10 @@ msgstr "Thêm vào mục yêu thích"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Add to Home Screen"
 msgstr "Thêm vào màn hình chính"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Advanced"
+msgstr "Nâng cao"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
@@ -1301,11 +1317,12 @@ msgstr "bị chặn:"
 msgid "Bold"
 msgstr "Đậm"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmark this page"
 msgstr "Đánh dấu trang này"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Bookmarks"
 msgstr "Dấu trang"
 
@@ -1341,6 +1358,10 @@ msgstr "Đưa về bảng điều khiển"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Đưa trở lại bảng điều khiển này, hoặc chuyển đến cửa sổ đang chạy."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Bring saved passwords and cookies over from an installed browser."
+msgstr "Chuyển mật khẩu và cookie đã lưu từ một trình duyệt đã cài đặt."
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
@@ -1387,7 +1408,7 @@ msgstr "MCP trình duyệt được bật cho OpenCode"
 msgid "Browser MCP enabled for this thread"
 msgstr "Đã bật MCP trình duyệt cho chủ đề này"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Browser menu"
 msgstr "Trình đơn trình duyệt"
 
@@ -1487,6 +1508,8 @@ msgstr "Không thể tải danh sách cổng"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
@@ -1497,6 +1520,10 @@ msgstr "Không thể tải danh sách cổng"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Cancel"
 msgstr "Hủy bỏ"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Cancel download"
+msgstr "Hủy tải xuống"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Cancel new Claude profile"
@@ -1519,6 +1546,7 @@ msgid "cancelled"
 msgstr "đã hủy"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Cancelled"
 msgstr "Đã hủy"
 
@@ -1682,6 +1710,10 @@ msgstr "Chọn một thư mục cha"
 #~ msgid "Choose an MCP server configuration file"
 #~ msgstr "Chọn tệp cấu hình máy chủ MCP"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Choose data to bring over to the built-in browser."
+msgstr "Chọn dữ liệu cần chuyển sang trình duyệt tích hợp."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "Chọn cách đăng nhập cho {env}."
@@ -1754,21 +1786,33 @@ msgstr "Hồ sơ Claude đã bị xóa."
 msgid "Cleanup script"
 msgstr "Tập lệnh dọn dẹp"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear browsing data"
+msgstr "Xóa dữ liệu duyệt web"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Clear browsing history"
 msgstr "Xóa lịch sử duyệt web"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Clear Browsing History"
 msgstr "Xóa lịch sử duyệt web"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-msgid "Clear Cache"
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear cache"
 msgstr "Xóa bộ nhớ đệm"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-msgid "Clear Cookies"
+#~ msgid "Clear Cache"
+#~ msgstr "Xóa bộ nhớ đệm"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear cookies"
 msgstr "Xóa cookie"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#~ msgid "Clear Cookies"
+#~ msgstr "Xóa cookie"
 
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
@@ -1858,6 +1902,10 @@ msgstr "Đóng trình soạn thảo"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Close connection actions"
 msgstr "Đóng các thao tác kết nối"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Close device toolbar"
+msgstr "Đóng thanh công cụ thiết bị"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -2183,6 +2231,7 @@ msgid "completed"
 msgstr "hoàn thành"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Completed"
 msgstr "Đã hoàn tất"
 
@@ -2401,6 +2450,10 @@ msgstr "Điều khiển máy tính đã ghép nối khi agent nhấp hoặc gõ"
 msgid "Conversation"
 msgstr "Cuộc trò chuyện"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Cookies"
+msgstr "Cookie"
+
 #: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
@@ -2436,7 +2489,7 @@ msgstr "Sao chép toàn bộ dữ liệu Lightcode vào Poracode. Poracode sẽ 
 msgid "Copy code"
 msgstr "Sao chép mã"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Copy Current URL"
 msgstr "Sao chép URL hiện tại"
 
@@ -2478,6 +2531,10 @@ msgstr "Sao chép liên kết ghép đôi"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy pairing token"
 msgstr "Sao chép token ghép đôi"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Copy password"
+msgstr "Sao chép mật khẩu"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -2807,6 +2864,7 @@ msgstr "Hành vi xóa chủ đề mặc định"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2857,6 +2915,14 @@ msgstr "Xóa tập tin"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete permanently"
 msgstr "Xóa vĩnh viễn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Delete saved password"
+msgstr "Xóa mật khẩu đã lưu"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Delete saved password?"
+msgstr "Xóa mật khẩu đã lưu?"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
@@ -2998,6 +3064,10 @@ msgstr "Máy chủ phát triển đang lắng nghe trên localhost của máy t�
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản dựng PORACODE DEV."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Device preset"
+msgstr "Cấu hình thiết bị"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
@@ -3006,6 +3076,10 @@ msgstr "Thiết bị được dùng cho nút nhập giọng nói của khung so�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy cập được."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Dimensions:"
+msgstr "Kích thước:"
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -3164,9 +3238,26 @@ msgstr "Xong"
 msgid "Done · Waiting for your input"
 msgstr "Xong · Đang chờ bạn nhập"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Download failed"
+msgstr "Tải xuống không thành công"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Download history"
+msgstr "Lịch sử tải xuống"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 msgid "Download image"
 msgstr "Tải hình ảnh"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Download progress"
+msgstr "Tiến trình tải xuống"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Downloading"
+msgstr "Đang tải xuống"
 
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -3186,6 +3277,14 @@ msgstr "Đang tải xuống mẫu giọng nói {0}%"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model..."
 msgstr "Đang tải xuống mẫu giọng nói..."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Downloads"
+msgstr "Nội dung tải xuống"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Downloads from the built-in browser are saved in this history."
+msgstr "Các tệp tải xuống từ trình duyệt tích hợp được lưu trong lịch sử này."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -3240,9 +3339,17 @@ msgstr "Chỉnh sửa tập tin"
 msgid "Edit MCP server"
 msgstr "Chỉnh sửa máy chủ MCP"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Edit password"
+msgstr "Chỉnh sửa mật khẩu"
+
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "Chỉnh sửa hồ sơ"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Edit saved password"
+msgstr "Chỉnh sửa mật khẩu đã lưu"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -3680,6 +3787,10 @@ msgstr "Tập tin cho {0}"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm kiếm @file."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Files you download appear here"
+msgstr "Các tệp bạn tải xuống sẽ xuất hiện tại đây"
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
 msgstr "Lọc theo dự án"
@@ -3712,6 +3823,11 @@ msgstr "Tìm trong cuộc trò chuyện"
 #: src/renderer/components/find/GitFindBar.tsx
 msgid "Find in diff"
 msgstr "Tìm trong diff"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Find in page"
+msgstr "Tìm trong trang"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Find in terminal"
@@ -3876,6 +3992,10 @@ msgstr "Tần suất"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Friday at 4:00 PM"
 msgstr "Thứ Sáu lúc 4:00 CH"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "From"
+msgstr "Nguồn"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
@@ -4086,7 +4206,7 @@ msgstr "handle"
 msgid "Handle"
 msgstr "Handle"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Hard Reload"
 msgstr "Tải lại cứng"
 
@@ -4149,6 +4269,10 @@ msgstr "Ẩn các mô hình bạn không sử dụng khỏi bộ chọn mô hìn
 msgid "Hide panel"
 msgstr "Ẩn bảng điều khiển"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Hide password"
+msgstr "Ẩn mật khẩu"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Hide runtime debug panel"
 msgstr "Ẩn bảng gỡ lỗi thời gian chạy"
@@ -4171,7 +4295,7 @@ msgstr "Ẩn skill từ {0}"
 msgid "Hide terminal"
 msgstr "Ẩn thiết bị đầu cuối"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Lịch sử"
 
@@ -4203,9 +4327,17 @@ msgstr "Hằng giờ"
 msgid "HTTP (streamable)"
 msgstr "HTTP (hỗ trợ truyền phát)"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "https://example.com"
+msgstr "https://example.com"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "I understand that protected browser data may be skipped."
+msgstr "Tôi hiểu rằng dữ liệu trình duyệt được bảo vệ có thể bị bỏ qua."
 
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -4240,6 +4372,10 @@ msgstr "Hình ảnh"
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import"
+msgstr "Nhập"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
 msgstr "Nhập lại"
@@ -4248,9 +4384,22 @@ msgstr "Nhập lại"
 msgid "Import and restart"
 msgstr "Nhập và khởi động lại"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Import browser data"
+msgstr "Nhập dữ liệu trình duyệt"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "Xung đột khi nhập"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import cookies"
+msgstr "Nhập cookie"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Import cookies and passwords"
+msgstr "Nhập cookie và mật khẩu"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -4269,6 +4418,10 @@ msgstr "Nhập skill của tác tử bên ngoài"
 msgid "Import external skills"
 msgstr "Nhập skill bên ngoài"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import from your browser"
+msgstr "Nhập từ trình duyệt của bạn"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import Lightcode data"
 msgstr "Nhập dữ liệu Lightcode"
@@ -4285,9 +4438,17 @@ msgstr "Nhập máy chủ MCP"
 msgid "Import method"
 msgstr "Phương thức nhập"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import passwords"
+msgstr "Nhập mật khẩu"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import selected"
 msgstr "Nhập mục đã chọn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import source"
+msgstr "Nguồn nhập"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
@@ -4315,6 +4476,17 @@ msgstr "Đã nhập {0} skill."
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "Đã nhập 1 skill."
+
+#. placeholder {0}: credential.source
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Imported from {0}"
+msgstr "Đã nhập từ {0}"
+
+#. placeholder {0}: result.passwordsImported
+#. placeholder {1}: result.cookiesImported
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Imported passwords: {0}. Imported cookies: {1}."
+msgstr "Mật khẩu đã nhập: {0}. Cookie đã nhập: {1}."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -4469,6 +4641,7 @@ msgstr "Hướng dẫn mà các tác nhân tuân theo khi chọn tác nhân ho�
 msgid "Interrupt"
 msgstr "Ngắt"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Interrupted"
 msgstr "Bị gián đoạn"
@@ -4476,6 +4649,26 @@ msgstr "Bị gián đoạn"
 #: src/renderer/state/slices/runtimeEventSlice.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoàn thành."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPad Air"
+msgstr "iPad Air"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPad Mini"
+msgstr "iPad Mini"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone 15 Pro"
+msgstr "iPhone 15 Pro"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone 15 Pro Max"
+msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone SE"
+msgstr "iPhone SE"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
@@ -4529,6 +4722,14 @@ msgstr "Ngôn ngữ cho thông điệp commit và tóm tắt pull request do AI 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "Ngôn ngữ mà mô hình giọng nói cần dùng khi phiên âm lời đọc trong trình soạn thảo."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Laptop"
+msgstr "Laptop"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Laptop L"
+msgstr "Laptop L"
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -4713,6 +4914,10 @@ msgstr "Cục bộ"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "Các thay đổi cục bộ cần được lưu tạm trước khi kéo từ {branch}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Local password protection"
+msgstr "Bảo vệ mật khẩu cục bộ"
+
 #. placeholder {0}: forward.targetPort
 #: src/mobile/views/PortsView.tsx
 msgid "localhost:{0} on desktop"
@@ -4779,6 +4984,10 @@ msgstr "Chuỗi ngày dài nhất"
 msgid "Longest task"
 msgstr "Tác vụ dài nhất"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Looking for browser profiles…"
+msgstr "Đang tìm hồ sơ trình duyệt…"
+
 #: src/mobile/views/PortsView.tsx
 msgid "Looking for dev servers…"
 msgstr "Đang tìm máy chủ phát triển…"
@@ -4790,6 +4999,10 @@ msgstr "Làm thanh bên trong suốt — hiệu ứng làm mờ của hệ thố
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "Quản lý skill tác tử toàn cục và theo dự án, bao gồm cả skill được nhập từ nhà cung cấp khác."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Manage passwords"
+msgstr "Quản lý mật khẩu"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "Manage remote environments"
@@ -5399,8 +5612,8 @@ msgstr "Lịch mới"
 #~ msgstr "Tác vụ đã lên lịch mới"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "Tab mới"
 
@@ -5611,6 +5824,10 @@ msgstr "Không có sự khác biệt nào cho {0}"
 msgid "No diff for {visiblePath}"
 msgstr "Không có sự khác biệt đối với {visiblePath}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "No downloads match your search"
+msgstr "Không có bản tải xuống nào khớp với tìm kiếm của bạn"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "No external skills were found in this scope."
 msgstr "Không tìm thấy skill bên ngoài trong phạm vi này."
@@ -5630,7 +5847,7 @@ msgstr "Không có tệp nào khớp với \"{0}\"."
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
 msgstr "Không tìm thấy tài khoản GitHub CLI nào. Đăng nhập bằng <0>gh auth login</0> hoặc <1>dán URL sao chép</1>."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "No history yet"
 msgstr "Chưa có lịch sử"
 
@@ -5705,6 +5922,10 @@ msgstr "Không có tác nhân nào khác được cài đặt"
 msgid "No paired devices yet."
 msgstr "Chưa có thiết bị nào được ghép đôi."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "No passwords match your search"
+msgstr "Không có mật khẩu nào khớp với tìm kiếm của bạn"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "Không có mẫu."
@@ -5771,6 +5992,10 @@ msgstr "Chưa có lần chạy nào."
 msgid "No runtime items yet for this thread."
 msgstr "Chưa có mục thời gian chạy nào cho luồng này."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "No saved passwords"
+msgstr "Không có mật khẩu đã lưu"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "Chưa có máy chủ nào được kết nối."
@@ -5807,6 +6032,10 @@ msgstr "Không có tác tử được hỗ trợ nào được cài đặt trên
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Không phát hiện thấy tác nhân được hỗ trợ nào"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "No supported browser profiles were found on this device."
+msgstr "Không tìm thấy hồ sơ trình duyệt được hỗ trợ nào trên thiết bị này."
 
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
@@ -6046,6 +6275,10 @@ msgstr "Mở trình giải quyết xung đột trong"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
 msgstr "Mở hộp thoại"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Open downloaded file"
+msgstr "Mở tệp đã tải xuống"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -6376,8 +6609,35 @@ msgid "Passphrase (optional)"
 msgstr "Cụm mật khẩu (không bắt buộc)"
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Password"
 msgstr "Mật khẩu"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password copied."
+msgstr "Đã sao chép mật khẩu."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Password manager"
+msgstr "Trình quản lý mật khẩu"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password manager section"
+msgstr "Phần trình quản lý mật khẩu"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Passwords"
+msgstr "Mật khẩu"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Passwords and autofill"
+msgstr "Mật khẩu và tự động điền"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Passwords are encrypted in Poracode's local credential store. Password values are requested only when you reveal, copy, or edit them."
+msgstr "Mật khẩu được mã hóa trong kho thông tin xác thực cục bộ của Poracode. Giá trị mật khẩu chỉ được yêu cầu khi bạn hiển thị, sao chép hoặc chỉnh sửa chúng."
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
@@ -6411,7 +6671,12 @@ msgstr "Dán khóa riêng SSH."
 msgid "Pause"
 msgstr "Tạm dừng"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Pause download"
+msgstr "Tạm dừng tải xuống"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "Đã tạm dừng"
@@ -6475,6 +6740,10 @@ msgstr "Ghim lên đầu"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
 msgstr "Đã ghim"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Pixel 8"
+msgstr "Pixel 8"
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
@@ -6643,6 +6912,10 @@ msgstr "Các lần chạy trước"
 msgid "Previous tab"
 msgstr "Tab trước"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Print"
+msgstr "In"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
 msgstr "Khóa riêng"
@@ -6729,6 +7002,10 @@ msgstr "Prompt"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "Kế hoạch đề xuất"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Protected browser data"
+msgstr "Dữ liệu trình duyệt được bảo vệ"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -7127,6 +7404,7 @@ msgid "Remove action"
 msgstr "Xóa hành động"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Remove bookmark"
 msgstr "Xóa dấu trang"
@@ -7142,6 +7420,10 @@ msgstr "Xóa kết nối"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Xóa biến môi trường"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Remove from download history"
+msgstr "Xóa khỏi lịch sử tải xuống"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Remove from favorites"
@@ -7304,6 +7586,10 @@ msgstr "Đặt lại độ mờ thanh bên về mặc định"
 msgid "Reset to default"
 msgstr "Đặt lại về mặc định"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Reset zoom"
+msgstr "Đặt lại mức thu phóng"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Thay đổi kích thước ngăn trình duyệt"
@@ -7337,10 +7623,26 @@ msgstr "Thay đổi kích thước phần chia"
 msgid "Resize terminal panel"
 msgstr "Thay đổi kích thước bảng điều khiển thiết bị đầu cuối"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Resize viewport"
+msgstr "Thay đổi kích thước khung nhìn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Resize viewport height"
+msgstr "Thay đổi chiều cao khung nhìn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Resize viewport width"
+msgstr "Thay đổi chiều rộng khung nhìn"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Giải quyết xung đột hợp nhất trong quá trình rebase hoặc hợp nhất."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Responsive"
+msgstr "Đáp ứng"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
@@ -7366,6 +7668,10 @@ msgstr "Khôi phục luồng"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
 msgstr "Tiếp tục"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Resume download"
+msgstr "Tiếp tục tải xuống"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -7408,6 +7714,10 @@ msgstr "Hiển thị trong File Explorer"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Reveal in file tree"
 msgstr "Hiển thị trong cây tập tin"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Reveal password"
+msgstr "Hiển thị mật khẩu"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -7494,6 +7804,10 @@ msgstr "Bảng bên phải"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "Nhấp chuột phải để đổi vòng"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Rotate viewport"
+msgstr "Xoay khung nhìn"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7607,9 +7921,14 @@ msgstr "Gỡ lỗi thời gian chạy"
 msgid "Runtime options"
 msgstr "Tùy chọn thời gian chạy"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Samsung Galaxy S24 Ultra"
+msgstr "Samsung Galaxy S24 Ultra"
+
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -7740,6 +8059,10 @@ msgstr "Tìm kiếm tác nhân..."
 msgid "Search branches..."
 msgstr "Tìm kiếm nhánh..."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Search downloads"
+msgstr "Tìm kiếm bản tải xuống"
+
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
@@ -7772,6 +8095,10 @@ msgstr "Tìm kiếm mô hình..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Tìm kiếm hoặc nhập địa chỉ"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Search passwords"
+msgstr "Tìm kiếm mật khẩu"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
@@ -7980,7 +8307,7 @@ msgstr "Đặt phím tắt"
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -8028,11 +8355,11 @@ msgstr "Hiển thị phạm vi Trang chủ không có dự án cho các phiên t
 msgid "Show all"
 msgstr "Hiển thị tất cả"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "Hiển thị thanh dấu trang"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show Bookmark Bar"
 msgstr "Hiển thị thanh dấu trang"
 
@@ -8054,6 +8381,10 @@ msgstr "Hiển thị trình soạn thảo"
 msgid "Show context usage details"
 msgstr "Hiển thị chi tiết sử dụng ngữ cảnh"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Show device toolbar"
+msgstr "Hiển thị thanh công cụ thiết bị"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
@@ -8062,6 +8393,10 @@ msgstr "Hiển thị chi phí ước tính"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Hiển thị trong trình duyệt tệp"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Show in folder"
+msgstr "Hiển thị trong thư mục"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
@@ -8302,10 +8637,19 @@ msgstr "Đã bỏ qua"
 msgid "Slash commands"
 msgstr "Lệnh gạch chéo"
 
+#. placeholder {0}: result.protectedItemsSkipped
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Some browser data was skipped. Protected items skipped: {0}."
+msgstr "Một số dữ liệu trình duyệt đã bị bỏ qua. Số mục được bảo vệ bị bỏ qua: {0}."
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Một số kiểm tra không thành công hoặc đang chờ xử lý."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Some Chromium browsers protect cookies and passwords with App-Bound Encryption. Poracode does not bypass that protection. Data the operating system does not make available will be skipped."
+msgstr "Một số trình duyệt Chromium bảo vệ cookie và mật khẩu bằng App-Bound Encryption. Poracode không vượt qua cơ chế bảo vệ đó. Dữ liệu mà hệ điều hành không cung cấp sẽ bị bỏ qua."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
@@ -8694,6 +9038,14 @@ msgstr "Hỗ trợ:"
 msgid "Supports Fast mode"
 msgstr "Hỗ trợ chế độ nhanh"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Surface Duo"
+msgstr "Surface Duo"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Surface Pro 7"
+msgstr "Surface Pro 7"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Hoán đổi ghi chú và việc cần làm"
@@ -8809,7 +9161,7 @@ msgstr "Tailscale HTTPS"
 msgid "Tailscale URL"
 msgstr "URL Tailscale"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Take Screenshot"
 msgstr "Chụp ảnh màn hình"
 
@@ -9125,6 +9477,11 @@ msgstr "Dự án từ xa này không khả dụng. Hãy kết nối lại môi t
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Thao tác này sẽ xóa các tin nhắn sau này và khôi phục các tệp khi có ảnh chụp nhanh điểm kiểm tra."
 
+#. placeholder {0}: pendingDelete?.origin
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "This removes the saved password for <0>{0}</0> from Poracode."
+msgstr "Thao tác này sẽ xóa mật khẩu đã lưu cho <0>{0}</0> khỏi Poracode."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This removes the schedule and its latest result from this device."
 msgstr "Thao tác này xóa lịch biểu và kết quả mới nhất khỏi thiết bị này."
@@ -9428,13 +9785,33 @@ msgstr "Không thể sao chép token ghép đôi."
 msgid "Unable to copy Tailscale URL."
 msgstr "Không thể sao chép URL Tailscale."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to copy the password."
+msgstr "Không thể sao chép mật khẩu."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "Không thể tạo thư mục cây làm việc WSL \"{path}\""
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to delete the saved password."
+msgstr "Không thể xóa mật khẩu đã lưu."
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to delete the worktree."
 msgstr "Không thể xóa worktree."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to edit the saved password."
+msgstr "Không thể chỉnh sửa mật khẩu đã lưu."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Unable to find browser data to import."
+msgstr "Không thể tìm thấy dữ liệu trình duyệt để nhập."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Unable to import browser data."
+msgstr "Không thể nhập dữ liệu trình duyệt."
 
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -9446,9 +9823,17 @@ msgstr "Không thể cài đặt hook {0}."
 msgid "Unable to install {0}."
 msgstr "Không thể cài đặt {0}."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Unable to load downloads."
+msgstr "Không thể tải nội dung tải xuống."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
 msgstr "Không thể tải ghép đôi truy cập từ xa."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to load saved passwords."
+msgstr "Không thể tải các mật khẩu đã lưu."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to load thread."
@@ -9515,6 +9900,10 @@ msgstr "Không thể giải quyết thư mục chính cho bản phân phối WSL
 msgid "Unable to restore the SSH connection."
 msgstr "Không thể khôi phục kết nối SSH."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to reveal the password."
+msgstr "Không thể hiển thị mật khẩu."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to revoke remote session."
 msgstr "Không thể thu hồi phiên từ xa."
@@ -9527,6 +9916,10 @@ msgstr "Không thể lưu thông tin xác thực {0}."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Không thể lưu hồ sơ Claude {displayLabel}."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to save the password."
+msgstr "Không thể lưu mật khẩu."
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -9594,6 +9987,10 @@ msgstr "Không thể cập nhật quyền truy cập từ xa."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update Tailscale HTTPS."
 msgstr "Không thể cập nhật Tailscale HTTPS."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Unable to update the download."
+msgstr "Không thể cập nhật nội dung tải xuống."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update the public URL."
@@ -9897,6 +10294,10 @@ msgstr "Đã được dùng bởi {conflict}"
 msgid "user@example.com"
 msgstr "user@example.com"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Username"
+msgstr "Tên người dùng"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "Đang dùng danh sách mô hình Claude tích hợp sẵn."
@@ -9969,6 +10370,18 @@ msgstr "Xem nhật ký thay đổi"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Chỉ xem — kết nối này không thể quản lý dự án."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport height"
+msgstr "Chiều cao khung nhìn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport scale"
+msgstr "Tỷ lệ khung nhìn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport width"
+msgstr "Chiều rộng khung nhìn"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -10062,10 +10475,15 @@ msgid "Web server"
 msgstr "Máy chủ web"
 
 #. External link to the product website
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Website"
 msgstr "Trang web"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Website origin"
+msgstr "Nguồn trang web"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
@@ -10347,10 +10765,16 @@ msgstr "Thư mục gốc WSL"
 msgid "Your name"
 msgstr "Tên của bạn"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Zoom"
+msgstr "Thu phóng"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "Phóng to"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "Thu nhỏ"

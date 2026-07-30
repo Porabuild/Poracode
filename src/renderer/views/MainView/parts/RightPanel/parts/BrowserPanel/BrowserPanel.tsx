@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
+import { useBrowserFindStore } from "@/renderer/state/browserFindStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
   macosTrafficLightGutterClass,
@@ -19,7 +20,13 @@ import {
   panelHeaderIconButtonClass,
 } from "@/renderer/components/layout/sidebarChrome";
 import { BrowserBookmarkBar } from "./parts/BrowserBookmarkBar";
+import { BrowserDeviceToolbar } from "./parts/BrowserDeviceToolbar";
+import { BrowserDownloadsPage } from "./parts/BrowserDownloadsPage";
 import { BrowserEmptyState } from "./parts/BrowserEmptyState";
+import { BrowserFindBar } from "./parts/BrowserFindBar";
+import { BrowserImportModal } from "./parts/BrowserImportModal";
+import { BrowserPasswordsPage } from "./parts/BrowserPasswordsPage";
+import { BrowserTabWebview } from "./parts/BrowserTabWebview";
 import { BrowserTabStrip } from "./parts/BrowserTabStrip";
 import { BrowserToolbar } from "./parts/BrowserToolbar";
 import { extractBrowserToWindow, injectBrowserToMain } from "./browserWindowActions";
@@ -51,7 +58,12 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   } = useElementPicker();
   const everHadTabsRef = useRef(false);
   const hasActiveTab = tabs.length > 0 && activeTabId !== null;
+  const activeTab = activeTabId ? tabs.find((tab) => tab.tabId === activeTabId) : undefined;
   const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (browserOverlayOpen || isWindowSurface) rootRef.current?.focus({ preventScroll: true });
+  }, [browserOverlayOpen, isWindowSurface]);
 
   const createTab = useCallback(() => {
     void readBridge()
@@ -67,7 +79,24 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     const el = rootRef.current;
     if (!el) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!activeTabId || !isBrowserReloadShortcut(event)) return;
+      if (!activeTabId) return;
+      if (isBrowserFindShortcut(event)) {
+        if (activeTab?.internalPage) return;
+        event.preventDefault();
+        event.stopPropagation();
+        useBrowserFindStore.getState().open(activeTabId);
+        return;
+      }
+      if (isBrowserPrintShortcut(event)) {
+        if (activeTab?.internalPage) return;
+        event.preventDefault();
+        event.stopPropagation();
+        readBridge()
+          .browserPrint({ tabId: activeTabId })
+          .catch(() => {});
+        return;
+      }
+      if (!isBrowserReloadShortcut(event)) return;
       event.preventDefault();
       event.stopPropagation();
       const bridge = readBridge();
@@ -79,7 +108,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     };
     el.addEventListener("keydown", handleKeyDown);
     return () => el.removeEventListener("keydown", handleKeyDown);
-  }, [activeTabId]);
+  }, [activeTab?.internalPage, activeTabId]);
 
   const onPick = useCallback(() => {
     void startPicker();
@@ -130,6 +159,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
       ref={rootRef}
       data-poracode-browser=""
       role="group"
+      tabIndex={-1}
       aria-label={t`Browser`}
       className="flex h-full w-full min-h-0 flex-col bg-[var(--content-background)]"
     >
@@ -232,15 +262,29 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
       />
       {hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />}
       <BrowserBookmarkBar />
+      <BrowserDeviceToolbar />
       <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
-        {tabs.map((tab) => (
-          <BrowserTabWebview
-            key={tab.tabId}
-            tabId={tab.tabId}
-            initialSrc={tab.url}
-            visible={visible && !menuPreviewDataUrl && tab.tabId === activeTabId}
-          />
-        ))}
+        {tabs
+          .filter((tab) => !tab.internalPage)
+          .map((tab) => (
+            <BrowserTabWebview
+              key={tab.tabId}
+              tabId={tab.tabId}
+              initialSrc={tab.url}
+              visible={visible && !menuPreviewDataUrl && tab.tabId === activeTabId}
+              {...(tab.deviceEmulation ? { emulation: tab.deviceEmulation } : {})}
+            />
+          ))}
+        {activeTab?.internalPage === "downloads" ? (
+          <div className="absolute inset-0">
+            <BrowserDownloadsPage />
+          </div>
+        ) : activeTab?.internalPage === "passwords" ? (
+          <div className="absolute inset-0">
+            <BrowserPasswordsPage />
+          </div>
+        ) : null}
+        <BrowserFindBar />
         {menuPreviewDataUrl ? (
           <img
             src={menuPreviewDataUrl}
@@ -255,6 +299,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           </div>
         ) : null}
       </div>
+      <BrowserImportModal />
     </div>
   );
 }
@@ -333,64 +378,25 @@ function BrowserDeviceCodeButton() {
   );
 }
 
-function BrowserTabWebview(props: { tabId: string; initialSrc: string; visible: boolean }) {
-  const ref = useRef<HTMLWebViewElement | null>(null);
-  const initialSrcRef = useRef(props.initialSrc);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let cancelled = false;
-    const onDomReady = () => {
-      if (cancelled) return;
-      let webContentsId: number;
-      try {
-        webContentsId = el.getWebContentsId();
-      } catch {
-        return;
-      }
-      readBridge()
-        .browserAttachWebContents({ tabId: props.tabId, webContentsId })
-        .catch(() => {});
-    };
-    el.addEventListener("dom-ready", onDomReady);
-    return () => {
-      cancelled = true;
-      el.removeEventListener("dom-ready", onDomReady);
-    };
-  }, [props.tabId]);
-
-  useEffect(() => {
-    if (!props.visible) return;
-    const el = ref.current;
-    if (!el) return;
-    let webContentsId: number;
-    try {
-      webContentsId = el.getWebContentsId();
-    } catch {
-      return;
-    }
-    readBridge()
-      .browserAttachWebContents({ tabId: props.tabId, webContentsId })
-      .catch(() => {});
-  }, [props.tabId, props.visible]);
-
-  return (
-    <webview
-      ref={ref}
-      data-tab-id={props.tabId}
-      partition="persist:lightcode-browser"
-      src={initialSrcRef.current || "about:blank"}
-      // Electron's React type says boolean, but React warns unless this custom
-      // element attribute is serialized as a string.
-      allowpopups={"true" as unknown as boolean}
-      className="absolute inset-0 size-full"
-      style={{ display: props.visible ? "flex" : "none" }}
-    />
-  );
-}
-
 function isBrowserReloadShortcut(event: KeyboardEvent): boolean {
   if (event.key === "F5") return true;
   return (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r";
+}
+
+function isBrowserFindShortcut(event: KeyboardEvent): boolean {
+  return (
+    (event.ctrlKey || event.metaKey) &&
+    !event.shiftKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === "f"
+  );
+}
+
+function isBrowserPrintShortcut(event: KeyboardEvent): boolean {
+  return (
+    (event.ctrlKey || event.metaKey) &&
+    !event.shiftKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === "p"
+  );
 }

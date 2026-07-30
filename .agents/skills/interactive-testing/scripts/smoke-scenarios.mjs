@@ -68,7 +68,8 @@ export const functionalAreas = [
   },
   {
     id: "browser",
-    title: "In-app Browser, browser MCP, picker, bookmarks, and Chrome extension",
+    title:
+      "In-app Browser, internal pages, downloads, passwords, device emulation, find, browser MCP, picker, bookmarks, and Chrome extension",
     patterns: [/browser/i, /chrome-extension/i, /ChromeMcp/i, /picker/i],
     automated: ["baseline", "browser"],
     manual: [],
