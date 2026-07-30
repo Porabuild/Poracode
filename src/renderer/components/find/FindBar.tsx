@@ -1,7 +1,8 @@
 import { forwardRef } from "react";
 import { Button } from "@heroui/react";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { CaseSensitive, ChevronDown, ChevronUp, X } from "lucide-react";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 
 export interface FindBarProps {
   query: string;
@@ -43,11 +44,17 @@ export const FindBar = forwardRef<HTMLInputElement, FindBarProps>(function FindB
 ) {
   const { t } = useLingui();
   const hasQuery = query.length > 0;
-  const counter = !hasQuery
-    ? ""
-    : matchCount === 0
-      ? t`No results`
-      : t`${currentIndex + 1} of ${matchCount}`;
+  // The position rolls as you step through matches and the total rolls as you
+  // type, both without the counter leaving its reserved slot.
+  const counter = !hasQuery ? (
+    ""
+  ) : matchCount === 0 ? (
+    t`No results`
+  ) : (
+    <Trans>
+      <AnimatedNumber value={currentIndex + 1} /> of <AnimatedNumber value={matchCount} />
+    </Trans>
+  );
 
   return (
     <div

@@ -5,6 +5,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
+import { DiffStat } from "@/renderer/components/common/DiffStat";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { compareFilesByDirThenName } from "@/renderer/utils/gitHelpers";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
@@ -115,20 +117,26 @@ export function FileGroup(props: {
         >
           {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
           {title}
-          <span className="font-normal text-muted/60">({count})</span>
+          <span className="font-normal text-muted/60">
+            (<AnimatedNumber value={count} />)
+          </span>
         </button>
         <span className="ml-auto flex items-center gap-0.5">
           {touch ? (
-            <span className="flex items-center gap-0.5 text-[11px] leading-4 font-medium font-normal tabular-nums">
-              {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
-              {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
-            </span>
+            <DiffStat
+              animated
+              className="flex items-center gap-0.5 text-[11px] leading-4 font-medium font-normal tabular-nums"
+              insertions={totalInsertions}
+              deletions={totalDeletions}
+            />
           ) : (
             <>
-              <span className="mr-1.5 flex items-center gap-0.5 text-[10px] leading-4 font-medium font-normal group-hover/header:hidden">
-                {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
-                {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
-              </span>
+              <DiffStat
+                animated
+                className="mr-1.5 flex items-center gap-0.5 text-[10px] leading-4 font-medium font-normal group-hover/header:hidden"
+                insertions={totalInsertions}
+                deletions={totalDeletions}
+              />
               <span className="hidden items-center gap-0.5 group-hover/header:flex">
                 {staged ? (
                   <button

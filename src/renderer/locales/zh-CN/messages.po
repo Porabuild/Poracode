@@ -116,6 +116,11 @@ msgstr "{0, plural, other {使用 # 次}}"
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {候选项（# 个）} other {候选项（# 个）}}"
 
+#. placeholder {0}: summary.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {edit} other {edits}}"
+msgstr "{0, plural, one {处编辑} other {处编辑}}"
+
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "{0, plural, one {MCP} other {MCPs}}"
@@ -245,8 +250,8 @@ msgstr "{0} 需要输入。"
 
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
-msgid "{0} of {matchCount}"
-msgstr "{0} / {matchCount}"
+#~ msgid "{0} of {matchCount}"
+#~ msgstr "{0} / {matchCount}"
 
 #. placeholder {0}: projectCount(workspace.id)
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -335,8 +340,8 @@ msgstr "已选择 {0}/{1} 个"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
-msgid "{0}% Full"
-msgstr "{0}% 满"
+#~ msgid "{0}% Full"
+#~ msgstr "{0}% 满"
 
 #. placeholder {0}: Math.floor(days / 30)
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
@@ -573,6 +578,14 @@ msgstr "/skill-creator 为 {destinationLabel} 创建一个新的托管技能。"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "©{currentYear} Serhii Vecherenko。版权所有。"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "<0/> of <1/>"
+msgstr "<0/> / <1/>"
+
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "<0/>% Full"
+msgstr "<0/>% 满"
 
 #. placeholder {0}: checks.length
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx

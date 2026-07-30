@@ -15,6 +15,7 @@ import {
 import { startTransition, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { getAppName } from "@/shared/appName";
 import type { Thread } from "@/shared/contracts";
@@ -109,7 +110,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex min-w-0 items-center justify-between gap-2 text-xs tabular-nums">
             <span className="truncate">{byteLine ?? <Trans>Downloading update</Trans>}</span>
-            <span className="shrink-0">{percent}%</span>
+            <AnimatedNumber className="shrink-0" value={percent} suffix="%" />
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--row-active)]">
             <div

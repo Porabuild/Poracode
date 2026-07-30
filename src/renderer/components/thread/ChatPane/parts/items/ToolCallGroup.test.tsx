@@ -4,6 +4,7 @@ import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ToolCallGroup } from "./ToolCallGroup";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 describe("ToolCallGroup", () => {
   beforeEach(() => {
@@ -79,7 +80,7 @@ describe("ToolCallGroup", () => {
     );
 
     // Header still derives from the summary while collapsed.
-    expect(screen.getByText("2 views")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 views"))).toBeInTheDocument();
     // No child row content and no viewport container are mounted.
     expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
     expect(screen.queryByText("Read file one")).not.toBeInTheDocument();
@@ -606,8 +607,8 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("2 commands")).toBeInTheDocument();
-    expect(screen.getByText("1 edit")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 edit"))).toBeInTheDocument();
   });
 
   it("categorizes ApplyPatch tool calls as edits in the group heading", () => {
@@ -623,7 +624,7 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("2 edits")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 edits"))).toBeInTheDocument();
   });
 
   it("renders semantic tool-like item buckets as tool rows", () => {
@@ -684,9 +685,9 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("3 MCPs")).toBeInTheDocument();
-    expect(screen.getByText("1 thought")).toBeInTheDocument();
-    expect(screen.queryByText("3 tools")).not.toBeInTheDocument();
+    expect(screen.getByText(byTextContent("3 MCPs"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 thought"))).toBeInTheDocument();
+    expect(screen.queryByText(byTextContent("3 tools"))).not.toBeInTheDocument();
   });
 
   it("keeps web searches visible when Codex omits the query", () => {
@@ -751,8 +752,8 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("1 thought")).toBeInTheDocument();
-    expect(screen.getByText("2 views")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 thought"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 views"))).toBeInTheDocument();
     expect(screen.getByText("Thought")).toBeInTheDocument();
     expect(screen.getByText("Read file")).toBeInTheDocument();
     expect(screen.getByText("Read other file")).toBeInTheDocument();
@@ -808,7 +809,7 @@ describe("ToolCallGroup", () => {
 
     // Header keeps physical counts; the run merge is a body-level treatment.
     // The command makes this a mixed group, so it auto-expands while live.
-    expect(screen.getByText("5 edits")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("5 edits"))).toBeInTheDocument();
 
     // 6 items render as 5 rows: the consecutive same-file pair collapses into
     // one "2 edits: chatPaneSelectors.test.ts" row with the summed diff.
@@ -850,7 +851,7 @@ describe("ToolCallGroup", () => {
 
     renderToolCallGroup(threadId, [items[0]!.id]);
 
-    expect(screen.getByText("1 command")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 command"))).toBeInTheDocument();
   });
 
   it("prefers a synthesized diff over non-diff streamed status text", async () => {

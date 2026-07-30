@@ -8,6 +8,7 @@ import type { ChatTimelineEntry } from "../../chatPaneSelectors";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { SubAgentContent, SubAgentHeaderText, SubAgentOpenController } from "./SubAgentOverlay";
 import { ActiveSubAgentTile } from "./ActiveSubAgentTile";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 const mockBridge = {
   subagentSubscribe:
@@ -312,7 +313,7 @@ describe("SubAgentContent", () => {
 
     const dialog = await screen.findByRole("region");
     expect(within(dialog).getByText("Inspect the renderer.")).toBeInTheDocument();
-    expect(within(dialog).getByText("2 commands")).toBeInTheDocument();
+    expect(within(dialog).getByText(byTextContent("2 commands"))).toBeInTheDocument();
     expect(
       await within(dialog).findByRole("heading", { name: "Child result" }, { timeout: 5_000 }),
     ).toBeInTheDocument();
@@ -357,7 +358,7 @@ describe("SubAgentContent", () => {
     );
 
     const dialog = await screen.findByRole("region");
-    expect(within(dialog).getByText("2 commands").closest("button")).toHaveAttribute(
+    expect(within(dialog).getByText(byTextContent("2 commands")).closest("button")).toHaveAttribute(
       "aria-expanded",
       "false",
     );

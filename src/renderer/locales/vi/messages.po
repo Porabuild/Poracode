@@ -116,6 +116,11 @@ msgstr "{0, plural, other {# lần dùng}}"
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 #~ msgstr "{0, plural, one {Ứng viên (#)} other {Ứng viên (#)}}"
 
+#. placeholder {0}: summary.count
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "{0, plural, one {edit} other {edits}}"
+msgstr "{0, plural, one {lần sửa} other {lần sửa}}"
+
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "{0, plural, one {MCP} other {MCPs}}"
@@ -245,8 +250,8 @@ msgstr "{0} cần thông tin nhập."
 
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
-msgid "{0} of {matchCount}"
-msgstr "{0} / {matchCount}"
+#~ msgid "{0} of {matchCount}"
+#~ msgstr "{0} / {matchCount}"
 
 #. placeholder {0}: projectCount(workspace.id)
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -335,8 +340,8 @@ msgstr "Đã chọn {0}/{1}"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
-msgid "{0}% Full"
-msgstr "{0}% Đầy"
+#~ msgid "{0}% Full"
+#~ msgstr "{0}% Đầy"
 
 #. placeholder {0}: Math.floor(days / 30)
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
@@ -573,6 +578,14 @@ msgstr "/skill-creator Tạo một skill được quản lý mới cho {destinat
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Mọi quyền được bảo lưu."
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "<0/> of <1/>"
+msgstr "<0/> / <1/>"
+
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "<0/>% Full"
+msgstr "<0/>% Đầy"
 
 #. placeholder {0}: checks.length
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx

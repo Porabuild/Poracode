@@ -4,6 +4,7 @@ import { GitFork } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { getBasename } from "@/shared/pathUtils";
 import { closeAllPanels, showGitReviewPanel } from "@/renderer/actions/panelActions";
+import { DiffStat } from "@/renderer/components/common";
 import {
   floatingGlassActiveClass,
   floatingGlassSurfaceClass,
@@ -69,8 +70,7 @@ export function ThreadChangesBubble(props: {
       }}
     >
       {props.worktreePath ? <GitFork className="size-3.5 shrink-0 text-muted" /> : null}
-      {insertions > 0 && <span className="text-success">+{insertions}</span>}
-      {deletions > 0 && <span className="text-danger">-{deletions}</span>}
+      <DiffStat animated insertions={insertions} deletions={deletions} />
     </button>
   );
 
