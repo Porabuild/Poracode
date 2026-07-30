@@ -568,6 +568,7 @@ msgid "Action name"
 msgstr "액션 이름"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -848,6 +849,7 @@ msgstr "AI 공급자"
 msgid "Alerts when threads need you"
 msgstr "스레드에 응답이 필요할 때 알림"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -1946,7 +1948,6 @@ msgid "Close scanner"
 msgstr "스캐너 닫기"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "검색 닫기"
 
@@ -2048,8 +2049,6 @@ msgstr "터미널 작성기 접기"
 msgid "Collapse todo dock"
 msgstr "할 일 도크 접기"
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "명령"
@@ -3648,6 +3647,10 @@ msgstr "파일이 너무 커서 미리 볼 수 없습니다."
 msgid "File no longer exists on disk."
 msgstr "파일이 더 이상 디스크에 존재하지 않습니다."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File search unavailable"
+msgstr "파일 검색을 사용할 수 없습니다"
+
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3661,6 +3664,7 @@ msgid "File uses an unsupported encoding."
 msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "파일"
@@ -5243,6 +5247,11 @@ msgstr "브라우저를 창으로 이동"
 msgid "Move changes to a new worktree"
 msgstr "변경 사항을 새 작업 트리로 이동"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "스레드 {0} 이동"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "할 일 도크를 오른쪽 패널로 이동"
@@ -5552,8 +5561,8 @@ msgid "No checks reported for this PR."
 msgstr "이 PR에 대해 보고된 검사가 없습니다."
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "명령을 찾을 수 없습니다."
+#~ msgid "No commands found"
+#~ msgstr "명령을 찾을 수 없습니다."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -5666,7 +5675,6 @@ msgstr "일치하는 일정이 없습니다."
 #~ msgstr "일치하는 작업이 없습니다."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "일치하는 스레드 없음"
 
@@ -5757,6 +5765,7 @@ msgstr "아직 연결된 원격 환경이 없습니다."
 msgid "No repositories found."
 msgstr "저장소를 찾을 수 없습니다."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
@@ -5812,8 +5821,8 @@ msgid "No thread selected"
 msgstr "선택된 스레드 없음"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "스레드 없음"
+#~ msgid "No threads"
+#~ msgstr "스레드 없음"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "No threads in this project"
@@ -6031,8 +6040,8 @@ msgid "Open check"
 msgstr "체크 열기"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "명령 팔레트 열기"
+#~ msgid "Open Command Palette"
+#~ msgstr "명령 팔레트 열기"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -7709,6 +7718,9 @@ msgstr "터미널 스크롤백 버퍼의 스크롤 속도 승수입니다."
 msgid "Scroll to bottom"
 msgstr "맨 아래로 스크롤"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -7811,15 +7823,14 @@ msgstr "현재 보기에서 검색"
 
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "스레드 검색"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "스레드 검색"
+#~ msgid "Search Threads"
+#~ msgstr "스레드 검색"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Search…"
 msgstr "검색…"
 
@@ -7914,6 +7925,7 @@ msgstr "기기 선택"
 msgid "Select model"
 msgstr "모델 선택"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "프로젝트 선택"
@@ -7970,6 +7982,8 @@ msgstr "단축키 설정"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9212,9 +9226,9 @@ msgstr "스레드 정렬 순서"
 msgid "Thread todo dock"
 msgstr "스레드 할 일 도크"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "스레드"
 
@@ -9377,8 +9391,8 @@ msgid "Type"
 msgstr "유형"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "명령을 입력하세요"
+#~ msgid "Type a command"
+#~ msgstr "명령을 입력하세요"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page"
@@ -9387,6 +9401,10 @@ msgstr "페이지에 입력"
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page (tap a field first)"
 msgstr "페이지에 입력(먼저 필드를 탭하세요)"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "파일을 검색하려면 입력하세요"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

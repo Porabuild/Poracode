@@ -568,6 +568,7 @@ msgid "Action name"
 msgstr "Aktionsname"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -848,6 +849,7 @@ msgstr "KI-Anbieter"
 msgid "Alerts when threads need you"
 msgstr "Benachrichtigungen, wenn Threads dich brauchen"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -1946,7 +1948,6 @@ msgid "Close scanner"
 msgstr "Scanner schließen"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "Suche schließen"
 
@@ -2048,8 +2049,6 @@ msgstr "Terminal-Composer einklappen"
 msgid "Collapse todo dock"
 msgstr "Aufgaben-Dock einklappen"
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Befehl"
@@ -3648,6 +3647,10 @@ msgstr "Die Datei ist zu groß für die Vorschau."
 msgid "File no longer exists on disk."
 msgstr "Die Datei ist nicht mehr auf der Festplatte vorhanden."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File search unavailable"
+msgstr "Die Dateisuche ist nicht verfügbar"
+
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3661,6 +3664,7 @@ msgid "File uses an unsupported encoding."
 msgstr "Die Datei verwendet eine nicht unterstützte Codierung."
 
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "Dateien"
@@ -5243,6 +5247,11 @@ msgstr "Browser in Fenster verschieben"
 msgid "Move changes to a new worktree"
 msgstr "Änderungen in einen neuen Arbeitsbaum verschieben"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "Thread {0} verschieben"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Verschieben Sie das ToDo-Dock in den rechten Bereich"
@@ -5552,8 +5561,8 @@ msgid "No checks reported for this PR."
 msgstr "Für diese PR wurden keine Checks gemeldet."
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "Keine Befehle gefunden"
+#~ msgid "No commands found"
+#~ msgstr "Keine Befehle gefunden"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -5666,7 +5675,6 @@ msgstr "Keine passenden Zeitpläne."
 #~ msgstr "Keine passenden Aufgaben."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Keine passenden Threads"
 
@@ -5757,6 +5765,7 @@ msgstr "Noch keine Remote-Umgebungen verbunden."
 msgid "No repositories found."
 msgstr "Keine Repositorys gefunden."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
@@ -5812,8 +5821,8 @@ msgid "No thread selected"
 msgstr "Kein Thread ausgewählt"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "Keine Threads"
+#~ msgid "No threads"
+#~ msgstr "Keine Threads"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "No threads in this project"
@@ -6031,8 +6040,8 @@ msgid "Open check"
 msgstr "Offene Prüfung"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "Öffnen Sie die Befehlspalette"
+#~ msgid "Open Command Palette"
+#~ msgstr "Öffnen Sie die Befehlspalette"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -7709,6 +7718,9 @@ msgstr "Scrollgeschwindigkeitsmultiplikator für den Terminal-Scrollback-Puffer.
 msgid "Scroll to bottom"
 msgstr "Nach unten scrollen"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -7811,15 +7823,14 @@ msgstr "Die aktuelle Ansicht durchsuchen"
 
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "Threads durchsuchen"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "Threads durchsuchen"
+#~ msgid "Search Threads"
+#~ msgstr "Threads durchsuchen"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Search…"
 msgstr "Suchen…"
 
@@ -7914,6 +7925,7 @@ msgstr "Gerät auswählen"
 msgid "Select model"
 msgstr "Modell auswählen"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Projekt auswählen"
@@ -7970,6 +7982,8 @@ msgstr "Tastenkürzel festlegen"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9212,9 +9226,9 @@ msgstr "Sortierreihenfolge der Threads"
 msgid "Thread todo dock"
 msgstr "Thread-Aufgaben-Dock"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "Threads"
 
@@ -9377,8 +9391,8 @@ msgid "Type"
 msgstr "Typ"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "Geben Sie einen Befehl ein"
+#~ msgid "Type a command"
+#~ msgstr "Geben Sie einen Befehl ein"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page"
@@ -9387,6 +9401,10 @@ msgstr "In die Seite tippen"
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page (tap a field first)"
 msgstr "In die Seite tippen (zuerst ein Feld antippen)"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "Zum Suchen von Dateien Text eingeben"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

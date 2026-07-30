@@ -212,7 +212,9 @@ try {
       locationDistro: projectLocation.kind === "wsl" ? projectLocation.distro : null,
       locationLinuxPath: projectLocation.kind === "wsl" ? projectLocation.linuxPath : null,
       locationUncPath: projectLocation.kind === "wsl" ? projectLocation.uncPath : null,
-      scripts: JSON.stringify({ actions: [] }),
+      scripts: JSON.stringify({
+        actions: [{ id: "smoke-check", name: "Smoke check", command: "echo smoke" }],
+      }),
       createdAt,
     });
     setState.run({

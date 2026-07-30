@@ -568,6 +568,7 @@ msgid "Action name"
 msgstr "操作名称"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -848,6 +849,7 @@ msgstr "AI 提供商"
 msgid "Alerts when threads need you"
 msgstr "线程需要你时提醒"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -1946,7 +1948,6 @@ msgid "Close scanner"
 msgstr "关闭扫描器"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "关闭搜索"
 
@@ -2048,8 +2049,6 @@ msgstr "折叠终端输入框"
 msgid "Collapse todo dock"
 msgstr "折叠待办事项面板"
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "命令"
@@ -3648,6 +3647,10 @@ msgstr "文件太大，无法预览。"
 msgid "File no longer exists on disk."
 msgstr "文件不再存在于磁盘上。"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File search unavailable"
+msgstr "文件搜索不可用"
+
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3661,6 +3664,7 @@ msgid "File uses an unsupported encoding."
 msgstr "文件使用不受支持的编码。"
 
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "文件"
@@ -5242,6 +5246,11 @@ msgstr "将浏览器移到窗口"
 msgid "Move changes to a new worktree"
 msgstr "将更改移至新工作树"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "移动线程 {0}"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "将待办事项停靠栏移至右侧面板"
@@ -5551,8 +5560,8 @@ msgid "No checks reported for this PR."
 msgstr "没有为此 PR 报告检查。"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "没有找到命令"
+#~ msgid "No commands found"
+#~ msgstr "没有找到命令"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -5665,7 +5674,6 @@ msgstr "没有匹配的计划。"
 #~ msgstr "没有匹配的任务。"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "没有匹配的线程"
 
@@ -5756,6 +5764,7 @@ msgstr "尚未连接远程环境。"
 msgid "No repositories found."
 msgstr "未找到存储库。"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
@@ -5811,8 +5820,8 @@ msgid "No thread selected"
 msgstr "未选择线程"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "没有线程"
+#~ msgid "No threads"
+#~ msgstr "没有线程"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "No threads in this project"
@@ -6030,8 +6039,8 @@ msgid "Open check"
 msgstr "打开检查"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "打开命令面板"
+#~ msgid "Open Command Palette"
+#~ msgstr "打开命令面板"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -7708,6 +7717,9 @@ msgstr "终端回滚缓冲区的滚动速度倍增器。"
 msgid "Scroll to bottom"
 msgstr "滚动到底部"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -7810,15 +7822,14 @@ msgstr "搜索当前视图"
 
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "搜索线程"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "搜索线程"
+#~ msgid "Search Threads"
+#~ msgstr "搜索线程"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Search…"
 msgstr "搜索..."
 
@@ -7913,6 +7924,7 @@ msgstr "选择设备"
 msgid "Select model"
 msgstr "选择模型"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "选择项目"
@@ -7969,6 +7981,8 @@ msgstr "设置快捷键"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9211,9 +9225,9 @@ msgstr "线程排序顺序"
 msgid "Thread todo dock"
 msgstr "线程待办事项停靠栏"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "线程"
 
@@ -9376,8 +9390,8 @@ msgid "Type"
 msgstr "类型"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "输入命令"
+#~ msgid "Type a command"
+#~ msgstr "输入命令"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page"
@@ -9386,6 +9400,10 @@ msgstr "在页面中输入"
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page (tap a field first)"
 msgstr "在页面中输入（请先点按一个字段）"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "输入内容以搜索文件"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

@@ -1,4 +1,4 @@
-import { startTransition, useEffect } from "react";
+import { Suspense, startTransition, useEffect, useState } from "react";
 import type { AgentStatus } from "@/shared/contracts";
 import { buildPaneLayoutFromLegacy } from "@/shared/paneLayout";
 import { readBridge } from "@/renderer/bridge";
@@ -10,6 +10,8 @@ import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { AppDndProvider } from "@/renderer/dnd";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
+import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
 
 import { useKeyboardShortcuts } from "@/renderer/hooks/useKeyboardShortcuts";
 import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
@@ -21,7 +23,6 @@ import { AppOverlays } from "@/renderer/views/MainView/parts/AppOverlays";
 import { WorktreeDeleteDialogs } from "@/renderer/views/MainView/parts/WorktreeDeleteDialogs";
 import { PullFromSourceDialog } from "@/renderer/views/MainView/parts/PullFromSourceDialog";
 import { MainPageLayout, StalePanelCleanup } from "@/renderer/views/MainView/parts/MainPageLayout";
-import { ThreadSearchOverlayHost } from "@/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay";
 
 function findMissingWslDistro(distros: readonly string[], statuses: readonly AgentStatus[]) {
   const cachedDistros = new Set(
@@ -111,7 +112,7 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
         }
       >
         <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
-        <ThreadSearchOverlayHost />
+        <DeferredCommandPaletteHost />
       </AppDndProvider>
       <StalePanelCleanup />
       <AppOverlays />
@@ -119,4 +120,19 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
       <PullFromSourceDialog />
     </>
   );
+}
+
+function DeferredCommandPaletteHost() {
+  const open = useCommandPaletteStore((state) => state.isOpen);
+  const [enabled, setEnabled] = useState(open);
+
+  useEffect(() => {
+    if (open) setEnabled(true);
+  }, [open]);
+
+  return enabled ? (
+    <Suspense>
+      <PrewarmedCommandPalette />
+    </Suspense>
+  ) : null;
 }

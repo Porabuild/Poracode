@@ -568,6 +568,7 @@ msgid "Action name"
 msgstr "Tên hành động"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -848,6 +849,7 @@ msgstr "Nhà cung cấp AI"
 msgid "Alerts when threads need you"
 msgstr "Cảnh báo khi luồng cần bạn"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -1946,7 +1948,6 @@ msgid "Close scanner"
 msgstr "Đóng trình quét"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "Đóng tìm kiếm"
 
@@ -2048,8 +2049,6 @@ msgstr "Thu gọn trình soạn thảo thiết bị đầu cuối"
 msgid "Collapse todo dock"
 msgstr "Thu gọn thanh việc cần làm"
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Lệnh"
@@ -3648,6 +3647,10 @@ msgstr "Tệp quá lớn để xem trước."
 msgid "File no longer exists on disk."
 msgstr "Tệp không còn tồn tại trên đĩa."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File search unavailable"
+msgstr "Tính năng tìm kiếm tệp không khả dụng"
+
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3661,6 +3664,7 @@ msgid "File uses an unsupported encoding."
 msgstr "Tệp sử dụng mã hóa không được hỗ trợ."
 
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "Tập tin"
@@ -5243,6 +5247,11 @@ msgstr "Chuyển trình duyệt sang cửa sổ"
 msgid "Move changes to a new worktree"
 msgstr "Di chuyển các thay đổi sang một cây làm việc mới"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "Di chuyển luồng {0}"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Di chuyển khay việc cần làm sang bảng bên phải"
@@ -5552,8 +5561,8 @@ msgid "No checks reported for this PR."
 msgstr "Không có kiểm tra nào được báo cáo cho PR này."
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "Không tìm thấy lệnh nào"
+#~ msgid "No commands found"
+#~ msgstr "Không tìm thấy lệnh nào"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -5666,7 +5675,6 @@ msgstr "Không có lịch phù hợp."
 #~ msgstr "Không có tác vụ phù hợp."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Không có luồng nào phù hợp"
 
@@ -5757,6 +5765,7 @@ msgstr "Chưa có môi trường từ xa nào được kết nối."
 msgid "No repositories found."
 msgstr "Không tìm thấy kho lưu trữ nào."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
@@ -5812,8 +5821,8 @@ msgid "No thread selected"
 msgstr "Chưa chọn luồng"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "Không có luồng nào"
+#~ msgid "No threads"
+#~ msgstr "Không có luồng nào"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "No threads in this project"
@@ -6031,8 +6040,8 @@ msgid "Open check"
 msgstr "Mở kiểm tra"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "Mở bảng lệnh"
+#~ msgid "Open Command Palette"
+#~ msgstr "Mở bảng lệnh"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -7709,6 +7718,9 @@ msgstr "Hệ số nhân tốc độ cuộn cho bộ đệm cuộn ngược đầ
 msgid "Scroll to bottom"
 msgstr "Cuộn xuống dưới cùng"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -7811,15 +7823,14 @@ msgstr "Tìm kiếm trong chế độ xem hiện tại"
 
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "Tìm kiếm luồng"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "Tìm kiếm luồng"
+#~ msgid "Search Threads"
+#~ msgstr "Tìm kiếm luồng"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Search…"
 msgstr "Tìm kiếm…"
 
@@ -7914,6 +7925,7 @@ msgstr "Chọn thiết bị"
 msgid "Select model"
 msgstr "Chọn mô hình"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Chọn dự án"
@@ -7970,6 +7982,8 @@ msgstr "Đặt phím tắt"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9212,9 +9226,9 @@ msgstr "Thứ tự sắp xếp luồng"
 msgid "Thread todo dock"
 msgstr "Dock việc cần làm của luồng"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "luồng"
 
@@ -9377,8 +9391,8 @@ msgid "Type"
 msgstr "Loại"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "Nhập lệnh"
+#~ msgid "Type a command"
+#~ msgstr "Nhập lệnh"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page"
@@ -9387,6 +9401,10 @@ msgstr "Nhập vào trang"
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page (tap a field first)"
 msgstr "Nhập vào trang (chạm vào trường trước)"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "Nhập để tìm kiếm tệp"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

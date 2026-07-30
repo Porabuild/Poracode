@@ -92,6 +92,7 @@ export const searchProjectTreePayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   query: z.string().default(""),
   limit: z.number().int().min(1).max(200).default(50),
+  entryType: z.enum(["file", "directory"]).optional(),
   searchConfig: searchConfigSchema.optional(),
 });
 export type SearchProjectTreePayload = z.infer<typeof searchProjectTreePayloadSchema>;

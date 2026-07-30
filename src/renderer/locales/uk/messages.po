@@ -568,6 +568,7 @@ msgid "Action name"
 msgstr "Назва дії"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -848,6 +849,7 @@ msgstr "Постачальники AI"
 msgid "Alerts when threads need you"
 msgstr "Сповіщення, коли потокам потрібна ваша увага"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -1946,7 +1948,6 @@ msgid "Close scanner"
 msgstr "Закрити сканер"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "Закрити пошук"
 
@@ -2048,8 +2049,6 @@ msgstr "Згорнути поле вводу термінала"
 msgid "Collapse todo dock"
 msgstr "Згорнути панель завдань"
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Команда"
@@ -3648,6 +3647,10 @@ msgstr "Файл занадто великий для попереднього �
 msgid "File no longer exists on disk."
 msgstr "Файл більше не існує на диску."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File search unavailable"
+msgstr "Пошук файлів недоступний"
+
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3661,6 +3664,7 @@ msgid "File uses an unsupported encoding."
 msgstr "Файл використовує непідтримуване кодування."
 
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "Файли"
@@ -5243,6 +5247,11 @@ msgstr "Перемістити браузер у вікно"
 msgid "Move changes to a new worktree"
 msgstr "Перемістити зміни в новий worktree"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "Перемістити тред {0}"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Перемістити панель завдань у праву панель"
@@ -5552,8 +5561,8 @@ msgid "No checks reported for this PR."
 msgstr "Для цього PR не повідомлено про перевірки."
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "Команд не знайдено"
+#~ msgid "No commands found"
+#~ msgstr "Команд не знайдено"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -5666,7 +5675,6 @@ msgstr "Відповідних розкладів немає."
 #~ msgstr "Немає відповідних завдань."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Відповідних тредів немає"
 
@@ -5757,6 +5765,7 @@ msgstr "Віддалені середовища ще не підключено."
 msgid "No repositories found."
 msgstr "Репозиторії не знайдено."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
@@ -5812,8 +5821,8 @@ msgid "No thread selected"
 msgstr "Потік не вибрано"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "Немає тредів"
+#~ msgid "No threads"
+#~ msgstr "Немає тредів"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "No threads in this project"
@@ -6031,8 +6040,8 @@ msgid "Open check"
 msgstr "Відкрити перевірку"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "Відкрити палітру команд"
+#~ msgid "Open Command Palette"
+#~ msgstr "Відкрити палітру команд"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -7709,6 +7718,9 @@ msgstr "Множник швидкості прокручування буфер�
 msgid "Scroll to bottom"
 msgstr "Прокрутити вниз"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -7811,15 +7823,14 @@ msgstr "Пошук у поточному поданні"
 
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "Пошук тредів"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "Пошук тредів"
+#~ msgid "Search Threads"
+#~ msgstr "Пошук тредів"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Search…"
 msgstr "Пошук…"
 
@@ -7914,6 +7925,7 @@ msgstr "Вибрати пристрій"
 msgid "Select model"
 msgstr "Вибрати модель"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Вибрати проєкт"
@@ -7970,6 +7982,8 @@ msgstr "Призначити комбінацію клавіш"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9212,9 +9226,9 @@ msgstr "Порядок сортування тредів"
 msgid "Thread todo dock"
 msgstr "Панель завдань треда"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "Треди"
 
@@ -9377,8 +9391,8 @@ msgid "Type"
 msgstr "Тип"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "Введіть команду"
+#~ msgid "Type a command"
+#~ msgstr "Введіть команду"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page"
@@ -9387,6 +9401,10 @@ msgstr "Вводить на странице"
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page (tap a field first)"
 msgstr "Вводите на странице (сначала коснитесь поля)"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "Введіть запит для пошуку файлів"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

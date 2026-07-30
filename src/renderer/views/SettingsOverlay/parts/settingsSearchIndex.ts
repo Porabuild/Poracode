@@ -539,17 +539,17 @@ function truncate(text: string, max = SNIPPET_MAX): string {
 }
 
 /**
- * Match `query` against the index. Case-insensitive substring over the localized
- * title, then description, then English `keywords` — same semantics as the
- * sidebar's existing section-label filter. Returns `[]` for a blank query.
+ * Match `query` against the index. Every whitespace-delimited term must match
+ * the localized title, description, or English `keywords`. Returns `[]` for a
+ * blank query.
  */
 export function searchSettings(
   query: string,
   t: Translate,
   opts?: { devMode?: boolean; remoteSession?: boolean; index?: readonly SettingsSearchEntry[] },
 ): SettingsSearchResult[] {
-  const needle = query.trim().toLowerCase();
-  if (needle === "") return [];
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return [];
   const index = opts?.index ?? SETTINGS_SEARCH_INDEX;
   const results: SettingsSearchResult[] = [];
   for (const entry of index) {
@@ -557,11 +557,17 @@ export function searchSettings(
     if (entry.desktopOnly && opts?.remoteSession) continue;
     const title = t(entry.title);
     const description = entry.description ? t(entry.description) : "";
-    const titleMatch = title.toLowerCase().includes(needle);
-    const descMatch = description !== "" && description.toLowerCase().includes(needle);
-    const keywordMatch =
-      entry.keywords !== undefined && entry.keywords.toLowerCase().includes(needle);
-    if (!titleMatch && !descMatch && !keywordMatch) continue;
+    const normalizedTitle = title.toLowerCase();
+    const normalizedDescription = description.toLowerCase();
+    const normalizedKeywords = entry.keywords?.toLowerCase() ?? "";
+    const titleMatch = terms.every((term) => normalizedTitle.includes(term));
+    const matches = terms.every(
+      (term) =>
+        normalizedTitle.includes(term) ||
+        normalizedDescription.includes(term) ||
+        normalizedKeywords.includes(term),
+    );
+    if (!matches) continue;
     results.push({
       section: entry.section,
       anchor: entry.anchor,

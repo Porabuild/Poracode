@@ -18,7 +18,9 @@ export function readKeybindingsFile(keybindingsPath: string): KeybindingsConfig 
 
   const raw = readFileSync(keybindingsPath, "utf8");
   const parsed = keybindingsFileSchema.parse(JSON.parse(raw));
-  const migrated = migrateToggleFastOffFind(backfillNewDefaults(parsed));
+  const migrated = migrateThreadSearchCommand(
+    migrateToggleFastOffFind(backfillNewDefaults(parsed)),
+  );
   if (migrated !== parsed) {
     writeFileAtomic(keybindingsPath, `${JSON.stringify(migrated, null, 2)}\n`, {
       encoding: "utf8",
@@ -66,6 +68,21 @@ function migrateToggleFastOffFind(file: KeybindingsFile): KeybindingsFile {
       return { ...binding, key: TOGGLE_FAST_DEFAULT.key, mac: TOGGLE_FAST_DEFAULT.mac };
     }
     return binding;
+  });
+  return changed ? { ...file, keybindings } : file;
+}
+
+/**
+ * The former thread-only search now opens the unified Search palette. Rekey
+ * every legacy entry so existing custom chords remain editable on the visible
+ * `palette.open` shortcut instead of becoming hidden bindings.
+ */
+function migrateThreadSearchCommand(file: KeybindingsFile): KeybindingsFile {
+  let changed = false;
+  const keybindings = file.keybindings.map((binding) => {
+    if (binding.command !== "thread.search.open") return binding;
+    changed = true;
+    return { ...binding, command: "palette.open" };
   });
   return changed ? { ...file, keybindings } : file;
 }

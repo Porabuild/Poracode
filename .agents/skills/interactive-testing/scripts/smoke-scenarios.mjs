@@ -42,8 +42,15 @@ export const functionalAreas = [
     id: "threads-chat",
     title: "Thread draft, composer, chat, history, and runtime requests",
     patterns: [/thread/i, /ChatPane/, /composer/i, /runtimeEvent/i, /session/i],
-    automated: ["baseline", "thread-search"],
+    automated: ["baseline", "everything-search"],
     manual: ["provider-live", "runtime-requests"],
+  },
+  {
+    id: "everything-search",
+    title: "Global search across threads, commands, settings, files, and actions",
+    patterns: [/CommandPalette/, /EverythingSearch/, /everythingSearch/, /commandPaletteStore/],
+    automated: ["everything-search"],
+    manual: [],
   },
   {
     id: "terminal-pty",

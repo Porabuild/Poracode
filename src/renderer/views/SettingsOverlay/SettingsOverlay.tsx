@@ -87,32 +87,32 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
   const { t } = useLingui();
   const requestedSection = usePanelStore((s) => s.settingsSection);
+  const requestedAnchor = usePanelStore((s) => s.settingsAnchor);
   const clearSettingsSection = usePanelStore((s) => s.clearSettingsSection);
   const [activeSection, setActiveSection] = useState<SettingsSection>(
     (requestedSection as SettingsSection | null) ?? "general",
   );
-  // Apply a deep-link request (e.g. clicking a sidebar usage circle) and clear
-  // it so it doesn't re-fire on the next open.
-  useEffect(() => {
-    if (requestedSection) {
-      setActiveSection(requestedSection as SettingsSection);
-      clearSettingsSection();
-    }
-  }, [requestedSection, clearSettingsSection]);
-
   // Pending scroll-to-setting target, set when a settings search result is
-  // clicked. The token re-fires the effect when the same setting is picked
-  // twice. Local (not a store): only this overlay coordinates the scroll, and it
-  // has to land *after* the section content remounts (`key={activeSection}`).
-  const [scrollTarget, setScrollTarget] = useState<{ anchor: string; token: number } | null>(null);
-  const scrollTokenRef = useRef(0);
+  // clicked. Local (not a store): only this overlay coordinates the scroll, and
+  // it has to land *after* the section content remounts (`key={activeSection}`).
+  const [scrollTarget, setScrollTarget] = useState<{ anchor: string } | null>(null);
   const navigateToSection = useCallback((section: SettingsSection, anchor?: string) => {
     setActiveSection(section);
     if (anchor) {
-      scrollTokenRef.current += 1;
-      setScrollTarget({ anchor, token: scrollTokenRef.current });
+      setScrollTarget({ anchor });
+    } else {
+      setScrollTarget(null);
     }
   }, []);
+
+  // Apply a deep-link request (e.g. clicking a sidebar usage circle or an
+  // everything-search setting result) and clear it so the same target can be
+  // requested again while this overlay remains open.
+  useEffect(() => {
+    if (!requestedSection) return;
+    navigateToSection(requestedSection as SettingsSection, requestedAnchor ?? undefined);
+    clearSettingsSection();
+  }, [requestedSection, requestedAnchor, clearSettingsSection, navigateToSection]);
 
   // After the target section mounts, scroll its anchor into view and flash it.
   // Runs on rAF (with a short retry) so the freshly-remounted row is in the DOM.

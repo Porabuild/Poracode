@@ -17,8 +17,11 @@ describe("DEFAULT_KEYBINDINGS", () => {
     expect(byCommand["pane.close"]?.when).toContain("!browserFocus");
     expect(byCommand["pane.close"]?.when).toContain("!composerFocus");
     expect(byCommand["editor.save"]?.when).toBe("editorFocus");
-    expect(byCommand["thread.search.open"]?.when).toContain("!inputFocus");
-    expect(byCommand["thread.search.open"]?.when).toContain("!panelFocus");
+    const constrainedSearch = DEFAULT_KEYBINDINGS.keybindings.find(
+      (binding) => binding.command === "palette.open" && binding.when,
+    );
+    expect(constrainedSearch?.when).toContain("!inputFocus");
+    expect(constrainedSearch?.when).toContain("!panelFocus");
     expect(byCommand["thread.star"]?.when).toContain("draftView");
     expect(byCommand["thread.star"]?.when).toContain("!inputFocus");
     expect(byCommand["thread.star"]?.when).toContain("!terminalFocus");

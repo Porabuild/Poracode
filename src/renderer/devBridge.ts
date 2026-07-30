@@ -12,6 +12,7 @@
  */
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -31,6 +32,7 @@ export function installDevBridge(): void {
       update: useUpdateStore,
       app: useAppStore,
       agentStatuses: useAgentStatusesStore,
+      commandPalette: useCommandPaletteStore,
       panel: usePanelStore,
       sidebarUi: useSidebarUiStore,
       sharedSettings: useSharedSettings,

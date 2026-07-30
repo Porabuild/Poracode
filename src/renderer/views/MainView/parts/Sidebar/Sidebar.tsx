@@ -49,6 +49,7 @@ import {
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUpdateStore } from "@/renderer/state/updateStore";
@@ -233,8 +234,8 @@ export function Sidebar() {
   // lights up for every other section.
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
-  const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
-  const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
+  const searchOpen = useCommandPaletteStore((state) => state.isOpen);
+  const openSearch = useCommandPaletteStore((state) => state.open);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
   );
@@ -336,8 +337,8 @@ export function Sidebar() {
               iconOnly
               icon={<Search className="size-3.5" />}
               label={t`Search`}
-              isActive={threadSearchOpen}
-              onPress={openThreadSearch}
+              isActive={searchOpen}
+              onPress={openSearch}
             />
           </div>
           <CollapsedThreadRail />

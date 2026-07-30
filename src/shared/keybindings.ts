@@ -156,7 +156,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       when: "hasProject",
     },
     {
-      command: "thread.search.open",
+      command: "palette.open",
       key: "Ctrl+G",
       mac: "Meta+G",
       when: NOT_TYPING,

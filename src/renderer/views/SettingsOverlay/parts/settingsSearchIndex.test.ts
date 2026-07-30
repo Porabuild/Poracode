@@ -99,6 +99,12 @@ describe("searchSettings", () => {
     expect(lower).toContain("browser.allowDataAccess");
   });
 
+  it("matches every query term across title, description, and keywords", () => {
+    const anchors = searchSettings("appearance mode", t).map((result) => result.anchor);
+    expect(anchors).toContain("appearance.mode");
+    expect(searchSettings("appearance missing", t)).toEqual([]);
+  });
+
   it("finds the Skills and MCP settings", () => {
     expect(searchSettings("skills", t).map((result) => result.anchor)).toContain("skills.manage");
     expect(searchSettings("shared", t).map((result) => result.anchor)).toContain("skills.manage");

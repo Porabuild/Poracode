@@ -271,6 +271,40 @@ describe("readKeybindingsFile", () => {
     ]);
   });
 
+  it("moves legacy thread-search bindings to the unified Search command", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
+    const path = join(tempDir, "keybindings.json");
+    writeFileSync(
+      path,
+      `${JSON.stringify({
+        version: 1,
+        keybindings: [
+          { command: "palette.open", key: "Ctrl+K", mac: "Meta+K" },
+          {
+            command: "thread.search.open",
+            key: "Ctrl+Alt+G",
+            mac: "Meta+Alt+G",
+            when: "notTyping",
+          },
+        ],
+      })}\n`,
+      "utf8",
+    );
+
+    const result = readKeybindingsFile(path).file;
+
+    expect(result.keybindings.some((binding) => binding.command === "thread.search.open")).toBe(
+      false,
+    );
+    expect(result.keybindings).toContainEqual({
+      command: "palette.open",
+      key: "Ctrl+Alt+G",
+      mac: "Meta+Alt+G",
+      when: "notTyping",
+    });
+    expect(readFileSync(path, "utf8")).toEqual(`${JSON.stringify(result, null, 2)}\n`);
+  });
+
   it("does not override a customized composer binding", () => {
     tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");

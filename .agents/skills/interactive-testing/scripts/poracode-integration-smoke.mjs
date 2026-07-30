@@ -177,8 +177,8 @@ async function runSmoke(plan) {
     if (plan.automated.includes("schedules")) {
       await runScenario(report, "schedules", () => schedulesScenario(client));
     }
-    if (plan.automated.includes("thread-search")) {
-      await runScenario(report, "thread-search", () => threadSearchScenario(client));
+    if (plan.automated.includes("everything-search")) {
+      await runScenario(report, "everything-search", () => everythingSearchScenario(client));
     }
     if (plan.automated.includes("browser")) {
       await runScenario(report, "browser", () => browserScenario(client));
@@ -1105,31 +1105,276 @@ function isPillGeometry(geometry) {
   return geometry !== null && geometry.radius >= geometry.height / 2;
 }
 
-async function threadSearchScenario(client) {
+async function everythingSearchScenario(client) {
   await evaluate(
     client,
-    `window.__poracodeDev.stores.panel.setState({ threadSearchOpen: true }); new Promise((resolve) => setTimeout(resolve, 80))`,
+    `(() => {
+      const dev = window.__poracodeDev;
+      const app = dev.stores.app.getState();
+      const project = app.projects.find((candidate) => candidate.id === "smoke-project");
+      if (project) app.openDraft(project.id);
+      const target = document.activeElement instanceof HTMLElement ? document.activeElement : document.body;
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "k",
+          ctrlKey: window.poracode.platform !== "darwin",
+          metaKey: window.poracode.platform === "darwin",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      return new Promise((resolve) => setTimeout(resolve, 120));
+    })()`,
     true,
   );
   const state = await waitForValue(
     () =>
       evaluate(
         client,
-        `(() => ({
-          dialog: Boolean(document.querySelector('[role="dialog"]')),
-          searchInput: Boolean(document.querySelector('input[placeholder]')),
-          crash: /renderer crash|rendered more hooks/i.test(document.body.innerText),
-        }))()`,
+        `(() => {
+          const dialog = [...document.querySelectorAll('[role="dialog"]')].find((candidate) =>
+            candidate.querySelector('input[aria-label="Search"]'),
+          );
+          return {
+            dialog: Boolean(dialog),
+            searchInput: Boolean(dialog?.querySelector('input[aria-label="Search"]')),
+            modal:
+              dialog?.getAttribute("data-slot") === "modal-dialog" &&
+              Boolean(dialog.closest('[data-slot="modal-container"]')) &&
+              Boolean(document.querySelector('[data-slot="modal-backdrop"]')),
+            combobox:
+              dialog?.querySelector('input[aria-label="Search"]')?.getAttribute("role") ===
+              "combobox",
+            categories: [...(dialog?.querySelectorAll('button[aria-pressed]') ?? [])].map((button) =>
+              button.textContent?.trim(),
+            ),
+            optionCount: dialog?.querySelectorAll('[role="option"]').length ?? 0,
+            activeDescendant:
+              dialog?.querySelector('input[aria-label="Search"]')?.getAttribute(
+                "aria-activedescendant",
+              ) ?? null,
+            activeExists: Boolean(
+              document.getElementById(
+                dialog?.querySelector('input[aria-label="Search"]')?.getAttribute(
+                  "aria-activedescendant",
+                ) ?? "",
+              ),
+            ),
+            text: dialog?.textContent ?? "",
+            crash: /renderer crash|rendered more hooks/i.test(document.body.innerText),
+          };
+        })()`,
       ),
-    (candidate) => candidate.dialog && candidate.searchInput,
-    "thread search overlay",
+    (candidate) => candidate.dialog && candidate.searchInput && candidate.optionCount > 0,
+    "everything search overlay",
   );
-  assert(state.dialog && state.searchInput, "thread search overlay did not render");
-  assert(!state.crash, "thread search rendered a crash screen");
-  const screenshotPath = join(outDir, "smoke-03-thread-search.png");
+  const expectedCategories = ["All", "Threads", "Commands", "Settings", "Files", "Actions"];
+  assert(state.dialog && state.searchInput, "everything search overlay did not render");
+  assert(state.modal && state.combobox, "everything search modal semantics are missing");
+  assert(
+    state.activeDescendant && state.activeExists,
+    "everything search active result is missing",
+  );
+  assert(
+    expectedCategories.every((category) => state.categories.includes(category)),
+    `everything search categories missing: ${state.categories.join(", ")}`,
+  );
+  assert(state.text.includes("Smoke check"), "project action did not appear in everything search");
+  assert(!state.crash, "everything search rendered a crash screen");
+
+  const arrowSent = await evaluate(
+    client,
+    `(() => {
+      const input = document.querySelector('input[aria-label="Search"]');
+      input?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+      );
+      return Boolean(input);
+    })()`,
+  );
+  assert(arrowSent, "everything search input was unavailable for keyboard selection");
+  const keyboardSelection = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const input = document.querySelector('input[aria-label="Search"]');
+          const active = input?.getAttribute("aria-activedescendant") ?? null;
+          return { active, activeExists: Boolean(active && document.getElementById(active)) };
+        })()`,
+      ),
+    (candidate) => candidate.activeExists && candidate.active === "everything-search-result-1",
+    "everything search keyboard selection",
+  );
+  assert(keyboardSelection.activeExists, "keyboard selection did not identify its active result");
+
+  const fileResult = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const dialog = [...document.querySelectorAll('[role="dialog"]')].find((candidate) =>
+            candidate.querySelector('input[aria-label="Search"]'),
+          );
+          const input = dialog?.querySelector('input[aria-label="Search"]');
+          if (input && input.value !== "README") {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(
+              input,
+              "README",
+            );
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          return {
+            path: [...(dialog?.querySelectorAll('[role="option"]') ?? [])]
+              .map((option) => option.textContent ?? "")
+              .find((text) => text.includes("README.md")) ?? null,
+          };
+        })()`,
+      ),
+    (candidate) => candidate.path !== null,
+    "everything search file result",
+  );
+  assert(
+    fileResult.path?.includes("README.md"),
+    "project file did not appear in everything search",
+  );
+
+  const screenshotPath = join(outDir, "smoke-03-everything-search.png");
   await screenshot(client, screenshotPath);
-  await evaluate(client, "window.__poracodeDev.stores.panel.setState({ threadSearchOpen: false })");
-  return { ...state, screenshotPath };
+
+  await evaluate(
+    client,
+    `(() => {
+      const dialog = [...document.querySelectorAll('[role="dialog"]')].find((candidate) =>
+        candidate.querySelector('input[aria-label="Search"]'),
+      );
+      const settings = [...(dialog?.querySelectorAll('button[aria-pressed]') ?? [])].find(
+        (button) => button.textContent?.trim() === "Settings",
+      );
+      settings?.click();
+      const input = dialog?.querySelector('input[aria-label="Search"]');
+      if (input) {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(
+          input,
+          "Match your system",
+        );
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    })()`,
+  );
+  const settingResult = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const dialog = [...document.querySelectorAll('[role="dialog"]')].find((candidate) =>
+            candidate.querySelector('input[aria-label="Search"]'),
+          );
+          const option = [...(dialog?.querySelectorAll('[role="option"]') ?? [])].find((candidate) =>
+            candidate.textContent?.includes("Mode"),
+          );
+          return { found: Boolean(option) };
+        })()`,
+      ),
+    (candidate) => candidate.found,
+    "everything search setting result",
+  );
+  assert(settingResult.found, "setting did not appear in everything search");
+  await evaluate(
+    client,
+    `(() => {
+      const dialog = [...document.querySelectorAll('[role="dialog"]')].find((candidate) =>
+        candidate.querySelector('input[aria-label="Search"]'),
+      );
+      const option = [...(dialog?.querySelectorAll('[role="option"]') ?? [])].find((candidate) =>
+        candidate.textContent?.includes("Mode"),
+      );
+      option?.click();
+    })()`,
+  );
+  const deepLink = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const target = document.querySelector('[data-settings-anchor="appearance.mode"]');
+          return {
+            settingsOpen: window.__poracodeDev.stores.panel.getState().settingsOpen,
+            target: Boolean(target),
+            highlighted: target?.classList.contains("poracode-setting-highlight") ?? false,
+          };
+        })()`,
+      ),
+    (candidate) => candidate.settingsOpen && candidate.target && candidate.highlighted,
+    "everything search settings deep link",
+  );
+  assert(
+    deepLink.target && deepLink.highlighted,
+    "setting result did not scroll to and highlight its setting row",
+  );
+  await evaluate(client, "window.__poracodeDev.closeSettings()");
+  await evaluate(
+    client,
+    `document.body.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "g",
+        ctrlKey: window.poracode.platform !== "darwin",
+        metaKey: window.poracode.platform === "darwin",
+        bubbles: true,
+        cancelable: true,
+      }),
+    )`,
+  );
+  const reopened = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const dialog = [...document.querySelectorAll('[role="dialog"]')].find((candidate) =>
+            candidate.querySelector('input[aria-label="Search"]'),
+          );
+          return {
+            open: window.__poracodeDev.stores.commandPalette.getState().isOpen,
+            category: Boolean(dialog?.querySelector('button[aria-pressed]')),
+          };
+        })()`,
+      ),
+    (candidate) => candidate.open && candidate.category,
+    "everything search Ctrl+G shortcut",
+  );
+  assert(reopened.open && reopened.category, "Ctrl+G did not reopen everything search");
+  const escapeSent = await evaluate(
+    client,
+    `(() => {
+      const dialog = [...document.querySelectorAll('[role="dialog"]')].find((candidate) =>
+        candidate.querySelector('input[aria-label="Search"]'),
+      );
+      const category = dialog?.querySelector('button[aria-pressed]');
+      category?.focus();
+      category?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+      return Boolean(category);
+    })()`,
+  );
+  assert(escapeSent, "everything search category was unavailable for Escape dismissal");
+  const escapeClosed = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `({ closed: !window.__poracodeDev.stores.commandPalette.getState().isOpen })`,
+      ),
+    (candidate) => candidate.closed,
+    "everything search escape dismissal",
+  );
+  return {
+    ...state,
+    keyboardSelection,
+    fileResult: fileResult.path,
+    deepLink,
+    escapeClosed,
+    screenshotPath,
+  };
 }
 
 async function browserScenario(client) {
@@ -1489,7 +1734,7 @@ async function resetDrivenState(client) {
     client,
     `(() => {
       window.__poracodeDev?.closeSettings();
-      window.__poracodeDev?.stores?.panel?.setState({ threadSearchOpen: false });
+      window.__poracodeDev?.stores?.commandPalette?.getState().close();
       window.__poracodeDev?.reset();
     })()`,
   );

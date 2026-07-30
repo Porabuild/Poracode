@@ -567,6 +567,7 @@ msgid "Action name"
 msgstr "アクション名"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -847,6 +848,7 @@ msgstr "AI プロバイダー"
 msgid "Alerts when threads need you"
 msgstr "スレッドが対応を必要としたら通知"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -1945,7 +1947,6 @@ msgid "Close scanner"
 msgstr "スキャナーを閉じる"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "検索を閉じる"
 
@@ -2047,8 +2048,6 @@ msgstr "ターミナルコンポーザーを折りたたむ"
 msgid "Collapse todo dock"
 msgstr "todo ドックを折りたたむ"
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "コマンド"
@@ -3647,6 +3646,10 @@ msgstr "ファイルが大きすぎてプレビューできません。"
 msgid "File no longer exists on disk."
 msgstr "ファイルはディスク上に存在しません。"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File search unavailable"
+msgstr "ファイル検索を利用できません"
+
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3660,6 +3663,7 @@ msgid "File uses an unsupported encoding."
 msgstr "ファイルはサポートされていないエンコーディングを使用しています。"
 
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "ファイル"
@@ -5241,6 +5245,11 @@ msgstr "ブラウザーをウィンドウに移動"
 msgid "Move changes to a new worktree"
 msgstr "変更を新しいワークツリーに移動する"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "スレッド「{0}」を移動"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Todo ドックを右側のパネルに移動します"
@@ -5550,8 +5559,8 @@ msgid "No checks reported for this PR."
 msgstr "この PR についてはチェックが報告されていません。"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "コマンドが見つかりません"
+#~ msgid "No commands found"
+#~ msgstr "コマンドが見つかりません"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -5664,7 +5673,6 @@ msgstr "一致するスケジュールはありません。"
 #~ msgstr "一致するタスクはありません。"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "一致するスレッドがありません"
 
@@ -5755,6 +5763,7 @@ msgstr "接続済みのリモート環境はまだありません。"
 msgid "No repositories found."
 msgstr "リポジトリが見つかりません。"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
@@ -5810,8 +5819,8 @@ msgid "No thread selected"
 msgstr "スレッドが選択されていません"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "スレッドがありません"
+#~ msgid "No threads"
+#~ msgstr "スレッドがありません"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "No threads in this project"
@@ -6029,8 +6038,8 @@ msgid "Open check"
 msgstr "チェックを開く"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "コマンドパレットを開く"
+#~ msgid "Open Command Palette"
+#~ msgstr "コマンドパレットを開く"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -7707,6 +7716,9 @@ msgstr "端末のスクロールバック バッファのスクロール速度�
 msgid "Scroll to bottom"
 msgstr "一番下までスクロール"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -7809,15 +7821,14 @@ msgstr "現在のビューを検索"
 
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "スレッドを検索する"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "スレッドの検索"
+#~ msgid "Search Threads"
+#~ msgstr "スレッドの検索"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Search…"
 msgstr "検索…"
 
@@ -7912,6 +7923,7 @@ msgstr "デバイスを選択"
 msgid "Select model"
 msgstr "モデルを選択してください"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "プロジェクトの選択"
@@ -7968,6 +7980,8 @@ msgstr "ショートカットを設定"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9210,9 +9224,9 @@ msgstr "スレッドのソート順"
 msgid "Thread todo dock"
 msgstr "スレッドのやることドック"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "スレッド"
 
@@ -9375,8 +9389,8 @@ msgid "Type"
 msgstr "タイプ"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "コマンドを入力してください"
+#~ msgid "Type a command"
+#~ msgstr "コマンドを入力してください"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page"
@@ -9385,6 +9399,10 @@ msgstr "ページに入力"
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page (tap a field first)"
 msgstr "ページに入力（先にフィールドをタップ）"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "入力してファイルを検索"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

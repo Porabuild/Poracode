@@ -33,13 +33,16 @@ import { cycleRecentThread } from "@/renderer/actions/recentThreadCycle";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { toggleSidebar } from "@/renderer/state/sidebarOverlayStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
 import { openFindForActiveSurface } from "@/renderer/components/find/findController";
-import { isEditorFocusElement, isTerminalFocusElement } from "./focusedSurface";
+import {
+  isEditorFocusElement,
+  isTerminalFocusElement,
+  resolveFocusElement,
+} from "./focusedSurface";
 import { useCommandPaletteStore } from "./commandPaletteStore";
 import type { CommandWhenContext } from "./when";
 import { evaluateWhenClause } from "./when";
@@ -60,7 +63,14 @@ export interface AppCommand {
    */
   keys?: string[];
   showInShortcuts?: boolean;
-  run: (args?: unknown) => void | Promise<void>;
+  /** Hide commands that should not be offered as executable palette results. */
+  showInPalette?: boolean;
+  run: (args?: unknown, context?: AppCommandExecutionContext) => void | Promise<void>;
+}
+
+export interface AppCommandExecutionContext {
+  /** The element that owned focus before a command surface took it. */
+  target: EventTarget | null;
 }
 
 interface ActiveContext {
@@ -78,7 +88,7 @@ export function buildWhenContext(
   const terminal = useDevTerminalStore.getState();
   const paletteOpen = useCommandPaletteStore.getState().isOpen;
   const active = resolveActiveContext();
-  const element = target instanceof Element ? target : document.activeElement;
+  const element = resolveFocusElement(target);
   const inputFocus = isTextInputElement(element);
   const editorFocus = isEditorFocusElement(element);
   const terminalFocus = isTerminalFocusElement(element);
@@ -124,8 +134,9 @@ function baseCommands(): AppCommand[] {
   return [
     {
       id: "palette.open",
-      title: msg`Open Command Palette`,
+      title: msg`Search`,
       group: "Poracode",
+      showInPalette: false,
       run: () => useCommandPaletteStore.getState().open(),
     },
     {
@@ -148,7 +159,7 @@ function baseCommands(): AppCommand[] {
       subtitle: msg`Search the current view`,
       group: "Poracode",
       keywords: ["find", "search", "filter"],
-      run: openFindForActiveSurface,
+      run: (_args, context) => openFindForActiveSurface(context?.target),
     },
     {
       id: "sidebar.toggle",
@@ -196,9 +207,11 @@ function baseCommands(): AppCommand[] {
     },
     {
       id: "thread.search.open",
-      title: msg`Search Threads`,
-      group: msg`Thread`,
-      run: () => usePanelStore.getState().openThreadSearch(),
+      title: msg`Search`,
+      group: "Poracode",
+      showInPalette: false,
+      showInShortcuts: false,
+      run: () => useCommandPaletteStore.getState().open(),
     },
     {
       id: "thread.archive",
@@ -303,6 +316,7 @@ function baseCommands(): AppCommand[] {
       title: msg`Run Terminal Command`,
       group: msg`Terminal`,
       when: "hasProject",
+      showInPalette: false,
       run: (args) => runTerminalCommand(args),
     },
     {
@@ -388,7 +402,7 @@ function baseCommands(): AppCommand[] {
       // same chords elsewhere but stand down inside the editor/terminal (see
       // their `when`), leaving them free here.
       when: "editorFocus || terminalFocus",
-      run: () => switchFocusedSurfaceTab("next"),
+      run: (_args, context) => switchFocusedSurfaceTab("next", context?.target),
     },
     {
       id: "tab.previous",
@@ -396,7 +410,7 @@ function baseCommands(): AppCommand[] {
       subtitle: msg`Switch to the previous tab`,
       group: "Poracode",
       when: "editorFocus || terminalFocus",
-      run: () => switchFocusedSurfaceTab("previous"),
+      run: (_args, context) => switchFocusedSurfaceTab("previous", context?.target),
     },
     {
       id: "browser.focus-address-bar",
@@ -406,7 +420,7 @@ function baseCommands(): AppCommand[] {
       // Only while the in-app browser holds focus — same scope as the other
       // browser shortcuts, and avoids swallowing Ctrl+L elsewhere in the app.
       when: "browserFocus",
-      run: focusBrowserAddressBar,
+      run: (_args, context) => focusBrowserAddressBar(context?.target),
     },
     {
       id: "browser.toggle",
@@ -504,24 +518,26 @@ function openNewBrowserTab(): void {
     .catch(() => {});
 }
 
-function focusBrowserAddressBar(): void {
+function focusBrowserAddressBar(target?: EventTarget | null): void {
   // The browser panel can be mounted twice (right panel + overlay), so target
-  // the address bar inside the browser that currently holds focus, falling back
-  // to the first mounted instance.
-  const active = document.activeElement;
+  // the address bar inside the browser where the command originated, falling
+  // back to the active or first mounted instance.
+  const active = resolveFocusElement(target);
   const container =
-    (active instanceof Element ? active.closest("[data-poracode-browser]") : null) ??
-    document.querySelector("[data-poracode-browser]");
+    active?.closest("[data-poracode-browser]") ?? document.querySelector("[data-poracode-browser]");
   const input = container?.querySelector<HTMLInputElement>("[data-poracode-browser-address]");
   if (!input) return;
   input.focus();
   input.select();
 }
 
-function switchFocusedSurfaceTab(direction: "next" | "previous"): void {
-  // The binding's `when` (editorFocus || terminalFocus) guarantees one of these
-  // surfaces holds focus when this runs; cycle that surface's own tab strip.
-  const element = document.activeElement;
+function switchFocusedSurfaceTab(
+  direction: "next" | "previous",
+  target?: EventTarget | null,
+): void {
+  // The command's availability context guarantees one of these surfaces owned
+  // focus when invoked; cycle that originating surface's own tab strip.
+  const element = resolveFocusElement(target);
   if (isTerminalFocusElement(element)) {
     useDevTerminalStore.getState().cycleTab(direction);
     return;

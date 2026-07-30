@@ -568,6 +568,7 @@ msgid "Action name"
 msgstr "İşlem adı"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -848,6 +849,7 @@ msgstr "Yapay zeka sağlayıcıları"
 msgid "Alerts when threads need you"
 msgstr "İş parçacıkları size ihtiyaç duyduğunda uyarılar"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -1946,7 +1948,6 @@ msgid "Close scanner"
 msgstr "Tarayıcıyı kapat"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "Aramayı kapat"
 
@@ -2048,8 +2049,6 @@ msgstr "Terminal yazma alanını daralt"
 msgid "Collapse todo dock"
 msgstr "Yapılacaklar panelini daralt"
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Komut"
@@ -3648,6 +3647,10 @@ msgstr "Dosya önizlenemeyecek kadar büyük."
 msgid "File no longer exists on disk."
 msgstr "Dosya artık diskte mevcut değil."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File search unavailable"
+msgstr "Dosya arama kullanılamıyor"
+
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3661,6 +3664,7 @@ msgid "File uses an unsupported encoding."
 msgstr "Dosya desteklenmeyen bir kodlama kullanıyor."
 
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "Dosyalar"
@@ -5243,6 +5247,11 @@ msgstr "Tarayıcıyı pencereye taşı"
 msgid "Move changes to a new worktree"
 msgstr "Değişiklikleri yeni bir çalışma ağacına taşı"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "Konuyu taşı: {0}"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Yapılacaklar panelini sağ panele taşı"
@@ -5552,8 +5561,8 @@ msgid "No checks reported for this PR."
 msgstr "Bu PR için herhangi bir kontrol raporlanmadı."
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "Hiçbir komut bulunamadı"
+#~ msgid "No commands found"
+#~ msgstr "Hiçbir komut bulunamadı"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -5666,7 +5675,6 @@ msgstr "Eşleşen zamanlama yok."
 #~ msgstr "Eşleşen görev yok."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Eşleşen konu yok"
 
@@ -5757,6 +5765,7 @@ msgstr "Henüz bağlı uzak ortam yok."
 msgid "No repositories found."
 msgstr "Hiçbir depo bulunamadı."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
@@ -5812,8 +5821,8 @@ msgid "No thread selected"
 msgstr "İş parçacığı seçilmedi"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "Konu yok"
+#~ msgid "No threads"
+#~ msgstr "Konu yok"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "No threads in this project"
@@ -6031,8 +6040,8 @@ msgid "Open check"
 msgstr "Kontrolü aç"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "Komut Paletini Aç"
+#~ msgid "Open Command Palette"
+#~ msgstr "Komut Paletini Aç"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -7709,6 +7718,9 @@ msgstr "Terminal geri kaydırma arabelleği için kaydırma hızı çarpanı."
 msgid "Scroll to bottom"
 msgstr "Aşağıya doğru kaydır"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -7811,15 +7823,14 @@ msgstr "Geçerli görünümde ara"
 
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "Konuları ara"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "Konuları Ara"
+#~ msgid "Search Threads"
+#~ msgstr "Konuları Ara"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Search…"
 msgstr "Ara…"
 
@@ -7914,6 +7925,7 @@ msgstr "Cihaz seç"
 msgid "Select model"
 msgstr "Modeli seçin"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Proje seçin"
@@ -7970,6 +7982,8 @@ msgstr "Kısayol belirle"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9212,9 +9226,9 @@ msgstr "Konu sıralama düzeni"
 msgid "Thread todo dock"
 msgstr "Konu yapılacaklar yuvası"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "Konular"
 
@@ -9377,8 +9391,8 @@ msgid "Type"
 msgstr "Tür"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "Bir komut yazın"
+#~ msgid "Type a command"
+#~ msgstr "Bir komut yazın"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page"
@@ -9387,6 +9401,10 @@ msgstr "Sayfaya yaz"
 #: src/mobile/views/BrowserView.tsx
 msgid "Type into the page (tap a field first)"
 msgstr "Sayfaya yazın (önce bir alana dokunun)"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "Dosya aramak için yazın"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

@@ -16,11 +16,11 @@ export const PRODUCT_ANALYTICS_EVENT_NAMES = [
   "thread.started",
   "thread.turn_completed",
   "ui.project_group_toggled",
+  "ui.everything_search_toggled",
   "ui.right_panel_toggled",
   "ui.right_panel_tab_changed",
   "ui.sidebar_toggled",
   "ui.thread_list_show_more",
-  "ui.thread_search_toggled",
   "ui.worktree_group_toggled",
 ] as const;
 

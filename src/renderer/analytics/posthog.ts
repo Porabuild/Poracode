@@ -11,6 +11,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarOverlayStore } from "@/renderer/state/sidebarOverlayStore";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import {
   captureProductEvent,
   configureProductAnalytics,
@@ -176,10 +177,15 @@ function installStoreSubscriptions(): () => void {
       if (state.settingsOpen && !prevState.settingsOpen) {
         captureProductEvent("settings.opened");
       }
-      if (state.threadSearchOpen !== prevState.threadSearchOpen) {
-        captureProductEvent("ui.thread_search_toggled", { open: state.threadSearchOpen });
-      }
       captureRightPanelChange();
+    }),
+  );
+
+  disposers.push(
+    useCommandPaletteStore.subscribe((state, prevState) => {
+      if (state.isOpen !== prevState.isOpen) {
+        captureProductEvent("ui.everything_search_toggled", { open: state.isOpen });
+      }
     }),
   );
 

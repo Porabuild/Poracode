@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
 import type { ThreadSortMode } from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { useFileEditorStore } from "./fileEditorStore";
 
 export interface GitReviewContext {
@@ -48,9 +49,10 @@ interface PanelState {
   settingsOpen: boolean;
   /** When the overlay is opened deep-linked to a section (e.g. "usage"); else null. */
   settingsSection: string | null;
+  /** Optional setting row to scroll to after opening a deep-linked section. */
+  settingsAnchor: string | null;
   projectSettingsId: string | null;
   threadSortMode: ThreadSortMode;
-  threadSearchOpen: boolean;
   /** Whether the "Start from scratch" create-project modal is open. */
   createProjectModalOpen: boolean;
   /** Whether the "Clone a repository" modal is open. */
@@ -72,13 +74,11 @@ interface PanelState {
   setBrowserOverlayDrawerWidth: (v: number) => void;
   openBrowserPanel: () => void;
   openSettings: () => void;
-  openSettingsSection: (section: string) => void;
+  openSettingsSection: (section: string, anchor?: string) => void;
   clearSettingsSection: () => void;
   closeSettings: () => void;
   openProjectSettings: (projectId: string) => void;
   closeProjectSettings: () => void;
-  openThreadSearch: () => void;
-  closeThreadSearch: () => void;
   openCreateProjectModal: () => void;
   closeCreateProjectModal: () => void;
   openCloneProjectModal: () => void;
@@ -147,9 +147,9 @@ export const usePanelStore = create<PanelState>()((set) => ({
   ),
   settingsOpen: false,
   settingsSection: null,
+  settingsAnchor: null,
   projectSettingsId: null,
   threadSortMode: "updated",
-  threadSearchOpen: false,
   createProjectModalOpen: false,
   cloneProjectModalOpen: false,
 
@@ -260,22 +260,23 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
   openSettings: () =>
     set((state) =>
-      state.settingsOpen && state.settingsSection === null
+      state.settingsOpen && state.settingsSection === null && state.settingsAnchor === null
         ? {}
-        : { settingsOpen: true, settingsSection: null },
+        : { settingsOpen: true, settingsSection: null, settingsAnchor: null },
     ),
-  openSettingsSection: (section) => set({ settingsOpen: true, settingsSection: section }),
+  openSettingsSection: (section, anchor) =>
+    set({ settingsOpen: true, settingsSection: section, settingsAnchor: anchor ?? null }),
   clearSettingsSection: () =>
-    set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
+    set((state) =>
+      state.settingsSection === null && state.settingsAnchor === null
+        ? {}
+        : { settingsSection: null, settingsAnchor: null },
+    ),
   closeSettings: () => set((state) => (state.settingsOpen ? { settingsOpen: false } : {})),
   openProjectSettings: (projectId) =>
     set((state) => (state.projectSettingsId === projectId ? {} : { projectSettingsId: projectId })),
   closeProjectSettings: () =>
     set((state) => (state.projectSettingsId === null ? {} : { projectSettingsId: null })),
-  openThreadSearch: () =>
-    set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
-  closeThreadSearch: () =>
-    set((state) => (state.threadSearchOpen ? { threadSearchOpen: false } : {})),
   openCreateProjectModal: () =>
     set((state) => (state.createProjectModalOpen ? {} : { createProjectModalOpen: true })),
   closeCreateProjectModal: () =>
@@ -335,7 +336,7 @@ export function selectAnyObstructingOverlayOpen(): boolean {
     p.projectSettingsId !== null ||
     p.gitOverlayOpen ||
     p.prReviewContext !== null ||
-    p.threadSearchOpen
+    useCommandPaletteStore.getState().isOpen
   ) {
     return true;
   }

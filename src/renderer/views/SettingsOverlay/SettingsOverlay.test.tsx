@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -109,11 +109,11 @@ vi.mock("@/renderer/components/thread/AgentDiscoveryScreen", () => ({
 }));
 
 vi.mock("./parts/GeneralSettings", () => ({
-  GeneralSettings: () => <div>General</div>,
+  GeneralSettings: () => <div data-settings-anchor="general.language">General</div>,
 }));
 
 vi.mock("./parts/AppearanceSettings", () => ({
-  AppearanceSettings: () => <div>Appearance</div>,
+  AppearanceSettings: () => <div data-settings-anchor="appearance.mode">Appearance</div>,
 }));
 
 vi.mock("./parts/TerminalSettings", () => ({
@@ -174,6 +174,7 @@ vi.mock("./parts/SingleAgentSettings", () => ({
 }));
 
 import { SettingsOverlay } from "./SettingsOverlay";
+import { usePanelStore } from "@/renderer/state/panelStore";
 
 const baseCapabilities = {
   models: [],
@@ -209,6 +210,11 @@ describe("SettingsOverlay", () => {
     resetDiscoveredAgentsMock.mockReset();
     refreshAgentStatusesMock.mockReset();
     refreshAgentStatusesMock.mockResolvedValue(undefined);
+    usePanelStore.setState({
+      settingsOpen: false,
+      settingsSection: null,
+      settingsAnchor: null,
+    });
   });
 
   it("keeps WSL-only installed agents reachable from the sidebar", () => {
@@ -337,6 +343,41 @@ describe("SettingsOverlay", () => {
     expect(nextScroller).not.toBe(firstScroller);
     expect(nextScroller!.scrollTop).toBe(0);
     expect(within(screen.getByRole("main")).getByText("Usage")).toBeInTheDocument();
+  });
+
+  it("scrolls to an initially requested setting anchor", async () => {
+    const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions | boolean) => void>();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    usePanelStore.getState().openSettingsSection("general", "general.language");
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" }),
+    );
+    expect(within(screen.getByRole("main")).getByText("General")).toHaveClass(
+      "poracode-setting-highlight",
+    );
+    expect(usePanelStore.getState().settingsSection).toBeNull();
+    expect(usePanelStore.getState().settingsAnchor).toBeNull();
+  });
+
+  it("scrolls to a setting anchor requested while the overlay is open", async () => {
+    const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions | boolean) => void>();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    act(() => {
+      usePanelStore.getState().openSettingsSection("appearance", "appearance.mode");
+    });
+
+    expect(within(screen.getByRole("main")).getByText("Appearance")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" }),
+    );
+    expect(within(screen.getByRole("main")).getByText("Appearance")).toHaveClass(
+      "poracode-setting-highlight",
+    );
   });
 
   it("marks agents that need attention in the sidebar", () => {

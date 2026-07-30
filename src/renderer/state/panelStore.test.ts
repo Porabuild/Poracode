@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { selectAnyObstructingOverlayOpen, usePanelStore } from "./panelStore";
 import { useFileEditorStore } from "./fileEditorStore";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 
 const initialPanelState = usePanelStore.getState();
 const initialFileEditorState = useFileEditorStore.getState();
@@ -17,8 +18,8 @@ function resetPanelStore() {
     browserOverlayOpen: false,
     settingsOpen: false,
     projectSettingsId: null,
-    threadSearchOpen: false,
   });
+  useCommandPaletteStore.setState({ isOpen: false });
 }
 
 function resetFileEditorStore() {
@@ -64,8 +65,8 @@ describe("selectAnyObstructingOverlayOpen", () => {
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 
-  it("returns true when the thread search overlay is open", () => {
-    usePanelStore.setState({ threadSearchOpen: true });
+  it("returns true when everything search is open", () => {
+    useCommandPaletteStore.setState({ isOpen: true });
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 
