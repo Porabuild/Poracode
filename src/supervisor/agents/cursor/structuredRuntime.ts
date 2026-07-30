@@ -1,5 +1,4 @@
-import type { ProjectLocation, SessionRef } from "@/shared/contracts";
-import { parseWslUncPath } from "@/shared/wsl";
+import type { SessionRef } from "@/shared/contracts";
 
 export const CURSOR_SDK_SESSION_PREFIX = "sdk:";
 
@@ -49,26 +48,4 @@ export function cursorSdkSessionId(providerSessionId: string): string {
   return providerSessionId.startsWith(CURSOR_SDK_SESSION_PREFIX)
     ? providerSessionId
     : `${CURSOR_SDK_SESSION_PREFIX}${providerSessionId}`;
-}
-
-/**
- * Interpret the provider-global external package path in the execution
- * environment that will import it. WSL accepts native Linux paths or a UNC
- * path targeting the same distro; other host paths are left untouched so the
- * in-distro loader can return its normal actionable "configured path invalid"
- * diagnostic rather than guessing a drive mount.
- */
-export function cursorSdkConfiguredPath(
-  settings: Record<string, boolean | string> | undefined,
-  location: ProjectLocation,
-): string | undefined {
-  const configured =
-    typeof settings?.sdkPackagePath === "string" ? settings.sdkPackagePath.trim() : "";
-  if (!configured) return undefined;
-  if (location.kind !== "wsl") return configured;
-  if (configured.startsWith("/")) return configured;
-  const parsed = parseWslUncPath(configured);
-  return parsed && parsed.distro.toLowerCase() === location.distro.toLowerCase()
-    ? parsed.linuxPath
-    : configured;
 }

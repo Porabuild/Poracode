@@ -19,8 +19,8 @@ const sdkCapabilities: AgentCapability = {
     { id: "workspace-write", label: "Workspace Sandbox" },
     { id: "danger-full-access", label: "No Sandbox" },
   ],
-  defaultApprovalPolicy: "default",
-  defaultSandboxMode: "workspace-write",
+  defaultApprovalPolicy: "never",
+  defaultSandboxMode: "danger-full-access",
   bypassPermissions: {
     approvalPolicy: "never",
     sandboxMode: "danger-full-access",
@@ -53,7 +53,7 @@ function permissionToggle(
 }
 
 describe("Cursor composer controls", () => {
-  it("shows the active structured runtime beside the model controls", () => {
+  it("does not duplicate the active structured runtime in the composer", () => {
     const controls = getComposerControls("cursor")?.({
       capabilities: sdkCapabilities,
       config: { model: "auto" },
@@ -62,7 +62,7 @@ describe("Cursor composer controls", () => {
       presentationMode: "gui",
     });
 
-    expect(controls?.[0]).toMatchObject({ kind: "static", value: "SDK" });
+    expect(controls?.some((control) => control.kind === "static")).toBe(false);
   });
 
   it("enables and displays full access only when both SDK safety controls bypass", () => {
@@ -77,6 +77,7 @@ describe("Cursor composer controls", () => {
     );
 
     expect(supervised.isSelected).toBe(false);
+    expect(supervised.label).toBe("Auto-review");
     supervised.onChange?.(true);
     expect(onConfigChange).toHaveBeenCalledWith({
       approvalPolicy: "never",
@@ -92,6 +93,7 @@ describe("Cursor composer controls", () => {
       onConfigChange,
     );
     expect(unrestricted.isSelected).toBe(true);
+    expect(unrestricted.label).toBe("Full access");
   });
 
   it("restores the SDK's safe defaults when full access is disabled", () => {

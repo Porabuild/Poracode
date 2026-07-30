@@ -12,7 +12,7 @@ function worker(input: {
   }>;
 }) {
   return {
-    probe: input.probe,
+    probe: vi.fn<typeof input.probe>(input.probe),
     dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   };
 }
@@ -33,9 +33,7 @@ describe("probeCursorSdkRuntime", () => {
         {
           envKind: "wsl",
           wslDistro: "Ubuntu",
-          agentSettings: {
-            sdkPackagePath: "\\\\wsl.localhost\\Ubuntu\\opt\\cursor-sdk",
-          },
+          agentSettings: { sdkApiKey: "stored-key" },
         },
         { spawnWorker },
       ),
@@ -52,12 +50,12 @@ describe("probeCursorSdkRuntime", () => {
         distro: "Ubuntu",
         linuxPath: "/tmp",
       }),
-      configuredPath: "/opt/cursor-sdk",
     });
+    expect(handle.probe).toHaveBeenCalledWith("stored-key");
     expect(handle.dispose).toHaveBeenCalledOnce();
   });
 
-  it("defers a missing environment-probe key but preserves rejected credentials", async () => {
+  it("reports a missing or rejected SDK API key as missing authentication", async () => {
     const missingAuth = worker({
       probe: async () => {
         throw new CursorSdkWorkerRpcError({
@@ -71,9 +69,8 @@ describe("probeCursorSdkRuntime", () => {
       probeCursorSdkRuntime(undefined, { spawnWorker: async () => missingAuth }),
     ).resolves.toMatchObject({
       installed: true,
-      authState: "unknown",
+      authState: "missing",
       models: [],
-      projectDiscoveryDeferred: true,
       diagnosticCode: "auth_missing",
     });
 
@@ -110,12 +107,11 @@ describe("probeCursorSdkRuntime", () => {
       installed: false,
       authState: "unknown",
       models: [],
-      projectDiscoveryDeferred: true,
       diagnosticCode: "package_missing",
     });
   });
 
-  it("defers automatic project-local discovery from both native and WSL environment probes", async () => {
+  it("reports an SDK as unavailable when automatic package discovery fails", async () => {
     const missingPackage = worker({
       probe: async () => {
         throw new CursorSdkWorkerRpcError({
@@ -134,7 +130,6 @@ describe("probeCursorSdkRuntime", () => {
     ).resolves.toMatchObject({
       installed: false,
       authState: "unknown",
-      projectDiscoveryDeferred: true,
       diagnosticCode: "package_missing",
     });
     await expect(
@@ -142,7 +137,6 @@ describe("probeCursorSdkRuntime", () => {
     ).resolves.toMatchObject({
       installed: false,
       authState: "unknown",
-      projectDiscoveryDeferred: true,
       diagnosticCode: "package_missing",
     });
 
@@ -164,37 +158,6 @@ describe("probeCursorSdkRuntime", () => {
         }),
       }),
     );
-  });
-
-  it("keeps an invalid configured path exact instead of deferring to project discovery", async () => {
-    const invalidConfiguredPath = worker({
-      probe: async () => {
-        throw new CursorSdkWorkerRpcError({
-          name: "CursorSdkWorkerError",
-          message: "The configured Cursor SDK path is invalid.",
-          code: "configured_path_invalid",
-        });
-      },
-    });
-
-    await expect(
-      probeCursorSdkRuntime(
-        {
-          envKind: "wsl",
-          wslDistro: "Ubuntu",
-          agentSettings: {
-            sdkPackagePath: "\\\\wsl.localhost\\Ubuntu\\missing\\cursor-sdk",
-          },
-        },
-        { spawnWorker: async () => invalidConfiguredPath },
-      ),
-    ).resolves.toEqual({
-      installed: false,
-      authState: "unknown",
-      models: [],
-      diagnosticCode: "configured_path_invalid",
-      diagnosticMessage: "The configured Cursor SDK path is invalid.",
-    });
   });
 
   it("classifies model-catalog 401s as missing API-key authentication", async () => {
@@ -288,7 +251,7 @@ const cliStatus: AgentStatus = {
 };
 
 describe("applyCursorSdkProbe", () => {
-  it("keeps terminal CLI capabilities while overriding GUI with SDK models and auth", () => {
+  it("falls back to ACP capabilities while retaining separate SDK install and auth state", () => {
     const merged = applyCursorSdkProbe(cliStatus, {
       installed: true,
       authState: "missing",
@@ -298,16 +261,13 @@ describe("applyCursorSdkProbe", () => {
     });
 
     expect(merged.authState).toBe("authenticated");
-    expect(merged.presentationAuthStates).toEqual({
-      terminal: "authenticated",
-      gui: "missing",
-    });
-    expect(merged.presentationAuthUsesProviderLogin).toEqual({ gui: false });
+    expect(merged.presentationAuthStates).toBeUndefined();
+    expect(merged.presentationAuthUsesProviderLogin).toBeUndefined();
     expect(merged.capabilities.models).toEqual([{ id: "cli-model", label: "CLI Model" }]);
     expect(merged.capabilities.presentationCapabilities?.gui?.models).toEqual([
-      { id: "sdk-model", label: "SDK Model" },
+      { id: "cli-model", label: "CLI Model" },
     ]);
-    expect(merged.capabilities.mcpScope?.gui).toBe("always");
+    expect(merged.capabilities.mcpScope?.gui).toBe("launch");
     expect(merged.runtimeVariants).toMatchObject({
       acp: {
         presentationMode: "gui",
@@ -445,8 +405,8 @@ describe("applyCursorSdkProbe", () => {
       diagnosticCode: "package_missing",
     });
     expect(merged.installed).toBe(true);
-    expect(merged.capabilities.presentationModes).toEqual(["terminal"]);
-    expect(merged.presentationAuthStates).toEqual({ terminal: "authenticated" });
+    expect(merged.capabilities.presentationModes).toEqual(["terminal", "gui"]);
+    expect(merged.presentationAuthStates).toBeUndefined();
     expect(merged.presentationAuthUsesProviderLogin).toBeUndefined();
     expect(merged.runtimeVariants?.sdk).toMatchObject({
       installed: false,
@@ -455,47 +415,42 @@ describe("applyCursorSdkProbe", () => {
     });
   });
 
-  it("keeps selected SDK GUI launchable while project package and API-key discovery are deferred", () => {
+  it("does not select SDK when its package is unavailable", () => {
     const merged = applyCursorSdkProbe(cliStatus, {
       installed: false,
       authState: "unknown",
       models: [],
-      projectDiscoveryDeferred: true,
       diagnosticCode: "package_missing",
     });
 
     expect(merged.installed).toBe(true);
     expect(merged.capabilities.presentationModes).toEqual(["terminal", "gui"]);
-    expect(merged.presentationAuthStates).toEqual({
-      terminal: "authenticated",
-      gui: "unknown",
-    });
-    expect(merged.presentationAuthUsesProviderLogin).toEqual({ gui: false });
-    expect(merged.capabilities.presentationCapabilities?.gui?.models).toEqual([
-      { id: "cli-model", label: "CLI Model" },
-    ]);
+    expect(merged.presentationAuthStates).toBeUndefined();
   });
 
-  it("keeps a globally discovered SDK launchable for a project-shell API key", () => {
+  it("falls back to ACP when the detected SDK is not authenticated", () => {
     const merged = applyCursorSdkProbe(cliStatus, {
       installed: true,
-      authState: "unknown",
+      authState: "missing",
       models: [],
-      projectDiscoveryDeferred: true,
       diagnosticCode: "auth_missing",
     });
 
     expect(agentStatusForPresentation(merged, "gui")).toMatchObject({
       installed: true,
-      authState: "unknown",
+      authState: "authenticated",
       capabilities: {
         models: [{ id: "cli-model", label: "CLI Model" }],
         presentationMode: "gui",
       },
     });
+    expect(merged.runtimeVariants?.sdk).toMatchObject({
+      installed: true,
+      authState: "missing",
+    });
   });
 
-  it("uses the documented SDK Auto fallback for a project-local SDK-only install", () => {
+  it("keeps an unauthenticated SDK-only install visible without exposing a composer surface", () => {
     const sdkOnly = applyCursorSdkProbe(
       {
         ...cliStatus,
@@ -507,23 +462,22 @@ describe("applyCursorSdkProbe", () => {
         },
       },
       {
-        installed: false,
-        authState: "unknown",
+        installed: true,
+        authState: "missing",
         models: [],
-        projectDiscoveryDeferred: true,
-        diagnosticCode: "package_missing",
+        diagnosticCode: "auth_missing",
       },
     );
 
     expect(sdkOnly).toMatchObject({
       installed: true,
-      authState: "unknown",
-      presentationAuthStates: { gui: "unknown" },
+      authState: "missing",
+      presentationAuthStates: { gui: "missing" },
       presentationAuthUsesProviderLogin: { gui: false },
       capabilities: {
         presentationMode: "gui",
-        presentationModes: ["gui"],
-        models: [{ id: "auto", label: "Auto" }],
+        presentationModes: [],
+        models: [],
       },
     });
     expect(sdkOnly.loginCommand).toBeUndefined();

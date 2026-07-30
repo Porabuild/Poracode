@@ -31,7 +31,7 @@ export const qoderDefaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
-  defaultApprovalPolicy: "default",
+  defaultApprovalPolicy: "bypassPermissions",
   bypassPermissions: { approvalPolicy: "bypassPermissions" },
   mcpScope: { terminal: "none", gui: "launch" },
   settingDefs: [],

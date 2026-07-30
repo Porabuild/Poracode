@@ -47,6 +47,7 @@ import {
   setProfileIdentityResponse,
 } from "../profile";
 import {
+  applyAgentSecretSetting,
   applyClaudeProfileEnvironment,
   mergeManagedSharedSettings,
   readSharedSettingsFile,
@@ -350,6 +351,17 @@ export function createLocalIpcHandlers(
       writeSharedSettingsFile(settingsPath, merged);
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.(merged);
+    },
+    setAgentSecretSetting: (payload) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const { settings, storedValue } = applyAgentSecretSetting(
+        readSharedSettingsFile(settingsPath),
+        payload,
+        dirname(settingsPath),
+      );
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return { storedValue };
     },
     removeCrossagentRoutingOverride: ({ tags }) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;

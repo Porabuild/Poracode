@@ -47,11 +47,7 @@ import type {
   CursorSdkWorkerStartInput,
   CursorSdkWorkerStartResult,
 } from "./sdkWorkerProtocol";
-import {
-  CURSOR_SDK_SESSION_PREFIX,
-  cursorSdkConfiguredPath,
-  cursorSdkSessionId,
-} from "./structuredRuntime";
+import { CURSOR_SDK_SESSION_PREFIX, cursorSdkSessionId } from "./structuredRuntime";
 
 interface CursorSdkWorkerHandle {
   initialize(input: CursorSdkWorkerInitializeInput): Promise<CursorSdkWorkerInitializeResult>;
@@ -252,7 +248,12 @@ export class CursorSdkSession implements StructuredSessionHandle {
     // Passing it over worker RPC is required: SDK 1.0.24 can list models from
     // its ambient env while its local agent child later rejects the same key
     // unless Agent.create()/resume() receives it explicitly.
-    const value = this.input.env?.CURSOR_API_KEY?.trim() ?? process.env.CURSOR_API_KEY?.trim();
+    const saved =
+      typeof this.input.agentSettings?.sdkApiKey === "string"
+        ? this.input.agentSettings.sdkApiKey.trim()
+        : "";
+    const value =
+      saved || this.input.env?.CURSOR_API_KEY?.trim() || process.env.CURSOR_API_KEY?.trim();
     return value ? value : undefined;
   }
 
@@ -569,13 +570,8 @@ export class CursorSdkSession implements StructuredSessionHandle {
   }
 
   private workerSpawnInput(): CursorSdkWorkerSpawnInput {
-    const configuredPath = cursorSdkConfiguredPath(
-      this.input.agentSettings,
-      this.input.projectLocation,
-    );
     return {
       projectLocation: this.input.projectLocation,
-      ...(configuredPath ? { configuredPath } : {}),
       ...(this.input.env ? { env: this.input.env } : {}),
     };
   }

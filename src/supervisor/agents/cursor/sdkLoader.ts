@@ -1,5 +1,9 @@
 import { pathToFileURL } from "node:url";
 import {
+  CURSOR_SDK_MIN_SUPPORTED_VERSION,
+  CURSOR_SDK_SUPPORTED_RANGE,
+} from "@/shared/agents/cursorSdkPackage";
+import {
   discoverCursorSdkPackage,
   resolveCursorSdkPackageEntry,
   resolveCursorSdkPlatformHelper,
@@ -66,9 +70,9 @@ export async function loadCursorSdk(
   if (!isSupportedCursorSdkVersion(pkg.version)) {
     return cursorSdkFailure(
       "version_incompatible",
-      `Cursor SDK ${pkg.version} is not compatible with this integration; install version 1.0.24 or later in the stable 1.x series.`,
+      `Cursor SDK ${pkg.version} is not compatible with this integration; install version ${CURSOR_SDK_MIN_SUPPORTED_VERSION} or later in the stable 1.x series.`,
       true,
-      { detectedVersion: pkg.version, supportedRange: ">=1.0.24 <2.0.0" },
+      { detectedVersion: pkg.version, supportedRange: CURSOR_SDK_SUPPORTED_RANGE },
     );
   }
 

@@ -26,6 +26,7 @@ import {
 } from "../base";
 import { dedupeAcpAuthMethods, probeAcpCapabilities } from "../acp";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
+import { cursorDefaultHiddenModels } from "./defaultModelVisibility";
 import { cursorModelGrouping } from "./modelGrouping";
 
 export const cursorDefaultCapabilities: AgentCapability = {
@@ -239,6 +240,7 @@ export function buildCursorModelPickerCapabilities(
 ): Pick<
   AgentCapability,
   | "models"
+  | "defaultHiddenModels"
   | "efforts"
   | "defaultEffort"
   | "modelEfforts"
@@ -343,9 +345,11 @@ export function buildCursorModelPickerCapabilities(
     ...(contextIds.has("300k") ? [{ id: "300k", label: "300K" }] : []),
     ...(contextIds.has("1m") ? [{ id: "1m", label: "1M" }] : []),
   ];
+  const defaultHiddenModels = cursorDefaultHiddenModels(displayModels);
 
   return {
     models: displayModels,
+    ...(defaultHiddenModels.length > 0 ? { defaultHiddenModels } : {}),
     ...cursorModelGrouping(displayModels),
     efforts: sortCursorEffortIds([...effortIds]),
     ...(effortIds.has("medium") ? { defaultEffort: "medium" } : {}),
@@ -368,16 +372,23 @@ export function buildCursorAcpModelPickerCapabilities(
   models: LabeledOption[],
 ): Pick<
   AgentCapability,
-  "models" | "efforts" | "modelEfforts" | "subProviders" | "modelSubProvider"
+  | "models"
+  | "defaultHiddenModels"
+  | "efforts"
+  | "modelEfforts"
+  | "subProviders"
+  | "modelSubProvider"
 > {
   const displayModels = models.map((model) => ({
     id: model.id,
     label: formatCursorAcpModelLabel(model),
   }));
   const sortedModels = sortCursorModels(displayModels);
+  const defaultHiddenModels = cursorDefaultHiddenModels(sortedModels);
 
   return {
     models: sortedModels,
+    ...(defaultHiddenModels.length > 0 ? { defaultHiddenModels } : {}),
     ...cursorModelGrouping(sortedModels),
     efforts: [],
     modelEfforts: Object.fromEntries(sortedModels.map((model) => [model.id, []])),

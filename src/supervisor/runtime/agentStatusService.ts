@@ -25,6 +25,7 @@ import {
   type AgentEnvContext,
 } from "../agents/base";
 import { clearFastModeCache } from "../agents/claude/fastModeCache";
+import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 
 const execFileAsync = promisify(execFile);
 
@@ -547,12 +548,7 @@ export class AgentStatusService {
   }
 
   private readSettings(): ReturnType<typeof normalizeSharedSettings> {
-    try {
-      const raw = readFileSync(this.options.settingsPath, "utf8");
-      return normalizeSharedSettings(JSON.parse(raw));
-    } catch {
-      return normalizeSharedSettings({});
-    }
+    return readSupervisorSharedSettings(this.options.settingsPath);
   }
 
   private runDetectionTask(task: () => Promise<DetectionResults>): Promise<DetectionResults> {

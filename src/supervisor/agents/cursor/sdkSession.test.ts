@@ -51,10 +51,7 @@ function input(
     threadId: "thread-123456789",
     projectLocation,
     config: baseConfig,
-    agentSettings: {
-      structuredRuntime: "sdk",
-      sdkPackagePath: "/external/node_modules/@cursor/sdk",
-    },
+    agentSettings: { structuredRuntime: "sdk" },
     env: { PROJECT_VALUE: "yes" },
     mcpServers: initialMcp,
     presentationMode: "gui",
@@ -245,7 +242,6 @@ describe("CursorSdkSession", () => {
 
     expect(spawnWorker).toHaveBeenCalledWith({
       projectLocation,
-      configuredPath: "/external/node_modules/@cursor/sdk",
       env: { PROJECT_VALUE: "yes" },
     });
     expect(worker.listModels).toHaveBeenCalledWith();
@@ -842,7 +838,7 @@ describe("CursorSdkSession", () => {
     },
   );
 
-  it("normalizes a same-distro WSL UNC package path before worker discovery", async () => {
+  it("ignores legacy custom SDK paths and uses automatic WSL package discovery", async () => {
     const worker = new FakeWorker();
     const location: ProjectLocation = {
       kind: "wsl",
@@ -852,17 +848,13 @@ describe("CursorSdkSession", () => {
     };
     const { session, spawnWorker } = await createSession(worker, {
       projectLocation: location,
-      agentSettings: {
-        structuredRuntime: "sdk",
-        sdkPackagePath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\sdk",
-      },
+      agentSettings: { structuredRuntime: "sdk" },
     });
 
     await session.activate();
 
     expect(spawnWorker).toHaveBeenCalledWith({
       projectLocation: location,
-      configuredPath: "/home/me/sdk",
       env: { PROJECT_VALUE: "yes" },
     });
   });

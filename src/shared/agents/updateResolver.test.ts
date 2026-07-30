@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveSharedUpdateCommand } from "./updateResolver";
+import {
+  isVersionInWindow,
+  pickLatestVersionInWindow,
+  resolveSharedUpdateCommand,
+} from "./updateResolver";
 
 const claudeUpdate = {
   builtIn: { binary: "claude", args: ["update"] },
@@ -244,5 +248,39 @@ describe("resolveSharedUpdateCommand", () => {
         envKind: "posix",
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("supported version windows", () => {
+  const cursorSdkWindow = { minVersion: "1.0.24", maxExclusiveMajor: 2 };
+
+  it("accepts stable versions inside the window and rejects the rest", () => {
+    expect(isVersionInWindow("1.0.24", cursorSdkWindow)).toBe(true);
+    expect(isVersionInWindow("1.99.4", cursorSdkWindow)).toBe(true);
+    expect(isVersionInWindow("1.0.23", cursorSdkWindow)).toBe(false);
+    expect(isVersionInWindow("0.99.0", cursorSdkWindow)).toBe(false);
+    expect(isVersionInWindow("2.0.0", cursorSdkWindow)).toBe(false);
+    expect(isVersionInWindow("1.1.0-beta.1", cursorSdkWindow)).toBe(false);
+    expect(isVersionInWindow("nightly", cursorSdkWindow)).toBe(false);
+  });
+
+  it("picks the greatest published version inside the window", () => {
+    expect(
+      pickLatestVersionInWindow(
+        ["1.0.24", "1.0.31", "1.0.9", "1.2.0-rc.1", "2.1.0"],
+        cursorSdkWindow,
+      ),
+    ).toBe("1.0.31");
+  });
+
+  it("returns undefined when only unsupported versions are published", () => {
+    expect(
+      pickLatestVersionInWindow(["2.0.0", "3.1.4", "1.0.23"], cursorSdkWindow),
+    ).toBeUndefined();
+    expect(pickLatestVersionInWindow([], cursorSdkWindow)).toBeUndefined();
+  });
+
+  it("treats an omitted window as any stable version", () => {
+    expect(pickLatestVersionInWindow(["0.1.0", "9.9.9", "10.0.0-rc.1"], {})).toBe("9.9.9");
   });
 });

@@ -1,8 +1,7 @@
+import { isSupportedCursorSdkPackageVersion } from "@/shared/agents/cursorSdkPackage";
 import { compareVersions } from "@/shared/changelog";
 
 const CURSOR_SDK_MIN_NODE = [22, 13, 0] as const;
-const CURSOR_SDK_MIN_VERSION = [1, 0, 24] as const;
-const CURSOR_SDK_SUPPORTED_MAJOR = 1;
 
 export type CursorSdkDiagnosticCode =
   | "auth_invalid"
@@ -104,14 +103,9 @@ export function isSupportedCursorSdkNodeVersion(version: string): boolean {
   return compareVersion(parsed, CURSOR_SDK_MIN_NODE) >= 0;
 }
 
+/** Thin alias over the shared window so the loader and the npm probe agree. */
 export function isSupportedCursorSdkVersion(version: string): boolean {
-  const parsed = parseCursorSdkVersion(version);
-  return (
-    parsed !== undefined &&
-    parsed[0] === CURSOR_SDK_SUPPORTED_MAJOR &&
-    compareVersion(parsed, CURSOR_SDK_MIN_VERSION) >= 0 &&
-    !version.includes("-")
-  );
+  return isSupportedCursorSdkPackageVersion(version);
 }
 
 export function classifyCursorSdkRuntimeError(error: unknown): CursorSdkDiagnostic | undefined {

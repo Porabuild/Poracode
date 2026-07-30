@@ -1,5 +1,6 @@
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import { parseBracketParams, stripBracketParams } from "@/shared/modelLabels";
+import { cursorDefaultHiddenModels } from "./defaultModelVisibility";
 import { cursorModelGrouping } from "./modelGrouping";
 
 export interface CursorSdkModelParameter {
@@ -30,20 +31,48 @@ export interface CursorSdkModelSelection {
 }
 
 const SAFE_PARAM_TOKEN = /^[^,[\]=]+$/u;
-const EFFORT_PARAM_IDS = ["reasoning", "effort"] as const;
-const CONTEXT_PARAM_IDS = ["context", "context_size"] as const;
-const GENERIC_CONTROL_PARAM_IDS = new Set([
-  ...EFFORT_PARAM_IDS,
-  ...CONTEXT_PARAM_IDS,
-  "fast",
-  "thinking",
-]);
-function parameter(model: CursorSdkModel | undefined, ids: readonly string[]) {
-  return model?.parameters?.find((candidate) => ids.includes(candidate.id));
+
+/**
+ * Parameter families that Poracode already exposes as generic composer
+ * controls. Cursor's account catalog names the same concept differently across
+ * models (`context`, `context_size`, `context_window`, `contextSize`,
+ * `reasoning`, `effort`, `reasoning_effort`, …), so families are matched by
+ * substring rather than by an exact allow-list. One shared predicate is used by
+ * both the capability projection and `buildCursorSdkModelSelection`, so a
+ * parameter treated as a generic control can never diverge from the parameter
+ * the selection builder fills from `ThreadConfig`.
+ */
+type CursorSdkParamFamily = "effort" | "context" | "fast" | "thinking";
+
+function paramFamily(paramId: string): CursorSdkParamFamily | undefined {
+  const id = paramId.trim().toLowerCase();
+  if (id.includes("context")) return "context";
+  if (id.includes("effort") || id.includes("reasoning")) return "effort";
+  if (id === "fast") return "fast";
+  if (id === "thinking") return "thinking";
+  return undefined;
+}
+
+function familyParameter(
+  model: CursorSdkModel | undefined,
+  family: CursorSdkParamFamily,
+): CursorSdkModelParameter | undefined {
+  return model?.parameters?.find((candidate) => paramFamily(candidate.id) === family);
+}
+
+function parameterById(
+  model: CursorSdkModel | undefined,
+  paramId: string,
+): CursorSdkModelParameter | undefined {
+  return model?.parameters?.find((candidate) => candidate.id === paramId);
 }
 
 function accepts(param: CursorSdkModelParameter | undefined, value: string): boolean {
   return param?.values.some((candidate) => candidate.value === value) === true;
+}
+
+function isAutoModel(model: Pick<CursorSdkModel, "id" | "displayName">): boolean {
+  return model.id === "auto" || model.id === "default" || labelKey(model.displayName) === "auto";
 }
 
 function setParam(
@@ -68,19 +97,17 @@ export function buildCursorSdkModelSelection(
   catalog: readonly CursorSdkModel[],
 ): CursorSdkModelSelection {
   const requestedId = stripBracketParams(config.model);
-  const requestedModel = catalog.find(
-    (candidate) =>
-      candidate.id === requestedId || candidate.aliases?.includes(requestedId) === true,
-  );
+  const requestedModel =
+    catalog.find(
+      (candidate) =>
+        candidate.id === requestedId || candidate.aliases?.includes(requestedId) === true,
+    ) ?? (requestedId === "auto" ? catalog.find(isAutoModel) : undefined);
   // Detection may have supplied a deferred project-local catalog, or a saved
   // draft may name a model retired since the previous launch. Once the real
   // account catalog is available, never send a known-invalid id: prefer the
   // SDK's documented Auto fallback, then the account's first model.
   const model =
-    requestedModel ??
-    (catalog.length > 0
-      ? (catalog.find((candidate) => candidate.id === "auto") ?? catalog[0])
-      : undefined);
+    requestedModel ?? (catalog.length > 0 ? (catalog.find(isAutoModel) ?? catalog[0]) : undefined);
   const id = model?.id ?? requestedId;
   const output = new Map<string, string>();
   const selectedVariant = requestedModel?.variants?.find(
@@ -97,7 +124,7 @@ export function buildCursorSdkModelSelection(
   const persistedParams =
     requestedModel || catalog.length === 0 ? parseBracketParams(config.model) : {};
   for (const [paramId, value] of Object.entries(persistedParams)) {
-    const definition = model?.parameters?.find((candidate) => candidate.id === paramId);
+    const definition = parameterById(model, paramId);
     if (
       definition
         ? accepts(definition, value)
@@ -107,17 +134,17 @@ export function buildCursorSdkModelSelection(
     }
   }
 
-  setParam(output, parameter(model, EFFORT_PARAM_IDS), config.effort || undefined, fixedParamIds);
+  setParam(output, familyParameter(model, "effort"), config.effort || undefined, fixedParamIds);
   setParam(
     output,
-    parameter(model, CONTEXT_PARAM_IDS),
+    familyParameter(model, "context"),
     config.contextSize && config.contextSize !== "default" ? config.contextSize : undefined,
     fixedParamIds,
   );
 
-  const fast = parameter(model, ["fast"]);
+  const fast = familyParameter(model, "fast");
   if (fast && config.fast !== undefined) setParam(output, fast, String(config.fast), fixedParamIds);
-  const thinking = parameter(model, ["thinking"]);
+  const thinking = familyParameter(model, "thinking");
   if (thinking && config.thinking !== undefined)
     setParam(output, thinking, String(config.thinking), fixedParamIds);
 
@@ -126,7 +153,7 @@ export function buildCursorSdkModelSelection(
   // stable default unless a catalog variant encoded another value in the id.
   // Keep this invariant during a resumed thread's temporary catalog outage:
   // `auto-smart` without `optimize_for` is not a supported SDK contract.
-  const optimizeFor = parameter(model, ["optimize_for"]);
+  const optimizeFor = parameterById(model, "optimize_for");
   if (id === "auto-smart" && !output.has("optimize_for")) {
     const preferred = optimizeFor
       ? ["balanced", "intelligence", "cost"].find((value) => accepts(optimizeFor, value))
@@ -151,7 +178,49 @@ function variantModelId(modelId: string, variant: CursorSdkModelVariant): string
 }
 
 function needsDedicatedVariantRow(variant: CursorSdkModelVariant): boolean {
-  return variant.params.some(({ id }) => !GENERIC_CONTROL_PARAM_IDS.has(id));
+  return variant.params.some(({ id }) => paramFamily(id) === undefined);
+}
+
+/**
+ * Rows are deduplicated on their user-visible label: the account catalog ships
+ * several entries (and variant presets) that project to the same text, and a
+ * picker full of identical names is unusable.
+ */
+function labelKey(label: string): string {
+  return label.trim().toLowerCase();
+}
+
+function mergeValues(target: string[], values: readonly string[]): void {
+  for (const value of values) if (!target.includes(value)) target.push(value);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+interface CursorSdkRow {
+  id: string;
+  label: string;
+  tooltipDescription?: string;
+  efforts: readonly string[];
+  contexts: readonly string[];
+  fast: boolean;
+  thinking: boolean;
+}
+
+function modelLabel(model: CursorSdkModel, effort: CursorSdkModelParameter | undefined): string {
+  if (!effort) return model.displayName;
+  const suffixes = effort.values
+    .flatMap(({ value, displayName }) => [displayName, value])
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => right.length - left.length);
+  for (const suffix of suffixes) {
+    const label = model.displayName
+      .replace(new RegExp(`\\s+${escapeRegExp(suffix)}$`, "iu"), "")
+      .trim();
+    if (label && label !== model.displayName) return label;
+  }
+  return model.displayName;
 }
 
 /**
@@ -165,6 +234,7 @@ export function cursorSdkCapabilitiesFromModels(
 ): Pick<
   AgentCapability,
   | "models"
+  | "defaultHiddenModels"
   | "efforts"
   | "defaultEffort"
   | "modelEfforts"
@@ -183,74 +253,98 @@ export function cursorSdkCapabilitiesFromModels(
   const modelContextSizes: Record<string, string[]> = {};
   const fastModels: string[] = [];
   const thinkingModels: string[] = [];
+  const rowIdByLabel = new Map<string, string>();
+
+  // The first row with a given label keeps its own id; later rows with the same
+  // label contribute their capability ranges to that winner instead of adding a
+  // visually identical picker entry.
+  const emitRow = (row: CursorSdkRow): void => {
+    row.efforts.forEach((value) => effortSet.add(value));
+    const winner = rowIdByLabel.get(labelKey(row.label));
+    if (winner === undefined) {
+      rowIdByLabel.set(labelKey(row.label), row.id);
+      models.push({
+        id: row.id,
+        label: row.label,
+        ...(row.tooltipDescription ? { tooltipDescription: row.tooltipDescription } : {}),
+      });
+      modelEfforts[row.id] = [...row.efforts];
+      if (row.contexts.length > 0) modelContextSizes[row.id] = [...row.contexts];
+      if (row.fast) fastModels.push(row.id);
+      if (row.thinking) thinkingModels.push(row.id);
+      return;
+    }
+    mergeValues((modelEfforts[winner] ??= []), row.efforts);
+    if (row.contexts.length > 0) mergeValues((modelContextSizes[winner] ??= []), row.contexts);
+    if (row.fast && !fastModels.includes(winner)) fastModels.push(winner);
+    if (row.thinking && !thinkingModels.includes(winner)) thinkingModels.push(winner);
+  };
 
   for (const model of catalog) {
-    models.push({
+    const effort = familyParameter(model, "effort");
+    const context = familyParameter(model, "context");
+    const label = modelLabel(model, effort);
+    const efforts = effort?.values.map(({ value }) => value) ?? [];
+    const contexts =
+      context?.values.map(({ value, displayName }) => {
+        contextLabels.set(value, displayName ?? value.toUpperCase());
+        return value;
+      }) ?? [];
+    const fast = accepts(familyParameter(model, "fast"), "true");
+    const thinking = accepts(familyParameter(model, "thinking"), "true");
+
+    emitRow({
       id: model.id,
-      label: model.displayName,
+      label,
       ...(model.description ? { tooltipDescription: model.description } : {}),
+      efforts,
+      contexts,
+      fast,
+      thinking,
     });
-    const variants: Array<{ id: string; variant: CursorSdkModelVariant }> = [];
+
     for (const variant of model.variants ?? []) {
       // Effort, context, Fast, and thinking are already first-class composer
       // controls. A second row for every combination makes one SDK model look
       // like many unrelated models. Keep only presets with parameters that the
       // generic controls cannot represent (for example Router optimize_for).
       if (!needsDedicatedVariantRow(variant)) continue;
+      // A preset named after its own model reads as a duplicate of the base row.
+      if (labelKey(variant.displayName) === labelKey(label)) continue;
       const id = variantModelId(model.id, variant);
-      if (id) {
-        models.push({
-          id,
-          label: `${model.displayName} · ${variant.displayName}`,
-          ...(variant.description || model.description
-            ? { tooltipDescription: variant.description ?? model.description! }
-            : {}),
-        });
-        variants.push({ id, variant });
-      }
+      if (!id) continue;
+      const fixedEffort = variantFamilyValue(variant, "effort");
+      const fixedContext = variantFamilyValue(variant, "context");
+      emitRow({
+        id,
+        label: `${label} · ${variant.displayName}`,
+        ...(variant.description || model.description
+          ? { tooltipDescription: variant.description ?? model.description! }
+          : {}),
+        efforts: fixedEffort && accepts(effort, fixedEffort) ? [fixedEffort] : efforts,
+        contexts: fixedContext && accepts(context, fixedContext) ? [fixedContext] : contexts,
+        fast: fast && variantFamilyValue(variant, "fast") === undefined,
+        thinking: thinking && variantFamilyValue(variant, "thinking") === undefined,
+      });
     }
+  }
 
-    const effort = parameter(model, EFFORT_PARAM_IDS);
-    const efforts = effort?.values.map(({ value }) => value) ?? [];
-    modelEfforts[model.id] = efforts;
-    for (const { id, variant } of variants) {
-      const fixedEffort = variantParamValue(variant, EFFORT_PARAM_IDS);
-      modelEfforts[id] = fixedEffort && accepts(effort, fixedEffort) ? [fixedEffort] : efforts;
-    }
-    efforts.forEach((value) => effortSet.add(value));
-
-    const context = parameter(model, CONTEXT_PARAM_IDS);
-    const contexts = context?.values.map(({ value, displayName }) => {
-      contextLabels.set(value, displayName ?? value.toUpperCase());
-      return value;
-    });
-    if (contexts && contexts.length > 0) {
-      modelContextSizes[model.id] = contexts;
-      for (const { id, variant } of variants) {
-        const fixedContext = variantParamValue(variant, CONTEXT_PARAM_IDS);
-        modelContextSizes[id] =
-          fixedContext && accepts(context, fixedContext) ? [fixedContext] : contexts;
-      }
-    }
-
-    if (accepts(parameter(model, ["fast"]), "true")) {
-      fastModels.push(model.id);
-      for (const { id, variant } of variants) {
-        if (variantParamValue(variant, ["fast"]) === undefined) fastModels.push(id);
-      }
-    }
-    if (accepts(parameter(model, ["thinking"]), "true")) {
-      thinkingModels.push(model.id);
-      for (const { id, variant } of variants) {
-        if (variantParamValue(variant, ["thinking"]) === undefined) thinkingModels.push(id);
-      }
-    }
+  const autoIndex = models.findIndex(
+    (model) => model.id === "auto" || model.id === "default" || labelKey(model.label) === "auto",
+  );
+  // Local agents require a selection returned by Cursor.models.list(). Keep a
+  // native Auto entry first, but never invent one when the account did not
+  // advertise it.
+  if (autoIndex > 0) {
+    models.unshift(models.splice(autoIndex, 1)[0]!);
   }
 
   const efforts = [...effortSet];
   const contextSizes = [...contextLabels].map(([id, label]) => ({ id, label }));
+  const defaultHiddenModels = cursorDefaultHiddenModels(models);
   return {
     models,
+    ...(defaultHiddenModels.length > 0 ? { defaultHiddenModels } : {}),
     ...cursorModelGrouping(models),
     efforts,
     ...(efforts.includes("medium") ? { defaultEffort: "medium" } : {}),
@@ -263,11 +357,11 @@ export function cursorSdkCapabilitiesFromModels(
   };
 }
 
-function variantParamValue(
+function variantFamilyValue(
   variant: CursorSdkModelVariant,
-  ids: readonly string[],
+  family: CursorSdkParamFamily,
 ): string | undefined {
-  return variant.params.find(({ id }) => ids.includes(id))?.value;
+  return variant.params.find(({ id }) => paramFamily(id) === family)?.value;
 }
 
 /**
@@ -293,8 +387,8 @@ export function cursorSdkGuiCapabilities(
       { id: "workspace-write", label: "Workspace Sandbox" },
       { id: "danger-full-access", label: "No Sandbox" },
     ],
-    defaultApprovalPolicy: "default",
-    defaultSandboxMode: "workspace-write",
+    defaultApprovalPolicy: "never",
+    defaultSandboxMode: "danger-full-access",
     bypassPermissions: {
       approvalPolicy: "never",
       sandboxMode: "danger-full-access",

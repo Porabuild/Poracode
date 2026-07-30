@@ -144,7 +144,12 @@ export function expandAgentToVisibilityProviders(agent: AgentStatus): ProviderMo
   const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
   const providers = supported.flatMap((presentationMode) => {
     const runtimeProviders = Object.entries(runtimeVariants)
-      .filter(([, runtime]) => runtime.installed && runtime.presentationMode === presentationMode)
+      .filter(
+        ([, runtime]) =>
+          runtime.installed &&
+          runtime.authState === "authenticated" &&
+          runtime.presentationMode === presentationMode,
+      )
       .map(([runtimeVariant]) => makeMenuProvider(agent, presentationMode, runtimeVariant));
     return runtimeProviders.length > 0
       ? runtimeProviders
@@ -234,6 +239,8 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       ...(lockedAgentKind ? { lockedAgentKind } : {}),
       ...(presentationMode ? { presentationMode } : {}),
       ...(isDisabled !== undefined ? { isDisabled } : {}),
+      // Rows mark Fast mode filled while it is on for this draft.
+      ...(fast === true ? { isFastEnabled: true } : {}),
       hideLabelOnWrap,
       tier: 5,
       onChange: onProviderModelChange,

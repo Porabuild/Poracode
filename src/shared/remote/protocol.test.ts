@@ -119,4 +119,28 @@ describe("remote settings", () => {
       titleGenProvider: "claude",
     });
   });
+
+  it("never exposes or accepts sensitive agent settings", () => {
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      agentSettings: {
+        cursor: {
+          structuredRuntime: "sdk",
+          sdkApiKey: "lc-safe:encrypted-secret",
+        },
+      },
+    });
+
+    expect(settings.agentSettings.cursor).toEqual({ structuredRuntime: "sdk" });
+    expect(
+      remoteSettingsPatchSchema.parse({
+        agentSettings: {
+          cursor: {
+            structuredRuntime: "acp",
+            sdkApiKey: "plaintext-secret",
+          },
+        },
+      }).agentSettings?.cursor,
+    ).toEqual({ structuredRuntime: "acp" });
+  });
 });

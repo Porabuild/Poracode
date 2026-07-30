@@ -65,6 +65,7 @@ interface SharedSettingsState extends SharedSettings {
   ) => void;
   setWslConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
   setAgentSetting: (agentKind: string, key: string, value: boolean | string) => void;
+  setAgentSecretSetting: (agentKind: string, key: string, value: string) => Promise<boolean>;
   setModelHidden: (agentKind: string, modelId: string, hidden: boolean) => void;
   setHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setAgentDisabled: (agentKind: string, disabled: boolean) => void;
@@ -361,6 +362,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     const agentValues = { ...current[agentKind], [key]: value };
     set({ agentSettings: { ...current, [agentKind]: agentValues } });
     persistSettings(selectSharedSettings(get()));
+  },
+  setAgentSecretSetting: async (agentKind, key, value) => {
+    const { storedValue } = await readBridge().setAgentSecretSetting({ agentKind, key, value });
+    const current = get().agentSettings;
+    const agentValues = { ...current[agentKind] };
+    if (storedValue === null) delete agentValues[key];
+    else agentValues[key] = storedValue;
+    set({ agentSettings: { ...current, [agentKind]: agentValues } });
+    cacheSettingsSnapshot(selectSharedSettings(get()));
+    return storedValue !== null;
   },
   setModelHidden: (agentKind, modelId, hidden) => {
     const current = get().hiddenModels;

@@ -104,4 +104,25 @@ describe("remote project agent selection", () => {
       sandboxMode: "workspace-write",
     });
   });
+
+  it("falls back to advertised options when provider defaults are stale", () => {
+    const status = makeStatus("qoder", "Ubuntu", {
+      capabilities: {
+        ...makeStatus("qoder", "Ubuntu").capabilities,
+        approvalPolicies: [
+          { id: "default", label: "Default" },
+          { id: "acceptEdits", label: "Accept Edits" },
+        ],
+        defaultApprovalPolicy: "bypassPermissions",
+        sandboxModes: [{ id: "workspace-write", label: "Workspace write" }],
+        defaultSandboxMode: "danger-full-access",
+      },
+    });
+
+    expect(buildRemoteThreadConfig(status, "model-a", "")).toEqual({
+      model: "model-a",
+      approvalPolicy: "default",
+      sandboxMode: "workspace-write",
+    });
+  });
 });

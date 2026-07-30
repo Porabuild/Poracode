@@ -106,6 +106,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "revealProjectEntry",
   "getSharedSettings",
   "setSharedSettings",
+  "setAgentSecretSetting",
   "removeCrossagentRoutingOverride",
   "setClaudeProfileEnvironment",
   "setWindowChrome",

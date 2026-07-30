@@ -5,7 +5,9 @@ import {
   authStatusForPresentation,
   authStateForPresentation,
   capabilitiesForPresentation,
+  filterHiddenModels,
   modelSelectionFor,
+  resolveHiddenModelIds,
   resolveModelSelection,
   resolveReasoningSelection,
   validateAgentModelSelection,
@@ -59,6 +61,50 @@ describe("agent selection", () => {
     const gui = capabilitiesForPresentation(capabilities, "gui");
     expect(resolveModelSelection(gui, "missing")).toBe("chat-model");
     expect(resolveReasoningSelection(gui, "chat-model", "missing")).toBe("high");
+  });
+
+  it("uses provider visibility defaults until the user saves an explicit list", () => {
+    const withDefaults: AgentCapability = {
+      ...capabilities,
+      models: [
+        { id: "legacy", label: "Legacy" },
+        { id: "current", label: "Current" },
+      ],
+      defaultHiddenModels: ["legacy"],
+    };
+
+    expect(resolveHiddenModelIds(withDefaults, undefined)).toEqual(["legacy"]);
+    expect(filterHiddenModels(withDefaults, undefined).models.map(({ id }) => id)).toEqual([
+      "current",
+    ]);
+    expect(resolveHiddenModelIds(withDefaults, [])).toEqual([]);
+    expect(filterHiddenModels(withDefaults, []).models.map(({ id }) => id)).toEqual([
+      "legacy",
+      "current",
+    ]);
+    expect(filterHiddenModels(withDefaults, ["current"]).models.map(({ id }) => id)).toEqual([
+      "legacy",
+    ]);
+  });
+
+  it("does not leak terminal visibility defaults into a GUI capability override", () => {
+    const splitDefaults: AgentCapability = {
+      ...capabilities,
+      defaultHiddenModels: ["terminal-model"],
+      presentationCapabilities: {
+        gui: {
+          ...capabilities.presentationCapabilities!.gui!,
+          defaultHiddenModels: ["chat-model"],
+        },
+      },
+    };
+
+    expect(capabilitiesForPresentation(splitDefaults, "terminal").defaultHiddenModels).toEqual([
+      "terminal-model",
+    ]);
+    expect(capabilitiesForPresentation(splitDefaults, "gui").defaultHiddenModels).toEqual([
+      "chat-model",
+    ]);
   });
 
   it("validates orchestrator input against the advertised options", () => {

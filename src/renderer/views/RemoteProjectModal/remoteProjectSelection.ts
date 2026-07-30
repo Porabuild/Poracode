@@ -8,6 +8,16 @@ import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import type { RemoteAgentStatuses } from "@/shared/remote";
 
+function resolveDefaultOption(
+  options: readonly { id: string }[],
+  preferred: string | undefined,
+): string | undefined {
+  if (preferred && options.some((option) => option.id === preferred)) {
+    return preferred;
+  }
+  return options[0]?.id;
+}
+
 export function remoteProjectPresentationModes(
   status: AgentStatus | undefined,
 ): ThreadPresentationMode[] {
@@ -49,15 +59,21 @@ export function buildRemoteThreadConfig(
   effort: string,
 ): ThreadConfig {
   const capabilities = status.capabilities;
+  const approvalPolicy = resolveDefaultOption(
+    capabilities.approvalPolicies,
+    capabilities.defaultApprovalPolicy,
+  );
+  const sandboxMode = resolveDefaultOption(
+    capabilities.sandboxModes,
+    capabilities.defaultSandboxMode,
+  );
   return {
     model,
     ...(effort ? { effort } : {}),
-    ...(capabilities.defaultApprovalPolicy
-      ? { approvalPolicy: capabilities.defaultApprovalPolicy }
-      : {}),
+    ...(approvalPolicy ? { approvalPolicy } : {}),
     ...(capabilities.defaultApprovalsReviewer !== undefined
       ? { approvalsReviewer: capabilities.defaultApprovalsReviewer }
       : {}),
-    ...(capabilities.defaultSandboxMode ? { sandboxMode: capabilities.defaultSandboxMode } : {}),
+    ...(sandboxMode ? { sandboxMode } : {}),
   };
 }

@@ -205,6 +205,7 @@ describe("loadCursorSdk discovery", () => {
           env: {},
         }),
         {
+          executablePath: join(emptyProject, "bin", "node"),
           resolvePackageManagerRoots: async () => [
             { root: join(emptyProject, "missing"), source: "global-npm" },
             { root: fake.nodeModulesRoot, source: "global-pnpm" },

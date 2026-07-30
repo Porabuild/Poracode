@@ -40,7 +40,11 @@ import {
   updateAcpRegistryAgent as updateAcpRegistryAgentFromRegistry,
 } from "../agents/acpRegistry";
 import { type AgentAdapter, type AgentEnvContext } from "../agents/base";
-import { getLatestVersionForAdapter, runUpdateCommandWithFallback } from "../agents/updateAgent";
+import {
+  getLatestSupportedNpmPackageVersion,
+  getLatestVersionForAdapter,
+  runUpdateCommandWithFallback,
+} from "../agents/updateAgent";
 import { clearAgentBinaryPathCache } from "../agents/binaryResolver";
 import type { AgentStatusService } from "./agentStatusService";
 import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
@@ -295,6 +299,11 @@ export class AgentRegistryService {
   async getLatestAgentVersion(
     payload: GetLatestAgentVersionPayload,
   ): Promise<GetLatestAgentVersionResult> {
+    // A provider-managed package (Cursor's SDK, for example) has its own
+    // release window, independent of the agent's CLI channel.
+    if (payload.npmPackage) {
+      return getLatestSupportedNpmPackageVersion(payload.npmPackage);
+    }
     const adapter = this.deps.adapters.get(payload.agentKind);
     if (!adapter) return { source: "unknown" };
     return getLatestVersionForAdapter(adapter);

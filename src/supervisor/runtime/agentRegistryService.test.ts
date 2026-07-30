@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AgentStatus, UpdateAgentBinaryResult } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  GetLatestAgentVersionResult,
+  NpmPackageVersionQuery,
+  UpdateAgentBinaryResult,
+} from "@/shared/contracts";
 import type { AgentAdapter, AgentEnvContext } from "../agents/base";
 import type { AgentStatusService } from "./agentStatusService";
 import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
@@ -14,11 +19,20 @@ const runUpdateCommandWithFallbackMock = vi.hoisted(() =>
   >(),
 );
 
+const getLatestVersionForAdapterMock = vi.hoisted(() =>
+  vi.fn<(adapter: AgentAdapter) => Promise<GetLatestAgentVersionResult>>(),
+);
+const getLatestSupportedNpmPackageVersionMock = vi.hoisted(() =>
+  vi.fn<(query: NpmPackageVersionQuery) => Promise<GetLatestAgentVersionResult>>(),
+);
+
 vi.mock("../agents/updateAgent", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../agents/updateAgent")>();
   return {
     ...actual,
     runUpdateCommandWithFallback: runUpdateCommandWithFallbackMock,
+    getLatestVersionForAdapter: getLatestVersionForAdapterMock,
+    getLatestSupportedNpmPackageVersion: getLatestSupportedNpmPackageVersionMock,
   };
 });
 
@@ -193,5 +207,64 @@ describe("AgentRegistryService.updateAgentBinary", () => {
         agentKinds: ["claude", "claude:personal", "claude:work"],
       },
     });
+  });
+});
+
+describe("AgentRegistryService.getLatestAgentVersion", () => {
+  const adapter = {
+    kind: "cursor",
+    label: "Cursor",
+    capabilities,
+    detectInstall: vi.fn<AgentAdapter["detectInstall"]>(),
+    buildLaunchArgv: vi.fn<AgentAdapter["buildLaunchArgv"]>(),
+    buildResumeArgv: vi.fn<AgentAdapter["buildResumeArgv"]>(),
+    createInitialSessionRef: vi.fn<AgentAdapter["createInitialSessionRef"]>(() => undefined),
+  } as unknown as AgentAdapter;
+
+  function makeService(): AgentRegistryService {
+    return new AgentRegistryService({
+      adapters: new Map([["cursor", adapter]]),
+      settingsPath: "/data/settings.json",
+      baseDir: "/data",
+      acpIconsDir: "/data/icons",
+      sharedSettingsCache: {
+        invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
+      } as unknown as SupervisorSharedSettingsCache,
+      getAgentStatusService: () => ({}) as unknown as AgentStatusService,
+    });
+  }
+
+  it("probes the requested npm package window instead of the agent's own channel", async () => {
+    getLatestSupportedNpmPackageVersionMock.mockReset().mockResolvedValue({
+      version: "1.0.31",
+      source: "npm",
+    });
+    getLatestVersionForAdapterMock.mockReset();
+
+    const result = await makeService().getLatestAgentVersion({
+      agentKind: "cursor",
+      npmPackage: { name: "@cursor/sdk", minVersion: "1.0.24", maxExclusiveMajor: 2 },
+    });
+
+    expect(result).toEqual({ version: "1.0.31", source: "npm" });
+    expect(getLatestSupportedNpmPackageVersionMock).toHaveBeenCalledWith({
+      name: "@cursor/sdk",
+      minVersion: "1.0.24",
+      maxExclusiveMajor: 2,
+    });
+    expect(getLatestVersionForAdapterMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the per-agentKind probe when no npm package is requested", async () => {
+    getLatestSupportedNpmPackageVersionMock.mockReset();
+    getLatestVersionForAdapterMock
+      .mockReset()
+      .mockResolvedValue({ version: "2026.07.23", source: "homebrew-cask" });
+
+    const result = await makeService().getLatestAgentVersion({ agentKind: "cursor" });
+
+    expect(result).toEqual({ version: "2026.07.23", source: "homebrew-cask" });
+    expect(getLatestVersionForAdapterMock).toHaveBeenCalledWith(adapter);
+    expect(getLatestSupportedNpmPackageVersionMock).not.toHaveBeenCalled();
   });
 });
