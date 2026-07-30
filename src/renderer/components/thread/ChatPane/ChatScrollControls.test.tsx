@@ -390,7 +390,7 @@ describe("ChatScrollControls", () => {
     expect(scrollTop).toBe(1025);
   });
 
-  it("keeps following the tail when composer growth shrinks the viewport", () => {
+  it("keeps following the tail when composer edits resize the viewport", () => {
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
     let resizeCallback: ResizeObserverCallback | null = null;
@@ -459,6 +459,32 @@ describe("ChatScrollControls", () => {
     });
 
     expect(scrollTop).toBe(840);
+
+    while (animationFrames.size > 0) {
+      const callbacks = [...animationFrames.values()];
+      animationFrames.clear();
+      act(() => callbacks.forEach((callback) => callback(0)));
+    }
+
+    act(() => {
+      // Removing a line grows the chat viewport. LegendList can adjust its
+      // visible-content anchor before ResizeObserver reports that inverse
+      // composer resize, so the previous at-bottom cache must not suppress
+      // the corrective pin.
+      clientHeight = 200;
+      scrollTop = 760;
+      scrollEl.dispatchEvent(new Event("scroll"));
+      const callback = resizeCallback as ResizeObserverCallback | null;
+      callback?.([{ target: scrollEl } as unknown as ResizeObserverEntry], {} as ResizeObserver);
+    });
+
+    while (animationFrames.size > 0) {
+      const callbacks = [...animationFrames.values()];
+      animationFrames.clear();
+      act(() => callbacks.forEach((callback) => callback(0)));
+    }
+
+    expect(scrollTop).toBe(800);
   });
 
   it("keeps sticky while LegendList adjusts its anchor before scrollHeight changes", async () => {
