@@ -421,6 +421,26 @@ msgstr "{projectLocation} (deaktiviert)"
 msgid "{projectName} Settings"
 msgstr "{projectName}-Einstellungen"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} {displayName} profile added."
+msgstr "{providerName}-Profil {displayName} hinzugefügt."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} {trimmedName} profile saved."
+msgstr "{providerName}-Profil {trimmedName} gespeichert."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile home directory"
+msgstr "Home-Verzeichnis des {providerName}-Profils"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile name"
+msgstr "{providerName}-Profilname"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile removed."
+msgstr "{providerName}-Profil entfernt."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
 msgstr "{remaining, plural, one {# offen} other {# offen}}"
@@ -614,6 +634,10 @@ msgstr "Aktivitätsmetrik"
 msgid "Add"
 msgstr "Hinzufügen"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Add {providerName} profile"
+msgstr "{providerName}-Profil hinzufügen"
+
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Lokales Projekt hinzufügen"
@@ -703,6 +727,7 @@ msgid "Add pattern"
 msgstr "Muster hinzufügen"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Add profile"
 msgstr "Profil hinzufügen"
 
@@ -1498,6 +1523,10 @@ msgstr "Ports konnten nicht geladen werden"
 msgid "Cancel"
 msgstr "Abbrechen"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Cancel new {providerName} profile"
+msgstr "Neues {providerName}-Profil abbrechen"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Cancel new Claude profile"
 msgstr "Neues Claude-Profil abbrechen"
@@ -1724,6 +1753,10 @@ msgstr "Chrome"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Chrome MCP enabled for this thread"
 msgstr "Chrome-MCP für diesen Thread aktiviert"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Claude"
+msgstr "Claude"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2003,6 +2036,7 @@ msgid "Code copied. "
 msgstr "Code kopiert."
 
 #: src/renderer/components/providers/codex/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Codex"
 msgstr "Codex"
 
@@ -3219,6 +3253,7 @@ msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactor
 msgstr "z. B. Codex GPT-5.5 fast für schnelle Recherchen, OpenCode GLM für umfangreiche Refactorings, Claude Opus für alles Kniffelige."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "e.g. Work"
 msgstr "z.B. Arbeit"
 
@@ -3899,6 +3934,7 @@ msgid "Fullscreen overlay"
 msgstr "Vollbild-Overlay"
 
 #: src/renderer/components/providers/gemini/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Gemini"
 msgstr "Gemini"
 
@@ -3985,6 +4021,7 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "Git-Status für {0}: kein Git-Repository"
 
 #: src/renderer/components/providers/copilot/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
 
@@ -4058,6 +4095,7 @@ msgid "Grade {0}"
 msgstr "Bewertung {0}"
 
 #: src/renderer/components/providers/grok/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Grok Build"
 msgstr "Grok Build"
 
@@ -4181,6 +4219,10 @@ msgstr "Verlauf"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Start"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Home directory"
+msgstr "Home-Verzeichnis"
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Home folder"
@@ -5264,6 +5306,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Name"
 msgstr "Name"
 
@@ -5319,6 +5362,14 @@ msgstr "Neutral"
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Neu"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "New {providerName} profile home directory"
+msgstr "Home-Verzeichnis des neuen {providerName}-Profils"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "New {providerName} profile name"
+msgstr "Name des neuen {providerName}-Profils"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -5490,6 +5541,10 @@ msgstr "Keine aktive Sitzung"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "Noch keine Aktivität."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "No additional {providerName} profiles."
+msgstr "Keine zusätzlichen {providerName}-Profile."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "No additional Claude profiles."
@@ -5987,6 +6042,7 @@ msgid "Open {0}"
 msgstr "{0} öffnen"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Open {label}"
 msgstr "{label} öffnen"
 
@@ -6648,6 +6704,7 @@ msgid "Private key"
 msgstr "Privater Schlüssel"
 
 #: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "Profil"
@@ -6657,6 +6714,7 @@ msgid "Profile stats range"
 msgstr "Statistikzeitraum des Profils"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Profiles"
 msgstr "Profile"
 
@@ -6978,6 +7036,7 @@ msgstr "Benachrichtigungsinhalt verbergen"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
@@ -7112,6 +7171,11 @@ msgstr "{0} entfernen"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {0} from panel"
 msgstr "{0} aus dem Panel entfernen"
+
+#. placeholder {0}: props.providerName
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Remove {0} profile"
+msgstr "Profil {0} entfernen"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
@@ -7612,6 +7676,7 @@ msgstr "Laufzeitoptionen"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "Speichern"
@@ -7620,6 +7685,10 @@ msgstr "Speichern"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save {0} credentials."
 msgstr "{0}-Anmeldeinformationen speichern."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Save {providerName} profile"
+msgstr "{providerName}-Profil speichern"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
@@ -9113,6 +9182,10 @@ msgstr "Dadurch wird der Branch „{0}“ dauerhaft von seinem Remote gelöscht.
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "Dadurch wird der Branch „{0}“ dauerhaft gelöscht."
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "This profile keeps its {providerName} account, settings, and sessions in a separate home directory."
+msgstr "Dieses Profil speichert sein {providerName}-Konto, seine Einstellungen und Sitzungen in einem separaten Home-Verzeichnis."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "dieses Projekt"
@@ -9498,6 +9571,10 @@ msgstr "{0} konnte nicht aktualisiert werden."
 msgid "Unable to refresh Claude profiles."
 msgstr "Claude-Profile können nicht aktualisiert werden."
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Unable to refresh profiles."
+msgstr "Profile können nicht aktualisiert werden."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -9859,6 +9936,10 @@ msgstr "Verwenden Sie Buchstaben, Zahlen, Punkte, Bindestriche oder Unterstriche
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
 msgstr "Verwenden Sie einen globalen Ordner oder verschachteln Sie Worktrees in jedem Projekt unter .poracode/worktrees."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Use separate {providerName} accounts and settings by assigning each profile its own home directory."
+msgstr "Verwenden Sie separate {providerName}-Konten und -Einstellungen, indem Sie jedem Profil ein eigenes Home-Verzeichnis zuweisen."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"

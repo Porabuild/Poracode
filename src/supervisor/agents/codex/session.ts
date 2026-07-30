@@ -66,9 +66,17 @@ export function describeCodexLocation(location: ProjectLocation): string {
   }
 }
 
-export function readCodexSessionIndexForLocation(location: ProjectLocation) {
+export function readCodexSessionIndexForLocation(location: ProjectLocation, codexHome?: string) {
   if (location.kind === "wsl") {
     return [];
+  }
+
+  if (codexHome) {
+    try {
+      return parseCodexSessionIndex(readFileSync(join(codexHome, "session_index.jsonl"), "utf8"));
+    } catch {
+      return [];
+    }
   }
 
   const sessions = readCodexSessionIndex();
@@ -90,16 +98,19 @@ export function readCodexSessionIndexForLocation(location: ProjectLocation) {
  */
 export async function readCodexSessionIndexForLocationAsync(
   location: ProjectLocation,
+  codexHome?: string,
 ): Promise<Array<{ id: string; updatedAt: number; threadName: string }>> {
   if (location.kind !== "wsl") {
-    return readCodexSessionIndexForLocation(location);
+    return readCodexSessionIndexForLocation(location, codexHome);
   }
   const home = await resolveWslHomeDirectoryAsync(location.distro);
   const privateHome = codexPrivateHomeFrom(home);
-  const paths = [
-    home ? `${home}/.codex/session_index.jsonl` : undefined,
-    privateHome ? `${privateHome}/session_index.jsonl` : undefined,
-  ].filter((p): p is string => Boolean(p));
+  const paths = codexHome
+    ? [`${codexHome}/session_index.jsonl`]
+    : [
+        home ? `${home}/.codex/session_index.jsonl` : undefined,
+        privateHome ? `${privateHome}/session_index.jsonl` : undefined,
+      ].filter((p): p is string => Boolean(p));
   const reads = await Promise.all(paths.map((p) => readSessionFileText(location, p)));
   const parts = reads.filter((r): r is string => typeof r === "string" && r.length > 0);
   if (parts.length === 0) return [];
@@ -129,7 +140,10 @@ export function isInteractiveCodexRollout(
   }
 }
 
-export function readCodexRolloutsForLocation(location: ProjectLocation): CodexRolloutMeta[] {
+export function readCodexRolloutsForLocation(
+  location: ProjectLocation,
+  codexHome?: string,
+): CodexRolloutMeta[] {
   if (location.kind === "wsl") {
     return [];
   }
@@ -173,7 +187,7 @@ export function readCodexRolloutsForLocation(location: ProjectLocation): CodexRo
       }
     }
   };
-  for (const home of nativeCodexHomeCandidates()) {
+  for (const home of codexHome ? [codexHome] : nativeCodexHomeCandidates()) {
     walk(join(home, "sessions"));
   }
   return dedupeRollouts(rollouts);
@@ -210,16 +224,19 @@ export async function readCodexRolloutMetaForLocationAsync(
 
 export async function readCodexRolloutsForLocationAsync(
   location: ProjectLocation,
+  codexHome?: string,
 ): Promise<CodexRolloutMeta[]> {
   if (location.kind !== "wsl") {
-    return readCodexRolloutsForLocation(location);
+    return readCodexRolloutsForLocation(location, codexHome);
   }
   const home = await resolveWslHomeDirectoryAsync(location.distro);
   const privateHome = codexPrivateHomeFrom(home);
-  const roots = [
-    home ? `${home}/.codex/sessions` : undefined,
-    privateHome ? `${privateHome}/sessions` : undefined,
-  ].filter((r): r is string => Boolean(r));
+  const roots = codexHome
+    ? [`${codexHome}/sessions`]
+    : [
+        home ? `${home}/.codex/sessions` : undefined,
+        privateHome ? `${privateHome}/sessions` : undefined,
+      ].filter((r): r is string => Boolean(r));
 
   const accept = (name: string): boolean => name.startsWith("rollout-") && name.endsWith(".jsonl");
   const found = (
@@ -249,7 +266,15 @@ export async function readCodexRolloutsForLocationAsync(
  * paths for windows/posix; Linux paths inside the distro for WSL (consumed
  * by the in-distro bridge watch subscription, NOT UNC `\\wsl.localhost\…`).
  */
-export function resolveCodexSessionWatchPaths(location: ProjectLocation): string[] {
+export function resolveCodexSessionWatchPaths(
+  location: ProjectLocation,
+  codexHome?: string,
+): string[] {
+  if (codexHome) {
+    const sessions =
+      location.kind === "wsl" ? `${codexHome}/sessions` : join(codexHome, "sessions");
+    return location.kind === "wsl" || existsSync(sessions) ? [sessions] : [];
+  }
   if (location.kind === "wsl") {
     const home = getCachedWslHomeDirectory(location.distro);
     const privateHome = wslPrivateCodexHome(location.distro);

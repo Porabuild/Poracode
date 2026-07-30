@@ -620,8 +620,8 @@ export function isGeminiPluginInstalled(ctx?: AgentEnvContext): {
   return verifyGeminiInstallAt(getNativePluginBaseDir("gemini", ctx?.baseDir), "native");
 }
 
-export function uninstallGeminiPlugin(ctx?: AgentEnvContext): void {
-  removeStagedPluginDir("gemini", ctx);
+export function uninstallGeminiPlugin(ctx?: AgentEnvContext, removeStaged = true): void {
+  if (removeStaged) removeStagedPluginDir("gemini", ctx);
 }
 
 function verifyGeminiInstallAt(

@@ -1,17 +1,97 @@
 import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { McpServer } from "@/shared/contracts";
+import type { McpServer, ProjectLocation } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent } from "@/shared/osc";
 import { buildCopilotArgs } from "./argv";
 import { copilotDetectionSpec } from "./detection";
 import { buildCopilotMcpLaunchConfig } from "./mcp";
 import {
   createCopilotAdapter,
+  createCopilotProfileAdapter,
   detectCopilotInvalidSessionRef,
   detectCopilotModelEffort,
   detectCopilotStatusLineModel,
   detectCopilotTerminalStatus,
 } from "./index";
+
+describe("createCopilotProfileAdapter", () => {
+  const location: ProjectLocation = { kind: "posix", path: "/repo" };
+
+  it("routes terminal, ACP, one-shot, context, and skills through COPILOT_HOME", async () => {
+    const adapter = createCopilotProfileAdapter({
+      id: "work",
+      driver: "copilot",
+      displayName: "Work",
+      config: { homeDir: "/profiles/copilot" },
+      environment: {
+        GH_TOKEN: { value: "profile-token", sensitive: true },
+        COPILOT_HOME: { value: "/ignored" },
+      },
+    });
+
+    expect(adapter.kind).toBe("copilot:work");
+    expect(adapter.label).toBe("GitHub Copilot Work");
+    expect(adapter.skillSupport?.roots[0]?.globalBasePath).toBe("/profiles/copilot");
+    expect(adapter.buildLaunchArgv(location, { model: "gpt-5" }, "hello").env).toMatchObject({
+      COPILOT_HOME: "/profiles/copilot",
+      GH_TOKEN: "profile-token",
+      GITHUB_TOKEN: "",
+      GH_ENTERPRISE_TOKEN: "",
+      GITHUB_ENTERPRISE_TOKEN: "",
+      COPILOT_GITHUB_TOKEN: "",
+      COPILOT_API_TOKEN: "",
+    });
+    expect(adapter.buildOneShotCommand?.("gpt-5", undefined, "title", location)?.env).toMatchObject(
+      {
+        COPILOT_HOME: "/profiles/copilot",
+      },
+    );
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        { providerSessionId: "session", discoveredAt: "test" },
+        location,
+      )?.env,
+    ).toMatchObject({ COPILOT_HOME: "/profiles/copilot" });
+
+    const nativeAuth = await adapter.buildAcpAuthCommand?.({ envKind: "posix" });
+    expect(nativeAuth?.env).toMatchObject({
+      COPILOT_HOME: "/profiles/copilot",
+      GH_TOKEN: "profile-token",
+      GITHUB_TOKEN: "",
+      GH_ENTERPRISE_TOKEN: "",
+      GITHUB_ENTERPRISE_TOKEN: "",
+      COPILOT_GITHUB_TOKEN: "",
+      COPILOT_API_TOKEN: "",
+    });
+
+    const wslAuth = await adapter.buildAcpAuthCommand?.({ envKind: "wsl", wslDistro: "Ubuntu" });
+    const wslScript = wslAuth?.args.join(" ") ?? "";
+    expect(wslScript).toContain("export COPILOT_HOME='/profiles/copilot'");
+    expect(wslScript).toContain("export GH_TOKEN='profile-token'");
+    expect(wslScript).toContain("export GITHUB_TOKEN=''");
+    expect(wslScript).toContain("export GH_ENTERPRISE_TOKEN=''");
+    expect(wslScript).toContain("export GITHUB_ENTERPRISE_TOKEN=''");
+    expect(wslScript).toContain("export COPILOT_GITHUB_TOKEN=''");
+    expect(wslScript).toContain("export COPILOT_API_TOKEN=''");
+    expect(
+      createCopilotAdapter().buildOneShotCommand?.("gpt-5", undefined, "title", location)?.env,
+    ).toBeUndefined();
+  });
+
+  it("resolves a relative profile home against the target user home", () => {
+    const adapter = createCopilotProfileAdapter({
+      id: "relative",
+      driver: "copilot",
+      config: { homeDir: "profiles/copilot" },
+    });
+
+    expect(adapter.buildLaunchArgv(location, { model: "gpt-5" }, "hello").env?.COPILOT_HOME).toBe(
+      join(homedir(), "profiles/copilot"),
+    );
+  });
+});
 
 describe("copilotDetectionSpec", () => {
   it("uses Copilot CLI login for terminal authentication", () => {

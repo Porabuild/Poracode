@@ -597,23 +597,66 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   removeAgentInstance: (instanceId) => {
     const current = get().agentInstances;
-    if (!current[instanceId]) return;
+    const instance = current[instanceId];
+    if (!instance) return;
     const { [instanceId]: _removed, ...agentInstances } = current;
-    const prefix = `claude:${instanceId}`;
+    const instanceKind = `${instance.driver}:${instanceId}`;
     const removeProfileKey = (values: Record<string, unknown>) =>
-      Object.fromEntries(Object.entries(values).filter(([key]) => key !== prefix));
+      Object.fromEntries(Object.entries(values).filter(([key]) => key !== instanceKind));
+    const resetRemovedProvider = (provider: string, fallback: string) =>
+      provider === instanceKind ? fallback : provider;
+    const usage = get().usage;
     set({
       agentInstances,
+      commitGenProvider: resetRemovedProvider(
+        get().commitGenProvider,
+        defaultSharedSettings.commitGenProvider,
+      ),
+      titleGenProvider: resetRemovedProvider(
+        get().titleGenProvider,
+        defaultSharedSettings.titleGenProvider,
+      ),
+      conflictResolverProvider: resetRemovedProvider(
+        get().conflictResolverProvider,
+        defaultSharedSettings.conflictResolverProvider,
+      ),
+      wslCommitGenProvider: resetRemovedProvider(
+        get().wslCommitGenProvider,
+        defaultSharedSettings.wslCommitGenProvider,
+      ),
+      wslTitleGenProvider: resetRemovedProvider(
+        get().wslTitleGenProvider,
+        defaultSharedSettings.wslTitleGenProvider,
+      ),
+      wslConflictResolverProvider: resetRemovedProvider(
+        get().wslConflictResolverProvider,
+        defaultSharedSettings.wslConflictResolverProvider,
+      ),
       providerConfigs: removeProfileKey(get().providerConfigs) as SharedSettings["providerConfigs"],
       hiddenModels: removeProfileKey(get().hiddenModels) as SharedSettings["hiddenModels"],
       agentSettings: removeProfileKey(get().agentSettings) as SharedSettings["agentSettings"],
       lastPresentationModeByAgent: removeProfileKey(
         get().lastPresentationModeByAgent,
       ) as SharedSettings["lastPresentationModeByAgent"],
-      disabledAgents: get().disabledAgents.filter((kind) => kind !== prefix),
-      favoriteModels: get().favoriteModels.filter((entry) => entry.agentKind !== prefix),
-      recentModels: get().recentModels.filter((entry) => entry.agentKind !== prefix),
-      providerOrder: get().providerOrder.filter((kind) => kind !== prefix),
+      disabledAgents: get().disabledAgents.filter((kind) => kind !== instanceKind),
+      favoriteModels: get().favoriteModels.filter((entry) => entry.agentKind !== instanceKind),
+      recentModels: get().recentModels.filter((entry) => entry.agentKind !== instanceKind),
+      providerOrder: get().providerOrder.filter((kind) => kind !== instanceKind),
+      usage: {
+        ...usage,
+        providerRefreshIntervals: removeProfileKey(
+          usage.providerRefreshIntervals,
+        ) as SharedSettings["usage"]["providerRefreshIntervals"],
+        sidebarHiddenProviders: usage.sidebarHiddenProviders.filter(
+          (kind) => kind !== instanceKind,
+        ),
+        disabledProviders: usage.disabledProviders.filter((kind) => kind !== instanceKind),
+        providerOrder: usage.providerOrder.filter((kind) => kind !== instanceKind),
+        collapsedProviders: usage.collapsedProviders.filter((kind) => kind !== instanceKind),
+        selectedRingGroups: removeProfileKey(
+          usage.selectedRingGroups,
+        ) as SharedSettings["usage"]["selectedRingGroups"],
+      },
     });
     persistSettings(selectSharedSettings(get()));
   },

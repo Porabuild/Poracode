@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,31 +23,13 @@ import {
   mergeCodexHooksDocument,
   parseCodexVersionLine,
   probeCodexCliSemver,
+  removeManagedCodexHooksDocument,
+  resolveCodexHooksPath,
+  uninstallCodexPlugin,
 } from "./install";
-import { buildNativeHookCommandHead } from "../../plugin/installerBase";
-
-const forwardPath = "C:\\Users\\demo\\.poracode\\agent-plugins\\codex\\forward.mjs";
-const forwardPathUnix = "/home/demo/.poracode/agent-plugins/codex/forward.mjs";
-
-/**
- * Test helpers build a `commandHead` matching one of the two shapes
- * `mergeCodexHooksDocument` accepts: WSL (`<node-path> <forward-mjs-path>`)
- * or native (`<wrapper-path>`). The merger doesn't care which shape it
- * gets — it just appends ` <event>`.
- */
-function wslCommandHead(fp: string): string {
-  return `${JSON.stringify("/home/demo/.nvm/versions/node/v22.11.0/bin/node")} ${JSON.stringify(fp)}`;
-}
-
-function nativeCommandHead(wrapperPath: string): string {
-  return buildNativeHookCommandHead(wrapperPath);
-}
-
-function commandFor(head: string, event: string): string {
-  return `${head} ${event}`;
-}
 
 const originalPlatform = process.platform;
+const originalCodexHome = process.env.CODEX_HOME;
 
 beforeEach(() => {
   mockExecFileSync.mockReset();
@@ -55,17 +37,37 @@ beforeEach(() => {
 
 afterEach(() => {
   Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+  if (originalCodexHome === undefined) delete process.env.CODEX_HOME;
+  else process.env.CODEX_HOME = originalCodexHome;
 });
 
 describe("getCodexPluginPaths", () => {
-  it("places Codex hooks under Poracode's private CODEX_HOME", () => {
+  it("stages hook runtime assets outside CODEX_HOME", () => {
     const baseDir = mkdtempSync(join(tmpdir(), "poracode-codex-paths-"));
     const paths = getCodexPluginPaths({ envKind: "posix", baseDir });
 
     expect(paths.pluginDir).toBe(join(baseDir, "agent-plugins", "codex"));
-    expect(paths.codexHomeDir).toBe(join(baseDir, "agent-plugins", "codex", "home"));
-    expect(paths.codexHooksPath).toBe(
-      join(baseDir, "agent-plugins", "codex", "home", "hooks.json"),
+    expect(paths.forwardPath).toBe(join(baseDir, "agent-plugins", "codex", "forward.mjs"));
+    expect(paths.nativeWrapperPath).toBe(
+      join(
+        baseDir,
+        "agent-plugins",
+        "codex",
+        process.platform === "win32" ? "poracode-hook.cmd" : "poracode-hook.sh",
+      ),
+    );
+  });
+
+  it("uses inherited CODEX_HOME for base native hooks and profile home when selected", async () => {
+    const inheritedHome = mkdtempSync(join(tmpdir(), "poracode-codex-inherited-"));
+    const profileHome = mkdtempSync(join(tmpdir(), "poracode-codex-profile-"));
+    process.env.CODEX_HOME = inheritedHome;
+
+    await expect(resolveCodexHooksPath({ envKind: "posix" })).resolves.toBe(
+      join(inheritedHome, "hooks.json"),
+    );
+    await expect(resolveCodexHooksPath({ envKind: "posix" }, profileHome)).resolves.toBe(
+      join(profileHome, "hooks.json"),
     );
   });
 });
@@ -123,102 +125,74 @@ describe("parseCodexVersionLine + isCodexSemverSupportedForHooks", () => {
   });
 });
 
-describe("mergeCodexHooksDocument", () => {
-  it("creates only Poracode entries when hooks.json was absent (WSL shape)", () => {
-    const head = wslCommandHead(forwardPath);
-    const doc = mergeCodexHooksDocument(null, head);
-    expect(Object.keys(doc.hooks)).toEqual([
-      "SessionStart",
-      "UserPromptSubmit",
-      "PreToolUse",
-      "PostToolUse",
-      "PermissionRequest",
-      "Stop",
-    ]);
-    const stop = doc.hooks.Stop as unknown[];
-    expect(stop).toHaveLength(1);
-    const stopHook = (stop[0] as { hooks: { command: string }[] }).hooks[0];
-    expect(stopHook?.command).toBe(commandFor(head, "Stop"));
+describe("Codex hooks document management", () => {
+  const commandHead = '"C:\\Users\\demo\\.poracode\\agent-plugins\\codex\\poracode-hook.cmd"';
+
+  it("preserves user hooks and unrelated top-level fields while adding Poracode", () => {
+    const userGroup = { hooks: [{ type: "command", command: "node user-hook.js" }] };
+    const existing = { version: 1, hooks: { Stop: [userGroup] } };
+
+    const merged = mergeCodexHooksDocument(existing, commandHead);
+
+    expect(merged.version).toBe(1);
+    expect(merged.hooks.Stop?.[0]).toEqual(userGroup);
+    expect(merged.hooks.Stop?.[1]).toEqual({
+      hooks: [{ type: "command", command: `${commandHead} Stop` }],
+    });
+    expect(merged.hooks.SessionStart?.[0]).toMatchObject({ matcher: "*" });
   });
 
-  it("preserves user matcher groups and appends Poracode", () => {
-    const head = wslCommandHead(forwardPath);
-    const userGroup = {
+  it("replaces stale managed hooks without duplicating them", () => {
+    const first = mergeCodexHooksDocument({}, commandHead);
+    const second = mergeCodexHooksDocument(first, commandHead);
+
+    expect(second).toEqual(first);
+    expect(second.hooks.Stop).toHaveLength(1);
+  });
+
+  it("removes only managed hooks and preserves user hooks in the same group", () => {
+    const mixedGroup = {
       matcher: "*",
-      hooks: [{ type: "command", command: "node user-script.js" }],
+      hooks: [
+        { type: "command", command: "node user-hook.js" },
+        { type: "command", command: `${commandHead} Stop` },
+      ],
     };
     const existing = {
-      hooks: {
-        Stop: [userGroup],
-        SessionStart: [],
-      },
+      version: 1,
+      hooks: { Stop: [mixedGroup], Custom: [{ hooks: [{ command: "custom" }] }] },
     };
-    const doc = mergeCodexHooksDocument(existing, head);
-    const stop = doc.hooks.Stop as unknown[];
-    expect(stop).toHaveLength(2);
-    expect(stop[0]).toEqual(userGroup);
-    const lc = (stop[1] as { hooks: { command: string }[] }).hooks[0];
-    expect(lc?.command).toBe(commandFor(head, "Stop"));
+
+    const removed = removeManagedCodexHooksDocument(existing);
+
+    expect(removed.version).toBe(1);
+    expect(removed.hooks.Stop).toEqual([
+      { matcher: "*", hooks: [{ type: "command", command: "node user-hook.js" }] },
+    ]);
+    expect(removed.hooks.Custom).toEqual(existing.hooks.Custom);
   });
 
-  it("prunes stale Poracode groups by forward.mjs path fingerprint and replaces", () => {
-    const head = wslCommandHead(forwardPath);
-    const stale = {
-      hooks: [
-        {
-          type: "command",
-          command: `node "C:\\old\\.poracode\\agent-plugins\\codex\\forward.mjs" Stop`,
+  it("uninstalls managed hooks from only the selected profile home", async () => {
+    const baseHome = mkdtempSync(join(tmpdir(), "poracode-codex-base-hooks-"));
+    const profileHome = mkdtempSync(join(tmpdir(), "poracode-codex-profile-hooks-"));
+    process.env.CODEX_HOME = baseHome;
+    const baseHooks = mergeCodexHooksDocument({}, commandHead);
+    const profileHooks = mergeCodexHooksDocument({}, commandHead);
+    writeFileSync(join(baseHome, "hooks.json"), JSON.stringify(baseHooks));
+    writeFileSync(join(profileHome, "hooks.json"), JSON.stringify(profileHooks));
+
+    try {
+      await uninstallCodexPlugin({ envKind: "posix" }, profileHome);
+
+      expect(JSON.parse(readFileSync(join(baseHome, "hooks.json"), "utf8"))).toEqual(baseHooks);
+      expect(
+        JSON.parse(readFileSync(join(profileHome, "hooks.json"), "utf8")) as {
+          hooks: Record<string, unknown>;
         },
-      ],
-    };
-    const existing = { hooks: { Stop: [stale] } };
-    const doc = mergeCodexHooksDocument(existing, head);
-    const stop = doc.hooks.Stop as unknown[];
-    expect(stop).toHaveLength(1);
-    const h = (stop[0] as { hooks: { command: string }[] }).hooks[0];
-    expect(h?.command).toBe(commandFor(head, "Stop"));
-  });
-
-  it("prunes legacy Lightcode groups by native wrapper fingerprint", () => {
-    const head = nativeCommandHead(
-      "C:\\Users\\demo\\.poracode\\agent-plugins\\codex\\poracode-hook.cmd",
-    );
-    const stale = {
-      hooks: [
-        {
-          type: "command",
-          command: `"C:\\old\\.poracode\\agent-plugins\\codex\\lightcode-hook.cmd" Stop`,
-        },
-      ],
-    };
-    const existing = { hooks: { Stop: [stale] } };
-    const doc = mergeCodexHooksDocument(existing, head);
-    const stop = doc.hooks.Stop as unknown[];
-    expect(stop).toHaveLength(1);
-    const h = (stop[0] as { hooks: { command: string }[] }).hooks[0];
-    expect(h?.command).toBe(commandFor(head, "Stop"));
-  });
-
-  it("is idempotent when re-run with the same command head", () => {
-    const head = wslCommandHead(forwardPathUnix);
-    const first = mergeCodexHooksDocument(null, head);
-    const second = mergeCodexHooksDocument(first, head);
-    expect(second).toEqual(first);
-  });
-
-  it("is idempotent when re-run with the same Windows forward path", () => {
-    const first = mergeCodexHooksDocument(null, forwardPath);
-    const second = mergeCodexHooksDocument(first, forwardPath);
-    expect(second).toEqual(first);
-  });
-
-  it("uses matcher only for SessionStart, PreToolUse, PostToolUse", () => {
-    const doc = mergeCodexHooksDocument(null, forwardPath);
-    expect((doc.hooks.SessionStart as { matcher?: string }[])[0]).toMatchObject({
-      matcher: "*",
-    });
-    expect((doc.hooks.UserPromptSubmit as { matcher?: string }[])[0]?.matcher).toBeUndefined();
-    expect((doc.hooks.PermissionRequest as { matcher?: string }[])[0]?.matcher).toBeUndefined();
-    expect((doc.hooks.Stop as { matcher?: string }[])[0]?.matcher).toBeUndefined();
+      ).toEqual({ hooks: {} });
+    } finally {
+      rmSync(baseHome, { force: true, recursive: true });
+      rmSync(profileHome, { force: true, recursive: true });
+    }
   });
 });

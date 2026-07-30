@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import type { AgentCapability, ProjectLocation, PromptSegment } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  AgentInstanceConfig,
+  ProjectLocation,
+  PromptSegment,
+} from "@/shared/contracts";
+import { homeProfileKind, parseHomeProfileInstanceConfig } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAcpStructuredSession } from "../acp";
@@ -14,6 +20,7 @@ import {
   type AgentEnvContext,
   type AgentLaunchOptions,
   type CreateStructuredSessionInput,
+  type DetectionSpec,
   type TerminalStatusHint,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
@@ -31,6 +38,7 @@ import {
 } from "./plugin/install";
 import { detectGeminiInvalidSessionRef } from "./session";
 import { detectGeminiOscTitleStatus } from "./terminal";
+import { geminiProfileEnvForLocation, resolveGeminiInstanceEnv } from "./profile";
 
 export { detectGeminiInvalidSessionRef } from "./session";
 
@@ -94,20 +102,43 @@ function prepareGeminiLaunchMcpSettings(
   };
 }
 
-export function createGeminiAdapter(): AgentAdapter {
+interface GeminiAdapterOptions {
+  kind?: string;
+  label?: string;
+  homeDir?: string;
+  customEnv?: Record<string, string>;
+}
+
+export function createGeminiProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const config = parseHomeProfileInstanceConfig(instance.config);
+  const customEnv = resolveGeminiInstanceEnv(instance.environment);
+  return createGeminiAdapter({
+    kind: homeProfileKind("gemini", instance.id),
+    label: `Gemini ${instance.displayName ?? instance.id}`,
+    homeDir: config.homeDir,
+    ...(customEnv ? { customEnv } : {}),
+  });
+}
+
+export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AgentAdapter {
   let capabilities: AgentCapability = defaultGeminiCapabilities;
+  const kind = options.kind ?? geminiDetectionSpec.kind;
+  const label = options.label ?? geminiDetectionSpec.label;
+  const profileEnv = (location: ProjectLocation) =>
+    geminiProfileEnvForLocation(options.homeDir, options.customEnv, location);
 
   return {
-    kind: geminiDetectionSpec.kind,
-    label: geminiDetectionSpec.label,
+    kind,
+    label,
     binary: geminiDetectionSpec.binary,
     skillSupport: {
       roots: [
         {
           id: "gemini",
-          label: geminiDetectionSpec.label,
+          label,
           globalPath: ".gemini/skills",
           projectPath: ".gemini/skills",
+          ...(options.homeDir ? { globalBasePath: options.homeDir } : {}),
           globalOverride: { env: "GEMINI_CLI_HOME", path: ".gemini/skills" },
         },
       ],
@@ -150,17 +181,47 @@ export function createGeminiAdapter(): AgentAdapter {
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
-    async uninstallPlugin(ctx) {
-      uninstallGeminiPlugin(ctx);
-    },
+    ...(options.homeDir
+      ? {}
+      : {
+          async uninstallPlugin(ctx: AgentEnvContext) {
+            // Gemini's staged system settings are shared by every profile.
+            uninstallGeminiPlugin(ctx);
+          },
+        }),
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, geminiDetectionSpec);
+      const location = detectProbeLocation(ctx);
+      const env = profileEnv(location);
+      const spec: DetectionSpec = options.homeDir
+        ? {
+            ...geminiDetectionSpec,
+            kind,
+            label,
+            ...(env ? { probeEnv: env } : {}),
+            authProbes: [
+              async () =>
+                ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS"].some(
+                  (name) => env?.[name]?.trim(),
+                )
+                  ? "authenticated"
+                  : undefined,
+              ...(geminiDetectionSpec.authProbes ?? [])
+                .slice(1)
+                .map(
+                  (probe) => (probeCtx: Parameters<typeof probe>[0]) =>
+                    probe({ ...probeCtx, ...(env ? { probeEnv: env } : {}) }),
+                ),
+            ],
+          }
+        : geminiDetectionSpec;
+      const status = await detectAgentInstall(ctx, spec);
       capabilities = status.capabilities;
       return status;
     },
 
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const launchSettings = prepareGeminiLaunchMcpSettings(location, launchOptions);
+      const env = { ...(launchSettings?.env ?? {}), ...(profileEnv(location) ?? {}) };
       // Pre-assign the session UUID via --session-id so we know it before
       // spawn. Avoids racing post-spawn discovery against one-shot `gemini -p`
       // calls (title gen, commit-msg, PR summary) that also create entries in
@@ -170,18 +231,21 @@ export function createGeminiAdapter(): AgentAdapter {
       return {
         binary: "gemini",
         args,
-        ...(launchSettings ? { env: launchSettings.env, cleanup: launchSettings.cleanup } : {}),
+        ...(Object.keys(env).length > 0 ? { env } : {}),
+        ...(launchSettings ? { cleanup: launchSettings.cleanup } : {}),
         sessionRef: createKnownSessionRef(assignedId),
       };
     },
 
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const launchSettings = prepareGeminiLaunchMcpSettings(location, launchOptions);
+      const env = { ...(launchSettings?.env ?? {}), ...(profileEnv(location) ?? {}) };
       const args = buildGeminiArgs(config, prompt, sessionRef.providerSessionId);
       return {
         binary: "gemini",
         args,
-        ...(launchSettings ? { env: launchSettings.env, cleanup: launchSettings.cleanup } : {}),
+        ...(Object.keys(env).length > 0 ? { env } : {}),
+        ...(launchSettings ? { cleanup: launchSettings.cleanup } : {}),
       };
     },
 
@@ -191,7 +255,10 @@ export function createGeminiAdapter(): AgentAdapter {
         "gemini",
         ["--acp", "--skip-trust"],
         resolveAgentBinaryPath(input.projectLocation, "gemini"),
-        input.projectLocation.kind === "windows" ? { GEMINI_PTY_INFO: "child_process" } : undefined,
+        {
+          ...(input.projectLocation.kind === "windows" ? { GEMINI_PTY_INFO: "child_process" } : {}),
+          ...(profileEnv(input.projectLocation) ?? {}),
+        },
       );
       return createAcpStructuredSession(command, input);
     },
@@ -202,7 +269,10 @@ export function createGeminiAdapter(): AgentAdapter {
         "gemini",
         ["--acp", "--skip-trust"],
         resolveAgentBinaryPath(location, "gemini"),
-        location.kind === "windows" ? { GEMINI_PTY_INFO: "child_process" } : undefined,
+        {
+          ...(location.kind === "windows" ? { GEMINI_PTY_INFO: "child_process" } : {}),
+          ...(profileEnv(location) ?? {}),
+        },
       );
     },
 
@@ -234,11 +304,18 @@ export function createGeminiAdapter(): AgentAdapter {
 
     defaultOneShotModel: "gemini-2.5-flash",
 
-    buildOneShotCommand(model, _effort, prompt) {
+    buildOneShotCommand(model, _effort, prompt, location) {
       if (!prompt) return undefined;
-      return { command: "gemini", args: ["-p", prompt, "--model", model], stdin: "" };
+      const env = location ? profileEnv(location) : undefined;
+      return {
+        command: "gemini",
+        args: ["-p", prompt, "--model", model],
+        stdin: "",
+        ...(env ? { env } : {}),
+      };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, location, model) {
+      const env = profileEnv(location);
       return {
         command: "gemini",
         args: [
@@ -250,6 +327,7 @@ export function createGeminiAdapter(): AgentAdapter {
           model ?? "gemini-2.5-flash",
         ],
         stdin: "",
+        ...(env ? { env } : {}),
       };
     },
   };

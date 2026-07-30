@@ -400,6 +400,25 @@ describe("SingleAgentSettings", () => {
     expect(screen.queryByText("This agent is not installed.")).not.toBeInTheDocument();
   });
 
+  it("renders a home profile editor before detection has reported the profile status", () => {
+    sharedSettingsState.agentInstances = {
+      work: {
+        id: "work",
+        driver: "codex",
+        displayName: "Work",
+        config: { homeDir: "~/.poracode/codex-profiles/work" },
+      },
+    };
+
+    render(<SingleAgentSettings agentKind="codex:work" />);
+
+    expect(screen.getByText("Codex Work")).toBeInTheDocument();
+    expect(screen.getByLabelText("Codex profile home directory")).toHaveValue(
+      "~/.poracode/codex-profiles/work",
+    );
+    expect(screen.queryByText("This agent is not installed.")).not.toBeInTheDocument();
+  });
+
   it("summarizes OpenCode connected providers on a single line", () => {
     statusesState.agentStatuses = [
       makeStatus("opencode", {

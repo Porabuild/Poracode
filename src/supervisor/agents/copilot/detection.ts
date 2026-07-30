@@ -49,8 +49,9 @@ export function buildCopilotCommand(
   location: ProjectLocation,
   args: string[],
   wslExecPath?: string,
+  env?: Record<string, string>,
 ) {
-  return buildAgentCommand(location, "copilot", args, wslExecPath);
+  return buildAgentCommand(location, "copilot", args, wslExecPath, env);
 }
 
 /**
@@ -75,13 +76,15 @@ async function probeCopilotModelEfforts(
   location: ProjectLocation,
   executablePath: string | undefined,
   models: { id: string }[],
+  env?: Record<string, string>,
 ): Promise<{ defaultEffort?: string; modelEfforts?: Record<string, string[]> }> {
-  const spec = buildCopilotCommand(location, ["--acp", "--stdio"], executablePath);
+  const spec = buildCopilotCommand(location, ["--acp", "--stdio"], executablePath, env);
   const sessionCwd = getAgentProbeCwd(location);
   const spawnCwd = resolveProbeSpawnCwd(location, spec.cwd);
   const child = spawn(spec.command, spec.args, {
     ...(spawnCwd ? { cwd: spawnCwd } : {}),
     stdio: ["pipe", "pipe", "pipe"],
+    ...(spec.env ? { env: { ...process.env, ...spec.env } } : {}),
     shell: false,
     windowsHide: true,
   });
@@ -249,19 +252,21 @@ function withCopilotModelRates(
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath?: string,
+  env?: Record<string, string>,
 ): Promise<CapabilitiesProbeResult> {
-  const spec = buildCopilotCommand(location, ["--acp", "--stdio"], executablePath);
+  const spec = buildCopilotCommand(location, ["--acp", "--stdio"], executablePath, env);
   const sessionCwd = getAgentProbeCwd(location);
   const processCwd = resolveProbeSpawnCwd(location, spec.cwd);
   const probe = await probeAcpCapabilities(spec.command, spec.args, sessionCwd, {
     ...(processCwd ? { processCwd } : {}),
+    ...(spec.env ? { env: spec.env } : {}),
     timeoutMs: 15_000,
     label: location.kind === "wsl" ? `copilot:wsl:${location.distro}` : `copilot:${location.kind}`,
   });
 
   const modelEffortProbe =
     probe?.models?.length && executablePath !== undefined
-      ? await probeCopilotModelEfforts(location, executablePath, probe.models)
+      ? await probeCopilotModelEfforts(location, executablePath, probe.models, env)
       : {};
 
   // Merge probe approval policies with defaults (probe labels take precedence,
@@ -310,6 +315,6 @@ export const copilotDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe(["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"]), ghAuthProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.probeEnv);
   },
 };

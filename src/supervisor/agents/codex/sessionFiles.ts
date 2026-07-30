@@ -104,6 +104,6 @@ export function parseCodexRolloutMeta(
   }
 }
 
-export function codexAuthPath(): string {
-  return join(homedir(), ".codex", "auth.json");
+export function codexAuthPath(codexHome = join(homedir(), ".codex")): string {
+  return join(codexHome, "auth.json");
 }

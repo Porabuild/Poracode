@@ -31,7 +31,13 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { baseAgentKind, isClaudeProfileKind, type AgentStatus } from "@/shared/contracts";
+import {
+  baseAgentKind,
+  extractClaudeProfileInstanceId,
+  extractHomeProfileInstanceId,
+  type AgentInstanceConfig,
+  type AgentStatus,
+} from "@/shared/contracts";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -65,8 +71,18 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "about",
 ]);
 
-function claudeProfileSidebarLabel(agent: AgentStatus): string {
-  return agent.label.replace(/^Claude\s+/iu, "").trim() || agent.label;
+function profileSidebarLabel(
+  agent: AgentStatus,
+  instances: Readonly<Record<string, AgentInstanceConfig>>,
+): string {
+  const instanceId =
+    extractClaudeProfileInstanceId(agent.kind) ?? extractHomeProfileInstanceId(agent.kind);
+  const displayName = instanceId ? instances[instanceId]?.displayName?.trim() : undefined;
+  if (displayName) return displayName;
+  const baseKind = baseAgentKind(agent.kind);
+  return agent.label.toLowerCase().startsWith(`${baseKind.toLowerCase()} `)
+    ? agent.label.slice(baseKind.length).trim() || agent.label
+    : agent.label;
 }
 
 function renderAgentIcon(
@@ -74,15 +90,14 @@ function renderAgentIcon(
   options: {
     disabled: boolean;
     className?: string;
+    fallbackLabel?: string;
   },
 ) {
   return (
     <ProviderIcon
       kind={agent.kind}
       icon={agent.icon}
-      fallbackLabel={
-        isClaudeProfileKind(agent.kind) ? claudeProfileSidebarLabel(agent) : agent.label
-      }
+      fallbackLabel={options.fallbackLabel ?? agent.label}
       className={`${options.className ?? "size-4"} ${options.disabled ? "opacity-35" : ""}`}
     />
   );
@@ -148,6 +163,7 @@ export function SettingsSidebar(props: {
   const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
+  const agentInstances = useSharedSettings((s) => s.agentInstances);
   // Instance-scoped kinds (e.g. Claude profiles "claude:<id>") nest under
   // their base agent's sidebar entry when the base itself is installed;
   // instance kinds without an installed base (ACP registry agents) stay
@@ -470,6 +486,7 @@ export function SettingsSidebar(props: {
                     />
                     {instanceAgentsFor(agent.kind).map((profile) => {
                       const profileNeedsAttention = attentionAgentKinds.has(profile.kind);
+                      const profileLabel = profileSidebarLabel(profile, agentInstances);
                       return (
                         <SidebarButton
                           key={profile.kind}
@@ -480,13 +497,14 @@ export function SettingsSidebar(props: {
                               {renderAgentIcon(profile, {
                                 disabled: disabledAgents.includes(profile.kind),
                                 className: "size-3.5",
+                                fallbackLabel: profileLabel,
                               })}
                               {profileNeedsAttention ? (
                                 <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
                               ) : null}
                             </span>
                           }
-                          label={profile.label}
+                          label={profileLabel}
                           isActive={activeSection === `agents:${profile.kind}`}
                           onPress={() => onSectionChange(`agents:${profile.kind}`)}
                         />
@@ -710,6 +728,7 @@ export function SettingsSidebar(props: {
                               <div className="space-y-0.5 pl-5">
                                 {instanceAgentsFor(agent.kind).map((profile) => {
                                   const profileDisabled = disabledAgents.includes(profile.kind);
+                                  const profileLabel = profileSidebarLabel(profile, agentInstances);
                                   const profileNeedsAttention = attentionAgentKinds.has(
                                     profile.kind,
                                   );
@@ -719,8 +738,9 @@ export function SettingsSidebar(props: {
                                       icon={renderAgentIcon(profile, {
                                         disabled: profileDisabled,
                                         className: "size-3.5",
+                                        fallbackLabel: profileLabel,
                                       })}
-                                      label={claudeProfileSidebarLabel(profile)}
+                                      label={profileLabel}
                                       suffix={
                                         profileNeedsAttention ? (
                                           <AlertTriangle

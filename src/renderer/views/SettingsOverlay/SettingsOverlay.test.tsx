@@ -2,7 +2,7 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, Project } from "@/shared/contracts";
+import type { AgentInstanceConfig, AgentStatus, Project } from "@/shared/contracts";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
@@ -15,6 +15,11 @@ const refreshAgentStatusesMock = vi.fn<(wslDistros?: string[]) => Promise<void>>
 
 const appState = {
   projects: [] as Project[],
+};
+
+const sharedSettingsState = {
+  disabledAgents: [] as string[],
+  agentInstances: {} as Record<string, AgentInstanceConfig>,
 };
 
 vi.mock("@/renderer/state/agentStatusesStore", () => {
@@ -43,8 +48,8 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: { disabledAgents: string[] }) => unknown) =>
-    selector({ disabledAgents: [] }),
+  useSharedSettings: (selector: (state: typeof sharedSettingsState) => unknown) =>
+    selector(sharedSettingsState),
 }));
 
 vi.mock("@/renderer/components/layout/PageLayout", () => ({
@@ -205,6 +210,8 @@ describe("SettingsOverlay", () => {
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
     appState.projects = [];
+    sharedSettingsState.disabledAgents = [];
+    sharedSettingsState.agentInstances = {};
     beginFirstLaunchDiscoveryMock.mockReset();
     resetDiscoveredAgentsMock.mockReset();
     refreshAgentStatusesMock.mockReset();
@@ -290,6 +297,28 @@ describe("SettingsOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Home" }));
     expect(screen.getByText("Agent claude:home")).toBeInTheDocument();
+  });
+
+  it("groups home profiles under their base provider with the saved display name", () => {
+    sharedSettingsState.agentInstances = {
+      work: {
+        id: "work",
+        driver: "codex",
+        displayName: "Work Account",
+        config: { homeDir: "~/.poracode/codex-profiles/work" },
+      },
+    };
+    statusesState.agentStatuses = [
+      makeStatus("codex", { label: "Codex", envKind: "posix" }),
+      makeStatus("codex:work", { label: "Codex Work", envKind: "posix" }),
+    ];
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "Agents" }));
+
+    expect(screen.getByRole("button", { name: "Work Account" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Work Account" }));
+    expect(screen.getByText("Agent codex:work")).toBeInTheDocument();
   });
 
   it("opens Agents on General and toggles closed on a second click", () => {

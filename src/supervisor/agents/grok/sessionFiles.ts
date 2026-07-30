@@ -13,49 +13,60 @@ import {
 import type { GrokSessionArg } from "./argv";
 
 // Honor the same GROK_HOME override the CLI (and grokCredentials.ts) support.
-function getNativeGrokSessionsRoot(): string {
-  const grokHome = process.env["GROK_HOME"];
+function getNativeGrokSessionsRoot(grokHomeOverride?: string): string {
+  const grokHome = grokHomeOverride ?? process.env["GROK_HOME"];
   return join(
     grokHome && grokHome.trim().length > 0 ? grokHome : join(homedir(), ".grok"),
     "sessions",
   );
 }
 
-// Module-level snapshot captured right before we spawn a PTY for a fresh Grok launch.
-// This lets discoverSessionRef reliably identify the *new* session dir that Grok
-// creates for this particular launch (instead of an older one for the same cwd).
-let preSpawnSessionIds = new Set<string>();
-let preSpawnCwdKey: string | null = null;
+export interface GrokSessionTracker {
+  preSpawnSessionIds: Set<string>;
+  preSpawnCwdKey: string | null;
+}
+
+export function createGrokSessionTracker(): GrokSessionTracker {
+  return { preSpawnSessionIds: new Set(), preSpawnCwdKey: null };
+}
+
+const defaultSessionTracker = createGrokSessionTracker();
 
 function encodeCwdKey(cwd: string): string {
   // Grok stores sessions under ~/.grok/sessions/<percent-encoded-absolute-cwd>/
   return encodeURIComponent(cwd);
 }
 
-function getGrokCwdSessionsDir(location: ProjectLocation, cwd: string): string | null {
+function getGrokCwdSessionsDir(
+  location: ProjectLocation,
+  cwd: string,
+  grokHome?: string,
+): string | null {
   if (location.kind === "wsl") {
-    const home = getCachedWslHomeDirectory(location.distro);
-    if (!home) return null;
-    return `${home}/.grok/sessions/${encodeCwdKey(cwd)}`;
+    const root = grokHome ?? getCachedWslHomeDirectory(location.distro);
+    if (!root) return null;
+    return `${root}${grokHome ? "" : "/.grok"}/sessions/${encodeCwdKey(cwd)}`;
   }
-  return join(getNativeGrokSessionsRoot(), encodeCwdKey(cwd));
+  return join(getNativeGrokSessionsRoot(grokHome), encodeCwdKey(cwd));
 }
 
 async function getGrokCwdSessionsDirAsync(
   location: ProjectLocation,
   cwd: string,
+  grokHome?: string,
 ): Promise<string | null> {
-  if (location.kind !== "wsl") return getGrokCwdSessionsDir(location, cwd);
+  if (location.kind !== "wsl" || grokHome) return getGrokCwdSessionsDir(location, cwd, grokHome);
   const home = await resolveWslHomeDirectoryAsync(location.distro);
   return home ? `${home}/.grok/sessions/${encodeCwdKey(cwd)}` : null;
 }
 
-function getGrokSessionsRoot(location: ProjectLocation): string | null {
+function getGrokSessionsRoot(location: ProjectLocation, grokHome?: string): string | null {
   if (location.kind === "wsl") {
+    if (grokHome) return `${grokHome}/sessions`;
     const home = getCachedWslHomeDirectory(location.distro);
     return home ? `${home}/.grok/sessions` : null;
   }
-  return getNativeGrokSessionsRoot();
+  return getNativeGrokSessionsRoot(grokHome);
 }
 
 /**
@@ -66,22 +77,27 @@ function getGrokSessionsRoot(location: ProjectLocation): string | null {
  * Sync on native platforms only. WSL discovery uses the in-distro bridge
  * after launch instead of doing a direct pre-spawn query.
  */
-export function snapshotGrokPreSpawnSessions(location: ProjectLocation, cwd: string): void {
-  preSpawnSessionIds = new Set();
-  preSpawnCwdKey = null;
+export function snapshotGrokPreSpawnSessions(
+  location: ProjectLocation,
+  cwd: string,
+  grokHome?: string,
+  tracker: GrokSessionTracker = defaultSessionTracker,
+): void {
+  tracker.preSpawnSessionIds = new Set();
+  tracker.preSpawnCwdKey = null;
   if (location.kind === "wsl") return;
 
-  const dir = getGrokCwdSessionsDir(location, cwd);
+  const dir = getGrokCwdSessionsDir(location, cwd, grokHome);
   if (!dir) return;
 
   if (!existsSync(dir)) return;
-  preSpawnCwdKey = encodeCwdKey(cwd);
+  tracker.preSpawnCwdKey = encodeCwdKey(cwd);
 
   try {
     const entries = readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory() && isUuid(entry.name)) {
-        preSpawnSessionIds.add(entry.name);
+        tracker.preSpawnSessionIds.add(entry.name);
       }
     }
   } catch {
@@ -111,11 +127,12 @@ export function grokSessionDirMaterialized(
   location: ProjectLocation,
   cwd: string,
   sessionId: string,
+  grokHome?: string,
 ): boolean | undefined {
   if (location.kind === "wsl") {
-    const home = getCachedWslHomeDirectory(location.distro);
-    if (!home) return undefined;
-    const linuxPath = `${home}/.grok/sessions/${encodeCwdKey(cwd)}/${sessionId}`;
+    const root = grokHome ?? getCachedWslHomeDirectory(location.distro);
+    if (!root) return undefined;
+    const linuxPath = `${root}${grokHome ? "" : "/.grok"}/sessions/${encodeCwdKey(cwd)}/${sessionId}`;
     const uncPath = `\\\\wsl.localhost\\${location.distro}${linuxPath.replaceAll("/", "\\")}`;
     try {
       return existsSync(uncPath);
@@ -123,7 +140,7 @@ export function grokSessionDirMaterialized(
       return undefined;
     }
   }
-  const dir = getGrokCwdSessionsDir(location, cwd);
+  const dir = getGrokCwdSessionsDir(location, cwd, grokHome);
   if (!dir) return undefined;
   return existsSync(join(dir, sessionId));
 }
@@ -139,8 +156,9 @@ export function resolveGrokSessionArg(
   location: ProjectLocation,
   cwd: string,
   knownSessionId: string,
+  grokHome?: string,
 ): GrokSessionArg {
-  const materialized = grokSessionDirMaterialized(location, cwd, knownSessionId);
+  const materialized = grokSessionDirMaterialized(location, cwd, knownSessionId, grokHome);
   return materialized === false
     ? { kind: "new", sessionId: knownSessionId }
     : { kind: "resume", sessionId: knownSessionId };
@@ -159,8 +177,10 @@ export function resolveGrokSessionArg(
 export async function discoverGrokSessionRef(
   location: ProjectLocation,
   cwd: string,
+  grokHome?: string,
+  tracker: GrokSessionTracker = defaultSessionTracker,
 ): Promise<SessionRef | undefined> {
-  const dir = await getGrokCwdSessionsDirAsync(location, cwd);
+  const dir = await getGrokCwdSessionsDirAsync(location, cwd, grokHome);
   if (!dir) return undefined;
   const key = encodeCwdKey(cwd);
 
@@ -170,7 +190,7 @@ export async function discoverGrokSessionRef(
   const candidateNames = entries
     .filter((e) => e.type === "directory" && isUuid(e.name))
     .map((e) => e.name)
-    .filter((name) => !(preSpawnCwdKey === key && preSpawnSessionIds.has(name)));
+    .filter((name) => !(tracker.preSpawnCwdKey === key && tracker.preSpawnSessionIds.has(name)));
 
   if (candidateNames.length === 0) return undefined;
 
@@ -184,10 +204,13 @@ export async function discoverGrokSessionRef(
   return winner ? createKnownSessionRef(winner.id) : undefined;
 }
 
-export function makeGrokDiscoverSessionRef() {
+export function makeGrokDiscoverSessionRef(
+  resolveGrokHome?: (location: ProjectLocation) => string | undefined,
+  tracker: GrokSessionTracker = defaultSessionTracker,
+) {
   return async (location: ProjectLocation): Promise<SessionRef | undefined> => {
     const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
-    return discoverGrokSessionRef(location, cwd);
+    return discoverGrokSessionRef(location, cwd, resolveGrokHome?.(location), tracker);
   };
 }
 
@@ -198,20 +221,26 @@ export function makeGrokDiscoverSessionRef() {
  * root when that subdir doesn't exist yet so the first session creation
  * still wakes the watcher.
  */
-export function resolveGrokSessionsWatchPaths(location: ProjectLocation, cwd: string): string[] {
-  const dir = getGrokCwdSessionsDir(location, cwd);
+export function resolveGrokSessionsWatchPaths(
+  location: ProjectLocation,
+  cwd: string,
+  grokHome?: string,
+): string[] {
+  const dir = getGrokCwdSessionsDir(location, cwd, grokHome);
   if (location.kind === "wsl") {
-    const root = getGrokSessionsRoot(location);
+    const root = getGrokSessionsRoot(location, grokHome);
     return [dir ?? undefined, root ?? undefined].filter((p): p is string => Boolean(p));
   }
   if (dir && existsSync(dir)) return [dir];
-  return [getNativeGrokSessionsRoot()];
+  return [getNativeGrokSessionsRoot(grokHome)];
 }
 
-export function makeGrokWatchSessionRef() {
+export function makeGrokWatchSessionRef(
+  resolveGrokHome?: (location: ProjectLocation) => string | undefined,
+) {
   return (location: ProjectLocation, onChanged: () => void): (() => void) | undefined => {
     const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
-    const paths = resolveGrokSessionsWatchPaths(location, cwd);
+    const paths = resolveGrokSessionsWatchPaths(location, cwd, resolveGrokHome?.(location));
     if (paths.length === 0) return undefined;
 
     const label = `grok:${location.kind === "wsl" ? "wsl:" + location.distro : location.kind}`;

@@ -23,12 +23,10 @@ import {
 } from "@/shared/contracts";
 import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import { readBridge } from "@/renderer/bridge";
-import { i18n } from "@/renderer/i18n/i18n";
 import { Input } from "@/renderer/components/common";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
 import {
   applyPresetEnvRows,
   cleanModels,
@@ -47,6 +45,7 @@ import {
   type ModelRow,
   type ProfilePreset,
 } from "./ClaudeProfileSettingsModel";
+import { refreshProfileStatuses } from "./profileStatusRefresh";
 
 const CLAUDE_PROFILE_BASE_MODEL_IDS = [
   "claude-opus-4-8",
@@ -57,15 +56,7 @@ const CLAUDE_PROFILE_BASE_MODEL_IDS = [
 ];
 
 function refreshClaudeProfile(kind?: string): void {
-  window.setTimeout(() => {
-    void readBridge()
-      .refreshAgentStatuses(currentWslDistros(), kind ? { agentKinds: [kind] } : undefined)
-      .catch((error) =>
-        toast.danger(
-          error instanceof Error ? error.message : i18n._(msg`Unable to refresh Claude profiles.`),
-        ),
-      );
-  }, 50);
+  refreshProfileStatuses(kind, msg`Unable to refresh Claude profiles.`);
 }
 
 // ── Effort multiselect dropdown ──────────────────────────────────────────────

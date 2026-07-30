@@ -25,6 +25,7 @@ import {
   type CreateStructuredSessionInput,
   type DetectProbeCtx,
 } from "../base";
+import { resolveAgentInstanceEnv } from "../homeProfile";
 import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForConfig } from "./argv";
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
@@ -91,22 +92,6 @@ function profileEnvForLocation(
 }
 
 /**
- * Flatten an instance's `environment` map (values already decrypted by the
- * supervisor's settings read) into a plain name→value map for spawning.
- */
-function resolveInstanceEnv(
-  environment: AgentInstanceConfig["environment"],
-): Record<string, string> | undefined {
-  if (!environment) return undefined;
-  const resolved: Record<string, string> = {};
-  for (const [name, variable] of Object.entries(environment)) {
-    if (name.trim().length === 0) continue;
-    resolved[name] = variable.value;
-  }
-  return Object.keys(resolved).length > 0 ? resolved : undefined;
-}
-
-/**
  * Apply a profile's optional model additions / effort allow-list on top of the
  * built-in Claude capabilities. A no-op when neither override is set (so the
  * default adapter is unaffected). Custom models are *appended* to the built-in
@@ -162,7 +147,7 @@ function overrideProfileCapabilities(
 export function createClaudeProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
   const cfg = parseClaudeProfileInstanceConfig(instance.config);
   const profileLabel = instance.displayName ?? instance.id;
-  const customEnv = resolveInstanceEnv(instance.environment);
+  const customEnv = resolveAgentInstanceEnv(instance.environment);
   return createClaudeAdapter({
     kind: claudeProfileKind(instance.id),
     label: `Claude ${profileLabel}`,

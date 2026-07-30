@@ -1,6 +1,13 @@
 import type { CSSProperties, ReactNode } from "react";
-import { ACP_GENERIC_KIND_PREFIX, CLAUDE_PROFILE_KIND_PREFIX } from "@/shared/contracts";
+import {
+  ACP_GENERIC_KIND_PREFIX,
+  baseAgentKind,
+  isClaudeProfileKind,
+  isHomeProfileKind,
+} from "@/shared/contracts";
+import { i18n } from "@/renderer/i18n/i18n";
 import type { StatusTone } from "./statusTone";
+import { getProviderManifest } from "./providerManifest";
 import { syncMaskScanPhase } from "./syncMaskScanPhase";
 import { lookupProviderRegistration } from "./providerRegistry";
 
@@ -70,14 +77,22 @@ function fallbackInitial(label: string | undefined): string {
   return (raw.match(/[A-Za-z0-9]/)?.[0] ?? "?").toUpperCase();
 }
 
-function claudeProfileBadgeLabel(kind: string, fallbackLabel: string | undefined): string {
-  const profileId = kind.slice(CLAUDE_PROFILE_KIND_PREFIX.length);
+function profileBadgeLabel(kind: string, fallbackLabel: string | undefined): string {
+  const profileId = kind.slice(kind.indexOf(":") + 1);
+  const baseKind = baseAgentKind(kind);
   const label = fallbackLabel?.trim();
   if (!label) return profileId;
-  if (label === kind || label.toLowerCase().startsWith(CLAUDE_PROFILE_KIND_PREFIX))
+  if (label === kind || label.toLowerCase().startsWith(`${baseKind.toLowerCase()}:`)) {
     return profileId;
-  const profileLabel = label.replace(/^claude\s+/i, "").trim();
-  return profileLabel || profileId;
+  }
+  const manifestLabel = getProviderManifest(baseKind)?.label;
+  const providerLabels = [...(manifestLabel ? [i18n._(manifestLabel)] : []), baseKind];
+  for (const providerLabel of providerLabels) {
+    if (label.toLowerCase().startsWith(`${providerLabel.toLowerCase()} `)) {
+      return label.slice(providerLabel.length).trim() || profileId;
+    }
+  }
+  return label;
 }
 
 function GenericProviderIcon(props: { label?: string; tone: StatusTone; className?: string }) {
@@ -135,12 +150,12 @@ export function ProviderIcon(props: {
   const rendered = (
     <Icon tone={tone} {...(props.className ? { className: props.className } : {})} />
   );
-  if (props.kind.startsWith(CLAUDE_PROFILE_KIND_PREFIX)) {
+  if (isClaudeProfileKind(props.kind) || isHomeProfileKind(props.kind)) {
     return (
       <span className={`relative inline-flex ${props.className ?? ""}`}>
         {rendered}
         <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 items-center justify-center rounded-full border border-background bg-surface text-[6px] font-semibold leading-none text-foreground">
-          {fallbackInitial(claudeProfileBadgeLabel(props.kind, props.fallbackLabel))}
+          {fallbackInitial(profileBadgeLabel(props.kind, props.fallbackLabel))}
         </span>
       </span>
     );

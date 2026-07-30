@@ -7,9 +7,9 @@
  * omits one. Renderer metadata and native install wiring remain separate; see
  * .agents/docs/agent-adapters.md → "Adding a New Provider — Full Checklist".
  *
- * For runtime-extensible ACP-speaking agents, pass `userInstances` to
- * `buildAgentRegistry` — each `acp-generic` instance becomes a discrete
- * adapter via `createAcpGenericAdapter`.
+ * Pass `userInstances` to `buildAgentRegistry` for provider profiles and
+ * runtime-extensible ACP agents; each enabled instance becomes a discrete
+ * adapter.
  */
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import { createAcpGenericAdapter } from "./acp-generic";
@@ -17,13 +17,26 @@ import { createAntigravityAdapter } from "./antigravity";
 import type { AgentAdapter } from "./base";
 import { createClaudeAdapter, createClaudeProfileAdapter } from "./claude";
 import { createCommandCodeAdapter } from "./commandcode";
-import { createCopilotAdapter } from "./copilot";
-import { createCodexAdapter } from "./codex";
+import { createCopilotAdapter, createCopilotProfileAdapter } from "./copilot";
+import { createCodexAdapter, createCodexProfileAdapter } from "./codex";
 import { createCursorAdapter } from "./cursor";
 import { createFactoryAdapter } from "./factory";
-import { createGeminiAdapter } from "./gemini";
-import { createGrokAdapter } from "./grok";
+import { createGeminiAdapter, createGeminiProfileAdapter } from "./gemini";
+import { createGrokAdapter, createGrokProfileAdapter } from "./grok";
 import { createOpenCodeAdapter } from "./opencode";
+
+type ProfileAdapterFactory = {
+  label: string;
+  create(instance: AgentInstanceConfig): AgentAdapter;
+};
+
+const PROFILE_ADAPTER_FACTORIES: Readonly<Record<string, ProfileAdapterFactory>> = {
+  claude: { label: "Claude", create: createClaudeProfileAdapter },
+  codex: { label: "Codex", create: createCodexProfileAdapter },
+  copilot: { label: "Copilot", create: createCopilotProfileAdapter },
+  gemini: { label: "Gemini", create: createGeminiProfileAdapter },
+  grok: { label: "Grok", create: createGrokProfileAdapter },
+};
 
 export function createAgentRegistry(): AgentAdapter[] {
   return buildAgentRegistry([]);
@@ -50,21 +63,22 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
   const userAdapters = userInstances
     .filter((inst) => inst.enabled !== false && inst.driver === "acp-generic")
     .map((inst) => createAcpGenericAdapter(inst));
-  const claudeProfileAdapters = userInstances
-    .filter((inst) => inst.enabled !== false && inst.driver === "claude")
-    .flatMap((inst) => {
-      try {
-        return [createClaudeProfileAdapter(inst)];
-      } catch (error) {
-        console.warn(
-          `[agents] skipping Claude profile ${inst.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        return [];
-      }
-    });
-  const adapters = [...builtIns, ...claudeProfileAdapters, ...userAdapters];
+  const profileAdapters = userInstances.flatMap((inst) => {
+    if (inst.enabled === false) return [];
+    const factory = PROFILE_ADAPTER_FACTORIES[inst.driver];
+    if (!factory) return [];
+    try {
+      return [factory.create(inst)];
+    } catch (error) {
+      console.warn(
+        `[agents] skipping ${factory.label} profile ${inst.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return [];
+    }
+  });
+  const adapters = [...builtIns, ...profileAdapters, ...userAdapters];
   const kinds = new Set(adapters.map((a) => a.kind));
   if (kinds.size !== adapters.length) {
     throw new Error("Duplicate agent kind in registry");

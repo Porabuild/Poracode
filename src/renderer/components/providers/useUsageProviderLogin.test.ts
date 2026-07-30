@@ -39,6 +39,16 @@ describe("useUsageProviderLogin", () => {
     expect(result.current.canSignIn).toBe(true);
   });
 
+  it("does not offer the base provider's browser login for an auth-missing profile", () => {
+    useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("grok:work"));
+
+    const { result } = renderHook(() => useUsageProviderLogin("grok:work"));
+
+    expect(result.current.supportsLogin).toBe(false);
+    expect(result.current.canSignIn).toBe(false);
+    expect(result.current.canSignOut).toBe(false);
+  });
+
   it("hides usage login and sign-out controls in remote sessions", () => {
     bridgeMock.isRemoteSession.mockReturnValue(true);
     useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("grok"));

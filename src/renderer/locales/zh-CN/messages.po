@@ -421,6 +421,26 @@ msgstr "{projectLocation}（已禁用）"
 msgid "{projectName} Settings"
 msgstr "{projectName}设置"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} {displayName} profile added."
+msgstr "已添加 {providerName} {displayName} 配置文件。"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} {trimmedName} profile saved."
+msgstr "已保存 {providerName} {trimmedName} 配置文件。"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile home directory"
+msgstr "{providerName} 配置文件主目录"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile name"
+msgstr "{providerName} 配置文件名称"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile removed."
+msgstr "已删除 {providerName} 配置文件。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
 msgstr "{remaining, plural, one {#打开} other {#打开}}"
@@ -614,6 +634,10 @@ msgstr "活动指标"
 msgid "Add"
 msgstr "添加"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Add {providerName} profile"
+msgstr "添加 {providerName} 配置文件"
+
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "添加本地项目"
@@ -703,6 +727,7 @@ msgid "Add pattern"
 msgstr "添加模式"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Add profile"
 msgstr "添加配置文件"
 
@@ -1498,6 +1523,10 @@ msgstr "无法加载端口"
 msgid "Cancel"
 msgstr "取消"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Cancel new {providerName} profile"
+msgstr "取消新建 {providerName} 配置文件"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Cancel new Claude profile"
 msgstr "取消新的 Claude 配置文件"
@@ -1724,6 +1753,10 @@ msgstr "Chrome"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Chrome MCP enabled for this thread"
 msgstr "为此线程启用 Chrome MCP"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Claude"
+msgstr "Claude"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2003,6 +2036,7 @@ msgid "Code copied. "
 msgstr "代码已复制。"
 
 #: src/renderer/components/providers/codex/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Codex"
 msgstr "Codex"
 
@@ -3219,6 +3253,7 @@ msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactor
 msgstr "例如：Codex GPT-5.5 fast 用于快速查询，OpenCode GLM 用于批量重构，Claude Opus 用于任何微妙的任务。"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "e.g. Work"
 msgstr "例如工作"
 
@@ -3899,6 +3934,7 @@ msgid "Fullscreen overlay"
 msgstr "全屏覆盖"
 
 #: src/renderer/components/providers/gemini/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Gemini"
 msgstr "Gemini"
 
@@ -3985,6 +4021,7 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "{0}的 Git 状态：不是 Git 存储库"
 
 #: src/renderer/components/providers/copilot/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
 
@@ -4058,6 +4095,7 @@ msgid "Grade {0}"
 msgstr "等级 {0}"
 
 #: src/renderer/components/providers/grok/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Grok Build"
 msgstr "Grok Build"
 
@@ -4181,6 +4219,10 @@ msgstr "历史记录"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "首页"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Home directory"
+msgstr "主目录"
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Home folder"
@@ -5263,6 +5305,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Name"
 msgstr "名称"
 
@@ -5318,6 +5361,14 @@ msgstr "中立"
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "新增"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "New {providerName} profile home directory"
+msgstr "新 {providerName} 配置文件主目录"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "New {providerName} profile name"
+msgstr "新 {providerName} 配置文件名称"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -5489,6 +5540,10 @@ msgstr "没有活动会话"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "暂无活动。"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "No additional {providerName} profiles."
+msgstr "没有其他 {providerName} 配置文件。"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "No additional Claude profiles."
@@ -5986,6 +6041,7 @@ msgid "Open {0}"
 msgstr "打开 {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Open {label}"
 msgstr "打开{label}"
 
@@ -6647,6 +6703,7 @@ msgid "Private key"
 msgstr "私钥"
 
 #: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "个人资料"
@@ -6656,6 +6713,7 @@ msgid "Profile stats range"
 msgstr "个人资料统计范围"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Profiles"
 msgstr "配置文件"
 
@@ -6977,6 +7035,7 @@ msgstr "隐藏通知内容"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
@@ -7111,6 +7170,11 @@ msgstr "删除{0}"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {0} from panel"
 msgstr "从面板中删除{0}"
+
+#. placeholder {0}: props.providerName
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Remove {0} profile"
+msgstr "删除 {0} 配置文件"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
@@ -7611,6 +7675,7 @@ msgstr "运行时选项"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "保存"
@@ -7619,6 +7684,10 @@ msgstr "保存"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save {0} credentials."
 msgstr "保存{0}凭据。"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Save {providerName} profile"
+msgstr "保存 {providerName} 配置文件"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
@@ -9112,6 +9181,10 @@ msgstr "这将从远程永久删除分支“{0}”。"
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "这将永久删除分支“{0}”。"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "This profile keeps its {providerName} account, settings, and sessions in a separate home directory."
+msgstr "此配置文件将其 {providerName} 帐户、设置和会话保存在单独的主目录中。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "此项目"
@@ -9497,6 +9570,10 @@ msgstr "无法刷新{0}。"
 msgid "Unable to refresh Claude profiles."
 msgstr "无法刷新 Claude 配置文件。"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Unable to refresh profiles."
+msgstr "无法刷新配置文件。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -9858,6 +9935,10 @@ msgstr "请使用字母、数字、点、连字符或下划线，且不要包含
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
 msgstr "使用一个全局文件夹，或将工作树嵌套在每个项目的 .poracode/worktrees 内。"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Use separate {providerName} accounts and settings by assigning each profile its own home directory."
+msgstr "通过为每个配置文件分配独立的主目录，使用单独的 {providerName} 帐户和设置。"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"

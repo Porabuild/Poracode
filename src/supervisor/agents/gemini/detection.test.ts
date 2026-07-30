@@ -94,6 +94,21 @@ describe("geminiDetectionSpec", () => {
     expect(result?.modelContextSizes).not.toHaveProperty("auto-gemini-3");
     expect(result?.modelContextSizes).not.toHaveProperty("gemini-9-pro");
   });
+
+  it("does not report a process-global API key for a home profile", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "global-key");
+    try {
+      await expect(
+        geminiDetectionSpec.statusProbe?.({
+          location: { kind: "posix", path: "/repo" },
+          executablePath: "/usr/local/bin/gemini",
+          probeEnv: { GEMINI_CLI_HOME: "/missing/profile/home" },
+        }),
+      ).resolves.toBeUndefined();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("parseGeminiGoogleAccountsJson", () => {

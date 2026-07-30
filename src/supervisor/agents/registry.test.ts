@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createAgentRegistry } from "./registry";
+import { buildAgentRegistry, createAgentRegistry } from "./registry";
 import { buildUnrestrictedChildConfig } from "@/supervisor/subagentMcp/types";
 
 const EXPECTED_BUILT_IN_ORDER = [
@@ -78,4 +78,41 @@ describe("built-in agent registry", () => {
       });
     },
   );
+});
+
+describe("profile agent registry", () => {
+  it("registers every supported home-isolated profile as a synthetic provider", () => {
+    const adapters = buildAgentRegistry(
+      (["codex", "copilot", "gemini", "grok"] as const).map((driver) => ({
+        id: `${driver}-work`,
+        driver,
+        displayName: "Work",
+        config: { homeDir: `~/.poracode/${driver}-profiles/work` },
+      })),
+    );
+
+    expect(adapters.map((adapter) => adapter.kind)).toEqual(
+      expect.arrayContaining([
+        "codex:codex-work",
+        "copilot:copilot-work",
+        "gemini:gemini-work",
+        "grok:grok-work",
+      ]),
+    );
+  });
+
+  it("skips malformed and disabled profiles", () => {
+    const adapters = buildAgentRegistry([
+      { id: "bad", driver: "codex", config: {} },
+      {
+        id: "disabled",
+        driver: "grok",
+        enabled: false,
+        config: { homeDir: "~/.poracode/grok-profiles/disabled" },
+      },
+    ]);
+
+    expect(adapters.some((adapter) => adapter.kind === "codex:bad")).toBe(false);
+    expect(adapters.some((adapter) => adapter.kind === "grok:disabled")).toBe(false);
+  });
 });

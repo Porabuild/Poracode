@@ -53,9 +53,18 @@ export function parseGeminiCreds(content: string): OAuthToken | undefined {
   };
 }
 
-function geminiCredsFilePath(): string {
-  const home = process.env.GEMINI_HOME?.trim();
-  return home ? join(home, "oauth_creds.json") : join(homedir(), ".gemini", "oauth_creds.json");
+export interface GeminiCredentialEnv {
+  GEMINI_CLI_HOME?: string | undefined;
+  GEMINI_HOME?: string | undefined;
+}
+
+function geminiCredsFilePath(env: GeminiCredentialEnv): string {
+  const cliHome = env.GEMINI_CLI_HOME?.trim();
+  if (cliHome) return join(cliHome, ".gemini", "oauth_creds.json");
+  const legacyHome = env.GEMINI_HOME?.trim();
+  return legacyHome
+    ? join(legacyHome, "oauth_creds.json")
+    : join(homedir(), ".gemini", "oauth_creds.json");
 }
 
 const GEMINI_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -179,8 +188,10 @@ async function withFreshGeminiToken(token: OAuthToken): Promise<OAuthToken> {
   return refreshed ? { ...token, ...refreshed } : token;
 }
 
-export async function resolveGeminiToken(): Promise<OAuthToken | undefined> {
-  const path = geminiCredsFilePath();
+export async function resolveGeminiToken(
+  env: GeminiCredentialEnv = process.env,
+): Promise<OAuthToken | undefined> {
+  const path = geminiCredsFilePath(env);
   if (existsSync(path)) {
     try {
       const token = parseGeminiCreds(readFileSync(path, "utf8"));
@@ -189,7 +200,7 @@ export async function resolveGeminiToken(): Promise<OAuthToken | undefined> {
       // fall through to the WSL fallback
     }
   }
-  if (process.platform === "win32") {
+  if (!env.GEMINI_CLI_HOME?.trim() && !env.GEMINI_HOME?.trim() && process.platform === "win32") {
     const blob = await readGeminiCredsFromWsl();
     if (blob) {
       const token = parseGeminiCreds(blob);

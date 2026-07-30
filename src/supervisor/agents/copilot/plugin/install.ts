@@ -290,14 +290,17 @@ function installCopilotPluginWsl(
 
 const COPILOT_VERIFY_ASSETS = ["plugin.json", "forward.mjs", FORWARD_RUNTIME_FILE] as const;
 
-export function isCopilotPluginInstalled(ctx?: AgentEnvContext): {
+export function isCopilotPluginInstalled(
+  ctx?: AgentEnvContext,
+  globalCopilotDirOverride?: string,
+): {
   installed: boolean;
   version?: string;
 } {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "copilot");
     if (!wsl) return { installed: false };
-    const copilotDir = wslGlobalCopilotDir(ctx.wslDistro);
+    const copilotDir = globalCopilotDirOverride ?? wslGlobalCopilotDir(ctx.wslDistro);
     const hookFile = copilotDir
       ? toWslUncPath(ctx.wslDistro, `${copilotDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`)
       : "";
@@ -306,20 +309,31 @@ export function isCopilotPluginInstalled(ctx?: AgentEnvContext): {
       extraCheck: () => hookFile.length > 0 && existsSync(hookFile),
     });
   }
-  const hookFile = join(nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
+  const hookFile = join(
+    globalCopilotDirOverride ?? nativeGlobalCopilotDir(),
+    GLOBAL_HOOK_DIR_NAME,
+    GLOBAL_HOOK_FILENAME,
+  );
   return verifyStagedPluginAt(getNativePluginBaseDir("copilot", ctx?.baseDir), "native", {
     assets: COPILOT_VERIFY_ASSETS,
     extraCheck: () => existsSync(hookFile),
   });
 }
 
-export function uninstallCopilotPlugin(ctx?: AgentEnvContext): void {
+export function uninstallCopilotPlugin(
+  ctx?: AgentEnvContext,
+  globalCopilotDirOverride?: string,
+  removeStaged = true,
+): void {
   const hookDir = isWslPluginContext(ctx)
-    ? toWslUncPath(ctx.wslDistro, `${wslGlobalCopilotDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`)
-    : join(nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME);
+    ? toWslUncPath(
+        ctx.wslDistro,
+        `${globalCopilotDirOverride ?? wslGlobalCopilotDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`,
+      )
+    : join(globalCopilotDirOverride ?? nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME);
   removeHookFile(join(hookDir, GLOBAL_HOOK_FILENAME));
   removeHookFile(join(hookDir, LEGACY_GLOBAL_HOOK_FILENAME));
-  removeStagedPluginDir("copilot", ctx);
+  if (removeStaged) removeStagedPluginDir("copilot", ctx);
 }
 
 function removeHookFile(path: string): void {

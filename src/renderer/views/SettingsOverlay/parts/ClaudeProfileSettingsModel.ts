@@ -5,6 +5,9 @@ import type {
   ClaudeProfileInstanceConfig,
 } from "@/shared/contracts";
 import { isEncryptedSecret } from "@/shared/secretFormat";
+import { slugifyProfileName } from "./ProfileSettingsModel";
+
+export { slugifyProfileName, uniqueProfileId } from "./ProfileSettingsModel";
 
 export const SAVED_SECRET_MASK = "••••••••";
 
@@ -113,29 +116,8 @@ export interface ModelRow {
   label: string;
 }
 
-export function slugifyProfileName(value: string): string {
-  return (
-    value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/gu, "-")
-      .replace(/^-+|-+$/gu, "") || "profile"
-  );
-}
-
 export function defaultConfigDir(name: string): string {
   return `~/.poracode/claude-profiles/${slugifyProfileName(name)}`;
-}
-
-export function uniqueProfileId(name: string, existing: Readonly<Record<string, unknown>>): string {
-  const base = slugifyProfileName(name);
-  let candidate = base;
-  let index = 2;
-  while (existing[candidate]) {
-    candidate = `${base}-${index}`;
-    index += 1;
-  }
-  return candidate;
 }
 
 export function shouldTreatEnvKeyAsSensitive(key: string): boolean {

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import type { PromptSegment } from "@/shared/contracts";
+import type { AgentInstanceConfig, ProjectLocation, PromptSegment } from "@/shared/contracts";
+import { homeProfileKind, parseHomeProfileInstanceConfig } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
@@ -13,8 +14,10 @@ import {
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
+  type DetectionSpec,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
+import { withTerminalAuthEnv } from "../homeProfile";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCopilotArgs } from "./argv";
 import { buildCopilotCommand, copilotDefaultCapabilities, copilotDetectionSpec } from "./detection";
@@ -31,6 +34,11 @@ import {
   READY_RE,
   resolveModelId,
 } from "./terminal";
+import {
+  copilotProfileEnvForLocation,
+  resolveCopilotHomeForLocation,
+  resolveCopilotInstanceEnv,
+} from "./profile";
 
 export {
   detectCopilotInvalidSessionRef,
@@ -48,20 +56,47 @@ warnIfPluginManifestMissing(
     "resources/agent-plugins/copilot/ (packaged, staged by scripts/prepare-agent-plugins.mjs).",
 );
 
-export function createCopilotAdapter(): AgentAdapter {
+interface CopilotAdapterOptions {
+  kind?: string;
+  label?: string;
+  homeDir?: string;
+  customEnv?: Record<string, string>;
+}
+
+export function createCopilotProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const config = parseHomeProfileInstanceConfig(instance.config);
+  const customEnv = resolveCopilotInstanceEnv(instance.environment);
+  return createCopilotAdapter({
+    kind: homeProfileKind("copilot", instance.id),
+    label: `GitHub Copilot ${instance.displayName ?? instance.id}`,
+    homeDir: config.homeDir,
+    ...(customEnv ? { customEnv } : {}),
+  });
+}
+
+export function createCopilotAdapter(options: CopilotAdapterOptions = {}): AgentAdapter {
   let capabilities = copilotDefaultCapabilities;
+  const kind = options.kind ?? copilotDetectionSpec.kind;
+  const label = options.label ?? copilotDetectionSpec.label;
+  const profileEnv = (location: ProjectLocation) =>
+    copilotProfileEnvForLocation(options.homeDir, options.customEnv, location);
+  const profileHome = (ctx?: AgentEnvContext) =>
+    options.homeDir
+      ? resolveCopilotHomeForLocation(options.homeDir, detectProbeLocation(ctx))
+      : undefined;
 
   return {
-    kind: copilotDetectionSpec.kind,
-    label: copilotDetectionSpec.label,
+    kind,
+    label,
     binary: copilotDetectionSpec.binary,
     skillSupport: {
       roots: [
         {
           id: "copilot",
-          label: copilotDetectionSpec.label,
+          label,
           globalPath: ".copilot/skills",
           projectPath: ".github/skills",
+          ...(options.homeDir ? { globalBasePath: options.homeDir } : {}),
           globalOverride: { env: "COPILOT_HOME", path: "skills" },
         },
         {
@@ -90,7 +125,34 @@ export function createCopilotAdapter(): AgentAdapter {
     },
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, copilotDetectionSpec);
+      const location = detectProbeLocation(ctx);
+      const env = profileEnv(location);
+      const spec: DetectionSpec = options.homeDir
+        ? {
+            ...copilotDetectionSpec,
+            kind,
+            label,
+            ...(env ? { probeEnv: env } : {}),
+            authProbes: [
+              async () =>
+                [
+                  "COPILOT_GITHUB_TOKEN",
+                  "COPILOT_API_TOKEN",
+                  "GH_TOKEN",
+                  "GITHUB_TOKEN",
+                  "GH_ENTERPRISE_TOKEN",
+                  "GITHUB_ENTERPRISE_TOKEN",
+                ].some((name) => env?.[name]?.trim())
+                  ? "authenticated"
+                  : undefined,
+            ],
+          }
+        : copilotDetectionSpec;
+      const status = withTerminalAuthEnv(await detectAgentInstall(ctx, spec), env, {
+        id: "copilot-terminal-login",
+        name: "Login",
+        type: "terminal",
+      });
       capabilities = status.capabilities;
       return status;
     },
@@ -104,17 +166,23 @@ export function createCopilotAdapter(): AgentAdapter {
     // L2 OSC parsing running for the working->idle edge.
     partialL1: true,
     async isPluginInstalled(ctx) {
-      return isCopilotPluginInstalled(ctx);
+      return isCopilotPluginInstalled(ctx, profileHome(ctx));
     },
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installCopilotPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const home = profileHome(ctx);
+      const result = installCopilotPlugin(ctx, {
+        resolvedNodePath: node.nodePath,
+        ...(home ? { globalCopilotDirOverride: home } : {}),
+      });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCopilotPlugin(ctx);
+      // Remove only this adapter's hook file. Staged assets are shared by the
+      // base adapter and every profile and are inert without that hook file.
+      uninstallCopilotPlugin(ctx, profileHome(ctx), false);
     },
     // No `pluginLaunchExtras` needed — Copilot CLI auto-loads
     // `${COPILOT_HOME ?? ~/.copilot}/hooks/poracode-status.json` written at
@@ -122,10 +190,11 @@ export function createCopilotAdapter(): AgentAdapter {
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId ?? randomUUID();
       const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
+      const env = { ...(mcp?.env ?? {}), ...(profileEnv(location) ?? {}) };
       return {
         binary: "copilot",
         args: buildCopilotArgs(config, prompt, sessionId, launchOptions, mcp?.argument),
-        ...(mcp && Object.keys(mcp.env).length > 0 ? { env: mcp.env } : {}),
+        ...(Object.keys(env).length > 0 ? { env } : {}),
         ...(mcp ? { cleanup: mcp.cleanup } : {}),
         sessionRef: createKnownSessionRef(sessionId),
       };
@@ -133,10 +202,11 @@ export function createCopilotAdapter(): AgentAdapter {
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId ?? sessionRef.providerSessionId;
       const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
+      const env = { ...(mcp?.env ?? {}), ...(profileEnv(location) ?? {}) };
       return {
         binary: "copilot",
         args: buildCopilotArgs(config, prompt, sessionId, launchOptions, mcp?.argument),
-        ...(mcp && Object.keys(mcp.env).length > 0 ? { env: mcp.env } : {}),
+        ...(Object.keys(env).length > 0 ? { env } : {}),
         ...(mcp ? { cleanup: mcp.cleanup } : {}),
       };
     },
@@ -152,6 +222,7 @@ export function createCopilotAdapter(): AgentAdapter {
         input.projectLocation,
         args,
         resolveAgentBinaryPath(input.projectLocation, "copilot"),
+        profileEnv(input.projectLocation),
       );
       return createAcpStructuredSession(command, input);
     },
@@ -161,6 +232,7 @@ export function createCopilotAdapter(): AgentAdapter {
         location,
         ["--acp", "--stdio"],
         resolveAgentBinaryPath(location, "copilot"),
+        profileEnv(location),
       );
     },
     createInitialSessionRef() {
@@ -201,7 +273,7 @@ export function createCopilotAdapter(): AgentAdapter {
     },
     syncConfigFromTerminalState: applyTerminalHintToConfig,
     defaultOneShotModel: "",
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, location) {
       if (!prompt) {
         return undefined;
       }
@@ -214,9 +286,10 @@ export function createCopilotAdapter(): AgentAdapter {
         args.push("--effort", effort);
       }
 
-      return { command: "copilot", args, stdin: "" };
+      const env = location ? profileEnv(location) : undefined;
+      return { command: "copilot", args, stdin: "", ...(env ? { env } : {}) };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, location, model) {
       // Copilot's -p flag takes the prompt inline as an arg.
       // The orchestrator pipes the extraction prompt via stdin,
       // so we pass a brief directive via -p and let stdin carry the full prompt.
@@ -230,7 +303,8 @@ export function createCopilotAdapter(): AgentAdapter {
       if (model) {
         args.push("--model", model);
       }
-      return { command: "copilot", args, stdin: "" };
+      const env = profileEnv(location);
+      return { command: "copilot", args, stdin: "", ...(env ? { env } : {}) };
     },
   };
 }

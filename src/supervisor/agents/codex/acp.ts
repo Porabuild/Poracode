@@ -392,6 +392,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   static async create(
     input: CreateStructuredSessionInput,
     wslExecPath?: string,
+    env?: Record<string, string>,
   ): Promise<CodexStructuredSession> {
     const wslNodePath =
       input.projectLocation.kind === "wsl"
@@ -411,6 +412,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...(input.chromeMcp !== undefined ? { chromeMcp: input.chromeMcp } : {}),
         ...(input.appControlsMcp !== undefined ? { appControlsMcp: input.appControlsMcp } : {}),
         ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
+        ...(env ? { env } : {}),
       }),
     );
     const transport = new CodexStdioTransport(appServer);

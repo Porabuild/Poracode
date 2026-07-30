@@ -40,13 +40,19 @@ export function parseGrokAuth(content: string): OAuthToken | undefined {
   return undefined;
 }
 
-function grokAuthFilePath(): string {
-  const home = process.env.GROK_HOME?.trim();
+export interface GrokCredentialEnv {
+  GROK_HOME?: string | undefined;
+}
+
+function grokAuthFilePath(env: GrokCredentialEnv): string {
+  const home = env.GROK_HOME?.trim();
   return home ? join(home, "auth.json") : join(homedir(), ".grok", "auth.json");
 }
 
-export async function resolveGrokToken(): Promise<OAuthToken | undefined> {
-  const path = grokAuthFilePath();
+export async function resolveGrokToken(
+  env: GrokCredentialEnv = process.env,
+): Promise<OAuthToken | undefined> {
+  const path = grokAuthFilePath(env);
   if (existsSync(path)) {
     try {
       const token = parseGrokAuth(readFileSync(path, "utf8"));
@@ -55,7 +61,7 @@ export async function resolveGrokToken(): Promise<OAuthToken | undefined> {
       // fall through to the WSL fallback
     }
   }
-  if (process.platform === "win32") {
+  if (!env.GROK_HOME?.trim() && process.platform === "win32") {
     const blob = await readGrokAuthFromWsl();
     if (blob) {
       const token = parseGrokAuth(blob);

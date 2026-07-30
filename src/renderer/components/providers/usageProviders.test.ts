@@ -5,6 +5,7 @@ import {
   isClaudeUsageProvider,
   pickUsageRings,
   resolveDisplayedProviders,
+  supportsBrowserLogin,
   usageProvidersForAgentInstances,
   usageRingGroups,
 } from "./usageProviders";
@@ -29,6 +30,24 @@ const agentInstances: AgentInstanceConfigMap = {
     enabled: false,
     config: { configDir: "~/.poracode/claude-profiles/disabled" },
   },
+  codexWork: {
+    id: "codex-work",
+    driver: "codex",
+    displayName: "Work",
+    config: { homeDir: "~/.poracode/codex-profiles/work" },
+  },
+  geminiTeam: {
+    id: "gemini-team",
+    driver: "gemini",
+    displayName: "Team",
+    config: { homeDir: "~/.poracode/gemini-profiles/team" },
+  },
+  grokWork: {
+    id: "grok-work",
+    driver: "grok",
+    displayName: "Work",
+    config: { homeDir: "~/.poracode/grok-profiles/work" },
+  },
 };
 
 describe("usageProviders", () => {
@@ -48,6 +67,32 @@ describe("usageProviders", () => {
       "claude:work",
     ]);
     expect(providers.find((provider) => provider.id === "claude:home")?.label).toBe("Claude Home");
+  });
+
+  it("adds home-isolated profile providers after their base providers", () => {
+    const providers = usageProvidersForAgentInstances(agentInstances);
+    const codexIndex = providers.findIndex((provider) => provider.id === "codex");
+    const geminiIndex = providers.findIndex((provider) => provider.id === "gemini");
+
+    expect(providers[codexIndex + 1]).toMatchObject({
+      id: "codex:codex-work",
+      label: "Codex Work",
+    });
+    expect(providers[geminiIndex + 1]).toMatchObject({
+      id: "gemini:gemini-team",
+      label: "Gemini Team",
+    });
+  });
+
+  it("does not inherit base-provider browser login for isolated profiles", () => {
+    const profile = usageProvidersForAgentInstances(agentInstances).find(
+      (provider) => provider.id === "grok:grok-work",
+    );
+
+    expect(profile).toBeDefined();
+    expect(profile).not.toHaveProperty("supportsBrowserLogin");
+    expect(supportsBrowserLogin("grok")).toBe(true);
+    expect(supportsBrowserLogin("grok:grok-work")).toBe(false);
   });
 
   it("orders, disables, and rings Claude profiles like Claude", () => {

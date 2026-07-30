@@ -421,6 +421,26 @@ msgstr "{projectLocation} (bị vô hiệu hóa)"
 msgid "{projectName} Settings"
 msgstr "Cài đặt {projectName}"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} {displayName} profile added."
+msgstr "Đã thêm hồ sơ {providerName} {displayName}."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} {trimmedName} profile saved."
+msgstr "Đã lưu hồ sơ {providerName} {trimmedName}."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile home directory"
+msgstr "Thư mục chính của hồ sơ {providerName}"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile name"
+msgstr "Tên hồ sơ {providerName}"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile removed."
+msgstr "Đã xóa hồ sơ {providerName}."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
 msgstr "{remaining, plural, one {# mở} other {# mở}}"
@@ -614,6 +634,10 @@ msgstr "Chỉ số hoạt động"
 msgid "Add"
 msgstr "Thêm vào"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Add {providerName} profile"
+msgstr "Thêm hồ sơ {providerName}"
+
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Thêm một dự án cục bộ"
@@ -703,6 +727,7 @@ msgid "Add pattern"
 msgstr "Thêm mẫu"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Add profile"
 msgstr "Thêm hồ sơ"
 
@@ -1498,6 +1523,10 @@ msgstr "Không thể tải danh sách cổng"
 msgid "Cancel"
 msgstr "Hủy bỏ"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Cancel new {providerName} profile"
+msgstr "Hủy tạo hồ sơ {providerName} mới"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Cancel new Claude profile"
 msgstr "Hủy tạo hồ sơ Claude mới"
@@ -1724,6 +1753,10 @@ msgstr "Chrome"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Chrome MCP enabled for this thread"
 msgstr "Đã bật Chrome MCP cho chủ đề này"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Claude"
+msgstr "Claude"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2003,6 +2036,7 @@ msgid "Code copied. "
 msgstr "Đã sao chép mã."
 
 #: src/renderer/components/providers/codex/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Codex"
 msgstr "Codex"
 
@@ -3219,6 +3253,7 @@ msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactor
 msgstr "ví dụ: Codex GPT-5.5 fast cho các tra cứu nhanh, OpenCode GLM cho tái cấu trúc hàng loạt, Claude Opus cho những việc tinh tế."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "e.g. Work"
 msgstr "ví dụ: Work"
 
@@ -3899,6 +3934,7 @@ msgid "Fullscreen overlay"
 msgstr "Lớp phủ toàn màn hình"
 
 #: src/renderer/components/providers/gemini/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Gemini"
 msgstr "Gemini"
 
@@ -3985,6 +4021,7 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "Trạng thái Git cho {0}: không phải kho lưu trữ Git"
 
 #: src/renderer/components/providers/copilot/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
 
@@ -4058,6 +4095,7 @@ msgid "Grade {0}"
 msgstr "Xếp hạng {0}"
 
 #: src/renderer/components/providers/grok/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Grok Build"
 msgstr "Grok Build"
 
@@ -4181,6 +4219,10 @@ msgstr "Lịch sử"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Trang chủ"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Home directory"
+msgstr "Thư mục chính"
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Home folder"
@@ -5264,6 +5306,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Name"
 msgstr "Tên"
 
@@ -5319,6 +5362,14 @@ msgstr "Trung lập"
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Mới"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "New {providerName} profile home directory"
+msgstr "Thư mục chính của hồ sơ {providerName} mới"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "New {providerName} profile name"
+msgstr "Tên hồ sơ {providerName} mới"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -5490,6 +5541,10 @@ msgstr "Không có phiên hoạt động"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "Chưa có hoạt động nào."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "No additional {providerName} profiles."
+msgstr "Không có hồ sơ {providerName} bổ sung."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "No additional Claude profiles."
@@ -5987,6 +6042,7 @@ msgid "Open {0}"
 msgstr "Mở {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Open {label}"
 msgstr "Mở {label}"
 
@@ -6648,6 +6704,7 @@ msgid "Private key"
 msgstr "Khóa riêng"
 
 #: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "Hồ sơ"
@@ -6657,6 +6714,7 @@ msgid "Profile stats range"
 msgstr "Phạm vi thống kê hồ sơ"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Profiles"
 msgstr "Hồ sơ"
 
@@ -6978,6 +7036,7 @@ msgstr "Ẩn nội dung thông báo"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
@@ -7112,6 +7171,11 @@ msgstr "Xóa {0}"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {0} from panel"
 msgstr "Xóa {0} khỏi bảng điều khiển"
+
+#. placeholder {0}: props.providerName
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Remove {0} profile"
+msgstr "Xóa hồ sơ {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
@@ -7612,6 +7676,7 @@ msgstr "Tùy chọn thời gian chạy"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "Lưu"
@@ -7620,6 +7685,10 @@ msgstr "Lưu"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save {0} credentials."
 msgstr "Lưu thông tin xác thực {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Save {providerName} profile"
+msgstr "Lưu hồ sơ {providerName}"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
@@ -9113,6 +9182,10 @@ msgstr "Việc này sẽ xóa vĩnh viễn nhánh \"{0}\" khỏi điều khiển
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "Việc này sẽ xóa vĩnh viễn nhánh \"{0}\"."
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "This profile keeps its {providerName} account, settings, and sessions in a separate home directory."
+msgstr "Hồ sơ này lưu tài khoản, cài đặt và phiên {providerName} trong một thư mục chính riêng."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "dự án này"
@@ -9498,6 +9571,10 @@ msgstr "Không thể làm mới {0}."
 msgid "Unable to refresh Claude profiles."
 msgstr "Không thể làm mới hồ sơ Claude."
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Unable to refresh profiles."
+msgstr "Không thể làm mới hồ sơ."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -9859,6 +9936,10 @@ msgstr "Sử dụng chữ cái, chữ số, dấu chấm, dấu gạch ngang ho�
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
 msgstr "Dùng một thư mục toàn cục, hoặc lồng các cây làm việc bên trong mỗi dự án tại .poracode/worktrees."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Use separate {providerName} accounts and settings by assigning each profile its own home directory."
+msgstr "Sử dụng các tài khoản và cài đặt {providerName} riêng bằng cách gán cho mỗi hồ sơ một thư mục chính riêng."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"

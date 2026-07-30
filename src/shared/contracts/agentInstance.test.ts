@@ -2,15 +2,21 @@ import { describe, expect, it } from "vitest";
 import {
   ACP_GENERIC_KIND_PREFIX,
   acpGenericKind,
+  agentKindsSharingBinary,
   agentInstanceConfigSchema,
   baseAgentKind,
   claudeProfileKind,
   extractAcpGenericInstanceId,
   extractClaudeProfileInstanceId,
+  extractHomeProfileInstanceId,
+  homeProfileKind,
   isAcpGenericKind,
   isClaudeProfileKind,
+  isHomeProfileDriver,
+  isHomeProfileKind,
   parseAcpGenericInstanceConfig,
   parseClaudeProfileInstanceConfig,
+  parseHomeProfileInstanceConfig,
 } from "./agentInstance";
 
 /**
@@ -104,6 +110,80 @@ describe("Claude profile instance helpers", () => {
     expect(isClaudeProfileKind("claude")).toBe(false);
     expect(extractClaudeProfileInstanceId("claude:work")).toBe("work");
     expect(extractClaudeProfileInstanceId("codex")).toBeUndefined();
+  });
+});
+
+describe("home profile instance helpers", () => {
+  it("parses a provider home directory", () => {
+    expect(
+      parseHomeProfileInstanceConfig({
+        homeDir: "~/.poracode/codex-profiles/work",
+      }),
+    ).toEqual({ homeDir: "~/.poracode/codex-profiles/work" });
+  });
+
+  it("rejects an empty provider home directory", () => {
+    expect(() => parseHomeProfileInstanceConfig({ homeDir: "" })).toThrow(Error);
+  });
+
+  it("recognizes only providers with first-class home isolation", () => {
+    expect(isHomeProfileDriver("codex")).toBe(true);
+    expect(isHomeProfileDriver("copilot")).toBe(true);
+    expect(isHomeProfileDriver("gemini")).toBe(true);
+    expect(isHomeProfileDriver("grok")).toBe(true);
+    expect(isHomeProfileDriver("claude")).toBe(false);
+    expect(isHomeProfileDriver("opencode")).toBe(false);
+  });
+
+  it("round-trips profile ids through each provider namespace", () => {
+    expect(homeProfileKind("codex", "work")).toBe("codex:work");
+    expect(homeProfileKind("copilot", "personal")).toBe("copilot:personal");
+    expect(homeProfileKind("gemini", "enterprise")).toBe("gemini:enterprise");
+    expect(homeProfileKind("grok", "team")).toBe("grok:team");
+    expect(isHomeProfileKind("codex:work")).toBe(true);
+    expect(extractHomeProfileInstanceId("codex:work")).toBe("work");
+  });
+
+  it("rejects base and unsupported provider kinds", () => {
+    expect(isHomeProfileKind("codex")).toBe(false);
+    expect(isHomeProfileKind("codex:")).toBe(false);
+    expect(isHomeProfileKind("claude:work")).toBe(false);
+    expect(isHomeProfileKind("opencode:work")).toBe(false);
+    expect(extractHomeProfileInstanceId("codex")).toBeUndefined();
+  });
+});
+
+describe("agentKindsSharingBinary", () => {
+  const registeredKinds = [
+    "claude",
+    "claude:work",
+    "codex",
+    "codex:work",
+    "codex:personal",
+    "acp-generic:custom",
+  ];
+
+  it("groups a base provider with every profile sharing its CLI", () => {
+    expect(agentKindsSharingBinary("codex", registeredKinds)).toEqual([
+      "codex",
+      "codex:work",
+      "codex:personal",
+    ]);
+    expect(agentKindsSharingBinary("codex:work", registeredKinds)).toEqual([
+      "codex",
+      "codex:work",
+      "codex:personal",
+    ]);
+    expect(agentKindsSharingBinary("claude:work", registeredKinds)).toEqual([
+      "claude",
+      "claude:work",
+    ]);
+  });
+
+  it("does not group unrelated colon-scoped adapters", () => {
+    expect(agentKindsSharingBinary("acp-generic:custom", registeredKinds)).toEqual([
+      "acp-generic:custom",
+    ]);
   });
 });
 

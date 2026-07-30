@@ -264,14 +264,17 @@ function installGrokPluginWsl(
 
 const GROK_VERIFY_ASSETS = ["plugin.json", "forward.mjs", FORWARD_RUNTIME_FILE] as const;
 
-export function isGrokPluginInstalled(ctx?: AgentEnvContext): {
+export function isGrokPluginInstalled(
+  ctx?: AgentEnvContext,
+  globalGrokDirOverride?: string,
+): {
   installed: boolean;
   version?: string;
 } {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "grok");
     if (!wsl) return { installed: false };
-    const grokDir = wslGlobalGrokDir(ctx.wslDistro);
+    const grokDir = globalGrokDirOverride ?? wslGlobalGrokDir(ctx.wslDistro);
     const hookFile = grokDir
       ? toWslUncPath(ctx.wslDistro, `${grokDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`)
       : "";
@@ -280,20 +283,31 @@ export function isGrokPluginInstalled(ctx?: AgentEnvContext): {
       extraCheck: () => hookFile.length > 0 && hookFileMatchesPoracode(hookFile),
     });
   }
-  const hookFile = join(nativeGlobalGrokDir(), GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
+  const hookFile = join(
+    globalGrokDirOverride ?? nativeGlobalGrokDir(),
+    GLOBAL_HOOK_DIR_NAME,
+    GLOBAL_HOOK_FILENAME,
+  );
   return verifyStagedPluginAt(getNativePluginBaseDir("grok", ctx?.baseDir), "native", {
     assets: GROK_VERIFY_ASSETS,
     extraCheck: () => hookFileMatchesPoracode(hookFile),
   });
 }
 
-export function uninstallGrokPlugin(ctx?: AgentEnvContext): void {
+export function uninstallGrokPlugin(
+  ctx?: AgentEnvContext,
+  globalGrokDirOverride?: string,
+  removeStaged = true,
+): void {
   const hookDir = isWslPluginContext(ctx)
-    ? toWslUncPath(ctx.wslDistro, `${wslGlobalGrokDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`)
-    : join(nativeGlobalGrokDir(), GLOBAL_HOOK_DIR_NAME);
+    ? toWslUncPath(
+        ctx.wslDistro,
+        `${globalGrokDirOverride ?? wslGlobalGrokDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`,
+      )
+    : join(globalGrokDirOverride ?? nativeGlobalGrokDir(), GLOBAL_HOOK_DIR_NAME);
   removeManagedHookFile(join(hookDir, GLOBAL_HOOK_FILENAME));
   removeManagedHookFile(join(hookDir, LEGACY_GLOBAL_HOOK_FILENAME));
-  removeStagedPluginDir("grok", ctx);
+  if (removeStaged) removeStagedPluginDir("grok", ctx);
 }
 
 /**

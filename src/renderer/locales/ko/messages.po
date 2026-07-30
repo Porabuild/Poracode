@@ -421,6 +421,26 @@ msgstr "{projectLocation}(비활성화)"
 msgid "{projectName} Settings"
 msgstr "{projectName} 설정"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} {displayName} profile added."
+msgstr "{providerName} {displayName} 프로필을 추가했습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} {trimmedName} profile saved."
+msgstr "{providerName} {trimmedName} 프로필을 저장했습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile home directory"
+msgstr "{providerName} 프로필 홈 디렉터리"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile name"
+msgstr "{providerName} 프로필 이름"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "{providerName} profile removed."
+msgstr "{providerName} 프로필을 삭제했습니다."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
 msgstr "{remaining, plural, one {# 열림} other {# 열림}}"
@@ -614,6 +634,10 @@ msgstr "활동 지표"
 msgid "Add"
 msgstr "추가"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Add {providerName} profile"
+msgstr "{providerName} 프로필 추가"
+
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "로컬 프로젝트 추가"
@@ -703,6 +727,7 @@ msgid "Add pattern"
 msgstr "패턴 추가"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Add profile"
 msgstr "프로필 추가"
 
@@ -1498,6 +1523,10 @@ msgstr "포트를 불러올 수 없습니다"
 msgid "Cancel"
 msgstr "취소"
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Cancel new {providerName} profile"
+msgstr "새 {providerName} 프로필 취소"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Cancel new Claude profile"
 msgstr "새 Claude 프로필 취소"
@@ -1724,6 +1753,10 @@ msgstr "Chrome"
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Chrome MCP enabled for this thread"
 msgstr "이 스레드에 대해 Chrome MCP가 활성화되었습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Claude"
+msgstr "Claude"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -2003,6 +2036,7 @@ msgid "Code copied. "
 msgstr "코드가 복사되었습니다."
 
 #: src/renderer/components/providers/codex/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Codex"
 msgstr "Codex"
 
@@ -3219,6 +3253,7 @@ msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactor
 msgstr "예: 빠른 조회에는 Codex GPT-5.5 fast, 대규모 리팩터링에는 OpenCode GLM, 미묘한 작업에는 Claude Opus."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "e.g. Work"
 msgstr "예: 업무"
 
@@ -3899,6 +3934,7 @@ msgid "Fullscreen overlay"
 msgstr "전체화면 오버레이"
 
 #: src/renderer/components/providers/gemini/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Gemini"
 msgstr "Gemini"
 
@@ -3985,6 +4021,7 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "{0}에 대한 Git 상태: Git 저장소가 아닙니다."
 
 #: src/renderer/components/providers/copilot/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
 
@@ -4058,6 +4095,7 @@ msgid "Grade {0}"
 msgstr "등급 {0}"
 
 #: src/renderer/components/providers/grok/manifest.ts
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Grok Build"
 msgstr "Grok Build"
 
@@ -4181,6 +4219,10 @@ msgstr "기록"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "홈"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Home directory"
+msgstr "홈 디렉터리"
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Home folder"
@@ -5264,6 +5306,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Name"
 msgstr "이름"
 
@@ -5319,6 +5362,14 @@ msgstr "중립"
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "신규"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "New {providerName} profile home directory"
+msgstr "새 {providerName} 프로필 홈 디렉터리"
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "New {providerName} profile name"
+msgstr "새 {providerName} 프로필 이름"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -5490,6 +5541,10 @@ msgstr "활성 세션 없음"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "아직 활동이 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "No additional {providerName} profiles."
+msgstr "추가 {providerName} 프로필이 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "No additional Claude profiles."
@@ -5987,6 +6042,7 @@ msgid "Open {0}"
 msgstr "{0} 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Open {label}"
 msgstr "{label} 열기"
 
@@ -6648,6 +6704,7 @@ msgid "Private key"
 msgstr "개인 키"
 
 #: src/mobile/settingsSections.ts
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "프로필"
@@ -6657,6 +6714,7 @@ msgid "Profile stats range"
 msgstr "프로필 통계 기간"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 msgid "Profiles"
 msgstr "프로필"
 
@@ -6978,6 +7036,7 @@ msgstr "알림 내용 가리기"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
@@ -7112,6 +7171,11 @@ msgstr "{0} 제거"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {0} from panel"
 msgstr "패널에서 {0} 제거"
+
+#. placeholder {0}: props.providerName
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Remove {0} profile"
+msgstr "{0} 프로필 삭제"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
@@ -7612,6 +7676,7 @@ msgstr "런타임 옵션"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "저장"
@@ -7620,6 +7685,10 @@ msgstr "저장"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save {0} credentials."
 msgstr "{0} 자격 증명을 저장합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Save {providerName} profile"
+msgstr "{providerName} 프로필 저장"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
@@ -9113,6 +9182,10 @@ msgstr "이렇게 하면 원격에서 \"{0}\" 분기가 영구적으로 삭제�
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "이렇게 하면 \"{0}\" 분기가 영구적으로 삭제됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "This profile keeps its {providerName} account, settings, and sessions in a separate home directory."
+msgstr "이 프로필은 {providerName} 계정, 설정 및 세션을 별도의 홈 디렉터리에 보관합니다."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "이 프로젝트"
@@ -9498,6 +9571,10 @@ msgstr "{0}을(를) 새로 고칠 수 없습니다."
 msgid "Unable to refresh Claude profiles."
 msgstr "Claude 프로필을 새로 고칠 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Unable to refresh profiles."
+msgstr "프로필을 새로 고칠 수 없습니다."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -9859,6 +9936,10 @@ msgstr "공백 없이 문자, 숫자, 마침표, 대시 또는 밑줄을 사용�
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
 msgstr "하나의 전역 폴더를 사용하거나, 각 프로젝트의 .poracode/worktrees에 작업 트리를 중첩합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HomeProfileSettings.tsx
+msgid "Use separate {providerName} accounts and settings by assigning each profile its own home directory."
+msgstr "각 프로필에 고유한 홈 디렉터리를 할당하여 별도의 {providerName} 계정과 설정을 사용합니다."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"

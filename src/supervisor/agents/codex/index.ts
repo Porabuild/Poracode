@@ -1,9 +1,17 @@
-import type { AgentCapability, ProjectLocation } from "@/shared/contracts";
+import {
+  homeProfileKind,
+  parseHomeProfileInstanceConfig,
+  type AgentCapability,
+  type AgentInstanceConfig,
+  type ProjectLocation,
+} from "@/shared/contracts";
 import type { OscNotification } from "@/shared/osc";
 import {
   batchWslCommandsAsync,
   brailleSpinnerOscTitleHint,
+  buildAgentCommand,
   buildAgentLogoutCommand,
+  configFileAuthProbe,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
@@ -17,11 +25,11 @@ import { resolveAgentBinaryPath } from "../binaryResolver";
 import { CodexStructuredSession } from "./acp";
 import { buildCodexArgvFor, codexExtraArgsPosition, primeCodexGoalsSupport } from "./argv";
 import { codexDefaultCapabilities, codexDetectionSpec } from "./detection";
+import { codexHomeEnvForLocation } from "./profile";
 import { detectRateLimitPrompt } from "./rateLimitPrompt";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
   codexHooksFeatureFlagForSemver,
-  getCodexPluginPaths,
   installCodexPlugin,
   isCodexPluginInstalled,
   isCodexSemverSupportedForHooks,
@@ -42,6 +50,7 @@ import {
   resolveCodexSessionWatchPaths,
 } from "./session";
 import type { CodexRolloutMeta } from "./sessionFiles";
+import { codexAuthPath } from "./sessionFiles";
 import { detectCodexReadyForInitialPrompt } from "./terminal";
 
 export { buildCodexAppServerCommand } from "./argv";
@@ -101,22 +110,43 @@ async function resolveCodexHooksFeatureFlag(ctx: {
   return codexHooksFeatureFlagForSemver(probeCodexCliSemver());
 }
 
-export function createCodexAdapter(): AgentAdapter {
+interface CodexAdapterOptions {
+  kind?: string;
+  label?: string;
+  homeDir?: string;
+}
+
+export function createCodexProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const config = parseHomeProfileInstanceConfig(instance.config);
+  const profileLabel = instance.displayName ?? instance.id;
+  return createCodexAdapter({
+    kind: homeProfileKind("codex", instance.id),
+    label: `Codex ${profileLabel}`,
+    homeDir: config.homeDir,
+  });
+}
+
+export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdapter {
+  const kind = options.kind ?? codexDetectionSpec.kind;
+  const label = options.label ?? codexDetectionSpec.label;
+  const profileEnv = (location: ProjectLocation) =>
+    codexHomeEnvForLocation(options.homeDir, location);
   let capabilities: AgentCapability = codexDefaultCapabilities;
   let preSpawnRolloutIds = new Set<string>();
   let preSpawnStartedAt = 0;
 
   return {
-    kind: codexDetectionSpec.kind,
-    label: codexDetectionSpec.label,
+    kind,
+    label,
     binary: codexDetectionSpec.binary,
     skillSupport: {
       roots: [
         {
           id: "codex",
-          label: codexDetectionSpec.label,
+          label,
           globalPath: ".codex/skills",
           builtInPath: ".system",
+          ...(options.homeDir ? { globalBasePath: options.homeDir } : {}),
           globalOverride: { env: "CODEX_HOME", path: "skills" },
         },
       ],
@@ -160,42 +190,60 @@ export function createCodexAdapter(): AgentAdapter {
       return isCodexVersionSupportedForHooks();
     },
     isPluginInstalled(ctx) {
-      return isCodexPluginInstalled(ctx);
+      return isCodexPluginInstalled(ctx, options.homeDir);
     },
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = await installCodexPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installCodexPlugin(ctx, {
+        resolvedNodePath: node.nodePath,
+        ...(options.homeDir ? { profileHomeDir: options.homeDir } : {}),
+      });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCodexPlugin(ctx);
+      await uninstallCodexPlugin(ctx, options.homeDir);
     },
     async pluginLaunchExtras(ctx) {
-      const paths = getCodexPluginPaths(ctx);
       const hooksFeatureFlag = await resolveCodexHooksFeatureFlag(ctx);
       return {
         args: ["--enable", hooksFeatureFlag],
-        env: { CODEX_HOME: paths.codexHomeDir },
       };
     },
     handleOscNotification: codexOscHint,
     handleOscTitle: brailleSpinnerOscTitleHint,
     oscHintsDeferToHookPlugin: true,
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, codexDetectionSpec);
-      primeCodexGoalsSupport(detectProbeLocation(ctx), status.version, status.executablePath);
+      const location = detectProbeLocation(ctx);
+      const env = profileEnv(location);
+      const detectionSpec = env
+        ? {
+            ...codexDetectionSpec,
+            kind,
+            label,
+            probeEnv: env,
+            authProbes: [
+              configFileAuthProbe((probeLocation) =>
+                probeLocation.kind === "wsl" ? undefined : codexAuthPath(env.CODEX_HOME),
+              ),
+            ],
+          }
+        : codexDetectionSpec;
+      const status = await detectAgentInstall(ctx, detectionSpec);
+      primeCodexGoalsSupport(location, status.version, status.executablePath);
       capabilities = status.capabilities;
       return status;
     },
     buildLaunchArgv(location: ProjectLocation, config, prompt, sessionRef, launchOptions) {
+      const env = profileEnv(location);
+      const codexHome = env?.CODEX_HOME;
       preSpawnStartedAt = Date.now();
       if (location.kind === "wsl") {
         preSpawnRolloutIds = new Set();
       } else {
-        const sessions = readCodexSessionIndexForLocation(location);
-        const rollouts = readCodexRolloutsForLocation(location);
+        const sessions = readCodexSessionIndexForLocation(location, codexHome);
+        const rollouts = readCodexRolloutsForLocation(location, codexHome);
         preSpawnRolloutIds = new Set(rollouts.map((rollout) => rollout.id));
         console.log(
           [
@@ -206,10 +254,17 @@ export function createCodexAdapter(): AgentAdapter {
           ].join("\n"),
         );
       }
-      return buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions);
+      return buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions, env);
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      return buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions);
+      return buildCodexArgvFor(
+        location,
+        config,
+        prompt,
+        sessionRef,
+        launchOptions,
+        profileEnv(location),
+      );
     },
     extraArgsPosition: codexExtraArgsPosition,
     createInitialSessionRef() {
@@ -225,9 +280,20 @@ export function createCodexAdapter(): AgentAdapter {
         return undefined;
       }
       const wslExecPath = resolveAgentBinaryPath(input.projectLocation, "codex");
-      return CodexStructuredSession.create(input, wslExecPath);
+      return CodexStructuredSession.create(input, wslExecPath, profileEnv(input.projectLocation));
     },
-    buildAcpLogoutCommand: buildAgentLogoutCommand("codex", ["logout"]),
+    buildAcpLogoutCommand: options.homeDir
+      ? async (ctx) => {
+          const location = detectProbeLocation(ctx);
+          return buildAgentCommand(
+            location,
+            "codex",
+            ["logout"],
+            resolveAgentBinaryPath(location, "codex"),
+            profileEnv(location),
+          );
+        }
+      : buildAgentLogoutCommand("codex", ["logout"]),
     buildDirectInput(prompt) {
       return [prompt, "@wait:160", "\r"];
     },
@@ -240,7 +306,7 @@ export function createCodexAdapter(): AgentAdapter {
     },
     initialSessionRefDiscoveryDelayMs: 1000,
     watchSessionRef(location, onChanged) {
-      const paths = resolveCodexSessionWatchPaths(location);
+      const paths = resolveCodexSessionWatchPaths(location, profileEnv(location)?.CODEX_HOME);
       if (paths.length === 0) return undefined;
       return watchSessionPaths(
         location,
@@ -251,9 +317,10 @@ export function createCodexAdapter(): AgentAdapter {
     },
     async discoverSessionRef(location) {
       try {
+        const codexHome = profileEnv(location)?.CODEX_HOME;
         const [sessions, rollouts] = await Promise.all([
-          readCodexSessionIndexForLocationAsync(location),
-          readCodexRolloutsForLocationAsync(location),
+          readCodexSessionIndexForLocationAsync(location, codexHome),
+          readCodexRolloutsForLocationAsync(location, codexHome),
         ]);
         const newRollouts = rollouts
           .filter((rollout) => !preSpawnRolloutIds.has(rollout.id))
@@ -300,7 +367,7 @@ export function createCodexAdapter(): AgentAdapter {
       }
     },
     defaultOneShotModel: "gpt-5.5",
-    buildOneShotCommand(model, effort) {
+    buildOneShotCommand(model, effort, _prompt, location) {
       // `--skip-git-repo-check` lets `codex exec` run from worktrees or other
       // directories not on codex's trust list. Title generation only reads
       // the user's prompt from stdin and emits a short string — it never
@@ -310,7 +377,8 @@ export function createCodexAdapter(): AgentAdapter {
         args.push("-c", `model_reasoning_effort="${effort}"`);
       }
       args.push("-");
-      return { command: "codex", args };
+      const env = profileEnv(location ?? detectProbeLocation(undefined));
+      return { command: "codex", args, ...(env ? { env } : {}) };
     },
     buildContextExtractionCommand(_sessionRef, _location, _model) {
       return undefined;

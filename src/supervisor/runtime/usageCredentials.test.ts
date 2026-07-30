@@ -1,14 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { parseClaudeCredentials } from "./claudeCredentials";
 import { claudeKeychainAccount, claudeKeychainServiceNames } from "./macClaudeKeychain";
-import { parseCodexAuth } from "./codexCredentials";
-import { copilotCredentialTargetFromConfig } from "./copilotCredentials";
+import { parseCodexAuth, resolveCodexToken } from "./codexCredentials";
+import { copilotCredentialTargetFromConfig, resolveCopilotToken } from "./copilotCredentials";
 import {
   CURSOR_CLI_KEYCHAIN_ACCOUNT,
   CURSOR_CLI_KEYCHAIN_SERVICE,
   cursorUserIdFromJwt,
   parseCursorCliEmail,
 } from "./cursorCredentials";
+import { parseGeminiCreds, resolveGeminiToken } from "./geminiCredentials";
+import { parseGrokAuth, resolveGrokToken } from "./grokCredentials";
+
+const tempPaths: string[] = [];
+
+function tempProfileDir(name: string): string {
+  const path = join(tmpdir(), `poracode-${name}-${process.pid}-${tempPaths.length}`);
+  tempPaths.push(path);
+  mkdirSync(path, { recursive: true });
+  return path;
+}
+
+afterEach(() => {
+  for (const path of tempPaths.splice(0)) rmSync(path, { force: true, recursive: true });
+});
 
 /** Build a JWT-shaped token whose payload carries the given claims. */
 function fakeJwt(claims: Record<string, unknown>): string {
@@ -136,6 +154,20 @@ describe("parseCodexAuth", () => {
     expect(parseCodexAuth(JSON.stringify({ OPENAI_API_KEY: "sk-..." }))).toBeUndefined();
     expect(parseCodexAuth("nope")).toBeUndefined();
   });
+
+  it("reads credentials from an explicit profile home", async () => {
+    const home = tempProfileDir("codex-profile");
+    writeFileSync(
+      join(home, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "profile-access", account_id: "profile-id" } }),
+      "utf8",
+    );
+
+    await expect(resolveCodexToken({ CODEX_HOME: home })).resolves.toMatchObject({
+      accessToken: "profile-access",
+      accountId: "profile-id",
+    });
+  });
 });
 
 describe("copilotCredentialTargetFromConfig", () => {
@@ -147,5 +179,48 @@ describe("copilotCredentialTargetFromConfig", () => {
         }),
       ),
     ).toBe("copilot-cli/https://github.com:octo-dev");
+  });
+
+  it("uses explicitly scoped profile environment tokens", async () => {
+    await expect(
+      resolveCopilotToken({
+        COPILOT_HOME: tempProfileDir("copilot-profile"),
+        COPILOT_GITHUB_TOKEN: "profile-token",
+      }),
+    ).resolves.toEqual({ accessToken: "profile-token" });
+  });
+});
+
+describe("profile-scoped Gemini credentials", () => {
+  it("reads .gemini/oauth_creds.json beneath GEMINI_CLI_HOME", async () => {
+    const home = tempProfileDir("gemini-profile");
+    mkdirSync(join(home, ".gemini"), { recursive: true });
+    writeFileSync(
+      join(home, ".gemini", "oauth_creds.json"),
+      JSON.stringify({ access_token: "profile-access", refresh_token: "profile-refresh" }),
+      "utf8",
+    );
+
+    expect(parseGeminiCreds("not json")).toBeUndefined();
+    await expect(resolveGeminiToken({ GEMINI_CLI_HOME: home })).resolves.toMatchObject({
+      accessToken: "profile-access",
+      refreshToken: "profile-refresh",
+    });
+  });
+});
+
+describe("profile-scoped Grok credentials", () => {
+  it("reads auth.json beneath GROK_HOME", async () => {
+    const home = tempProfileDir("grok-profile");
+    writeFileSync(
+      join(home, "auth.json"),
+      JSON.stringify({ access_token: "profile-access" }),
+      "utf8",
+    );
+
+    expect(parseGrokAuth("not json")).toBeUndefined();
+    await expect(resolveGrokToken({ GROK_HOME: home })).resolves.toEqual({
+      accessToken: "profile-access",
+    });
   });
 });

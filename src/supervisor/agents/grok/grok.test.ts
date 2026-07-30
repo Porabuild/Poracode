@@ -1,12 +1,71 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import { createKnownSessionRef } from "../base";
 import { grokDetectionSpec } from "./detection";
-import { createGrokAdapter } from "./index";
+import { createGrokAdapter, createGrokProfileAdapter } from "./index";
+
+describe("createGrokProfileAdapter", () => {
+  const location: ProjectLocation = { kind: "posix", path: "/repo" };
+
+  it("routes terminal, ACP, logout, one-shot, sessions, and skills through GROK_HOME", async () => {
+    const adapter = createGrokProfileAdapter({
+      id: "work",
+      driver: "grok",
+      displayName: "Work",
+      config: { homeDir: "/profiles/grok" },
+      environment: {
+        XAI_API_KEY: { value: "profile-key", sensitive: true },
+        GROK_HOME: { value: "/ignored" },
+      },
+    });
+
+    expect(adapter.kind).toBe("grok:work");
+    expect(adapter.label).toBe("Grok Build Work");
+    expect(adapter.skillSupport?.roots[0]?.globalBasePath).toBe("/profiles/grok");
+    expect(adapter.buildLaunchArgv(location, { model: "grok-4.5" }, "hello").env).toMatchObject({
+      GROK_HOME: "/profiles/grok",
+      GROK_API_KEY: "",
+      XAI_API_KEY: "profile-key",
+    });
+    expect(
+      adapter.buildOneShotCommand?.("grok-4.5", undefined, "title", location)?.env,
+    ).toMatchObject({ GROK_HOME: "/profiles/grok" });
+
+    const nativeAuth = await adapter.buildAcpAuthCommand?.({ envKind: "posix" });
+    expect(nativeAuth?.env).toMatchObject({
+      GROK_HOME: "/profiles/grok",
+      GROK_API_KEY: "",
+      XAI_API_KEY: "profile-key",
+    });
+
+    const auth = await adapter.buildAcpAuthCommand?.({ envKind: "wsl", wslDistro: "Ubuntu" });
+    const logout = await adapter.buildAcpLogoutCommand?.({ envKind: "wsl", wslDistro: "Ubuntu" });
+    const authScript = auth?.args.join(" ") ?? "";
+    expect(authScript).toContain("export GROK_HOME='/profiles/grok'");
+    expect(authScript).toContain("export GROK_API_KEY=''");
+    expect(authScript).toContain("export XAI_API_KEY='profile-key'");
+    expect(logout?.args.join(" ")).toContain("GROK_HOME='/profiles/grok'");
+    expect(
+      createGrokAdapter().buildOneShotCommand?.("grok-4.5", undefined, "title", location)?.env,
+    ).toBeUndefined();
+  });
+
+  it("resolves a relative profile home against the target user home", () => {
+    const adapter = createGrokProfileAdapter({
+      id: "relative",
+      driver: "grok",
+      config: { homeDir: "profiles/grok" },
+    });
+
+    expect(adapter.buildLaunchArgv(location, { model: "grok-4.5" }, "hello").env?.GROK_HOME).toBe(
+      join(homedir(), "profiles/grok"),
+    );
+  });
+});
 
 function oscTitle(text: string, code: 0 | 1 | 2 = 0): OscTitle {
   return { code, text };

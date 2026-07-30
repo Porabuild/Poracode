@@ -1,16 +1,100 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import type { OscTitle } from "@/shared/osc";
-import { createGeminiAdapter } from ".";
+import { createGeminiAdapter, createGeminiProfileAdapter } from ".";
 import { buildGeminiArgs } from "./argv";
 import { geminiIntentFor } from "./plugin/intentMap";
 import { detectGeminiInvalidSessionRef } from "./session";
 import { detectGeminiOscTitleStatus } from "./terminal";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+describe("createGeminiProfileAdapter", () => {
+  const location: ProjectLocation = { kind: "posix", path: "/repo" };
+
+  it("routes terminal, ACP, one-shot, context, and skills through GEMINI_CLI_HOME", async () => {
+    const adapter = createGeminiProfileAdapter({
+      id: "work",
+      driver: "gemini",
+      displayName: "Work",
+      config: { homeDir: "/profiles/gemini" },
+      environment: {
+        GEMINI_API_KEY: { value: "profile-key", sensitive: true },
+        GOOGLE_CLOUD_PROJECT: { value: "profile-project" },
+        GEMINI_CLI_HOME: { value: "/ignored" },
+      },
+    });
+
+    expect(adapter.kind).toBe("gemini:work");
+    expect(adapter.label).toBe("Gemini Work");
+    expect(adapter.skillSupport?.roots[0]?.globalBasePath).toBe("/profiles/gemini");
+    expect(
+      adapter.buildLaunchArgv(location, { model: "gemini-2.5-pro" }, "hello").env,
+    ).toMatchObject({
+      GEMINI_CLI_HOME: "/profiles/gemini",
+      GEMINI_API_KEY: "profile-key",
+      GOOGLE_API_KEY: "",
+      GOOGLE_APPLICATION_CREDENTIALS: "",
+      GOOGLE_CLOUD_PROJECT: "profile-project",
+      GOOGLE_CLOUD_LOCATION: "",
+      GOOGLE_GENAI_USE_VERTEXAI: "",
+      GOOGLE_GENAI_USE_GCA: "",
+    });
+    expect(
+      adapter.buildOneShotCommand?.("gemini-2.5-flash", undefined, "title", location)?.env,
+    ).toMatchObject({ GEMINI_CLI_HOME: "/profiles/gemini" });
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        { providerSessionId: "session", discoveredAt: "test" },
+        location,
+      )?.env,
+    ).toMatchObject({ GEMINI_CLI_HOME: "/profiles/gemini" });
+
+    const nativeAuth = await adapter.buildAcpAuthCommand?.({ envKind: "posix" });
+    expect(nativeAuth?.env).toMatchObject({
+      GEMINI_CLI_HOME: "/profiles/gemini",
+      GEMINI_API_KEY: "profile-key",
+      GOOGLE_API_KEY: "",
+      GOOGLE_APPLICATION_CREDENTIALS: "",
+      GOOGLE_CLOUD_PROJECT: "profile-project",
+      GOOGLE_CLOUD_LOCATION: "",
+      GOOGLE_GENAI_USE_VERTEXAI: "",
+      GOOGLE_GENAI_USE_GCA: "",
+    });
+
+    const wslAuth = await adapter.buildAcpAuthCommand?.({ envKind: "wsl", wslDistro: "Ubuntu" });
+    const wslScript = wslAuth?.args.join(" ") ?? "";
+    expect(wslScript).toContain("export GEMINI_CLI_HOME='/profiles/gemini'");
+    expect(wslScript).toContain("export GEMINI_API_KEY='profile-key'");
+    expect(wslScript).toContain("export GOOGLE_API_KEY=''");
+    expect(wslScript).toContain("export GOOGLE_APPLICATION_CREDENTIALS=''");
+    expect(wslScript).toContain("export GOOGLE_CLOUD_PROJECT='profile-project'");
+    expect(wslScript).toContain("export GOOGLE_CLOUD_LOCATION=''");
+    expect(wslScript).toContain("export GOOGLE_GENAI_USE_VERTEXAI=''");
+    expect(wslScript).toContain("export GOOGLE_GENAI_USE_GCA=''");
+    expect(
+      createGeminiAdapter().buildOneShotCommand?.("gemini-2.5-flash", undefined, "title", location)
+        ?.env,
+    ).toBeUndefined();
+    expect(adapter.uninstallPlugin).toBeUndefined();
+    expect(createGeminiAdapter().uninstallPlugin).toBeTypeOf("function");
+  });
+
+  it("resolves a relative profile home against the target user home", () => {
+    const adapter = createGeminiProfileAdapter({
+      id: "relative",
+      driver: "gemini",
+      config: { homeDir: "profiles/gemini" },
+    });
+
+    expect(
+      adapter.buildLaunchArgv(location, { model: "gemini-2.5-pro" }, "hello").env?.GEMINI_CLI_HOME,
+    ).toBe(join(homedir(), "profiles/gemini"));
+  });
+});
 
 describe("detectGeminiOscTitleStatus", () => {
   it("detects idle from ◇ Ready title bar indicator", () => {

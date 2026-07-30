@@ -17,6 +17,7 @@ import {
   syncGeminiAppControlsMcpSettings,
   syncGeminiSubagentMcpSettings,
 } from "./install";
+import { createGeminiAdapter, createGeminiProfileAdapter } from "../index";
 
 const tempDirs: string[] = [];
 let savedBrowserMcpEnv: { url?: string; token?: string };
@@ -150,6 +151,23 @@ describe("installGeminiPlugin", () => {
         ? /^(?:pwsh(?:\.exe)?|powershell(?:\.exe)?|cmd\.exe \/d \/s \/c call ")/
         : /^(?!cmd\.exe)/,
     );
+  });
+
+  it("keeps shared staged assets when a profile is uninstalled", async () => {
+    const baseDir = makeBaseDir();
+    const ctx = { envKind: "posix" as const, baseDir };
+    expect(installGeminiPlugin(ctx).ok).toBe(true);
+
+    const profile = createGeminiProfileAdapter({
+      id: "work",
+      driver: "gemini",
+      config: { homeDir: "/profiles/gemini" },
+    });
+    await profile.uninstallPlugin?.(ctx);
+    expect(isGeminiPluginInstalled(ctx).installed).toBe(true);
+
+    await createGeminiAdapter().uninstallPlugin?.(ctx);
+    expect(isGeminiPluginInstalled(ctx).installed).toBe(false);
   });
 });
 

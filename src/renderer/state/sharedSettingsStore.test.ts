@@ -24,6 +24,12 @@ describe("sharedSettingsStore", () => {
       recentModels: [],
       providerOrder: [],
       lastUsedProjectDirs: {},
+      commitGenProvider: "auto",
+      titleGenProvider: "auto",
+      conflictResolverProvider: "auto",
+      wslCommitGenProvider: "auto",
+      wslTitleGenProvider: "auto",
+      wslConflictResolverProvider: "auto",
     });
   });
 
@@ -170,5 +176,57 @@ describe("sharedSettingsStore", () => {
     expect(state.favoriteModels).toEqual([]);
     expect(state.recentModels).toEqual([]);
     expect(state.providerOrder).toEqual(["claude"]);
+  });
+
+  it("derives a home profile kind from its driver and removes usage settings", () => {
+    useSharedSettings.getState().setAgentInstance({
+      id: "work",
+      driver: "codex",
+      displayName: "Work",
+      config: { homeDir: "~/.poracode/codex-profiles/work" },
+    });
+    const usage = useSharedSettings.getState().usage;
+    useSharedSettings.setState({
+      providerConfigs: { "codex:work": { model: "gpt-5" } },
+      hiddenModels: { "codex:work": ["gpt-5-mini"] },
+      disabledAgents: ["codex:work"],
+      providerOrder: ["codex", "codex:work"],
+      commitGenProvider: "codex:work",
+      titleGenProvider: "codex:work",
+      conflictResolverProvider: "codex:work",
+      wslCommitGenProvider: "codex:work",
+      wslTitleGenProvider: "codex:work",
+      wslConflictResolverProvider: "codex:work",
+      usage: {
+        ...usage,
+        providerRefreshIntervals: { "codex:work": 10 },
+        sidebarHiddenProviders: ["codex:work"],
+        disabledProviders: ["codex:work"],
+        providerOrder: ["codex", "codex:work"],
+        collapsedProviders: ["codex:work"],
+        selectedRingGroups: { "codex:work": "weekly" },
+      },
+    });
+
+    useSharedSettings.getState().removeAgentInstance("work");
+
+    const state = useSharedSettings.getState();
+    expect(state.agentInstances.work).toBeUndefined();
+    expect(state.providerConfigs["codex:work"]).toBeUndefined();
+    expect(state.hiddenModels["codex:work"]).toBeUndefined();
+    expect(state.disabledAgents).toEqual([]);
+    expect(state.providerOrder).toEqual(["codex"]);
+    expect(state.commitGenProvider).toBe("auto");
+    expect(state.titleGenProvider).toBe("auto");
+    expect(state.conflictResolverProvider).toBe("auto");
+    expect(state.wslCommitGenProvider).toBe("auto");
+    expect(state.wslTitleGenProvider).toBe("auto");
+    expect(state.wslConflictResolverProvider).toBe("auto");
+    expect(state.usage.providerRefreshIntervals["codex:work"]).toBeUndefined();
+    expect(state.usage.sidebarHiddenProviders).toEqual([]);
+    expect(state.usage.disabledProviders).toEqual([]);
+    expect(state.usage.providerOrder).toEqual(["codex"]);
+    expect(state.usage.collapsedProviders).toEqual([]);
+    expect(state.usage.selectedRingGroups["codex:work"]).toBeUndefined();
   });
 });

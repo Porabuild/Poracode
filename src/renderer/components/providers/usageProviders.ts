@@ -4,7 +4,10 @@ import type { UsageWindow } from "@poracode/agents-usage/types";
 import {
   baseAgentKind,
   claudeProfileKind,
+  homeProfileKind,
+  isHomeProfileDriver,
   parseClaudeProfileInstanceConfig,
+  parseHomeProfileInstanceConfig,
   type AgentInstanceConfigMap,
 } from "@/shared/contracts";
 
@@ -127,23 +130,40 @@ export function isClaudeUsageProvider(providerId: string): boolean {
   return baseAgentKind(providerId) === "claude";
 }
 
-function claudeProfileUsageProviders(
+function profileUsageProviders(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
   if (!agentInstances) return [];
   const profiles: UsageProvider[] = [];
   for (const instance of Object.values(agentInstances)) {
-    if (instance.enabled === false || instance.driver !== "claude") continue;
+    if (
+      instance.enabled === false ||
+      (instance.driver !== "claude" && !isHomeProfileDriver(instance.driver))
+    ) {
+      continue;
+    }
     try {
-      parseClaudeProfileInstanceConfig(instance.config);
+      if (instance.driver === "claude") {
+        parseClaudeProfileInstanceConfig(instance.config);
+      } else {
+        parseHomeProfileInstanceConfig(instance.config);
+      }
     } catch {
       continue;
     }
-    const label = instance.displayName ?? instance.id;
+    const baseProvider = STATIC_USAGE_PROVIDERS.find((provider) => provider.id === instance.driver);
+    if (!baseProvider) continue;
+    const profileLabel = instance.displayName ?? instance.id;
+    const meta = rendererMeta(instance.driver);
     profiles.push({
-      id: claudeProfileKind(instance.id),
-      label: `Claude ${label}`,
-      ...rendererMeta("claude"),
+      id:
+        instance.driver === "claude"
+          ? claudeProfileKind(instance.id)
+          : homeProfileKind(instance.driver, instance.id),
+      label: `${baseProvider.label} ${profileLabel}`,
+      ...(meta?.sharedWindowReset ? { sharedWindowReset: true } : {}),
+      ...(meta?.rings ? { rings: meta.rings } : {}),
+      ...(meta?.ringGroups ? { ringGroups: meta.ringGroups } : {}),
     });
   }
   profiles.sort((a, b) => a.label.localeCompare(b.label));
@@ -153,26 +173,24 @@ function claudeProfileUsageProviders(
 export function usageProvidersForAgentInstances(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
-  const profiles = claudeProfileUsageProviders(agentInstances);
+  const profiles = profileUsageProviders(agentInstances);
   if (profiles.length === 0) return [...STATIC_USAGE_PROVIDERS];
   const out: UsageProvider[] = [];
   for (const provider of STATIC_USAGE_PROVIDERS) {
     out.push(provider);
-    if (provider.id === "claude") {
-      out.push(...profiles);
-    }
+    out.push(...profiles.filter((profile) => baseAgentKind(profile.id) === provider.id));
   }
   return out;
 }
 
 /** Providers that expose the browser-overlay login (cookie or device flow). */
 export function supportsBrowserLogin(providerId: string): boolean {
-  return rendererMeta(providerId)?.supportsBrowserLogin === true;
+  return RENDERER_META[providerId]?.supportsBrowserLogin === true;
 }
 
 /** Providers that sign in by pasting an API key (no browser step, e.g. z.ai). */
 export function supportsApiKeyLogin(providerId: string): boolean {
-  return rendererMeta(providerId)?.supportsApiKeyLogin === true;
+  return RENDERER_META[providerId]?.supportsApiKeyLogin === true;
 }
 
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */

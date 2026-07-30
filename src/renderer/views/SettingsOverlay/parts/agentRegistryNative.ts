@@ -4,6 +4,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import type { AgentKind, AgentProviderMetadata, AgentStatus, Project } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
 import { ClaudeAgentSettingsPanel } from "./ClaudeProfileSettings";
+import { createHomeProfileSettingsPanel } from "./HomeProfileSettings";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
 
 /**
@@ -41,6 +42,8 @@ export interface NativeAgentRegistryEntry {
    * (Claude profiles) render their base provider's panel.
    */
   settingsPanel?: ComponentType<NativeAgentSettingsPanelProps>;
+  /** Provider label used for instance-scoped profile pages before detection completes. */
+  profileProviderName?: MessageDescriptor;
   /**
    * The provider's `settingsPanel` owns sign-in UI, so `SingleAgentSettings`
    * suppresses its generic auth section (e.g. OpenCode authenticates per AI
@@ -55,6 +58,23 @@ export interface NativeAgentRegistryEntry {
    */
   accountResolver?: (wslDistros: string[]) => Promise<AgentProviderMetadata | undefined>;
 }
+
+const CodexProfileSettingsPanel = createHomeProfileSettingsPanel({
+  driver: "codex",
+  providerName: msg`Codex`,
+});
+const CopilotProfileSettingsPanel = createHomeProfileSettingsPanel({
+  driver: "copilot",
+  providerName: msg`GitHub Copilot`,
+});
+const GeminiProfileSettingsPanel = createHomeProfileSettingsPanel({
+  driver: "gemini",
+  providerName: msg`Gemini`,
+});
+const GrokProfileSettingsPanel = createHomeProfileSettingsPanel({
+  driver: "grok",
+  providerName: msg`Grok Build`,
+});
 
 const POSIX_MISSING_CURL_NPM_MESSAGE =
   "printf 'No supported installer found. Install curl or Node.js/npm first, then refresh detected agents.\\n'";
@@ -106,6 +126,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command powershell -ErrorAction SilentlyContinue) { powershell -ExecutionPolicy ByPass -c \"irm https://chatgpt.com/codex/install.ps1 | iex\" } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @openai/codex } else { Write-Host 'No supported installer found. Install Windows PowerShell or Node.js/npm first, then refresh detected agents.' }",
       }),
+    settingsPanel: CodexProfileSettingsPanel,
+    profileProviderName: msg`Codex`,
   },
   {
     id: "claude",
@@ -127,6 +149,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://claude.ai/install.ps1 | iex } elseif (Get-Command curl.exe -ErrorAction SilentlyContinue) { cmd /c \"curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd\" } elseif (Get-Command winget -ErrorAction SilentlyContinue) { winget install Anthropic.ClaudeCode } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod, curl, or WinGet first, then refresh detected agents.' }",
       }),
     settingsPanel: ClaudeAgentSettingsPanel,
+    profileProviderName: msg`Claude`,
   },
   {
     id: "opencode",
@@ -168,6 +191,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://x.ai/cli/install.ps1 | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
       }),
+    settingsPanel: GrokProfileSettingsPanel,
+    profileProviderName: msg`Grok Build`,
   },
   {
     id: "factory",
@@ -244,6 +269,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "; fi",
         "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @google/gemini-cli } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
       ),
+    settingsPanel: GeminiProfileSettingsPanel,
+    profileProviderName: msg`Gemini`,
   },
   {
     id: "copilot",
@@ -270,6 +297,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command winget -ErrorAction SilentlyContinue) { winget install GitHub.Copilot } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @github/copilot } else { Write-Host 'No supported installer found. Install WinGet or Node.js/npm first, then refresh detected agents.' }",
       }),
+    settingsPanel: CopilotProfileSettingsPanel,
+    profileProviderName: msg`GitHub Copilot`,
   },
 ];
 

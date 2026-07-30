@@ -8,6 +8,7 @@ import {
   batchWslCommandsAsync,
   buildAgentCommand,
   envVarAuthProbe,
+  quotePosixShellArg,
   type AuthProbe,
   type DetectionSpec,
 } from "../base";
@@ -57,11 +58,13 @@ export const defaultGeminiCapabilities: AgentCapability = {
 // Gemini stores a config dir at ~/.gemini after first login; treat its
 // presence as authenticated even without GEMINI_API_KEY set.
 const configDirAuthProbe: AuthProbe = async (ctx) => {
+  const configuredHome = ctx.probeEnv?.GEMINI_CLI_HOME?.trim();
   if (ctx.location.kind !== "wsl") {
-    return existsSync(join(homedir(), ".gemini")) ? "authenticated" : "unknown";
+    return existsSync(join(configuredHome || homedir(), ".gemini")) ? "authenticated" : "unknown";
   }
+  const configDir = configuredHome ? `${configuredHome}/.gemini` : "~/.gemini";
   const [result] = await batchWslCommandsAsync(ctx.location.distro, [
-    "test -d ~/.gemini && echo yes",
+    `test -d ${configuredHome ? quotePosixShellArg(configDir) : configDir} && echo yes`,
   ]);
   return result?.ok && result.stdout.trim() === "yes" ? "authenticated" : "unknown";
 };
@@ -84,13 +87,22 @@ export function parseGeminiGoogleAccountsJson(raw: string): string | undefined {
 }
 
 async function probeGeminiMetadata(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
+  const configuredHome = ctx.probeEnv?.GEMINI_CLI_HOME?.trim();
+  const configuredApiKey =
+    ctx.probeEnv?.GEMINI_API_KEY?.trim() || ctx.probeEnv?.GOOGLE_API_KEY?.trim();
   if (ctx.location.kind === "wsl") {
+    const configDir = configuredHome ? `${configuredHome}/.gemini` : "~/.gemini";
+    const accountsPath = `${configDir}/google_accounts.json`;
     const [apiKeyResult, configDirResult, accountsResult] = await batchWslCommandsAsync(
       ctx.location.distro,
       [
-        'printf %s "$GEMINI_API_KEY"',
-        "test -d ~/.gemini && echo yes",
-        'cat ~/.gemini/google_accounts.json 2>/dev/null || printf ""',
+        configuredApiKey
+          ? `printf %s ${quotePosixShellArg(configuredApiKey)}`
+          : ctx.probeEnv
+            ? 'printf ""'
+            : 'printf %s "$GEMINI_API_KEY"',
+        `test -d ${configuredHome ? quotePosixShellArg(configDir) : configDir} && echo yes`,
+        `cat ${configuredHome ? quotePosixShellArg(accountsPath) : accountsPath} 2>/dev/null || printf ""`,
       ],
     );
     const apiKeySet = !!(apiKeyResult?.ok && apiKeyResult.stdout.trim().length > 0);
@@ -107,9 +119,11 @@ async function probeGeminiMetadata(ctx: Parameters<NonNullable<DetectionSpec["st
     return providerMetadata ? { providerMetadata } : undefined;
   }
 
-  const apiKeySet =
-    typeof process.env.GEMINI_API_KEY === "string" && process.env.GEMINI_API_KEY.trim().length > 0;
-  const accountsPath = join(homedir(), ".gemini", "google_accounts.json");
+  const apiKeySet = ctx.probeEnv
+    ? Boolean(configuredApiKey)
+    : Boolean(process.env.GEMINI_API_KEY?.trim());
+  const home = configuredHome || homedir();
+  const accountsPath = join(home, ".gemini", "google_accounts.json");
   let activeAccount: string | undefined;
   if (!apiKeySet) {
     try {
@@ -118,7 +132,7 @@ async function probeGeminiMetadata(ctx: Parameters<NonNullable<DetectionSpec["st
       activeAccount = undefined;
     }
   }
-  const configDirPresent = existsSync(join(homedir(), ".gemini"));
+  const configDirPresent = existsSync(join(home, ".gemini"));
   const providerMetadata = compactAgentProviderMetadata({
     ...(activeAccount ? { authenticatedAs: activeAccount } : {}),
     ...(apiKeySet ? { authMethod: "API key" } : {}),
@@ -147,11 +161,16 @@ export const geminiDetectionSpec: DetectionSpec = {
     const probeArgs = ["--acp", "--skip-trust"];
     const probeCmd =
       ctx.location.kind === "wsl"
-        ? buildAgentCommand(ctx.location, "gemini", probeArgs, ctx.executablePath)
-        : buildAgentCommand(ctx.location, ctx.executablePath, probeArgs);
+        ? ctx.probeEnv
+          ? buildAgentCommand(ctx.location, "gemini", probeArgs, ctx.executablePath, ctx.probeEnv)
+          : buildAgentCommand(ctx.location, "gemini", probeArgs, ctx.executablePath)
+        : ctx.probeEnv
+          ? buildAgentCommand(ctx.location, ctx.executablePath, probeArgs, undefined, ctx.probeEnv)
+          : buildAgentCommand(ctx.location, ctx.executablePath, probeArgs);
     const probeCwd = ctx.location.kind === "wsl" ? "/tmp" : getAgentProbeCwd(ctx.location);
     const probeResult = await probeAcpCapabilities(probeCmd.command, probeCmd.args, probeCwd, {
       timeoutMs: 15_000,
+      ...(probeCmd.env ? { env: probeCmd.env } : {}),
       label:
         ctx.location.kind === "wsl"
           ? `gemini:wsl:${ctx.location.distro}`
@@ -169,6 +188,7 @@ export const geminiDetectionSpec: DetectionSpec = {
       id: "gemini-terminal-login",
       name: "Login",
       type: "terminal",
+      ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
     };
     if (!probeResult) {
       return { authMethods: [terminalAuthMethod] };

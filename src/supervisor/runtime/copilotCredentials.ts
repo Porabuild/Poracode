@@ -18,16 +18,22 @@ interface CopilotConfig {
   lastLoggedInUser?: { host?: string; login?: string };
 }
 
-function copilotTokenFromEnv(): string | undefined {
+export interface CopilotCredentialEnv {
+  COPILOT_HOME?: string | undefined;
+  COPILOT_GITHUB_TOKEN?: string | undefined;
+  COPILOT_API_TOKEN?: string | undefined;
+}
+
+function copilotTokenFromEnv(env: CopilotCredentialEnv): string | undefined {
   for (const name of COPILOT_TOKEN_ENV_VARS) {
-    const value = process.env[name]?.trim();
+    const value = env[name]?.trim();
     if (value) return value;
   }
   return undefined;
 }
 
-function copilotConfigPath(): string {
-  const home = process.env.COPILOT_HOME?.trim();
+function copilotConfigPath(env: CopilotCredentialEnv): string {
+  const home = env.COPILOT_HOME?.trim();
   return home ? join(home, "config.json") : join(homedir(), ".copilot", "config.json");
 }
 
@@ -44,8 +50,8 @@ export function copilotCredentialTargetFromConfig(content: string): string | und
   return `copilot-cli/${host}:${login}`;
 }
 
-async function resolveCopilotCliToken(): Promise<OAuthToken | undefined> {
-  const path = copilotConfigPath();
+async function resolveCopilotCliToken(env: CopilotCredentialEnv): Promise<OAuthToken | undefined> {
+  const path = copilotConfigPath(env);
   if (!existsSync(path)) return undefined;
   try {
     const target = copilotCredentialTargetFromConfig(readFileSync(path, "utf8"));
@@ -57,14 +63,16 @@ async function resolveCopilotCliToken(): Promise<OAuthToken | undefined> {
   }
 }
 
-export async function resolveCopilotToken(): Promise<OAuthToken | undefined> {
-  const fromEnv = copilotTokenFromEnv();
+export async function resolveCopilotToken(
+  env: CopilotCredentialEnv = process.env,
+): Promise<OAuthToken | undefined> {
+  const fromEnv = copilotTokenFromEnv(env);
   if (fromEnv) return { accessToken: fromEnv };
-  const fromCopilotCli = await resolveCopilotCliToken();
+  const fromCopilotCli = await resolveCopilotCliToken(env);
   if (fromCopilotCli) return fromCopilotCli;
   // Signed in only inside WSL? `gh auth token` works regardless of which env
   // fetches with it, matching the other providers' native→WSL fallback.
-  if (process.platform === "win32") {
+  if (!env.COPILOT_HOME?.trim() && process.platform === "win32") {
     const wslToken = await readCopilotTokenFromWsl();
     if (wslToken) return { accessToken: wslToken };
   }

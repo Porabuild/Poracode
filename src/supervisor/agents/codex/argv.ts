@@ -132,6 +132,7 @@ export function buildCodexArgvFor(
   prompt: string,
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
+  profileEnv?: Record<string, string>,
 ): AgentArgvSpec {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
   const userMcp = buildCodexUserMcp(launchOptions?.mcpServers ?? []);
@@ -143,7 +144,8 @@ export function buildCodexArgvFor(
     ...buildCodexChromeMcpEnv(launchOptions?.chromeMcp),
     ...buildCodexAppControlsMcpEnv(launchOptions?.appControlsMcp),
   };
-  const hasMcpEnv = Object.keys(mcpEnv).length > 0;
+  const env = { ...profileEnv, ...mcpEnv };
+  const hasEnv = Object.keys(env).length > 0;
   const enableGoals = isCodexGoalsSupported(location);
   const baseArgsOptions: BuildCodexArgsOptions = {
     config,
@@ -168,7 +170,7 @@ export function buildCodexArgvFor(
     return {
       binary,
       args,
-      ...(hasMcpEnv ? { env: mcpEnv } : {}),
+      ...(hasEnv ? { env } : {}),
     };
   }
 
@@ -185,7 +187,7 @@ export function buildCodexArgvFor(
   return {
     binary,
     args,
-    ...(hasMcpEnv ? { env: mcpEnv } : {}),
+    ...(hasEnv ? { env } : {}),
   };
 }
 
@@ -204,6 +206,7 @@ export function buildCodexAppServerCommand(
     chromeMcp?: ChromeMcpHttpConfig;
     appControlsMcp?: AppControlsMcpHttpConfig;
     mcpServers?: McpServer[];
+    env?: Record<string, string>;
   },
 ): CommandSpec {
   const wslExecPath = options?.wslExecPath;
@@ -239,7 +242,8 @@ export function buildCodexAppServerCommand(
     ...buildCodexChromeMcpEnv(options?.chromeMcp),
     ...buildCodexAppControlsMcpEnv(options?.appControlsMcp),
   };
-  const hasMcpEnv = Object.keys(mcpEnv).length > 0;
+  const env = { ...options?.env, ...mcpEnv };
+  const hasEnv = Object.keys(env).length > 0;
   const args = [
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
     ...userMcp.args,
@@ -266,7 +270,7 @@ export function buildCodexAppServerCommand(
         "--",
         "/usr/bin/env",
         `PATH=${pathSegments.join(":")}`,
-        ...(hasMcpEnv ? Object.entries(mcpEnv).map(([name, value]) => `${name}=${value}`) : []),
+        ...(hasEnv ? Object.entries(env).map(([name, value]) => `${name}=${value}`) : []),
         wslExecPath ?? "codex",
         ...args,
       ],
@@ -277,7 +281,7 @@ export function buildCodexAppServerCommand(
     "codex",
     args,
     resolveCodexWindowsLaunchBinary(location) ?? wslExecPath,
-    hasMcpEnv ? mcpEnv : undefined,
+    hasEnv ? env : undefined,
   );
 }
 

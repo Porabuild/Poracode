@@ -12,6 +12,7 @@ import {
   batchWslCommandsAsync,
   buildAgentCommand,
   envVarAuthProbe,
+  quotePosixShellArg,
   type CapabilitiesProbeResult,
   type DetectionSpec,
 } from "../base";
@@ -56,19 +57,26 @@ export const grokDefaultCapabilities: AgentCapability = {
   settingDefs: [],
 };
 
-export function buildGrokCommand(location: ProjectLocation, args: string[], wslExecPath?: string) {
-  return buildAgentCommand(location, "grok", args, wslExecPath);
+export function buildGrokCommand(
+  location: ProjectLocation,
+  args: string[],
+  wslExecPath?: string,
+  env?: Record<string, string>,
+) {
+  return buildAgentCommand(location, "grok", args, wslExecPath, env);
 }
 
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath?: string,
+  env?: Record<string, string>,
 ): Promise<CapabilitiesProbeResult> {
-  const spec = buildGrokCommand(location, ["agent", "stdio"], executablePath);
+  const spec = buildGrokCommand(location, ["agent", "stdio"], executablePath, env);
   const sessionCwd = getAgentProbeCwd(location);
   const processCwd = resolveProbeSpawnCwd(location, spec.cwd);
   const probe = await probeAcpCapabilities(spec.command, spec.args, sessionCwd, {
     ...(processCwd ? { processCwd } : {}),
+    ...(spec.env ? { env: spec.env } : {}),
     timeoutMs: 20_000, // grok may take a moment on first init
     label: location.kind === "wsl" ? `grok:wsl:${location.distro}` : `grok:${location.kind}`,
     // Grok returns identity (email, auth_mode, subscription_tier) in the
@@ -215,15 +223,19 @@ function formatGrokAuthMode(mode: string): string {
 async function grokAuthFileProbe(
   ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
 ): Promise<"authenticated" | "unknown"> {
-  const check = (home: string) => {
-    if (existsSync(join(home, ".grok", "auth.json"))) return "authenticated";
+  const configuredHome = ctx.probeEnv?.GROK_HOME?.trim();
+  const check = (home: string, isGrokHome = false) => {
+    if (existsSync(join(home, ...(isGrokHome ? [] : [".grok"]), "auth.json"))) {
+      return "authenticated";
+    }
     return "unknown";
   };
   if (ctx.location.kind !== "wsl") {
-    return check(homedir());
+    return check(configuredHome || homedir(), Boolean(configuredHome));
   }
+  const authPath = configuredHome ? `${configuredHome}/auth.json` : "~/.grok/auth.json";
   const [r] = await batchWslCommandsAsync(ctx.location.distro, [
-    "test -f ~/.grok/auth.json && echo yes || echo no",
+    `test -f ${configuredHome ? quotePosixShellArg(authPath) : authPath} && echo yes || echo no`,
   ]);
   return r?.ok && r.stdout.trim() === "yes" ? "authenticated" : "unknown";
 }
@@ -249,6 +261,6 @@ export const grokDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe(["GROK_API_KEY", "XAI_API_KEY"]), grokAuthFileProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.probeEnv);
   },
 };

@@ -22,6 +22,11 @@ import {
   withClaudeEstimatedCost,
   type ClaudeUsageProfile,
 } from "../agents/claude/claudeUsageProfiles";
+import {
+  collectHomeProfile,
+  readHomeUsageProfiles,
+  type HomeUsageProfile,
+} from "../agents/homeProfileUsage";
 import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
 
@@ -68,6 +73,11 @@ interface UsageCacheFile {
   snapshots?: UsageSnapshot[];
 }
 
+interface UsageProfiles {
+  claude: Map<string, ClaudeUsageProfile>;
+  home: Map<string, HomeUsageProfile>;
+}
+
 function hasDisplayableUsage(snapshot: UsageSnapshot): boolean {
   return (
     snapshot.windows.length > 0 ||
@@ -96,10 +106,10 @@ export class UsageService {
     this.loadCache();
   }
 
-  private defaultProviderIds(): string[] {
+  private defaultProviderIds(profiles: UsageProfiles): string[] {
     const baseIds = [...(this.options.providerIds ?? DEFAULT_PROVIDER_IDS)];
     if (this.options.providerIds) return baseIds;
-    return [...baseIds, ...this.claudeUsageProfiles().keys()];
+    return [...baseIds, ...profiles.claude.keys(), ...profiles.home.keys()];
   }
 
   /** Read shared settings from disk (defaults if absent). */
@@ -112,32 +122,37 @@ export class UsageService {
     }
   }
 
-  /** Read the usage policy from the shared settings file (defaults if absent). */
-  private readUsageSettings(): UsageSettings {
-    return this.readSharedSettings().usage;
-  }
-
-  private claudeUsageProfiles(): Map<string, ClaudeUsageProfile> {
-    return readClaudeUsageProfiles(this.readSharedSettings());
+  private usageProfiles(settings: SharedSettings): UsageProfiles {
+    return {
+      claude: readClaudeUsageProfiles(settings),
+      home: readHomeUsageProfiles(settings),
+    };
   }
 
   /** A provider id this service can collect (package registry or supervisor-local). */
-  private isSupported(id: string): boolean {
+  private isSupported(id: string, profiles: UsageProfiles): boolean {
     return (
-      this.registry.has(id) || this.localCollectors.has(id) || this.claudeUsageProfiles().has(id)
+      this.registry.has(id) ||
+      this.localCollectors.has(id) ||
+      profiles.claude.has(id) ||
+      profiles.home.has(id)
     );
   }
 
   /** Default providers minus the user's per-provider opt-outs, intersected with what we support. */
-  private enabledProviderIds(disabled: readonly string[]): string[] {
-    return this.defaultProviderIds().filter((id) => !disabled.includes(id) && this.isSupported(id));
+  private enabledProviderIds(disabled: readonly string[], profiles: UsageProfiles): string[] {
+    return this.defaultProviderIds(profiles).filter(
+      (id) => !disabled.includes(id) && this.isSupported(id, profiles),
+    );
   }
 
   private resolveIds(payload: ProviderUsagePayload): string[] {
+    const settings = this.readSharedSettings();
+    const profiles = this.usageProfiles(settings);
     if (payload.providerIds?.length) {
-      return [...new Set(payload.providerIds)].filter((id) => this.isSupported(id));
+      return [...new Set(payload.providerIds)].filter((id) => this.isSupported(id, profiles));
     }
-    return this.enabledProviderIds(this.readUsageSettings().disabledProviders);
+    return this.enabledProviderIds(settings.usage.disabledProviders, profiles);
   }
 
   /**
@@ -211,14 +226,18 @@ export class UsageService {
   }
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
-    const claudeProfiles = this.claudeUsageProfiles();
+    const settings = this.readSharedSettings();
+    const profiles = this.usageProfiles(settings);
+    const claudeProfiles = profiles.claude;
+    const homeProfiles = profiles.home;
     const registryIds = ids.filter((id) => this.registry.has(id));
     const localIds = ids.filter((id) => this.localCollectors.has(id));
     const claudeProfileIds = ids.filter((id) => claudeProfiles.has(id));
+    const homeProfileIds = ids.filter((id) => homeProfiles.has(id));
     // The registry HTTP batch and the supervisor-local collectors are independent
     // of each other, so run both groups concurrently rather than waiting out the
     // (rate-limited, slow) HTTP batch before starting the local scans.
-    const [registrySnaps, localSnaps, claudeProfileSnaps] = await Promise.all([
+    const [registrySnaps, localSnaps, claudeProfileSnaps, homeProfileSnaps] = await Promise.all([
       this.registry.collectAll(registryIds, this.host),
       Promise.all(localIds.map((id) => this.collectLocal(id))),
       Promise.all(
@@ -227,11 +246,20 @@ export class UsageService {
           return profile ? [collectClaudeProfile(profile, this.host)] : [];
         }),
       ),
+      Promise.all(
+        homeProfileIds.flatMap((id) => {
+          const profile = homeProfiles.get(id);
+          return profile ? [collectHomeProfile(profile, this.host)] : [];
+        }),
+      ),
     ]);
-    let snapshots = [...registrySnaps, ...localSnaps, ...claudeProfileSnaps].map((snap) =>
-      this.preserveOnTransientFailure(snap),
-    );
-    if (this.readUsageSettings().showEstimatedCost) {
+    let snapshots = [
+      ...registrySnaps,
+      ...localSnaps,
+      ...claudeProfileSnaps,
+      ...homeProfileSnaps,
+    ].map((snap) => this.preserveOnTransientFailure(snap));
+    if (settings.usage.showEstimatedCost) {
       snapshots = await this.withEstimatedCost(snapshots, claudeProfiles);
     }
     for (const snapshot of snapshots) {
@@ -314,7 +342,8 @@ export class UsageService {
    */
   startAutoRefresh(): void {
     if (this.autoRefreshTimer || this.stopped) return;
-    this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
+    const settings = this.readSharedSettings();
+    this.scheduleNextTick(this.nextTickDelayMs(settings.usage, this.usageProfiles(settings)));
   }
 
   stop(): void {
@@ -345,9 +374,9 @@ export class UsageService {
    * from the snapshot's `fetchedAt`, so one tick can refresh a fast provider
    * while leaving a slow one untouched.
    */
-  private dueProviderIds(settings: UsageSettings): string[] {
+  private dueProviderIds(settings: UsageSettings, profiles: UsageProfiles): string[] {
     const now = this.host.now();
-    return this.enabledProviderIds(settings.disabledProviders).filter((id) => {
+    return this.enabledProviderIds(settings.disabledProviders, profiles).filter((id) => {
       const snap = this.snapshots.get(id);
       if (!snap) return true;
       // Skip providers inside their rate-limit backoff so the auto-refresh tick
@@ -363,9 +392,9 @@ export class UsageService {
    * are slower). Falls back to the global default when nothing is enabled, which
    * keeps the loop alive so re-enabling resumes without a restart.
    */
-  private nextTickDelayMs(settings: UsageSettings): number {
+  private nextTickDelayMs(settings: UsageSettings, profiles: UsageProfiles): number {
     let min = Infinity;
-    for (const id of this.enabledProviderIds(settings.disabledProviders)) {
+    for (const id of this.enabledProviderIds(settings.disabledProviders, profiles)) {
       min = Math.min(min, this.effectiveIntervalMs(settings, id));
     }
     return Number.isFinite(min) ? min : this.intervalMs(settings);
@@ -378,9 +407,10 @@ export class UsageService {
    */
   async refreshDueProviders(): Promise<string[]> {
     if (this.stopped) return [];
-    const settings = this.readUsageSettings();
+    const sharedSettings = this.readSharedSettings();
+    const settings = sharedSettings.usage;
     if (!settings.autoRefresh) return [];
-    const ids = this.dueProviderIds(settings);
+    const ids = this.dueProviderIds(settings, this.usageProfiles(sharedSettings));
     if (ids.length === 0) return [];
     try {
       await this.refreshProviderUsage({ providerIds: ids });
@@ -403,7 +433,8 @@ export class UsageService {
     await this.refreshDueProviders();
     // Keep the loop alive even when auto-refresh is off so re-enabling (or an
     // interval change) resumes without a restart.
-    this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
+    const settings = this.readSharedSettings();
+    this.scheduleNextTick(this.nextTickDelayMs(settings.usage, this.usageProfiles(settings)));
   }
 
   private loadCache(): void {

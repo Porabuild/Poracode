@@ -31,15 +31,21 @@ export function parseCodexAuth(content: string): OAuthToken | undefined {
   };
 }
 
-function codexAuthFilePath(): string {
-  const home = process.env.CODEX_HOME?.trim();
+export interface CodexCredentialEnv {
+  CODEX_HOME?: string | undefined;
+}
+
+function codexAuthFilePath(env: CodexCredentialEnv): string {
+  const home = env.CODEX_HOME?.trim();
   return home ? join(home, "auth.json") : join(homedir(), ".codex", "auth.json");
 }
 
-export async function resolveCodexToken(): Promise<OAuthToken | undefined> {
+export async function resolveCodexToken(
+  env: CodexCredentialEnv = process.env,
+): Promise<OAuthToken | undefined> {
   // Read fresh every call — the access token is a short-lived JWT the Codex CLI
   // refreshes (~5 min); a cached Bearer would go stale and 401.
-  const path = codexAuthFilePath();
+  const path = codexAuthFilePath(env);
   if (existsSync(path)) {
     try {
       const token = parseCodexAuth(readFileSync(path, "utf8"));
@@ -48,7 +54,7 @@ export async function resolveCodexToken(): Promise<OAuthToken | undefined> {
       // fall through to the WSL fallback
     }
   }
-  if (process.platform === "win32") {
+  if (!env.CODEX_HOME?.trim() && process.platform === "win32") {
     const blob = await readCodexAuthFromWsl();
     if (blob) {
       const token = parseCodexAuth(blob);

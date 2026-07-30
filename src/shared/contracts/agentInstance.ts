@@ -24,6 +24,9 @@ export type AgentDriverKind = z.infer<typeof agentDriverKindSchema>;
 
 export const CLAUDE_PROFILE_KIND_PREFIX = "claude:";
 
+export const HOME_PROFILE_DRIVERS = ["codex", "copilot", "gemini", "grok"] as const;
+export type HomeProfileDriver = (typeof HOME_PROFILE_DRIVERS)[number];
+
 export const agentInstanceIdSchema = z
   .string()
   .min(1)
@@ -157,6 +160,42 @@ export function parseClaudeProfileInstanceConfig(value: unknown): ClaudeProfileI
   return claudeProfileInstanceConfigSchema.parse(value ?? {});
 }
 
+// ─── home profile driver config ──────────────────────────────────────
+
+export const homeProfileInstanceConfigSchema = z.object({
+  /**
+   * Provider home directory selected for this profile. A leading "~/" is
+   * resolved against the target runtime environment (native home or WSL home).
+   */
+  homeDir: z.string().min(1),
+});
+export type HomeProfileInstanceConfig = z.infer<typeof homeProfileInstanceConfigSchema>;
+
+export function parseHomeProfileInstanceConfig(value: unknown): HomeProfileInstanceConfig {
+  return homeProfileInstanceConfigSchema.parse(value ?? {});
+}
+
+export function isHomeProfileDriver(driver: string): driver is HomeProfileDriver {
+  return HOME_PROFILE_DRIVERS.some((candidate) => candidate === driver);
+}
+
+export function homeProfileKind(driver: HomeProfileDriver, instanceId: string): AgentDriverKind {
+  return `${driver}:${instanceId}` as AgentDriverKind;
+}
+
+export function isHomeProfileKind(kind: string): boolean {
+  const separatorIndex = kind.indexOf(":");
+  return (
+    separatorIndex > 0 &&
+    separatorIndex < kind.length - 1 &&
+    isHomeProfileDriver(kind.slice(0, separatorIndex))
+  );
+}
+
+export function extractHomeProfileInstanceId(kind: string): string | undefined {
+  return isHomeProfileKind(kind) ? kind.slice(kind.indexOf(":") + 1) : undefined;
+}
+
 /**
  * Payload for the `setClaudeProfileEnvironment` main-local IPC. The renderer
  * sends the full desired environment (plaintext for freshly-entered values,
@@ -190,4 +229,19 @@ export function extractClaudeProfileInstanceId(kind: string): string | undefined
 export function baseAgentKind(kind: string): string {
   const separatorIndex = kind.indexOf(":");
   return separatorIndex > 0 ? kind.slice(0, separatorIndex) : kind;
+}
+
+/**
+ * Returns every registered adapter backed by the same provider binary. Profile
+ * adapters isolate account state and sessions, but share the base CLI install.
+ */
+export function agentKindsSharingBinary(kind: string, registeredKinds: Iterable<string>): string[] {
+  const profileKind = isClaudeProfileKind(kind) || isHomeProfileKind(kind);
+  const binaryKind = profileKind ? baseAgentKind(kind) : kind;
+  return [...registeredKinds].filter(
+    (candidate) =>
+      candidate === binaryKind ||
+      ((isClaudeProfileKind(candidate) || isHomeProfileKind(candidate)) &&
+        baseAgentKind(candidate) === binaryKind),
+  );
 }

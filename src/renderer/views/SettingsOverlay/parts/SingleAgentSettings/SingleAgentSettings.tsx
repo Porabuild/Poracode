@@ -13,6 +13,7 @@ import {
   baseAgentKind,
   extractAcpGenericInstanceId,
   extractClaudeProfileInstanceId,
+  extractHomeProfileInstanceId,
 } from "@/shared/contracts";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -41,7 +42,6 @@ import {
 import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
-import { ClaudeProfileProviderSettings } from "../ClaudeProfileSettings";
 import { AgentSettingRow } from "./parts/AgentSettingRow";
 import { ModelVisibilityDropdown } from "./parts/ModelVisibilityDropdown";
 import { AgentEnvironmentRow, AgentInstallEnvironmentRow } from "./parts/AgentEnvironmentRow";
@@ -61,7 +61,7 @@ export function SingleAgentSettings(props: {
   agentKind: string;
   onOpenProfile?: (profileKind: string) => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [authValues, setAuthValues] = useState<Record<string, string>>({});
   const [authPending, setAuthPending] = useState(false);
   const [authPendingMessage, setAuthPendingMessage] = useState<string | undefined>();
@@ -97,9 +97,11 @@ export function SingleAgentSettings(props: {
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
   const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
-  const claudeProfileInstanceId = extractClaudeProfileInstanceId(props.agentKind);
-  const claudeProfileInstance = useSharedSettings((s) =>
-    claudeProfileInstanceId ? s.agentInstances[claudeProfileInstanceId] : undefined,
+  const profileInstanceId =
+    extractClaudeProfileInstanceId(props.agentKind) ??
+    extractHomeProfileInstanceId(props.agentKind);
+  const profileInstance = useSharedSettings((s) =>
+    profileInstanceId ? s.agentInstances[profileInstanceId] : undefined,
   );
   const installedHere = agentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
   const installedWsl = wslAgentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
@@ -108,7 +110,7 @@ export function SingleAgentSettings(props: {
     (entry) => entry.id === props.agentKind,
   );
   // Provider-specific settings UI resolves by base kind so instance-scoped
-  // kinds (Claude profiles "claude:<id>") render their provider's panel.
+  // profile kinds render their provider's panel.
   const providerEntry = NATIVE_AGENT_REGISTRY_ENTRIES.find(
     (entry) => entry.id === baseAgentKind(props.agentKind),
   );
@@ -212,13 +214,25 @@ export function SingleAgentSettings(props: {
   }, [accountResolver, wslProjectDistrosKey]);
 
   if (!agent) {
-    if (claudeProfileInstanceId && claudeProfileInstance?.driver === "claude") {
+    if (
+      profileInstanceId &&
+      profileInstance?.driver === baseAgentKind(props.agentKind) &&
+      providerEntry?.settingsPanel
+    ) {
+      const providerName = providerEntry.profileProviderName
+        ? i18n._(providerEntry.profileProviderName)
+        : baseAgentKind(props.agentKind);
       return (
         <SettingsPage
-          title={`Claude ${claudeProfileInstance.displayName ?? claudeProfileInstance.id}`}
+          title={`${providerName} ${profileInstance.displayName ?? profileInstance.id}`}
           bodyClassName=""
         >
-          <ClaudeProfileProviderSettings instanceId={claudeProfileInstanceId} />
+          <providerEntry.settingsPanel
+            agentKind={props.agentKind}
+            statuses={[]}
+            wslDistros={wslDistros}
+            onOpenProfile={props.onOpenProfile}
+          />
         </SettingsPage>
       );
     }
@@ -681,7 +695,7 @@ export function SingleAgentSettings(props: {
             <ProviderIcon
               kind={agent.kind}
               icon={agent.icon}
-              fallbackLabel={agent.label}
+              fallbackLabel={profileInstance?.displayName ?? agent.label}
               className="size-8"
             />
             <div className="flex flex-col">

@@ -1,8 +1,13 @@
 import { EventEmitter } from "node:events";
+import { mkdtempSync, rmSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { join, resolve as resolvePath } from "node:path";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildCodexAppServerCommand,
   createCodexAdapter,
+  createCodexProfileAdapter,
   deriveCodexStructuredState,
   detectCodexReadyForInitialPrompt,
   detectCodexUpdatePrompt,
@@ -16,7 +21,12 @@ import {
 import { CodexStructuredSession } from "./acp";
 import type { CodexAppServerRpcListener } from "./appServerRpc";
 import type { OscNotification, OscTitle } from "@/shared/osc";
-import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
+import type {
+  ProjectLocation,
+  RuntimeEvent,
+  ThreadConfig,
+  ToolCallPayload,
+} from "@/shared/contracts";
 import { codexIntentFor } from "./plugin/intentMap";
 import {
   mapCodexModels,
@@ -29,6 +39,101 @@ import { buildCodexTurnInput } from "./acpTurn";
 import { CodexStdioTransport } from "./stdioTransport";
 import { CodexSubAgentRouter } from "./subAgentRouting";
 import type { StructuredSessionUpdate } from "../base";
+import { resolveCodexHomeForLocation } from "./profile";
+
+describe("createCodexProfileAdapter", () => {
+  it("scopes launch, logout, one-shot, and skills to the selected CODEX_HOME", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "poracode-codex-profile-"));
+    const location: ProjectLocation = { kind: "posix", path: homeDir };
+    const config: ThreadConfig = {
+      model: "gpt-5.4",
+      effort: "high",
+      mode: "agent",
+      approvalPolicy: "on-request",
+      sandboxMode: "workspace-write",
+    };
+
+    try {
+      const adapter = createCodexProfileAdapter({
+        id: "work",
+        driver: "codex",
+        displayName: "Work",
+        config: { homeDir },
+      });
+
+      expect(adapter.kind).toBe("codex:work");
+      expect(adapter.label).toBe("Codex Work");
+      expect(adapter.skillSupport?.roots[0]?.globalBasePath).toBe(homeDir);
+      expect(adapter.buildLaunchArgv(location, config, "hello").env).toEqual({
+        CODEX_HOME: homeDir,
+        OPENAI_API_KEY: "",
+        CODEX_API_KEY: "",
+        CODEX_ACCESS_TOKEN: "",
+      });
+      expect(adapter.buildOneShotCommand?.("gpt-5.4", "high", undefined, location)?.env).toEqual({
+        CODEX_HOME: homeDir,
+        OPENAI_API_KEY: "",
+        CODEX_API_KEY: "",
+        CODEX_ACCESS_TOKEN: "",
+      });
+      await expect(adapter.buildAcpLogoutCommand?.({ envKind: "posix" })).resolves.toMatchObject({
+        env: {
+          CODEX_HOME: homeDir,
+          OPENAI_API_KEY: "",
+          CODEX_API_KEY: "",
+          CODEX_ACCESS_TOKEN: "",
+        },
+      });
+      const hookExtras = await adapter.pluginLaunchExtras?.({ envKind: "posix", baseDir: homeDir });
+      expect(hookExtras?.env).toBeUndefined();
+      expect(hookExtras?.args).toHaveLength(2);
+      expect(hookExtras?.args).not.toContain("-c");
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves relative profile homes against the target user home", () => {
+    expect(
+      resolveCodexHomeForLocation("profiles/work", {
+        kind: "posix",
+        path: "/tmp/project",
+      }),
+    ).toBe(resolvePath(homedir(), "profiles/work"));
+  });
+
+  it("preserves profile auth isolation in native and WSL app-server commands", () => {
+    const env = {
+      CODEX_HOME: "/home/demo/.poracode/codex-profiles/work",
+      OPENAI_API_KEY: "",
+      CODEX_API_KEY: "",
+      CODEX_ACCESS_TOKEN: "",
+    };
+    const native = buildCodexAppServerCommand(
+      { kind: "posix", path: "/home/demo/project" },
+      { env },
+    );
+    const wsl = buildCodexAppServerCommand(
+      {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/demo/project",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+      },
+      { env, wslExecPath: "/usr/bin/codex" },
+    );
+
+    expect(native.env).toEqual(env);
+    expect(wsl.args).toEqual(
+      expect.arrayContaining([
+        `CODEX_HOME=${env.CODEX_HOME}`,
+        "OPENAI_API_KEY=",
+        "CODEX_API_KEY=",
+        "CODEX_ACCESS_TOKEN=",
+      ]),
+    );
+  });
+});
 
 describe("deriveCodexStructuredState", () => {
   it("maps active approval state to needs_approval", () => {

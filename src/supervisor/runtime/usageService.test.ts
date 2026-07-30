@@ -28,6 +28,14 @@ const CLAUDE_BODY = JSON.stringify({
   seven_day: { utilization: 0.1 },
 });
 
+const CODEX_BODY = JSON.stringify({
+  plan_type: "plus",
+  rate_limit: {
+    primary_window: { used_percent: 30, window_minutes: 300 },
+    secondary_window: { used_percent: 10, window_minutes: 10_080 },
+  },
+});
+
 function makeHost(tokens: Record<string, OAuthToken | undefined>): HostPort {
   return {
     now: () => NOW,
@@ -351,6 +359,67 @@ describe("UsageService", () => {
       plan: "Team Subscription",
     });
     expect(result.snapshots[0]?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
+  });
+
+  it("collects Codex profile usage from the isolated profile home", async () => {
+    const profileDir = join(tmpdir(), `poracode-usage-codex-profile-${process.pid}`);
+    cachePaths.push(profileDir);
+    mkdirSync(profileDir, { recursive: true });
+    writeFileSync(
+      join(profileDir, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "profile-token", account_id: "profile-account" } }),
+      "utf8",
+    );
+
+    const settingsPath = tempCachePath();
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        agentInstances: {
+          work: {
+            id: "work",
+            driver: "codex",
+            displayName: "Work",
+            config: { homeDir: profileDir },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    let authorization: string | undefined;
+    let accountId: string | undefined;
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: () => Promise.resolve(undefined),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: (request) => {
+          authorization = request.headers?.Authorization;
+          accountId = request.headers?.["ChatGPT-Account-Id"];
+          return Promise.resolve({ status: 200, headers: {}, body: CODEX_BODY });
+        },
+      },
+    };
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      settingsPath,
+      host,
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.refreshProviderUsage({ providerIds: ["codex:work"] });
+
+    expect(authorization).toBe("Bearer profile-token");
+    expect(accountId).toBe("profile-account");
+    expect(result.snapshots[0]).toMatchObject({
+      providerId: "codex:work",
+      status: "ok",
+      plan: "ChatGPT Plus",
+    });
   });
 
   it("does not re-poll a rate-limited provider until its Retry-After backoff clears", async () => {

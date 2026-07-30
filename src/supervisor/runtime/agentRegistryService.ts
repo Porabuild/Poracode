@@ -17,7 +17,11 @@ import type {
   ResolveAgentAccountResult,
   RemoveAcpRegistryAgentPayload,
 } from "@/shared/contracts";
-import { acpGenericKind, extractAcpGenericInstanceId } from "@/shared/contracts";
+import {
+  acpGenericKind,
+  agentKindsSharingBinary,
+  extractAcpGenericInstanceId,
+} from "@/shared/contracts";
 import { verifyAcpGenericAuthentication } from "../agents/acp-generic";
 import {
   dispatchAcpAuthenticate,
@@ -135,16 +139,23 @@ export class AgentRegistryService {
     }
   }
 
-  private async refreshAffectedAgentStatus(agentKind: string): Promise<void> {
+  private async refreshAffectedAgentStatuses(agentKinds: readonly string[]): Promise<void> {
     try {
       const wslDistros = await this.agentStatusService.listWslDistros();
       await this.agentStatusService.refreshAgentStatuses({
         wslDistros,
-        scope: { agentKinds: [agentKind] },
+        scope: { agentKinds: [...agentKinds] },
       });
     } catch (error) {
-      console.warn(`[supervisor] refreshAffectedAgentStatus failed for ${agentKind}`, error);
+      console.warn(
+        `[supervisor] refreshAffectedAgentStatuses failed for ${agentKinds.join(", ")}`,
+        error,
+      );
     }
+  }
+
+  private refreshAffectedAgentStatus(agentKind: string): Promise<void> {
+    return this.refreshAffectedAgentStatuses([agentKind]);
   }
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
@@ -248,7 +259,9 @@ export class AgentRegistryService {
       // the new binary can land at a different prefix and the cached entry
       // would resolve to a stale shim.
       clearAgentBinaryPathCache();
-      await this.refreshAffectedAgentStatus(payload.agentKind);
+      await this.refreshAffectedAgentStatuses(
+        agentKindsSharingBinary(payload.agentKind, this.deps.adapters.keys()),
+      );
     }
     return result;
   }

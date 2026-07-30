@@ -1,48 +1,39 @@
 import { execFileSync } from "node:child_process";
-import {
-  copyFileSync as fsCopyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
-import { buildAgentCommand, execInWsl, quotePosixShellArg } from "../../base";
+import { buildAgentCommand, resolveWslHomeDirectoryAsync } from "../../base";
 import { resolveAgentBinaryPath } from "../../binaryResolver";
 import {
   FORWARD_RUNTIME_FILE,
   buildNativeHookCommandHeads,
+  buildWslHookCommandHead,
   copyForwardRuntimeFile,
   copyPluginAssetsIfStale,
   createPluginSourceResolver,
-  ctxCacheKey,
-  ensureNativeStateLink,
+  getNativeHookWrapperFilename,
   getNativePluginBaseDir,
   getWslPluginBaseDirs,
   hasNativeHookWrapper,
   isWslPluginContext,
-  memoByCtx,
   parseExistingHooksJson,
   readBundledPluginVersion,
   readPluginManifest,
-  removeStagedPluginDir,
   stagePluginAssetsToWsl,
   writeHooksJsonFile,
   writeNativeHookWrapper,
   type PluginManifest,
 } from "../../plugin/installerBase";
+import { resolveCodexHomeFromBase } from "../profile";
 import { resolveCodexNativeExecutableForWindows } from "../windowsExecutable";
 
 export interface CodexPluginPaths {
   pluginDir: string;
-  /** Private CODEX_HOME used only for Codex processes spawned by Poracode. */
-  codexHomeDir: string;
-  /** Path to hooks.json inside the private CODEX_HOME. */
-  codexHooksPath: string;
+  forwardPath: string;
+  nativeWrapperPath?: string;
   version: string;
 }
 
@@ -55,12 +46,6 @@ const CODEX_HOOK_EVENTS = [
   "Stop",
 ] as const;
 
-/**
- * Match any Poracode-staged Codex hook command in hooks.json. Covers both
- * the WSL shape (where `forward.mjs` is invoked directly via an absolute
- * node path) and the native shape (where `poracode-hook.{sh,cmd,ps1}` is the
- * entry point).
- */
 const PORACODE_FORWARD_RE =
   /agent-plugins(?:[/\\]+)codex(?:[/\\]+)(?:forward\.mjs|poracode-hook\.(?:sh|cmd|ps1))/;
 const MANAGED_FORWARD_RE =
@@ -85,9 +70,8 @@ function computeCodexPluginPaths(ctx?: AgentEnvContext): CodexPluginPaths {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "codex");
     if (!wsl) {
-      return { pluginDir: "", codexHomeDir: "", codexHooksPath: "", version: "0.0.0" };
+      return { pluginDir: "", forwardPath: "", version: "0.0.0" };
     }
-    const linuxCodexHome = `${wsl.linuxBase}/home`;
     let version = "0.0.0";
     try {
       version = readPluginManifest(wsl.uncBase).version;
@@ -96,13 +80,11 @@ function computeCodexPluginPaths(ctx?: AgentEnvContext): CodexPluginPaths {
     }
     return {
       pluginDir: wsl.linuxBase,
-      codexHomeDir: linuxCodexHome,
-      codexHooksPath: `${linuxCodexHome}/hooks.json`,
+      forwardPath: `${wsl.linuxBase}/forward.mjs`,
       version,
     };
   }
   const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
-  const codexHomeDir = join(pluginDir, "home");
   let version = "0.0.0";
   try {
     version = readPluginManifest(pluginDir).version;
@@ -111,147 +93,145 @@ function computeCodexPluginPaths(ctx?: AgentEnvContext): CodexPluginPaths {
   }
   return {
     pluginDir,
-    codexHomeDir,
-    codexHooksPath: join(codexHomeDir, "hooks.json"),
+    forwardPath: join(pluginDir, "forward.mjs"),
+    nativeWrapperPath: join(pluginDir, getNativeHookWrapperFilename()),
     version,
   };
 }
 
-const codexPluginPathsMemo = memoByCtx(computeCodexPluginPaths, ctxCacheKey);
-
 export function getCodexPluginPaths(ctx?: AgentEnvContext): CodexPluginPaths {
-  return codexPluginPathsMemo.call(ctx);
+  return computeCodexPluginPaths(ctx);
 }
 
-function prunePoracodeGroups(groups: unknown): unknown[] {
+function recordOrEmpty(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...(value as Record<string, unknown>) }
+    : {};
+}
+
+function pruneManagedHookGroups(groups: unknown): unknown[] {
   if (!Array.isArray(groups)) return [];
-  return groups.filter((g) => {
-    if (!g || typeof g !== "object") return true;
-    const rec = g as { hooks?: unknown };
-    const hooks = rec.hooks;
-    if (!Array.isArray(hooks)) return true;
-    return !hooks.some((h) => {
-      if (!h || typeof h !== "object") return false;
-      const cmd = (h as { type?: string; command?: string }).command;
-      return typeof cmd === "string" && MANAGED_FORWARD_RE.test(cmd);
+  return groups.flatMap((group) => {
+    if (!group || typeof group !== "object" || Array.isArray(group)) return [group];
+    const hooks = (group as { hooks?: unknown }).hooks;
+    if (!Array.isArray(hooks)) return [group];
+    const retained = hooks.filter((hook) => {
+      if (!hook || typeof hook !== "object") return true;
+      const command = (hook as { command?: unknown }).command;
+      return typeof command !== "string" || !MANAGED_FORWARD_RE.test(command);
     });
+    if (retained.length === hooks.length) return [group];
+    return retained.length > 0 ? [{ ...(group as Record<string, unknown>), hooks: retained }] : [];
   });
 }
 
-function commandForEvent(commandHead: string, event: string): string {
-  return `${commandHead} ${event}`;
+function buildPoracodeHookGroup(event: string, commandHead: string): Record<string, unknown> {
+  const hook = { type: "command", command: `${commandHead} ${event}` };
+  return event === "SessionStart" || event === "PreToolUse" || event === "PostToolUse"
+    ? { matcher: "*", hooks: [hook] }
+    : { hooks: [hook] };
 }
 
-function buildPoracodeGroup(event: string, commandHead: string): Record<string, unknown> {
-  const command = commandForEvent(commandHead, event);
-  const hook = { type: "command", command };
-  if (event === "SessionStart" || event === "PreToolUse" || event === "PostToolUse") {
-    return { matcher: "*", hooks: [hook] };
-  }
-  return { hooks: [hook] };
+export interface CodexHooksDocument extends Record<string, unknown> {
+  hooks: Record<string, unknown[]>;
 }
 
-/**
- * Merge Poracode Codex hook matcher groups into a parsed `hooks.json`
- * document. `commandHead` is the entire pre-event portion of each hook
- * command — for WSL it's `"<absolute-node-path>" "<forward.mjs-path>"`;
- * for native it's just `"<wrapper-path>"`. Exported for unit tests.
- */
 export function mergeCodexHooksDocument(
   existingParsed: unknown,
   commandHead: string,
-): { hooks: Record<string, unknown[]> } {
-  let hooksRoot: Record<string, unknown> = {};
-  if (
-    existingParsed &&
-    typeof existingParsed === "object" &&
-    "hooks" in existingParsed &&
-    (existingParsed as { hooks: unknown }).hooks &&
-    typeof (existingParsed as { hooks: unknown }).hooks === "object"
-  ) {
-    hooksRoot = { ...(existingParsed as { hooks: Record<string, unknown> }).hooks };
-  }
-
+): CodexHooksDocument {
+  const document = recordOrEmpty(existingParsed);
+  const hooksRoot = recordOrEmpty(document.hooks);
   for (const event of CODEX_HOOK_EVENTS) {
-    const prev = hooksRoot[event];
-    const pruned = prunePoracodeGroups(prev);
-    pruned.push(buildPoracodeGroup(event, commandHead));
-    hooksRoot[event] = pruned;
-  }
-
-  return { hooks: hooksRoot as Record<string, unknown[]> };
-}
-
-const CODEX_LINK_TARGETS = [
-  { name: "sessions", kind: "dir" as const },
-  { name: "session_index.jsonl", kind: "file" as const },
-  { name: "auth.json", kind: "file" as const },
-  { name: "config.toml", kind: "file" as const },
-];
-
-function seedNativeCodexHome(codexHomeDir: string): void {
-  mkdirSync(codexHomeDir, { recursive: true });
-  const globalCodexHome = join(homedir(), ".codex");
-  mkdirSync(join(globalCodexHome, "sessions"), { recursive: true });
-  if (!existsSync(join(globalCodexHome, "session_index.jsonl"))) {
-    writeFileSync(join(globalCodexHome, "session_index.jsonl"), "", { flag: "a" });
-  }
-  restorePrivateStateFile(codexHomeDir, globalCodexHome, "auth.json");
-  restorePrivateStateFile(codexHomeDir, globalCodexHome, "config.toml");
-
-  for (const { name, kind } of CODEX_LINK_TARGETS) {
-    ensureNativeStateLink(join(globalCodexHome, name), join(codexHomeDir, name), kind);
-  }
-}
-
-function restorePrivateStateFile(
-  codexHomeDir: string,
-  globalCodexHome: string,
-  file: "auth.json" | "config.toml",
-): void {
-  const source = join(codexHomeDir, file);
-  const target = join(globalCodexHome, file);
-  if (existsSync(target) || !existsSync(source)) return;
-  try {
-    fsCopyFileSync(source, target);
-  } catch {
-    // Best-effort recovery for Windows when file symlinks were unavailable.
-  }
-}
-
-async function seedWslCodexHome(
-  distro: string,
-  home: string,
-  linuxCodexHome: string,
-): Promise<void> {
-  const uncCodexHome = toWslUncPath(distro, linuxCodexHome);
-  mkdirSync(uncCodexHome, { recursive: true });
-  const globalCodexHome = `${home}/.codex`;
-  const linkExists = (path: string) =>
-    `[ -e ${quotePosixShellArg(path)} ] || [ -L ${quotePosixShellArg(path)} ]`;
-  // ln -s can fail on Windows-mounted filesystems (9p / DrvFs). For files,
-  // fall back to hardlink, then copy. Dirs only get the symlink attempt.
-  const linkLine = (name: string, kind: "dir" | "file") => {
-    const target = quotePosixShellArg(`${linuxCodexHome}/${name}`);
-    const source = quotePosixShellArg(`${globalCodexHome}/${name}`);
-    const attempts = [
-      linkExists(`${linuxCodexHome}/${name}`),
-      `ln -s ${source} ${target}`,
-      ...(kind === "file" ? [`ln ${source} ${target}`, `cp ${source} ${target}`] : []),
+    hooksRoot[event] = [
+      ...pruneManagedHookGroups(hooksRoot[event]),
+      buildPoracodeHookGroup(event, commandHead),
     ];
-    return attempts.join(" || ");
-  };
-  const script = [
-    [
-      "mkdir -p",
-      quotePosixShellArg(linuxCodexHome),
-      quotePosixShellArg(`${globalCodexHome}/sessions`),
-    ].join(" "),
-    `touch ${quotePosixShellArg(`${globalCodexHome}/session_index.jsonl`)}`,
-    ...CODEX_LINK_TARGETS.map(({ name, kind }) => linkLine(name, kind)),
-  ].join("\n");
-  await execInWsl(distro, "/", "sh", ["-lc", script], { timeout: 15_000 }).catch((error) => {
-    console.warn(`[codex] WSL plugin install failed for distro ${distro}:`, error);
+  }
+  return { ...document, hooks: hooksRoot as Record<string, unknown[]> };
+}
+
+export function removeManagedCodexHooksDocument(existingParsed: unknown): CodexHooksDocument {
+  const document = recordOrEmpty(existingParsed);
+  const hooksRoot = recordOrEmpty(document.hooks);
+  for (const event of CODEX_HOOK_EVENTS) {
+    if (!Array.isArray(hooksRoot[event])) continue;
+    const retained = pruneManagedHookGroups(hooksRoot[event]);
+    if (retained.length > 0) hooksRoot[event] = retained;
+    else delete hooksRoot[event];
+  }
+  return { ...document, hooks: hooksRoot as Record<string, unknown[]> };
+}
+
+interface ResolvedCodexHome {
+  runtimePath: string;
+  readablePath: string;
+}
+
+function resolveNativeCodexHome(rawHomeDir?: string): ResolvedCodexHome {
+  const nativeHome = homedir();
+  const configuredHome = rawHomeDir ?? (process.env.CODEX_HOME?.trim() || undefined);
+  const runtimePath = resolveCodexHomeFromBase(configuredHome, nativeHome, "native");
+  return { runtimePath, readablePath: runtimePath };
+}
+
+function resolveWslCodexHome(
+  distro: string,
+  wslHome: string,
+  rawHomeDir?: string,
+): ResolvedCodexHome {
+  const runtimePath = resolveCodexHomeFromBase(rawHomeDir, wslHome, "posix");
+  return { runtimePath, readablePath: toWslUncPath(distro, runtimePath) };
+}
+
+async function resolveCodexHome(
+  ctx: AgentEnvContext | undefined,
+  rawHomeDir?: string,
+  knownWslHome?: string,
+): Promise<ResolvedCodexHome> {
+  if (!isWslPluginContext(ctx)) return resolveNativeCodexHome(rawHomeDir);
+  const wslHome = knownWslHome ?? (await resolveWslHomeDirectoryAsync(ctx.wslDistro));
+  if (!wslHome) {
+    throw new Error(`Unable to resolve the WSL home directory for ${ctx.wslDistro}.`);
+  }
+  return resolveWslCodexHome(ctx.wslDistro, wslHome, rawHomeDir);
+}
+
+export async function resolveCodexHooksPath(
+  ctx?: AgentEnvContext,
+  profileHomeDir?: string,
+): Promise<string> {
+  const home = await resolveCodexHome(ctx, profileHomeDir);
+  return join(home.readablePath, "hooks.json");
+}
+
+function parseHooksDocument(hooksPath: string): unknown {
+  const existing = parseExistingHooksJson(hooksPath);
+  if (existing === null && existsSync(hooksPath)) {
+    throw new Error(`Malformed Codex hooks file: ${hooksPath}`);
+  }
+  return existing;
+}
+
+function hasManagedHookForEveryEvent(existingParsed: unknown): boolean {
+  const hooksRoot = recordOrEmpty(recordOrEmpty(existingParsed).hooks);
+  return CODEX_HOOK_EVENTS.every((event) => {
+    const groups = hooksRoot[event];
+    return (
+      Array.isArray(groups) &&
+      groups.some((group) => {
+        if (!group || typeof group !== "object") return false;
+        const hooks = (group as { hooks?: unknown }).hooks;
+        return (
+          Array.isArray(hooks) &&
+          hooks.some((hook) => {
+            if (!hook || typeof hook !== "object") return false;
+            const command = (hook as { command?: unknown }).command;
+            return typeof command === "string" && PORACODE_FORWARD_RE.test(command);
+          })
+        );
+      })
+    );
   });
 }
 
@@ -333,6 +313,8 @@ export interface InstallCodexPluginOptions {
    *   `ELECTRON_RUN_AS_NODE=1` against the bundled Electron binary.
    */
   resolvedNodePath?: string | undefined;
+  /** Selected profile home. Omit for the base Codex home. */
+  profileHomeDir?: string | undefined;
 }
 
 export async function installCodexPlugin(
@@ -361,109 +343,81 @@ export async function installCodexPlugin(
           "WSL Codex plugin install requires a resolved node path; the adapter must call resolveNodeForDistro before installing.",
       };
     }
-    return installCodexPluginWsl(ctx.wslDistro, sourceDir, manifest, options.resolvedNodePath);
+    return installCodexPluginWsl(
+      ctx,
+      sourceDir,
+      manifest,
+      options.resolvedNodePath,
+      options.profileHomeDir,
+    );
   }
 
-  const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
-  const codexHomeDir = join(pluginDir, "home");
+  const paths = getCodexPluginPaths(ctx);
+  const { pluginDir } = paths;
   mkdirSync(pluginDir, { recursive: true });
-  seedNativeCodexHome(codexHomeDir);
   copyPluginAssetsIfStale(sourceDir, pluginDir);
   copyForwardRuntimeFile(pluginDir);
   const wrapperPath = writeNativeHookWrapper(pluginDir, {
     ...(options?.resolvedNodePath ? { nodePath: options.resolvedNodePath } : {}),
   });
 
-  const hooksPath = join(codexHomeDir, "hooks.json");
-  const existing = parseExistingHooksJson(hooksPath);
-  if (existing === null && existsSync(hooksPath)) {
-    return { ok: false, reason: "malformed private Codex hooks.json (invalid JSON)" };
-  }
-
-  // Native command shape: `<wrapper-command-head> <event>`. The wrapper sets
-  // ELECTRON_RUN_AS_NODE=1 and execs the bundled Electron Node on
-  // forward.mjs (which lives next to the wrapper).
-  const commandHead = buildNativeHookCommandHeads(wrapperPath).command;
-
   try {
-    const merged = mergeCodexHooksDocument(existing, commandHead);
+    const home = await resolveCodexHome(ctx, options?.profileHomeDir);
+    const hooksPath = join(home.readablePath, "hooks.json");
+    const merged = mergeCodexHooksDocument(
+      parseHooksDocument(hooksPath),
+      buildNativeHookCommandHeads(wrapperPath).command,
+    );
     writeHooksJsonFile(hooksPath, merged);
   } catch (error) {
-    return {
-      ok: false,
-      reason: `failed to write private Codex hooks.json: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    };
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) };
   }
 
   console.log(
     [
       `[supervisor] Codex hook plugin staged v${manifest.version}`,
       `  pluginDir: ${pluginDir}`,
-      `  CODEX_HOME: ${codexHomeDir}`,
     ].join("\n"),
   );
 
   return {
     ok: true,
     version: manifest.version,
-    paths: {
-      pluginDir,
-      codexHomeDir,
-      codexHooksPath: hooksPath,
-      version: manifest.version,
-    },
+    paths: { ...paths, version: manifest.version },
   };
 }
 
 async function installCodexPluginWsl(
-  distro: string,
+  ctx: AgentEnvContext & { envKind: "wsl"; wslDistro: string },
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
+  profileHomeDir?: string,
 ): Promise<{ ok: true; paths: CodexPluginPaths; version: string } | { ok: false; reason: string }> {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "codex", {
+  const staged = stagePluginAssetsToWsl(ctx.wslDistro, sourceDir, "codex", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
 
-  const linuxForward = `${staged.linuxPluginDir}/forward.mjs`;
-  const linuxCodexHome = `${staged.linuxPluginDir}/home`;
-  await seedWslCodexHome(distro, staged.deploy.home, linuxCodexHome);
-  const linuxHooksPath = `${linuxCodexHome}/hooks.json`;
-  const uncHooks = toWslUncPath(distro, linuxHooksPath);
-
-  const existing = parseExistingHooksJson(uncHooks);
-  if (existing === null && existsSync(uncHooks)) {
-    return {
-      ok: false,
-      reason: `malformed private Codex hooks.json in wsl distro ${distro}`,
-    };
-  }
-
-  // WSL command shape: `"<absolute-node-path>" "<forward.mjs-path>" <event>`.
-  // /bin/sh -c never has to resolve `node` from PATH because both are
-  // absolute paths.
-  const commandHead = `${JSON.stringify(resolvedNodePath)} ${JSON.stringify(linuxForward)}`;
-
   try {
-    const merged = mergeCodexHooksDocument(existing, commandHead);
-    writeHooksJsonFile(uncHooks, merged);
+    const home = await resolveCodexHome(ctx, profileHomeDir, staged.deploy.home);
+    const hooksPath = join(home.readablePath, "hooks.json");
+    const commandHead = buildWslHookCommandHead(
+      resolvedNodePath,
+      `${staged.linuxPluginDir}/forward.mjs`,
+    );
+    writeHooksJsonFile(
+      hooksPath,
+      mergeCodexHooksDocument(parseHooksDocument(hooksPath), commandHead),
+    );
   } catch (error) {
-    return {
-      ok: false,
-      reason: `failed to write hooks.json in wsl distro ${distro}: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    };
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) };
   }
 
   console.log(
     [
-      `[supervisor] Codex hook plugin staged v${manifest.version} (wsl:${distro})`,
+      `[supervisor] Codex hook plugin staged v${manifest.version} (wsl:${ctx.wslDistro})`,
       `  pluginDir: ${staged.linuxPluginDir}`,
-      `  CODEX_HOME: ${linuxCodexHome}`,
     ].join("\n"),
   );
 
@@ -472,63 +426,50 @@ async function installCodexPluginWsl(
     version: manifest.version,
     paths: {
       pluginDir: staged.linuxPluginDir,
-      codexHomeDir: linuxCodexHome,
-      codexHooksPath: linuxHooksPath,
+      forwardPath: `${staged.linuxPluginDir}/forward.mjs`,
       version: manifest.version,
     },
   };
 }
 
-export function isCodexPluginInstalled(
+export async function isCodexPluginInstalled(
   ctx?: AgentEnvContext,
+  profileHomeDir?: string,
 ): Promise<{ installed: boolean; version?: string }> {
+  let hooksPath: string;
+  try {
+    hooksPath = await resolveCodexHooksPath(ctx, profileHomeDir);
+  } catch {
+    return { installed: false };
+  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "codex");
-    if (!wsl) return Promise.resolve({ installed: false });
-    return Promise.resolve(verifyCodexInstallAt(wsl.uncBase, "wsl"));
+    if (!wsl) return { installed: false };
+    return verifyCodexInstallAt(wsl.uncBase, hooksPath, "wsl");
   }
-  return Promise.resolve(
-    verifyCodexInstallAt(getNativePluginBaseDir("codex", ctx?.baseDir), "native"),
-  );
+  return verifyCodexInstallAt(getNativePluginBaseDir("codex", ctx?.baseDir), hooksPath, "native");
 }
 
-export function uninstallCodexPlugin(ctx?: AgentEnvContext): void {
-  removeStagedPluginDir("codex", ctx);
+export async function uninstallCodexPlugin(
+  ctx?: AgentEnvContext,
+  profileHomeDir?: string,
+): Promise<void> {
+  const hooksPath = await resolveCodexHooksPath(ctx, profileHomeDir);
+  if (!existsSync(hooksPath)) return;
+  writeHooksJsonFile(hooksPath, removeManagedCodexHooksDocument(parseHooksDocument(hooksPath)));
 }
 
 function verifyCodexInstallAt(
   readableDir: string,
+  hooksPath: string,
   target: "native" | "wsl",
 ): { installed: boolean; version?: string } {
-  const hooksPath = join(readableDir, "home", "hooks.json");
   if (!existsSync(join(readableDir, "plugin.json"))) return { installed: false };
   if (!existsSync(join(readableDir, "forward.mjs"))) return { installed: false };
   if (!existsSync(join(readableDir, FORWARD_RUNTIME_FILE))) return { installed: false };
   if (!hasNativeHookWrapper(readableDir, target)) return { installed: false };
-  if (!existsSync(hooksPath)) return { installed: false };
+  if (!hasManagedHookForEveryEvent(parseExistingHooksJson(hooksPath))) return { installed: false };
   try {
-    const raw = readFileSync(hooksPath, "utf8");
-    const doc = JSON.parse(raw) as { hooks?: Record<string, unknown> };
-    if (!doc.hooks) return { installed: false };
-    let found = false;
-    for (const event of CODEX_HOOK_EVENTS) {
-      const groups = doc.hooks[event];
-      if (!Array.isArray(groups)) continue;
-      for (const g of groups) {
-        if (!g || typeof g !== "object") continue;
-        const hooks = (g as { hooks?: unknown }).hooks;
-        if (!Array.isArray(hooks)) continue;
-        for (const h of hooks) {
-          if (!h || typeof h !== "object") continue;
-          const cmd = (h as { command?: string }).command;
-          if (typeof cmd === "string" && PORACODE_FORWARD_RE.test(cmd)) {
-            found = true;
-            break;
-          }
-        }
-      }
-    }
-    if (!found) return { installed: false };
     const version = readPluginManifest(readableDir).version;
     return { installed: true, version };
   } catch {

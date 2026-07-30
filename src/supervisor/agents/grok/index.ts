@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { PromptSegment } from "@/shared/contracts";
+import type { AgentInstanceConfig, ProjectLocation, PromptSegment } from "@/shared/contracts";
+import { homeProfileKind, parseHomeProfileInstanceConfig } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
@@ -11,8 +12,10 @@ import {
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
+  type DetectionSpec,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
+import { withTerminalAuthEnv } from "../homeProfile";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildGrokAcpArgs, buildGrokArgs } from "./argv";
 import { buildGrokCommand, grokDefaultCapabilities, grokDetectionSpec } from "./detection";
@@ -23,11 +26,17 @@ import {
   uninstallGrokPlugin,
 } from "./plugin/install";
 import {
+  createGrokSessionTracker,
   makeGrokDiscoverSessionRef,
   makeGrokWatchSessionRef,
   resolveGrokSessionArg,
   snapshotGrokPreSpawnSessions,
 } from "./sessionFiles";
+import {
+  grokProfileEnvForLocation,
+  resolveGrokHomeForLocation,
+  resolveGrokInstanceEnv,
+} from "./profile";
 
 const GROK_PLUGIN_VERSION = readBundledGrokPluginVersion();
 
@@ -39,20 +48,51 @@ warnIfPluginManifestMissing("grok", GROK_PLUGIN_VERSION);
 // Modes/permissions: https://docs.x.ai/build/modes-and-commands
 // Enterprise auth:   https://docs.x.ai/build/enterprise
 
-export function createGrokAdapter(): AgentAdapter {
+interface GrokAdapterOptions {
+  kind?: string;
+  label?: string;
+  homeDir?: string;
+  customEnv?: Record<string, string>;
+}
+
+export function createGrokProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const config = parseHomeProfileInstanceConfig(instance.config);
+  const customEnv = resolveGrokInstanceEnv(instance.environment);
+  return createGrokAdapter({
+    kind: homeProfileKind("grok", instance.id),
+    label: `Grok Build ${instance.displayName ?? instance.id}`,
+    homeDir: config.homeDir,
+    ...(customEnv ? { customEnv } : {}),
+  });
+}
+
+export function createGrokAdapter(options: GrokAdapterOptions = {}): AgentAdapter {
   let capabilities = grokDefaultCapabilities;
+  const kind = options.kind ?? grokDetectionSpec.kind;
+  const label = options.label ?? grokDetectionSpec.label;
+  const profileEnv = (location: ProjectLocation) =>
+    grokProfileEnvForLocation(options.homeDir, options.customEnv, location);
+  const profileHome = (ctx?: AgentEnvContext) =>
+    options.homeDir
+      ? resolveGrokHomeForLocation(options.homeDir, detectProbeLocation(ctx))
+      : undefined;
+  const sessionHome = options.homeDir
+    ? (location: ProjectLocation) => resolveGrokHomeForLocation(options.homeDir!, location)
+    : undefined;
+  const sessionTracker = createGrokSessionTracker();
 
   return {
-    kind: grokDetectionSpec.kind,
-    label: grokDetectionSpec.label,
+    kind,
+    label,
     binary: grokDetectionSpec.binary,
     skillSupport: {
       roots: [
         {
           id: "grok",
-          label: grokDetectionSpec.label,
+          label,
           globalPath: ".grok/skills",
           projectPath: ".grok/skills",
+          ...(options.homeDir ? { globalBasePath: options.homeDir } : {}),
           globalOverride: { env: "GROK_HOME", path: "skills" },
         },
         {
@@ -73,7 +113,7 @@ export function createGrokAdapter(): AgentAdapter {
       projectionRoots: [
         {
           id: "grok",
-          label: grokDetectionSpec.label,
+          label,
           projectPath: ".grok/skills",
         },
       ],
@@ -106,17 +146,23 @@ export function createGrokAdapter(): AgentAdapter {
       return true;
     },
     async isPluginInstalled(ctx) {
-      return isGrokPluginInstalled(ctx);
+      return isGrokPluginInstalled(ctx, profileHome(ctx));
     },
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installGrokPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const home = profileHome(ctx);
+      const result = installGrokPlugin(ctx, {
+        resolvedNodePath: node.nodePath,
+        ...(home ? { globalGrokDirOverride: home } : {}),
+      });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallGrokPlugin(ctx);
+      // Remove only this adapter's hook file. Staged assets are shared by the
+      // base adapter and every profile and are inert without that hook file.
+      uninstallGrokPlugin(ctx, profileHome(ctx), false);
     },
     // No `pluginLaunchExtras` env/args needed — Grok auto-loads
     // `~/.grok/hooks/poracode-status.json` written at install time, and
@@ -126,17 +172,44 @@ export function createGrokAdapter(): AgentAdapter {
     },
 
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, grokDetectionSpec);
+      const location = detectProbeLocation(ctx);
+      const env = profileEnv(location);
+      const spec: DetectionSpec = options.homeDir
+        ? {
+            ...grokDetectionSpec,
+            kind,
+            label,
+            ...(env ? { probeEnv: env } : {}),
+            authProbes: [
+              async () =>
+                ["GROK_API_KEY", "XAI_API_KEY"].some((name) => env?.[name]?.trim())
+                  ? "authenticated"
+                  : undefined,
+              ...(grokDetectionSpec.authProbes ?? [])
+                .slice(1)
+                .map(
+                  (probe) => (probeCtx: Parameters<typeof probe>[0]) =>
+                    probe({ ...probeCtx, ...(env ? { probeEnv: env } : {}) }),
+                ),
+            ],
+          }
+        : grokDetectionSpec;
+      const status = withTerminalAuthEnv(await detectAgentInstall(ctx, spec), env, {
+        id: "grok-terminal-login",
+        name: "Login",
+        type: "terminal",
+      });
       capabilities = status.capabilities;
       return status;
     },
 
     buildLaunchArgv(location, config, prompt, sessionRef, _launchOptions) {
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
+      const home = sessionHome?.(location);
       // Snapshot existing session dirs so discoverSessionRef can identify the
       // new UUID Grok creates if the pre-assigned `-s` id is ever ignored and
       // the PTY ends up creating its own session.
-      snapshotGrokPreSpawnSessions(location, cwd);
+      snapshotGrokPreSpawnSessions(location, cwd, home, sessionTracker);
 
       // Resolve the session ID before spawning the PTY: resume a known one
       // with `-r`, otherwise pre-assign a fresh UUID with `-s` (grok 0.2.93,
@@ -147,29 +220,33 @@ export function createGrokAdapter(): AgentAdapter {
       const known = sessionRef?.providerSessionId;
       const sessionId = known ?? randomUUID();
       const sessionArg = known
-        ? resolveGrokSessionArg(location, cwd, known)
+        ? resolveGrokSessionArg(location, cwd, known, home)
         : ({ kind: "new", sessionId } as const);
 
       const args = buildGrokArgs(config, prompt, sessionArg);
+      const env = profileEnv(location);
       // Returning the id as sessionRef lets the runtime skip post-spawn
       // discovery on the happy path (mirrors gemini/cursor).
       // discoverSessionRef stays wired up as the fallback.
       return {
         binary: "grok",
         args,
+        ...(env ? { env } : {}),
         sessionRef: createKnownSessionRef(sessionId),
       };
     },
 
     buildResumeArgv(location, config, prompt, sessionRef) {
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
+      const home = sessionHome?.(location);
       const known = sessionRef?.providerSessionId;
       const args = buildGrokArgs(
         config,
         prompt,
-        known ? resolveGrokSessionArg(location, cwd, known) : undefined,
+        known ? resolveGrokSessionArg(location, cwd, known, home) : undefined,
       );
-      return { binary: "grok", args };
+      const env = profileEnv(location);
+      return { binary: "grok", args, ...(env ? { env } : {}) };
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
@@ -178,6 +255,7 @@ export function createGrokAdapter(): AgentAdapter {
         input.projectLocation,
         [...acpArgs, "agent", "stdio"],
         resolveAgentBinaryPath(input.projectLocation, "grok"),
+        profileEnv(input.projectLocation),
       );
       return createAcpStructuredSession(command, input);
     },
@@ -188,12 +266,18 @@ export function createGrokAdapter(): AgentAdapter {
         location,
         ["agent", "stdio"],
         resolveAgentBinaryPath(location, "grok"),
+        profileEnv(location),
       );
     },
 
     async buildAcpLogoutCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
-      return buildGrokCommand(location, ["logout"], resolveAgentBinaryPath(location, "grok"));
+      return buildGrokCommand(
+        location,
+        ["logout"],
+        resolveAgentBinaryPath(location, "grok"),
+        profileEnv(location),
+      );
     },
 
     createInitialSessionRef() {
@@ -205,8 +289,8 @@ export function createGrokAdapter(): AgentAdapter {
     // stable ID). Subsequent CLI resumes then use precise `-r <id>` and the
     // Chat (ACP) + Terminal tabs share the exact same Grok session.
     initialSessionRefDiscoveryDelayMs: 1200,
-    discoverSessionRef: makeGrokDiscoverSessionRef(),
-    watchSessionRef: makeGrokWatchSessionRef(),
+    discoverSessionRef: makeGrokDiscoverSessionRef(sessionHome, sessionTracker),
+    watchSessionRef: makeGrokWatchSessionRef(sessionHome),
 
     buildDirectInput(prompt) {
       // Grok TUI may batch pasted input (especially on fresh/resumed sessions);
@@ -247,13 +331,14 @@ export function createGrokAdapter(): AgentAdapter {
     // launch/ACP bypass in argv.ts). The default is Grok's own default model —
     // fast and subscription-covered, ideal for lightweight one-shots.
     defaultOneShotModel: "grok-composer-2.5-fast",
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, location) {
       if (!prompt) return undefined;
       const args = ["-p", prompt];
       if (model) args.push("-m", model);
       if (effort) args.push("--reasoning-effort", effort);
       args.push("--always-approve");
-      return { command: "grok", args, stdin: "" };
+      const env = location ? profileEnv(location) : undefined;
+      return { command: "grok", args, stdin: "", ...(env ? { env } : {}) };
     },
   };
 }
