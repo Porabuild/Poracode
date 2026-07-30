@@ -140,6 +140,24 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     });
   });
 
+  it("round-trips the project worktree location through the projects table", () => {
+    dbUpsertProject(
+      {
+        id: "project-1",
+        name: "Test project",
+        location: { kind: "posix", path: "/tmp/project" },
+        worktreeLocation: { mode: "global", basePath: "/tmp/worktrees" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+
+    expect(dbGetProject("project-1")?.worktreeLocation).toEqual({
+      mode: "global",
+      basePath: "/tmp/worktrees",
+    });
+  });
+
   it("round-trips the project workspace through the projects table", () => {
     const project = {
       id: "project-1",
@@ -200,7 +218,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("30");
+    expect(dbGetState("schema_version")).toBe("31");
   });
 
   it("repairs safe schema drift even when the database claims the latest version", () => {
@@ -246,7 +264,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       name: string;
     }[];
     expect(columns.some((column) => column.name === "workspace_id")).toBe(true);
-    expect(dbGetState("schema_version")).toBe("30");
+    expect(dbGetState("schema_version")).toBe("31");
     expect(dbGetProject("legacy-project")).toMatchObject({
       id: "legacy-project",
       name: "Legacy project",
@@ -284,7 +302,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     closeDatabase();
     initDatabase(join(dir, "state.sqlite"));
 
-    expect(dbGetState("schema_version")).toBe("30");
+    expect(dbGetState("schema_version")).toBe("31");
     expect(dbGetThread("legacy-empty-model")?.config).toEqual({
       model: "auto",
       effort: "high",

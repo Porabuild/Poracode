@@ -23,6 +23,9 @@ export type ThreadStatusSource = z.infer<typeof threadStatusSourceSchema>;
 
 export const threadSchema = z.object({
   id: z.string().min(1),
+  /** Server-owned identity for a transient thread mirrored into a desktop client. */
+  remoteServerId: z.string().min(1).optional(),
+  remoteId: z.string().min(1).optional(),
   projectId: z.string().min(1),
   title: z.string().min(1),
   agentKind: agentKindSchema,

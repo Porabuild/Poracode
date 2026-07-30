@@ -36,6 +36,7 @@ import {
   type GitReviewContext,
 } from "@/renderer/state/panelStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
+import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import {
   closeAllPanels,
   moveThreadTodoDock,
@@ -111,6 +112,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   const terminalOpen = useDevTerminalStore((s) => s.isOpen);
   const terminalProjectId = useDevTerminalStore((s) => s.activeProjectId);
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
+  const terminalProject = projects.find((project) => project.id === terminalProjectId);
   const currentThreadId = useAppStore((state) => {
     if (state.view.kind !== "thread") return null;
     return resolveActivePaneId(state.view.panes, state.focusedPaneId);
@@ -316,7 +318,21 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
         if (tab === "plan" && !renderPlanContent) return;
         setRightPanelTab(tab);
       }}
-      {...(renderTerminalContent ? { terminalContent: <DevTerminalPanel hideHeader /> } : {})}
+      {...(renderTerminalContent
+        ? {
+            terminalContent: (
+              <DevTerminalPanel
+                hideHeader
+                {...(terminalProject?.remoteServerId
+                  ? {
+                      watchTerminal: (terminalId, listener) =>
+                        watchRemoteTerminal(terminalProject.remoteServerId!, terminalId, listener),
+                    }
+                  : {})}
+              />
+            ),
+          }
+        : {})}
       gitContent={
         renderGitContent ? (
           <GitReviewPanelContent

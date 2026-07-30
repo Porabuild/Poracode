@@ -3,7 +3,7 @@ import type { Project, Thread } from "@/shared/contracts";
 import * as schema from "../db.schema";
 import { getDb } from "./connection";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
-import { locationToRow, rowToProject, rowToThread } from "./rowMappers";
+import { projectMutableRow, rowToProject, rowToThread } from "./rowMappers";
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
@@ -58,31 +58,26 @@ export function dbUpsertProject(project: Project, sortOrder: number): void {
   db.insert(schema.projects)
     .values({
       id: project.id,
-      name: project.name,
-      ...locationToRow(project.location),
-      lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
-      scripts: project.scripts ? JSON.stringify(project.scripts) : null,
-      searchSettings: project.searchSettings ? JSON.stringify(project.searchSettings) : null,
-      mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
-      workspaceId: project.workspaceId ?? null,
-      disabled: !!project.disabled,
+      ...projectMutableRow(project),
       sortOrder,
       createdAt: project.createdAt,
     })
     .onConflictDoUpdate({
       target: schema.projects.id,
       set: {
-        name: project.name,
-        ...locationToRow(project.location),
-        lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
-        scripts: project.scripts ? JSON.stringify(project.scripts) : null,
-        searchSettings: project.searchSettings ? JSON.stringify(project.searchSettings) : null,
-        mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
-        workspaceId: project.workspaceId ?? null,
-        disabled: !!project.disabled,
+        ...projectMutableRow(project),
         sortOrder,
       },
     })
+    .run();
+  notifyProjectThreadDataChanged();
+}
+
+export function dbUpdateProject(project: Project): void {
+  getDb()
+    .update(schema.projects)
+    .set(projectMutableRow(project))
+    .where(eq(schema.projects.id, project.id))
     .run();
   notifyProjectThreadDataChanged();
 }

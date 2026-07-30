@@ -140,6 +140,15 @@ function readBundleManifest(cacheDir: string): BundleManifest | null {
   }
 }
 
+function assertHeadlessServerBundle(path: string): void {
+  const source = readFileSync(path, "utf8");
+  if (/\brequire\(["']electron["']\)|\bimport\(["']electron["']\)/.test(source)) {
+    throw new Error(
+      "Poracode Helper cannot include Electron. Check the standalone server import graph.",
+    );
+  }
+}
+
 // The staged runtime is fixed for a given app build, so the archive+hash is
 // identical on every connect. Cache it per option set (keyed by the source
 // dirs) in memory AND in a manifest file next to the archive, so repeat
@@ -195,6 +204,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   if (!existsSync(options.agentPluginsDir)) {
     throw new Error(`Poracode SSH agent plugins are missing: ${options.agentPluginsDir}`);
   }
+  assertHeadlessServerBundle(join(options.mainBundleDir, "server.cjs"));
 
   mkdirSync(options.cacheDir, { recursive: true });
   const stage = mkdtempSync(join(options.cacheDir, "stage-"));

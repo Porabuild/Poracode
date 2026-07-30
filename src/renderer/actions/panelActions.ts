@@ -5,6 +5,7 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useThreadTodoDockStore,
@@ -132,6 +133,13 @@ export function toggleBrowserPanel(): void {
 }
 
 export function openProjectSettings(projectId: string): void {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  if (project?.remoteServerId && project.remoteId) {
+    void useRemoteServersStore
+      .getState()
+      .loadProjectSettings(project.remoteServerId, project.remoteId)
+      .catch(() => undefined);
+  }
   usePanelStore.getState().openProjectSettings(projectId);
 }
 

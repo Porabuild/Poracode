@@ -190,6 +190,37 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "update.devUnavailable": msg({
     message: "Update checks are not available in development mode.",
   }),
+  "remote.helper.invalidResponse": msg({
+    message: "Poracode Helper returned an invalid response.",
+  }),
+  "remote.helper.wrongHost": msg({
+    message: "The SSH tunnel reached an incompatible Poracode server.",
+  }),
+  "remote.helper.probeFailed": msg({
+    message: "Poracode Helper is not ready yet (HTTP {status}).",
+  }),
+  "remote.helper.timeout": msg({
+    message: "Timed out waiting for Poracode Helper.",
+  }),
+  "remote.helper.startFailed": msg({
+    message:
+      "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
+  }),
+  "remote.project.invalidName": msg({ message: "Enter a valid project name." }),
+  "remote.project.invalidPath": msg({ message: "Enter a valid absolute project path." }),
+  "remote.project.invalidCloneUrl": msg({
+    message: "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax.",
+  }),
+  "remote.project.directoryFailed": msg({
+    message: "Could not create the project folder.",
+  }),
+  "remote.project.notFound": msg({ message: "Project not found." }),
+  "remote.project.runningThreads": msg({
+    message: "Stop the project's running threads before changing its folder.",
+  }),
+  "remote.project.experimentsOwned": msg({
+    message: "Remove the project's experiments before removing the project.",
+  }),
 };
 
 /**

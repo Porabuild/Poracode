@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
+msgid "…"
+msgstr "…"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "(Draft)"
 msgstr "（草案）"
@@ -564,8 +568,8 @@ msgid "@cursor/sdk is not installed."
 msgstr "@cursor/sdk 未安装。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "/absolute/path/to/project"
-msgstr "/absolute/path/to/project"
+#~ msgid "/absolute/path/to/project"
+#~ msgstr "/absolute/path/to/project"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "/path/to/node_modules/@cursor/sdk"
@@ -929,7 +933,6 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "公布自定义基础 URL，例如反向代理或隧道。留空则自动设置。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
@@ -1797,8 +1800,8 @@ msgstr "无法加载端口"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -1901,7 +1904,6 @@ msgstr "频道"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Chat"
 msgstr "聊天"
@@ -1986,12 +1988,15 @@ msgid "Checks pending"
 msgstr "检查待定"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "选择文件夹"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder…"
 msgstr "选择一个文件夹..."
 
@@ -2184,7 +2189,6 @@ msgstr "克隆…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "关闭"
 
@@ -2352,8 +2356,8 @@ msgid "Close tab switcher"
 msgstr "关闭标签页切换器"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Close thread"
-msgstr "关闭线程"
+#~ msgid "Close thread"
+#~ msgstr "关闭线程"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -2926,6 +2930,10 @@ msgstr "无法中止合并：{detail}"
 msgid "Could not complete the merge"
 msgstr "无法完成合并"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Could not create the project folder."
+msgstr "无法创建项目文件夹。"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
@@ -2968,7 +2976,7 @@ msgstr "无法缓存离线数据。"
 msgid "Couldn't clone the repository."
 msgstr "无法克隆存储库。"
 
-#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+#: src/renderer/actions/threadLaunchActions.ts
 msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
 msgstr "无法将未提交的更改复制到新工作树中 - 它们保留在当前分支上。"
 
@@ -3815,6 +3823,7 @@ msgid "Drag to reorder; double-click to edit"
 msgstr "拖动即可重新排序；双击进行编辑"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "驱动器"
 
@@ -3902,8 +3911,8 @@ msgid "Edits the paired desktop and syncs back to it."
 msgstr "编辑已配对桌面并同步回去。"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Effort"
-msgstr "推理强度"
+#~ msgid "Effort"
+#~ msgstr "推理强度"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
@@ -4012,6 +4021,14 @@ msgstr "请输入 1 到 65535 之间的端口。"
 msgid "Enter a repository URL."
 msgstr "输入存储库 URL。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
+msgstr "请输入使用 HTTPS、HTTP、SSH、Git、FTP、FTPS 或 scp 语法的安全仓库 URL。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a valid absolute project path."
+msgstr "请输入有效的项目绝对路径。"
+
 #: src/mobile/routeComponents.tsx
 msgid "Enter a valid desktop endpoint."
 msgstr "请输入有效的桌面端点。"
@@ -4019,6 +4036,10 @@ msgstr "请输入有效的桌面端点。"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter a valid HTTP or HTTPS URL."
 msgstr "请输入有效的 HTTP 或 HTTPS URL。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a valid project name."
+msgstr "请输入有效的项目名称。"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
@@ -5021,6 +5042,7 @@ msgid "Home"
 msgstr "首页"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
 msgstr "主目录"
 
@@ -5354,8 +5376,8 @@ msgstr "代理在选择要委派给哪个代理或模型时遵循的说明。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Interrupt"
-msgstr "中断"
+#~ msgid "Interrupt"
+#~ msgstr "中断"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Interrupted"
@@ -5635,6 +5657,7 @@ msgstr "正在加载线程"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "加载中..."
 
@@ -5739,8 +5762,8 @@ msgstr "将侧边栏设为半透明——在Windows 11上使用系统模糊材�
 #~ msgstr "管理全局和项目智能体技能，包括从其他提供商导入的技能。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Manage remote environments"
-msgstr "管理远程环境"
+#~ msgid "Manage remote environments"
+#~ msgstr "管理远程环境"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote servers"
@@ -6074,8 +6097,8 @@ msgid "Message actions"
 msgstr "消息操作"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Message the remote agent…"
-msgstr "向远程代理发送消息…"
+#~ msgid "Message the remote agent…"
+#~ msgstr "向远程代理发送消息…"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
@@ -6147,8 +6170,8 @@ msgid "Mode"
 msgstr "模式"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Model"
-msgstr "模型"
+#~ msgid "Model"
+#~ msgstr "模型"
 
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
@@ -6810,7 +6833,6 @@ msgid "No phases yet."
 msgstr "还没有阶段。"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "No projects"
 msgstr "没有项目"
 
@@ -6904,8 +6926,8 @@ msgid "No staged changes"
 msgstr "没有暂存的更改"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
-msgstr "此远程计算机上未安装受支持的代理。请先在远程安装代理并登录，然后再启动线程。"
+#~ msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
+#~ msgstr "此远程计算机上未安装受支持的代理。请先在远程安装代理并登录，然后再启动线程。"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -7105,8 +7127,8 @@ msgstr "打开"
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Open {0}"
-msgstr "打开 {0}"
+#~ msgid "Open {0}"
+#~ msgstr "打开 {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -7526,8 +7548,8 @@ msgid "Parent folder on the server"
 msgstr "服务器上的父文件夹"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Parent folder, e.g. /home/me/projects"
-msgstr "父文件夹，例如 /home/me/projects"
+#~ msgid "Parent folder, e.g. /home/me/projects"
+#~ msgstr "父文件夹，例如 /home/me/projects"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
@@ -7719,6 +7741,18 @@ msgstr "Poracode 和代理在远程计算机上运行。SSH 仅用于启动远�
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode 不会以明文形式在设置中存储市场凭据。打开目录即可浏览经过安全扫描的技能。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine."
+msgstr "Poracode Helper 启动失败。请检查远程计算机上是否已安装 Node 24.10 或更高版本以及 npm。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper is not ready yet (HTTP {status})."
+msgstr "Poracode Helper 尚未就绪（HTTP {status}）。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper returned an invalid response."
+msgstr "Poracode Helper 返回了无效响应。"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode 可能正在等待已保存的数据或后台服务。你可以继续等待、重新启动，或安装可用的更新。"
@@ -7810,8 +7844,8 @@ msgid "Preparing remote environment…"
 msgstr "正在准备远程环境…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Presentation"
-msgstr "呈现方式"
+#~ msgid "Presentation"
+#~ msgstr "呈现方式"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Presets"
@@ -7912,6 +7946,10 @@ msgstr "由项目管理"
 msgid "Project name"
 msgstr "项目名称"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Project not found."
+msgstr "未找到项目。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "项目笔记"
@@ -7954,7 +7992,6 @@ msgstr "项目位于已连接的桌面端。开始线程前请先添加一个项
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "提示"
 
@@ -8325,12 +8362,12 @@ msgid "Remote access port {occupiedPort} is already in use. Stop the other serve
 msgstr "远程访问端口 {occupiedPort} 已被占用。请停止其他服务器，然后重试。"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Remote environment unavailable."
-msgstr "远程环境不可用。"
+#~ msgid "Remote environment unavailable."
+#~ msgstr "远程环境不可用。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Remote environments"
-msgstr "远程环境"
+#~ msgid "Remote environments"
+#~ msgstr "远程环境"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8342,12 +8379,16 @@ msgid "Remote name"
 msgstr "远程名称"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Remote project"
-msgstr "远程项目"
+#~ msgid "Remote project"
+#~ msgstr "远程项目"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Remote project not found."
+msgstr "未找到远程项目。"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Remote server"
-msgstr "远程服务器"
+#~ msgid "Remote server"
+#~ msgstr "远程服务器"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Remote server not found."
@@ -8466,6 +8507,10 @@ msgstr "移除快捷键"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Remove the linked skill “{0}”? Its source folder will not be deleted."
 msgstr "移除已链接的技能“{0}”？其源文件夹不会被删除。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Remove the project's experiments before removing the project."
+msgstr "删除项目前，请先删除该项目的实验。"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -8859,8 +8904,8 @@ msgstr "运行{loginCommand}进行登录。"
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Run a new thread on {0}."
-msgstr "在 {0} 上运行新线程。"
+#~ msgid "Run a new thread on {0}."
+#~ msgstr "在 {0} 上运行新线程。"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -9351,8 +9396,8 @@ msgstr "选择…"
 #~ msgstr "所选项目"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Send"
-msgstr "发送"
+#~ msgid "Send"
+#~ msgstr "发送"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -9562,6 +9607,7 @@ msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "正在显示 {0, plural, other {# 个技能}}"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "仅显示前 4,000 个条目。"
 
@@ -9622,8 +9668,8 @@ msgid "Sign out of {serverName}"
 msgstr "退出 {serverName}"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "sign-in required"
-msgstr "需要登录"
+#~ msgid "sign-in required"
+#~ msgstr "需要登录"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
@@ -9924,8 +9970,8 @@ msgid "Start minimized"
 msgstr "最小化启动"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Start remote thread"
-msgstr "启动远程线程"
+#~ msgid "Start remote thread"
+#~ msgstr "启动远程线程"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
@@ -9974,8 +10020,8 @@ msgid "Starting mirror…"
 msgstr "正在启动镜像…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Starting remotely…"
-msgstr "正在远程启动…"
+#~ msgid "Starting remotely…"
+#~ msgstr "正在远程启动…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -10040,6 +10086,7 @@ msgid "Stop task"
 msgstr "停止任务"
 
 #: src/renderer/actions/projectActions.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Stop the project's running threads before changing its folder."
 msgstr "在更改项目文件夹之前，请停止该项目正在运行的线程。"
 
@@ -10340,7 +10387,6 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal"
@@ -10552,6 +10598,10 @@ msgstr "技能会与其源保持同步；如果源被移动，技能将停止工
 msgid "The skills marketplace couldn't be loaded."
 msgstr "无法加载技能市场。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The SSH tunnel reached an incompatible Poracode server."
+msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "目标提供商"
@@ -10643,6 +10693,7 @@ msgid "This file uses an unsupported encoding."
 msgstr "此文件使用不受支持的编码。"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "此文件夹为空。"
 
@@ -10677,8 +10728,8 @@ msgid "this project"
 msgstr "此项目"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "This remote project is unavailable. Reconnect the environment and try again."
-msgstr "此远程项目不可用。请重新连接环境后重试。"
+#~ msgid "This remote project is unavailable. Reconnect the environment and try again."
+#~ msgstr "此远程项目不可用。请重新连接环境后重试。"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
@@ -10798,6 +10849,10 @@ msgstr "标记为“已完成”且已多日未触及的线程将在应用程序
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "时间"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Timed out waiting for Poracode Helper."
+msgstr "等待 Poracode Helper 超时。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
@@ -11354,6 +11409,7 @@ msgid "Unsupported"
 msgstr "不支持"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "上一级"
 
@@ -11542,6 +11598,7 @@ msgid "Use this account for usage tracking, or change users in the browser befor
 msgstr "使用此帐户进行使用情况跟踪，或在继续之前更改浏览器中的用户。"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "使用此文件夹"
 
@@ -11806,8 +11863,8 @@ msgstr "每周回顾"
 #~ msgstr "代理应执行什么任务？"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "What should the remote agent work on?"
-msgstr "要让远程代理处理什么任务？"
+#~ msgid "What should the remote agent work on?"
+#~ msgstr "要让远程代理处理什么任务？"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

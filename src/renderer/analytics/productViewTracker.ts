@@ -15,9 +15,9 @@ export interface TrackedProductView {
 
 interface ProductViewTrackerDependencies {
   capture: (event: ProductAnalyticsEventName, properties: ProductAnalyticsProperties) => void;
-  clearTimeout: (timer: ReturnType<typeof setTimeout>) => void;
-  now: () => number;
-  setTimeout: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
+  clearTimeout?: (timer: ReturnType<typeof setTimeout>) => void;
+  now?: () => number;
+  setTimeout?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
 }
 
 export interface ProductViewTracker {
@@ -41,13 +41,17 @@ interface ActiveProductView {
 export function createProductViewTracker(
   dependencies: ProductViewTrackerDependencies,
 ): ProductViewTracker {
+  const clearTimer = dependencies.clearTimeout ?? ((timer) => globalThis.clearTimeout(timer));
+  const readNow = dependencies.now ?? Date.now;
+  const schedule =
+    dependencies.setTimeout ?? ((callback, delayMs) => globalThis.setTimeout(callback, delayMs));
   let active: ActiveProductView | null = null;
   let visible = false;
   let seenTimer: ReturnType<typeof setTimeout> | null = null;
 
   const clearSeenTimer = () => {
     if (seenTimer === null) return;
-    dependencies.clearTimeout(seenTimer);
+    clearTimer(seenTimer);
     seenTimer = null;
   };
 
@@ -61,7 +65,7 @@ export function createProductViewTracker(
     clearSeenTimer();
     if (!active || !visible || active.seen) return;
     const expectedKey = active.definition.key;
-    seenTimer = dependencies.setTimeout(() => {
+    seenTimer = schedule(() => {
       seenTimer = null;
       if (!active || !visible || active.seen || active.definition.key !== expectedKey) return;
       active.seen = true;
@@ -72,7 +76,7 @@ export function createProductViewTracker(
   const finish = () => {
     clearSeenTimer();
     if (!active) return;
-    addVisibleDuration(dependencies.now());
+    addVisibleDuration(readNow());
     if (active.seen) {
       dependencies.capture(active.definition.durationEvent, {
         ...active.definition.properties,
@@ -90,7 +94,7 @@ export function createProductViewTracker(
       definition: view,
       seen: false,
       visibleDurationMs: 0,
-      visibleStartedAt: visible ? dependencies.now() : null,
+      visibleStartedAt: visible ? readNow() : null,
     };
     armSeenTimer();
   };
@@ -101,14 +105,14 @@ export function createProductViewTracker(
     if (!active) return;
     if (!visible) {
       clearSeenTimer();
-      addVisibleDuration(dependencies.now());
+      addVisibleDuration(readNow());
       if (!active.seen) {
         // Require one continuous visible second before recording an impression.
         active.visibleDurationMs = 0;
       }
       return;
     }
-    active.visibleStartedAt = dependencies.now();
+    active.visibleStartedAt = readNow();
     armSeenTimer();
   };
 

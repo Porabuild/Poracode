@@ -48,7 +48,7 @@ import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import { QuickComposerOverlay } from "@/renderer/views/QuickComposerOverlay/QuickComposerOverlay";
-import { startThreadFromDraft } from "@/renderer/views/MainView/parts/AppContent/AppContent";
+import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import {
   primeWorktreeGitState,
   runWorktreeSetupScript,

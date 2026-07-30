@@ -1,10 +1,8 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SshConnectionConfig } from "@/shared/ssh";
-import {
-  useRemoteServersStore,
-  type RemoteServerRecord,
-} from "@/renderer/state/remoteServersStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const bridge = vi.hoisted(() => ({

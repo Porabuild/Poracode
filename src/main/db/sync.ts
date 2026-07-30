@@ -8,7 +8,7 @@ import {
 import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
 import { getSqlite } from "./connection";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
-import { locationToRow } from "./rowMappers";
+import { projectMutableRow } from "./rowMappers";
 
 /**
  * Bulk-sync the full project and thread lists from the renderer store.
@@ -92,11 +92,13 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
   return sqlite.prepare(`
     INSERT INTO projects (
       id, name, location_kind, location_path, location_distro, location_linux_path,
-      location_unc_path, last_draft_config, scripts, search_settings, mcp_servers, workspace_id,
+      location_unc_path, last_draft_config, scripts, search_settings, worktree_location,
+      mcp_servers, workspace_id,
       disabled, sort_order, created_at
     ) VALUES (
       @id, @name, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
-      @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @mcpServers, @workspaceId,
+      @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @worktreeLocation,
+      @mcpServers, @workspaceId,
       @disabled, @sortOrder, @createdAt
     )
     ON CONFLICT(id) DO UPDATE SET
@@ -109,6 +111,7 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
       last_draft_config = excluded.last_draft_config,
       scripts = excluded.scripts,
       search_settings = excluded.search_settings,
+      worktree_location = excluded.worktree_location,
       mcp_servers = excluded.mcp_servers,
       workspace_id = excluded.workspace_id,
       disabled = excluded.disabled,
@@ -119,13 +122,7 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
 function runProjectSync(stmt: SqliteStatement, project: Project, sortOrder: number): void {
   stmt.run({
     id: project.id,
-    name: project.name,
-    ...locationToRow(project.location),
-    lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
-    scripts: project.scripts ? JSON.stringify(project.scripts) : null,
-    searchSettings: project.searchSettings ? JSON.stringify(project.searchSettings) : null,
-    mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
-    workspaceId: project.workspaceId ?? null,
+    ...projectMutableRow(project),
     disabled: project.disabled ? 1 : 0,
     sortOrder,
     createdAt: project.createdAt,

@@ -8,6 +8,7 @@ import {
   type RemoteAccessSessionSummary,
   type RemoteAccessTokenResult,
   type RemoteClientMetadata,
+  type RemoteHostMode,
   type RemotePushRegistration,
   type RemoteSettings,
   type RemoteSettingsPatch,
@@ -75,6 +76,8 @@ export interface RemoteAccessServerInfo {
 
 export interface RemoteAccessServerOptions {
   readonly appVersion: string;
+  /** Adapter hosting this shared server core. Defaults to the Electron desktop. */
+  readonly hostMode?: RemoteHostMode;
   readonly identity: RemoteAccessIdentity;
   /**
    * Whether the hosting process is running in development mode. Loopback PWA

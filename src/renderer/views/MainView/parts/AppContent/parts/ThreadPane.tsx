@@ -13,6 +13,8 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
+import type { RemoteTerminalTransport } from "@/renderer/components/thread/TerminalPane";
+import type { CheckpointRevertActions } from "@/renderer/components/thread/ChatPane/parts/MessageList";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
 import {
@@ -20,6 +22,8 @@ import {
   useProjectAgentStatuses,
   useThreadPendingLaunch,
 } from "@/renderer/hooks/uiSelectors";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 
 export function ThreadPane(props: {
   threadId: string;
@@ -45,7 +49,18 @@ export function ThreadPane(props: {
   const project = useProject(thread?.projectId);
   const installedAgents = useInstalledAgents();
   const projectAgentStatuses = useProjectAgentStatuses(project?.location);
-  const agentStatus = projectAgentStatuses.find((status) => status.kind === thread?.agentKind);
+  const remoteRuntime = useRemoteServersStore((state) =>
+    thread?.remoteServerId ? state.runtime[thread.remoteServerId] : undefined,
+  );
+  const openRemoteThread = useRemoteServersStore((state) => state.openThread);
+  const remoteAgentStatuses =
+    project?.location.kind === "wsl"
+      ? remoteRuntime?.agentStatuses?.wsl
+      : remoteRuntime?.agentStatuses?.windows;
+  const effectiveAgentStatuses = thread?.remoteServerId
+    ? (remoteAgentStatuses ?? [])
+    : projectAgentStatuses;
+  const agentStatus = effectiveAgentStatuses.find((status) => status.kind === thread?.agentKind);
   const { prompt: pendingLaunchPrompt, segments: pendingLaunchSegments } = useThreadPendingLaunch(
     props.threadId,
   );
@@ -68,6 +83,51 @@ export function ThreadPane(props: {
 
   const isDragging = useIsDraggingPane(props.threadId);
   const dropIndicator = usePaneDropIndicatorState(props.threadId);
+  const remoteDesktopId = thread?.remoteServerId;
+  const remoteThreadId = thread?.remoteId;
+  const remoteTerminalTransport: RemoteTerminalTransport | undefined =
+    remoteDesktopId && remoteThreadId
+      ? {
+          initialScrollback:
+            openRemoteThread?.desktopId === remoteDesktopId &&
+            openRemoteThread.threadId === remoteThreadId
+              ? (openRemoteThread.terminalScrollback ?? "")
+              : "",
+          outputSource: (listener) =>
+            watchRemoteTerminal(remoteDesktopId, remoteThreadId, listener),
+          writeInput: (data: string) =>
+            useRemoteServersStore
+              .getState()
+              .writeThreadTerminal(remoteDesktopId, remoteThreadId, data),
+          resizeBackingTerminal: (size) =>
+            useRemoteServersStore
+              .getState()
+              .resizeThreadTerminal(remoteDesktopId, remoteThreadId, size),
+        }
+      : undefined;
+  const checkpointActions: CheckpointRevertActions | undefined =
+    remoteDesktopId && remoteThreadId
+      ? {
+          rollbackThreadConversation: (input) =>
+            useRemoteServersStore.getState().rollbackThreadConversation({
+              desktopId: remoteDesktopId,
+              threadId: remoteThreadId,
+              numTurns: input.numTurns,
+              ...(input.config ? { config: input.config } : {}),
+            }),
+          restoreFileCheckpoint: (input) =>
+            useRemoteServersStore.getState().restoreFileCheckpoint({
+              desktopId: remoteDesktopId,
+              threadId: remoteThreadId,
+              checkpointItemId: input.checkpointItemId,
+              projectLocation: input.projectLocation,
+            }),
+        }
+      : undefined;
+  function pickRemoteFiles() {
+    if (!remoteDesktopId || !remoteThreadId) return Promise.resolve(null);
+    return useRemoteServersStore.getState().pickAndUploadFiles(remoteDesktopId, remoteThreadId);
+  }
 
   if (!thread) return null;
   if (!project) return null;
@@ -123,9 +183,17 @@ export function ThreadPane(props: {
       }}
       {...(pendingLaunchPrompt !== undefined ? { pendingLaunchPrompt } : {})}
       {...(pendingLaunchSegments ? { pendingLaunchSegments } : {})}
-      installedAgents={installedAgents}
+      installedAgents={thread.remoteServerId ? effectiveAgentStatuses : installedAgents}
+      {...(thread.remoteServerId
+        ? {
+            canShowProjectEntryInExplorer: false,
+            checkpointActions,
+            remoteTerminalTransport,
+            pickFiles: pickRemoteFiles,
+          }
+        : {})}
       onContinueInProvider={
-        props.onContinueInProvider
+        props.onContinueInProvider && !thread.remoteServerId
           ? (targetKind, tConfig, targetPresentationMode, prompt, segments, closeOrig, ctx) => {
               props.onContinueInProvider?.(
                 thread,

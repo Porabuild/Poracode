@@ -5,6 +5,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { MAX_GOAL_OBJECTIVE_LENGTH, type ThreadGoalControl } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { Button, TextArea } from "@/renderer/components/common";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { ThreadGoalDockState } from "./threadGoalState";
 
 interface ThreadGoalControlsProps {
@@ -23,7 +25,15 @@ export function ThreadGoalControls({ threadId, state, onDismiss }: ThreadGoalCon
   const controlGoal = async (control: ThreadGoalControl): Promise<boolean> => {
     setPendingAction(control.action);
     try {
-      await readBridge().controlThreadGoal({ threadId, ...control });
+      const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
+      if (thread?.remoteServerId && thread.remoteId) {
+        await useRemoteServersStore.getState().controlThreadGoal(thread.remoteServerId, {
+          threadId: thread.remoteId,
+          ...control,
+        });
+      } else {
+        await readBridge().controlThreadGoal({ threadId, ...control });
+      }
       return true;
     } catch {
       toast.danger(control.action === "clear" ? t`Failed to clear goal` : t`Failed to update goal`);

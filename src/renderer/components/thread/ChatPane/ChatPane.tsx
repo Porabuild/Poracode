@@ -89,6 +89,7 @@ export function ChatPane(props: ChatPaneProps) {
     checkpointProjectLocation,
   } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
+  const isRemoteThread = thread.remoteServerId !== undefined;
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
@@ -122,14 +123,19 @@ export function ChatPane(props: ChatPaneProps) {
   // Grok image_gen → session `images/N.jpg`; pass the session dir so markdown
   // can resolve those relative paths via poracode-local://.
   const markdownImageRoots = useMemo(() => {
-    if (thread.agentKind !== "grok") return undefined;
+    if (thread.agentKind !== "grok" || isRemoteThread) return undefined;
     const sessionId = thread.sessionRef?.providerSessionId;
     const projectLocation = targetContext?.projectLocation;
     const homeDir = readBridge().homeDir;
     if (!sessionId || !projectLocation || !homeDir) return undefined;
     const sessionDir = resolveGrokSessionDir({ projectLocation, sessionId, homeDir });
     return sessionDir ? [sessionDir] : undefined;
-  }, [thread.agentKind, thread.sessionRef?.providerSessionId, targetContext?.projectLocation]);
+  }, [
+    isRemoteThread,
+    thread.agentKind,
+    thread.sessionRef?.providerSessionId,
+    targetContext?.projectLocation,
+  ]);
 
   const paneActions: ChatPaneActions | null = useMemo(() => {
     if (!project || !targetContext || isHomeScope) return null;
@@ -207,9 +213,9 @@ export function ChatPane(props: ChatPaneProps) {
 
   useEffect(() => {
     retainThreadRuntimeItems(threadId);
-    void hydrateThreadRuntimeItems(threadId);
+    if (!isRemoteThread) void hydrateThreadRuntimeItems(threadId);
     return () => releaseThreadRuntimeItems(threadId);
-  }, [threadId]);
+  }, [isRemoteThread, threadId]);
 
   useEffect(() => {
     if (!targetContext || isHomeScope) return;

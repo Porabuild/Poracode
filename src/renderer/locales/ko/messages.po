@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
+msgid "…"
+msgstr "…"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "(Draft)"
 msgstr "(초안)"
@@ -564,8 +568,8 @@ msgid "@cursor/sdk is not installed."
 msgstr "@cursor/sdk가 설치되지 않았습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "/absolute/path/to/project"
-msgstr "/absolute/path/to/project"
+#~ msgid "/absolute/path/to/project"
+#~ msgstr "/absolute/path/to/project"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "/path/to/node_modules/@cursor/sdk"
@@ -929,7 +933,6 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 또는 터널). 자동으로 설정하려면 비워 두세요."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
@@ -1797,8 +1800,8 @@ msgstr "포트를 불러올 수 없습니다"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -1901,7 +1904,6 @@ msgstr "채널"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Chat"
 msgstr "채팅"
@@ -1986,12 +1988,15 @@ msgid "Checks pending"
 msgstr "검사 대기 중"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "폴더 선택"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder…"
 msgstr "폴더를 선택하세요…"
 
@@ -2184,7 +2189,6 @@ msgstr "복제 중…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "닫기"
 
@@ -2352,8 +2356,8 @@ msgid "Close tab switcher"
 msgstr "탭 전환기 닫기"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Close thread"
-msgstr "스레드 닫기"
+#~ msgid "Close thread"
+#~ msgstr "스레드 닫기"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -2926,6 +2930,10 @@ msgstr "병합을 중단할 수 없습니다: {detail}"
 msgid "Could not complete the merge"
 msgstr "병합을 완료할 수 없습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Could not create the project folder."
+msgstr "프로젝트 폴더를 만들 수 없습니다."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
@@ -2968,7 +2976,7 @@ msgstr "오프라인 데이터를 캐시할 수 없습니다."
 msgid "Couldn't clone the repository."
 msgstr "저장소를 복제할 수 없습니다."
 
-#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+#: src/renderer/actions/threadLaunchActions.ts
 msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
 msgstr "커밋되지 않은 변경 사항을 새 작업 트리에 복사할 수 없습니다. 해당 변경 사항은 현재 브랜치에 남아 있습니다."
 
@@ -3815,6 +3823,7 @@ msgid "Drag to reorder; double-click to edit"
 msgstr "드래그하여 재정렬하세요. 편집하려면 두 번 클릭하세요."
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "드라이브"
 
@@ -3902,8 +3911,8 @@ msgid "Edits the paired desktop and syncs back to it."
 msgstr "페어링된 데스크톱을 편집하고 다시 동기화합니다."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Effort"
-msgstr "작업 수준"
+#~ msgid "Effort"
+#~ msgstr "작업 수준"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
@@ -4012,6 +4021,14 @@ msgstr "1~65535 사이의 포트를 입력하세요."
 msgid "Enter a repository URL."
 msgstr "저장소 URL을 입력하세요."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
+msgstr "HTTPS, HTTP, SSH, Git, FTP, FTPS 또는 scp 구문을 사용하는 안전한 저장소 URL을 입력하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a valid absolute project path."
+msgstr "유효한 절대 프로젝트 경로를 입력하세요."
+
 #: src/mobile/routeComponents.tsx
 msgid "Enter a valid desktop endpoint."
 msgstr "올바른 데스크톱 엔드포인트를 입력하세요."
@@ -4019,6 +4036,10 @@ msgstr "올바른 데스크톱 엔드포인트를 입력하세요."
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter a valid HTTP or HTTPS URL."
 msgstr "유효한 HTTP 또는 HTTPS URL을 입력하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a valid project name."
+msgstr "유효한 프로젝트 이름을 입력하세요."
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
@@ -5021,6 +5042,7 @@ msgid "Home"
 msgstr "홈"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
 msgstr "홈 폴더"
 
@@ -5354,8 +5376,8 @@ msgstr "에이전트가 어떤 에이전트나 모델에 위임할지 선택할 
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Interrupt"
-msgstr "중단"
+#~ msgid "Interrupt"
+#~ msgstr "중단"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Interrupted"
@@ -5635,6 +5657,7 @@ msgstr "스레드 로드 중"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "로드 중…"
 
@@ -5739,8 +5762,8 @@ msgstr "사이드바를 반투명하게 만듭니다 — Windows 11에서는 시
 #~ msgstr "다른 제공자에서 가져온 스킬을 포함하여 전역 및 프로젝트 에이전트 스킬을 관리합니다."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Manage remote environments"
-msgstr "원격 환경 관리"
+#~ msgid "Manage remote environments"
+#~ msgstr "원격 환경 관리"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote servers"
@@ -6075,8 +6098,8 @@ msgid "Message actions"
 msgstr "메시지 작업"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Message the remote agent…"
-msgstr "원격 에이전트에 메시지 보내기…"
+#~ msgid "Message the remote agent…"
+#~ msgstr "원격 에이전트에 메시지 보내기…"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
@@ -6148,8 +6171,8 @@ msgid "Mode"
 msgstr "모드"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Model"
-msgstr "모델"
+#~ msgid "Model"
+#~ msgstr "모델"
 
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
@@ -6811,7 +6834,6 @@ msgid "No phases yet."
 msgstr "아직 단계가 없습니다."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "No projects"
 msgstr "프로젝트 없음"
 
@@ -6905,8 +6927,8 @@ msgid "No staged changes"
 msgstr "단계적 변경 없음"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
-msgstr "이 원격 머신에 지원되는 에이전트가 설치되어 있지 않습니다. 스레드를 시작하기 전에 원격으로 에이전트를 설치하고 로그인하세요."
+#~ msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
+#~ msgstr "이 원격 머신에 지원되는 에이전트가 설치되어 있지 않습니다. 스레드를 시작하기 전에 원격으로 에이전트를 설치하고 로그인하세요."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -7106,8 +7128,8 @@ msgstr "열기"
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Open {0}"
-msgstr "{0} 열기"
+#~ msgid "Open {0}"
+#~ msgstr "{0} 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -7527,8 +7549,8 @@ msgid "Parent folder on the server"
 msgstr "서버의 상위 폴더"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Parent folder, e.g. /home/me/projects"
-msgstr "상위 폴더, 예: /home/me/projects"
+#~ msgid "Parent folder, e.g. /home/me/projects"
+#~ msgstr "상위 폴더, 예: /home/me/projects"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
@@ -7720,6 +7742,18 @@ msgstr "Poracode와 에이전트는 원격 머신에서 실행됩니다. SSH는 
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode는 마켓플레이스 자격 증명을 설정에 일반 텍스트로 저장하지 않습니다. 카탈로그를 열어 보안 검사를 마친 스킬을 살펴보세요."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine."
+msgstr "Poracode Helper를 시작하지 못했습니다. 원격 컴퓨터에 Node 24.10 이상과 npm이 설치되어 있는지 확인하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper is not ready yet (HTTP {status})."
+msgstr "Poracode Helper가 아직 준비되지 않았습니다(HTTP {status})."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper returned an invalid response."
+msgstr "Poracode Helper가 잘못된 응답을 반환했습니다."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode가 저장된 데이터나 백그라운드 서비스를 기다리고 있을 수 있습니다. 계속 기다리거나, 다시 시작하거나, 사용 가능한 업데이트를 설치할 수 있습니다."
@@ -7811,8 +7845,8 @@ msgid "Preparing remote environment…"
 msgstr "원격 환경 준비 중…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Presentation"
-msgstr "표시 방식"
+#~ msgid "Presentation"
+#~ msgstr "표시 방식"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Presets"
@@ -7913,6 +7947,10 @@ msgstr "프로젝트에서 관리"
 msgid "Project name"
 msgstr "프로젝트 이름"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Project not found."
+msgstr "프로젝트를 찾을 수 없습니다."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "프로젝트 노트"
@@ -7955,7 +7993,6 @@ msgstr "프로젝트는 연결된 데스크톱에 있습니다. 스레드를 시
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "프롬프트"
 
@@ -8326,12 +8363,12 @@ msgid "Remote access port {occupiedPort} is already in use. Stop the other serve
 msgstr "원격 액세스 포트 {occupiedPort}이(가) 이미 사용 중입니다. 다른 서버를 중지한 후 다시 시도하세요."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Remote environment unavailable."
-msgstr "원격 환경을 사용할 수 없습니다."
+#~ msgid "Remote environment unavailable."
+#~ msgstr "원격 환경을 사용할 수 없습니다."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Remote environments"
-msgstr "원격 환경"
+#~ msgid "Remote environments"
+#~ msgstr "원격 환경"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8343,12 +8380,16 @@ msgid "Remote name"
 msgstr "원격 이름"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Remote project"
-msgstr "원격 프로젝트"
+#~ msgid "Remote project"
+#~ msgstr "원격 프로젝트"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Remote project not found."
+msgstr "원격 프로젝트를 찾을 수 없습니다."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Remote server"
-msgstr "원격 서버"
+#~ msgid "Remote server"
+#~ msgstr "원격 서버"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Remote server not found."
@@ -8467,6 +8508,10 @@ msgstr "단축키 제거"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Remove the linked skill “{0}”? Its source folder will not be deleted."
 msgstr "연결된 스킬 “{0}”을(를) 제거할까요? 원본 폴더는 삭제되지 않습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Remove the project's experiments before removing the project."
+msgstr "프로젝트를 제거하기 전에 프로젝트의 실험을 제거하세요."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -8860,8 +8905,8 @@ msgstr "{loginCommand}을 실행하여 로그인합니다."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Run a new thread on {0}."
-msgstr "{0}에서 새 스레드를 실행합니다."
+#~ msgid "Run a new thread on {0}."
+#~ msgstr "{0}에서 새 스레드를 실행합니다."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -9352,8 +9397,8 @@ msgstr "선택…"
 #~ msgstr "선택한 프로젝트"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Send"
-msgstr "보내기"
+#~ msgid "Send"
+#~ msgstr "보내기"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -9563,6 +9608,7 @@ msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "{0, plural, other {#개 스킬 표시 중}}"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "처음 4,000개 항목을 표시합니다."
 
@@ -9623,8 +9669,8 @@ msgid "Sign out of {serverName}"
 msgstr "{serverName}에서 로그아웃"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "sign-in required"
-msgstr "로그인 필요"
+#~ msgid "sign-in required"
+#~ msgstr "로그인 필요"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
@@ -9925,8 +9971,8 @@ msgid "Start minimized"
 msgstr "최소화하여 시작"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Start remote thread"
-msgstr "원격 스레드 시작"
+#~ msgid "Start remote thread"
+#~ msgstr "원격 스레드 시작"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
@@ -9975,8 +10021,8 @@ msgid "Starting mirror…"
 msgstr "미러 시작 중…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Starting remotely…"
-msgstr "원격으로 시작 중…"
+#~ msgid "Starting remotely…"
+#~ msgstr "원격으로 시작 중…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -10041,6 +10087,7 @@ msgid "Stop task"
 msgstr "작업 중지"
 
 #: src/renderer/actions/projectActions.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Stop the project's running threads before changing its folder."
 msgstr "폴더를 변경하기 전에 프로젝트에서 실행 중인 스레드를 중지하세요."
 
@@ -10341,7 +10388,6 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal"
@@ -10553,6 +10599,10 @@ msgstr "스킬은 소스와 동기화된 상태를 유지하며 소스가 이동
 msgid "The skills marketplace couldn't be loaded."
 msgstr "스킬 마켓플레이스를 로드할 수 없습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The SSH tunnel reached an incompatible Poracode server."
+msgstr "SSH 터널이 호환되지 않는 Poracode 서버에 연결되었습니다."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "대상 공급자"
@@ -10644,6 +10694,7 @@ msgid "This file uses an unsupported encoding."
 msgstr "이 파일은 지원되지 않는 인코딩을 사용합니다."
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "이 폴더는 비어 있습니다."
 
@@ -10678,8 +10729,8 @@ msgid "this project"
 msgstr "이 프로젝트"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "This remote project is unavailable. Reconnect the environment and try again."
-msgstr "이 원격 프로젝트를 사용할 수 없습니다. 환경에 다시 연결한 후 다시 시도하세요."
+#~ msgid "This remote project is unavailable. Reconnect the environment and try again."
+#~ msgstr "이 원격 프로젝트를 사용할 수 없습니다. 환경에 다시 연결한 후 다시 시도하세요."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
@@ -10799,6 +10850,10 @@ msgstr "완료로 표시된 스레드 중 며칠 동안 건드리지 않은 스�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "시간"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Timed out waiting for Poracode Helper."
+msgstr "Poracode Helper를 기다리는 동안 시간이 초과되었습니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
@@ -11355,6 +11410,7 @@ msgid "Unsupported"
 msgstr "지원되지 않음"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "한 단계 위로"
 
@@ -11543,6 +11599,7 @@ msgid "Use this account for usage tracking, or change users in the browser befor
 msgstr "사용 추적을 위해 이 계정을 사용하거나 계속하기 전에 브라우저에서 사용자를 변경하세요."
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "이 폴더 사용"
 
@@ -11807,8 +11864,8 @@ msgstr "주간 검토"
 #~ msgstr "에이전트가 무엇을 해야 하나요?"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "What should the remote agent work on?"
-msgstr "원격 에이전트가 어떤 작업을 수행해야 하나요?"
+#~ msgid "What should the remote agent work on?"
+#~ msgstr "원격 에이전트가 어떤 작업을 수행해야 하나요?"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

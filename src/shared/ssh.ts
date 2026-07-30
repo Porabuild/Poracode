@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import { msg } from "@/shared/messages";
 
 const sshTargetPattern = /^(?!-)(?:[^\s@/:]+@)?[^\s@/:]+$/;
 
@@ -73,14 +74,14 @@ export function parseLastJsonObject<T>(stdout: string): T {
       // Keep looking; login shells can emit a banner before the JSON result.
     }
   }
-  throw new Error("The remote Poracode command returned no JSON result.");
+  throw new Error(msg("remote.helper.invalidResponse"));
 }
 
 /** Parse a `{ remotePort }` launch result, validating the port range. */
 export function parseRemoteLaunchPort(stdout: string): number {
   const port = parseLastJsonObject<{ remotePort?: unknown }>(stdout).remotePort;
   if (typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65_535) {
-    throw new Error("The remote Poracode server returned an invalid port.");
+    throw new Error(msg("remote.helper.invalidResponse"));
   }
   return port;
 }
@@ -89,9 +90,9 @@ export function parseRemoteLaunchPort(stdout: string): number {
 export function parsePairingCredential(stdout: string): string {
   const pairingUrl = parseLastJsonObject<{ pairingUrl?: unknown }>(stdout).pairingUrl;
   if (typeof pairingUrl !== "string") {
-    throw new Error("The remote Poracode server returned no pairing URL.");
+    throw new Error(msg("remote.helper.invalidResponse"));
   }
   const credential = parsePairingUrlParts(pairingUrl)?.token.trim();
-  if (!credential) throw new Error("The remote Poracode pairing URL contained no credential.");
+  if (!credential) throw new Error(msg("remote.helper.invalidResponse"));
   return credential;
 }

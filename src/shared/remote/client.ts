@@ -19,6 +19,7 @@ import {
   remoteSettingsSchema,
   remoteSchedulesResponseSchema,
   remoteProjectCommandResultSchema,
+  remoteProjectSettingsSchema,
   remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
@@ -37,6 +38,7 @@ import {
   type RemotePortsState,
   type RemoteProjectCommand,
   type RemoteProjectCommandResult,
+  type RemoteProjectSettings,
   type RemotePushRegistration,
   type RemoteRuntimeItemsPage,
   type RemoteRuntimeItemsPageRequest,
@@ -769,6 +771,12 @@ export class RemoteDesktopClient {
   async projectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult> {
     return remoteProjectCommandResultSchema.parse(
       await this.requestJson("/api/projects/command", { method: "POST", body: command }),
+    );
+  }
+
+  async projectSettings(projectId: string): Promise<RemoteProjectSettings> {
+    return remoteProjectSettingsSchema.parse(
+      await this.requestJson(`/api/projects/${encodeURIComponent(projectId)}/settings`),
     );
   }
 

@@ -11,7 +11,7 @@ import type {
 import { toErrorMessage } from "@/shared/errorMessage";
 import { resolvePoracodePaths, type PoracodePaths } from "@/shared/poracodePaths";
 import type { PoracodeChannel } from "@/shared/channel";
-import { saveUploadedAttachmentFile } from "../attachments/localFiles";
+import { saveUploadedAttachmentFile } from "../attachments/attachmentStorage";
 import {
   pickRemoteSettings,
   type RemoteAccessPairingInfo,

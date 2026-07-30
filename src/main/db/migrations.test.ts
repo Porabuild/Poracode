@@ -35,8 +35,9 @@ describe("database migration registry", () => {
       [28, "pull request watches"],
       [29, "project workspace"],
       [30, "repair empty thread models"],
+      [31, "project worktree location"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(30);
+    expect(LATEST_SCHEMA_VERSION).toBe(31);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

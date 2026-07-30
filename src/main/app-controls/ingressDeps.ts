@@ -13,6 +13,7 @@ import {
   dbGetProjects,
   dbGetThread,
   dbGetThreads,
+  dbUpdateProject,
   dbUpsertProject,
   dbUpsertThread,
 } from "@/main/db";
@@ -73,11 +74,16 @@ export function buildSharedAppControlsIngressDeps(
       const result = await applyRemoteProjectCommand(command, {
         getProjects: dbGetProjects,
         hasProjectExperiment: (projectId) => hasPersistedProjectExperiment(projectId),
+        hasRunningProjectThread: (projectId) =>
+          dbGetThreads().some(
+            (thread) => thread.projectId === projectId && thread.status === "working",
+          ),
         listProjectThreadIds: (projectId) =>
           dbGetThreads()
             .filter((thread) => thread.projectId === projectId)
             .map((thread) => thread.id),
         upsertProject: (project, sortOrder) => dbUpsertProject(project, sortOrder),
+        updateProject: (project) => dbUpdateProject(project),
         deleteProject: (projectId) => dbDeleteProject(projectId),
         closeThread: (threadId) =>
           call("closeThread", { threadId })

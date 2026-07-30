@@ -46,6 +46,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useThread } from "@/renderer/state/useThread";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
@@ -90,6 +91,7 @@ type ThreadComposerSectionProps = {
    * resolves and route through the mobile transport.
    */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
+  pickFiles?: (() => Promise<string[] | null>) | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
   /** Override whether unmodified Enter submits instead of inserting a newline. */
@@ -158,8 +160,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
-  const isRemote = isRemoteSession();
-  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
+  const isRemoteSurface = isRemoteSession();
+  const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
+  const showVoiceInputButton =
+    useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -301,7 +305,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     authState: effectiveAgentStatus?.authState,
     errorDockStates,
   });
-  const canShowRuntimeChrome = !usesTerminalPresentation || isRemote;
+  const canShowRuntimeChrome = !usesTerminalPresentation || usesRemoteTransport;
   const isServerControlled =
     effectiveAgentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
   const isTerminalInput = effectiveAgentStatus?.capabilities.liveInputMode === "terminal";
@@ -339,7 +343,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const showGoalInComposer = !hideInfoDocks && canShowRuntimeChrome && goalDockState !== null;
   const showErrorInComposer =
     !hideInfoDocks &&
-    (!usesTerminalPresentation || isRemote) &&
+    (!usesTerminalPresentation || usesRemoteTransport) &&
     errorDockStates.length > 0 &&
     !hasRuntimeAuthError;
   const hasActiveSubAgent = useAppStore(
@@ -350,10 +354,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const collapseTerminalComposerSetting = useSharedSettings((s) => s.collapseTerminalComposer);
   const [composerCollapsed, setComposerCollapsed] = useState(collapseTerminalComposerSetting);
-  const canCollapseComposer = showTerminalComposer && !isRemote;
+  const canCollapseComposer = showTerminalComposer && !isRemoteSurface;
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
   const shouldAutoFocusComposer =
-    paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isRemote);
+    paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isRemoteSurface);
   const setComposerUi = useComposerUiStore((s) => s.setComposerUi);
   const branchName = useGitStore(
     (s) =>
@@ -431,8 +435,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   function handleInterrupt() {
     if (isInterrupting) return;
     setIsInterrupting(true);
-    void readBridge()
-      .interruptThread({ threadId: thread.id })
+    const request =
+      thread.remoteServerId && thread.remoteId
+        ? useRemoteServersStore.getState().interruptThread(thread.remoteServerId, thread.remoteId)
+        : readBridge().interruptThread({ threadId: thread.id });
+    void request
       .then(() => {
         captureProductEvent("thread.interrupted", threadProductProperties(thread));
       })
@@ -441,6 +448,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         console.error("[thread] failed to interrupt turn", error);
         toast.danger(friendlyError(error));
       });
+  }
+
+  function writeTerminalInput(data: string) {
+    return readBridge().writeTerminal({ threadId: thread.id, data });
   }
 
   function submitPrompt(segments: PromptSegment[]) {
@@ -708,7 +719,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             : t`Send a message...`
                       }
                       projectLocation={projectLocation}
-                      submitOnEnter={props.submitOnEnter ?? !isRemote}
+                      submitOnEnter={props.submitOnEnter ?? !isRemoteSurface}
                       {...(showCommandPanel
                         ? {
                             commandListId,
@@ -763,14 +774,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         if (showTerminalComposer) {
                           if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
                             e.preventDefault();
-                            void readBridge()
-                              .writeTerminal({
-                                threadId: thread.id,
-                                data: "\x1b[Z",
-                              })
-                              .catch((error: unknown) => {
-                                toast.danger(friendlyError(error));
-                              });
+                            void writeTerminalInput("\x1b[Z").catch((error: unknown) => {
+                              toast.danger(friendlyError(error));
+                            });
                             return true;
                           }
                           if (
@@ -780,14 +786,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             e.key.toLowerCase() === "t"
                           ) {
                             e.preventDefault();
-                            void readBridge()
-                              .writeTerminal({
-                                threadId: thread.id,
-                                data: "\x14",
-                              })
-                              .catch((error: unknown) => {
-                                toast.danger(friendlyError(error));
-                              });
+                            void writeTerminalInput("\x14").catch((error: unknown) => {
+                              toast.danger(friendlyError(error));
+                            });
                             return true;
                           }
                         }
@@ -823,10 +824,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             visible: !providerOwnsMcp && thread.config?.computerUse === true,
                             onToggle: () => {},
                           }}
-                          showFileOption
+                          showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
                           onPickFiles={() => {
-                            void readBridge()
-                              .pickFiles({ attachmentThreadId: thread.id })
+                            void (
+                              props.pickFiles
+                                ? props.pickFiles()
+                                : readBridge().pickFiles({ attachmentThreadId: thread.id })
+                            )
                               .then((paths) => {
                                 if (paths) attachments.addFiles(paths);
                               })
@@ -860,7 +864,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         };
                   })()}
                   onPromptChange={setPrompt}
-                  {...(!isRemote ? { onAttachFiles: attachments.addFiles } : {})}
+                  {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
                   onSubmit={() => {
                     const segments = mentionRef.current?.serializeSegments();
                     submitPrompt(

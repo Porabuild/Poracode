@@ -129,6 +129,23 @@ const messages = {
   "update.serviceUnavailable": "The update service is temporarily unavailable.",
   "update.operationFailed": "The update operation failed.",
   "update.devUnavailable": "Update checks are not available in development mode.",
+
+  // ── Remote hosts ─────────────────────────────────────────
+  "remote.helper.invalidResponse": "Poracode Helper returned an invalid response.",
+  "remote.helper.wrongHost": "The SSH tunnel reached an incompatible Poracode server.",
+  "remote.helper.probeFailed": "Poracode Helper is not ready yet (HTTP {status}).",
+  "remote.helper.timeout": "Timed out waiting for Poracode Helper.",
+  "remote.helper.startFailed":
+    "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
+  "remote.project.invalidName": "Enter a valid project name.",
+  "remote.project.invalidPath": "Enter a valid absolute project path.",
+  "remote.project.invalidCloneUrl":
+    "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax.",
+  "remote.project.directoryFailed": "Could not create the project folder.",
+  "remote.project.notFound": "Project not found.",
+  "remote.project.runningThreads": "Stop the project's running threads before changing its folder.",
+  "remote.project.experimentsOwned":
+    "Remove the project's experiments before removing the project.",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -216,7 +233,44 @@ const errorPatterns: Array<{
     test: /CONFLICT|Merge conflict/,
     key: "git.merge.conflicts",
   },
+  {
+    test: /remote Poracode command returned no JSON result|Poracode Helper returned (?:an invalid port|no pairing URL|an invalid environment descriptor)|remote Poracode pairing URL contained no credential/i,
+    key: "remote.helper.invalidResponse",
+  },
+  {
+    test: /Expected a Poracode Helper, but the endpoint is hosted by/i,
+    key: "remote.helper.wrongHost",
+  },
+  {
+    test: /Poracode Helper probe returned HTTP \d+/i,
+    key: "remote.helper.probeFailed",
+    params: (raw) => ({ status: raw.match(/HTTP (\d+)/i)?.[1] ?? "?" }),
+  },
+  {
+    test: /Timed out waiting for the SSH tunnel to reach Poracode Helper/i,
+    key: "remote.helper.timeout",
+  },
+  {
+    test: /Poracode Helper failed to start|Poracode SSH requires (?:Node 24\.10 or newer|npm)|Uploaded Poracode runtime archive was not found|No remote loopback port is available for Poracode/i,
+    key: "remote.helper.startFailed",
+  },
 ];
+
+const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
+  invalid_project_name: "remote.project.invalidName",
+  invalid_project_path: "remote.project.invalidPath",
+  invalid_clone_url: "remote.project.invalidCloneUrl",
+  project_directory_failed: "remote.project.directoryFailed",
+  project_not_found: "remote.project.notFound",
+  project_has_running_threads: "remote.project.runningThreads",
+  experiment_owned: "remote.project.experimentsOwned",
+};
+
+function remoteErrorMessageKey(error: unknown): MessageKey | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? remoteErrorMessageKeys[code] : undefined;
+}
 
 /** Strip Electron IPC wrapper noise from error messages. */
 function stripIpcPrefix(raw: string): string {
@@ -287,6 +341,14 @@ export function friendlyError(err: unknown): string {
 export function friendlyErrorWithDetail(err: unknown): { summary: string; details: string } {
   const raw = stripIpcPrefix(errorDetail(err));
   const { summary: rawSummary, details } = splitErrorDetails(raw);
+  const remoteKey = remoteErrorMessageKey(err);
+  if (remoteKey) {
+    const summary = msg(remoteKey);
+    return {
+      summary,
+      details: details || (rawSummary === summary ? "" : rawSummary),
+    };
+  }
 
   const hook = detectHookFailure(details || rawSummary);
   if (hook) {

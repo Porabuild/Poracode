@@ -1,3 +1,5 @@
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./remote/protocol";
+
 export const REMOTE_NODE_ENV_SCRIPT = String.raw`
 prepend_path_if_dir() {
   if [ -d "$1" ]; then
@@ -164,8 +166,23 @@ server_ready() {
 const http = require("node:http");
 const port = Number(process.argv[2]);
 const req = http.get({ host: "127.0.0.1", port, path: "/.well-known/poracode/environment", timeout: 800 }, (res) => {
-  res.resume();
-  res.on("end", () => process.exit(res.statusCode === 200 ? 0 : 1));
+  let body = "";
+  res.setEncoding("utf8");
+  res.on("data", (chunk) => { body += chunk; });
+  res.on("end", () => {
+    try {
+      const descriptor = JSON.parse(body);
+      process.exit(
+        res.statusCode === 200 &&
+        descriptor.protocolVersion === ${PORACODE_REMOTE_PROTOCOL_VERSION} &&
+        descriptor.hostMode === "helper"
+          ? 0
+          : 1
+      );
+    } catch {
+      process.exit(1);
+    }
+  });
 });
 req.on("timeout", () => { req.destroy(); process.exit(1); });
 req.on("error", () => process.exit(1));
@@ -222,7 +239,7 @@ else
     sleep 0.2
   done
   if [ "$READY" -ne 1 ]; then
-    printf 'The remote Poracode server did not become ready.\n' >&2
+    printf 'Poracode Helper failed to start or returned an incompatible protocol.\n' >&2
     tail -n 80 "$LOG_FILE" >&2 2>/dev/null || true
     kill "$PID" 2>/dev/null || true
     rm -f "$PID_FILE" "$PORT_FILE" "$RUNTIME_FILE"

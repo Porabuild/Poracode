@@ -45,6 +45,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       : undefined;
   return remoteEnvironmentDescriptorSchema.parse({
     protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+    hostMode: ctx.options.hostMode ?? "desktop",
     desktopId: ctx.options.identity.desktopId,
     label: ctx.options.identity.label,
     appVersion: ctx.options.appVersion,

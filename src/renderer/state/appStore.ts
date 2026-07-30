@@ -53,12 +53,24 @@ export const useAppStore = create<AppStoreState>()(
             ),
           };
         },
-        partialize: (state) => ({
-          projects: state.projects,
-          threads: state.threads,
-          view: state.view,
-          groupLayouts: state.groupLayouts,
-        }),
+        partialize: (state) => {
+          const view = state.view;
+          const hasRemoteView =
+            (view.kind === "draft" &&
+              state.projects.some(
+                (project) => project.id === view.projectId && project.remoteServerId,
+              )) ||
+            (view.kind === "thread" &&
+              view.panes.some((paneId) =>
+                state.threads.some((thread) => thread.id === paneId && thread.remoteServerId),
+              ));
+          return {
+            projects: state.projects.filter((project) => !project.remoteServerId),
+            threads: state.threads.filter((thread) => !thread.remoteServerId),
+            view: hasRemoteView ? { kind: "home" as const } : view,
+            groupLayouts: state.groupLayouts,
+          };
+        },
       },
     ),
   ),

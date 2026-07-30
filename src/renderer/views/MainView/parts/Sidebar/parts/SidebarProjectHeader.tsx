@@ -8,6 +8,7 @@ import {
   Power,
   PowerOff,
   RefreshCw,
+  Server,
   Settings2,
   Trash2,
 } from "lucide-react";
@@ -46,6 +47,7 @@ import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTermi
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 export function SidebarProjectHeader(props: {
   project: Project;
@@ -63,6 +65,12 @@ export function SidebarProjectHeader(props: {
   const isActiveFilesPanel = useIsProjectFilesPanelActive(project.id);
   const projectLocation = formatProjectLocation(project);
   const isDisabled = !!project.disabled;
+  const remoteServer = useRemoteServersStore((state) =>
+    project.remoteServerId
+      ? state.servers.find((server) => server.desktopId === project.remoteServerId)
+      : undefined,
+  );
+  const isRemote = project.remoteServerId !== undefined && project.remoteId !== undefined;
   const showBody = !isCollapsed && !isDisabled;
 
   return (
@@ -174,12 +182,24 @@ export function SidebarProjectHeader(props: {
         label={
           <span className="flex items-center gap-1.5">
             <span className="truncate text-xs font-semibold text-foreground">{project.name}</span>
+            {isRemote ? <Server className="size-3 shrink-0 text-muted/60" /> : null}
+            {remoteServer ? (
+              <span className="max-w-24 truncate text-[10px] font-normal text-muted/60">
+                {remoteServer.label}
+              </span>
+            ) : null}
             {project.location.kind === "wsl" && (
               <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
             )}
           </span>
         }
-        tooltip={isDisabled ? t`${projectLocation} (disabled)` : projectLocation}
+        tooltip={
+          isDisabled
+            ? t`${projectLocation} (disabled)`
+            : remoteServer
+              ? `${projectLocation} · ${remoteServer.label}`
+              : projectLocation
+        }
         className={`poracode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${
           isDisabled ? " opacity-50" : ""
         }`}

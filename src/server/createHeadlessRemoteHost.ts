@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
 import {
   closeDatabase,
   dbDeleteThread,
@@ -21,17 +22,16 @@ import {
   writeSharedSettingsFile,
 } from "@/main/sharedSettingsFile";
 import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
+import { createPersistentRemoteAuthStore } from "@/main/remote/auth";
+import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
+import { createPortForwarding } from "@/main/remote/portForward/portForwarding";
 import {
-  createPersistentRemoteAuthStore,
-  createPortForwarding,
   createPushGateway,
   createWebPushPublicKeyResolver,
   PushCoordinator,
   PushRegistrationStore,
-  readOrCreateRemoteAccessIdentity,
-  RemoteAccessServer,
-  type RemoteAccessServerInfo,
-} from "@/main/remote";
+} from "@/main/remote/push";
+import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
 import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
@@ -351,6 +351,7 @@ export async function createHeadlessRemoteHost(
 
   const server = new RemoteAccessServer({
     appVersion: options.appVersion,
+    hostMode: "helper",
     identity,
     isDev,
     authStore,
@@ -369,6 +370,9 @@ export async function createHeadlessRemoteHost(
     settings: {
       read: () => pickRemoteSettings(readSharedSettingsFile(paths.settingsPath)),
       update: (patch) => pickRemoteSettings(patchSharedSettingsFile(paths.settingsPath, patch)),
+    },
+    attachments: {
+      save: (input) => saveUploadedAttachmentFile(paths, input),
     },
     // `ScheduleService`'s public methods already match the gateway interface,
     // so pass it directly instead of re-wrapping each method.

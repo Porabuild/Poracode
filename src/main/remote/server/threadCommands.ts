@@ -16,11 +16,13 @@ import {
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap } from "@/shared/ipc";
+import { msg } from "@/shared/messages";
 import {
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjects,
   dbGetThreads,
+  dbUpdateProject,
   dbUpsertProject,
   dbUpsertThread,
 } from "../../db";
@@ -82,11 +84,16 @@ export function runProjectCommand(
   return applyRemoteProjectCommand(command, {
     getProjects: () => dbGetProjects(),
     hasProjectExperiment: (projectId) => hasPersistedProjectExperiment(projectId),
+    hasRunningProjectThread: (projectId) =>
+      dbGetThreads().some(
+        (thread) => thread.projectId === projectId && thread.status === "working",
+      ),
     listProjectThreadIds: (projectId) =>
       dbGetThreads()
         .filter((thread) => thread.projectId === projectId)
         .map((thread) => thread.id),
     upsertProject: (project, sortOrder) => dbUpsertProject(project, sortOrder),
+    updateProject: (project) => dbUpdateProject(project),
     deleteProject: (projectId) => dbDeleteProject(projectId),
     closeThread: (threadId) => closeThreadBestEffort(ctx, threadId),
     cloneRepo: (input) => ctx.options.callSupervisor("cloneRepo", input),
@@ -196,7 +203,7 @@ async function startRemoteThread(
 ): Promise<void> {
   const project = dbGetProjects().find((entry) => entry.id === command.projectId);
   if (!project) {
-    throw new RemoteHttpError("project_not_found", "Project not found.", 404);
+    throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
   }
 
   const threads = dbGetThreads();

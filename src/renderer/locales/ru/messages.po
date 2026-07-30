@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
+msgid "…"
+msgstr "…"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "(Draft)"
 msgstr "(Черновик)"
@@ -564,8 +568,8 @@ msgid "@cursor/sdk is not installed."
 msgstr "@cursor/sdk не установлен."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "/absolute/path/to/project"
-msgstr "/absolute/path/to/project"
+#~ msgid "/absolute/path/to/project"
+#~ msgstr "/absolute/path/to/project"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "/path/to/node_modules/@cursor/sdk"
@@ -929,7 +933,6 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "Укажите собственный базовый URL, например обратный прокси или туннель. Оставьте пустым для автоматического режима."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
@@ -1797,8 +1800,8 @@ msgstr "Не удалось загрузить порты"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -1901,7 +1904,6 @@ msgstr "Канал"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Chat"
 msgstr "Чат"
@@ -1986,12 +1988,15 @@ msgid "Checks pending"
 msgstr "Проверки ожидают выполнения"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "Выберите папку"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder…"
 msgstr "Выберите папку…"
 
@@ -2184,7 +2189,6 @@ msgstr "Клонирование…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Закрыть"
 
@@ -2352,8 +2356,8 @@ msgid "Close tab switcher"
 msgstr "Закрыть переключатель вкладок"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Close thread"
-msgstr "Закрыть тред"
+#~ msgid "Close thread"
+#~ msgstr "Закрыть тред"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
@@ -2926,6 +2930,10 @@ msgstr "Не удалось прервать слияние: {detail}"
 msgid "Could not complete the merge"
 msgstr "Не удалось завершить слияние"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Could not create the project folder."
+msgstr "Не удалось создать папку проекта."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Could not extract context."
@@ -2968,7 +2976,7 @@ msgstr "Не удалось кэшировать данные для офлай�
 msgid "Couldn't clone the repository."
 msgstr "Не удалось клонировать репозиторий."
 
-#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+#: src/renderer/actions/threadLaunchActions.ts
 msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
 msgstr "Не удалось скопировать ваши незакоммиченные изменения в новый worktree — они остаются в текущей ветке."
 
@@ -3815,6 +3823,7 @@ msgid "Drag to reorder; double-click to edit"
 msgstr "Перетащите для изменения порядка; двойной щелчок для редактирования"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "Диски"
 
@@ -3902,8 +3911,8 @@ msgid "Edits the paired desktop and syncs back to it."
 msgstr "Изменяет связанный десктоп и синхронизирует изменения обратно."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Effort"
-msgstr "Усилие"
+#~ msgid "Effort"
+#~ msgstr "Усилие"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
@@ -4012,6 +4021,14 @@ msgstr "Введите порт от 1 до 65535."
 msgid "Enter a repository URL."
 msgstr "Введите URL репозитория."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
+msgstr "Введите безопасный URL репозитория с использованием HTTPS, HTTP, SSH, Git, FTP, FTPS или синтаксиса scp."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a valid absolute project path."
+msgstr "Введите допустимый абсолютный путь к проекту."
+
 #: src/mobile/routeComponents.tsx
 msgid "Enter a valid desktop endpoint."
 msgstr "Введите действительный эндпоинт рабочего стола."
@@ -4019,6 +4036,10 @@ msgstr "Введите действительный эндпоинт рабоч�
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Enter a valid HTTP or HTTPS URL."
 msgstr "Введите допустимый URL-адрес с протоколом HTTP или HTTPS."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Enter a valid project name."
+msgstr "Введите допустимое имя проекта."
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
@@ -5021,6 +5042,7 @@ msgid "Home"
 msgstr "Главная"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
 msgstr "Домашняя папка"
 
@@ -5354,8 +5376,8 @@ msgstr "Инструкции, которым следуют агенты при 
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Interrupt"
-msgstr "Прервать"
+#~ msgid "Interrupt"
+#~ msgstr "Прервать"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Interrupted"
@@ -5635,6 +5657,7 @@ msgstr "Загрузка потоков"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "Загрузка…"
 
@@ -5739,8 +5762,8 @@ msgstr "Сделать боковую панель полупрозрачной 
 #~ msgstr "Управляйте глобальными навыками агентов и навыками проекта, включая импортированные из других провайдеров."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Manage remote environments"
-msgstr "Управление удалёнными средами"
+#~ msgid "Manage remote environments"
+#~ msgstr "Управление удалёнными средами"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote servers"
@@ -6075,8 +6098,8 @@ msgid "Message actions"
 msgstr "Действия с сообщением"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Message the remote agent…"
-msgstr "Напишите удалённому агенту…"
+#~ msgid "Message the remote agent…"
+#~ msgstr "Напишите удалённому агенту…"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
@@ -6148,8 +6171,8 @@ msgid "Mode"
 msgstr "Режим"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Model"
-msgstr "Модель"
+#~ msgid "Model"
+#~ msgstr "Модель"
 
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
@@ -6811,7 +6834,6 @@ msgid "No phases yet."
 msgstr "Фаз пока нет."
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "No projects"
 msgstr "Нет проектов"
 
@@ -6905,8 +6927,8 @@ msgid "No staged changes"
 msgstr "Нет подготовленных изменений"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
-msgstr "На этом удалённом компьютере не установлены поддерживаемые агенты. Установите агент и войдите в него удалённо перед запуском потока."
+#~ msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
+#~ msgstr "На этом удалённом компьютере не установлены поддерживаемые агенты. Установите агент и войдите в него удалённо перед запуском потока."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -7106,8 +7128,8 @@ msgstr "Открыть"
 
 #. placeholder {0}: thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Open {0}"
-msgstr "Открыть {0}"
+#~ msgid "Open {0}"
+#~ msgstr "Открыть {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -7527,8 +7549,8 @@ msgid "Parent folder on the server"
 msgstr "Родительская папка на сервере"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Parent folder, e.g. /home/me/projects"
-msgstr "Родительская папка, например /home/me/projects"
+#~ msgid "Parent folder, e.g. /home/me/projects"
+#~ msgstr "Родительская папка, например /home/me/projects"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
@@ -7720,6 +7742,18 @@ msgstr "Poracode и ваши агенты работают на удалённо
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode не хранит учётные данные маркетплейса в настройках в открытом виде. Откройте каталог, чтобы просмотреть навыки, прошедшие проверку безопасности."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine."
+msgstr "Не удалось запустить Poracode Helper. Убедитесь, что на удалённом компьютере установлены Node 24.10 или новее и npm."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper is not ready yet (HTTP {status})."
+msgstr "Poracode Helper ещё не готов (HTTP {status})."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode Helper returned an invalid response."
+msgstr "Poracode Helper вернул недопустимый ответ."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Возможно, Poracode ожидает сохранённые данные или фоновую службу. Можно продолжить ожидание, перезапустить приложение или установить доступное обновление."
@@ -7811,8 +7845,8 @@ msgid "Preparing remote environment…"
 msgstr "Подготовка удалённой среды…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Presentation"
-msgstr "Представление"
+#~ msgid "Presentation"
+#~ msgstr "Представление"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Presets"
@@ -7913,6 +7947,10 @@ msgstr "управляется проектом"
 msgid "Project name"
 msgstr "Название проекта"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Project not found."
+msgstr "Проект не найден."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Заметки проекта"
@@ -7955,7 +7993,6 @@ msgstr "Проекты находятся на подключенном комп
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "Промпт"
 
@@ -8326,12 +8363,12 @@ msgid "Remote access port {occupiedPort} is already in use. Stop the other serve
 msgstr "Порт удалённого доступа {occupiedPort} уже используется. Остановите другой сервер и повторите попытку."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Remote environment unavailable."
-msgstr "Удалённая среда недоступна."
+#~ msgid "Remote environment unavailable."
+#~ msgstr "Удалённая среда недоступна."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Remote environments"
-msgstr "Удалённые среды"
+#~ msgid "Remote environments"
+#~ msgstr "Удалённые среды"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8343,12 +8380,16 @@ msgid "Remote name"
 msgstr "Имя удалённого репозитория"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Remote project"
-msgstr "Удалённый проект"
+#~ msgid "Remote project"
+#~ msgstr "Удалённый проект"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Remote project not found."
+msgstr "Удалённый проект не найден."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Remote server"
-msgstr "Удалённый сервер"
+#~ msgid "Remote server"
+#~ msgstr "Удалённый сервер"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Remote server not found."
@@ -8467,6 +8508,10 @@ msgstr "Удалить сочетание клавиш"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Remove the linked skill “{0}”? Its source folder will not be deleted."
 msgstr "Удалить связанный навык «{0}»? Его исходная папка не будет удалена."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Remove the project's experiments before removing the project."
+msgstr "Удалите эксперименты проекта перед удалением проекта."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -8860,8 +8905,8 @@ msgstr "Запустите {loginCommand}, чтобы войти."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Run a new thread on {0}."
-msgstr "Запустить новый поток на {0}."
+#~ msgid "Run a new thread on {0}."
+#~ msgstr "Запустить новый поток на {0}."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -9352,8 +9397,8 @@ msgstr "Выбрать…"
 #~ msgstr "Выбранный проект"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-msgid "Send"
-msgstr "Отправить"
+#~ msgid "Send"
+#~ msgstr "Отправить"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -9563,6 +9608,7 @@ msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Показано {0, plural, one {# навык} few {# навыка} many {# навыков} other {# навыка}}"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "Показаны первые 4 000 записей."
 
@@ -9623,8 +9669,8 @@ msgid "Sign out of {serverName}"
 msgstr "Выйти из {serverName}"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "sign-in required"
-msgstr "требуется вход"
+#~ msgid "sign-in required"
+#~ msgstr "требуется вход"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
@@ -9925,8 +9971,8 @@ msgid "Start minimized"
 msgstr "Запускать свёрнутым"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Start remote thread"
-msgstr "Запустить удалённый поток"
+#~ msgid "Start remote thread"
+#~ msgstr "Запустить удалённый поток"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
@@ -9975,8 +10021,8 @@ msgid "Starting mirror…"
 msgstr "Запуск зеркалирования…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "Starting remotely…"
-msgstr "Удалённый запуск…"
+#~ msgid "Starting remotely…"
+#~ msgstr "Удалённый запуск…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -10041,6 +10087,7 @@ msgid "Stop task"
 msgstr "Остановить задачу"
 
 #: src/renderer/actions/projectActions.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Stop the project's running threads before changing its folder."
 msgstr "Остановите запущенные треды проекта перед изменением его папки."
 
@@ -10341,7 +10388,6 @@ msgstr "Укажите целевому провайдеру, что делат�
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal"
@@ -10553,6 +10599,10 @@ msgstr "Навык остаётся синхронизированным с ис
 msgid "The skills marketplace couldn't be loaded."
 msgstr "Не удалось загрузить маркетплейс навыков."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The SSH tunnel reached an incompatible Poracode server."
+msgstr "SSH-туннель подключился к несовместимому серверу Poracode."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "целевой провайдер"
@@ -10644,6 +10694,7 @@ msgid "This file uses an unsupported encoding."
 msgstr "Этот файл использует неподдерживаемую кодировку."
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "Эта папка пуста."
 
@@ -10678,8 +10729,8 @@ msgid "this project"
 msgstr "этот проект"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "This remote project is unavailable. Reconnect the environment and try again."
-msgstr "Этот удалённый проект недоступен. Переподключите среду и повторите попытку."
+#~ msgid "This remote project is unavailable. Reconnect the environment and try again."
+#~ msgstr "Этот удалённый проект недоступен. Переподключите среду и повторите попытку."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
@@ -10799,6 +10850,10 @@ msgstr "Треды, помеченные как завершённые и не �
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "Время"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Timed out waiting for Poracode Helper."
+msgstr "Время ожидания Poracode Helper истекло."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout (ms)"
@@ -11355,6 +11410,7 @@ msgid "Unsupported"
 msgstr "Не поддерживается"
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "На уровень вверх"
 
@@ -11543,6 +11599,7 @@ msgid "Use this account for usage tracking, or change users in the browser befor
 msgstr "Используйте эту учётную запись для отслеживания использования или смените пользователя в браузере перед продолжением."
 
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "Использовать эту папку"
 
@@ -11807,8 +11864,8 @@ msgstr "Еженедельный обзор"
 #~ msgstr "Что должен сделать агент?"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-msgid "What should the remote agent work on?"
-msgstr "Над чем должен работать удалённый агент?"
+#~ msgid "What should the remote agent work on?"
+#~ msgstr "Над чем должен работать удалённый агент?"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

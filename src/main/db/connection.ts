@@ -108,6 +108,7 @@ export function initDatabase(dbPath: string) {
       location_unc_path TEXT,
       last_draft_config TEXT,
       scripts TEXT,
+      worktree_location TEXT,
       workspace_id TEXT,
       mcp_servers TEXT,
       disabled INTEGER NOT NULL DEFAULT 0,

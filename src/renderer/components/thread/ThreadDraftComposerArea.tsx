@@ -255,6 +255,7 @@ function DraftComposerAfterControls(props: {
 
 export function ThreadDraftComposerArea(props: {
   project: Project;
+  isRemote?: boolean;
   paneId?: string;
   selectedAgent: AgentStatus;
   controls: ComposerControl[];
@@ -289,9 +290,11 @@ export function ThreadDraftComposerArea(props: {
   const [experimentMode, setExperimentMode] = useState(false);
   const [experimentCandidates, setExperimentCandidates] = useState<ExperimentDraftCandidate[]>([]);
   const [experimentBaseBranch, setExperimentBaseBranch] = useState<string | null>(null);
-  const isRemote = isRemoteSession();
+  const isRemoteSurface = isRemoteSession();
+  const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
   const isQuickComposer = window.poracode ? isQuickComposerWindow() : false;
-  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
+  const showVoiceInputButton =
+    useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
@@ -855,7 +858,7 @@ export function ThreadDraftComposerArea(props: {
   return (
     <>
       <ThreadComposer
-        autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
+        autoFocus={(props.paneCount ?? 1) === 1 && !isRemoteSurface} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
         compact={props.compact ?? false}
         variant="draft"
         controls={controls}
@@ -865,7 +868,7 @@ export function ThreadDraftComposerArea(props: {
             {authRequired ? (
               <ThreadAuthRequiredDock agentStatus={props.selectedAgent} project={props.project} />
             ) : null}
-            {!isRemote ? (
+            {!usesRemoteTransport ? (
               <>
                 <ThreadAgentUpdateDock
                   agentStatus={props.selectedAgent}
@@ -950,15 +953,15 @@ export function ThreadDraftComposerArea(props: {
         inputContent={
           <MentionInput
             ref={mentionRef}
-            autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
+            autoFocus={(props.paneCount ?? 1) === 1 && !isRemoteSurface} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
             compact={props.compact ?? false}
             // The PWA surfaces this draft as the home screen's compact composer
             // pill, where an invitation reads better than the generic prompt.
             placeholder={
-              props.placeholder ?? (isRemote ? t`Plan, ask, build…` : t`Send a message...`)
+              props.placeholder ?? (isRemoteSurface ? t`Plan, ask, build…` : t`Send a message...`)
             }
             projectLocation={isHomeScope ? undefined : props.project.location}
-            submitOnEnter={props.submitOnEnter ?? !isRemote}
+            submitOnEnter={props.submitOnEnter ?? !isRemoteSurface}
             {...(showCommandPanel
               ? {
                   commandListId,
@@ -1025,7 +1028,7 @@ export function ThreadDraftComposerArea(props: {
         submitPending={isSubmitting}
         submitLabel={experimentMode ? t`Run experiment` : t`Launch thread`}
         onPromptChange={setPrompt}
-        {...(!isRemote ? { onAttachFiles: attachments.addFiles } : {})}
+        {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
         onSubmit={() => {
           const segments = mentionRef.current?.serializeSegments() ?? [];
           submitSegments([...attachments.toSegments(), ...segments], prompt);
@@ -1047,7 +1050,7 @@ export function ThreadDraftComposerArea(props: {
             customMcpServers={customMcpServers}
             showVoiceInputButton={showVoiceInputButton}
             isDisabled={authRequired || agentUpdating || isSubmitting}
-            {...(!isHomeScope && !isRemote && !isQuickComposer && props.gitBranch
+            {...(!isHomeScope && !usesRemoteTransport && !isQuickComposer && props.gitBranch
               ? {
                   experiment: {
                     enabled: experimentMode,
