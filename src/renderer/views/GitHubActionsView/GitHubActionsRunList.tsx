@@ -125,7 +125,7 @@ export function GitHubActionsRunList(props: {
       {props.runs.map((run) => (
         <div
           key={run.id}
-          className={`relative grid min-h-14 w-full grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-3 px-2 py-2 transition-colors md:grid-cols-[24px_minmax(180px,2fr)_minmax(100px,1fr)_auto] xl:grid-cols-[24px_minmax(220px,2fr)_minmax(140px,1fr)_minmax(120px,1fr)_minmax(100px,0.8fr)_minmax(90px,0.7fr)_auto] ${
+          className={`relative grid min-h-14 w-full grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-3 px-2 py-2 transition-colors @4xl:grid-cols-[24px_minmax(220px,2fr)_minmax(140px,1fr)_minmax(120px,1fr)_minmax(100px,0.8fr)_minmax(90px,0.7fr)_auto] ${
             props.selectedRunId === run.id ? "bg-surface-secondary" : "hover:bg-[var(--row-hover)]"
           }`}
         >
@@ -142,14 +142,15 @@ export function GitHubActionsRunList(props: {
             >
               {run.title || run.workflowName || run.name || t`Workflow run`}
             </Link>
-            <div className="mt-0.5 flex min-w-0 items-center gap-2 text-[11px] text-muted md:hidden">
+            <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden text-[11px] text-muted @4xl:hidden">
               {run.headBranch ? <span className="truncate font-mono">{run.headBranch}</span> : null}
+              {run.event ? <span className="truncate">{run.event}</span> : null}
               <span className="shrink-0">#{run.number}</span>
-              {run.createdAt ? <RelativeTime iso={run.createdAt} /> : null}
+              {run.createdAt ? <RelativeTime iso={run.createdAt} className="shrink-0" /> : null}
             </div>
           </div>
 
-          <div className="hidden min-w-0 md:block">
+          <div className="hidden min-w-0 @4xl:block">
             <p className="truncate text-[11px] text-muted">
               {(run.workflowName || run.name) ===
               (run.title || run.workflowName || run.name || t`Workflow run`)
@@ -157,13 +158,13 @@ export function GitHubActionsRunList(props: {
                 : run.workflowName || run.name}
             </p>
           </div>
-          <div className="hidden min-w-0 xl:block">
+          <div className="hidden min-w-0 @4xl:block">
             <p className="truncate font-mono text-[11px] text-muted">{run.headBranch || "—"}</p>
           </div>
-          <div className="hidden min-w-0 xl:block">
+          <div className="hidden min-w-0 @4xl:block">
             <p className="truncate text-[11px] text-muted">{run.event || "—"}</p>
           </div>
-          <div className="hidden min-w-0 flex-col text-[11px] text-muted xl:flex">
+          <div className="hidden min-w-0 flex-col text-[11px] text-muted @4xl:flex">
             <span>#{run.number}</span>
             {run.createdAt ? <RelativeTime iso={run.createdAt} /> : null}
           </div>

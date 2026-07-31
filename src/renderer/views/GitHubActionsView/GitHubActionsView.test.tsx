@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GhDeleteWorkflowRunPayload,
@@ -19,6 +19,7 @@ import type {
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 
 const bridge = vi.hoisted(() => ({
   ghListWorkflows: vi.fn<(payload: GhListWorkflowsPayload) => Promise<GhListWorkflowsResult>>(),
@@ -128,6 +129,7 @@ describe("GitHubActionsView", () => {
             name: "Typecheck",
             status: "in_progress",
             conclusion: "",
+            url: "https://github.com/owner/repo/actions/runs/501/job/9001",
             steps: [
               {
                 number: 1,
@@ -145,6 +147,7 @@ describe("GitHubActionsView", () => {
     bridge.ghDeleteWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
     useAppStore.setState({ projects: [project] });
+    useSidebarUiStore.setState({ pinnedGitHubWorkflows: {} });
     useGitStore.setState({
       branches: {
         [project.id]: {
@@ -166,11 +169,25 @@ describe("GitHubActionsView", () => {
     expect(bridge.ghGetWorkflowRun).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("link", { name: new RegExp(run.title) }));
-    expect(await screen.findByText("Typecheck")).toBeInTheDocument();
+    const jobName = await screen.findByText("Typecheck");
     expect(bridge.ghGetWorkflowRun).toHaveBeenCalledWith({
       projectLocation: project.location,
       runId: run.id,
     });
+
+    const jobDetails = jobName.closest("details");
+    expect(jobDetails).not.toHaveAttribute("open");
+    expect(jobName).toHaveClass("cursor-default");
+
+    fireEvent.click(jobName);
+    expect(jobDetails).toHaveAttribute("open");
+    expect(bridge.openExternal).not.toHaveBeenCalled();
+
+    fireEvent.click(within(jobDetails!).getByRole("button", { name: "Open job on GitHub" }));
+    expect(bridge.openExternal).toHaveBeenCalledWith(
+      "https://github.com/owner/repo/actions/runs/501/job/9001",
+    );
+    expect(jobDetails).toHaveAttribute("open");
   });
 
   it("selects the first active project by default", async () => {
@@ -179,6 +196,31 @@ describe("GitHubActionsView", () => {
     expect(await screen.findByRole("button", { name: "Project" })).toHaveTextContent(project.name);
     expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
       projectLocation: project.location,
+    });
+  });
+
+  it("selects the first pinned workflow by default", async () => {
+    bridge.ghListWorkflows.mockResolvedValue({
+      workflows: [
+        { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+        { id: 22, name: "Zulu", path: ".github/workflows/zulu.yml", state: "active" },
+        { id: 33, name: "Alpha", path: ".github/workflows/alpha.yml", state: "active" },
+      ],
+    });
+    bridge.ghListWorkflowRuns.mockResolvedValue({ runs: [] });
+    bridge.ghGetWorkflowDefinition.mockImplementation(async ({ workflowId }) => ({
+      definition: { ...definition.definition, workflowId },
+    }));
+    useSidebarUiStore.setState({
+      pinnedGitHubWorkflows: { [project.id]: [22, 33] },
+    });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    expect(await screen.findByRole("heading", { name: "Alpha" })).toBeInTheDocument();
+    expect(bridge.ghListWorkflowRuns).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      workflowId: 33,
     });
   });
 
@@ -202,19 +244,27 @@ describe("GitHubActionsView", () => {
 
     expect(await screen.findByText("Release channel")).toBeInTheDocument();
     expect(screen.getByText("Skip publishing")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeInTheDocument();
     expect(screen.queryByText("Inputs (JSON)")).not.toBeInTheDocument();
   });
 
   it("opens dispatch controls after selecting another workflow from its run button", async () => {
+    let resolveReleaseDefinition: ((result: GhGetWorkflowDefinitionResult) => void) | undefined;
     bridge.ghListWorkflows.mockResolvedValue({
       workflows: [
         { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
         { id: 22, name: "Release", path: ".github/workflows/release.yml", state: "active" },
       ],
     });
-    bridge.ghGetWorkflowDefinition.mockImplementation(async ({ workflowId }) => ({
-      definition: { ...definition.definition, workflowId },
-    }));
+    bridge.ghGetWorkflowDefinition.mockImplementation(({ workflowId }) =>
+      workflowId === 22
+        ? new Promise((resolve) => {
+            resolveReleaseDefinition = resolve;
+          })
+        : Promise.resolve({
+            definition: { ...definition.definition, workflowId },
+          }),
+    );
 
     render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
     const releaseWorkflowButton = (await screen.findByText("Release")).closest("button");
@@ -228,10 +278,174 @@ describe("GitHubActionsView", () => {
       }),
     );
 
+    expect(await screen.findByText("Run Release")).toBeInTheDocument();
+    expect(screen.getByText("Loading workflow inputs")).toBeInTheDocument();
+    await waitFor(() => expect(resolveReleaseDefinition).toBeDefined());
+    await act(async () => {
+      resolveReleaseDefinition!({
+        definition: { ...definition.definition, workflowId: 22 },
+      });
+    });
+
     expect(await screen.findByText("Release channel")).toBeInTheDocument();
     expect(bridge.ghGetWorkflowDefinition).toHaveBeenCalledWith({
       projectLocation: project.location,
       workflowId: 22,
     });
+  });
+
+  it("shows non-dispatchable state only after the workflow definition loads", async () => {
+    let resolveDefinition: ((result: GhGetWorkflowDefinitionResult) => void) | undefined;
+    bridge.ghGetWorkflowDefinition.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveDefinition = resolve;
+        }),
+    );
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+    await waitFor(() => expect(bridge.ghGetWorkflowDefinition).toHaveBeenCalled());
+
+    expect(screen.queryByText("This workflow cannot be started manually.")).not.toBeInTheDocument();
+    await act(async () => {
+      resolveDefinition!({
+        definition: {
+          ...definition.definition,
+          dispatchable: false,
+          triggers: ["push"],
+          inputs: [],
+        },
+      });
+    });
+
+    expect(
+      await screen.findByText("This workflow cannot be started manually."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps cached workflow runs visible while refreshing in the background", async () => {
+    const ciRun = { ...run, title: "Cached CI run" };
+    const releaseRun = {
+      ...run,
+      id: 502,
+      workflowId: 22,
+      workflowName: "Release",
+      name: "Release",
+      title: "Release run",
+    };
+    let ciRequestCount = 0;
+    let resolveCiRefresh: ((result: GhListWorkflowRunsResult) => void) | undefined;
+    let ciDefinitionRequestCount = 0;
+    let resolveCiDefinitionRefresh: ((result: GhGetWorkflowDefinitionResult) => void) | undefined;
+    bridge.ghListWorkflows.mockResolvedValue({
+      workflows: [
+        { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+        { id: 22, name: "Release", path: ".github/workflows/release.yml", state: "active" },
+      ],
+    });
+    bridge.ghListWorkflowRuns.mockImplementation(({ workflowId }) => {
+      if (workflowId === 22) return Promise.resolve({ runs: [releaseRun] });
+      ciRequestCount += 1;
+      if (ciRequestCount === 1) return Promise.resolve({ runs: [ciRun] });
+      return new Promise((resolve) => {
+        resolveCiRefresh = resolve;
+      });
+    });
+    bridge.ghGetWorkflowDefinition.mockImplementation(({ workflowId }) => {
+      if (workflowId !== 11 || ciDefinitionRequestCount++ === 0) {
+        return Promise.resolve({
+          definition: { ...definition.definition, workflowId },
+        });
+      }
+      return new Promise((resolve) => {
+        resolveCiDefinitionRefresh = resolve;
+      });
+    });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+    expect(await screen.findByText("Cached CI run")).toBeInTheDocument();
+
+    fireEvent.click((await screen.findByText("Release")).closest("button")!);
+    expect(await screen.findByText("Release run")).toBeInTheDocument();
+
+    const ciWorkflowButton = screen
+      .getAllByText("CI")
+      .map((element) => element.closest("button"))
+      .find((button) => button !== null);
+    fireEvent.click(ciWorkflowButton!);
+
+    expect(screen.getByText("Cached CI run")).toBeInTheDocument();
+    const ciHeader = screen.getByRole("heading", { name: "CI" }).closest("header");
+    const cachedRunButton = within(ciHeader!)
+      .getAllByRole("button", { name: "Run workflow" })
+      .find((element) => element.tagName === "BUTTON");
+    expect(cachedRunButton).toBeEnabled();
+    await waitFor(() => {
+      expect(resolveCiRefresh).toBeDefined();
+      expect(resolveCiDefinitionRefresh).toBeDefined();
+    });
+    await act(async () => {
+      resolveCiRefresh!({ runs: [{ ...ciRun, title: "Refreshed CI run" }] });
+      resolveCiDefinitionRefresh!({
+        definition: { ...definition.definition, workflowId: 11 },
+      });
+    });
+    expect(await screen.findByText("Refreshed CI run")).toBeInTheDocument();
+  });
+
+  it("does not expand or count jobs without steps", async () => {
+    bridge.ghGetWorkflowRun.mockResolvedValue({
+      run: {
+        ...run,
+        jobs: [
+          {
+            id: 9002,
+            name: "cleanup",
+            status: "completed",
+            conclusion: "skipped",
+            steps: [],
+          },
+        ],
+      },
+    });
+
+    render(<GitHubActionsView projectId={project.id} runId={run.id} onClose={() => {}} />);
+
+    const jobName = await screen.findByText("cleanup");
+    expect(jobName.closest("summary")).toBeNull();
+    expect(screen.queryByText("0 of 0 steps")).not.toBeInTheDocument();
+  });
+
+  it("groups failed-run rerun choices in a split button", async () => {
+    bridge.ghGetWorkflowRun.mockResolvedValue({
+      run: {
+        ...run,
+        status: "completed",
+        conclusion: "failure",
+        jobs: [],
+      },
+    });
+
+    render(<GitHubActionsView projectId={project.id} runId={run.id} onClose={() => {}} />);
+
+    const heading = await screen.findByRole("heading", { name: run.title });
+    const detail = heading.closest("section");
+    expect(detail).not.toBeNull();
+    expect(within(detail!).getByRole("button", { name: "Re-run all jobs" })).toBeInTheDocument();
+    expect(
+      within(detail!).queryByRole("button", { name: "Re-run failed jobs" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(within(detail!).getByRole("button", { name: "Run actions" }));
+    expect(screen.queryByRole("menuitem", { name: "Re-run all jobs" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Re-run failed jobs" }));
+
+    await waitFor(() =>
+      expect(bridge.ghRerunWorkflowRun).toHaveBeenCalledWith({
+        projectLocation: project.location,
+        runId: run.id,
+        failedOnly: true,
+      }),
+    );
   });
 });

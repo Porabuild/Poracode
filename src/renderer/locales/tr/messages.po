@@ -9094,6 +9094,7 @@ msgstr "Halkayı değiştirmek için sağ tıklayın"
 #: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
@@ -9121,6 +9122,7 @@ msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "{0} üzerinde yeni bir iş parçacığı çalıştır."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "Çalıştırma eylemleri"

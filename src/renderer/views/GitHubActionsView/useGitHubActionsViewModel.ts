@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
@@ -11,12 +11,21 @@ import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 
 const POLL_INTERVAL_MS = 5_000;
 const DISPATCH_DISCOVERY_TIMEOUT_MS = 30_000;
 
 function workflowRunIsActive(run: GitHubActionsRun): boolean {
   return run.status.toLowerCase() !== "completed";
+}
+
+function workflowCacheKey(projectId: string, workflowId: number): string {
+  return `${projectId}\0${workflowId}`;
+}
+
+function definitionCacheKey(projectId: string, workflowId: number, ref?: string): string {
+  return `${workflowCacheKey(projectId, workflowId)}\0${ref ?? ""}`;
 }
 
 export function useGitHubActionsViewModel(props: { projectId?: string; runId?: number }) {
@@ -30,6 +39,8 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   const selectedProject =
     activeProjects.find((project) => project.id === props.projectId) ?? activeProjects[0];
   const selectedProjectId = selectedProject?.id;
+  const runsCache = useRef(new Map<string, GitHubActionsRun[]>());
+  const definitionCache = useRef(new Map<string, GitHubActionsWorkflowDefinition>());
   const [workflows, setWorkflows] = useState<GitHubActionsWorkflow[]>([]);
   const [runs, setRuns] = useState<GitHubActionsRun[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
@@ -58,6 +69,8 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     setSelectedRunDetails(null);
     setDefinition(null);
     setDefinitionRef(undefined);
+    setLoadingRuns(false);
+    setLoadingDefinition(false);
     setLoadError(null);
     setDispatchRequestedAt(null);
   }, [props.runId, selectedProjectId]);
@@ -78,11 +91,17 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
           const activeWorkflows = result.workflows.filter(
             (workflow) => workflow.state.toLowerCase() === "active",
           );
+          const pinnedWorkflowIds =
+            useSidebarUiStore.getState().pinnedGitHubWorkflows[selectedProject.id] ?? [];
+          const pinned = new Set(pinnedWorkflowIds);
+          const firstPinnedWorkflowId = activeWorkflows
+            .filter((workflow) => pinned.has(workflow.id))
+            .sort((a, b) => a.name.localeCompare(b.name))[0]?.id;
           setWorkflows(activeWorkflows);
           setSelectedWorkflowId((current) =>
             activeWorkflows.some((workflow) => workflow.id === current)
               ? current
-              : (activeWorkflows[0]?.id ?? null),
+              : (firstPinnedWorkflowId ?? activeWorkflows[0]?.id ?? null),
           );
           setLoadingWorkflows(false);
         },
@@ -105,6 +124,9 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       return;
     }
     let cancelled = false;
+    const cacheKey = workflowCacheKey(selectedProject.id, selectedWorkflowId);
+    const cachedRuns = runsCache.current.get(cacheKey);
+    setRuns(cachedRuns ?? []);
     setLoadingRuns(true);
     setLoadError(null);
     void readBridge()
@@ -115,6 +137,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       .then(
         (result) => {
           if (cancelled) return;
+          runsCache.current.set(cacheKey, result.runs);
           setRuns(result.runs);
           if (
             dispatchRequestedAt !== null &&
@@ -130,7 +153,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
         },
         (error: unknown) => {
           if (cancelled) return;
-          setRuns([]);
+          if (!cachedRuns) setRuns([]);
           setLoadError(friendlyError(error));
           setLoadingRuns(false);
         },
@@ -147,6 +170,9 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       return;
     }
     let cancelled = false;
+    const cacheKey = definitionCacheKey(selectedProject.id, selectedWorkflowId, definitionRef);
+    const cachedDefinition = definitionCache.current.get(cacheKey);
+    setDefinition(cachedDefinition ?? null);
     setLoadingDefinition(true);
     void readBridge()
       .ghGetWorkflowDefinition({
@@ -157,12 +183,13 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       .then(
         (result) => {
           if (cancelled) return;
+          definitionCache.current.set(cacheKey, result.definition);
           setDefinition(result.definition);
           setLoadingDefinition(false);
         },
         (error: unknown) => {
           if (cancelled) return;
-          setDefinition(null);
+          if (!cachedDefinition) setDefinition(null);
           setLoadError(friendlyError(error));
           setLoadingDefinition(false);
         },
@@ -231,12 +258,42 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   }));
 
   function selectWorkflow(workflowId: number) {
+    if (workflowId === selectedWorkflowId) {
+      setSelectedRunId(null);
+      setSelectedRunDetails(null);
+      return;
+    }
+    const cachedRuns = selectedProjectId
+      ? runsCache.current.get(workflowCacheKey(selectedProjectId, workflowId))
+      : undefined;
+    const cachedDefinition = selectedProjectId
+      ? definitionCache.current.get(definitionCacheKey(selectedProjectId, workflowId))
+      : undefined;
     setSelectedWorkflowId(workflowId);
     setSelectedRunId(null);
     setSelectedRunDetails(null);
-    setRuns([]);
-    setDefinition(null);
+    setRuns(cachedRuns ?? []);
+    setDefinition(cachedDefinition ?? null);
     setDefinitionRef(undefined);
+    setLoadingRuns(true);
+    setLoadingDefinition(true);
+  }
+
+  function selectDefinitionRef(ref: string) {
+    if (
+      !selectedProjectId ||
+      !selectedWorkflowId ||
+      ref === definitionRef ||
+      (definition?.workflowId === selectedWorkflowId && ref === definition.ref)
+    ) {
+      return;
+    }
+    setDefinitionRef(ref);
+    setDefinition(
+      definitionCache.current.get(definitionCacheKey(selectedProjectId, selectedWorkflowId, ref)) ??
+        null,
+    );
+    setLoadingDefinition(true);
   }
 
   function refresh() {
@@ -297,7 +354,13 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
         projectLocation: selectedProject.location,
         runId,
       });
-      setRuns((current) => current.filter((run) => run.id !== runId));
+      setRuns((current) => {
+        const nextRuns = current.filter((run) => run.id !== runId);
+        if (selectedProjectId && selectedWorkflowId) {
+          runsCache.current.set(workflowCacheKey(selectedProjectId, selectedWorkflowId), nextRuns);
+        }
+        return nextRuns;
+      });
       if (selectedRunId === runId) {
         setSelectedRunId(null);
         setSelectedRunDetails(null);
@@ -337,9 +400,9 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     refreshRun: () => setRunRefreshVersion((current) => current + 1),
     refreshRuns: () => setRunsRefreshVersion((current) => current + 1),
     rerunWorkflow,
+    selectDefinitionRef,
     selectRun: setSelectedRunId,
     selectWorkflow,
-    setDefinitionRef,
     setDeleteRun,
   };
 }
