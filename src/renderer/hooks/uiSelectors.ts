@@ -8,6 +8,7 @@ import type {
   Thread,
 } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { resolveActivePaneId } from "@/renderer/actions/currentProject";
 import {
   isDetectingAgentsForLocation,
   useAgentStatusesStore,
@@ -68,6 +69,16 @@ export function useLiveBackgroundThreadIds(threads: readonly Thread[]): Readonly
 
 export function useCurrentProjectId(): string | undefined {
   return useAppStore(selectCurrentProjectId);
+}
+
+/** The focused pane's thread id, or null when the view is not a thread view. */
+export function selectFocusedThreadId(s: ReturnType<typeof useAppStore.getState>): string | null {
+  if (s.view.kind !== "thread") return null;
+  return resolveActivePaneId(s.view.panes, s.focusedPaneId);
+}
+
+export function useFocusedThreadId(): string | null {
+  return useAppStore(selectFocusedThreadId);
 }
 
 export function useCurrentThreadIds(): string[] {

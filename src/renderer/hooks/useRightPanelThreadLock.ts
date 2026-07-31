@@ -1,20 +1,13 @@
 import { useEffect, useRef } from "react";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { resolveActivePaneId } from "@/renderer/actions/currentProject";
 import { showFilesPanel, showGitReviewPanel } from "@/renderer/actions/panelActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { selectFocusedThreadId, useFocusedThreadId } from "./uiSelectors";
 
-type AppState = ReturnType<typeof useAppStore.getState>;
-
-function selectFocusedThreadId(state: AppState): string | null {
-  if (state.view.kind !== "thread") return null;
-  return resolveActivePaneId(state.view.panes, state.focusedPaneId);
-}
-
-function selectFocusedThread(state: AppState) {
+function selectFocusedThread(state: ReturnType<typeof useAppStore.getState>) {
   const paneId = selectFocusedThreadId(state);
   return paneId === null ? undefined : state.threads.find((item) => item.id === paneId);
 }
@@ -39,7 +32,7 @@ function selectFocusedThread(state: AppState) {
  */
 export function useRightPanelThreadLock(): void {
   const enabled = usePanelStore((s) => s.rightPanelFollowsThread);
-  const threadId = useAppStore(selectFocusedThreadId);
+  const threadId = useFocusedThreadId();
   const projectId = useAppStore((state) => selectFocusedThread(state)?.projectId ?? null);
   const worktreePath = useAppStore((state) => selectFocusedThread(state)?.worktreePath ?? null);
 
