@@ -476,7 +476,7 @@ function extractSemverFromVersionOutput(raw: string | undefined): string | undef
   return match ? match[1] : raw.trim() || undefined;
 }
 
-async function readDetectedVersion(
+export async function readDetectedVersion(
   location: ProjectLocation,
   executablePath: string | undefined,
   versionArgs: string[],

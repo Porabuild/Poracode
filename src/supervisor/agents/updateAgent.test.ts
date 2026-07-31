@@ -1,11 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter, AgentEnvContext } from "./base";
+const readAgentCommandOutputMock = vi.hoisted(() =>
+  vi.fn<typeof import("./base").readAgentCommandOutput>(),
+);
+
+vi.mock("./base", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./base")>();
+  return { ...actual, readAgentCommandOutput: readAgentCommandOutputMock };
+});
+
 import {
   clearLatestVersionCache,
   getLatestSupportedNpmPackageVersion,
   getLatestVersionForAdapter,
   resolveUpdateCommand,
+  runUpdateCommandWithFallback,
 } from "./updateAgent";
 
 const updateByKind: Record<string, AgentAdapter["update"]> = {
@@ -22,6 +32,12 @@ const updateByKind: Record<string, AgentAdapter["update"]> = {
   gemini: {
     npm: "@google/gemini-cli",
     brew: "gemini-cli",
+  },
+  qwen: {
+    builtIn: { binary: "qwen", args: ["update"] },
+    verifyBuiltInVersionChange: true,
+    npm: "@qwen-code/qwen-code",
+    brew: "qwen-code",
   },
   opencode: {
     builtIn: { binary: "opencode", args: ["upgrade"] },
@@ -194,6 +210,24 @@ describe("resolveUpdateCommand", () => {
     expect(command?.args).toEqual(["install", "-g", "@google/gemini-cli@latest"]);
   });
 
+  it("uses Qwen's built-in command before its package-manager fallback", () => {
+    const adapter = makeAdapter("qwen");
+    const status = makeStatus({
+      kind: "qwen",
+      executablePath: "C:\\Users\\me\\AppData\\Roaming\\fnm\\aliases\\default\\qwen.cmd",
+    });
+    expect(resolveUpdateCommand(adapter, status, NATIVE_WIN)).toEqual({
+      binary: "qwen",
+      args: ["update"],
+      strategy: "built-in",
+    });
+    expect(resolveUpdateCommand(adapter, status, NATIVE_WIN, { skipBuiltIn: true })).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "@qwen-code/qwen-code@latest"],
+      strategy: "npm-global",
+    });
+  });
+
   it("uses brew for Homebrew-installed Gemini", () => {
     const adapter = makeAdapter("gemini");
     const status = makeStatus({
@@ -262,6 +296,42 @@ describe("resolveUpdateCommand", () => {
     const adapter = makeAdapter("homemade-agent");
     const status = makeStatus({ kind: "homemade-agent" });
     expect(resolveUpdateCommand(adapter, status, NATIVE_POSIX)).toBeUndefined();
+  });
+});
+
+describe("runUpdateCommandWithFallback", () => {
+  it("uses the package-manager fallback when a successful built-in update is not verified", async () => {
+    readAgentCommandOutputMock
+      .mockResolvedValueOnce({ ok: true, stdout: "Run npm install -g", stderr: "" })
+      .mockResolvedValueOnce({ ok: true, stdout: "updated", stderr: "" });
+    const verifyBuiltInSuccess = vi.fn<() => Promise<boolean>>().mockResolvedValue(false);
+    const adapter = makeAdapter("qwen");
+    const status = makeStatus({
+      kind: "qwen",
+      version: "0.21.0",
+      executablePath: "C:\\Users\\me\\AppData\\Roaming\\npm\\qwen.cmd",
+    });
+
+    const result = await runUpdateCommandWithFallback(adapter, status, NATIVE_WIN, {
+      verifyBuiltInSuccess,
+    });
+
+    expect(result).toEqual({ ok: true, strategy: "npm-global", output: "updated" });
+    expect(verifyBuiltInSuccess).toHaveBeenCalledOnce();
+    expect(readAgentCommandOutputMock).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      "qwen",
+      ["update"],
+      { timeoutMs: 5 * 60 * 1000 },
+    );
+    expect(readAgentCommandOutputMock).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      "npm",
+      ["install", "-g", "@qwen-code/qwen-code@latest"],
+      { timeoutMs: 5 * 60 * 1000 },
+    );
   });
 });
 

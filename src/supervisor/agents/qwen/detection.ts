@@ -203,6 +203,7 @@ export const qwenDetectionSpec: DetectionSpec = {
   capabilities: qwenDefaultCapabilities,
   update: {
     builtIn: { binary: "qwen", args: ["update"] },
+    verifyBuiltInVersionChange: true,
     npm: "@qwen-code/qwen-code",
     brew: "qwen-code",
   },

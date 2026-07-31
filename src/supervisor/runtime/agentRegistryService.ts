@@ -39,7 +39,12 @@ import {
   setAcpRegistryAgentAuth as setAcpRegistryAgentAuthInRegistry,
   updateAcpRegistryAgent as updateAcpRegistryAgentFromRegistry,
 } from "../agents/acpRegistry";
-import { type AgentAdapter, type AgentEnvContext } from "../agents/base";
+import {
+  detectProbeLocation,
+  readDetectedVersion,
+  type AgentAdapter,
+  type AgentEnvContext,
+} from "../agents/base";
 import {
   getLatestSupportedNpmPackageVersion,
   getLatestVersionForAdapter,
@@ -282,7 +287,21 @@ export class AgentRegistryService {
       };
     }
 
-    const result = await runUpdateCommandWithFallback(adapter, status, envContext);
+    const verifyBuiltInVersionChange = (status.update ?? adapter.update)
+      ?.verifyBuiltInVersionChange;
+    const result =
+      verifyBuiltInVersionChange && status.version
+        ? await runUpdateCommandWithFallback(adapter, status, envContext, {
+            verifyBuiltInSuccess: async () => {
+              const refreshedVersion = await readDetectedVersion(
+                detectProbeLocation(envContext),
+                status.executablePath,
+                ["--version"],
+              );
+              return refreshedVersion !== undefined && refreshedVersion !== status.version;
+            },
+          })
+        : await runUpdateCommandWithFallback(adapter, status, envContext);
     if (result.ok) {
       // Drop the cached executable path so the next detection probe runs a
       // fresh `command -v` / `where.exe`. Without this we keep returning the
