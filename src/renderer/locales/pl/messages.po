@@ -1811,6 +1811,10 @@ msgstr "Dostęp do kamery zablokowany"
 msgid "Can't load ports"
 msgstr "Nie można wczytać portów"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Can't reach the remote server. Check that it is online, then reconnect it."
+msgstr "Nie można połączyć się z serwerem zdalnym. Sprawdź, czy jest online, i połącz ponownie."
+
 #. Dialog button: dismiss without deleting
 #: src/mobile/push/WebPushPermissionPrompt.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2755,11 +2759,12 @@ msgid "Connecting to the desktop browser…"
 msgstr "Łączenie z przeglądarką desktopa…"
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Łączenie…"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Connection error"
 msgstr "Błąd połączenia"
 
@@ -4206,6 +4211,10 @@ msgstr "Co godzinę"
 msgid "Every hour at {0} minutes past"
 msgstr "Co godzinę, {0} minut po pełnej godzinie"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Exclude from sync"
+msgstr "Wyklucz z synchronizacji"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
@@ -5283,6 +5292,10 @@ msgstr "Skanowanie kamerą w aplikacji działa tylko przez HTTPS. Użyj aplikacj
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Nieaktywny"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Include in sync"
+msgstr "Uwzględnij w synchronizacji"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Inherit global"
@@ -6981,7 +6994,7 @@ msgstr "Brak projektów"
 msgid "No projects in this workspace"
 msgstr "Brak projektów w tym obszarze roboczym"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "No projects on this server."
 msgstr "Brak projektów na tym serwerze."
 
@@ -7161,6 +7174,10 @@ msgstr "Niezalogowany"
 msgid "Not supported"
 msgstr "Nieobsługiwane"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Not synced"
+msgstr "Niezsynchronizowany"
+
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -7215,7 +7232,7 @@ msgid "Official sources only"
 msgstr "Tylko oficjalne źródła"
 
 #: src/mobile/useRemoteDesktop.ts
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "Offline"
 
@@ -7256,9 +7273,9 @@ msgstr "Jedna para KEY=VALUE w każdym wierszu"
 msgid "One time"
 msgstr "Jednorazowo"
 
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Online"
 msgstr "Online"
 
@@ -8456,6 +8473,10 @@ msgstr "Najnowsze wątki"
 msgid "Reconnect"
 msgstr "Połącz ponownie"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Reconnect the server to add projects."
+msgstr "Połącz ponownie z serwerem, aby dodać projekty."
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Reconnecting"
 msgstr "Ponowne łączenie"
@@ -8698,7 +8719,6 @@ msgid "Remove pinned route for {tagLabel}"
 msgstr "Usuń przypiętą trasę dla {tagLabel}"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove project"
 msgstr "Usuń projekt"
 
@@ -10343,6 +10363,10 @@ msgstr "Zatrzymaj przekierowywanie"
 msgid "Stop response"
 msgstr "Zatrzymaj odpowiedź"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Stop syncing"
+msgstr "Zatrzymaj synchronizację"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Stop task"
 msgstr "Zatrzymaj zadanie"
@@ -10994,6 +11018,10 @@ msgstr "Spowoduje to trwałe usunięcie gałęzi „{0}”."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "ten projekt"
+
+#: src/renderer/actions/threadLaunchActions.ts
+msgid "This project's remote server is offline. Reconnect it to start a thread."
+msgstr "Serwer zdalny tego projektu jest offline. Połącz ponownie, aby rozpocząć wątek."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."

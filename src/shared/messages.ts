@@ -146,6 +146,8 @@ const messages = {
   "remote.project.runningThreads": "Stop the project's running threads before changing its folder.",
   "remote.project.experimentsOwned":
     "Remove the project's experiments before removing the project.",
+  "remote.server.unreachable":
+    "Can't reach the remote server. Check that it is online, then reconnect it.",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -254,6 +256,18 @@ const errorPatterns: Array<{
     test: /Poracode Helper failed to start|Poracode SSH requires (?:Node 24\.10 or newer|npm)|Uploaded Poracode runtime archive was not found|No remote loopback port is available for Poracode/i,
     key: "remote.helper.startFailed",
   },
+  {
+    // undici collapses every transport-level failure into this opaque message
+    // (the OS errno, if any, lives only in the cause chain). Anchored so a
+    // longer message that merely mentions fetching keeps its own wording.
+    test: /^fetch failed\.?$/i,
+    key: "remote.server.unreachable",
+  },
+  {
+    // Errno codes that unambiguously mean "the host was not reachable".
+    test: /\b(?:ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ENETUNREACH)\b/,
+    key: "remote.server.unreachable",
+  },
 ];
 
 const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
@@ -272,9 +286,13 @@ function remoteErrorMessageKey(error: unknown): MessageKey | undefined {
   return typeof code === "string" ? remoteErrorMessageKeys[code] : undefined;
 }
 
-/** Strip Electron IPC wrapper noise from error messages. */
+/**
+ * Strip Electron IPC wrapper noise from error messages. The wrapped class name
+ * varies (`Error:`, `TypeError:` from undici's `fetch failed`, …) and may be
+ * absent, so match any of them rather than plain `Error:`.
+ */
 function stripIpcPrefix(raw: string): string {
-  return raw.replace(/^Error invoking remote method '[^']+': Error:\s*/i, "");
+  return raw.replace(/^Error invoking remote method '[^']+':\s*(?:[A-Za-z]*Error:\s*)?/i, "");
 }
 
 /**

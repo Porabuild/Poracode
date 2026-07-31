@@ -3,7 +3,6 @@ import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ChevronRight,
-  Folder,
   FolderOpen,
   FolderPlus,
   GitBranch,
@@ -14,15 +13,15 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { Project } from "@/shared/contracts";
 import { cloneFolderNameFromUrl } from "@/shared/createProject";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 import {
-  remoteServerStatusDotClass,
-  type RemoteServerRecord,
-  type RemoteServerStatus,
-} from "@/renderer/state/remoteServers/types";
+  RemoteServerStatusDot,
+  useRemoteServerStatusLabel,
+} from "@/renderer/components/common/RemoteServerStatusDot";
+import { RemoteServerProjectList } from "./RemoteServerProjectList";
 import { SettingsPage } from "./SettingsForm";
 import { RemoteHostFolderPicker } from "./RemoteHostFolderPicker";
 import { SshConnectionForm } from "./SshConnectionForm";
@@ -37,18 +36,6 @@ function endpointHost(endpoint: string): string {
   } catch {
     return endpoint;
   }
-}
-
-function useStatusLabel(status: RemoteServerStatus): string {
-  const { t } = useLingui();
-  if (status === "online") return t`Online`;
-  if (status === "connecting") return t`Connecting…`;
-  if (status === "error") return t`Connection error`;
-  return t`Offline`;
-}
-
-function projectPath(project: Project): string {
-  return "path" in project.location ? project.location.path : project.location.uncPath;
 }
 
 /** Compact bare input used across the remote-server forms. */
@@ -81,8 +68,17 @@ function CompactInput(props: {
   );
 }
 
-/** Reveal-on-click "add folder" / "clone repo" affordances for one server. */
-function ManageProjects({ desktopId }: { readonly desktopId: string }) {
+/**
+ * Reveal-on-click "add folder" / "clone repo" affordances for one server. Both
+ * create the project on the host, so they are locked while it is unreachable.
+ */
+function ManageProjects({
+  desktopId,
+  isOnline,
+}: {
+  readonly desktopId: string;
+  readonly isOnline: boolean;
+}) {
   const { t } = useLingui();
   const runProjectCommand = useRemoteServersStore((s) => s.runProjectCommand);
   const { busy, error, run } = useAsyncOperation();
@@ -118,15 +114,20 @@ function ManageProjects({ desktopId }: { readonly desktopId: string }) {
 
   if (mode === "none") {
     return (
-      <div className="flex gap-1 pl-5 pt-0.5">
-        <Button variant="ghost" size="sm" onPress={() => setMode("folder")}>
+      <div className="flex flex-wrap items-center gap-1 pl-5 pt-0.5">
+        <Button variant="ghost" size="sm" isDisabled={!isOnline} onPress={() => setMode("folder")}>
           <FolderPlus className="size-3.5" />
           <Trans>Add folder</Trans>
         </Button>
-        <Button variant="ghost" size="sm" onPress={() => setMode("clone")}>
+        <Button variant="ghost" size="sm" isDisabled={!isOnline} onPress={() => setMode("clone")}>
           <GitBranch className="size-3.5" />
           <Trans>Clone repo</Trans>
         </Button>
+        {isOnline ? null : (
+          <span className="text-xs text-muted/70">
+            <Trans>Reconnect the server to add projects.</Trans>
+          </span>
+        )}
       </div>
     );
   }
@@ -215,12 +216,11 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
   const runtime = useRemoteServersStore((s) => s.runtime[server.desktopId]);
   const reconnectServer = useRemoteServersStore((s) => s.reconnectServer);
   const removeServer = useRemoteServersStore((s) => s.removeServer);
-  const runProjectCommand = useRemoteServersStore((s) => s.runProjectCommand);
   const { busy, run } = useAsyncOperation();
   const [expanded, setExpanded] = useState(false);
 
   const status = runtime?.status ?? "offline";
-  const statusLabel = useStatusLabel(status);
+  const statusLabel = useRemoteServerStatusLabel(status);
   const canManage = server.scopes.includes("projects:manage");
   const projects = runtime?.projects ?? [];
 
@@ -235,10 +235,7 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
           <ChevronRight
             className={`size-3.5 shrink-0 text-muted transition-transform ${expanded ? "rotate-90" : ""}`}
           />
-          <span
-            className={`size-1.5 shrink-0 rounded-full ${remoteServerStatusDotClass(status)}`}
-            title={statusLabel}
-          />
+          <RemoteServerStatusDot status={status} />
           <span className="truncate text-sm text-foreground">{server.label}</span>
           {status !== "online" ? (
             <span className="shrink-0 text-xs text-muted">{statusLabel}</span>
@@ -275,43 +272,9 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
           {runtime?.status === "error" && runtime.message ? (
             <p className="pl-5 text-xs text-danger">{runtime.message}</p>
           ) : null}
-          {projects.length === 0 ? (
-            <p className="pl-5 text-xs text-muted">
-              <Trans>No projects on this server.</Trans>
-            </p>
-          ) : (
-            projects.map((project) => (
-              <div
-                key={project.id}
-                className="group flex items-center gap-2 rounded-md py-0.5 pl-5"
-              >
-                <Folder className="size-3.5 shrink-0 text-muted" />
-                <span className="truncate text-sm text-foreground">{project.name}</span>
-                <span className="min-w-0 flex-1 truncate text-xs text-muted/70">
-                  {projectPath(project)}
-                </span>
-                {canManage ? (
-                  <button
-                    type="button"
-                    className="hidden shrink-0 rounded p-0.5 text-muted hover:text-danger group-hover:block"
-                    aria-label={t`Remove project`}
-                    onClick={() =>
-                      run(() =>
-                        runProjectCommand(server.desktopId, {
-                          kind: "remove",
-                          projectId: project.id,
-                        }),
-                      )
-                    }
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                ) : null}
-              </div>
-            ))
-          )}
+          <RemoteServerProjectList desktopId={server.desktopId} projects={projects} />
           {canManage ? (
-            <ManageProjects desktopId={server.desktopId} />
+            <ManageProjects desktopId={server.desktopId} isOnline={status === "online"} />
           ) : (
             <p className="pl-5 pt-0.5 text-xs text-muted/70">
               <Trans>View-only — this connection can't manage projects.</Trans>

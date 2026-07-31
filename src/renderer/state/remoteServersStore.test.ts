@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import type { RemoteGitSummaries } from "@/shared/remote";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "./remoteServersStore";
@@ -222,7 +223,12 @@ describe("useRemoteServersStore", () => {
     // connection state so sockets/timers/seq cursors don't bleed across tests.
     __resetRemoteServersStoreForTest();
     useRemoteServersStore.getState().setSocketFactory(() => makeSocket());
-    useRemoteServersStore.setState({ servers: [], runtime: {}, openThread: null });
+    useRemoteServersStore.setState({
+      servers: [],
+      runtime: {},
+      excludedProjectIds: {},
+      openThread: null,
+    });
     useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
     sync.applyThreadSnapshot.mockClear();
     sync.dispatchRemoteSupervisorEvent.mockClear();
@@ -1678,6 +1684,61 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("error");
     expect(useRemoteServersStore.getState().runtime.d1?.message).toBe("server offline");
     expect(useRemoteServersStore.getState().openThread).toBeNull();
+  });
+
+  // ── Selective project sync ──────────────────────────────────────────
+  it("never mirrors the remote's built-in Home scope project", async () => {
+    const home: Project = { ...proj, id: HOME_PROJECT_ID, name: "Home" };
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ snapshotProjects: [home, proj] })));
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    const mirrored = useAppStore
+      .getState()
+      .projects.filter((project) => project.remoteServerId === "d1");
+    expect(mirrored.map((project) => project.remoteId)).toEqual(["p1"]);
+    // The full list stays in the runtime snapshot for the settings picker.
+    expect(useRemoteServersStore.getState().runtime.d1?.projects).toHaveLength(2);
+  });
+
+  it("excludes a project from sync locally, without reaching the server", async () => {
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
+      snapshotSeq: 0,
+      projects: [proj, proj2],
+      threads: [remoteThread],
+      runtimeSummariesByThread: {},
+      updatedAt: "now",
+    }));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    const callsAfterPairing = snapshot.mock.calls.length;
+
+    useRemoteServersStore.getState().setRemoteProjectSynced("d1", "p1", false);
+
+    const remoteIds = () =>
+      useAppStore
+        .getState()
+        .projects.filter((project) => project.remoteServerId === "d1")
+        .map((project) => project.remoteId);
+    expect(remoteIds()).toEqual(["p2"]);
+    // Threads of an unsynced project would be orphans in the sidebar.
+    expect(useAppStore.getState().threads.map((thread) => thread.remoteId)).not.toContain("rt-1");
+    // Purely local state — nothing was asked of the server.
+    expect(snapshot).toHaveBeenCalledTimes(callsAfterPairing);
+    expect(useRemoteServersStore.getState().excludedProjectIds.d1).toEqual(["p1"]);
+
+    // A later refresh must not resurrect it.
+    await useRemoteServersStore.getState().refreshServer("d1");
+    expect(remoteIds()).toEqual(["p2"]);
+
+    useRemoteServersStore.getState().setRemoteProjectSynced("d1", "p1", true);
+    expect(remoteIds()).toEqual(expect.arrayContaining(["p1", "p2"]));
   });
 
   it("does not reject when interruptThread fails against an offline server", async () => {

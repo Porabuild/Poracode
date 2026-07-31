@@ -73,6 +73,13 @@ export type RemoteSocketFactory = (url: string) => RemoteSocketLike;
 export interface RemoteServersState {
   servers: RemoteServerRecord[];
   runtime: Record<string, RemoteServerRuntime>;
+  /**
+   * Remote (server-side) project ids the user excluded from sync, keyed by
+   * desktopId. Local-only state, so a project can be dropped from — or restored
+   * to — the sidebar while its server is offline. See `projectSync.ts`.
+   */
+  excludedProjectIds: Record<string, readonly string[]>;
+  setRemoteProjectSynced(desktopId: string, remoteProjectId: string, synced: boolean): void;
   clientFactory: RemoteClientFactory;
   socketFactory: RemoteSocketFactory;
   setClientFactory(factory: RemoteClientFactory): void;
