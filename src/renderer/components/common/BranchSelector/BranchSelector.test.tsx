@@ -240,4 +240,30 @@ describe("BranchSelector", () => {
     expect(screen.queryByRole("button", { name: "Delete feature/x" })).not.toBeInTheDocument();
     expect(screen.queryByText("Move changes to a new worktree")).not.toBeInTheDocument();
   });
+
+  it("keeps selection-only menus free of branch management and PR actions", async () => {
+    useBranchListMock.mockReturnValue({
+      ...emptyBranchList,
+      hasLocal: true,
+      items: [
+        { type: "header", id: "header-local", name: "Local" },
+        {
+          type: "branch",
+          id: "feature/x",
+          branch: { name: "feature/x", current: false, commit: "abc123", isRemote: false },
+        },
+      ],
+    });
+
+    render(
+      <BranchSelector projectId="project-1" currentBranch="main" value="main" selectionOnly />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Select branch"));
+
+    expect(await screen.findByText("feature/x")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete feature/x" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Create branch")).not.toBeInTheDocument();
+    expect(prefetchBranchPrData).not.toHaveBeenCalled();
+  });
 });

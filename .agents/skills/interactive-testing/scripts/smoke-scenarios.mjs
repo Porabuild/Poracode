@@ -60,6 +60,13 @@ export const functionalAreas = [
     manual: ["git-mutations"],
   },
   {
+    id: "github-actions",
+    title: "GitHub Actions workflows, runs, dispatch, and PR check navigation",
+    patterns: [/GitHubActions/i, /githubWorkflowDefinition/i, /contracts\/github/i],
+    automated: ["baseline", "github-actions"],
+    manual: ["github-actions-live", "ipc-roundtrip"],
+  },
+  {
     id: "file-editor",
     title: "Project tree, file editor, Monaco, and file mutations",
     patterns: [/FileEditor/i, /fileEditor/i, /projectTree/i, /FileIndex/i],
@@ -156,6 +163,8 @@ export const manualGates = {
   "changed-surface": "Exercise the changed renderer surface through its real controls.",
   "file-editor": "Open, edit, save, rename, and close a fixture file.",
   "git-mutations": "Stage/unstage a fixture file and open Git Review without touching user data.",
+  "github-actions-live":
+    "Against an isolated GitHub fixture, list workflows and runs, dispatch a safe workflow, then verify rerun and delete controls.",
   "ipc-roundtrip":
     "Exercise one real renderer-to-main/supervisor round-trip per changed IPC family.",
   "mcp-extension":

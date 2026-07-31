@@ -11,6 +11,7 @@ import {
   Search,
   Settings2,
   Smartphone,
+  Workflow,
 } from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
@@ -227,6 +228,7 @@ export function Sidebar() {
   const hiddenProjectCount = useProjectIdsHiddenByWorkspace().size;
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
+  const sidebarHiddenShortcuts = useSharedSettings((s) => s.sidebarHiddenShortcuts);
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
@@ -238,6 +240,7 @@ export function Sidebar() {
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
+  const githubActionsOpen = usePanelStore((s) => s.githubActionsContext !== null);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
@@ -248,6 +251,7 @@ export function Sidebar() {
   const { isCollapsed, collapse, expand } = useSidebar();
   const openHome = useAppStore((s) => s.openHome);
   const openPullRequests = useAppStore((s) => s.openPullRequests);
+  const openGitHubActions = useAppStore((s) => s.openGitHubActions);
   const openSchedules = useAppStore((s) => s.openSchedules);
   const appView = useAppStore((s) => s.view);
   const appNameForHome = getAppName(readBridge().channel, import.meta.env.DEV);
@@ -272,6 +276,26 @@ export function Sidebar() {
       </span>
     </span>
   );
+  const sidebarShortcuts = [
+    {
+      id: "pullRequests" as const,
+      icon: <GitPullRequest className="size-4" />,
+      label: t`Pull requests`,
+      onPress: () => startTransition(() => openPullRequests()),
+    },
+    {
+      id: "githubActions" as const,
+      icon: <Workflow className="size-4" />,
+      label: t`GitHub Actions`,
+      onPress: () => startTransition(() => openGitHubActions(currentProjectId)),
+    },
+    {
+      id: "schedules" as const,
+      icon: <CalendarClock className="size-4" />,
+      label: t`Schedules`,
+      onPress: () => startTransition(() => openSchedules()),
+    },
+  ].filter((shortcut) => !sidebarHiddenShortcuts.includes(shortcut.id));
 
   useEffect(() => {
     if (currentProjectId) {
@@ -350,20 +374,18 @@ export function Sidebar() {
             <ProviderUsageRail orientation="column" />
             <UpdateButtons iconOnly />
             <WhatsNewButton iconOnly />
-            <SidebarButton
-              iconOnly
-              icon={<GitPullRequest className="size-4" />}
-              label={t`Pull requests`}
-              isActive={appView.kind === "pullRequests"}
-              onPress={() => startTransition(() => openPullRequests())}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<CalendarClock className="size-4" />}
-              label={t`Schedules`}
-              isActive={appView.kind === "schedules"}
-              onPress={() => startTransition(() => openSchedules())}
-            />
+            {sidebarShortcuts.map((shortcut) => (
+              <SidebarButton
+                key={shortcut.id}
+                iconOnly
+                icon={shortcut.icon}
+                label={shortcut.label}
+                isActive={
+                  shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id
+                }
+                onPress={shortcut.onPress}
+              />
+            ))}
             <SidebarButton
               iconOnly
               icon={<Settings2 className="size-4" />}
@@ -459,18 +481,17 @@ export function Sidebar() {
           <SidebarWorkspaceSwitcher />
           <UpdateButtons />
           <WhatsNewButton />
-          <SidebarButton
-            icon={<GitPullRequest className="size-4" />}
-            label={t`Pull requests`}
-            isActive={appView.kind === "pullRequests"}
-            onPress={() => startTransition(() => openPullRequests())}
-          />
-          <SidebarButton
-            icon={<CalendarClock className="size-4" />}
-            label={t`Schedules`}
-            isActive={appView.kind === "schedules"}
-            onPress={() => startTransition(() => openSchedules())}
-          />
+          {sidebarShortcuts.map((shortcut) => (
+            <SidebarButton
+              key={shortcut.id}
+              icon={shortcut.icon}
+              label={shortcut.label}
+              isActive={
+                shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id
+              }
+              onPress={shortcut.onPress}
+            />
+          ))}
           <div className="flex items-center gap-1">
             <div className="min-w-0 flex-1">
               <SidebarButton

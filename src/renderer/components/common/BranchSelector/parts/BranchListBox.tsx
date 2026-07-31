@@ -58,6 +58,7 @@ export function BranchListBox(props: {
   branchWorktreePath: Map<string, string>;
   threadsByBranch: Map<string, Thread[]>;
   allowWorktreeDelete?: boolean;
+  selectionOnly?: boolean;
   onSelect: (branchName: string) => void;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
@@ -77,6 +78,7 @@ export function BranchListBox(props: {
     branchWorktreePath,
     threadsByBranch,
     allowWorktreeDelete = true,
+    selectionOnly = false,
     onSelect,
     onDelete,
     onOpenPrReview,
@@ -160,6 +162,7 @@ export function BranchListBox(props: {
                 threads={threads}
                 isDeleting={isDeleting}
                 allowWorktreeDelete={allowWorktreeDelete}
+                selectionOnly={selectionOnly}
                 onDelete={onDelete}
                 onOpenPrReview={onOpenPrReview}
               />
@@ -181,6 +184,7 @@ function BranchRowBody(props: {
   threads: Thread[];
   isDeleting: boolean;
   allowWorktreeDelete: boolean;
+  selectionOnly: boolean;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
 }) {
@@ -194,11 +198,12 @@ function BranchRowBody(props: {
     threads,
     isDeleting,
     allowWorktreeDelete,
+    selectionOnly,
     onDelete,
     onOpenPrReview,
   } = props;
   const { t } = useLingui();
-  const canDelete = !isCurrent && (allowWorktreeDelete || !worktreePath);
+  const canDelete = !selectionOnly && !isCurrent && (allowWorktreeDelete || !worktreePath);
 
   const prKey = worktreePath ?? buildBranchNamePrKey(projectId, branch.name);
   const prState = usePrState(prKey);
@@ -219,7 +224,7 @@ function BranchRowBody(props: {
       />
       <Label className="flex-1 truncate">{branch.name}</Label>
       <div className="flex shrink-0 items-center gap-1.5">
-        {threads.length > 0 && (
+        {!selectionOnly && threads.length > 0 && (
           <Tooltip delay={150}>
             <Tooltip.Trigger
               tabIndex={-1}
@@ -245,7 +250,7 @@ function BranchRowBody(props: {
             </Tooltip.Content>
           </Tooltip>
         )}
-        {showPr && (
+        {!selectionOnly && showPr && (
           <Tooltip delay={150}>
             <Tooltip.Trigger tabIndex={-1} role="none">
               <button

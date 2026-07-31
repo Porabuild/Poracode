@@ -58,6 +58,8 @@ export interface BranchSelectorProps {
   compact?: boolean;
   /** Override PR badge navigation when the selector is embedded outside the desktop shell. */
   onOpenPrReview?: (args: OpenPrReviewArgs) => void;
+  /** Restrict the menu to searchable branch selection without PR, delete, create, or worktree actions. */
+  selectionOnly?: boolean;
   className?: string;
 }
 
@@ -84,6 +86,7 @@ export function BranchSelector(props: BranchSelectorProps) {
     hideTriggerIcon = false,
     compact = false,
     onOpenPrReview,
+    selectionOnly = false,
   } = props;
   const triggerIconSize = compact ? "size-3" : "size-3.5";
   const hideLabelOnWrap = collapseTier !== undefined;
@@ -119,7 +122,7 @@ export function BranchSelector(props: BranchSelectorProps) {
       if (!isRemote) setTimeout(() => searchRef.current?.focus(), 50);
       // Refresh PR status for all branches in the background; cached icons show
       // immediately (prefetch self-throttles + dedupes).
-      if (projectLocation) {
+      if (projectLocation && !selectionOnly) {
         void prefetchBranchPrData({ id: projectId, location: projectLocation });
       }
     }
@@ -382,32 +385,35 @@ export function BranchSelector(props: BranchSelectorProps) {
           branchWorktreePath={branchWorktreePath}
           threadsByBranch={threadsByBranch}
           allowWorktreeDelete={!isRemote}
+          selectionOnly={selectionOnly}
           onSelect={handleSelectBranch}
           onDelete={(b) => handleRequestDelete(b as GitBranchInfo)}
           onOpenPrReview={handleOpenPrReview}
         />
       </div>
 
-      <BranchFooterActions
-        isCreating={isCreating}
-        setIsCreating={setIsCreating}
-        newBranchName={newBranchName}
-        setNewBranchName={setNewBranchName}
-        createRef={createRef}
-        searchRef={searchRef}
-        handleCreateBranch={handleCreateBranch}
-        hideWorktreeToggle={hideWorktreeToggle}
-        worktreeMode={worktreeMode}
-        onWorktreeModeChange={onWorktreeModeChange}
-        baseBranch={baseBranch}
-        value={value}
-        isWorktree={isWorktree}
-        branchWorktreePath={branchWorktreePath}
-        onSelect={onSelect}
-        showMoveBranch={showMoveBranchAction && !isRemote}
-        isMovingBranch={isMovingBranch}
-        onMoveBranchToWorktree={() => void handleMoveBranchToWorktree()}
-      />
+      {selectionOnly ? null : (
+        <BranchFooterActions
+          isCreating={isCreating}
+          setIsCreating={setIsCreating}
+          newBranchName={newBranchName}
+          setNewBranchName={setNewBranchName}
+          createRef={createRef}
+          searchRef={searchRef}
+          handleCreateBranch={handleCreateBranch}
+          hideWorktreeToggle={hideWorktreeToggle}
+          worktreeMode={worktreeMode}
+          onWorktreeModeChange={onWorktreeModeChange}
+          baseBranch={baseBranch}
+          value={value}
+          isWorktree={isWorktree}
+          branchWorktreePath={branchWorktreePath}
+          onSelect={onSelect}
+          showMoveBranch={showMoveBranchAction && !isRemote}
+          isMovingBranch={isMovingBranch}
+          onMoveBranchToWorktree={() => void handleMoveBranchToWorktree()}
+        />
+      )}
     </>
   );
 

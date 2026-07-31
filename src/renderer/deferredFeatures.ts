@@ -88,6 +88,12 @@ export const DeferredPrReviewOverlay = preloadable(() =>
   ),
 );
 
+export const DeferredGitHubActionsView = preloadable(() =>
+  import("@/renderer/views/GitHubActionsView/GitHubActionsView").then(
+    (module) => module.GitHubActionsView,
+  ),
+);
+
 export const DeferredInlineDiffView = preloadable(() =>
   import("@/renderer/components/thread/ChatPane/parts/items/InlineDiffView").then(
     (module) => module.InlineDiffView,
@@ -113,6 +119,7 @@ const prewarmTasks = [
   DeferredGitReviewPanel.preload,
   DeferredGitReviewOverlay.preload,
   DeferredPrReviewOverlay.preload,
+  DeferredGitHubActionsView.preload,
   DeferredInlineDiffView.preload,
 ] as const;
 

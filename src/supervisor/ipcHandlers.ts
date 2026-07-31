@@ -246,6 +246,23 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghGetPrForBranch: (payload) => github.getPrForBranch(payload.projectLocation, payload.branch),
     ghListPrs: async (payload) => ({ prs: await github.listPrs(payload.projectLocation) }),
     ghListPullRequests: (payload) => github.listPullRequests(payload.projectLocation),
+    ghListWorkflows: (payload) => github.listWorkflows(payload.projectLocation),
+    ghListWorkflowRuns: (payload) =>
+      github.listWorkflowRuns(payload.projectLocation, payload.workflowId),
+    ghGetWorkflowDefinition: (payload) =>
+      github.getWorkflowDefinition(payload.projectLocation, payload.workflowId, payload.ref),
+    ghGetWorkflowRun: (payload) => github.getWorkflowRun(payload.projectLocation, payload.runId),
+    ghDispatchWorkflow: (payload) =>
+      github.dispatchWorkflow(
+        payload.projectLocation,
+        payload.workflowId,
+        payload.ref,
+        payload.inputs,
+      ),
+    ghRerunWorkflowRun: (payload) =>
+      github.rerunWorkflowRun(payload.projectLocation, payload.runId, payload.failedOnly),
+    ghDeleteWorkflowRun: (payload) =>
+      github.deleteWorkflowRun(payload.projectLocation, payload.runId),
     ghMergePr: (payload) =>
       github.mergePr(payload.projectLocation, payload.prNumber, payload.method, payload.admin),
     ghClosePr: (payload) => github.closePr(payload.projectLocation, payload.prNumber),

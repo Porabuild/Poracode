@@ -252,6 +252,12 @@ msgstr "{0}には認証が必要です。"
 msgid "{0} needs input."
 msgstr "{0}には入力が必要です。"
 
+#. placeholder {0}: job.steps.filter((step) => step.status === "completed").length
+#. placeholder {1}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "{0} of {1} steps"
+msgstr "{1} ステップ中 {0}"
+
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
 #~ msgid "{0} of {matchCount}"
@@ -278,6 +284,8 @@ msgid "{0} run"
 msgstr "{0}回の実行"
 
 #. placeholder {0}: item.runCount.toLocaleString()
+#. placeholder {0}: runs.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "{0}回の実行"
@@ -328,6 +336,11 @@ msgstr "{0}が更新されました。"
 msgid "{0} used"
 msgstr "{0}が使用されました"
 
+#. placeholder {0}: workflows.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "{0} workflows"
+#~ msgstr "{0} 個のワークフロー"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -367,6 +380,11 @@ msgstr "{agentLead}が続行するには入力が必要です。"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# 件のコミット} other {# 件のコミット}}"
+
+#. placeholder {0}: job.steps.length
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "{completedSteps} of {0} steps"
+#~ msgstr "{completedSteps}/{0} ステップ完了"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
@@ -613,9 +631,17 @@ msgstr "≈{0}% (リセットまでに)"
 #~ msgid "1 project"
 #~ msgstr "1 件のプロジェクト"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "1 run"
+msgstr "1 件の実行"
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
 msgstr "1 件のスレッド"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "1 workflow"
+#~ msgstr "1 個のワークフロー"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "22"
@@ -809,6 +835,10 @@ msgstr "プルリクエストを表示するには、プロジェクトを追加
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "開始するプロジェクトを追加してください"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Add a project to use GitHub Actions."
+msgstr "GitHub Actions を使用するにはプロジェクトを追加してください。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
@@ -1340,6 +1370,10 @@ msgstr "todo ドックをコンポーザーにアタッチする"
 msgid "Attached browser selection."
 msgstr "ブラウザの選択範囲を添付しました。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Attempt"
+msgstr "試行"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Audio"
@@ -1599,6 +1633,7 @@ msgid "Bottom"
 msgstr "下"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
 msgstr "ブランチ"
 
@@ -1618,6 +1653,10 @@ msgstr "ブランチ <0>{0}</0> にはマージされていない変更があり
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "ブランチが完全にマージされていません"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Branch or tag"
+msgstr "ブランチまたはタグ"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
@@ -1788,6 +1827,7 @@ msgstr "ポートを読み込めません"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
@@ -1830,6 +1870,7 @@ msgstr "キャンセルされました"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancelled"
 msgstr "キャンセル済み"
 
@@ -2261,6 +2302,10 @@ msgstr "ポートの転送を閉じる"
 msgid "Close forward actions"
 msgstr "転送の操作メニューを閉じる"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Close GitHub Actions"
+#~ msgstr "GitHub Actions を閉じる"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "ゴールを閉じる"
@@ -2320,6 +2365,10 @@ msgstr "プレビューを閉じる"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Close project filter"
 msgstr "プロジェクトフィルターを閉じる"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Close run details"
+msgstr "実行の詳細を閉じる"
 
 #: src/mobile/QrScanner.tsx
 msgid "Close scanner"
@@ -2483,6 +2532,7 @@ msgstr "コメントを投稿しました"
 msgid "commented"
 msgstr "コメントした"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
 msgstr "コミット"
@@ -3442,6 +3492,10 @@ msgstr "ファイルの削除"
 msgid "Delete permanently"
 msgstr "完全に削除"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete run"
+msgstr "実行を削除"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
 msgstr "スケジュールを削除"
@@ -3482,6 +3536,15 @@ msgstr "スレッドを削除しますか?"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Delete to-do"
 msgstr "To-Doを削除する"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Delete workflow run"
+msgstr "ワークフロー実行を削除"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Delete workflow run?"
+msgstr "ワークフロー実行を削除しますか？"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete workspace"
@@ -4120,6 +4183,10 @@ msgstr "エラー · エージェントでエラーが発生しました"
 msgid "Errors"
 msgstr "エラー"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Event"
+msgstr "イベント"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
 msgstr "毎日{time}"
@@ -4310,9 +4377,14 @@ msgstr "失敗しました"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "失敗"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Failed jobs queued to run again."
+msgstr "失敗したジョブを再実行キューに追加しました。"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Failed to clear goal"
@@ -4448,6 +4520,10 @@ msgstr "{0}のファイル"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "これらのグロブに一致するファイルは、@file メンション検索から非表示になります。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Fill in all required workflow inputs."
+msgstr "必須のワークフロー入力をすべて入力してください。"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
@@ -4814,6 +4890,17 @@ msgstr "{0}の Git ステータス"
 msgid "Git status for {0}: not a Git repository"
 msgstr "{0}の Git ステータス: Git リポジトリではありません"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "GitHub Actions"
+msgstr "GitHub Actions"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "GitHub Actions shortcut"
+msgstr "GitHub Actions ショートカット"
+
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
@@ -5013,6 +5100,7 @@ msgstr "パネルを非表示にする"
 msgid "Hide runtime debug panel"
 msgstr "ランタイムデバッグパネルを非表示にする"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -5181,6 +5269,10 @@ msgstr "1 個のスキルをインポートしました。"
 msgid "Improved"
 msgstr "改善"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "In progress"
+msgstr "実行中"
+
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
 msgstr "アプリ内のカメラスキャンは HTTPS でのみ動作します。スマートフォンのカメラアプリでデスクトップの QR コードをスキャンするか、下にエンドポイントとトークンを入力してください。"
@@ -5211,6 +5303,18 @@ msgstr "リポジトリの初期化"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "入力レベル"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Input values must be strings, numbers, or booleans."
+#~ msgstr "入力値は文字列、数値、またはブール値である必要があります。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Inputs (JSON)"
+#~ msgstr "入力 (JSON)"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Inputs must be a JSON object."
+#~ msgstr "入力は JSON オブジェクトである必要があります。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -5392,6 +5496,10 @@ msgstr "中断されました: エージェントセッションが完了前に�
 msgid "Italic"
 msgstr "イタリック体"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Jobs"
+msgstr "ジョブ"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "JSON"
 msgstr "JSON"
@@ -5514,6 +5622,10 @@ msgstr "起動中…"
 msgid "Leave a comment"
 msgstr "コメントを残す"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Leave empty to use the repository default branch."
+#~ msgstr "空のままにすると、リポジトリのデフォルトブランチを使用します。"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "少ない"
@@ -5598,6 +5710,10 @@ msgstr "エディターを読み込み中…"
 msgid "Loading file…"
 msgstr "ファイルをロード中…"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Loading jobs"
+msgstr "ジョブを読み込み中"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "マーケットプレイスを読み込み中…"
@@ -5650,6 +5766,14 @@ msgstr "スレッドを読み込み中"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Loading threads"
 msgstr "スレッドを読み込み中"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Loading workflow inputs"
+msgstr "ワークフロー入力を読み込み中"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Loading workflow runs"
+msgstr "ワークフロー実行を読み込み中"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/ThreadDetail.tsx
@@ -6584,6 +6708,14 @@ msgstr "アクティブなブラウザタブがありません"
 msgid "No active session"
 msgstr "アクティブなセッションがありません"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "No active workflows"
+#~ msgstr "アクティブなワークフローがありません"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "No active workflows found."
+msgstr "有効なワークフローが見つかりません。"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No activity yet."
 msgstr "まだアクティビティがありません。"
@@ -6750,6 +6882,10 @@ msgstr "履歴はまだありません"
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "このプロジェクトで利用できる、選択可能なモデルを持つインストール済みエージェントはありません。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "No jobs reported for this run."
+msgstr "この実行ではジョブが報告されていません。"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6927,6 +7063,10 @@ msgstr "音声が検出されませんでした。"
 msgid "No staged changes"
 msgstr "ステージされた変更はありません"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#~ msgid "No steps reported"
+#~ msgstr "報告されたステップはありません"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 #~ msgstr "このリモートマシンには対応エージェントがインストールされていません。スレッドを開始する前に、リモートでエージェントをインストールしてサインインしてください。"
@@ -6960,6 +7100,10 @@ msgstr "まだスレッドがありません。"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
 msgstr "ウィンドウは報告されませんでした"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "No workflow runs found."
+msgstr "ワークフロー実行が見つかりません。"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #~ msgid "No worktree"
@@ -7119,6 +7263,10 @@ msgstr "オンライン"
 msgid "Only when unfocused"
 msgstr "焦点が合っていないときのみ"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
+#~ msgstr "workflow_dispatch トリガーがあるワークフローのみ手動で開始できます。"
+
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -7263,6 +7411,10 @@ msgstr "ブラウザで開く"
 msgid "Open in editor"
 msgstr "エディタで開く"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Open job on GitHub"
+msgstr "GitHub でジョブを開く"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "インストール数とトレンド指標を掲載した公開ランキング。"
@@ -7294,6 +7446,8 @@ msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "新しいスレッドをページ全体または並べて表示するパネルとして開きます。"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Open on GitHub"
 msgstr "GitHub で開く"
 
@@ -7333,6 +7487,10 @@ msgstr "未処理のリクエスト"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Open required URL"
 msgstr "必要なURLを開く"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "Open run in GitHub Actions"
+msgstr "GitHub Actions で実行を開く"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Open settings"
@@ -7407,6 +7565,10 @@ msgstr "任意"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "オプションのステータスフック。インストールされたフックは自動的に更新されます。不足しているフックが自動的にインストールされることはありません。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Optional workflow_dispatch input values."
+#~ msgstr "任意の workflow_dispatch 入力値。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -7687,6 +7849,10 @@ msgstr "ピッカーは添付ファイルを返しませんでした"
 msgid "Pin to top"
 msgstr "トップにピン留めする"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Pin workflow"
+msgstr "ワークフローをピン留め"
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
@@ -7926,6 +8092,7 @@ msgstr "プロファイル"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -8131,6 +8298,11 @@ msgstr "プルリクエストのオプション"
 msgid "Pull requests"
 msgstr "プルリクエスト"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Pull requests shortcut"
+msgstr "プルリクエストのショートカット"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Push"
@@ -8164,6 +8336,10 @@ msgstr "Qoder CLI"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "質問"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Queued"
+msgstr "キュー待ち"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -8219,6 +8395,16 @@ msgstr "再ログイン"
 msgid "Re-pair this connection to grant access to port forwarding."
 msgstr "ポート転送へのアクセスを許可するには、この接続を再度ペアリングしてください。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run all jobs"
+msgstr "すべてのジョブを再実行"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Re-run failed jobs"
+msgstr "失敗したジョブを再実行"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "各候補の変更を読み込んでいます…"
@@ -8254,6 +8440,10 @@ msgstr "最近の"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Recent installs"
 msgstr "最近のインストール"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Recent runs"
+#~ msgstr "最近の実行"
 
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
@@ -8319,9 +8509,21 @@ msgstr "MCP サーバーのソースを更新"
 msgid "Refresh registry"
 msgstr "レジストリを更新する"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Refresh run"
+msgstr "実行を更新"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Refresh skills"
 msgstr "スキルを更新"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Refresh workflow runs"
+msgstr "ワークフロー実行を更新"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Refresh workflows"
+msgstr "ワークフローを更新"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -8678,6 +8880,10 @@ msgstr "右パネルのサイズを変更"
 msgid "Resize row"
 msgstr "行のサイズを変更する"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Resize run details"
+msgstr "実行詳細のサイズを変更"
+
 #: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
@@ -8765,6 +8971,7 @@ msgid "Retry with admin"
 msgstr "管理者で再試行してください"
 
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -8891,8 +9098,10 @@ msgstr "右クリックでリングを切り替え"
 msgid "Run"
 msgstr "実行"
 
+#. placeholder {0}: props.workflow.name
 #. placeholder {0}: workflow.runId
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Run {0}"
 msgstr "{0}を実行"
 
@@ -8909,6 +9118,10 @@ msgstr "{loginCommand}を実行してサインインします。"
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "{0} で新しいスレッドを実行します。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Run actions"
+msgstr "実行アクション"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -8966,6 +9179,12 @@ msgstr "ターミナルコマンドを実行する"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run this schedule automatically on the schedule below."
 msgstr "下記のスケジュールでこのスケジュールを自動的に実行します。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Run workflow"
+msgstr "ワークフローを実行"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -9120,6 +9339,11 @@ msgstr "このデスクトップのスケジュールタスク"
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Schedules"
 msgstr "スケジュール"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Schedules shortcut"
+msgstr "スケジュールのショートカット"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -9336,6 +9560,10 @@ msgstr "編集を開始するファイルを選択します。"
 msgid "Select a repository."
 msgstr "リポジトリを選択します。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Select a workflow to see its runs."
+msgstr "実行を表示するワークフローを選択してください。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "アカウントの選択"
@@ -9523,6 +9751,11 @@ msgstr "コンテキストの使用状況の詳細を表示する"
 msgid "Show estimated cost"
 msgstr "推定コストを表示"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show GitHub Actions in the sidebar footer."
+msgstr "サイドバーのフッターに GitHub Actions を表示します。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "ファイルエクスプローラーで表示"
@@ -9569,10 +9802,21 @@ msgstr "サイドバーの表示／非表示を切り替えます"
 msgid "Show preview"
 msgstr "プレビューを表示"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Pull requests in the sidebar footer."
+msgstr "サイドバーのフッターにプルリクエストを表示します。"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
 msgstr "ランタイムデバッグパネルを表示"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show Schedules in the sidebar footer."
+msgstr "サイドバーのフッターにスケジュールを表示します。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -9768,6 +10012,7 @@ msgid "Skills.sh"
 msgstr "Skills.sh"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "スキップ済み"
 
@@ -10002,6 +10247,14 @@ msgstr "スケジュールから始める"
 msgid "Start Without Context"
 msgstr "コンテキストなしで開始"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Start workflows and monitor their runs for each project."
+#~ msgstr "プロジェクトごとにワークフローを開始し、その実行を監視します。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#~ msgid "Start workflows and monitor their runs."
+#~ msgstr "ワークフローを開始し、その実行を監視します。"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "{targetLabel}スレッドを開始しました"
@@ -10048,6 +10301,7 @@ msgid "Stashed changes pending"
 msgstr "スタッシュされた変更が保留中"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Status"
 msgstr "ステータス"
 
@@ -10180,6 +10434,7 @@ msgstr "Git フォームを送信"
 msgid "Submit review"
 msgstr "レビューを送信する"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Succeeded"
 msgstr "成功"
@@ -10716,6 +10971,11 @@ msgstr "この名前は組み込みMCPサーバーによって予約されてい
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "このページは HTTPS で配信されているため、ブラウザは平文 HTTP のデスクトップへの接続をブロックします。デスクトップ自身のアドレスで続けて、そこでペアリングを完了してください。"
 
+#. placeholder {0}: deleteRun?.number
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This permanently deletes run #{0} and its logs from GitHub."
+msgstr "実行 #{0} とそのログを GitHub から完全に削除します。"
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -10765,6 +11025,10 @@ msgstr "このシステム全体のショートカットは使用できません
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
 msgstr "このスレッドはワークツリー <0>{0}</0> を使用します。ワークツリーディレクトリも削除しますか?"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "This workflow cannot be started manually."
+msgstr "このワークフローは手動で開始できません。"
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
@@ -10852,6 +11116,10 @@ msgstr "完了とマークされ、この日数タッチされていないスレ
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "時刻"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Timed out"
+msgstr "タイムアウト"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Timed out waiting for Poracode Helper."
@@ -10994,6 +11262,10 @@ msgstr "半透明のサイドバー"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Trending now"
 msgstr "現在のトレンド"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "Triggers:"
+msgstr "トリガー："
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -11331,6 +11603,7 @@ msgstr "アンインストール"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "不明"
@@ -11391,6 +11664,10 @@ msgstr "フェーズなし:"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unpin"
 msgstr "固定を解除する"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+msgid "Unpin workflow"
+msgstr "ワークフローのピン留めを解除"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -11507,6 +11784,10 @@ msgstr "マージコミットによる更新"
 msgid "Update with rebase"
 msgstr "リベースで更新する"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+msgid "Updated"
+msgstr "更新日時"
+
 #. placeholder {0}: formatUpdatedAgo(lastUpdated, nowTick, t)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Updated {0}"
@@ -11600,6 +11881,10 @@ msgstr "セッションを使用する"
 msgid "Use the {name} skill."
 msgstr "{name} スキルを使用します。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
+#~ msgid "Use the default branch"
+#~ msgstr "デフォルトブランチを使用"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "このアカウントを使用状況の追跡に使用するか、続行する前にブラウザでユーザーを変更してください。"
@@ -11613,6 +11898,10 @@ msgstr "このフォルダーを使用"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "WebGPU アクセラレーションを使用する"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+msgid "Use workflow from"
+msgstr "ワークフローの参照元"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
@@ -11763,6 +12052,10 @@ msgstr "プルリクエストを開く前に、すべての候補が完了する
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "スレッドの開始が完了するまで待ちます。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Waiting"
+msgstr "待機中"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents will refresh when it finishes."
@@ -11977,6 +12270,10 @@ msgstr "{elapsed}稼働しました"
 msgid "Workflow"
 msgstr "ワークフロー"
 
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow dispatch requested."
+msgstr "ワークフローの実行をリクエストしました。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
 msgstr "ワークフローが完了しました。子エージェントは別のプロセスで実行されており、ここではまだストリーミングされていません。"
@@ -11989,10 +12286,24 @@ msgstr "ワークフローはバックグラウンドで実行されています
 msgid "Workflow phases"
 msgstr "ワークフローのフェーズ"
 
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow queued to run again."
+msgstr "ワークフローを再実行キューに追加しました。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowResultGroup.tsx
 msgid "Workflow results"
 msgstr "ワークフローの結果"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Workflow run"
+msgstr "ワークフロー実行"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow run deleted."
+msgstr "ワークフロー実行を削除しました。"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Workflow runs"
 msgstr "ワークフロー実行"
@@ -12003,6 +12314,7 @@ msgstr "ワークフロー:{description}"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Workflows"
 msgstr "ワークフロー"
 

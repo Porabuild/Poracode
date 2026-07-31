@@ -161,6 +161,9 @@ export function PageLayout(props: {
   content: ReactNode;
   rightPanel?: ReactNode;
   gitPanel?: ReactNode;
+  rightPanelOpen?: boolean;
+  rightPanelPlacement?: "right" | "bottom";
+  rightPanelResizeLabel?: string;
   forceSidebarExpanded?: boolean;
   onRequestClosePanels?: () => void;
   onDismissRightOverlay?: () => void;
@@ -175,6 +178,9 @@ export function PageLayout(props: {
     content,
     rightPanel,
     gitPanel,
+    rightPanelOpen,
+    rightPanelPlacement,
+    rightPanelResizeLabel,
     forceSidebarExpanded,
     onRequestClosePanels,
     onDismissRightOverlay,
@@ -203,6 +209,9 @@ export function PageLayout(props: {
       content={content}
       rightPanel={rightPanel}
       gitPanel={gitPanel}
+      {...(rightPanelOpen !== undefined ? { rightPanelOpen } : {})}
+      {...(rightPanelPlacement !== undefined ? { rightPanelPlacement } : {})}
+      {...(rightPanelResizeLabel !== undefined ? { rightPanelResizeLabel } : {})}
       {...(forceSidebarExpanded === true ? { forceSidebarExpanded: true } : {})}
       {...(onRequestClosePanels != null ? { onRequestClosePanels } : {})}
       {...(onDismissRightOverlay != null ? { onDismissRightOverlay } : {})}

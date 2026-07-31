@@ -25,6 +25,11 @@ export interface PrReviewContext {
   prKey?: string;
 }
 
+export interface GitHubActionsContext {
+  projectId?: string;
+  runId?: number;
+}
+
 export interface FilesPanelContext {
   projectId: string;
   projectName: string;
@@ -54,6 +59,7 @@ interface PanelState {
   gitReviewAsPanel: boolean;
   gitOverlayOpen: boolean;
   prReviewContext: PrReviewContext | null;
+  githubActionsContext: GitHubActionsContext | null;
   filesPanelContext: FilesPanelContext | null;
   subAgentPanelContext: SubAgentPanelContext | null;
   subAgentPanelOpen: boolean;
@@ -87,6 +93,7 @@ interface PanelState {
   setGitReviewAsPanel: (v: boolean) => void;
   setGitOverlayOpen: (v: boolean) => void;
   setPrReviewContext: (ctx: PrReviewContext | null) => void;
+  setGitHubActionsContext: (ctx: GitHubActionsContext | null) => void;
   setFilesPanelContext: (ctx: FilesPanelContext | null) => void;
   setSubAgentPanelContext: (ctx: SubAgentPanelContext | null) => void;
   setRightPanelTab: (tab: RightPanelTab) => void;
@@ -187,6 +194,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   gitReviewAsPanel: false,
   gitOverlayOpen: false,
   prReviewContext: null,
+  githubActionsContext: null,
   filesPanelContext: null,
   subAgentPanelContext: null,
   subAgentPanelOpen: false,
@@ -245,6 +253,20 @@ export const usePanelStore = create<PanelState>()((set) => ({
         return {};
       }
       return { prReviewContext: ctx };
+    }),
+  setGitHubActionsContext: (ctx) =>
+    set((state) => {
+      const prev = state.githubActionsContext;
+      if (
+        (prev === null && ctx === null) ||
+        (prev !== null &&
+          ctx !== null &&
+          prev.projectId === ctx.projectId &&
+          prev.runId === ctx.runId)
+      ) {
+        return {};
+      }
+      return { githubActionsContext: ctx };
     }),
   setFilesPanelContext: (ctx) =>
     set((state) => {
@@ -438,6 +460,7 @@ export function selectAnyObstructingOverlayOpen(): boolean {
     p.projectSettingsId !== null ||
     p.gitOverlayOpen ||
     p.prReviewContext !== null ||
+    p.githubActionsContext !== null ||
     p.threadSearchOpen
   ) {
     return true;

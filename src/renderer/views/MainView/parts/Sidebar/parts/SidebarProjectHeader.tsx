@@ -11,6 +11,7 @@ import {
   Server,
   Settings2,
   Trash2,
+  Workflow,
 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
@@ -96,6 +97,11 @@ export function SidebarProjectHeader(props: {
                     icon: <FileDiff className="size-3.5" />,
                   },
                   {
+                    id: "github-actions",
+                    label: t`GitHub Actions`,
+                    icon: <Workflow className="size-3.5" />,
+                  },
+                  {
                     id: "git-sync",
                     label: t`Sync`,
                     icon: <RefreshCw className="size-3.5" />,
@@ -159,6 +165,9 @@ export function SidebarProjectHeader(props: {
         if (key === "remove-project") deleteProject(project.id);
         if (key === "toggle-disabled") setProjectDisabled(project.id, !isDisabled);
         if (key === "git-review") openGitReview(project.id);
+        if (key === "github-actions") {
+          useAppStore.getState().openGitHubActions(project.id);
+        }
         if (key === "git-sync") gitSync(project.id);
         if (key.startsWith("action:")) {
           runProjectAction(project.id, key.slice("action:".length));

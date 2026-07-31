@@ -29,6 +29,8 @@ export function GeneralSettings() {
   const setNewThreadMode = useSharedSettings((state) => state.setNewThreadMode);
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const setHomeScopeEnabled = useSharedSettings((state) => state.setHomeScopeEnabled);
+  const sidebarHiddenShortcuts = useSharedSettings((state) => state.sidebarHiddenShortcuts);
+  const setSidebarShortcutVisible = useSharedSettings((state) => state.setSidebarShortcutVisible);
   const editorLspEnabled = useSharedSettings((state) => state.editorLspEnabled);
   const setEditorLspEnabled = useSharedSettings((state) => state.setEditorLspEnabled);
   // System sleep and tray behavior belong to the desktop OS; a remote session
@@ -45,6 +47,26 @@ export function GeneralSettings() {
     id: option.id,
     label: typeof option.label === "string" ? option.label : t(option.label),
   }));
+  const sidebarShortcutSettings = [
+    {
+      id: "pullRequests" as const,
+      anchorId: "general.sidebarPullRequests",
+      title: t`Pull requests shortcut`,
+      description: <Trans>Show Pull requests in the sidebar footer.</Trans>,
+    },
+    {
+      id: "githubActions" as const,
+      anchorId: "general.sidebarGitHubActions",
+      title: t`GitHub Actions shortcut`,
+      description: <Trans>Show GitHub Actions in the sidebar footer.</Trans>,
+    },
+    {
+      id: "schedules" as const,
+      anchorId: "general.sidebarSchedules",
+      title: t`Schedules shortcut`,
+      description: <Trans>Show Schedules in the sidebar footer.</Trans>,
+    },
+  ];
 
   return (
     <SettingsPage title={t`General`}>
@@ -158,6 +180,22 @@ export function GeneralSettings() {
           />
         </SettingRow>
       )}
+
+      {!remote &&
+        sidebarShortcutSettings.map((shortcut) => (
+          <SettingRow
+            key={shortcut.id}
+            anchorId={shortcut.anchorId}
+            title={shortcut.title}
+            description={shortcut.description}
+          >
+            <ToggleSwitch
+              aria-label={shortcut.title}
+              isSelected={!sidebarHiddenShortcuts.includes(shortcut.id)}
+              onChange={(selected) => setSidebarShortcutVisible(shortcut.id, selected)}
+            />
+          </SettingRow>
+        ))}
 
       {!remote && (
         <SettingRow
