@@ -61,6 +61,9 @@ export function VirtualizedFileRows<T>(props: {
     useFlushSync: false,
     enabled: canVirtualize,
     directDomUpdates: true,
+    // `transform` positioning would break the `sticky` file headers inside
+    // expanded rows: the translate offset is applied after sticky resolves.
+    directDomUpdatesMode: "position",
     rangeExtractor: (range) => {
       const indexes = new Set(defaultRangeExtractor(range));
       for (const index of persistentIndexes) indexes.add(index);

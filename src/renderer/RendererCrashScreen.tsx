@@ -153,7 +153,10 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
   }
 
   return (
-    <main className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+    <main
+      data-renderer-crash-screen=""
+      className="flex h-screen w-screen overflow-hidden bg-background text-foreground"
+    >
       <div className="flex min-h-0 w-full flex-col gap-4 px-8 pt-14 pb-8">
         <header className="flex shrink-0 items-start justify-between gap-4">
           <div className="min-w-0">

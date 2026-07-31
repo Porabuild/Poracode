@@ -13,14 +13,18 @@ import {
   manualGates,
   productionRoots,
 } from "./smoke-scenarios.mjs";
+import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
+import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(scriptDir, "../../../../");
 const args = parseArgs(process.argv.slice(2));
 const command = args._[0] ?? "plan";
 const scope = String(args.scope ?? "changed");
 const mode = String(args.mode ?? "mock");
-const port = Number(args.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
-const appUrl = String(args.appUrl ?? process.env.PORACODE_APP_URL ?? "http://127.0.0.1:3100/");
+let port;
+let appUrl;
+let sessionFile;
 const timeoutMs = Number(args.timeoutMs ?? 12_000);
 const outDir = resolve(
   String(
@@ -36,6 +40,21 @@ try {
   } else if (command === "plan") {
     printPlan(buildPlan(scope));
   } else if (command === "run") {
+    const connection = await resolveDebugConnection({
+      session: args.session ?? process.env.PORACODE_DEBUG_SESSION,
+      port: args.port ?? process.env.PORACODE_CDP_PORT,
+      appUrl: args.appUrl ?? process.env.PORACODE_APP_URL,
+      repoRoot,
+      allowedPurposes: ["debug", "smoke"],
+    });
+    if (connection.mode && connection.mode !== mode) {
+      throw new Error(
+        `managed debug session mode is ${connection.mode}, but this run requested ${mode}; stop it and launch the matching mode`,
+      );
+    }
+    port = connection.port;
+    appUrl = connection.appUrl;
+    sessionFile = connection.sessionFile;
     await runSmoke(buildPlan(scope));
   } else {
     usage();
@@ -50,9 +69,9 @@ function usage() {
   console.error(`Usage:
   node poracode-integration-smoke.mjs audit
   node poracode-integration-smoke.mjs plan [--scope changed|full]
-  node poracode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--port <cdp port>] [--appUrl <dev server url>] [--outDir <dir>] [--ack-manual gate,gate]
+  node poracode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--session <session.json>] [--port <cdp port> --appUrl <dev server url>] [--outDir <dir>] [--ack-manual gate,gate]
 
-Port and app URL default to $PORACODE_CDP_PORT and $PORACODE_APP_URL (see the runner's ports.json), then 9222 / http://127.0.0.1:3100/.`);
+Run resolves --session / $PORACODE_DEBUG_SESSION, one active managed debug session for this repo, or a complete explicit port + URL pair. It never guesses ports.`);
 }
 
 function trackedFiles() {
@@ -68,7 +87,11 @@ function changedFiles() {
 }
 
 function runGit(argv) {
-  return execFileSync("git", argv, { cwd: process.cwd(), encoding: "utf8" });
+  return execFileSync("git", argv, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    windowsHide: process.platform === "win32",
+  });
 }
 
 function lines(value) {
@@ -1210,16 +1233,17 @@ async function browserScenario(client) {
     process.execPath,
     [
       join(scriptDir, "poracode-browser-smoke.mjs"),
-      "--port",
-      String(port),
-      "--appUrl",
-      appUrl,
+      ...(sessionFile ? ["--session", sessionFile] : ["--port", String(port), "--appUrl", appUrl]),
       "--outDir",
       join(outDir, "browser"),
       "--commandTimeoutMs",
       "20000",
     ],
-    { cwd: process.cwd(), encoding: "utf8" },
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      windowsHide: process.platform === "win32",
+    },
   );
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
@@ -1570,14 +1594,7 @@ async function bridgeInvoke(client, method, payload) {
 }
 
 async function resetDrivenState(client) {
-  await evaluate(
-    client,
-    `(() => {
-      window.__poracodeDev?.closeSettings();
-      window.__poracodeDev?.stores?.panel?.setState({ threadSearchOpen: false });
-      window.__poracodeDev?.reset();
-    })()`,
-  );
+  await evaluate(client, "window.__poracodeDev?.reset()");
 }
 
 async function installWindowErrorCollector(client) {
@@ -1598,18 +1615,16 @@ async function waitForTarget() {
   let lastPageUrls = [];
   while (Date.now() - started < timeoutMs) {
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
-      if (response.ok) {
-        const targets = await response.json();
-        const pageTargets = targets.filter((t) => t.type === "page");
-        const target = pageTargets.find((candidate) => candidate.url === appUrl);
-        if (target) return target;
-        // CDP is up with page targets but none match — the renderer loaded
-        // on a different URL than expected. Fail fast instead of polling.
-        if (pageTargets.length > 0) {
-          cdpRespondedWithPages = true;
-          lastPageUrls = pageTargets.map((t) => t.url);
-        }
+      const inspection = await inspectCdpWindowTargets({ port, appUrl, windowKind: "main" });
+      if (inspection.ready.length === 1) return inspection.ready[0];
+      if (inspection.ready.length > 1) {
+        throw new Error(
+          `multiple ready main targets match ${appUrl}: ${inspection.ready.map((target) => target.id).join(", ")}`,
+        );
+      }
+      if (inspection.candidates.length === 0 && inspection.pageTargets.length > 0) {
+        cdpRespondedWithPages = true;
+        lastPageUrls = inspection.pageTargets.map((target) => target.url);
       }
     } catch {
       // Electron is still starting.

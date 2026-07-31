@@ -436,6 +436,7 @@ function commonAppWindowOptions() {
     posthogKey,
     sentryEnabled,
     browserUserAgent,
+    openDevTools: process.env.PORACODE_DISABLE_DEVTOOLS !== "1",
     ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
   };
 }

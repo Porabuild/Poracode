@@ -307,6 +307,11 @@ describe("GitReviewSidebar", () => {
     const clientHeightSpy = vi
       .spyOn(HTMLElement.prototype, "clientHeight", "get")
       .mockReturnValue(240);
+    const offsetHeightSpy = vi
+      .spyOn(HTMLElement.prototype, "offsetHeight", "get")
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains("overflow-y-auto") ? 240 : 24;
+      });
     const rectSpy = vi
       .spyOn(HTMLElement.prototype, "getBoundingClientRect")
       .mockImplementation(function (this: HTMLElement) {
@@ -371,13 +376,24 @@ describe("GitReviewSidebar", () => {
         />,
       );
 
-      await waitFor(() =>
-        expect(container.querySelectorAll('[style*="height: 2500px"]')).toHaveLength(2),
-      );
+      await waitFor(() => {
+        const sizers = [...container.querySelectorAll<HTMLElement>("div.relative.min-w-0")].filter(
+          (element) => Number.parseInt(element.style.height, 10) > 2000,
+        );
+        expect(sizers).toHaveLength(2);
+      });
       expect(screen.queryByText("src/staged-099.ts")).not.toBeInTheDocument();
       expect(screen.queryByText("src/unstaged-099.ts")).not.toBeInTheDocument();
+
+      // Rows must be offset with `top`; a transform would shift the sticky
+      // header of an expanded row away from the scroll container's top edge.
+      const rows = [...container.querySelectorAll<HTMLElement>("[data-index]")];
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((row) => row.style.transform === "")).toBe(true);
+      expect(rows.some((row) => row.style.top !== "" && row.style.top !== "0px")).toBe(true);
     } finally {
       clientHeightSpy.mockRestore();
+      offsetHeightSpy.mockRestore();
       rectSpy.mockRestore();
     }
   });
