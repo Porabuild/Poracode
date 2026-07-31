@@ -1,6 +1,6 @@
 import { formatResetCountdown, projectWindowUsage } from "@poracode/agents-usage/formatters";
 import type { UsageProjection } from "@poracode/agents-usage/formatters";
-import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
+import type { UsageCredits, UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 import { usageToneColor } from "./usageTone";
@@ -32,6 +32,12 @@ export function formatTokens(count: number | undefined): string {
 
 function formatCount(count: number): string {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(Math.round(count));
+}
+
+/** Format a provider credit balance as currency or whole credits. */
+export function formatCreditBalance(credits: UsageCredits): string {
+  if (credits.currency) return formatMoney(credits.balance, credits.currency);
+  return formatCount(Math.max(0, Math.floor(credits.balance)));
 }
 
 /**
@@ -151,9 +157,8 @@ export function usageStatusText(
         return i18n._(msg`Unlimited`);
       }
       if (snapshot.credits) {
-        return `${snapshot.credits.label ?? i18n._(msg`Credits`)}: ${formatMoney(
-          snapshot.credits.balance,
-          snapshot.credits.currency,
+        return `${snapshot.credits.label ?? i18n._(msg`Credits`)}: ${formatCreditBalance(
+          snapshot.credits,
         )}`;
       }
       return i18n._(msg`No windows reported`);

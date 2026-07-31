@@ -395,6 +395,43 @@ describe("CodexSubAgentRouter", () => {
     ).toEqual([]);
   });
 
+  it("suppresses provisional spawn items that never create a child thread", () => {
+    const router = new CodexSubAgentRouter("local-thread");
+
+    expect(
+      router.observeMainNotification(
+        "item/started",
+        {
+          threadId: "provider-thread",
+          item: {
+            id: "failed-spawn",
+            type: "collabAgentToolCall",
+            tool: "spawnAgent",
+            status: "inProgress",
+            senderThreadId: "provider-thread",
+            receiverThreadIds: [],
+            agentsStates: {},
+            prompt: "Inspect the renderer",
+          },
+        },
+        [
+          {
+            type: "item.started",
+            threadId: "local-thread",
+            itemId: "provisional-parent",
+            itemType: "tool_call",
+            payload: {
+              name: "spawnAgent",
+              status: "running",
+              isSubAgent: true,
+              progress: { stepCount: 0 },
+            },
+          },
+        ],
+      ),
+    ).toEqual([]);
+  });
+
   it("routes child-thread items under the parent and keeps the composer tile active", () => {
     const router = new CodexSubAgentRouter("local-thread");
     router.setDefaultModelSettings("gpt-5.4", "medium");

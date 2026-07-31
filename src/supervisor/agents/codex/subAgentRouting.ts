@@ -263,6 +263,10 @@ export class CodexSubAgentRouter {
         event.type === "item.started" && isSubAgentPayload(event.payload),
     );
     if (method === "item/started" && parentStarted) {
+      // A failed parallel spawn can emit provisional collab items before any
+      // child thread exists, then abort without a matching item/completed.
+      // Do not turn those childless attempts into permanently-running rows.
+      if (!hasCollabChild(item)) return [];
       const payload = mergeParentPayload(parentStarted.payload as ToolCallPayload, {
         progress: {
           ...this.defaultProgress,
@@ -527,6 +531,17 @@ function readCollabChildActive(item: CodexItemPayload, childThreadId: string): b
     status === "pendingInit" ||
     status === "pending_init" ||
     status === "running"
+  );
+}
+
+function hasCollabChild(item: CodexItemPayload): boolean {
+  if (readStringArray(item.receiverThreadIds ?? item.receiver_thread_ids).length > 0) return true;
+  const states = item.agentsStates ?? item.agents_states;
+  return Boolean(
+    states &&
+    typeof states === "object" &&
+    !Array.isArray(states) &&
+    Object.keys(states as Record<string, unknown>).length > 0,
   );
 }
 

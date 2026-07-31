@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { UsageSnapshot } from "@poracode/agents-usage";
-import { usageStatusText } from "./usageFormat";
+import { formatCreditBalance, usageStatusText } from "./usageFormat";
 
 function authMissingSnapshot(providerId: string): UsageSnapshot {
   return {
@@ -25,5 +25,21 @@ describe("usageStatusText", () => {
 
   it("keeps signed-out copy for other usage providers", () => {
     expect(usageStatusText(authMissingSnapshot("codex"), "Codex", "codex")).toBe("Not signed in");
+  });
+
+  it("formats Codex credit balances as credits instead of currency", () => {
+    const snapshot: UsageSnapshot = {
+      providerId: "codex",
+      status: "ok",
+      windows: [],
+      fetchedAt: 1_700_000_000_000,
+      credits: { balance: 796.9 },
+    };
+    expect(formatCreditBalance({ balance: 796.9 })).toBe("796");
+    expect(usageStatusText(snapshot, "Codex", "codex")).toBe("Credits: 796");
+  });
+
+  it("keeps currency-denominated credit balances as money", () => {
+    expect(formatCreditBalance({ balance: 24.5, currency: "USD" })).toBe("$24.50");
   });
 });

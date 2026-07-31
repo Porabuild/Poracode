@@ -7,6 +7,7 @@ import type { UsageSnapshot } from "@poracode/agents-usage/types";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import {
+  formatCreditBalance,
   formatMoney,
   formatTokens,
   formatWindowValue,
@@ -20,7 +21,11 @@ import { useUsageProviderLogin } from "@/renderer/components/providers/useUsageP
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 
 /** Compact one-line window chips shown when the card is collapsed. */
-function WindowChips(props: { windows: UsageSnapshot["windows"] }) {
+function WindowChips(props: {
+  windows: UsageSnapshot["windows"];
+  credits?: UsageSnapshot["credits"];
+}) {
+  const { t } = useLingui();
   return (
     <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
       {props.windows.map((w) => (
@@ -34,6 +39,15 @@ function WindowChips(props: { windows: UsageSnapshot["windows"] }) {
           <span className="tabular-nums text-foreground">{formatWindowValue(w)}</span>
         </span>
       ))}
+      {props.credits ? (
+        <span className="flex items-center gap-1 whitespace-nowrap text-xs">
+          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-muted/60" />
+          <span className="text-muted">{props.credits.label ?? t`Credits`}</span>
+          <span className="tabular-nums text-foreground">
+            {props.credits.unlimited ? t`Unlimited` : formatCreditBalance(props.credits)}
+          </span>
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -181,7 +195,10 @@ export function UsageProviderCard(props: {
       </div>
       {collapsed && hasWindows && snapshot ? (
         <div className="px-2.5 pb-2">
-          <WindowChips windows={snapshot.windows} />
+          <WindowChips
+            windows={snapshot.windows}
+            {...(snapshot.credits ? { credits: snapshot.credits } : {})}
+          />
         </div>
       ) : null}
 
@@ -193,6 +210,12 @@ export function UsageProviderCard(props: {
                 <UsageWindowBars
                   windows={snapshot.windows}
                   showReset={!usesSharedWindowReset(id)}
+                />
+              ) : null}
+              {snapshot.credits ? (
+                <UsageCreditsRow
+                  credits={snapshot.credits}
+                  showSeparator={snapshot.windows.length > 0}
                 />
               ) : null}
               <UsageProviderMeta snapshot={snapshot} />
@@ -239,37 +262,37 @@ export function UsageProviderCard(props: {
   );
 }
 
+function UsageCreditsRow(props: {
+  credits: NonNullable<UsageSnapshot["credits"]>;
+  showSeparator: boolean;
+}) {
+  const { t } = useLingui();
+  const { credits } = props;
+
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 ${
+        props.showSeparator ? "border-t border-[color:var(--separator)] pt-2" : ""
+      }`}
+    >
+      <span className="text-xs text-muted">{credits.label ?? t`Credits`}</span>
+      <span className="tabular-nums text-xs text-foreground">
+        {credits.unlimited ? t`Unlimited` : formatCreditBalance(credits)}
+      </span>
+    </div>
+  );
+}
+
 function UsageProviderMeta(props: { snapshot: UsageSnapshot }) {
   const { t } = useLingui();
   const { snapshot } = props;
-  const lines: string[] = [];
-  if (snapshot.cost) {
-    const tokens = snapshot.tokens?.total
-      ? ` · ${t`${formatTokens(snapshot.tokens.total)} tokens`}`
-      : "";
-    const money = formatMoney(snapshot.cost.amount, snapshot.cost.currency);
-    lines.push(t`~${money}${tokens} · ${snapshot.cost.period} · est.`);
-  }
-  if (snapshot.credits?.unlimited) {
-    lines.push(t`Unlimited`);
-  } else if (snapshot.credits) {
-    lines.push(
-      `${snapshot.credits.label ?? t`Credits`}: ${formatMoney(
-        snapshot.credits.balance,
-        snapshot.credits.currency,
-      )}`,
-    );
-  }
+  if (!snapshot.cost) return null;
 
-  if (lines.length === 0) return null;
+  const tokens = snapshot.tokens?.total
+    ? ` · ${t`${formatTokens(snapshot.tokens.total)} tokens`}`
+    : "";
+  const money = formatMoney(snapshot.cost.amount, snapshot.cost.currency);
+  const line = t`~${money}${tokens} · ${snapshot.cost.period} · est.`;
 
-  return (
-    <div className="space-y-0.5">
-      {lines.map((line) => (
-        <p key={line} className="truncate text-[11px] text-muted">
-          {line}
-        </p>
-      ))}
-    </div>
-  );
+  return <p className="truncate text-[11px] text-muted">{line}</p>;
 }
