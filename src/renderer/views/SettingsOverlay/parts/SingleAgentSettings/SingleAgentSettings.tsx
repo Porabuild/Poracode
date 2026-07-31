@@ -87,12 +87,16 @@ export function SingleAgentSettings(props: {
   // lazily via the registry entry's `accountResolver` when this page opens;
   // undefined for agents without a resolver.
   const [providerAccount, setProviderAccount] = useState<AgentProviderMetadata | undefined>();
-  const [binaryUpdatePendingEnvKey, setBinaryUpdatePendingEnvKey] = useState<string | undefined>();
+  const [binaryUpdatePendingEnvKeys, setBinaryUpdatePendingEnvKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   // After a successful update we hide the stale version and show a loader on
   // that row until `refreshAgentStatuses` returns with the freshly-detected
   // version. Without this the user sees "vOld" alongside the success toast and
   // assumes the update silently failed.
-  const [redetectingEnvKey, setRedetectingEnvKey] = useState<string | undefined>();
+  const [redetectingEnvKeys, setRedetectingEnvKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
   // Live quota read for this provider. Its plan supersedes the detected one,
@@ -511,7 +515,7 @@ export function SingleAgentSettings(props: {
     const envKey = statusEnvKey(status);
     const envName = envLabelForStatus(status);
     const previousVersion = status.version;
-    setBinaryUpdatePendingEnvKey(envKey);
+    setBinaryUpdatePendingEnvKeys((current) => new Set(current).add(envKey));
     readBridge()
       .updateAgentBinary({
         agentKind: props.agentKind,
@@ -520,14 +524,18 @@ export function SingleAgentSettings(props: {
       })
       .then(async (result) => {
         if (result.ok) {
-          setRedetectingEnvKey(envKey);
+          setRedetectingEnvKeys((current) => new Set(current).add(envKey));
           try {
             await readBridge().refreshAgentStatuses(wslDistros, {
               agentKinds: [props.agentKind],
               envs: [scopeEnvForStatus(status)],
             });
           } finally {
-            setRedetectingEnvKey(undefined);
+            setRedetectingEnvKeys((current) => {
+              const next = new Set(current);
+              next.delete(envKey);
+              return next;
+            });
           }
           const store = useAgentStatusesStore.getState();
           const pool = status.envKind === "wsl" ? store.wslAgentStatuses : store.agentStatuses;
@@ -577,7 +585,13 @@ export function SingleAgentSettings(props: {
               : t`Unable to update ${agent.label}.`,
         ),
       )
-      .finally(() => setBinaryUpdatePendingEnvKey(undefined));
+      .finally(() =>
+        setBinaryUpdatePendingEnvKeys((current) => {
+          const next = new Set(current);
+          next.delete(envKey);
+          return next;
+        }),
+      );
   };
 
   const installAgentInEnvironment = (status: AgentStatus) => {
@@ -644,10 +658,10 @@ export function SingleAgentSettings(props: {
         agentLabel={agent.label}
         authMethods={methods}
         authPending={authPendingEnvKey === envKey}
-        binaryUpdatePending={binaryUpdatePendingEnvKey === envKey}
+        binaryUpdatePending={binaryUpdatePendingEnvKeys.has(envKey)}
         canLogout={supportsAcpLogoutStatus(status, acpInstanceId)}
         includeAuthFallback={includeAuthFallbackMetadata}
-        isRedetecting={redetectingEnvKey === envKey}
+        isRedetecting={redetectingEnvKeys.has(envKey)}
         latestNpmVersion={latestNpmVersion}
         livePlan={resolveLivePlanLabel(rowMetadata, providerUsage)}
         newestInstalledVersion={newestInstalledVersion}
@@ -726,7 +740,7 @@ export function SingleAgentSettings(props: {
             )}
             <ToggleSwitch
               isSelected={!isDisabled}
-              isDisabled={binaryUpdatePendingEnvKey !== undefined}
+              isDisabled={binaryUpdatePendingEnvKeys.size > 0}
               size="sm"
               aria-label={t`Enabled`}
               onChange={(selected) => {

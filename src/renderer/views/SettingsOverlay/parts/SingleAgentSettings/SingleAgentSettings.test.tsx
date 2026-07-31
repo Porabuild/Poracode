@@ -1550,6 +1550,89 @@ describe("SingleAgentSettings", () => {
     platformSpy.mockRestore();
   });
 
+  it("keeps Windows and WSL update loaders independent", async () => {
+    const platformSpy = vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
+    statusesState.agentStatuses = [
+      makeStatus("cursor", {
+        label: "Cursor",
+        version: "1.0.0",
+        envKind: "windows",
+        update: { builtIn: { binary: "cursor-agent", args: ["update"] } },
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("cursor", {
+        label: "Cursor",
+        version: "1.0.0",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+        update: { builtIn: { binary: "cursor-agent", args: ["update"] } },
+      }),
+    ];
+    getLatestAgentVersionMock.mockResolvedValue({
+      version: "1.1.0",
+      source: "npm",
+    });
+    let resolveWindowsUpdate!: (result: { ok: boolean }) => void;
+    let resolveWslUpdate!: (result: { ok: boolean }) => void;
+    const windowsUpdate = new Promise<{ ok: boolean }>((resolve) => {
+      resolveWindowsUpdate = resolve;
+    });
+    const wslUpdate = new Promise<{ ok: boolean }>((resolve) => {
+      resolveWslUpdate = resolve;
+    });
+    updateAgentBinaryMock.mockImplementation((payload) =>
+      payload.envKind === "wsl" ? wslUpdate : windowsUpdate,
+    );
+
+    render(<SingleAgentSettings agentKind="cursor" />);
+
+    const windowsRow = envRow("Windows");
+    const wslRow = envRow("WSL (Ubuntu)");
+    fireEvent.click(
+      await within(windowsRow).findByRole("button", {
+        name: /Update to v1\.1\.0/i,
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(
+      within(wslRow).getByRole("button", {
+        name: /Update to v1\.1\.0/i,
+      }),
+    );
+    await waitFor(() => {
+      expect(
+        within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+      ).toBeInTheDocument();
+      expect(
+        within(wslRow).getByRole("status", { name: "Updating Cursor (WSL (Ubuntu))" }),
+      ).toBeInTheDocument();
+    });
+
+    resolveWslUpdate({ ok: false });
+    await waitFor(() =>
+      expect(
+        within(wslRow).queryByRole("status", { name: "Updating Cursor (WSL (Ubuntu))" }),
+      ).toBeNull(),
+    );
+    expect(
+      within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+    ).toBeInTheDocument();
+
+    resolveWindowsUpdate({ ok: false });
+    await waitFor(() =>
+      expect(
+        within(windowsRow).queryByRole("status", { name: "Updating Cursor (Windows)" }),
+      ).toBeNull(),
+    );
+    platformSpy.mockRestore();
+  });
+
   it("reports the new version in the toast after a successful update", async () => {
     statusesState.agentStatuses = [
       makeStatus("claude", { label: "Claude Code", version: "1.0.0" }),
