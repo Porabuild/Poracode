@@ -63,6 +63,7 @@ export const usePrState = makePrFieldSelector("state");
 export const usePrTitle = makePrFieldSelector("title");
 export const usePrUrl = makePrFieldSelector("url");
 export const usePrChecksStatus = makePrFieldSelector("checksStatus");
+export const usePrReviewDecision = makePrFieldSelector("reviewDecision");
 export const usePrMergeStateStatus = makePrFieldSelector("mergeStateStatus");
 export const usePrMergeable = makePrFieldSelector("mergeable");
 export const usePrBaseBranch = makePrFieldSelector("baseBranch");

@@ -186,7 +186,7 @@ export type PrWatchMergedEvent = {
 
 /**
  * Live PR state seen by the desktop PR-watch loop on one of its polls. The loop
- * already refetches the PR (and its details) every tick, so forwarding what it
+ * always refetches the PR and fetches details when needed, so forwarding what it
  * saw keeps the renderer's cached snapshot honest — including the open→merged
  * flip an auto-merge performs behind the UI's back — without extra `gh` calls.
  */
@@ -196,7 +196,7 @@ export type PrWatchStatusEvent = {
   headBranch: string;
   worktreePath?: string;
   pr: PrData;
-  details: PrDetails;
+  details?: PrDetails;
 };
 
 export type UpdateStatus =

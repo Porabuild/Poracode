@@ -69,6 +69,9 @@ export function GitBadge(props: {
     totalDeletions,
     prState,
     checksStatus,
+    reviewDecision,
+    mergeable,
+    mergeStateStatus,
     canCreatePr,
   } = useGitStore(
     useShallow((s) => {
@@ -95,6 +98,9 @@ export function GitBadge(props: {
         totalDeletions: gitStatus?.totalDeletions ?? 0,
         prState: pr?.state,
         checksStatus: combineChecksStatus(detailsStatus, pr?.checksStatus),
+        reviewDecision: pr?.reviewDecision,
+        mergeable: pr?.mergeable,
+        mergeStateStatus: pr?.mergeStateStatus,
         canCreatePr:
           isWorktree &&
           (s.ghAvailable[props.projectId] ?? false) &&
@@ -209,7 +215,13 @@ export function GitBadge(props: {
   const prIconColor =
     prState === undefined
       ? "text-[color:var(--git-branch-tone)]"
-      : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
+      : PR_TONE_TEXT_CLASS[
+          getPrStatusTone(prState, checksStatus, {
+            reviewDecision,
+            mergeable,
+            mergeStateStatus,
+          })
+        ];
   return (
     <div
       ref={elementRef}

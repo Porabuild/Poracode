@@ -33,12 +33,8 @@ export interface PrWatchServiceOptions {
   getMergeMethod(): PrMergeMethod;
   mergePr(project: Project, prNumber: number, method: PrMergeMethod): Promise<void>;
   onPrMerged?(watch: PrWatch): void;
-  /**
-   * Live PR state seen on a poll. Every tick already refetches the PR and its
-   * details, so handing them out lets the UI's cached snapshot follow a watched
-   * PR — including the merge this service performs itself — for free.
-   */
-  onPrObserved?(watch: PrWatch, pr: PrData, details: PrDetails): void;
+  /** Live PR state seen on a poll, with details when that poll fetched them. */
+  onPrObserved?(watch: PrWatch, pr: PrData, details?: PrDetails): void;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
   isThreadActive(threadId: string): boolean;
   worktreeExists(path: string): boolean;
@@ -161,30 +157,40 @@ export class PrWatchService {
         return;
       }
 
-      const [pr, details, reviewThreads] = await Promise.all([
-        this.options.getPrForBranch(project, watch.headBranch),
-        this.options.getPrDetails(project, watch.prNumber),
-        this.options.getPrReviewThreads(project, watch.prNumber),
-      ]);
-      const current = this.options.store.get(watch.projectId, watch.prNumber);
-      if (!current) return;
-      // Publish before the terminal-state bail-out below: a PR merged or closed
-      // outside Poracode drops its watch here, and that observation is the only
-      // notice the UI gets that its cached "open" snapshot went stale.
-      if (pr) this.options.onPrObserved?.(current, pr, details);
+      const pr = await this.options.getPrForBranch(project, watch.headBranch);
+      const summaryCurrent = this.options.store.get(watch.projectId, watch.prNumber);
+      if (!summaryCurrent) return;
       if (!pr || pr.state === "merged" || pr.state === "closed") {
-        this.options.store.delete(current.projectId, current.prNumber);
+        if (pr) this.options.onPrObserved?.(summaryCurrent, pr);
+        this.options.store.delete(summaryCurrent.projectId, summaryCurrent.prNumber);
         return;
       }
 
+      const passiveBlockerKey = getPassiveBlockerKey(pr);
+      // Once a policy-only blocker has been fully inspected, keep only the
+      // compact PR summary poll active until GitHub reports a changed state.
+      if (passiveBlockerKey && passiveBlockerKey === summaryCurrent.lastCheckKey) {
+        this.options.onPrObserved?.(summaryCurrent, pr);
+        return;
+      }
+
+      const [details, reviewThreads] = await Promise.all([
+        this.options.getPrDetails(project, watch.prNumber),
+        this.options.getPrReviewThreads(project, watch.prNumber),
+      ]);
+
+      const current = this.options.store.get(watch.projectId, watch.prNumber);
+      if (!current) return;
+      this.options.onPrObserved?.(current, pr, details);
       const signals = collectSignals(pr, details, reviewThreads);
       if (current.activeThreadId && this.options.isThreadActive(current.activeThreadId)) return;
 
       const hasActionableSignal =
         typeof signals.issueKey === "string" && signals.issueKey !== current.lastCheckKey;
+      const observedCheckKey = signals.issueKey === null ? passiveBlockerKey : signals.issueKey;
       const observed: PrWatch = {
         ...current,
-        lastCheckKey: signals.issueKey === undefined ? current.lastCheckKey : signals.issueKey,
+        lastCheckKey: observedCheckKey === undefined ? current.lastCheckKey : observedCheckKey,
         activeThreadId: null,
         lastError: null,
       };
@@ -340,13 +346,34 @@ function isPendingCheck(check: PrCheck): boolean {
   return !["COMPLETED", "SUCCESS", "NEUTRAL", "SKIPPED"].includes(check.state.toUpperCase());
 }
 
+function getPassiveBlockerKey(pr: PrData): string | null {
+  const reviewDecision = pr.reviewDecision?.toUpperCase();
+  if (
+    reviewDecision !== "REVIEW_REQUIRED" &&
+    pr.mergeStateStatus !== "BLOCKED" &&
+    pr.mergeStateStatus !== "HAS_HOOKS"
+  ) {
+    return null;
+  }
+  return JSON.stringify([
+    "passive",
+    pr.updatedAt,
+    reviewDecision ?? "",
+    pr.checksStatus ?? "",
+    pr.mergeable ?? "",
+    pr.mergeStateStatus ?? "",
+  ]);
+}
+
 export function isReadyForAutoMerge(pr: PrData, checks: PrCheck[]): boolean {
+  const reviewDecision = pr.reviewDecision?.toUpperCase();
   return (
     pr.state === "open" &&
     !pr.isDraft &&
     pr.mergeable === "MERGEABLE" &&
     pr.mergeStateStatus === "CLEAN" &&
-    pr.reviewDecision !== "CHANGES_REQUESTED" &&
+    reviewDecision !== "CHANGES_REQUESTED" &&
+    reviewDecision !== "REVIEW_REQUIRED" &&
     pr.checksStatus !== "PENDING" &&
     pr.checksStatus !== "FAILURE" &&
     !checks.some((check) => isFailedCheck(check) || isPendingCheck(check))

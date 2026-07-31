@@ -14,7 +14,12 @@ import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { getPrStatusTone, PR_TONE_BG_CLASS, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
+import {
+  getPrStatusTone,
+  isPrMergeBlocked,
+  PR_TONE_BG_CLASS,
+  PR_TONE_TEXT_CLASS,
+} from "@/renderer/utils/prStatus";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import { dedupePrProjects, repoIdentityKey } from "./prProjectDedupe";
 
@@ -410,7 +415,7 @@ function PullRequestRows(props: {
     <div className="overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-secondary/30">
       {props.entries.map((entry) => {
         const { project, summary } = entry;
-        const tone = getPrStatusTone(summary.pr.state, summary.pr.checksStatus);
+        const tone = getPrStatusTone(summary.pr.state, summary.pr.checksStatus, summary.pr);
         const statusLabel =
           summary.pr.state === "draft"
             ? t`Draft`
@@ -418,13 +423,15 @@ function PullRequestRows(props: {
               ? t`Merged`
               : summary.pr.state === "closed"
                 ? t`Closed`
-                : tone === "danger"
-                  ? t`Checks failed`
-                  : tone === "warning"
-                    ? t`Checks pending`
-                    : summary.pr.checksStatus
-                      ? t`Checks passed`
-                      : t`Open`;
+                : isPrMergeBlocked(summary.pr)
+                  ? t`Merging is blocked`
+                  : tone === "danger"
+                    ? t`Checks failed`
+                    : tone === "warning"
+                      ? t`Checks pending`
+                      : summary.pr.checksStatus
+                        ? t`Checks passed`
+                        : t`Open`;
         return (
           <button
             key={`${project.id}:${summary.pr.number}`}

@@ -48,7 +48,7 @@ function applyPrWatchStatus(event: PrWatchStatusEvent): void {
     updates[key] = event.pr;
   }
   if (Object.keys(updates).length > 0) gitStore.setPrDataBatch(updates);
-  gitStore.setPrDetails(`${event.projectId}#${event.prNumber}`, event.details);
+  if (event.details) gitStore.setPrDetails(`${event.projectId}#${event.prNumber}`, event.details);
 }
 
 /** Starts the sync. Runtime-owner only, so a remote session never duplicates it. */

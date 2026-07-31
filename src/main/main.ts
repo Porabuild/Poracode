@@ -882,7 +882,7 @@ if (!hasSingleInstanceLock) {
             headBranch: observedWatch.headBranch,
             ...(observedWatch.worktreePath ? { worktreePath: observedWatch.worktreePath } : {}),
             pr,
-            details,
+            ...(details ? { details } : {}),
           } satisfies PrWatchStatusEvent);
           // Paired remote clients read PR state from the git-state snapshot, not
           // this IPC channel, so hand the same observation to the service that

@@ -31,7 +31,16 @@ export function ThreadChangesBubble(props: {
   worktreeName?: string | undefined;
 }) {
   const { t } = useLingui();
-  const { insertions, deletions, prNumber, prState, checksStatus } = useGitStore(
+  const {
+    insertions,
+    deletions,
+    prNumber,
+    prState,
+    checksStatus,
+    reviewDecision,
+    mergeable,
+    mergeStateStatus,
+  } = useGitStore(
     useShallow((s) => {
       const status = props.worktreePath
         ? s.worktreeStatuses[props.worktreePath]
@@ -43,6 +52,9 @@ export function ThreadChangesBubble(props: {
         deletions: status?.totalDeletions ?? 0,
         prNumber: pr?.number,
         prState: pr?.state,
+        reviewDecision: pr?.reviewDecision,
+        mergeable: pr?.mergeable,
+        mergeStateStatus: pr?.mergeStateStatus,
         checksStatus: combineChecksStatus(
           aggregatePrChecksStatus(details?.checks),
           pr?.checksStatus,
@@ -91,7 +103,7 @@ export function ThreadChangesBubble(props: {
       {hasVisiblePr ? (
         <>
           <GitPullRequest
-            className={`size-3.5 shrink-0 ${PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)]}`}
+            className={`size-3.5 shrink-0 ${PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus, { reviewDecision, mergeable, mergeStateStatus })]}`}
           />
           <span>#{prNumber}</span>
         </>

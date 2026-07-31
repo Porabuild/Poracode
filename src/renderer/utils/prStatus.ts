@@ -1,12 +1,22 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { PR_CHECK_FAILURE_CONCLUSIONS, type PrCheck, type PrState } from "@/shared/contracts";
+import {
+  PR_CHECK_FAILURE_CONCLUSIONS,
+  type PrCheck,
+  type PrData,
+  type PrState,
+} from "@/shared/contracts";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 
 export type PrStatusTone = "merged" | "draft" | "danger" | "warning" | "success";
 export type PrChecksStatus = "FAILURE" | "PENDING" | "SUCCESS";
 export type PrChecksTone = "danger" | "warning" | "success";
 export type PrCheckTone = PrChecksTone | "neutral";
+export interface PrMergeStatus {
+  reviewDecision?: PrData["reviewDecision"] | undefined;
+  mergeable?: PrData["mergeable"] | undefined;
+  mergeStateStatus?: PrData["mergeStateStatus"] | undefined;
+}
 export type PrCheckDisplayStatus =
   | "passed"
   | "failed"
@@ -153,12 +163,27 @@ export function combineChecksStatus(
 export function getPrStatusTone(
   state: PrState | undefined,
   checksStatus: string | undefined,
+  mergeStatus?: PrMergeStatus | null,
 ): PrStatusTone {
   if (state === "merged") return "merged";
   if (state === "draft") return "draft";
+  if (state === "closed" || isPrMergeBlocked(mergeStatus)) return "danger";
+  if (mergeStatus?.mergeStateStatus === "BEHIND") return "warning";
   const checksTone = getChecksStatusTone(normalizeChecksStatus(checksStatus));
   if (checksTone) return checksTone;
   return "success";
+}
+
+export function isPrMergeBlocked(status: PrMergeStatus | null | undefined): boolean {
+  const reviewDecision = status?.reviewDecision?.toUpperCase();
+  return (
+    reviewDecision === "CHANGES_REQUESTED" ||
+    reviewDecision === "REVIEW_REQUIRED" ||
+    status?.mergeable === "CONFLICTING" ||
+    status?.mergeStateStatus === "DIRTY" ||
+    status?.mergeStateStatus === "BLOCKED" ||
+    status?.mergeStateStatus === "HAS_HOOKS"
+  );
 }
 
 export const PR_TONE_BG_CLASS: Record<PrStatusTone, string> = {

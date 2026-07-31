@@ -13,7 +13,10 @@ import type { Thread } from "@/shared/contracts";
 import {
   buildBranchNamePrKey,
   usePrChecksStatus,
+  usePrMergeStateStatus,
+  usePrMergeable,
   usePrNumber,
+  usePrReviewDecision,
   usePrState,
   usePrTitle,
 } from "@/renderer/state/gitSelectors";
@@ -208,6 +211,9 @@ function BranchRowBody(props: {
   const prKey = worktreePath ?? buildBranchNamePrKey(projectId, branch.name);
   const prState = usePrState(prKey);
   const prChecksStatus = usePrChecksStatus(prKey);
+  const prReviewDecision = usePrReviewDecision(prKey);
+  const prMergeable = usePrMergeable(prKey);
+  const prMergeStateStatus = usePrMergeStateStatus(prKey);
   const prNumber = usePrNumber(prKey);
   const prTitle = usePrTitle(prKey);
   const showPr = prState !== undefined && prState !== "closed" && prNumber !== undefined;
@@ -256,7 +262,7 @@ function BranchRowBody(props: {
               <button
                 type="button"
                 aria-label={t`Review PR #${prNumber} for ${branch.name}`}
-                className={`flex items-center rounded border-0 bg-transparent p-0.5 transition hover:bg-[var(--row-hover)] ${PR_TONE_TEXT_CLASS[getPrStatusTone(prState, prChecksStatus)]}`}
+                className={`flex items-center rounded border-0 bg-transparent p-0.5 transition hover:bg-[var(--row-hover)] ${PR_TONE_TEXT_CLASS[getPrStatusTone(prState, prChecksStatus, { reviewDecision: prReviewDecision, mergeable: prMergeable, mergeStateStatus: prMergeStateStatus })]}`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
                 onClick={(e) => {

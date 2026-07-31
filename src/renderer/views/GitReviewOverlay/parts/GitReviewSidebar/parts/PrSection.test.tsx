@@ -182,6 +182,56 @@ describe("PrSection", () => {
     expect(onRefreshPr).toHaveBeenCalledOnce();
   });
 
+  it("shows a danger status when merge conflicts must be resolved", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          ...pr,
+          checksStatus: "SUCCESS",
+          mergeable: "CONFLICTING",
+          mergeStateStatus: "DIRTY",
+        },
+      },
+    });
+
+    render(<PrSection {...baseProps} />);
+
+    const indicator = screen
+      .getByText("#42 - Improve PR summary")
+      .parentElement?.querySelector(".rounded-full");
+    expect(indicator).toHaveClass("bg-danger");
+    expect(indicator).not.toHaveClass("bg-success");
+  });
+
+  it.each(["CHANGES_REQUESTED", "REVIEW_REQUIRED"])(
+    "shows a danger status for %s when merge-state data is missing",
+    (reviewDecision) => {
+      useGitStore.setState({
+        prData: {
+          [prKey]: {
+            number: pr.number,
+            state: pr.state,
+            title: pr.title,
+            url: pr.url,
+            baseBranch: pr.baseBranch,
+            isDraft: pr.isDraft,
+            checksStatus: "SUCCESS",
+            reviewDecision,
+            updatedAt: pr.updatedAt,
+          },
+        },
+      });
+
+      render(<PrSection {...baseProps} />);
+
+      const indicator = screen
+        .getByText("#42 - Improve PR summary")
+        .parentElement?.querySelector(".rounded-full");
+      expect(indicator).toHaveClass("bg-danger");
+      expect(indicator).not.toHaveClass("bg-success");
+    },
+  );
+
   it("uses the selected merge method for the primary merge action", () => {
     useSharedSettings.setState({ prMergeMethod: "merge" });
     render(<PrSection {...baseProps} />);

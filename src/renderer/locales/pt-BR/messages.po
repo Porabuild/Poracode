@@ -6231,6 +6231,7 @@ msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "As alterações do vencedor do experimento foram mescladas em {sourceBranch}."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merging is blocked"
 msgstr "A mesclagem está bloqueada"
 

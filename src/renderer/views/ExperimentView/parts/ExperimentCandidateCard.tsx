@@ -50,7 +50,7 @@ export function ExperimentCandidateCard(props: {
   const prNumber = pullRequest?.number ?? thread?.prNumber;
   const hasPullRequest = prNumber !== undefined && pullRequest?.state !== "closed";
   const prIconClass =
-    PR_TONE_TEXT_CLASS[getPrStatusTone(pullRequest?.state, pullRequest?.checksStatus)];
+    PR_TONE_TEXT_CLASS[getPrStatusTone(pullRequest?.state, pullRequest?.checksStatus, pullRequest)];
   const { stats, isRefreshing: statsRefreshing } = useExperimentCandidateStats({
     projectLocation,
     worktreePath,

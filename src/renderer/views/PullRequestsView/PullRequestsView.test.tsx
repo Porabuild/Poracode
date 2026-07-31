@@ -188,6 +188,30 @@ describe("PullRequestsView", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows a blocked danger status when approval is required despite green checks", async () => {
+    useAppStore.setState({ projects: [windowsProject] });
+    bridge.ghListPullRequests.mockResolvedValue({
+      pullRequests: [
+        {
+          ...summary,
+          pr: {
+            ...summary.pr,
+            checksStatus: "SUCCESS",
+            reviewDecision: "REVIEW_REQUIRED",
+          },
+        },
+      ],
+      viewerLogin: "reviewer",
+    });
+
+    render(<PullRequestsView />);
+
+    const row = await screen.findByRole("button", { name: new RegExp(summary.pr.title) });
+    expect(within(row).getByText("Merging is blocked")).toBeInTheDocument();
+    expect(row.querySelector(".lucide-git-pull-request")).toHaveClass("text-danger");
+    expect(row.querySelector(".rounded-full")).toHaveClass("bg-danger");
+  });
+
   it("refreshes every project on demand", async () => {
     render(<PullRequestsView />);
 

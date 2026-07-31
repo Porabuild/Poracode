@@ -122,6 +122,21 @@ describe("prWatchStatusSync", () => {
     expect(state.prDetails["p1#7"]).toEqual(details);
   });
 
+  it("updates a terminal summary without replacing cached details", () => {
+    useGitStore.getState().setPrDetails("p1#7", details);
+
+    statusListener?.({
+      projectId: "p1",
+      prNumber: 7,
+      headBranch: "feature/wt",
+      pr: mergedPr,
+    });
+
+    const state = useGitStore.getState();
+    expect(state.prData[buildBranchNamePrKey("p1", "feature/wt")]?.state).toBe("merged");
+    expect(state.prDetails["p1#7"]).toEqual(details);
+  });
+
   it("reaches worktree threads on the head branch when the watch has no worktree path", () => {
     useGitStore.getState().setPrData("/repo-wt", openPr);
 
