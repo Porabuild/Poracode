@@ -126,6 +126,41 @@ describe("ComposerAddMenu", () => {
     expect(screen.queryByText("Browser")).not.toBeInTheDocument();
   });
 
+  it("counts enabled Computer Use in the parent row badge", () => {
+    render(
+      <ComposerAddMenu
+        mcpServers={[
+          {
+            descriptor: browserMcpServer,
+            enabled: true,
+            visible: true,
+            onToggle: vi.fn<(next: boolean) => void>(),
+          },
+          {
+            descriptor: crossagentMcpServer,
+            enabled: true,
+            visible: true,
+            onToggle: vi.fn<(next: boolean) => void>(),
+          },
+          {
+            descriptor: chromeMcpServer,
+            enabled: false,
+            visible: true,
+            onToggle: vi.fn<(next: boolean) => void>(),
+          },
+        ]}
+        computerUse={{ enabled: true, visible: true, onToggle: vi.fn<(next: boolean) => void>() }}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+      />,
+    );
+
+    openMenu();
+
+    // Computer Use is a switch in the same submenu, so it counts: 3 rows are on.
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
   it("toggles a single server without closing the menu", () => {
     const browserToggle = vi.fn<(next: boolean) => void>();
     const crossagentToggle = vi.fn<(next: boolean) => void>();
