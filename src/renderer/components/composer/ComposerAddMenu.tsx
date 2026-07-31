@@ -128,9 +128,13 @@ export function ComposerAddMenu(props: {
     ? t`Controls the paired desktop while the agent clicks or types`
     : t`Takes over the desktop while the agent clicks or types`;
 
+  // Counts every enabled row the submenu shows, Computer Use included — it is
+  // not a registry entry but it renders as one of the switches, so leaving it
+  // out makes the badge disagree with the list the user opens.
   const enabledMcpCount =
     visibleMcpServers.filter((server) => server.enabled).length +
-    customMcpServers.filter((server) => server.enabled).length;
+    customMcpServers.filter((server) => server.enabled).length +
+    (showComputerUse && computerUse.enabled ? 1 : 0);
 
   if (!showFileOption && !hasMcpMenu && !experiment) return null;
 
