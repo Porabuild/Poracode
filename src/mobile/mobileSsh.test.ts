@@ -36,6 +36,29 @@ function response(input: { json?: unknown; bytes?: Uint8Array; ok?: boolean; sta
   } as unknown as Response;
 }
 
+function helperEnvironmentResponse() {
+  return response({
+    json: {
+      protocolVersion: 1,
+      hostMode: "helper",
+      desktopId: "remote-test",
+      label: "Remote test",
+      appVersion: "test",
+      platform: "linux",
+      auth: {
+        policy: "remote-reachable",
+        bootstrapMethods: ["one-time-token"],
+        sessionMethods: ["bearer-access-token"],
+        scopes: ["session:read"],
+      },
+      endpoints: {
+        httpBaseUrl: "http://127.0.0.1:40123/",
+        wsBaseUrl: "ws://127.0.0.1:40123/",
+      },
+    },
+  });
+}
+
 describe("mobile SSH bootstrap", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,7 +93,7 @@ describe("mobile SSH bootstrap", () => {
         .mockResolvedValueOnce(
           response({ json: { hash: "a".repeat(64), archive: "runtime.tar.gz" } }),
         )
-        .mockResolvedValueOnce(response({})),
+        .mockResolvedValueOnce(helperEnvironmentResponse()),
     );
     bridge.run
       .mockResolvedValueOnce({ stdout: "ready\n", stderr: "", exitCode: 0 })
@@ -111,7 +134,7 @@ describe("mobile SSH bootstrap", () => {
           response({ json: { hash: "b".repeat(64), archive: "runtime.tar.gz" } }),
         )
         .mockResolvedValueOnce(response({ bytes: new Uint8Array([1, 2, 3]) }))
-        .mockResolvedValueOnce(response({})),
+        .mockResolvedValueOnce(helperEnvironmentResponse()),
     );
     bridge.run
       .mockResolvedValueOnce({ stdout: "install\n", stderr: "", exitCode: 0 })

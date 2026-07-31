@@ -27,8 +27,8 @@ export const MOBILE_SETTINGS_SECTION_LABELS: Record<MobileSettingsSectionId, Mes
   schedules: msg`Schedules`,
   terminal: msg`Terminal`,
   git: msg`Git`,
-  usage: msg`Usage`,
-  ai: msg`AI`,
+  usage: msg`Provider Usage`,
+  ai: msg`AI Helpers`,
   models: msg`Agents`,
   archived: msg`Archived Threads`,
 };

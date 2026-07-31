@@ -1,12 +1,17 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import type { CommandSpec } from "../base";
+import { ExpectedStructuredRuntimeError, type CommandSpec } from "../base";
 import { classifyOpenCodeError } from "./opencodeErrors";
 
 const URL_LINE_PREFIX = "opencode server listening";
 const URL_REGEX = /on\s+(https?:\/\/[^\s]+)/;
 const READY_TIMEOUT_MS = 15_000;
 const POSIX_TERM_GRACE_MS = 1_000;
+
+/** Environmental/provider readiness failure, distinct from runtime defects. */
+export class OpenCodeReadinessTimeoutError extends ExpectedStructuredRuntimeError {
+  override readonly name = "OpenCodeReadinessTimeoutError";
+}
 
 const activeServerChildren = new Set<ChildProcess>();
 let processExitCleanupRegistered = false;
@@ -115,7 +120,7 @@ export function spawnOpenCodeServer(commandSpec: CommandSpec): OpenCodeServerHan
   const readyTimeout = setTimeout(() => {
     if (!baseUrl) {
       pending?.reject(
-        new Error(
+        new OpenCodeReadinessTimeoutError(
           classifyOpenCodeError({
             cause: new Error(`opencode serve did not emit ready URL within ${READY_TIMEOUT_MS}ms`),
             operation: "opencode serve",

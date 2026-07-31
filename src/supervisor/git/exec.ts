@@ -13,6 +13,47 @@ import { mkdir } from "node:fs/promises";
 
 const execFileAsync = promisify(execFile);
 
+function execFileWithInput(
+  command: string,
+  args: string[],
+  options: Parameters<typeof execFile>[2],
+  input: string,
+): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    let stdinError: Error | undefined;
+    let settled = false;
+    const settle = (error: Error | null, result?: { stdout: string; stderr: string }): void => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve(result!);
+    };
+    const child = execFile(command, args, options, (error, stdout, stderr) => {
+      const stdoutText = typeof stdout === "string" ? stdout : stdout.toString("utf8");
+      const stderrText = typeof stderr === "string" ? stderr : stderr.toString("utf8");
+      if (error) {
+        Object.assign(error, { stdout: stdoutText, stderr: stderrText });
+        settle(error);
+        return;
+      }
+      settle(stdinError ?? null, { stdout: stdoutText, stderr: stderrText });
+    });
+    if (!child.stdin) {
+      child.kill();
+      settle(new Error(`Unable to write stdin for ${command}.`));
+      return;
+    }
+    // A child may reject its argv and exit before consuming stdin. Without an
+    // error listener the resulting EPIPE becomes an uncaught supervisor error.
+    // Save it for the command callback, whose stderr remains the authoritative
+    // diagnostic when the child itself failed.
+    child.stdin.once("error", (error) => {
+      stdinError = error;
+    });
+    child.stdin.end(input);
+  });
+}
+
 export const GIT_STATUS_TIMEOUT = 10_000;
 export const GIT_DIFF_TIMEOUT = 15_000;
 export const GIT_NETWORK_TIMEOUT = 30_000;
@@ -97,29 +138,54 @@ export async function ghVersionWslBridge(
 export async function execGit(
   location: ProjectLocation,
   args: string[],
-  options?: { timeout?: number; allowNonZeroExit?: boolean; env?: Record<string, string> },
+  options?: {
+    timeout?: number;
+    allowNonZeroExit?: boolean;
+    acceptedExitCodes?: readonly number[];
+    env?: Record<string, string>;
+    input?: string;
+    maxBuffer?: number;
+  },
 ): Promise<string> {
   const timeout = options?.timeout ?? GIT_DEFAULT_TIMEOUT;
-  const maxBuffer = 50 * 1024 * 1024;
+  const maxBuffer = options?.maxBuffer ?? 50 * 1024 * 1024;
 
   try {
     if (location.kind === "wsl") {
       const bridgeResult = await execGitWslBridge(location, args, timeout, options?.env);
+      if (bridgeResult.stdout.length > maxBuffer) {
+        throw new Error(`Git output exceeded the ${maxBuffer}-byte limit`);
+      }
       if (bridgeResult.ok) return bridgeResult.stdout;
+      if (options?.acceptedExitCodes?.includes(bridgeResult.exitCode)) return bridgeResult.stdout;
       if (options?.allowNonZeroExit && bridgeResult.stdout) return bridgeResult.stdout;
       throw gitBridgeResultToError(bridgeResult);
     }
 
     const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...(options?.env ?? {}) };
-    const { stdout } = await execFileAsync("git", withQuotePathDisabled(args), {
+    const execOptions = {
       cwd: location.path,
       env,
       timeout,
       maxBuffer,
       windowsHide: true,
-    });
+    };
+    const { stdout } =
+      options?.input !== undefined
+        ? await execFileWithInput("git", withQuotePathDisabled(args), execOptions, options.input)
+        : await execFileAsync("git", withQuotePathDisabled(args), execOptions);
     return stdout;
   } catch (error: unknown) {
+    if (
+      options?.acceptedExitCodes &&
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      typeof error.code === "number" &&
+      options.acceptedExitCodes.includes(error.code)
+    ) {
+      return "stdout" in error ? String(error.stdout ?? "") : "";
+    }
     if (options?.allowNonZeroExit && error && typeof error === "object" && "stdout" in error) {
       const stdout = String((error as { stdout: unknown }).stdout);
       if (stdout) {

@@ -3,6 +3,12 @@ export interface LineChangeStats {
   removed: number;
 }
 
+export interface UnifiedDiffStats {
+  files: number;
+  insertions: number;
+  deletions: number;
+}
+
 export type DiffOp =
   | { kind: "equal"; text: string }
   | { kind: "delete"; text: string }
@@ -37,6 +43,25 @@ export function countLineChangeStats(oldText: string, newText: string): LineChan
     if (op.kind === "delete") removed += 1;
   }
   return { added, removed };
+}
+
+export function countUnifiedDiffStats(diff: string): UnifiedDiffStats {
+  let files = 0;
+  let insertions = 0;
+  let deletions = 0;
+  let lineStart = 0;
+  while (lineStart < diff.length) {
+    if (diff.startsWith("diff --git ", lineStart)) files += 1;
+    else if (diff.startsWith("+", lineStart) && !diff.startsWith("+++", lineStart)) {
+      insertions += 1;
+    } else if (diff.startsWith("-", lineStart) && !diff.startsWith("---", lineStart)) {
+      deletions += 1;
+    }
+    const newline = diff.indexOf("\n", lineStart);
+    if (newline === -1) break;
+    lineStart = newline + 1;
+  }
+  return { files, insertions, deletions };
 }
 
 /**

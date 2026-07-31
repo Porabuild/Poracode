@@ -8,6 +8,7 @@ import { applyThreadSnapshot, dispatchRemoteSupervisorEvent, resetRemoteStores }
 // storeSync coalesces live runtime deltas onto an animation frame; drive that
 // frame deterministically so we can assert ordering around applyThreadSnapshot.
 let rafCallbacks: Array<FrameRequestCallback | null> = [];
+let timeoutCallbacks: Array<{ callback: () => void; delay: number } | null> = [];
 
 const THREAD_ID = "thread-1";
 
@@ -30,12 +31,16 @@ function makeThread(status: Thread["status"]): Thread {
   };
 }
 
-function makeItem(input: { id: string; assistantText?: string }): PersistedRuntimeItem {
+function makeItem(input: {
+  id: string;
+  assistantText?: string;
+  payload?: unknown;
+}): PersistedRuntimeItem {
   return {
     id: input.id,
     type: "assistant_message",
     state: "completed",
-    payload: {},
+    payload: input.payload ?? {},
     streams: input.assistantText === undefined ? {} : { assistant_text: input.assistantText },
   };
 }
@@ -43,11 +48,16 @@ function makeItem(input: { id: string; assistantText?: string }): PersistedRunti
 function makeSnapshot(input: {
   status: Thread["status"];
   items: PersistedRuntimeItem[];
+  snapshotSeq?: number;
+  runtimeNextCursor?: number | null;
 }): RemoteThreadSnapshot {
   return {
-    snapshotSeq: 1,
+    snapshotSeq: input.snapshotSeq ?? 1,
     thread: makeThread(input.status),
     runtimeItems: input.items,
+    ...(input.runtimeNextCursor !== undefined
+      ? { runtimeNextCursor: input.runtimeNextCursor }
+      : {}),
     completedTurns: [],
     contextUsage: null,
     updatedAt: "2026-03-21T10:00:00.000Z",
@@ -62,6 +72,7 @@ function assistantStreamText(itemId: string): string | undefined {
 describe("applyThreadSnapshot", () => {
   beforeEach(() => {
     rafCallbacks = [];
+    timeoutCallbacks = [];
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback): number => {
       rafCallbacks.push(cb);
       return rafCallbacks.length;
@@ -69,6 +80,13 @@ describe("applyThreadSnapshot", () => {
     vi.stubGlobal("cancelAnimationFrame", (handle: number): void => {
       // Handles are 1-based indices into rafCallbacks.
       rafCallbacks[handle - 1] = null;
+    });
+    vi.stubGlobal("setTimeout", (callback: () => void, delay = 0): number => {
+      timeoutCallbacks.push({ callback, delay });
+      return timeoutCallbacks.length;
+    });
+    vi.stubGlobal("clearTimeout", (handle: number): void => {
+      timeoutCallbacks[handle - 1] = null;
     });
     resetRemoteStores();
   });
@@ -79,6 +97,7 @@ describe("applyThreadSnapshot", () => {
   });
 
   it("flushes pending rAF-queued deltas before replacing items (no duplicated text)", () => {
+    useAppStore.setState({ view: { kind: "thread", panes: [THREAD_ID] } });
     // Seed the store with a streaming assistant item ("hello ").
     const store = useAppStore.getState();
     store.applyRuntimeEvents(THREAD_ID, [
@@ -129,6 +148,181 @@ describe("applyThreadSnapshot", () => {
     expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["msg-1"]);
   });
 
+  it("catches up text appended to the same item while Safari was suspended", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "msg-1", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: THREAD_ID,
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: "before background",
+      },
+    ]);
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [makeItem({ id: "msg-1", assistantText: "before background and after resume" })],
+      }),
+    );
+
+    expect(assistantStreamText("msg-1")).toBe("before background and after resume");
+    expect(
+      useAppStore.getState().runtimeItemsByIdByThread[THREAD_ID]?.["msg-1"]?.observedLive,
+    ).toBe(true);
+  });
+
+  it("keeps newer live text when an active recovery snapshot is behind", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "msg-1", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: THREAD_ID,
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: "newer live text",
+      },
+    ]);
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [makeItem({ id: "msg-1", assistantText: "newer" })],
+      }),
+    );
+
+    expect(assistantStreamText("msg-1")).toBe("newer live text");
+  });
+
+  it("does not overwrite a newer live payload with an active recovery snapshot", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "msg-1",
+        itemType: "assistant_message",
+        payload: { phase: "old" },
+      },
+      {
+        type: "item.updated",
+        threadId: THREAD_ID,
+        itemId: "msg-1",
+        payload: { phase: "new" },
+      },
+    ]);
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [makeItem({ id: "msg-1", payload: { phase: "old" } })],
+      }),
+    );
+
+    expect(useAppStore.getState().runtimeItemsByIdByThread[THREAD_ID]?.["msg-1"]?.payload).toEqual({
+      phase: "new",
+    });
+  });
+
+  it("flushes a just-received delta before judging an active recovery snapshot", () => {
+    useAppStore.setState({ view: { kind: "thread", panes: [THREAD_ID] } });
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "msg-1", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: THREAD_ID,
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: "base",
+      },
+    ]);
+    dispatchRemoteSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: THREAD_ID,
+      event: {
+        type: "content.delta",
+        threadId: THREAD_ID,
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: " live",
+      },
+    });
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [makeItem({ id: "msg-1", assistantText: "base stale" })],
+      }),
+    );
+
+    expect(assistantStreamText("msg-1")).toBe("base live");
+  });
+
+  it("frame-paces the visible thread and batches concurrent background streams", () => {
+    const applyRuntimeEventBatches = vi.spyOn(useAppStore.getState(), "applyRuntimeEventBatches");
+    useAppStore.setState({ view: { kind: "thread", panes: [THREAD_ID] } });
+
+    for (let index = 0; index < 10; index += 1) {
+      const threadId = index === 0 ? THREAD_ID : `background-${index}`;
+      for (let eventIndex = 0; eventIndex < 5; eventIndex += 1) {
+        dispatchRemoteSupervisorEvent({
+          type: "thread-runtime-event",
+          threadId,
+          event: {
+            type: "item.started",
+            threadId,
+            itemId: `${threadId}-${eventIndex}`,
+            itemType: "reasoning",
+          },
+        });
+      }
+    }
+
+    expect(rafCallbacks.filter((callback) => callback !== null)).toHaveLength(1);
+    rafCallbacks.find((callback) => callback !== null)?.(0);
+    expect(applyRuntimeEventBatches).toHaveBeenCalledTimes(1);
+    expect(applyRuntimeEventBatches.mock.calls[0]?.[0]).toEqual([
+      expect.objectContaining({ threadId: THREAD_ID, events: expect.any(Array) }),
+    ]);
+
+    const backgroundFlush = timeoutCallbacks.find((pending) => pending?.delay === 250);
+    expect(backgroundFlush?.delay).toBe(250);
+    backgroundFlush?.callback();
+    expect(applyRuntimeEventBatches).toHaveBeenCalledTimes(2);
+    expect(applyRuntimeEventBatches.mock.calls[1]?.[0]).toHaveLength(9);
+
+    applyRuntimeEventBatches.mockRestore();
+    resetRemoteStores();
+  });
+
+  it("promotes queued background events when their thread becomes visible", () => {
+    const applyRuntimeEventBatches = vi.spyOn(useAppStore.getState(), "applyRuntimeEventBatches");
+    useAppStore.setState({ view: { kind: "home" } });
+    dispatchRemoteSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: THREAD_ID,
+      event: {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "promoted",
+        itemType: "reasoning",
+      },
+    });
+    expect(rafCallbacks.filter((callback) => callback !== null)).toHaveLength(0);
+
+    useAppStore.setState({ view: { kind: "thread", panes: [THREAD_ID] } });
+    expect(rafCallbacks.filter((callback) => callback !== null)).toHaveLength(1);
+    rafCallbacks.find((callback) => callback !== null)?.(0);
+    expect(applyRuntimeEventBatches).toHaveBeenCalledTimes(1);
+
+    applyRuntimeEventBatches.mockRestore();
+    resetRemoteStores();
+  });
+
   it("applies a shorter fresh server snapshot to an inactive thread (fromServer default)", () => {
     const store = useAppStore.getState();
     store.applyRuntimeEvents(THREAD_ID, [
@@ -142,6 +336,42 @@ describe("applyThreadSnapshot", () => {
     applyThreadSnapshot(makeSnapshot({ status: "idle", items: [makeItem({ id: "a" })] }));
 
     expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["a"]);
+  });
+
+  it("refreshes a paged tail without discarding older pages already loaded", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "old-a", itemType: "assistant_message" },
+      { type: "item.started", threadId: THREAD_ID, itemId: "old-b", itemType: "assistant_message" },
+      {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "tail-a",
+        itemType: "assistant_message",
+      },
+      {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "tail-b",
+        itemType: "assistant_message",
+      },
+    ]);
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "idle",
+        items: [makeItem({ id: "tail-a", assistantText: "updated" }), makeItem({ id: "tail-b" })],
+        runtimeNextCursor: 10,
+      }),
+    );
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual([
+      "old-a",
+      "old-b",
+      "tail-a",
+      "tail-b",
+    ]);
+    expect(assistantStreamText("tail-a")).toBe("updated");
   });
 
   it("does not let an empty fresh server snapshot erase a streamed transcript", () => {
@@ -212,5 +442,27 @@ describe("applyThreadSnapshot", () => {
 
     expect(useAppStore.getState().threads[0]?.status).toBe("idle");
     expect(useAppStore.getState().runtimeOpenTurnByThread[THREAD_ID]).toBe(false);
+  });
+
+  it("does not restore a finished badge after the thread has been opened", () => {
+    useAppStore.setState({
+      threads: [makeThread("finished")],
+      view: { kind: "thread", panes: [THREAD_ID] },
+    });
+
+    applyThreadSnapshot(makeSnapshot({ status: "finished", items: [] }));
+
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+  });
+
+  it("keeps a finished badge from history while the thread is not visible", () => {
+    useAppStore.setState({
+      threads: [makeThread("idle")],
+      view: { kind: "home" },
+    });
+
+    applyThreadSnapshot(makeSnapshot({ status: "finished", items: [] }));
+
+    expect(useAppStore.getState().threads[0]?.status).toBe("finished");
   });
 });

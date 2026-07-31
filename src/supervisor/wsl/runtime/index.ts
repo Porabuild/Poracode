@@ -22,6 +22,7 @@ import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { compareVersions } from "@/shared/changelog";
 import { toWslUncPath } from "@/shared/wsl";
 import {
   batchWslCommandsAsync,
@@ -90,6 +91,11 @@ export type RuntimeProgressEvent =
 export type RuntimeProgressListener = (event: RuntimeProgressEvent) => void;
 
 export interface ResolveNodeOptions {
+  /**
+   * Optional full semver floor for consumers with a stricter requirement
+   * than Poracode's general Node-major gate.
+   */
+  minimumVersion?: string;
   onProgress?: RuntimeProgressListener;
   useBridge?: boolean;
 }
@@ -105,9 +111,12 @@ export async function resolveNodeForDistro(
   distro: string,
   options?: ResolveNodeOptions,
 ): Promise<ResolvedNode> {
+  const minimumVersion = parseMinimumNodeVersion(options?.minimumVersion);
   const cached = distroNodeCache.get(distro);
   if (cached) {
-    if (cached.source === "user-installed" || existsSync(toWslUncPath(distro, cached.nodePath))) {
+    const pathIsAvailable =
+      cached.source === "user-installed" || existsSync(toWslUncPath(distro, cached.nodePath));
+    if (pathIsAvailable && nodeVersionIsAccepted(cached.nodeVersion, minimumVersion)) {
       options?.onProgress?.({ kind: "ready", nodePath: cached.nodePath });
       return cached;
     }
@@ -119,8 +128,7 @@ export async function resolveNodeForDistro(
   const probed = await probeUserNode(distro, { useBridge });
 
   if (probed) {
-    const major = parseNodeMajor(probed.version);
-    if (major !== null && major >= MIN_ACCEPTED_NODE_MAJOR) {
+    if (nodeVersionIsAccepted(probed.version, minimumVersion)) {
       options?.onProgress?.({ kind: "probe-result", resolved: "found", version: probed.version });
       const resolved: ResolvedNode = {
         nodePath: probed.nodePath,
@@ -136,6 +144,7 @@ export async function resolveNodeForDistro(
     options?.onProgress?.({ kind: "probe-result", resolved: "missing" });
   }
 
+  assertManagedNodeSatisfiesMinimum(options?.minimumVersion, minimumVersion);
   const installed = await installRuntimeIntoDistro(distro, options);
   const resolved: ResolvedNode = {
     nodePath: installed.nodePath,
@@ -242,6 +251,8 @@ export async function installRuntimeIntoDistro(
   distro: string,
   options?: ResolveNodeOptions,
 ): Promise<{ nodePath: string }> {
+  const minimumVersion = parseMinimumNodeVersion(options?.minimumVersion);
+  assertManagedNodeSatisfiesMinimum(options?.minimumVersion, minimumVersion);
   const useBridge = options?.useBridge !== false;
   const arch = useBridge
     ? await probeDistroArch(distro)
@@ -332,4 +343,53 @@ export async function installRuntimeIntoDistro(
   } finally {
     safeRm(tmpTarball);
   }
+}
+
+type ParsedNodeVersion = readonly [major: number, minor: number, patch: number];
+
+function parseMinimumNodeVersion(version: string | undefined): ParsedNodeVersion | undefined {
+  if (version === undefined) return undefined;
+  const parsed = parseNodeVersion(version);
+  if (!parsed) {
+    throw new Error(`invalid minimum Node version "${version}"; expected a semantic version`);
+  }
+  return parsed;
+}
+
+function parseNodeVersion(version: string): ParsedNodeVersion | undefined {
+  const match = /^v?(\d+)\.(\d+)(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?$/.exec(version.trim());
+  if (!match) return undefined;
+  return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)];
+}
+
+/**
+ * `parseNodeVersion` already rejects malformed input, so the ordering itself
+ * can reuse the shared numeric-segment comparison.
+ */
+function compareNodeVersions(left: ParsedNodeVersion, right: ParsedNodeVersion): number {
+  return compareVersions(left.join("."), right.join("."));
+}
+
+function nodeVersionIsAccepted(
+  version: string,
+  minimumVersion: ParsedNodeVersion | undefined,
+): boolean {
+  if (minimumVersion) {
+    const parsed = parseNodeVersion(version);
+    return parsed !== undefined && compareNodeVersions(parsed, minimumVersion) >= 0;
+  }
+  const major = parseNodeMajor(version);
+  return major !== null && major >= MIN_ACCEPTED_NODE_MAJOR;
+}
+
+function assertManagedNodeSatisfiesMinimum(
+  requestedMinimum: string | undefined,
+  minimumVersion: ParsedNodeVersion | undefined,
+): void {
+  if (!minimumVersion) return;
+  const managedVersion = parseNodeVersion(PORACODE_PINNED_NODE_VERSION);
+  if (managedVersion && compareNodeVersions(managedVersion, minimumVersion) >= 0) return;
+  throw new Error(
+    `Poracode-managed Node ${PORACODE_PINNED_NODE_VERSION} does not satisfy the requested minimum ${requestedMinimum}.`,
+  );
 }

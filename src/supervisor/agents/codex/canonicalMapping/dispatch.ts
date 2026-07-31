@@ -32,7 +32,12 @@ import {
 } from "./readers";
 import { readStringField } from "../../fileChangeSummary";
 import { extractCodexFileChangePath, readCommandAggregatedOutput } from "./toolExtraction";
-import { createCodexContextUsageEvent, createCodexTokenUsageEvent } from "./usage";
+import {
+  createCodexContextUsageEvent,
+  createCodexTokenUsageEvent,
+  createCodexUsageSpentEvent,
+  readCodexCumulativeTotalTokens,
+} from "./usage";
 
 export function mapCodexNotification(
   method: string,
@@ -44,7 +49,18 @@ export function mapCodexNotification(
 
   if (method === "thread/tokenUsage/updated") {
     const usageEvent = createCodexTokenUsageEvent(threadId, params);
-    return usageEvent ? [usageEvent] : [];
+    const events: RuntimeEvent[] = usageEvent ? [usageEvent] : [];
+    // Ledger spend sample alongside the dock's context.updated: the dock keeps
+    // the per-call `last` occupancy, the ledger consumes the cumulative total.
+    const scope = state.usageScope;
+    if (scope) {
+      const counter = readCodexCumulativeTotalTokens(params);
+      if (counter !== undefined) {
+        const spentEvent = createCodexUsageSpentEvent(threadId, params, scope.sample(counter));
+        if (spentEvent) events.push(spentEvent);
+      }
+    }
+    return events;
   }
 
   if (method === "turn/started") {
@@ -53,6 +69,8 @@ export function mapCodexNotification(
     return [{ type: "turn.started", threadId, turnId }];
   }
 
+  // `turn/aborted` is a legacy-only compatibility path; 0.144.5 reports
+  // interruption through `turn/completed` with `turn.status: "interrupted"`.
   if (method === "turn/completed" || method === "turn/aborted") {
     const events: RuntimeEvent[] = [];
     const usageEvent = createCodexContextUsageEvent(threadId, params);
@@ -86,18 +104,26 @@ export function mapCodexNotification(
       state: turnState,
     });
     delete state.currentTurnId;
-    state.itemIdMap.clear();
-    state.itemTypeMap.clear();
-    state.commandOutputSeenSet.clear();
+    // Unified exec commands can keep running after the model turn finishes.
+    // Preserve those mappings so late output and completion notifications
+    // continue updating the original row instead of opening a blank command.
+    for (const [codexItemId, itemType] of state.itemTypeMap) {
+      if (itemType === "command_execution") continue;
+      state.itemIdMap.delete(codexItemId);
+      state.itemTypeMap.delete(codexItemId);
+    }
     state.fileChangeOutputMap.clear();
     state.fileChangePathMap.clear();
     state.reasoningSummaryIndexMap.clear();
     return events;
   }
 
+  // `thread/error` is legacy-only; current app-server errors use `error`.
   if (method === "thread/error" || method === "error") {
     const message = readCodexErrorMessage(params) ?? "Codex thread error";
-    return [{ type: "error", threadId, message }];
+    return method === "error" && params?.willRetry === true
+      ? [{ type: "warning", threadId, message }]
+      : [{ type: "error", threadId, message }];
   }
 
   if (method === "serverRequest/resolved") {

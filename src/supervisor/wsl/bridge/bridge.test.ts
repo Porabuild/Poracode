@@ -354,6 +354,9 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
       checkpointItemId: "user-1",
       capturedAt: "2026-05-16T00:00:00.000Z",
       ref: "refs/poracode/checkpoints/dGhyZWFkLTE/dXNlci0x",
+      // Finalized checkpoints can carry a large changed-file manifest. Keep it
+      // above common argv limits to prove commit-tree receives it over stdin.
+      changedFiles: [{ path: `generated/${"x".repeat(300_000)}.txt` }],
     };
     const { status, body } = await post(`${bridge.baseUrl}/v1/git/checkpoint-snapshot`, {
       projectRoot,

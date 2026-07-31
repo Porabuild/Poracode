@@ -14,7 +14,7 @@ describe("RemoteDesktopClient", () => {
       "http://127.0.0.1:38987/",
       undefined,
       async (_url, init) => {
-        body = JSON.parse(init?.body ?? "{}") as unknown;
+        body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
         return new Response(
           JSON.stringify({
             accessToken: "lc_access_test",
@@ -97,6 +97,165 @@ describe("RemoteDesktopClient", () => {
     expect(authorization).toBe("Bearer lc_access_test");
   });
 
+  it("reads and writes encoded project notes paths", async () => {
+    const requests: Array<{ url: string; method: string; body: unknown }> = [];
+    const notes = {
+      projectId: "project one",
+      doc: { type: "doc", content: [] },
+      todos: [],
+      updatedAt: "2026-07-23T00:00:00.000Z",
+    };
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({
+          url: String(url),
+          method: init?.method ?? "GET",
+          body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined,
+        });
+        return new Response(JSON.stringify((init?.method ?? "GET") === "GET" ? { notes } : {}), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(client.projectNotes(notes.projectId)).resolves.toEqual(notes);
+    await expect(client.setProjectNotes(notes)).resolves.toBeUndefined();
+
+    expect(requests).toEqual([
+      {
+        url: "https://relay.example.test/s/server-1/api/projects/project%20one/notes",
+        method: "GET",
+        body: undefined,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/projects/project%20one/notes",
+        method: "POST",
+        body: notes,
+      },
+    ]);
+  });
+
+  it("reads, checks, enables, and deletes PR automation through the remote API", async () => {
+    const requests: Array<{ url: string; method: string; body: unknown }> = [];
+    const watch = {
+      projectId: "project one",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      worktreePath: "/repo/worktree",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    } as const;
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        const method = init?.method ?? "GET";
+        requests.push({
+          url: String(url),
+          method,
+          body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined,
+        });
+        return new Response(JSON.stringify(method === "DELETE" ? { ok: true } : { watch }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    const input = {
+      projectId: watch.projectId,
+      prNumber: watch.prNumber,
+      headBranch: watch.headBranch,
+      worktreePath: watch.worktreePath,
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: watch.agentKind,
+      config: watch.config,
+    };
+    await expect(
+      client.getPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toEqual(watch);
+    await expect(
+      client.checkPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toBeUndefined();
+    await expect(client.upsertPrWatch(input)).resolves.toEqual(watch);
+    await expect(
+      client.deletePrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toBeUndefined();
+
+    expect(requests).toEqual([
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches?projectId=project+one&prNumber=42",
+        method: "GET",
+        body: undefined,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches/check",
+        method: "POST",
+        body: { projectId: watch.projectId, prNumber: watch.prNumber },
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches",
+        method: "POST",
+        body: input,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches",
+        method: "DELETE",
+        body: { projectId: watch.projectId, prNumber: watch.prNumber },
+      },
+    ]);
+  });
+
+  it("requests a tail snapshot and encodes older runtime page cursors", async () => {
+    const requestedUrls: string[] = [];
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url) => {
+        requestedUrls.push(String(url));
+        return new Response(JSON.stringify({ items: [], nextCursor: null }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(
+      client.threadRuntimeItemsPage({
+        threadId: "thread one",
+        beforePosition: 42,
+        limit: 500,
+        targetTimelineEntryCount: 40,
+      }),
+    ).resolves.toEqual({ items: [], nextCursor: null });
+    await client.threadHistory("thread one").catch(() => undefined);
+    await client
+      .threadHistory("thread one", { targetTimelineEntryCount: 20 })
+      .catch(() => undefined);
+
+    expect(requestedUrls[0]).toBe(
+      "https://relay.example.test/s/server-1/api/threads/thread%20one/history/items?limit=500&beforePosition=42&targetTimelineEntryCount=40",
+    );
+    expect(requestedUrls[1]).toBe(
+      "https://relay.example.test/s/server-1/api/threads/thread%20one/history?runtimePage=1",
+    );
+    expect(requestedUrls[2]).toBe(
+      "https://relay.example.test/s/server-1/api/threads/thread%20one/history?runtimePage=1&targetTimelineEntryCount=20",
+    );
+  });
+
   it("passes an abort signal to remote fetches", async () => {
     let signal: AbortSignal | undefined;
     const client = new RemoteDesktopClient(
@@ -147,6 +306,32 @@ describe("RemoteDesktopClient", () => {
     expect(commandId).toBe("user-message-1");
   });
 
+  it("forwards goal controls to the paired desktop", async () => {
+    let requestUrl = "";
+    let requestBody: unknown;
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.controlThreadGoal({
+      threadId: "thread-1",
+      action: "edit",
+      objective: "Ship edited goal",
+    });
+
+    expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-1/goal");
+    expect(requestBody).toEqual({ action: "edit", objective: "Ship edited goal" });
+  });
+
   it("times out requests even when the transport ignores abort signals", async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | undefined;
@@ -172,6 +357,23 @@ describe("RemoteDesktopClient", () => {
       code: "timeout",
       status: 0,
       message: "Remote request timed out after 10ms.",
+    });
+  });
+
+  it("allows WebSocket ticket requests to use the connection deadline", async () => {
+    vi.useFakeTimers();
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      undefined,
+      () => new Promise<Response>(() => {}),
+    );
+
+    const request = client.websocketTicket(15).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(15);
+
+    await expect(request).resolves.toMatchObject({
+      code: "timeout",
+      message: "Remote request timed out after 15ms.",
     });
   });
 
@@ -305,7 +507,9 @@ describe("RemoteDesktopClient", () => {
       "http://127.0.0.1:38987/",
       undefined,
       async (_url, init) => {
-        body = JSON.parse(init?.body ?? "{}") as { client?: unknown };
+        body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as {
+          client?: unknown;
+        };
         return new Response(
           JSON.stringify({
             accessToken: "lc_access_test",
@@ -348,5 +552,56 @@ describe("RemoteDesktopClient", () => {
     // Once the long deadline elapses it times out (rather than never).
     await vi.advanceTimersByTimeAsync(5 * 60_000);
     await expect(push).resolves.toMatchObject({ code: "timeout" });
+  });
+
+  it("builds authenticated local image URLs against the endpoint", () => {
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+    );
+
+    const url = new URL(client.localImageUrl("C:\\Users\\me\\img one.png"));
+
+    expect(url.origin).toBe("https://relay.example.test");
+    expect(url.pathname).toBe("/s/server-1/api/files/image");
+    expect(url.searchParams.get("path")).toBe("C:\\Users\\me\\img one.png");
+    expect(url.searchParams.get("access_token")).toBe("lc_access_test");
+  });
+
+  it("returns an empty local image URL without an access token", () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/");
+
+    expect(client.localImageUrl("/tmp/img.png")).toBe("");
+  });
+
+  it("uploads attachment bytes to the paired desktop", async () => {
+    let requestUrl = "";
+    let requestBody: Uint8Array | undefined;
+    const client = new RemoteDesktopClient(
+      "https://desktop.example.test",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = init?.body instanceof Uint8Array ? init.body : undefined;
+        return new Response(JSON.stringify({ path: "C:\\attachments\\photo one.png" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(
+      client.uploadAttachment({
+        threadId: "thread/one",
+        fileName: "photo one.png",
+        data: new Uint8Array([1, 2, 3]),
+      }),
+    ).resolves.toBe("C:\\attachments\\photo one.png");
+
+    const url = new URL(requestUrl);
+    expect(url.pathname).toBe("/api/files/attachment");
+    expect(url.searchParams.get("threadId")).toBe("thread/one");
+    expect(url.searchParams.get("name")).toBe("photo one.png");
+    expect(Array.from(requestBody!)).toEqual([1, 2, 3]);
   });
 });

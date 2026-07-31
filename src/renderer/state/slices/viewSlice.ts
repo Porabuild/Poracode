@@ -2,6 +2,7 @@ import type { AppView } from "@/shared/contracts";
 import { makeDraftPaneId } from "@/shared/paneId";
 import {
   adjustInsertTargetForRemoval,
+  buildPaneLayoutFromLegacy,
   collectPaneIds,
   findPaneSlotId,
   insertPaneInLayout,
@@ -51,9 +52,12 @@ export interface ViewSlice {
   openHome: () => void;
   openPullRequests: () => void;
   openSchedules: () => void;
+  openExperiment: (experimentId: string, projectId: string) => void;
   openThread: (threadId: string) => void;
+  openThreadStandalone: (threadId: string) => void;
   openThreadSideBySide: (threadId: string) => void;
   openGroupView: (groupId: string) => void;
+  openGroupGrid: (groupId: string) => void;
   closeGroupView: () => void;
   replaceSecondPane: (threadId: string) => void;
   replacePaneAtIndex: (threadId: string, index: number) => void;
@@ -158,6 +162,25 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   openHome: () => set({ view: { kind: "home" } }),
   openPullRequests: () => set({ view: { kind: "pullRequests" } }),
   openSchedules: () => set({ view: { kind: "schedules" } }),
+  openExperiment: (experimentId, projectId) =>
+    set((state) => ({
+      ...(state.view.kind === "thread" && state.view.activeGroupId
+        ? { groupLayouts: saveGroupLayout(state) }
+        : {}),
+      view: { kind: "experiment", experimentId, projectId },
+    })),
+  openThreadStandalone: (threadId) =>
+    set((state) => {
+      const nextView: AppView = { kind: "thread", panes: [threadId] };
+      const cleared = clearFinishedAndDone(state.threads, [threadId]);
+      return {
+        ...(state.view.kind === "thread" && state.view.activeGroupId
+          ? { groupLayouts: saveGroupLayout(state) }
+          : {}),
+        view: nextView,
+        ...(cleared ? { threads: cleared } : {}),
+      };
+    }),
   openThread: (threadId) =>
     set((state) => {
       if (state.view.kind === "thread" && state.view.activeGroupId) {
@@ -295,6 +318,26 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       return cleared
         ? { groupLayouts: gl, view: nextView, threads: cleared }
         : { groupLayouts: gl, view: nextView };
+    }),
+  openGroupGrid: (groupId) =>
+    set((state) => {
+      const groupLayouts = saveGroupLayout(state);
+      const panes = state.threads
+        .filter((thread) => thread.groupId === groupId && !thread.done && !thread.archived)
+        .map((thread) => thread.id);
+      if (panes.length === 0) return {};
+      const rowLayout =
+        panes.length > 3 ? [Math.ceil(panes.length / 2), Math.floor(panes.length / 2)] : undefined;
+      const paneLayout = buildPaneLayoutFromLegacy(panes, rowLayout);
+      const nonEmptyPanes = panes as [string, ...string[]];
+      const view: AppView = {
+        kind: "thread",
+        panes: nonEmptyPanes,
+        paneLayout,
+        activeGroupId: groupId,
+      };
+      const threads = clearFinishedAndDone(state.threads, nonEmptyPanes);
+      return threads ? { groupLayouts, view, threads } : { groupLayouts, view };
     }),
   closeGroupView: () =>
     set((state) => {

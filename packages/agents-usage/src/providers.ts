@@ -47,8 +47,8 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
   commandcode: {
     id: "commandcode",
     label: "Command Code",
-    mechanism: "cookie",
-    needsLogin: true,
+    mechanism: "oauth-endpoint",
+    needsLogin: false,
     windowIds: ["monthly"],
   },
   factory: {
@@ -64,6 +64,21 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     label: "z.ai",
     mechanism: "api-key",
     needsLogin: true,
+    windowIds: ["session-5h", "weekly", "monthly"],
+  },
+  kimi: {
+    id: "kimi",
+    label: "Kimi Code",
+    mechanism: "api-key",
+    needsLogin: true,
+    windowIds: ["session-5h", "weekly"],
+  },
+  qwen: {
+    id: "qwen",
+    label: "Alibaba Token Plan",
+    mechanism: "cookie",
+    needsLogin: true,
+    apiKeyFallback: true,
     windowIds: ["session-5h", "weekly", "monthly"],
   },
 } satisfies Record<string, UsageProviderDescriptor>;

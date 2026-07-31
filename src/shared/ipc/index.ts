@@ -35,7 +35,8 @@ export {
   isAgentStatusSupervisorEvent,
   type AgentStatusSupervisorEvent,
   type BrowserEvent,
-  type NotificationClickEvent,
+  type ProjectStateChangedEvent,
+  type ThreadOpenRequestedEvent,
   type SupervisorEvent,
   type SupervisorReply,
   type SupervisorRequest,
@@ -59,6 +60,7 @@ export {
 } from "./procedures/browser";
 export {
   windowChromePayloadSchema,
+  type DbPersistExperimentStatePayload,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,

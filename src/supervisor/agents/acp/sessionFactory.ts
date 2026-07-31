@@ -46,17 +46,19 @@ export function createAcpStructuredSession(
     ...(input.loadSessionErrorRewriter
       ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }
       : {}),
+    ...(input.acpEmptyResponseErrorResolver
+      ? { emptyResponseErrorResolver: input.acpEmptyResponseErrorResolver }
+      : {}),
     ...(input.acpSessionUpdateTransform
       ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
+      : {}),
+    ...(input.acpGoalCommands ? { goalCommands: true } : {}),
+    ...(input.acpExtensionSessionUpdateTransform
+      ? { extensionSessionUpdateTransform: input.acpExtensionSessionUpdateTransform }
       : {}),
     ...(input.acpExtensionNotificationHandler
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),
-    ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
-    ...(input.subagentMcp !== undefined ? { subagentMcp: input.subagentMcp } : {}),
-    ...(input.computerUseMcp !== undefined ? { computerUseMcp: input.computerUseMcp } : {}),
-    ...(input.chromeMcp !== undefined ? { chromeMcp: input.chromeMcp } : {}),
-    ...(input.appControlsMcp !== undefined ? { appControlsMcp: input.appControlsMcp } : {}),
     ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
   });
 }

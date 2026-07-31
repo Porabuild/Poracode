@@ -103,7 +103,7 @@ describe("searchSettings", () => {
     expect(searchSettings("skills", t).map((result) => result.anchor)).toContain("skills.manage");
     expect(searchSettings("shared", t).map((result) => result.anchor)).toContain("skills.manage");
     expect(searchSettings("mcp", t).map((result) => result.anchor)).toContain("mcpServers.manage");
-    expect(searchSettings("subagent routing", t).map((result) => result.anchor)).toContain(
+    expect(searchSettings("crossagent routing", t).map((result) => result.anchor)).toContain(
       "mcpServers.manage",
     );
   });

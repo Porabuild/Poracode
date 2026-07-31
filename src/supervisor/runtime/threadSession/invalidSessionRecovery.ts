@@ -10,13 +10,7 @@ import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 
 type RecoverySpawnPipeline = Pick<
   SpawnPipeline,
-  | "resolveBrowserMcpForLaunch"
-  | "resolveSubagentMcpForLaunch"
-  | "resolveComputerUseMcpForLaunch"
-  | "resolveChromeMcpForLaunch"
-  | "resolveAppControlsMcpForLaunch"
-  | "composeLaunchOptions"
-  | "spawnThread"
+  "resolveMcpServersForLaunch" | "composeLaunchOptions" | "spawnThread"
 >;
 
 export interface InvalidSessionRecoveryContext {
@@ -83,45 +77,19 @@ export class InvalidSessionRecoveryCoordinator {
       session.config,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
     );
-    const browserMcp = await context.spawnPipeline.resolveBrowserMcpForLaunch(
-      session.adapter,
-      session.projectLocation,
-      launchConfig,
+    const resolvedMcpServers = await context.spawnPipeline.resolveMcpServersForLaunch({
+      location: session.projectLocation,
+      config: launchConfig,
       mcpLaunchSnapshot,
-      { threadId: session.threadId },
-    );
-    const subagentMcp = await context.spawnPipeline.resolveSubagentMcpForLaunch(
-      session.threadId,
-      session.projectLocation,
-      launchConfig,
-      mcpLaunchSnapshot,
-    );
-    const computerUse = context.spawnPipeline.resolveComputerUseMcpForLaunch(
-      session.projectLocation,
-      launchConfig,
-      mcpLaunchSnapshot,
-      { threadId: session.threadId },
-    );
-    const chromeMcp = context.spawnPipeline.resolveChromeMcpForLaunch(
-      session.projectLocation,
-      launchConfig,
-      mcpLaunchSnapshot,
-      { threadId: session.threadId },
-    );
-    const appControlsMcp = await context.spawnPipeline.resolveAppControlsMcpForLaunch(
-      session.projectLocation,
-      mcpLaunchSnapshot,
-      { threadId: session.threadId },
-    );
+      identity: { threadId: session.threadId },
+      crossagentThreadId: session.threadId,
+      adapter: session.adapter,
+    });
     const cliHookExtras = await context.cliHookPlugin.resolveCliHookPluginExtras(
       session.threadId,
       session.agentKind,
       session.projectLocation,
-      launchConfig,
-      browserMcp,
-      computerUse,
-      chromeMcp,
-      mcpLaunchSnapshot,
+      resolvedMcpServers,
     );
     if (!context.isCurrentSession(session)) {
       return;
@@ -132,16 +100,7 @@ export class InvalidSessionRecoveryCoordinator {
       launchConfig,
       session.launchPrompt,
       undefined,
-      context.spawnPipeline.composeLaunchOptions(
-        session.adapter,
-        undefined,
-        browserMcp,
-        subagentMcp,
-        computerUse,
-        chromeMcp,
-        appControlsMcp,
-        mcpLaunchSnapshot,
-      ),
+      context.spawnPipeline.composeLaunchOptions(session.adapter, undefined, resolvedMcpServers),
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = mergeCliHookExtraArgs(

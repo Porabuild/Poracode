@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { projectLocationSchema } from "./common";
+import { agentKindSchema, projectLocationSchema } from "./common";
 
 export const DEFAULT_MCP_SERVER_TIMEOUT_MS = 30_000;
 
 /** Stable ids for the MCP servers provided by Poracode itself. */
 export const BUILT_IN_MCP_SERVER_IDS = [
   "browser",
-  "subagents",
+  "crossagents",
   "chrome",
   "computer-use",
   "app-controls",
@@ -16,7 +16,7 @@ export type BuiltInMcpServerId = (typeof BUILT_IN_MCP_SERVER_IDS)[number];
 /** Provider-visible names used by the built-in servers. */
 export const BUILT_IN_MCP_SERVER_NAMES: Record<BuiltInMcpServerId, string> = {
   browser: "browser",
-  subagents: "subagents",
+  crossagents: "crossagents",
   chrome: "chrome",
   "computer-use": "computer_use",
   "app-controls": "poracode",
@@ -26,6 +26,8 @@ export const BUILT_IN_MCP_SERVER_NAMES: Record<BuiltInMcpServerId, string> = {
 export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
   browser: [
     "api",
+    "enable",
+    "disable",
     "list_tabs",
     "new_tab",
     "open",
@@ -70,25 +72,22 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "addscript",
     "addstyle",
   ],
-  subagents: [
+  crossagents: [
     "list_agents",
     "get_agent",
     "spawn_agent",
+    "list_routing_preferences",
+    "set_routing_preference",
+    "remove_routing_preference",
     "wait_for_agent",
-    "run_agent",
     "get_status",
+    "list_runs",
     "cancel",
-    "create_thread",
-    "list_threads",
-    "get_thread",
-    "read_thread",
-    "send_to_thread",
-    "wait_for_thread",
-    "interrupt_thread",
-    "close_thread",
   ],
   chrome: [
     "chrome_status",
+    "enable",
+    "disable",
     "chrome_list_tabs",
     "chrome_open",
     "chrome_attach",
@@ -111,6 +110,8 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
   ],
   "computer-use": [
     "api",
+    "enable",
+    "disable",
     "list_apps",
     "list_windows",
     "launch_app",
@@ -129,12 +130,64 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "update_schedule",
     "run_schedule",
     "delete_schedule",
+    "list_threads",
+    "get_thread",
+    "read_thread",
+    "create_thread",
+    "send_to_thread",
+    "interrupt_thread",
+    "stop_thread",
+    "wait_for_thread",
+    "update_thread",
+    "open_thread",
+    "read_terminal",
+    "steer_thread",
+    "stage_thread_input",
+    "rollback_thread",
+    "list_projects",
+    "get_project",
+    "create_project",
+    "update_project",
+    "get_settings",
+    "update_settings",
+    "get_usage",
+    "search",
+    "get_app_info",
+    "notify_user",
+    "check_for_update",
+    "list_project_files",
+    "read_project_file",
+    "find_files",
+    "list_installed_agents",
+    "git_status",
+    "git_diff",
+    "git_stage",
+    "git_commit",
+    "git_discard",
+    "git_branch",
+    "git_sync",
+    "list_worktrees",
+    "remove_worktree",
+    "merge_worktree",
+    "gh_list_prs",
+    "gh_get_pr",
+    "gh_create_pr",
+    "gh_pr_comment",
+    "gh_merge_pr",
+    "gh_update_pr",
+    "list_mcp_servers",
+    "probe_mcp_server",
+    "add_mcp_server",
+    "update_mcp_server",
+    "remove_mcp_server",
+    "list_skills",
+    "set_skill_enabled",
   ],
 } as const satisfies Record<BuiltInMcpServerId, readonly string[]>;
 
 export const BUILT_IN_MCP_SERVER_TOOL_COUNTS: Record<BuiltInMcpServerId, number> = {
   browser: BUILT_IN_MCP_SERVER_TOOL_NAMES.browser.length,
-  subagents: BUILT_IN_MCP_SERVER_TOOL_NAMES.subagents.length,
+  crossagents: BUILT_IN_MCP_SERVER_TOOL_NAMES.crossagents.length,
   chrome: BUILT_IN_MCP_SERVER_TOOL_NAMES.chrome.length,
   "computer-use": BUILT_IN_MCP_SERVER_TOOL_NAMES["computer-use"].length,
   "app-controls": BUILT_IN_MCP_SERVER_TOOL_NAMES["app-controls"].length,
@@ -266,6 +319,15 @@ export const mcpServerSchema = z
   });
 export type McpServer = z.infer<typeof mcpServerSchema>;
 
+/**
+ * Provider-neutral MCP descriptor after launch-time resolution. Built-in
+ * owners and user configuration both project into this shape before an agent
+ * adapter sees them.
+ */
+export type ResolvedMcpServer = Omit<McpServer, "description" | "enabled"> & {
+  approvalMode?: "approve";
+};
+
 export const mcpServerListSchema = z.array(mcpServerSchema).default([]);
 
 /**
@@ -303,6 +365,16 @@ export const mcpOauthStatusResultSchema = z.object({
   authenticatedUrls: z.array(z.string()),
 });
 export type McpOauthStatusResult = z.infer<typeof mcpOauthStatusResultSchema>;
+
+/**
+ * Re-resolve and apply the MCP set of a provider's live sessions after its
+ * provider-level MCP settings changed (`mcpConfigSource: "agentSettings"`).
+ * Sessions without a live update hook pick the new set up on next launch.
+ */
+export const reloadAgentMcpServersPayloadSchema = z.object({
+  agentKind: agentKindSchema,
+});
+export type ReloadAgentMcpServersPayload = z.infer<typeof reloadAgentMcpServersPayloadSchema>;
 
 export const mcpProbePayloadSchema = z.object({
   server: mcpServerSchema,

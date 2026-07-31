@@ -8,14 +8,23 @@ import type { RemotePushRegistration } from "@/shared/remote";
 export type PushTokenRef =
   | { readonly kind: "device" }
   | { readonly kind: "pushToStart" }
-  | { readonly kind: "activity"; readonly activityId: string };
+  | { readonly kind: "activity"; readonly activityId: string }
+  | { readonly kind: "web" };
 
 const storedPushRegistrationSchema = z.object({
   deviceId: z.string().min(1),
-  platform: z.enum(["ios", "android"]),
+  platform: z.enum(["ios", "android", "web"]),
   deviceToken: z.string().min(1).optional(),
   pushToStartToken: z.string().min(1).optional(),
   activityTokens: z.record(z.string().min(1), z.string().min(1)),
+  webPushSubscription: z
+    .object({
+      endpoint: z.string().url(),
+      expirationTime: z.number().int().nonnegative().nullable(),
+      keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }),
+    })
+    .optional(),
+  webAppBasePath: z.string().min(1).optional(),
   appVersion: z.string().min(1).optional(),
   updatedAt: z.number().int().nonnegative(),
 });
@@ -58,7 +67,11 @@ export class PushRegistrationStore {
    */
   upsert(registration: RemotePushRegistration): StoredPushRegistration {
     const map = this.load();
-    const existing = map.get(registration.deviceId);
+    const stored = map.get(registration.deviceId);
+    // A browser/native install should normally have a distinct device id, but
+    // if storage migration ever reuses one, never carry platform-specific
+    // credentials across that boundary.
+    const existing = stored?.platform === registration.platform ? stored : undefined;
     const activityTokens: Record<string, string> = { ...(existing?.activityTokens ?? {}) };
     if (registration.activityTokens) {
       for (const [activityId, token] of Object.entries(registration.activityTokens)) {
@@ -68,6 +81,8 @@ export class PushRegistrationStore {
     const deviceToken = registration.deviceToken ?? existing?.deviceToken;
     const pushToStartToken = registration.pushToStartToken ?? existing?.pushToStartToken;
     const appVersion = registration.appVersion ?? existing?.appVersion;
+    const webPushSubscription = registration.webPushSubscription ?? existing?.webPushSubscription;
+    const webAppBasePath = registration.webAppBasePath ?? existing?.webAppBasePath;
     const next: StoredPushRegistration = {
       deviceId: registration.deviceId,
       platform: registration.platform,
@@ -75,6 +90,8 @@ export class PushRegistrationStore {
       updatedAt: this.now(),
       ...(deviceToken ? { deviceToken } : {}),
       ...(pushToStartToken ? { pushToStartToken } : {}),
+      ...(webPushSubscription ? { webPushSubscription } : {}),
+      ...(webAppBasePath ? { webAppBasePath } : {}),
       ...(appVersion ? { appVersion } : {}),
     };
     map.set(next.deviceId, next);
@@ -102,15 +119,19 @@ export class PushRegistrationStore {
     } else if (ref.kind === "pushToStart") {
       const { pushToStartToken: _removed, ...rest } = existing;
       next = rest;
-    } else {
+    } else if (ref.kind === "activity") {
       if (!(ref.activityId in existing.activityTokens)) return;
       const activityTokens = { ...existing.activityTokens };
       delete activityTokens[ref.activityId];
       next = { ...existing, activityTokens };
+    } else {
+      const { webPushSubscription: _removed, webAppBasePath: _path, ...rest } = existing;
+      next = rest;
     }
     const hasAnyToken =
       next.deviceToken !== undefined ||
       next.pushToStartToken !== undefined ||
+      next.webPushSubscription !== undefined ||
       Object.keys(next.activityTokens).length > 0;
     if (hasAnyToken) {
       map.set(deviceId, { ...next, updatedAt: this.now() });

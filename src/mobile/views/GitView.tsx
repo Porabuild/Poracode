@@ -5,6 +5,8 @@ import { ChevronLeft } from "lucide-react";
 import type { GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { resolvePrKey } from "@/renderer/state/gitSelectors";
+import { mightBeGitHubRemote } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { SidebarContext } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { GitReviewSidebar } from "@/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar";
@@ -18,6 +20,7 @@ import type { ConflictResolverLaunchInput } from "@/renderer/views/GitReviewOver
 import { SingleFileDiff } from "@/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/SingleFileDiff";
 import { GitActionSheet, type GitSheetTarget } from "./GitActionSheet";
 import { DIFF_MODE, DiffModeToggle, useSheet } from "../components";
+import { refreshMobilePrData } from "../useGitSummaryHydration";
 
 const ALWAYS_EXPANDED = {
   isCollapsed: false,
@@ -43,6 +46,7 @@ function getDiffDrillTransitionMs() {
 
 export interface GitTarget {
   readonly project: Project;
+  readonly threadId?: string | undefined;
   /** Worktree status key (the worktree path) or undefined for the main repo. */
   readonly statusKey?: string | undefined;
   readonly locationOverride?: ProjectLocation | undefined;
@@ -118,9 +122,26 @@ export function GitView(props: {
     else useGitStore.getState().setStatus(project.id, status);
   }
 
+  async function refetchPr() {
+    const gitState = useGitStore.getState();
+    if (!gitState.ghAvailable[project.id]) return;
+    const status = statusKey ? gitState.worktreeStatuses[statusKey] : gitState.statuses[project.id];
+    if (!mightBeGitHubRemote(status?.remoteInfo?.platform)) return;
+    const branch = worktreeBranch ?? status?.branch;
+    if (!branch) return;
+    await refreshMobilePrData({
+      projectId: project.id,
+      projectLocation: project.location,
+      branch,
+      prKey: resolvePrKey(project.id, worktreePath),
+      ...(target.threadId ? { threadId: target.threadId } : {}),
+    });
+  }
+
   // Hydrate the store the desktop components read from: full status for the
   // file list/diffs, plus a project snapshot for gh availability + branches so
-  // the PR section and create-PR flow light up.
+  // the PR section and create-PR flow light up. Once those prerequisites land,
+  // fetch the branch's authoritative PR into the same store.
   async function hydrate() {
     setRefreshing(true);
     try {
@@ -141,6 +162,7 @@ export function GitView(props: {
           )
           .catch(() => undefined),
       ]);
+      await refetchPr();
     } finally {
       setRefreshing(false);
     }
@@ -153,7 +175,7 @@ export function GitView(props: {
         .gitFetch({
           projectLocation: effectiveLocation,
           remote: "origin",
-          prune: false,
+          prune: true,
         })
         .catch((error: unknown) => {
           toast.danger(friendlyError(error));
@@ -247,6 +269,7 @@ export function GitView(props: {
         <div className="m-ws-pane">
           <GitReviewSidebar
             project={effectiveProject}
+            mergeSyncLocation={project.location}
             gitStatus={gitStatus}
             selectedFile={selectedFile}
             selectedStaged={selectedStaged}

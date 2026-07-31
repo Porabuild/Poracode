@@ -33,6 +33,8 @@ interface DevTerminalActions {
   openWorktreePanel: (projectId: string, worktreePath: string) => void;
   closePanel: () => void;
   setActiveProject: (projectId: string) => void;
+  /** Re-scope an open panel without opening it or spawning a shell. */
+  setPanelScope: (projectId: string, worktreePath?: string) => void;
   addTab: (projectId: string, projectName: string, worktreePath?: string) => DevTerminalTab;
   removeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
@@ -104,6 +106,24 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       activeTabId: tabs[0]?.id ?? null,
     });
   },
+
+  setPanelScope: (projectId, worktreePath) =>
+    set((state) => {
+      if (
+        state.activeProjectId === projectId &&
+        (state.activeWorktreePath ?? undefined) === worktreePath
+      ) {
+        return {};
+      }
+      const scopedTab = state.tabs.find(
+        (tab) => tab.projectId === projectId && (tab.worktreePath ?? undefined) === worktreePath,
+      );
+      return {
+        activeProjectId: projectId,
+        activeWorktreePath: worktreePath ?? null,
+        activeTabId: scopedTab?.id ?? null,
+      };
+    }),
 
   addTab: (projectId, projectName, worktreePath?) => {
     const tab: DevTerminalTab = {
@@ -311,3 +331,17 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     });
   },
 }));
+
+export function resetDevTerminalStore(): void {
+  clearStreaming([...streamingTimers.keys()]);
+  useDevTerminalStore.setState({
+    isOpen: false,
+    activeProjectId: null,
+    activeWorktreePath: null,
+    tabs: [],
+    activeTabId: null,
+    focusRequestId: 0,
+    tabActivity: {},
+    streamingTabs: {},
+  });
+}

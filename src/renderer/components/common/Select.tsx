@@ -98,7 +98,12 @@ export function Select(props: SelectProps) {
   const listBox = (
     <ListBox {...(isVirtualized ? { className: "max-h-60 overflow-y-auto" } : {})}>
       {options.map((option) => (
-        <ListBox.Item key={option.id} id={option.id} textValue={option.label}>
+        // HeroUI's select popover sets `px-2.5` on items with the same
+        // specificity as the base `:has(.list-box-item__indicator) { pe-7 }`
+        // rule but later in import order, collapsing the end padding that
+        // reserves room for the checkmark so it overlaps long labels. The
+        // `pe-7` utility (utilities layer) restores it.
+        <ListBox.Item key={option.id} id={option.id} textValue={option.label} className="pe-7">
           {option.label}
           <ListBox.ItemIndicator />
         </ListBox.Item>

@@ -18,6 +18,7 @@ import type { ComposerControl } from "./ThreadComposer";
 import { ThreadView } from "./ThreadView";
 import {
   bindLeadingSkillInvocation,
+  filterSlashCommands,
   rebindSkillSegments,
   resolveAvailableSlashCommands,
 } from "./threadSlashCommands";
@@ -570,6 +571,141 @@ describe("ThreadSlashCommands", () => {
         disabledSkillNames: ["review-code"],
       }),
     ).toEqual([]);
+  });
+
+  it("dedupes same-named provider commands and lets the skill entry win the name", () => {
+    const commands = resolveAvailableSlashCommands(
+      [
+        {
+          id: "simplify",
+          label: "simplify — Review changed code",
+          description: "Review changed code",
+        },
+        {
+          id: "simplify",
+          label: "simplify — Review changed code (user)",
+          description: "Review changed code (user)",
+        },
+        { id: "security-review", label: "security-review" },
+      ],
+      undefined,
+      {
+        skillCommands: [
+          {
+            id: "simplify",
+            label: "simplify",
+            section: "skills",
+            skillName: "simplify",
+            skillPath: "/skills/simplify/SKILL.md",
+            skillInvocation: "/simplify",
+            skillProvider: "Claude Code",
+            skillScope: "global",
+          },
+        ],
+      },
+    );
+    expect(commands.map((command) => `${command.id}:${command.section ?? "commands"}`)).toEqual([
+      "security-review:commands",
+      "simplify:skills",
+    ]);
+  });
+
+  it("prefers an ACP-provided skill command over the same locally scanned skill", () => {
+    const commands = resolveAvailableSlashCommands(
+      [
+        {
+          id: "skill:simplify",
+          label: "skill:simplify — Review changed code",
+          description: "Review changed code",
+          section: "skills",
+          skillName: "simplify",
+        },
+      ],
+      undefined,
+      {
+        skillCommands: [
+          {
+            id: "simplify",
+            label: "simplify — Local skill",
+            description: "Local skill",
+            section: "skills",
+            skillName: "simplify",
+            skillPath: "/skills/simplify/SKILL.md",
+            skillInvocation: "/simplify",
+            skillProvider: "Shared agents",
+            skillScope: "project",
+          },
+        ],
+      },
+    );
+
+    expect(commands).toEqual([
+      {
+        id: "skill:simplify",
+        label: "skill:simplify — Review changed code",
+        description: "Review changed code",
+        section: "skills",
+        skillName: "simplify",
+      },
+    ]);
+  });
+
+  it("finds ACP skill commands by their short display name", () => {
+    const command = {
+      id: "skill:simplify",
+      label: "skill:simplify — Review changed code",
+      description: "Review changed code",
+      section: "skills" as const,
+      skillName: "simplify",
+    };
+
+    expect(filterSlashCommands([command], "sim")).toEqual([command]);
+    expect(filterSlashCommands([command], "skill:sim")).toEqual([command]);
+  });
+
+  it("shows the short skill name but submits the ACP-native command", async () => {
+    const baseCapabilities = makeAgentStatus().capabilities;
+    const onStart = await renderDraftComposer(
+      makeAgentStatus({
+        kind: "kimi",
+        label: "Kimi Code",
+        capabilities: {
+          ...baseCapabilities,
+          liveInputMode: "server",
+          presentationMode: "gui",
+          presentationModes: ["terminal", "gui"],
+          slashCommands: [
+            {
+              id: "skill:simplify",
+              label: "skill:simplify — Review changed code",
+              description: "Review changed code",
+              section: "skills",
+              skillName: "simplify",
+            },
+          ],
+        },
+      }),
+      undefined,
+      "gui",
+    );
+
+    const editor = screen.getByRole("textbox");
+    typeSlashQuery(editor, "/sim");
+
+    expect(screen.getByText("/simplify")).toBeInTheDocument();
+    expect(screen.queryByText("/skill:simplify")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(editor.textContent).toBe("/simplify ");
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentKind: "kimi",
+        prompt: "/skill:simplify",
+        presentationMode: "gui",
+      }),
+    );
   });
 
   it("does not reintroduce locally discovered skills when the provider catalog is authoritative", async () => {

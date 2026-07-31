@@ -117,18 +117,35 @@ describe("DesktopsView", () => {
     expect(screen.getByRole("dialog", { name: "H1FCM6T4GX" })).toBeTruthy();
   });
 
-  it("offers paired local mode to desktop browsers", async () => {
+  it("shows the pairing form directly, without method tabs, outside the native app", async () => {
     media.desktopPointer = true;
-    const props = renderView();
+    renderView();
     fireEvent.click(screen.getByRole("button", { name: "Pair a connection" }));
-    await act(async () => {
-      fireEvent.click(screen.getByRole("tab", { name: "Local" }));
-    });
-    expect(props.onEndpointChange).toHaveBeenCalledWith("http://localhost:38987/");
+    expect(await screen.findByLabelText("Endpoint")).toBeTruthy();
+    expect(screen.getByLabelText("Pairing token")).toBeTruthy();
     expect(
-      screen.getByText(/Open Settings .* Remote Access in Poracode on this computer/),
-    ).toBeTruthy();
+      screen.getByRole("dialog", { name: "Pair a connection" }).getAttribute("data-fit-content"),
+    ).toBe("true");
+    // The broken Local tab is gone; with a single method left there are no tabs.
+    expect(screen.queryByRole("tab")).toBeNull();
   });
+
+  it.each(["Endpoint", "Pairing token"])(
+    "splits a pairing link pasted into the %s field",
+    (fieldLabel) => {
+      const props = renderView();
+      fireEvent.click(screen.getByRole("button", { name: "Pair a connection" }));
+      fireEvent.change(screen.getByLabelText(fieldLabel), {
+        target: {
+          value:
+            "https://poracode.com/pair?host=https%3A%2F%2Fdesktop.example.test%2F#token=lc_pair_test",
+        },
+      });
+
+      expect(props.onEndpointChange).toHaveBeenCalledWith("https://desktop.example.test");
+      expect(props.onTokenChange).toHaveBeenCalledWith("lc_pair_test");
+    },
+  );
 
   it("auto-opens the pairing drawer when a deep-link credential is present", async () => {
     await act(async () => {
@@ -147,6 +164,9 @@ describe("DesktopsView", () => {
     const onPairSsh = vi.fn<DesktopsViewProps["onPairSsh"]>(async () => {});
     renderView({ onProbeSsh, onPairSsh });
     fireEvent.click(screen.getByRole("button", { name: "Pair a connection" }));
+    expect(
+      screen.getByRole("dialog", { name: "Pair a connection" }).getAttribute("data-fit-content"),
+    ).toBeNull();
     await act(async () => {
       fireEvent.click(screen.getByRole("tab", { name: "SSH" }));
     });

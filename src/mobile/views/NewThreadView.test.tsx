@@ -6,6 +6,11 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { NewThreadView } from "./NewThreadView";
 
+const fixtures = vi.hoisted(() => ({
+  desktopPointer: false,
+  draftProps: [] as Array<{ submitOnEnter?: boolean }>,
+}));
+
 const bridge = vi.hoisted(() => ({
   getGitStatus: vi.fn<(payload: unknown) => Promise<GitStatusResult>>(),
   gitProjectSnapshot: vi.fn<(payload: unknown) => Promise<GitProjectSnapshotResult>>(),
@@ -20,10 +25,18 @@ vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useProjectAgentStatuses: () => [],
 }));
 
+vi.mock("../useMediaQuery", () => ({
+  DESKTOP_POINTER_QUERY: "desktop-pointer",
+  useMediaQuery: () => fixtures.desktopPointer,
+}));
+
 // The draft view pulls in the whole composer tree; stub it so these tests stay
 // focused on NewThreadView's git hydration.
 vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
-  ThreadDraftView: () => <div data-testid="draft-view" />,
+  ThreadDraftView: (props: { submitOnEnter?: boolean }) => {
+    fixtures.draftProps.push(props);
+    return <div data-testid="draft-view" />;
+  },
 }));
 
 function makeProject(id: string, path: string): Project {
@@ -64,11 +77,25 @@ function makeSnapshot(branch: string): GitProjectSnapshotResult {
 
 describe("NewThreadView git hydration", () => {
   beforeEach(() => {
+    fixtures.desktopPointer = false;
+    fixtures.draftProps.length = 0;
     useGitStore.setState({ statuses: {}, branches: {}, worktrees: {} });
     bridge.getGitStatus.mockReset();
     bridge.gitProjectSnapshot.mockReset();
     bridge.getGitStatus.mockResolvedValue(makeStatus("main"));
     bridge.gitProjectSnapshot.mockResolvedValue(makeSnapshot("main"));
+  });
+
+  it("enables Enter-to-send only for desktop-like PWA input", () => {
+    const project = makeProject("proj-1", "/repo/one");
+
+    const { unmount } = render(<NewThreadView project={project} onStart={() => undefined} />);
+    expect(fixtures.draftProps.at(-1)?.submitOnEnter).toBe(false);
+    unmount();
+
+    fixtures.desktopPointer = true;
+    render(<NewThreadView project={project} onStart={() => undefined} />);
+    expect(fixtures.draftProps.at(-1)?.submitOnEnter).toBe(true);
   });
 
   it("hydrates useGitStore so the worktree/branch selector can render", async () => {

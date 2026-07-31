@@ -51,7 +51,7 @@ export const grokDefaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
-  defaultApprovalPolicy: "default",
+  defaultApprovalPolicy: "bypassPermissions",
   bypassPermissions: { approvalPolicy: "bypassPermissions" },
   settingDefs: [],
 };

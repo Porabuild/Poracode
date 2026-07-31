@@ -26,6 +26,7 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 ## Working Rules
 
 - For UI changes, follow existing app patterns first. Prefer shared variants and local component conventions over raw library defaults or new visual treatments.
+- For absolutely positioned HeroUI tooltips, put positioning on an out-of-flow wrapper and keep `Tooltip.Trigger` normally positioned inside it. `Tooltip.Trigger` renders an `inline-block`; wrapping an absolute child directly can add layout space and anchor the tooltip to the wrong box.
 - Keep visual scope tight. Do not add layout stabilizers, decorative styling, or state treatments unless they are part of the request.
 - For runtime/chat bugs, trace the real state path before changing the display layer. Timer, notification, resume, and launch symptoms usually come from thread runtime state.
 - For performance complaints, investigate render invalidation, measurement loops, and sync I/O before applying cosmetic workarounds.
@@ -35,6 +36,7 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 - **Prevent God Files:** Do not allow files to grow indefinitely. If a file becomes complex or violates single-responsibility principles during your work, refactor it by extracting related logic into new modules or sub-components. Splitting files is preferred over extending existing ones.
 - Use `pnpm exec vitest run ...` for targeted Vitest runs; do not use Jest-only flags like `--runInBand`.
 - With `exactOptionalPropertyTypes`, avoid passing explicit `undefined` for optional props; use conditional spreads when needed.
+- Put investigation dumps, screenshots, and other temporary files under `tmp/` or `.tmp/` (both gitignored). Never write scratch artifacts into the repo root or tracked paths like `verification-shots/`.
 
 ## Internationalization (i18n)
 

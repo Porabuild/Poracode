@@ -1,6 +1,7 @@
 import {
   authenticateAcpAgentPayloadSchema,
   clearPendingSteerPayloadSchema,
+  controlThreadGoalPayloadSchema,
   closeThreadPayloadSchema,
   extractContextPayloadSchema,
   agentHookPluginPayloadSchema,
@@ -34,6 +35,7 @@ import type {
   AgentStatusesResponse,
   AuthenticateAcpAgentPayload,
   ClearPendingSteerPayload,
+  ControlThreadGoalPayload,
   CloseThreadPayload,
   ExtractContextPayload,
   ExtractContextResult,
@@ -65,18 +67,26 @@ import type {
   ResolveAgentAccountResult,
   WriteTerminalPayload,
 } from "../../contracts";
+import type { CrossagentRoutingSnapshotEntry } from "../../crossagentRanking";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
   readThreadPayloadSchema,
   subAgentSubscribePayloadSchema,
   type SubAgentSubscribePayload,
   type SubAgentSubscribeResult,
+  workflowAgentChatPayloadSchema,
+  type WorkflowAgentChatPayload,
+  type WorkflowAgentChatResult,
   workflowGetRunPayloadSchema,
   type WorkflowGetRunPayload,
   type WorkflowGetRunResult,
 } from "../schemas";
 
 export const threadProcedures = {
+  getCrossagentRouting: defineNoArgProcedure<CrossagentRoutingSnapshotEntry[], "supervisor">(
+    "getCrossagentRouting",
+    "supervisor",
+  ),
   getAgentStatuses: defineIpcProcedure<
     [string[]?],
     GetAgentStatusesPayload,
@@ -179,6 +189,11 @@ export const threadProcedures = {
     "supervisor",
     interruptThreadPayloadSchema,
   ),
+  controlThreadGoal: definePayloadProcedure<ControlThreadGoalPayload, void, "supervisor">(
+    "controlThreadGoal",
+    "supervisor",
+    controlThreadGoalPayloadSchema,
+  ),
   rollbackThreadConversation: definePayloadProcedure<
     RollbackThreadConversationPayload,
     void,
@@ -259,4 +274,9 @@ export const threadProcedures = {
     "supervisor",
     workflowGetRunPayloadSchema,
   ),
+  workflowAgentChat: definePayloadProcedure<
+    WorkflowAgentChatPayload,
+    WorkflowAgentChatResult,
+    "supervisor"
+  >("workflowAgentChat", "supervisor", workflowAgentChatPayloadSchema),
 } as const;

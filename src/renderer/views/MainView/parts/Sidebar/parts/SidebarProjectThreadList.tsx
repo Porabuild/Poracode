@@ -11,6 +11,7 @@ import { ChevronDown } from "lucide-react";
 import { useDragSource } from "@/renderer/dnd";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
+import { useProjectExperimentCandidateOrder } from "@/renderer/state/experimentStore";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { chatRowRailClass } from "@/renderer/components/thread/ChatPane/parts/items/chatRow";
 import { NewThreadButton } from "./NewThreadButton";
@@ -23,6 +24,7 @@ import { SortableThreadItem } from "./SortableThreadItem/SortableThreadItem";
 export function SidebarProjectThreadList(props: { project: Project; sortMode: ThreadSortMode }) {
   const { project, sortMode } = props;
   const projectThreads = useProjectThreads(project.id);
+  const experimentCandidateOrder = useProjectExperimentCandidateOrder(project.id);
   const collapsedWorktrees = useSidebarUiStore((s) => s.collapsedWorktrees);
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);
   const setEditingThreadId = useSidebarUiStore((s) => s.setEditingThreadId);
@@ -33,7 +35,6 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
   const isDraftActive = useIsCurrentProjectDraft(project.id);
   const source = useDragSource();
   const liveBackgroundThreadIds = useLiveBackgroundThreadIds(projectThreads);
-
   const rows = buildSidebarProjectRows({
     projectId: project.id,
     projectThreads,
@@ -41,6 +42,7 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
     collapsedWorktrees,
     visibleLimit,
     liveBackgroundThreadIds,
+    ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
 
   return (
@@ -116,7 +118,7 @@ function SidebarThreadRow(props: {
     // header's icon; no left padding keeps the child hugging the rail so the
     // nesting reads without a wide indent.
     if (row.inGroup) {
-      return <div className={`ml-3.5 ${chatRowRailClass}`}>{item}</div>;
+      return <div className={`ml-3.5 pl-1 ${chatRowRailClass}`}>{item}</div>;
     }
     return item;
   }

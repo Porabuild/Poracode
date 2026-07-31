@@ -1,4 +1,5 @@
 import { SshBridge, type SshBridgeAuthentication } from "@poracode/ssh-bridge";
+import { arrayBufferToBase64 } from "@/shared/base64";
 import {
   bootstrapRemoteRuntime,
   issueRemotePairingCredential,
@@ -44,15 +45,6 @@ async function loadManifest(): Promise<RuntimeManifest> {
       throw error;
     });
   return await manifestPromise;
-}
-
-function arrayBufferToBase64(value: ArrayBuffer): string {
-  const bytes = new Uint8Array(value);
-  const chunks: string[] = [];
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)));
-  }
-  return btoa(chunks.join(""));
 }
 
 async function loadArchive(manifest: RuntimeManifest): Promise<string> {

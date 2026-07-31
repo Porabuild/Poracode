@@ -55,6 +55,30 @@ body {
   }
 }
 
+/* Traveling dot on the pairing link inside the hero web-app browser card.
+   Base `left` is the reduced-motion resting spot (mid-line); the animation
+   overrides it while running. */
+.pora-pair-dot {
+  left: calc(50% - 3.5px);
+  animation: pora-pair 2.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+@keyframes pora-pair {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 7px);
+    opacity: 0;
+  }
+}
+
 /* Hero entrance stays in CSS so the primary heading and CTA are visible in
    server HTML and do not depend on hydration to appear. */
 .hero-fade-up {
@@ -77,6 +101,42 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Uniform-cell grids: stretch the final item across the remainder so a partial
+   last row never leaves an empty cell showing the container background. Done in
+   CSS because it has to be right at every breakpoint the grid declares — a
+   span computed in JS only knows about one of them. Cells must be equal-width
+   (no per-item spans) for the nth-child arithmetic to hold. */
+@media (min-width: 640px) {
+  .grid-fill-last > :last-child:nth-child(2n + 1) {
+    grid-column: span 2;
+  }
+}
+@media (min-width: 1024px) {
+  .grid-fill-last > :last-child {
+    grid-column: auto;
+  }
+  .grid-fill-last > :last-child:nth-child(3n + 1) {
+    grid-column: span 3;
+  }
+  .grid-fill-last > :last-child:nth-child(3n + 2) {
+    grid-column: span 2;
+  }
+}
+
+/* Lightbox entrance. The reduced-motion block below collapses every animation
+   duration globally, so this needs no separate opt-out. */
+.lightbox-in {
+  animation: lightbox-in 0.18s ease-out both;
+}
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -173,6 +233,15 @@ summary:focus-visible,
     0 24px 70px -28px rgba(139, 123, 255, 0.5);
 }
 
+/* Deeper lift for the phone docked over the §3b browser window — declared
+   after .brand-glow so it wins when both classes are applied. */
+.dock-shadow {
+  box-shadow:
+    0 0 0 1px rgba(234, 240, 251, 0.07),
+    0 32px 90px -24px rgba(0, 0, 0, 0.85),
+    0 24px 70px -28px rgba(139, 123, 255, 0.5);
+}
+
 /* ---- Blinking block cursor for the `pora.code` CLI signature ---- */
 .pora-cursor {
   animation: pora-blink 1.06s steps(1) infinite;
@@ -203,6 +272,7 @@ summary:focus-visible,
    pointer parallax is additionally gated in JS. */
 @media (prefers-reduced-motion: reduce) {
   .pora-pulse,
+  .pora-pair-dot,
   .pora-cursor,
   .hero-fade-up,
   .acp-marquee-forward,

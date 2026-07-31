@@ -157,6 +157,9 @@ export function ThreadDraftView(props: {
   compact?: boolean;
   quickComposer?: boolean;
   composerPlaceholder?: string;
+  restoreWorktreeSelectionToken?: number;
+  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  submitOnEnter?: boolean;
   pickFiles?: () => Promise<string[] | null>;
   paneAlign?: "left" | "center" | "right";
   showCloseButton?: boolean;
@@ -223,7 +226,7 @@ export function ThreadDraftView(props: {
   // mention in this draft and reset with every new thread. The effective launch
   // flag is `mention || (persistent && scope available)`, computed below.
   const [browserMcpMention, setBrowserMcpMention] = useState(false);
-  const [subagentMcpMention, setSubagentMcpMention] = useState(false);
+  const [crossagentMcpMention, setCrossagentMcpMention] = useState(false);
   const [chromeMcpMention, setChromeMcpMention] = useState(false);
   const [computerUseMention, setComputerUseMention] = useState(false);
   const [worktreeMode, setWorktreeMode] = useState(
@@ -399,8 +402,8 @@ export function ThreadDraftView(props: {
       model: nextModel,
       effort: nextEffort,
       ...(nextContext ? { contextSize: nextContext } : {}),
-      ...(nextFast ? { fast: nextFast } : {}),
-      ...(nextThinking ? { thinking: nextThinking } : {}),
+      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
       mode: nextMode,
       approvalPolicy: nextApproval,
       approvalsReviewer: nextReviewer,
@@ -450,8 +453,8 @@ export function ThreadDraftView(props: {
         model: nextModel,
         effort: nextEffort,
         ...(nextContext ? { contextSize: nextContext } : {}),
-        ...(nextFast ? { fast: nextFast } : {}),
-        ...(nextThinking ? { thinking: nextThinking } : {}),
+        fast: nextFast,
+        thinking: nextThinking,
       };
       providerConfigsRef.current[effectiveAgentKind] = corrected;
       if (!isHomeScope) {
@@ -462,8 +465,8 @@ export function ThreadDraftView(props: {
         model: nextModel,
         effort: nextEffort,
         ...(nextContext ? { contextSize: nextContext } : {}),
-        ...(nextFast ? { fast: nextFast } : {}),
-        ...(nextThinking ? { thinking: nextThinking } : {}),
+        fast: nextFast,
+        thinking: nextThinking,
         mode,
         approvalPolicy,
         approvalsReviewer,
@@ -563,8 +566,8 @@ export function ThreadDraftView(props: {
       model: nextModel,
       effort: nextEffort,
       ...(nextContext ? { contextSize: nextContext } : {}),
-      ...(nextFast ? { fast: nextFast } : {}),
-      ...(nextThinking ? { thinking: nextThinking } : {}),
+      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
       mode: nextMode,
       approvalPolicy: nextApproval,
       approvalsReviewer: nextReviewer,
@@ -594,7 +597,13 @@ export function ThreadDraftView(props: {
 
   const hiddenModelIds = useSharedSettings((s) =>
     selectedAgent
-      ? s.hiddenModels[modelVisibilityKey(selectedAgent.kind, presentationMode)]
+      ? s.hiddenModels[
+          modelVisibilityKey(
+            selectedAgent.kind,
+            presentationMode,
+            selectedAgentForConfig?.capabilities.runtimeLabel,
+          )
+        ]
       : undefined,
   );
   const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
@@ -632,9 +641,9 @@ export function ThreadDraftView(props: {
       setBrowserMcpMention(patch.browserMcp === true);
       return;
     }
-    if ("subagentMcp" in patch) {
+    if ("crossagentMcp" in patch) {
       // Per-draft mention flag — same bypass as browserMcp above.
-      setSubagentMcpMention(patch.subagentMcp === true);
+      setCrossagentMcpMention(patch.crossagentMcp === true);
       return;
     }
     if ("chromeMcp" in patch) {
@@ -683,8 +692,8 @@ export function ThreadDraftView(props: {
         model: resolved.model,
         effort: resolved.effort,
         ...(resolved.contextSize ? { contextSize: resolved.contextSize } : {}),
-        ...(resolved.fast ? { fast: resolved.fast } : {}),
-        ...(resolved.thinking ? { thinking: resolved.thinking } : {}),
+        ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+        ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
         mode: resolved.mode,
         approvalPolicy: resolved.approvalPolicy,
         approvalsReviewer: resolved.approvalsReviewer,
@@ -716,8 +725,8 @@ export function ThreadDraftView(props: {
           model,
           effort,
           ...(contextSize ? { contextSize } : {}),
-          ...(fast ? { fast } : {}),
-          ...(thinking ? { thinking } : {}),
+          fast,
+          thinking,
           mode,
           approvalPolicy,
           approvalsReviewer,
@@ -747,8 +756,8 @@ export function ThreadDraftView(props: {
         model: resolved.model,
         effort: resolved.effort,
         ...(resolved.contextSize ? { contextSize: resolved.contextSize } : {}),
-        ...(resolved.fast ? { fast: resolved.fast } : {}),
-        ...(resolved.thinking ? { thinking: resolved.thinking } : {}),
+        ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+        ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
         mode: resolved.mode,
         approvalPolicy: resolved.approvalPolicy,
         approvalsReviewer: resolved.approvalsReviewer,
@@ -937,15 +946,12 @@ export function ThreadDraftView(props: {
   const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) =>
     disabledBuiltInMcpServers[id] !== true &&
     (mention || (enabledMcpServers[id] === true && scope !== "none"));
-  const effectiveBrowserMcp = effectiveMcp(
-    "browser",
-    browserMcpMention,
-    resolveMcpScope(selectedAgent.capabilities.browserMcpScope, presentationMode),
-  );
-  const effectiveSubagentMcp = effectiveMcp(
-    "subagents",
-    subagentMcpMention,
-    resolveMcpScope(selectedAgent.capabilities.subagentMcpScope, presentationMode),
+  const selectedMcpScope = resolveMcpScope(selectedAgent.capabilities.mcpScope, presentationMode);
+  const effectiveBrowserMcp = effectiveMcp("browser", browserMcpMention, selectedMcpScope);
+  const effectiveCrossagentMcp = effectiveMcp(
+    "crossagents",
+    crossagentMcpMention,
+    selectedMcpScope,
   );
   const effectiveChromeMcp = effectiveMcp(
     "chrome",
@@ -1020,8 +1026,12 @@ export function ThreadDraftView(props: {
           </div>
           <ThreadDraftComposerArea
             project={project}
+            isRemote={project.remoteServerId !== undefined}
             {...(props.paneId ? { paneId: props.paneId } : {})}
-            selectedAgent={selectedAgent}
+            {...(props.restoreWorktreeSelectionToken !== undefined
+              ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
+              : {})}
+            selectedAgent={selectedAgentForConfig ?? selectedAgent}
             controls={draftControls}
             config={{
               model,
@@ -1034,7 +1044,7 @@ export function ThreadDraftView(props: {
               ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
               ...(effectiveBrowserMcp ? { browserMcp: true } : {}),
-              ...(effectiveSubagentMcp ? { subagentMcp: true } : {}),
+              ...(effectiveCrossagentMcp ? { crossagentMcp: true } : {}),
               ...(effectiveChromeMcp ? { chromeMcp: true } : {}),
               ...(effectiveComputerUse ? { computerUse: true } : {}),
             }}
@@ -1045,6 +1055,7 @@ export function ThreadDraftView(props: {
             supportsModePicker={supportsModePicker}
             presentationMode={presentationMode}
             {...(props.composerPlaceholder ? { placeholder: props.composerPlaceholder } : {})}
+            {...(props.submitOnEnter !== undefined ? { submitOnEnter: props.submitOnEnter } : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
             onConfigChange={onConfigPatch}
             onWorktreeModeChange={setWorktreeMode}

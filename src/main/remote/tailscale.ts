@@ -237,7 +237,7 @@ export async function disableTailscaleServe(
 
 /** Builds the advertised HTTPS base URL for a MagicDNS name (serve uses 443). */
 export function buildTailscaleHttpsUrl(dnsName: string): string {
-  return `https://${stripTrailingDot(dnsName.trim())}/`;
+  return `https://${stripTrailingDot(dnsName.trim())}`;
 }
 
 const LAUNCH_TIMEOUT_MS = 10_000;

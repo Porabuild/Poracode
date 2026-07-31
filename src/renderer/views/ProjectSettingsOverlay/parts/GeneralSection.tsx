@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useAppStore } from "@/renderer/state/appStore";
 import { useProject } from "@/renderer/state/useThread";
-import { relocateProject } from "@/renderer/actions/projectActions";
+import {
+  relocateProject,
+  relocateRemoteProject,
+  renameProject,
+} from "@/renderer/actions/projectActions";
 import { Button, Input, PathDisplay } from "@/renderer/components/common";
+import { RemoteHostFolderPicker } from "@/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker";
 
 export function GeneralSection(props: { projectId: string }) {
   const { t } = useLingui();
   const project = useProject(props.projectId);
-  const renameProject = useAppStore((s) => s.renameProject);
   const [name, setName] = useState(project?.name ?? "");
+  const [remoteFolderPickerOpen, setRemoteFolderPickerOpen] = useState(false);
 
   if (!project) return null;
 
@@ -66,7 +70,13 @@ export function GeneralSection(props: { projectId: string }) {
               aria-label={t`Change project folder`}
               variant="tertiary"
               className="w-[240px] shrink-0 justify-start gap-2 font-normal"
-              onPress={() => void relocateProject(project.id)}
+              onPress={() => {
+                if (project.remoteServerId) {
+                  setRemoteFolderPickerOpen(true);
+                  return;
+                }
+                void relocateProject(project.id);
+              }}
             >
               <FolderOpen className="size-4 shrink-0 text-muted" />
               <PathDisplay path={projectPath} className="min-w-0 flex-1 text-xs" />
@@ -74,6 +84,15 @@ export function GeneralSection(props: { projectId: string }) {
           </div>
         </div>
       </div>
+      {remoteFolderPickerOpen && project.remoteServerId ? (
+        <RemoteHostFolderPicker
+          desktopId={project.remoteServerId}
+          title={t`Choose a folder`}
+          initialPath={projectPath}
+          onClose={() => setRemoteFolderPickerOpen(false)}
+          onSelect={(path) => void relocateRemoteProject(project.id, path)}
+        />
+      ) : null}
     </div>
   );
 }

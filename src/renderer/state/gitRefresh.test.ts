@@ -9,11 +9,13 @@ import type {
 } from "@/shared/contracts";
 import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
+import { useExperimentStore } from "./experimentStore";
 import { buildBranchPrKey } from "./gitSelectors";
 import { usePanelStore } from "./panelStore";
 import { useSidebarUiStore } from "./sidebarUiStore";
 import {
   cleanupGitRefreshProjects,
+  getProjectActiveWorktreePaths,
   getWatcherRefreshMode,
   PR_PENDING_REFRESH_INTERVAL_MS,
   PR_POST_PUSH_STATUS_POLL_MS,
@@ -34,6 +36,8 @@ const ghGetPrDetailsMock =
       prNumber: number;
     }) => Promise<{ details: PrDetails }>
   >();
+const checkPrWatchMock =
+  vi.fn<(payload: { projectId: string; prNumber: number }) => Promise<void>>();
 
 const location: ProjectLocation = { kind: "posix", path: "/repo" };
 const wslLocation: ProjectLocation = {
@@ -131,12 +135,18 @@ describe("pending PR refresh", () => {
     vi.useFakeTimers();
     ghGetPrForBranchMock.mockReset();
     ghGetPrDetailsMock.mockReset();
+    checkPrWatchMock.mockReset();
+    checkPrWatchMock.mockResolvedValue(undefined);
     Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
+        dbSetState: vi
+          .fn<(key: string, value: string) => Promise<void>>()
+          .mockResolvedValue(undefined),
         ghGetPrForBranch: ghGetPrForBranchMock,
         ghGetPrDetails: ghGetPrDetailsMock,
+        checkPrWatch: checkPrWatchMock,
       },
     });
     useGitStore.setState({
@@ -164,11 +174,66 @@ describe("pending PR refresh", () => {
       threadListLimits: {},
     });
     useAppStore.setState({ projects: [project], threads: [], view: { kind: "home" } });
+    useExperimentStore.setState({ experiments: {} });
   });
 
   afterEach(() => {
     stopPendingPrRefresh();
     vi.useRealTimers();
+  });
+
+  it("keeps running experiment worktrees active when the project and group are collapsed", () => {
+    useSidebarUiStore.setState({ collapsedProjects: { [project.id]: true } });
+    useAppStore.setState({
+      threads: [
+        {
+          ...worktreeThread,
+          id: "candidate-1",
+          worktreePath: "/repo/experiment-one",
+          worktreeBranch: "poracode/one",
+        },
+        {
+          ...worktreeThread,
+          id: "candidate-2",
+          worktreePath: "/repo/experiment-two",
+          worktreeBranch: "poracode/two",
+        },
+      ],
+    });
+    useExperimentStore.getState().addExperiment({
+      id: "experiment-1",
+      projectId: project.id,
+      title: "Experiment",
+      prompt: "Implement it",
+      baseBranch: "main",
+      baseCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      candidates: [
+        {
+          threadId: "candidate-1",
+          agentKind: "codex",
+          worktreePath: "/repo/experiment-one",
+          worktreeBranch: "poracode/one",
+          worktreeOwnerToken: "experiment-1:candidate-1",
+          worktreeState: "owned",
+        },
+        {
+          threadId: "candidate-2",
+          agentKind: "codex",
+          worktreePath: "/repo/experiment-two",
+          worktreeBranch: "poracode/two",
+          worktreeOwnerToken: "experiment-1:candidate-2",
+          worktreeState: "owned",
+        },
+      ],
+      status: "running",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      updatedAt: "2026-07-13T00:00:00.000Z",
+    });
+
+    expect(getProjectActiveWorktreePaths(project.id)).toEqual([
+      "/repo/experiment-one",
+      "/repo/experiment-two",
+    ]);
   });
 
   it("refetches pending PR status until it leaves pending", async () => {
@@ -214,6 +279,8 @@ describe("pending PR refresh", () => {
     expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 42 });
     expect(useGitStore.getState().prData[prKey]?.checksStatus).toBe("SUCCESS");
     expect(useGitStore.getState().prDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
+    expect(checkPrWatchMock).toHaveBeenCalledOnce();
+    expect(checkPrWatchMock).toHaveBeenCalledWith({ projectId: "p1", prNumber: 42 });
 
     ghGetPrForBranchMock.mockClear();
     ghGetPrDetailsMock.mockClear();
@@ -221,6 +288,7 @@ describe("pending PR refresh", () => {
 
     expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
     expect(ghGetPrDetailsMock).not.toHaveBeenCalled();
+    expect(checkPrWatchMock).toHaveBeenCalledOnce();
   });
 
   it("polls when the PR summary is stale failed but loaded check details are pending", async () => {
@@ -964,5 +1032,78 @@ describe("watcher git status refresh", () => {
       projectId: "p1",
       worktreePaths: ["/repo-hidden", "/repo-wt"],
     });
+  });
+
+  function seedDecidedExperimentCandidate(candidatePath: string): void {
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        dbSetState: vi
+          .fn<(key: string, value: string) => Promise<void>>()
+          .mockResolvedValue(undefined),
+      },
+    });
+    useSidebarUiStore.setState({ collapsedProjects: { [project.id]: true } });
+    useAppStore.setState({
+      threads: [
+        {
+          ...worktreeThread,
+          id: "candidate-1",
+          worktreePath: candidatePath,
+          worktreeBranch: "poracode/one",
+        },
+      ],
+      view: { kind: "home" },
+    });
+    useExperimentStore.setState({ experiments: {} });
+    useExperimentStore.getState().addExperiment({
+      id: "experiment-1",
+      projectId: project.id,
+      title: "Experiment",
+      prompt: "Implement it",
+      baseBranch: "main",
+      baseCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      candidates: [
+        {
+          threadId: "candidate-1",
+          agentKind: "codex",
+          worktreePath: candidatePath,
+          worktreeBranch: "poracode/one",
+          worktreeOwnerToken: "experiment-1:candidate-1",
+          worktreeState: "owned",
+        },
+      ],
+      winnerThreadId: "candidate-1",
+      status: "decided",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      updatedAt: "2026-07-13T00:00:00.000Z",
+    });
+  }
+
+  it("watches a decided experiment candidate opened in the git review panel", () => {
+    const candidatePath = "/repo/experiment-one";
+    seedDecidedExperimentCandidate(candidatePath);
+    usePanelStore.setState({
+      gitReviewContext: { projectId: project.id, worktreePath: candidatePath },
+      gitReviewAsPanel: true,
+      gitOverlayOpen: false,
+      rightPanelTab: "git",
+    });
+
+    expect(getProjectActiveWorktreePaths(project.id)).toContain(candidatePath);
+  });
+
+  it("watches a decided experiment candidate opened in the git review overlay", () => {
+    const candidatePath = "/repo/experiment-one";
+    seedDecidedExperimentCandidate(candidatePath);
+    usePanelStore.setState({
+      gitReviewContext: { projectId: project.id, worktreePath: candidatePath },
+      gitReviewAsPanel: false,
+      gitOverlayOpen: true,
+      rightPanelTab: "files",
+    });
+
+    expect(getProjectActiveWorktreePaths(project.id)).toContain(candidatePath);
   });
 });

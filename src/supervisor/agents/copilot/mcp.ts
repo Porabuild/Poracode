@@ -3,7 +3,7 @@ import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { McpServer, ProjectLocation } from "@/shared/contracts";
+import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 
 type CopilotMcpServer =
@@ -29,7 +29,7 @@ export interface CopilotMcpLaunchConfig {
   env: Record<string, string>;
 }
 
-function valueEnvName(server: McpServer, field: string): string {
+function valueEnvName(server: ResolvedMcpServer, field: string): string {
   const hash = createHash("sha256")
     .update(JSON.stringify([server.id, server.name, field]))
     .digest("hex")
@@ -39,7 +39,7 @@ function valueEnvName(server: McpServer, field: string): string {
 }
 
 function protectedValues(
-  server: McpServer,
+  server: ResolvedMcpServer,
   kind: "env" | "header",
   values: Record<string, string>,
   launchEnv: Record<string, string>,
@@ -52,7 +52,9 @@ function protectedValues(
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
-export function buildCopilotMcpLaunchConfig(servers: readonly McpServer[]): CopilotMcpLaunchConfig {
+export function buildCopilotMcpLaunchConfig(
+  servers: readonly ResolvedMcpServer[],
+): CopilotMcpLaunchConfig {
   const env: Record<string, string> = {};
   const mcpServers: Record<string, CopilotMcpServer> = {};
 
@@ -87,7 +89,7 @@ export function buildCopilotMcpLaunchConfig(servers: readonly McpServer[]): Copi
 export function writeCopilotMcpConfig(
   location: ProjectLocation,
   sessionId: string,
-  servers: readonly McpServer[],
+  servers: readonly ResolvedMcpServer[],
 ): { argument: string; env: Record<string, string>; cleanup: () => void } | undefined {
   if (servers.length === 0) return undefined;
 

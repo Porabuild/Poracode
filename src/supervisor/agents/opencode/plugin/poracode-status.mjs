@@ -76,6 +76,18 @@ function readPluginVersionFromManifest() {
 
 const PLUGIN_VERSION = readPluginVersionFromManifest();
 const PROTOCOL_VERSION = 1;
+const CROSSAGENT_SESSION_ID_ARG = "__poracode_provider_session_id";
+
+function injectCrossagentSessionId(input, output) {
+  if (process.env.PORACODE_OPENCODE_SESSION_ROUTING !== "1") return;
+  if (typeof input?.tool !== "string" || !input.tool.startsWith("crossagents_")) return;
+  if (typeof input.sessionID !== "string" || input.sessionID.length === 0) return;
+  if (!output?.args || typeof output.args !== "object" || Array.isArray(output.args)) return;
+
+  // Always overwrite the private field after model-argument validation. The
+  // value comes from OpenCode's trusted tool context, never from model input.
+  output.args[CROSSAGENT_SESSION_ID_ARG] = input.sessionID;
+}
 
 function hookDebugEnabled() {
   const v = process.env.PORACODE_HOOK_DEBUG;
@@ -242,8 +254,9 @@ export default {
     // Also maps to session.turn_started so a tool resuming after a permission
     // approval re-marks the agent as working. Duplicate turn_started events
     // (paired with chat.message) are idempotent in the state machine.
-    "tool.execute.before": async (input) => {
+    "tool.execute.before": async (input, output) => {
       try {
+        injectCrossagentSessionId(input, output);
         const sessionId =
           typeof input?.sessionID === "string" && input.sessionID.length > 0
             ? input.sessionID

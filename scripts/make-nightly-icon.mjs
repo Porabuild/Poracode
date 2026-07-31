@@ -14,6 +14,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { padToMacSafeArea } from "../branding/assets/macSafeAreaIcon.mjs";
 
 const requireFromHere = createRequire(import.meta.url);
 const sharp = requireFromHere("sharp");
@@ -24,34 +25,14 @@ const SOURCE_PNG = process.env.PORACODE_NIGHTLY_ICON_SOURCE || join(BUILD_DIR, "
 const OUT_MAC_PNG = join(BUILD_DIR, "icon-nightly-mac.png");
 const OUT_ICNS = join(BUILD_DIR, "icon-nightly.icns");
 
-const SIZE = 1024;
-// Modern macOS icons keep the rounded-square body inside an optical safe area
-// instead of touching every edge of the 1024px canvas. A full-bleed body looks
-// materially larger than native and correctly padded third-party Dock icons.
-const ICON_BODY_SIZE = 824;
-const ICON_INSET = (SIZE - ICON_BODY_SIZE) / 2;
 const stage = mkdtempSync(join(tmpdir(), "poracode-nightly-icon-"));
 console.log(`stage: ${stage}`);
 
 try {
-  // 1. Normalize the visible icon body to the macOS safe area. `trim()` strips
-  // either the original full-bleed canvas or padding from a previous run.
+  // 1. Normalize the visible icon body to the macOS safe area (shared with
+  // branding/assets/build-icons.mjs).
   const composed = join(stage, "icon-nightly-1024.png");
-  await sharp(SOURCE_PNG)
-    .trim()
-    .resize(ICON_BODY_SIZE, ICON_BODY_SIZE, {
-      fit: "contain",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .extend({
-      top: ICON_INSET,
-      bottom: ICON_INSET,
-      left: ICON_INSET,
-      right: ICON_INSET,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toFile(composed);
+  await padToMacSafeArea(sharp(SOURCE_PNG)).png().toFile(composed);
 
   // 2. Runtime PNG output used by app.dock.setIcon().
   writeFileSync(OUT_MAC_PNG, readFileSync(composed));

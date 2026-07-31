@@ -14,11 +14,19 @@ import {
   writeStoredBoolean,
   writeStoredString,
 } from "@/renderer/utils/localStorage";
+import {
+  CHANGELOG_STORAGE_KEYS,
+  migrateLegacyChangelogStorage,
+} from "@/renderer/state/changelogPersistence";
 
-const SEEN_VERSION_KEY = "poracode-changelog-seen-version";
-const ACK_VERSION_KEY = "poracode-changelog-ack-version";
-const HIDDEN_KEY = "poracode-whatsnew-hidden";
-const CACHE_KEY = "poracode-changelog-cache";
+const {
+  seenVersion: SEEN_VERSION_KEY,
+  acknowledgedVersion: ACK_VERSION_KEY,
+  hidden: HIDDEN_KEY,
+  cache: CACHE_KEY,
+} = CHANGELOG_STORAGE_KEYS;
+
+if (typeof localStorage !== "undefined") migrateLegacyChangelogStorage(localStorage);
 
 function currentAppVersion(): string {
   try {
@@ -88,7 +96,7 @@ interface ChangelogState {
    */
   lastSeenVersion: string | null;
   /**
-   * The app version the user last dismissed the "What's New" prompt at. Drives
+   * The app version the user last acknowledged from "What's New". Drives
    * the version-bump badge independently of whether the notes have loaded yet.
    * `null` only until the first launch initializes it.
    */
@@ -108,12 +116,12 @@ interface ChangelogState {
   loadChangelog: () => Promise<void>;
   /**
    * Called once on app mount. On a brand-new profile we silently catch the user
-   * up to the current version so the next real update can be detected. We never
-   * auto-open the dialog — an unread update only surfaces as the sidebar "What's
-   * New" flag, which the user opens (or dismisses) on their own terms.
+   * up to the current version. For returning users, a version bump remains
+   * unacknowledged so the sidebar entry and its unread indicator appear without
+   * interrupting launch with the dialog.
    */
   bootstrapSeenState: () => void;
-  /** Open the "What's New" dialog (always user-triggered, never automatic). */
+  /** Open the "What's New" dialog from the sidebar or another explicit action. */
   openWhatsNew: () => void;
   /** Hide the sidebar "What's New" entry and mark the current version read. */
   hideWhatsNew: () => void;

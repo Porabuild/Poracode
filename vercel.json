@@ -1,45 +1,38 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
-  "buildCommand": "pnpm exec cross-env PORACODE_MOBILE_BASE_PATH=/pwa/ pnpm run build:mobile",
+  "git": {
+    "deploymentEnabled": false
+  },
+  "installCommand": "pnpm install --frozen-lockfile --ignore-scripts --filter poracode... --config.node-linker=isolated --config.enable-global-virtual-store=false",
+  "buildCommand": "node scripts/vercel-build-mobile.mjs",
   "outputDirectory": "dist/mobile",
-  "rewrites": [
-    { "source": "/", "destination": "/pwa/mobile.html" },
-    { "source": "/app", "destination": "/pwa/mobile.html" },
-    { "source": "/pair", "destination": "/pwa/mobile.html" },
-    { "source": "/pwa", "destination": "/pwa/mobile.html" },
-    { "source": "/pwa/app", "destination": "/pwa/mobile.html" },
-    { "source": "/pwa/pair", "destination": "/pwa/mobile.html" },
-    { "source": "/pwa/:path*", "destination": "/pwa/mobile.html" }
-  ],
+  "rewrites": [{ "source": "/:path*", "destination": "/mobile.html" }],
   "headers": [
     {
-      "source": "/pwa/service-worker.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Service-Worker-Allowed", "value": "/pwa/" }
-      ]
+      "source": "/service-worker.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     },
     {
-      "source": "/pwa/manifest.webmanifest",
+      "source": "/manifest.webmanifest",
       "headers": [{ "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" }]
     },
     {
-      "source": "/pwa/.well-known/apple-app-site-association",
+      "source": "/.well-known/apple-app-site-association",
       "headers": [{ "key": "Content-Type", "value": "application/json" }]
     },
     {
-      "source": "/pwa/assets/(.*)",
+      "source": "/assets/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
-      "source": "/pwa/icons/(.*)",
+      "source": "/icons/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
     },
     {
       "source": "/(.*)",
       "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }

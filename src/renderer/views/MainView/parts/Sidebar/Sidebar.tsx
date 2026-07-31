@@ -15,6 +15,7 @@ import {
 import { startTransition, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { getAppName } from "@/shared/appName";
 import type { Thread } from "@/shared/contracts";
@@ -31,7 +32,6 @@ import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
-import { SidebarRemoteServers } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { readBridge } from "@/renderer/bridge";
 import { openRemoteAccessSettings, openSettings } from "@/renderer/actions/panelActions";
@@ -51,7 +51,12 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  useProjectIdsHiddenByWorkspace,
+  useWorkspaceProjectIds,
+} from "@/renderer/state/workspaceSelectors";
 import { useUpdateStore } from "@/renderer/state/updateStore";
+import { SidebarWorkspaceSwitcher } from "./parts/SidebarWorkspaceSwitcher";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
 import { WhatsNewButton } from "./parts/WhatsNewButton";
 import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
@@ -104,7 +109,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex min-w-0 items-center justify-between gap-2 text-xs tabular-nums">
             <span className="truncate">{byteLine ?? <Trans>Downloading update</Trans>}</span>
-            <span className="shrink-0">{percent}%</span>
+            <AnimatedNumber className="shrink-0" value={percent} suffix="%" />
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--row-active)]">
             <div
@@ -216,11 +221,10 @@ function CollapsedThreadRail() {
 
 export function Sidebar() {
   const { t } = useLingui();
-  const projectIds = useAppStore(
-    useShallow((state) =>
-      state.projects.filter((project) => !isHomeProject(project)).map((project) => project.id),
-    ),
-  );
+  // Only the active workspace's projects; Home is handled separately below and
+  // belongs to every workspace.
+  const projectIds = useWorkspaceProjectIds();
+  const hiddenProjectCount = useProjectIdsHiddenByWorkspace().size;
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
@@ -395,7 +399,13 @@ export function Sidebar() {
           {projectIds.length === 0 && !(homeScopeEnabled && homeProject) ? (
             <div className="pt-4">
               <p className="text-center text-sm text-muted">
-                <Trans>Add a project to start</Trans>
+                {hiddenProjectCount > 0 ? (
+                  // Distinguish "you own no projects" from "this workspace is
+                  // empty but others aren't" — otherwise the sidebar looks broken.
+                  <Trans>No projects in this workspace</Trans>
+                ) : (
+                  <Trans>Add a project to start</Trans>
+                )}
               </p>
             </div>
           ) : (
@@ -440,13 +450,13 @@ export function Sidebar() {
                   sortMode={sortMode}
                 />
               ))}
-              <SidebarRemoteServers />
             </div>
           )}
         </div>
 
         <ProviderUsageRail orientation="row" />
         <div className={sidebarFooterNavClass}>
+          <SidebarWorkspaceSwitcher />
           <UpdateButtons />
           <WhatsNewButton />
           <SidebarButton

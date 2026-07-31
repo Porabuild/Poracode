@@ -81,35 +81,11 @@ function createHarness() {
     events.push("spawn");
     return {} as SessionRuntime;
   });
-  const resolveBrowserMcpForLaunch = vi.fn<
-    InvalidSessionRecoveryContext["spawnPipeline"]["resolveBrowserMcpForLaunch"]
+  const resolveMcpServersForLaunch = vi.fn<
+    InvalidSessionRecoveryContext["spawnPipeline"]["resolveMcpServersForLaunch"]
   >(async () => {
-    events.push("browser");
-    return undefined;
-  });
-  const resolveSubagentMcpForLaunch = vi.fn<
-    InvalidSessionRecoveryContext["spawnPipeline"]["resolveSubagentMcpForLaunch"]
-  >(async () => {
-    events.push("subagent");
-    return undefined;
-  });
-  const resolveComputerUseMcpForLaunch = vi.fn<
-    InvalidSessionRecoveryContext["spawnPipeline"]["resolveComputerUseMcpForLaunch"]
-  >(() => {
-    events.push("computer-use");
-    return undefined;
-  });
-  const resolveChromeMcpForLaunch = vi.fn<
-    InvalidSessionRecoveryContext["spawnPipeline"]["resolveChromeMcpForLaunch"]
-  >(() => {
-    events.push("chrome");
-    return undefined;
-  });
-  const resolveAppControlsMcpForLaunch = vi.fn<
-    InvalidSessionRecoveryContext["spawnPipeline"]["resolveAppControlsMcpForLaunch"]
-  >(async () => {
-    events.push("app-controls");
-    return undefined;
+    events.push("mcp");
+    return [];
   });
   const composeLaunchOptions = vi.fn<
     InvalidSessionRecoveryContext["spawnPipeline"]["composeLaunchOptions"]
@@ -154,11 +130,7 @@ function createHarness() {
 
   const context: InvalidSessionRecoveryContext = {
     spawnPipeline: {
-      resolveBrowserMcpForLaunch,
-      resolveSubagentMcpForLaunch,
-      resolveComputerUseMcpForLaunch,
-      resolveChromeMcpForLaunch,
-      resolveAppControlsMcpForLaunch,
+      resolveMcpServersForLaunch,
       composeLaunchOptions,
       spawnThread,
     } as unknown as InvalidSessionRecoveryContext["spawnPipeline"],
@@ -181,7 +153,7 @@ function createHarness() {
     buildLaunchArgv,
     dispose,
     spawnThread,
-    resolveBrowserMcpForLaunch,
+    resolveMcpServersForLaunch,
     resolveCliHookPluginExtras,
     settleAfterStructuredDispose,
     primeProjectShellEnv,
@@ -204,11 +176,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
       "dispose",
       "settle",
       "kill",
-      "browser",
-      "subagent",
-      "computer-use",
-      "chrome",
-      "app-controls",
+      "mcp",
       "hooks",
       "compose",
       "build",
@@ -268,7 +236,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     await harness.coordinator.recover(harness.session);
 
     expect(harness.kill).toHaveBeenCalledTimes(1);
-    expect(harness.resolveBrowserMcpForLaunch).not.toHaveBeenCalled();
+    expect(harness.resolveMcpServersForLaunch).not.toHaveBeenCalled();
     expect(harness.spawnThread).not.toHaveBeenCalled();
   });
 
@@ -299,7 +267,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
 
   it("exposes launch failures through the awaitable recovery", async () => {
     const harness = createHarness();
-    harness.resolveBrowserMcpForLaunch.mockRejectedValue(new Error("browser MCP unavailable"));
+    harness.resolveMcpServersForLaunch.mockRejectedValue(new Error("browser MCP unavailable"));
 
     await expect(harness.coordinator.recover(harness.session)).rejects.toThrow(
       "browser MCP unavailable",
@@ -310,7 +278,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
   it("reports a shared recovery failure only once when the banner repeats", async () => {
     const harness = createHarness();
     const error = new Error("browser MCP unavailable");
-    harness.resolveBrowserMcpForLaunch.mockRejectedValue(error);
+    harness.resolveMcpServersForLaunch.mockRejectedValue(error);
 
     const first = harness.coordinator.recover(harness.session);
     const second = harness.coordinator.recover(harness.session);

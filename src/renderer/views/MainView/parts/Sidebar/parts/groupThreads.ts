@@ -135,6 +135,16 @@ export function entryIsStarred(entry: ThreadListEntry): boolean {
   return entry.group.threads.some((thread) => thread.starred);
 }
 
+/**
+ * A list entry counts as done when it is a done standalone thread, or a group
+ * whose every member is done — so a group with any live thread keeps its place
+ * in the list instead of sinking into the Done section.
+ */
+export function entryIsDone(entry: ThreadListEntry): boolean {
+  if (entry.kind === "thread") return entry.thread.done;
+  return entry.group.threads.every((thread) => thread.done);
+}
+
 /** True when an ISO timestamp falls within the last 24 hours. */
 export function isRecent(iso: string): boolean {
   return Date.now() - new Date(iso).getTime() < 24 * 60 * 60 * 1000;

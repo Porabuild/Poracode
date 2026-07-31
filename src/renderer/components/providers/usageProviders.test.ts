@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { UsageWindow } from "@poracode/agents-usage";
+import type { UsageSnapshot, UsageStatus, UsageWindow } from "@poracode/agents-usage";
 import type { AgentInstanceConfigMap } from "@/shared/contracts";
 import {
+  hasRailUsage,
   isClaudeUsageProvider,
   pickUsageRings,
   resolveDisplayedProviders,
+  supportsApiKeyLogin,
+  supportsBrowserLogin,
   usageProvidersForAgentInstances,
   usageRingGroups,
 } from "./usageProviders";
@@ -36,6 +39,14 @@ describe("usageProviders", () => {
     expect(isClaudeUsageProvider("claude")).toBe(true);
     expect(isClaudeUsageProvider("claude:work")).toBe(true);
     expect(isClaudeUsageProvider("codex")).toBe(false);
+  });
+
+  it("derives API-key login support from provider descriptors", () => {
+    expect(supportsApiKeyLogin("zai")).toBe(true);
+    expect(supportsApiKeyLogin("kimi")).toBe(true);
+    expect(supportsApiKeyLogin("qwen")).toBe(true);
+    expect(supportsApiKeyLogin("grok")).toBe(false);
+    expect(supportsBrowserLogin("qwen")).toBe(true);
   });
 
   it("adds Claude profile providers after the base Claude provider", () => {
@@ -101,6 +112,27 @@ describe("usageProviders", () => {
     expect(rings.inner?.id).toBe("weekly");
   });
 
+  it("rings Kimi with the 5h rate limit outside and the weekly quota inside", () => {
+    const windows: UsageWindow[] = [
+      { id: "weekly", label: "Weekly", usedPercent: 10 },
+      { id: "session-5h", label: "Session (5h)", usedPercent: 70 },
+    ];
+    const rings = pickUsageRings("kimi", windows);
+    expect(rings.outer?.id).toBe("session-5h");
+    expect(rings.inner?.id).toBe("weekly");
+  });
+
+  it("rings Alibaba Token Plan with the 5h quota outside and weekly quota inside", () => {
+    const windows: UsageWindow[] = [
+      { id: "monthly", label: "Monthly", usedPercent: 5 },
+      { id: "weekly", label: "Weekly", usedPercent: 10 },
+      { id: "session-5h", label: "Session (5h)", usedPercent: 70 },
+    ];
+    const rings = pickUsageRings("qwen", windows);
+    expect(rings.outer?.id).toBe("session-5h");
+    expect(rings.inner?.id).toBe("weekly");
+  });
+
   describe("Antigravity ring groups", () => {
     const windows: UsageWindow[] = [
       { id: "antigravity:gemini:session-5h", label: "Gemini · 5h", usedPercent: 60 },
@@ -133,5 +165,30 @@ describe("usageProviders", () => {
       expect(rings.outer?.id).toBe("antigravity:claude:session-5h");
       expect(rings.inner).toBeUndefined();
     });
+  });
+});
+
+describe("hasRailUsage", () => {
+  const snapshot = (status: UsageStatus): UsageSnapshot => ({
+    providerId: "kimi",
+    status,
+    windows: [],
+    fetchedAt: 0,
+  });
+
+  // Signed-out and usage-less providers belong in Settings, not the rail;
+  // everything else is readable now or recovers on its own. `undefined` keeps a
+  // cold start from painting an empty rail.
+  it.each<[UsageStatus | "pending", boolean]>([
+    ["ok", true],
+    ["app-not-running", true],
+    ["rate-limited", true],
+    ["quota-hit", true],
+    ["error", true],
+    ["pending", true],
+    ["auth-missing", false],
+    ["unsupported", false],
+  ])("keeps %s in the rail: %s", (status, expected) => {
+    expect(hasRailUsage(status === "pending" ? undefined : snapshot(status))).toBe(expected);
   });
 });

@@ -3,6 +3,7 @@ import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import { Suspense, useEffect, useState } from "react";
 import { PixelLoader } from "./components/common/PixelLoader";
+import { StartupRecoveryScreen } from "./components/startup/StartupRecoveryScreen";
 import { msg } from "@/shared/messages";
 import type { RuntimeEvent } from "@/shared/contracts";
 import {
@@ -12,15 +13,17 @@ import {
 } from "@/shared/ipc";
 import { readBridge } from "./bridge";
 import {
-  handleNotificationClick,
   handleThreadStateNotification,
   shouldInspectThreadStateForNotification,
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { useGitReadModelStore } from "./state/gitReadModelStore";
 import {
+  acknowledgeThread,
   archiveThread,
   deleteThread,
+  openThread,
   renameThread,
   toggleMarkThreadDone,
   toggleStarThread,
@@ -45,16 +48,17 @@ import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import { QuickComposerOverlay } from "@/renderer/views/QuickComposerOverlay/QuickComposerOverlay";
+import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import {
   primeWorktreeGitState,
   runWorktreeSetupScript,
-  startThreadFromDraft,
-} from "@/renderer/views/MainView/parts/AppContent/AppContent";
+} from "@/renderer/actions/worktreeLaunchActions";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
+import { useStandaloneWindowViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
 
 // ── Module-level IPC listeners ──────────────────────────────────
@@ -67,6 +71,7 @@ import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/de
 // so that Vite HMR can tear them down before re-executing the module.
 
 let threadStateNotificationsArmed = false;
+export const STARTUP_RECOVERY_TIMEOUT_MS = 15_000;
 const windowKind = readBridge().windowKind;
 const isBrowserExtractWindow = windowKind === "browserExtract";
 const isQuickComposerWindow = windowKind === "quickComposer";
@@ -271,10 +276,12 @@ function handleUpdateStatus(status: UpdateStatus): void {
     case "downloaded":
       store.setDownloaded(status.version);
       break;
-    case "error":
-      store.setError(status.message);
-      toast.danger(msg("update.error", { detail: status.message }));
+    case "error": {
+      const detail = status.messageKey ? msg(status.messageKey) : status.message;
+      store.setError(detail);
+      toast.danger(msg("update.error", { detail }));
       break;
+    }
   }
 }
 
@@ -292,6 +299,20 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onRemoteThreadCommand((command) => {
         if (command.kind === "delete-worktree-group") {
           deleteWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
+          return;
+        }
+        if (command.kind === "prepare-worktree") {
+          const project = useAppStore
+            .getState()
+            .projects.find((entry) => entry.id === command.projectId);
+          if (!project) return;
+          void primeWorktreeGitState(project, command.worktreePath);
+          const setupScript = project.scripts?.setupScript;
+          if (setupScript) {
+            void runWorktreeSetupScript(project, command.worktreePath, setupScript, {
+              openTerminalPanel: false,
+            });
+          }
           return;
         }
         if (command.kind === "start") {
@@ -313,8 +334,11 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
             ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
             ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+            ...(command.prNumber !== undefined ? { prNumber: command.prNumber } : {}),
             ...(command.focus === false ? { focus: false } : {}),
             ...(command.parentThreadId ? { parentThreadId: command.parentThreadId } : {}),
+            ...(command.groupId ? { groupId: command.groupId } : {}),
+            ...(command.groupName ? { groupName: command.groupName } : {}),
           });
           if (command.launchRuntime !== false) {
             store.queueThreadLaunch(thread.id, command.prompt, command.segments);
@@ -332,18 +356,15 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           }
           if (command.worktreePath) {
             void primeWorktreeGitState(project, command.worktreePath);
-            if (command.isNewWorktree) {
-              const setupScript = project.scripts?.setupScript;
-              if (setupScript) {
-                runWorktreeSetupScript(project, command.worktreePath, setupScript);
-              }
-            }
           }
           return;
         }
         const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
         if (!thread) return;
         switch (command.kind) {
+          case "acknowledge":
+            acknowledgeThread(command.threadId);
+            break;
           case "rename":
             renameThread(command.threadId, command.title);
             break;
@@ -352,6 +373,17 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             break;
           case "set-starred":
             if ((thread.starred ?? false) !== command.starred) toggleStarThread(command.threadId);
+            break;
+          // Orchestrator grouping: pulls the parent thread into the sidebar
+          // group its children are created in.
+          case "set-group":
+            useAppStore.setState((state) => ({
+              threads: state.threads.map((t) =>
+                t.id === command.threadId
+                  ? { ...t, groupId: command.groupId, groupName: command.groupName }
+                  : t,
+              ),
+            }));
             break;
           case "set-worktree": {
             useAppStore
@@ -367,7 +399,11 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
               if (project) {
                 void primeWorktreeGitState(project, command.worktreePath);
                 const setupScript = project.scripts?.setupScript;
-                if (setupScript) runWorktreeSetupScript(project, command.worktreePath, setupScript);
+                if (setupScript) {
+                  void runWorktreeSetupScript(project, command.worktreePath, setupScript, {
+                    openTerminalPanel: false,
+                  });
+                }
               }
             }
             break;
@@ -389,7 +425,20 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onSharedSettingsChanged((settings) => {
         applyExternalSharedSettings(normalizeSharedSettings(settings));
       }),
-      readBridge().onNotificationClick(handleNotificationClick),
+      // Main-process project mutations must reach this whole-store snapshot
+      // before its next dbSyncAll persistence write.
+      readBridge().onProjectStateChanged(({ projects }) => {
+        useAppStore.setState({ projects });
+      }),
+      readBridge().onGitStateChanged((patch) => {
+        useGitReadModelStore.getState().applyPatch(patch);
+      }),
+      readBridge().onThreadOpenRequested(({ threadId, source }) => {
+        openThread(threadId, {
+          focusComposer: true,
+          ...(source === "notification" ? { switchWorkspace: true } : {}),
+        });
+      }),
       readBridge().onQuickComposerSubmit((submission) => {
         void (async () => {
           if (!useAppStore.persist.hasHydrated()) await useAppStore.persist.rehydrate();
@@ -439,6 +488,7 @@ export function App() {
 
 function BrowserExtractApp() {
   useBrowserSync();
+  useStandaloneWindowViewTracking("browser_extracted");
 
   return (
     <AppProvider contentReady syncWindowChrome={false}>
@@ -451,6 +501,7 @@ function BrowserExtractApp() {
 
 function QuickComposerApp() {
   const { initialLoading } = useAppHydration({ runtimeOwner: false });
+  useStandaloneWindowViewTracking("quick_composer", !initialLoading);
 
   return (
     <AppProvider contentReady={!initialLoading} syncWindowChrome={false}>
@@ -470,6 +521,19 @@ function QuickComposerApp() {
 
 function MainApp() {
   const { initialLoading, storeHydrated, loadT0 } = useAppHydration();
+  const [showStartupRecovery, setShowStartupRecovery] = useState(false);
+  const [startupRecoveryCycle, setStartupRecoveryCycle] = useState(0);
+
+  useEffect(() => {
+    if (!initialLoading) {
+      setShowStartupRecovery(false);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setShowStartupRecovery(true);
+    }, STARTUP_RECOVERY_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [initialLoading, startupRecoveryCycle]);
 
   useEffect(() => {
     if (initialLoading) {
@@ -504,14 +568,23 @@ function MainApp() {
     );
     return (
       <AppProvider contentReady={false}>
-        <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
-          <div className="flex flex-col items-center gap-4">
-            <PixelLoader size="lg" />
-            <p className="text-sm text-muted">
-              <Trans>Loading…</Trans>
-            </p>
+        {showStartupRecovery ? (
+          <StartupRecoveryScreen
+            onKeepWaiting={() => {
+              setShowStartupRecovery(false);
+              setStartupRecoveryCycle((cycle) => cycle + 1);
+            }}
+          />
+        ) : (
+          <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+            <div className="flex flex-col items-center gap-4">
+              <PixelLoader size="lg" />
+              <p className="text-sm text-muted">
+                <Trans>Loading…</Trans>
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </AppProvider>
     );
   }

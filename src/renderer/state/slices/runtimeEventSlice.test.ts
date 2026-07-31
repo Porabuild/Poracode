@@ -50,6 +50,30 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
+  it("records a local completion timestamp without replacing the start timestamp", () => {
+    const startedBefore = Date.now();
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i1",
+      itemType: "tool_call",
+      payload: { name: "spawnAgent", status: "running", isSubAgent: true },
+    });
+    const startedAt = store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.startedAt;
+    expect(startedAt).toBeGreaterThanOrEqual(startedBefore);
+
+    apply("t1", {
+      type: "item.completed",
+      threadId: "t1",
+      itemId: "i1",
+      payload: { status: "success" },
+    });
+
+    const item = store.getState().runtimeItemsByIdByThread["t1"]?.["i1"];
+    expect(item?.startedAt).toBe(startedAt);
+    expect(item?.completedAt).toBeGreaterThanOrEqual(startedAt ?? 0);
+  });
+
   it("is idempotent for repeated item.started with the same id", () => {
     apply("t1", {
       type: "item.started",
@@ -479,14 +503,14 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
-  it("does not force-complete stale subagents MCP calls tagged by older mappers", () => {
+  it("does not force-complete stale Crossagents MCP calls tagged by older mappers", () => {
     apply("t1", {
       type: "item.started",
       threadId: "t1",
-      itemId: "raw-subagents-mcp",
+      itemId: "raw-crossagents-mcp",
       itemType: "tool_call",
       payload: {
-        name: "mcp__subagents__spawn_agent",
+        name: "mcp__crossagents__spawn_agent",
         status: "running",
         isSubAgent: true,
       },
@@ -494,7 +518,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
 
     store.getState().reconcileStaleSubAgents("t1");
 
-    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["raw-subagents-mcp"]).toMatchObject({
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["raw-crossagents-mcp"]).toMatchObject({
       state: "started",
       payload: { status: "running" },
     });
@@ -621,6 +645,39 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     };
     store.getState().hydrateThreadRuntimeItems("t1", [seeded]);
     expect(store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.observedLive).toBeUndefined();
+  });
+
+  it("prepends an older page without replacing newer or live items", () => {
+    const newer: RuntimeChatItem = {
+      id: "newer",
+      type: "assistant_message",
+      state: "completed",
+      streams: { assistant_text: "newer" },
+    };
+    store.getState().hydrateThreadRuntimeItems("t1", [newer]);
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "live",
+      itemType: "assistant_message",
+    });
+
+    store.getState().prependThreadRuntimeItems("t1", [
+      {
+        id: "older",
+        type: "user_message",
+        state: "completed",
+        streams: {},
+      },
+      {
+        ...newer,
+        streams: { assistant_text: "stale duplicate" },
+      },
+    ]);
+
+    expect(store.getState().runtimeItemIdsByThread["t1"]).toEqual(["older", "newer", "live"]);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["newer"]).toBe(newer);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["live"]?.observedLive).toBe(true);
   });
 
   it("applies concurrent thread batches in a single store update", () => {

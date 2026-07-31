@@ -28,7 +28,7 @@ export const factoryDefaultCapabilities: AgentCapability = {
     { id: "auto-high", label: "Auto (High Risk)" },
   ],
   sandboxModes: [],
-  defaultApprovalPolicy: "normal",
+  defaultApprovalPolicy: "auto-high",
   bypassPermissions: { approvalPolicy: "auto-high" },
   supportsResume: true,
   supportsOneShot: true,

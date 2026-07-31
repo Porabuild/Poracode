@@ -9,7 +9,7 @@ export {
   COMPUTER_USE_MCP_ID,
   mcpTogglePatch,
   resolveMcpScope,
-  subagentMcpServer,
+  crossagentMcpServer,
   type ComposerMcpConfigKey,
   type ComposerMcpServerDescriptor,
 } from "./composerMcpServers";

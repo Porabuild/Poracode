@@ -23,6 +23,7 @@ export interface PostHogClientDependencies {
   resolveConfig: () => PostHogClientConfig;
   resolveInstallId: () => string;
   buildBaseProperties: (sessionId: string) => ProductAnalyticsProperties;
+  createEventId: () => string;
   createSessionId: () => string;
   now: () => string;
   fetch: typeof fetch;
@@ -62,6 +63,7 @@ export function createPostHogClient(dependencies: PostHogClientDependencies): Po
     const sanitized = sanitizeProductAnalyticsEvent(event, {
       ...baseProperties,
       ...properties,
+      $insert_id: dependencies.createEventId(),
     });
     if (!sanitized) return;
 
@@ -78,9 +80,9 @@ export function createPostHogClient(dependencies: PostHogClientDependencies): Po
     }
   };
 
-  const flushBatch = async (): Promise<void> => {
+  const flushBatch = async (): Promise<boolean> => {
     const activeConfig = ensureConfig();
-    if (!activeConfig || !installId || buffer.length === 0) return;
+    if (!activeConfig || !installId || buffer.length === 0) return false;
 
     const batch = buffer.splice(0, FLUSH_BATCH_SIZE);
     try {
@@ -101,11 +103,13 @@ export function createPostHogClient(dependencies: PostHogClientDependencies): Po
       if (!response.ok) {
         throw new Error(`PostHog batch failed with status ${response.status}`);
       }
+      return true;
     } catch {
       buffer.unshift(...batch);
       if (buffer.length > MAX_BUFFERED_EVENTS) {
         buffer.splice(MAX_BUFFERED_EVENTS);
       }
+      return false;
     }
   };
 
@@ -115,7 +119,12 @@ export function createPostHogClient(dependencies: PostHogClientDependencies): Po
       return;
     }
 
-    flushPromise = flushBatch().finally(() => {
+    flushPromise = (async () => {
+      while (buffer.length > 0 && (await flushBatch())) {
+        // Drain every queued batch. A failed batch remains at the front of the
+        // buffer and stops this pass so retries do not spin.
+      }
+    })().finally(() => {
       flushPromise = null;
     });
     await flushPromise;

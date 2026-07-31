@@ -121,6 +121,17 @@ describe("humanIntentTitle", () => {
     });
   });
 
+  it("does not include a statement separator in a batched sed view path", () => {
+    const full = `/bin/zsh -lc "sed -n '1,80p' src/shared/settings.ts; sed -n '570,630p' src/shared/settings.ts"`;
+    const display = commandIntentDisplay(full);
+
+    expect(display.title).toBe("View 1:80: src/shared/settings.ts");
+    expect(display.parts).toEqual({
+      prefix: "View 1:80: ",
+      path: "src/shared/settings.ts",
+    });
+  });
+
   it("describes ripgrep commands as searches", () => {
     const full = `/bin/zsh -lc 'rg -n "agent status|AgentStatus" src/main src/supervisor src/shared -S'`;
     expect(humanIntentTitle(full)).toBe('Search: "agent status|AgentStatus"');

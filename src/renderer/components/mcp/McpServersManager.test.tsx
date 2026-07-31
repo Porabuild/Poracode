@@ -47,7 +47,7 @@ function managerElement(options: {
   disabledBuiltInTools?: Record<string, string[]>;
   onBuiltInDisabledChange?: (id: string, disabled: boolean) => void;
   onBuiltInToolEnabledChange?: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
-  includeSubagentsSettings?: boolean;
+  includeCrossagentsSettings?: boolean;
 }) {
   const {
     userServers = [],
@@ -61,7 +61,7 @@ function managerElement(options: {
     disabledBuiltInTools,
     onBuiltInDisabledChange,
     onBuiltInToolEnabledChange,
-    includeSubagentsSettings,
+    includeCrossagentsSettings,
   } = options;
   const workspaceLocation = projectLocation ?? { kind: "windows" as const, path: "C:\\repo" };
   return (
@@ -99,12 +99,12 @@ function managerElement(options: {
       {...(disabledBuiltInTools ? { disabledBuiltInTools } : {})}
       {...(onBuiltInDisabledChange ? { onBuiltInDisabledChange } : {})}
       {...(onBuiltInToolEnabledChange ? { onBuiltInToolEnabledChange } : {})}
-      {...(includeSubagentsSettings
+      {...(includeCrossagentsSettings
         ? {
             builtInSettings: {
-              subagents: {
-                title: "Subagents",
-                actionLabel: "Subagent routing guide",
+              crossagents: {
+                title: "Crossagents",
+                actionLabel: "Crossagent routing guide",
                 content: <div>Routing settings</div>,
               },
             },
@@ -138,7 +138,7 @@ describe("McpServersManager", () => {
     expect(screen.getByRole("button", { name: "Edit memory" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete memory" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Browser" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "44 tools" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "46 tools" })).toBeInTheDocument();
   });
 
   it("shows the built-in tool list from its tool count", () => {
@@ -154,7 +154,7 @@ describe("McpServersManager", () => {
 
     const row = document.querySelector('[data-built-in-mcp-server="app-controls"]');
     expect(row).not.toBeNull();
-    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "5 tools" }));
+    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "57 tools" }));
 
     const dialog = screen.getByRole("dialog", { name: "App Controls" });
     expect(within(dialog).getByText("list_schedules")).toBeInTheDocument();
@@ -180,27 +180,27 @@ describe("McpServersManager", () => {
     expect(onBuiltInDisabledChange).toHaveBeenCalledWith("browser", true);
   });
 
-  it("opens subagents settings in a modal", () => {
+  it("opens Crossagents settings in a modal", () => {
     render(
       managerElement({
         disabledBuiltIns: {},
-        includeSubagentsSettings: true,
+        includeCrossagentsSettings: true,
       }),
     );
 
-    const row = document.querySelector('[data-built-in-mcp-server="subagents"]');
+    const row = document.querySelector('[data-built-in-mcp-server="crossagents"]');
     expect(row).not.toBeNull();
     expect(within(row as HTMLElement).queryByText("Routing settings")).not.toBeInTheDocument();
 
     fireEvent.click(
-      within(row as HTMLElement).getByRole("button", { name: "Subagent routing guide" }),
+      within(row as HTMLElement).getByRole("button", { name: "Crossagent routing guide" }),
     );
 
-    const dialog = screen.getByRole("dialog", { name: "Subagents" });
+    const dialog = screen.getByRole("dialog", { name: "Crossagents" });
     expect(dialog).toBeInTheDocument();
     expect(screen.getByText("Routing settings")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByText("Close"));
-    expect(screen.queryByRole("dialog", { name: "Subagents" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Crossagents" })).not.toBeInTheDocument();
   });
 
   it("probes an enabled server once and forwards the workspace location", async () => {

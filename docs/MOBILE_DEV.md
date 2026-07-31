@@ -84,9 +84,12 @@ fixes both:
 
 ## Deep linking (Universal Links)
 
-Goal: one `https://poracode.com/…` pairing link that opens the **installed app**
-if present, else falls back to the hosted PWA. Product model: users without the
-app land on the hosted PWA (`poracode.com/mobile-app`); users with it get the app.
+Goal: one `https://poracode.com/pair` pairing link that opens the **installed
+app** if present, else redirects browser users to the hosted PWA at
+`https://app.poracode.com/pair`. The stable and nightly PWAs use separate
+origins (`app.poracode.com` and `app-nightly.poracode.com`) so their permissions,
+storage, caches, and service workers cannot affect the marketing site or each
+other.
 
 **Already wired (app side):**
 
@@ -106,11 +109,12 @@ app land on the hosted PWA (`poracode.com/mobile-app`); users with it get the ap
    `scripts/finalize-mobile-build.mjs` emits a **non-empty** AASA/assetlinks into
    `dist/mobile/.well-known/` (AASA `appIDs = <team>.com.lightcodeapp.mobile`,
    components match `/pair*` and `/app*`).
-2. **Host** `/pair`, `/app`, and `/.well-known/apple-app-site-association` on
-   **poracode.com**. Today the mobile PWA is a _separate_ Vercel project (root
-   `vercel.json` → `dist/mobile`) from the marketing site (`website/`). Either
-   point poracode.com's domain at the mobile-PWA project, or add the rewrites +
-   AASA route into `website/`.
+2. **Host** `/pair` and `/.well-known/apple-app-site-association` on
+   **poracode.com**. The marketing deployment redirects browser requests for
+   `/pair` and legacy `/app*` and `/pwa*` URLs to **app.poracode.com**; legacy
+   `/app-nightly*` URLs redirect to **app-nightly.poracode.com**. Both PWA
+   domains point at the separate mobile Vercel project (`vercel.json` →
+   `dist/mobile`) and serve their channel at `/`.
 3. **Desktop** — packaged builds default to `https://poracode.com`, so minted
    QR/links are `https://poracode.com/pair?host=…#token=…`. Set
    `PORACODE_REMOTE_ACCESS_PAIRING_APP_URL` only to override that host.
@@ -118,13 +122,11 @@ app land on the hosted PWA (`poracode.com/mobile-app`); users with it get the ap
    ship. Universal-link routing **cannot be exercised in the simulator** until
    the app is built with the entitlement _and_ the AASA is served over https.
 
-**Gotcha — no subpaths in pairing links.** `buildPairingUrl`
-(`src/shared/remote/pairingUrl.ts`) does `new URL("/pair", base)`, which drops
-any base path: `…poracode.com/mobile-app` still mints `…poracode.com/pair`.
-Keep **`/pair`** as the pairing (universal-link) path and use `/mobile-app` as
-the human-facing landing page. Changing that requires patching `buildPairingUrl`
-
-- the Vercel rewrites + the AASA components together.
+**Gotcha — preserve the poracode.com pairing entry.** `buildPairingUrl`
+(`src/shared/remote/pairingUrl.ts`) intentionally mints
+`https://poracode.com/pair`. Existing native installs claim that universal link
+before the browser sees the redirect; browser users are redirected to
+`https://app.poracode.com/pair`.
 
 ## Troubleshooting
 

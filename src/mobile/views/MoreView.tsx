@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { MonitorCog } from "lucide-react";
+import { LifeBuoy, MonitorCog, ShieldCheck } from "lucide-react";
+import { readBridge } from "@/renderer/bridge";
 import { MoreRow } from "../components";
 import { DEVICE_SETTINGS_SECTIONS } from "../settingsSections";
 
@@ -36,6 +37,16 @@ export function MoreView(props: {
             hint={<Trans>Schedules, AI, agents, and archived threads on the paired desktop</Trans>}
             disabled={!props.hasDesktop}
             onPress={props.onOpen}
+          />
+          <MoreRow
+            icon={<ShieldCheck className="size-4" />}
+            label={<Trans>Privacy Policy</Trans>}
+            onPress={() => void readBridge().openExternal("https://poracode.com/privacy")}
+          />
+          <MoreRow
+            icon={<LifeBuoy className="size-4" />}
+            label={<Trans>Support</Trans>}
+            onPress={() => void readBridge().openExternal("https://poracode.com/support")}
           />
         </div>
       </div>

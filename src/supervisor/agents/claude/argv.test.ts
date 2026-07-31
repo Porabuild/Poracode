@@ -3,6 +3,7 @@ import { applyClaudeContextSuffix } from "./argv";
 
 describe("applyClaudeContextSuffix", () => {
   it("derives the suffix from contextSize for built-in models", () => {
+    expect(applyClaudeContextSuffix("claude-opus-5", "1m")).toBe("claude-opus-5[1m]");
     expect(applyClaudeContextSuffix("claude-opus-4-8", "1m")).toBe("claude-opus-4-8[1m]");
     expect(applyClaudeContextSuffix("claude-opus-4-8", "200k")).toBe("claude-opus-4-8");
     expect(applyClaudeContextSuffix("claude-opus-4-8")).toBe("claude-opus-4-8");

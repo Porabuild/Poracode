@@ -1,4 +1,5 @@
 import { ClipboardList, Hammer } from "lucide-react";
+import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
@@ -25,6 +26,7 @@ export function planWorkToggle(input: {
     ) : (
       <Hammer className="size-3.5 poracode-composer-mode-icon" />
     ),
+    iconKind: "mode",
     label: input.isPlanMode ? "Plan" : "Work",
     displayLabel: input.isPlanMode ? msg`Plan` : msg`Work`,
     hideLabelOnWrap: true,
@@ -44,12 +46,16 @@ export function planWorkToggle(input: {
 export function fullAccessToggle(input: {
   isFullAccess: boolean;
   isDisabled: boolean;
+  restrictedLabel?: string;
+  restrictedDisplayLabel?: MessageDescriptor;
   onChange: (isSelected: boolean) => void;
 }): ComposerControl {
   return {
     kind: "toggle",
-    label: input.isFullAccess ? "Full access" : "Supervised",
-    displayLabel: input.isFullAccess ? msg`Full access` : msg`Supervised`,
+    label: input.isFullAccess ? "Full access" : (input.restrictedLabel ?? "Supervised"),
+    displayLabel: input.isFullAccess
+      ? msg`Full access`
+      : (input.restrictedDisplayLabel ?? msg`Supervised`),
     iconKind: "permission",
     isSelected: input.isFullAccess,
     isCurrentState: true,

@@ -25,10 +25,13 @@ interface NotesStore {
   /** Persist the project's notes immediately, cancelling any pending debounce. */
   flush: (projectId: string) => void;
   flushAll: () => void;
+  /** Flush the current desktop's edits, cancel pending loads, and clear its cache. */
+  resetSession: () => void;
 }
 
 const PERSIST_DEBOUNCE_MS = 600;
 const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
+let sessionGeneration = 0;
 
 function hasBridge(): boolean {
   return typeof window !== "undefined" && !!window.poracode?.dbSetProjectNotes;
@@ -96,10 +99,18 @@ export const useNotesStore = create<NotesStore>((set, get) => {
     ensureLoaded: (projectId) => {
       const entry = get().byProject[projectId];
       if (entry && entry.status !== "unloaded") return;
+      const loadGeneration = sessionGeneration;
       const setReady = (doc: unknown | null, todos: NotesTodoItem[]) =>
-        set((state) => ({
-          byProject: { ...state.byProject, [projectId]: { status: "ready", doc, todos } },
-        }));
+        set((state) =>
+          loadGeneration === sessionGeneration
+            ? {
+                byProject: {
+                  ...state.byProject,
+                  [projectId]: { status: "ready", doc, todos },
+                },
+              }
+            : {},
+        );
       set((state) => ({
         byProject: {
           ...state.byProject,
@@ -188,6 +199,12 @@ export const useNotesStore = create<NotesStore>((set, get) => {
           persistNow(projectId, entry);
         }
       }
+    },
+
+    resetSession: () => {
+      get().flushAll();
+      sessionGeneration += 1;
+      set({ byProject: {} });
     },
   };
 });

@@ -7,6 +7,8 @@ import {
   agentProviderMetadataSchema,
   agentSettingDefSchema,
   agentStatusSchema,
+  type AgentCapability,
+  type AgentKind,
   type AgentStatus,
   type AgentStatusesResponse,
   type GetAgentStatusesPayload,
@@ -23,6 +25,7 @@ import {
   type AgentEnvContext,
 } from "../agents/base";
 import { clearFastModeCache } from "../agents/claude/fastModeCache";
+import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 
 const execFileAsync = promisify(execFile);
 
@@ -35,11 +38,15 @@ const execFileAsync = promisify(execFile);
  * `AgentCapability.supportsOneShot` (so one-shot-only AI settings selectors can
  * hide interactive-only provider instances). v5 adds
  * `AgentStatus.preferTerminalLogin` (probe-reported; replaces the renderer's
- * hardcoded Grok check) and `AgentCapability.browserMcpScope` /
- * `subagentMcpScope` (adapter-declared; replace the renderer shadow tables).
- * v6 adds structured skill command metadata.
+ * hardcoded Grok check) and `AgentCapability.mcpScope` (adapter-declared;
+ * replaces renderer shadow tables).
+ * v6 adds structured skill command metadata. v7 makes provider detection
+ * depend on provider-global settings (for example Cursor's selected structured
+ * runtime), so statuses written before that setting was supplied must not be
+ * reused. v8 adds independently cached runtime variants and session-id routing
+ * so existing threads remain pinned when a provider's default runtime changes.
  */
-export const STATUS_CACHE_VERSION = 6;
+export const STATUS_CACHE_VERSION = 8;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
@@ -147,13 +154,19 @@ export async function detectWslAgentStatuses(
   distros: readonly string[],
   disabled?: ReadonlySet<string>,
   onStatus?: (status: AgentStatus) => void,
+  agentSettings?: Readonly<Record<string, Record<string, boolean | string>>>,
 ): Promise<AgentStatus[]> {
   const adapterList = [...adapters];
   const statuses = await Promise.all(
     distros.map(async (distro) => {
-      const ctx: AgentEnvContext = { envKind: "wsl", wslDistro: distro };
       return Promise.all(
         adapterList.map(async (adapter) => {
+          const settings = agentSettings?.[adapter.kind];
+          const ctx: AgentEnvContext = {
+            envKind: "wsl",
+            wslDistro: distro,
+            ...(settings ? { agentSettings: settings } : {}),
+          };
           let status: AgentStatus;
           if (disabled?.has(adapter.kind)) {
             status = {
@@ -272,6 +285,40 @@ export class AgentStatusService {
     return cached;
   }
 
+  /**
+   * Synchronous view of one provider's native capabilities as the last
+   * detection sweep persisted them — the same source `getAgentStatuses` serves
+   * the renderer composer and the Crossagents MCP roster from. The subagent
+   * spawn/create_thread paths validate against this so a selection accepted by
+   * `list_agents`/`get_agent` is accepted by the executor too, instead of
+   * racing the adapter's in-memory capabilities (which stay at their empty
+   * defaults until this session's probe completes). Returns `undefined` when
+   * there is no cache entry or the provider isn't installed + authenticated in
+   * it. Returns `null` when a populated cache says the provider is unavailable,
+   * and `undefined` only when no cache exists yet.
+   */
+  getCachedCapabilities(kind: AgentKind): AgentCapability | null | undefined {
+    const { windows, fromCache } = this.readCachedStatuses([]);
+    if (!fromCache) return undefined;
+    const status = windows.find(
+      (s) => s.kind === kind && s.installed && s.authState === "authenticated",
+    );
+    return status?.capabilities ?? null;
+  }
+
+  /** Return the last detected installed version for one native or WSL provider. */
+  getCachedVersion(kind: AgentKind, wslDistro?: string): string | undefined {
+    const cached = this.readCachedStatuses(wslDistro ? [wslDistro] : []);
+    if (!cached.fromCache) return undefined;
+    const statuses = wslDistro ? cached.wsl : cached.windows;
+    return statuses.find(
+      (status) =>
+        status.kind === kind &&
+        status.installed &&
+        (wslDistro === undefined || status.envDistro?.toLowerCase() === wslDistro.toLowerCase()),
+    )?.version;
+  }
+
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     const wslDistros = [...new Set(payload.wslDistros)];
     // An explicit refresh is the signal that something changed on disk (an
@@ -330,11 +377,14 @@ export class AgentStatusService {
       .filter((adapter): adapter is AgentAdapter => adapter !== undefined);
 
     const targetEnvs = this.resolveScopedEnvs(scope.envs, wslDistros);
-    const disabled = this.readDisabledAgents();
+    const settings = this.readSettings();
+    const disabled = new Set(settings.disabledAgents);
 
     const probed = await Promise.all(
       targetAdapters.flatMap((adapter) =>
-        targetEnvs.map((env) => this.probeScopedStatus(adapter, env, disabled)),
+        targetEnvs.map((env) =>
+          this.probeScopedStatus(adapter, env, disabled, settings.agentSettings[adapter.kind]),
+        ),
       ),
     );
 
@@ -365,6 +415,7 @@ export class AgentStatusService {
     adapter: AgentAdapter,
     env: RefreshAgentScopeEnv,
     disabled: ReadonlySet<string>,
+    agentSettings: Record<string, boolean | string> | undefined,
   ): Promise<AgentStatus> {
     const isWsl = env.kind === "wsl";
     const nativeEnvKind: "windows" | "posix" = process.platform === "win32" ? "windows" : "posix";
@@ -383,11 +434,18 @@ export class AgentStatusService {
         ...(envDistro ? { envDistro } : {}),
       };
     }
-    const ctx: AgentEnvContext | undefined = isWsl
-      ? { envKind: "wsl", wslDistro: env.distro }
-      : undefined;
+    const ctx: AgentEnvContext = isWsl
+      ? {
+          envKind: "wsl",
+          wslDistro: env.distro,
+          ...(agentSettings ? { agentSettings } : {}),
+        }
+      : {
+          envKind: nativeEnvKind,
+          ...(agentSettings ? { agentSettings } : {}),
+        };
     try {
-      const detected = ctx ? await adapter.detectInstall(ctx) : await adapter.detectInstall();
+      const detected = await adapter.detectInstall(ctx);
       return {
         ...detected,
         envKind,
@@ -489,14 +547,8 @@ export class AgentStatusService {
     }
   }
 
-  private readDisabledAgents(): Set<string> {
-    try {
-      const raw = readFileSync(this.options.settingsPath, "utf8");
-      const settings = normalizeSharedSettings(JSON.parse(raw));
-      return new Set(settings.disabledAgents);
-    } catch {
-      return new Set();
-    }
+  private readSettings(): ReturnType<typeof normalizeSharedSettings> {
+    return readSupervisorSharedSettings(this.options.settingsPath);
   }
 
   private runDetectionTask(task: () => Promise<DetectionResults>): Promise<DetectionResults> {
@@ -532,7 +584,8 @@ export class AgentStatusService {
 
   private async runDetection(wslDistros: readonly string[]): Promise<DetectionResults> {
     const adapters = [...this.options.adapters.values()];
-    const disabled = this.readDisabledAgents();
+    const settings = this.readSettings();
+    const disabled = new Set(settings.disabledAgents);
 
     // Native detection on macOS spawns the user's interactive login shell
     // once per binary lookup (nvm + plugin-heavy zshrc ≈ 2-3s each). N
@@ -564,7 +617,11 @@ export class AgentStatusService {
           };
         } else {
           try {
-            const detected = await adapter.detectInstall();
+            const agentSettings = settings.agentSettings[adapter.kind];
+            const detected = await adapter.detectInstall({
+              envKind: nativeEnvKind,
+              ...(agentSettings ? { agentSettings } : {}),
+            });
             status = { ...detected, envKind: nativeEnvKind };
           } catch (error) {
             console.error(`[supervisor] detectInstall(${adapter.kind}) failed`, error);
@@ -589,9 +646,15 @@ export class AgentStatusService {
       return statuses;
     });
 
-    const wslPromise = detectWslAgentStatuses(adapters, wslDistros, disabled, (status) => {
-      this.options.emit({ type: "agent-detected", status });
-    })
+    const wslPromise = detectWslAgentStatuses(
+      adapters,
+      wslDistros,
+      disabled,
+      (status) => {
+        this.options.emit({ type: "agent-detected", status });
+      },
+      settings.agentSettings,
+    )
       .then((statuses) => {
         this.options.emit({ type: "wsl-agent-statuses", statuses });
         return statuses;

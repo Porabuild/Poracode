@@ -169,7 +169,8 @@ export const manualGates = {
     "Launch a fresh isolated thread with each changed provider and observe first output.",
   "provider-skill-delivery":
     "Launch each supported provider with an isolated managed skill and verify the provider discovers and invokes it.",
-  "remote-mobile": "Pair an isolated mobile client and verify reconnect plus one read-only action.",
+  "remote-mobile":
+    "Pair an isolated mobile client and verify reconnect plus one read-only action; for push changes, verify background delivery and notification-tap routing.",
   "runtime-requests": "Trigger approval and structured-input requests; deny or submit safely.",
   "terminal-pty": "Launch a terminal thread, send input, resize, interrupt, and stop the real PTY.",
   "skills-manager":

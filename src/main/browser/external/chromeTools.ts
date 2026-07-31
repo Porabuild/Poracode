@@ -13,7 +13,11 @@ import {
   waitForSelector,
   waitForText,
 } from "../cdp/tools";
-import { glideCursorToSelector } from "../cursorOverlay";
+import {
+  glideCursorToSelector,
+  setCursorOverlayVisible,
+  withCursorOverlayHidden,
+} from "../cursorOverlay";
 import { clampInteger } from "../mcp/tools/helpers";
 import type { McpContent, McpToolResult, ToolSpec } from "../mcp/tools/types";
 import { clickSelector, fillSelector, resolveRefToSelector, typeIntoSelector } from "../pageDriver";
@@ -35,6 +39,7 @@ export interface ChromeToolContext {
    *  per-thread tab group named after the task. */
   threadId?: string;
   threadTitle?: string;
+  setSessionActive?: (active: boolean) => boolean;
 }
 
 export const CHROME_MCP_INSTRUCTIONS = [
@@ -45,7 +50,9 @@ export const CHROME_MCP_INSTRUCTIONS = [
   "there; tabs are never auto-closed. Pass newTab:true only when you truly need a second tab. Use chrome_attach",
   "(with a tabId from chrome_list_tabs) only when the user asks you to act on a specific tab they already have open.",
   "Prefer chrome_snapshot / chrome_find to discover elements (they return @e refs) before chrome_click / chrome_fill.",
-  "Use chrome_status first to confirm the extension is connected and which tab is attached.",
+  "Use chrome_status first to confirm the extension is connected, then call chrome.enable once before the first browser action.",
+  "Keep Chrome enabled across the whole uninterrupted session so agent presence stays consistent between calls.",
+  "Always call chrome.disable before pausing to ask for user input, waiting for an external event, or finishing, and call chrome.enable again when you resume.",
   "Destructive or account-affecting actions (purchases, deletions, messages) should be confirmed with the user first.",
 ].join(" ");
 
@@ -111,6 +118,15 @@ export async function dispatchChromeTool(
     return conn.status();
   }
 
+  if (name === "disable") {
+    const shouldDetach = ctx.setSessionActive?.(false) ?? true;
+    if (shouldDetach && conn?.isAttached()) {
+      await setCursorOverlayVisible(conn.cdpSession(), false);
+      await conn.detach();
+    }
+    return { enabled: false };
+  }
+
   if (!conn) {
     return {
       error:
@@ -121,6 +137,11 @@ export async function dispatchChromeTool(
   const cdp = conn.cdpSession();
 
   switch (name) {
+    case "enable":
+      await conn.ensureWorkspace();
+      ctx.setSessionActive?.(true);
+      await setCursorOverlayVisible(cdp, true);
+      return { enabled: true, status: conn.status() };
     case "chrome_list_tabs":
       return { tabs: await conn.listTabs() };
     case "chrome_open": {
@@ -242,12 +263,14 @@ export async function dispatchChromeTool(
     }
     case "chrome_screenshot": {
       const fullPage = payload.fullPage === true;
-      const buffer = await captureScreenshotPng(cdp, {
-        format: "jpeg",
-        quality: 60,
-        scale: 0.75,
-        ...(fullPage ? { fullPage: true } : {}),
-      });
+      const buffer = await withCursorOverlayHidden(cdp, () =>
+        captureScreenshotPng(cdp, {
+          format: "jpeg",
+          quality: 60,
+          scale: 0.75,
+          ...(fullPage ? { fullPage: true } : {}),
+        }),
+      );
       return { __image: buffer.toString("base64"), mimeType: "image/jpeg" };
     }
     case "chrome_eval": {
@@ -327,6 +350,18 @@ export const CHROME_TOOLS: ToolSpec[] = [
     name: "chrome_status",
     description:
       "Report whether the companion Chrome extension is connected and which of the user's tabs is attached. Call this first.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "enable",
+    description:
+      "Begin one uninterrupted Chrome MCP session, attach the background workspace, and keep agent presence active between calls.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "disable",
+    description:
+      "End the current Chrome MCP session, hide agent presence, and detach when no other session is active. Always call before pausing for user input or finishing.",
     inputSchema: { type: "object", properties: {} },
   },
   {

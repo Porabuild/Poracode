@@ -81,6 +81,9 @@ function ReleaseBlock(props: { release: ChangelogRelease }) {
                     key={index}
                     className="relative text-sm leading-relaxed text-foreground/90 before:absolute before:-left-3.5 before:top-2 before:size-1 before:rounded-full before:bg-muted/60"
                   >
+                    {change.label ? (
+                      <span className="font-semibold text-foreground">{change.label} — </span>
+                    ) : null}
                     {change.text}
                   </li>
                 ))}

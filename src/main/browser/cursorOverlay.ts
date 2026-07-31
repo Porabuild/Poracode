@@ -42,12 +42,133 @@ function __pcCursor(){
   return el;
 }
 function __pcRipple(x,y){
-  const d=document.createElement("div"); d.setAttribute("aria-hidden","true");
+  const d=document.createElement("div"); d.setAttribute("aria-hidden","true"); d.setAttribute("data-poracode-cursor-ripple","");
   d.style.cssText="position:fixed;left:"+x+"px;top:"+y+"px;z-index:2147483646;pointer-events:none;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:rgba(125,108,246,.45);transform:scale(1);opacity:.9;transition:transform .5s ease-out,opacity .5s ease-out";
   (document.body||document.documentElement).appendChild(d);
   requestAnimationFrame(function(){ d.style.transform="scale(3.5)"; d.style.opacity="0"; });
   setTimeout(function(){ try{ d.remove(); }catch(e){} }, 560);
 }`;
+
+const SCREENSHOT_OVERLAY_STYLE_ID = "__poracode_screenshot_overlay_hide__";
+const SESSION_OVERLAY_STYLE_ID = "__poracode_session_overlay_hide__";
+const CURSOR_OVERLAY_HIDDEN_CSS =
+  "#__poracode_cursor__,[data-poracode-cursor-ripple]{visibility:hidden!important}";
+const SCREENSHOT_OVERLAY_EVAL_CAP_MS = 250;
+
+const HIDE_OVERLAY_FOR_SCREENSHOT = `(async () => {
+  const ID=${JSON.stringify(SCREENSHOT_OVERLAY_STYLE_ID)};
+  let style=document.getElementById(ID);
+  if(!style){
+    style=document.createElement("style");
+    style.id=ID;
+    style.textContent=${JSON.stringify(CURSOR_OVERLAY_HIDDEN_CSS)};
+    (document.head||document.documentElement).appendChild(style);
+  }
+  const depth=Number(style.dataset.depth||"0");
+  style.dataset.depth=String(depth+1);
+  await new Promise(function (res) {
+    let done=false;
+    function finish(){ if(!done){ done=true; res(null); } }
+    requestAnimationFrame(finish);
+    setTimeout(finish,50);
+  });
+  return true;
+})()`;
+
+const RESTORE_OVERLAY_AFTER_SCREENSHOT = `(() => {
+  const style=document.getElementById(${JSON.stringify(SCREENSHOT_OVERLAY_STYLE_ID)});
+  if(!style) return false;
+  const depth=Math.max(0,Number(style.dataset.depth||"1")-1);
+  if(depth===0) style.remove();
+  else style.dataset.depth=String(depth);
+  return true;
+})()`;
+
+type BoundedResult<T> =
+  | { status: "fulfilled"; value: T }
+  | { status: "rejected" }
+  | { status: "timed-out" };
+
+/** CDP's embedded transport has no timeout of its own. Presence visuals are
+ * best-effort, so never let their bookkeeping stall the screenshot itself. */
+async function settleBounded<T>(promise: Promise<T>): Promise<BoundedResult<T>> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise.then<BoundedResult<T>, BoundedResult<T>>(
+        (value) => ({ status: "fulfilled", value }),
+        () => ({ status: "rejected" }),
+      ),
+      new Promise<BoundedResult<T>>((resolve) => {
+        timeout = setTimeout(
+          () => resolve({ status: "timed-out" }),
+          SCREENSHOT_OVERLAY_EVAL_CAP_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+function restoreCursorOverlay(cdp: CdpSession): Promise<unknown> {
+  return evalJs(cdp, RESTORE_OVERLAY_AFTER_SCREENSHOT);
+}
+
+/** Show or hide the page-level agent presence visuals for an explicit MCP
+ * session. Best-effort so presence bookkeeping never blocks browser work. */
+export async function setCursorOverlayVisible(cdp: CdpSession, visible: boolean): Promise<void> {
+  const expression = visible
+    ? `(() => { document.getElementById(${JSON.stringify(SESSION_OVERLAY_STYLE_ID)})?.remove(); return true; })()`
+    : `(() => {
+        const ID=${JSON.stringify(SESSION_OVERLAY_STYLE_ID)};
+        let style=document.getElementById(ID);
+        if(!style){
+          style=document.createElement("style");
+          style.id=ID;
+          style.textContent=${JSON.stringify(CURSOR_OVERLAY_HIDDEN_CSS)};
+          (document.head||document.documentElement).appendChild(style);
+        }
+        return true;
+      })()`;
+  await settleBounded(evalJs(cdp, expression));
+}
+
+/** Hide the agent-presence cursor and click ripples for the duration of a page
+ * screenshot, then restore them even if capture fails. The injected style is
+ * reference-counted so overlapping captures cannot reveal the overlay early. */
+export async function withCursorOverlayHidden<T>(
+  cdp: CdpSession,
+  capture: () => Promise<T>,
+): Promise<T> {
+  let shouldRestore = false;
+  let captureFinished = false;
+  const hidePromise = evalJs<boolean>(cdp, HIDE_OVERLAY_FOR_SCREENSHOT);
+  const hideResult = await settleBounded(hidePromise);
+  if (hideResult.status === "fulfilled") {
+    shouldRestore = hideResult.value;
+  } else if (hideResult.status === "timed-out") {
+    // If a delayed CDP command eventually installs the style, pair it with a
+    // delayed restore so the cursor cannot remain hidden indefinitely.
+    void hidePromise.then(
+      (didHide) => {
+        if (!didHide) return;
+        if (captureFinished) void restoreCursorOverlay(cdp).catch(() => {});
+        else shouldRestore = true;
+      },
+      () => {},
+    );
+  }
+
+  try {
+    return await capture();
+  } finally {
+    captureFinished = true;
+    if (shouldRestore) {
+      await settleBounded(restoreCursorOverlay(cdp));
+    }
+  }
+}
 
 /** JS that ensures the cursor, glides it to `targetExpr`'s center, then ripples.
  *  `targetExpr` must evaluate to the element (or null). Resolves after the glide

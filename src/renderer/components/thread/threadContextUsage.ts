@@ -7,7 +7,7 @@ import type {
   ThreadContextUsage,
 } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
-import { capabilitiesForPresentation } from "@/shared/agentSelection";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { formatTokenCount } from "./formatTokenCount";
 
 export interface ThreadContextUsageSummary {
@@ -38,7 +38,7 @@ export function resolveThreadContextUsageSummary(input: {
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
   const capabilities = agentStatus
-    ? capabilitiesForPresentation(agentStatus.capabilities, presentationMode)
+    ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef).capabilities
     : undefined;
   const configuredMaxTokens = inferConfiguredContextLimit(thread, capabilities);
   const usedTokens = reportedUsage?.usedTokens;
@@ -94,10 +94,11 @@ function inferConfiguredContextLimit(
   thread: Thread,
   capabilities: AgentCapability | undefined,
 ): number | undefined {
+  const model = thread.config?.model;
   const contextId =
-    thread.config.contextSize ??
-    parseContextSizeParam(thread.config.model) ??
-    capabilities?.modelContextSizes?.[thread.config.model]?.[0] ??
+    thread.config?.contextSize ??
+    parseContextSizeParam(model) ??
+    (model ? capabilities?.modelContextSizes?.[model]?.[0] : undefined) ??
     capabilities?.defaultContextSize;
   const option = contextId
     ? capabilities?.contextSizes?.find((candidate) => candidate.id === contextId)
@@ -106,11 +107,12 @@ function inferConfiguredContextLimit(
   return (
     parseContextTokenLimit(option?.label) ??
     parseContextTokenLimit(contextId) ??
-    parseContextTokenLimit(thread.config.model)
+    parseContextTokenLimit(model)
   );
 }
 
-function parseContextSizeParam(modelId: string): string | undefined {
+function parseContextSizeParam(modelId: string | undefined): string | undefined {
+  if (!modelId) return undefined;
   const bracket = /\[([^\]]+)\]/.exec(modelId)?.[1];
   if (!bracket) return undefined;
   const contextParam = /(?:^|,)\s*context\s*=\s*([^,\]]+)/i.exec(bracket)?.[1]?.trim();

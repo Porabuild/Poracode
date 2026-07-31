@@ -18,6 +18,7 @@ import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
+import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { readBridge } from "@/renderer/bridge";
 import {
@@ -41,6 +42,7 @@ import {
 import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
+import { SAVED_CREDENTIAL_MASK } from "../secretMask";
 import { ClaudeProfileProviderSettings } from "../ClaudeProfileSettings";
 import { AgentSettingRow } from "./parts/AgentSettingRow";
 import { ModelVisibilityDropdown } from "./parts/ModelVisibilityDropdown";
@@ -51,11 +53,10 @@ import {
   findEnvVarAuthMethod,
   findTerminalLoginStatus,
   formatStatusList,
+  resolveLivePlanLabel,
   statusEnvKey,
   supportsAcpLogoutStatus,
 } from "./parts/authHelpers";
-
-const SAVED_SECRET_MASK = "***********";
 
 export function SingleAgentSettings(props: {
   agentKind: string;
@@ -94,6 +95,9 @@ export function SingleAgentSettings(props: {
   const [redetectingEnvKey, setRedetectingEnvKey] = useState<string | undefined>();
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  // Live quota read for this provider. Its plan supersedes the detected one,
+  // which is frozen into provider credentials at sign-in time.
+  const providerUsage = useProviderUsage(props.agentKind);
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
   const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
@@ -364,13 +368,7 @@ export function SingleAgentSettings(props: {
       command: status.loginCommand,
       ...(method?.env ? { env: method.env } : {}),
       ...(project ? { project } : {}),
-      onCommandComplete: (exitCode) => {
-        if (exitCode !== 0) {
-          setAuthPending(false);
-          setAuthPendingMessage(undefined);
-          setAuthPendingEnvKey(undefined);
-          return;
-        }
+      onCommandComplete: () => {
         setAuthPendingMessage(
           env
             ? t`Refreshing ${env} ${status.label} authentication status.`
@@ -603,6 +601,7 @@ export function SingleAgentSettings(props: {
             agentKinds: [props.agentKind],
             envs: [scopeEnvForStatus(status)],
           })
+          .catch(() => undefined)
           .finally(clearPending);
       },
     });
@@ -631,6 +630,12 @@ export function SingleAgentSettings(props: {
             ? [terminalMethod]
             : []
       : [];
+    // Match against whichever identity the row actually displays, so the live
+    // plan is only adopted when it belongs to that same account.
+    const rowMetadata =
+      providerAccount && status.authState === "authenticated"
+        ? providerAccount
+        : status.providerMetadata;
     return (
       <AgentEnvironmentRow
         key={`${status.kind}-${envKey}`}
@@ -644,6 +649,7 @@ export function SingleAgentSettings(props: {
         includeAuthFallback={includeAuthFallbackMetadata}
         isRedetecting={redetectingEnvKey === envKey}
         latestNpmVersion={latestNpmVersion}
+        livePlan={resolveLivePlanLabel(rowMetadata, providerUsage)}
         newestInstalledVersion={newestInstalledVersion}
         pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
         status={status}
@@ -673,9 +679,23 @@ export function SingleAgentSettings(props: {
     );
   };
 
+  const environmentRows = (
+    <>
+      {installedHere.map(renderInstalledEnvironmentRow)}
+      {installableHere.map(renderInstallableEnvironmentRow)}
+      {installedWsl.map(renderInstalledEnvironmentRow)}
+      {installableWsl.map(renderInstallableEnvironmentRow)}
+    </>
+  );
+  // Panels that group several runtimes place these rows inside the runtime they
+  // belong to, so leaving them above the panel would strand one runtime's setup
+  // outside the grouping.
+  const panelOwnsInstallRows =
+    providerEntry?.settingsPanel !== undefined && providerEntry.ownsInstallRows === true;
+
   return (
     <div className="mx-auto max-w-[720px]">
-      <div className="mb-6">
+      <div className={panelOwnsInstallRows ? "mb-2" : "mb-6"}>
         <div className="flex items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <ProviderIcon
@@ -723,12 +743,9 @@ export function SingleAgentSettings(props: {
           </div>
         </div>
 
-        <div className="space-y-0.5 border-t border-border/10 pt-3">
-          {installedHere.map(renderInstalledEnvironmentRow)}
-          {installableHere.map(renderInstallableEnvironmentRow)}
-          {installedWsl.map(renderInstalledEnvironmentRow)}
-          {installableWsl.map(renderInstallableEnvironmentRow)}
-        </div>
+        {panelOwnsInstallRows ? null : (
+          <div className="space-y-0.5 border-t border-border/10 pt-3">{environmentRows}</div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -738,6 +755,7 @@ export function SingleAgentSettings(props: {
             statuses={installedStatuses}
             wslDistros={wslDistros}
             onOpenProfile={props.onOpenProfile}
+            {...(panelOwnsInstallRows ? { installRows: environmentRows } : {})}
           />
         ) : null}
 
@@ -776,7 +794,7 @@ export function SingleAgentSettings(props: {
                               hasAuthValue
                                 ? (authValues[variable.name] ?? "")
                                 : allEnvVarSaved
-                                  ? SAVED_SECRET_MASK
+                                  ? SAVED_CREDENTIAL_MASK
                                   : ""
                             }
                             onFocus={() => {

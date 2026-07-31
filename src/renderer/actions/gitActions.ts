@@ -1,6 +1,7 @@
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { startPostPushPrStatusRefresh } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
@@ -11,6 +12,7 @@ import {
   runGitMergeToSource,
   runGitPullFromSource,
   runGitSyncCommand,
+  refreshGitStatusForWorktree,
   showGitActionError,
   showGitOperationFailure,
 } from "./gitCommandRunner";
@@ -100,6 +102,7 @@ export function gitPullRebase(projectId: string, worktreePath: string): void {
 }
 
 export function gitMergeToSource(projectId: string, worktreePath: string): void {
+  if (findExperimentByWorktree(projectId, worktreePath)) return;
   const project = useAppStore.getState().projects.find((p) => p.id === projectId);
   if (!project) return;
   const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
@@ -126,6 +129,7 @@ export function gitMergeToSource(projectId: string, worktreePath: string): void 
 }
 
 export function gitMergeAndRemove(projectId: string, worktreePath: string): void {
+  if (findExperimentByWorktree(projectId, worktreePath)) return;
   const project = useAppStore.getState().projects.find((p) => p.id === projectId);
   if (!project) return;
   const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
@@ -186,6 +190,7 @@ export function gitPullFromSource(projectId: string, worktreePath: string): void
         });
         return;
       }
+      await refreshGitStatusForWorktree(worktreeLocation, worktreePath);
       if (result.conflicting) {
         openGitReviewForWorktree(projectId, worktreePath);
         return;

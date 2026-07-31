@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ToolCallGroup } from "./ToolCallGroup";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 describe("ToolCallGroup", () => {
   beforeEach(() => {
@@ -79,7 +80,7 @@ describe("ToolCallGroup", () => {
     );
 
     // Header still derives from the summary while collapsed.
-    expect(screen.getByText("2 views")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 views"))).toBeInTheDocument();
     // No child row content and no viewport container are mounted.
     expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
     expect(screen.queryByText("Read file one")).not.toBeInTheDocument();
@@ -101,11 +102,119 @@ describe("ToolCallGroup", () => {
     const onHeightChange = vi.fn<() => void>(() => {
       expect(container?.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
     });
-    const view = renderToolCallGroup(threadId, [items[0]!.id], true, onHeightChange);
+    const beginVirtualizerLayoutChange = vi.fn<() => void>();
+    const view = renderToolCallGroup(
+      threadId,
+      [items[0]!.id],
+      true,
+      onHeightChange,
+      beginVirtualizerLayoutChange,
+    );
     container = view.container;
 
     fireEvent.click(screen.getByRole("button", { name: /1 view/i }));
 
+    expect(beginVirtualizerLayoutChange).toHaveBeenCalledOnce();
+    expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[0]!).toBeLessThan(
+      onHeightChange.mock.invocationCallOrder[0]!,
+    );
+    expect(onHeightChange).toHaveBeenCalledOnce();
+  });
+
+  it("remeasures after every explicit expand and collapse commit", () => {
+    const threadId = "thread-1";
+    const items = [makeToolItem("tool-1", "Read file one")];
+    seedThread(threadId, items);
+    let container: HTMLElement | null = null;
+    const committedLayouts: boolean[] = [];
+    const onHeightChange = vi.fn<() => void>(() => {
+      committedLayouts.push(
+        container?.querySelector(".poracode-tool-call-group-viewport") !== null,
+      );
+    });
+    const beginVirtualizerLayoutChange = vi.fn<() => void>();
+    const view = renderToolCallGroup(
+      threadId,
+      [items[0]!.id],
+      false,
+      onHeightChange,
+      beginVirtualizerLayoutChange,
+    );
+    container = view.container;
+    const trigger = screen.getByRole("button", { name: /1 view/i });
+
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+    fireEvent.click(trigger);
+
+    expect(committedLayouts).toEqual([true, false, true]);
+    expect(onHeightChange).toHaveBeenCalledTimes(3);
+    expect(beginVirtualizerLayoutChange).toHaveBeenCalledTimes(3);
+    for (let index = 0; index < 3; index += 1) {
+      expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[index]!).toBeLessThan(
+        onHeightChange.mock.invocationCallOrder[index]!,
+      );
+    }
+  });
+
+  it("remeasures after Show all and Show less commit their row sets", () => {
+    const threadId = "thread-1";
+    const items = Array.from({ length: 10 }, (_, index) =>
+      makeToolItem(`tool-${index + 1}`, `Read file ${index + 1}`),
+    );
+    seedThread(threadId, items);
+    const committedFirstRows: boolean[] = [];
+    const onHeightChange = vi.fn<() => void>(() => {
+      committedFirstRows.push(screen.queryByText("Read file 1") !== null);
+    });
+    const beginVirtualizerLayoutChange = vi.fn<() => void>();
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      true,
+      onHeightChange,
+      beginVirtualizerLayoutChange,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+
+    expect(committedFirstRows).toEqual([true, false]);
+    expect(onHeightChange).toHaveBeenCalledTimes(2);
+    expect(beginVirtualizerLayoutChange).toHaveBeenCalledTimes(2);
+    for (let index = 0; index < 2; index += 1) {
+      expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[index]!).toBeLessThan(
+        onHeightChange.mock.invocationCallOrder[index]!,
+      );
+    }
+  });
+
+  it("auto-collapses and remeasures when it stops being the live tail", () => {
+    const threadId = "thread-1";
+    const items = [makeToolItem("tool-1", "Read file one")];
+    seedThread(threadId, items);
+    let container: HTMLElement | null = null;
+    const onHeightChange = vi.fn<() => void>(() => {
+      expect(container?.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+    });
+    const view = renderToolCallGroup(threadId, [items[0]!.id], true, onHeightChange);
+    container = view.container;
+
+    expect(screen.getByText("Read file one")).toBeInTheDocument();
+
+    view.rerender(
+      <AppProvider>
+        <ToolCallGroup
+          threadId={threadId}
+          itemIds={[items[0]!.id]}
+          isLive={false}
+          onHeightChange={onHeightChange}
+        />
+      </AppProvider>,
+    );
+
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+    expect(screen.queryByText("Read file one")).not.toBeInTheDocument();
     expect(onHeightChange).toHaveBeenCalledOnce();
   });
 
@@ -164,10 +273,34 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
+    // Edit-only groups stay collapsed while live — open to inspect per-row diffs.
+    expandGroup(/2 edits/i);
+
     expect(screen.getByText("+4")).toHaveClass("text-success");
     expect(screen.getAllByText("-2")[0]).toHaveClass("text-danger");
     expect(screen.getByText("+5")).toHaveClass("text-success");
     expect(screen.queryByText("-0")).not.toBeInTheDocument();
+  });
+
+  it("shows combined diff counts for edits in a mixed group header", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeReasoningItem("reasoning-1", "Planning the edits."),
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }, "src/one.ts"),
+      makeCommandItem("cmd-1", "pnpm run test"),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }, "src/two.ts"),
+      makeFileChangeItem("file-3", { added: 2, removed: 1 }, "src/three.ts"),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    const heading = screen.getByRole("button", { name: /3 edits/i });
+    expect(within(heading).getByText("+11")).toHaveClass("text-success");
+    expect(within(heading).getByText("-6")).toHaveClass("text-danger");
   });
 
   it("summarizes same-file edit groups with the file path and total diff", () => {
@@ -190,7 +323,45 @@ describe("ToolCallGroup", () => {
     expect(within(heading).getByText("-5")).toHaveClass("text-danger");
   });
 
-  it("flattens same-file edit groups into stacked diffs without per-edit rows", async () => {
+  it("does not auto-expand live edit-only groups", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }, "src/a.ts"),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }, "src/b.ts"),
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      true,
+    );
+
+    // Multi-file edit run: still "2 edits", but never open by itself while live.
+    const heading = screen.getByRole("button", { name: /2 edits/i });
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+  });
+
+  it("still auto-expands live groups that include non-edit tools", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeToolItem("tool-1", "Read file one"),
+      makeFileChangeItem("file-1", { added: 1, removed: 0 }),
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      true,
+    );
+
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).not.toBeNull();
+    expect(screen.getByText("Read file one")).toBeInTheDocument();
+  });
+
+  it("flattens same-file edit groups into one merged file diff without per-edit rows", async () => {
     const threadId = "thread-1";
     const items = [
       makeFileChangeItem("file-1", { added: 4, removed: 2 }),
@@ -203,9 +374,12 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    // No nested per-edit disclosure rows — diffs render directly.
+    expandGroup(/2 edits:/i);
+
+    // No nested per-edit disclosure rows — one merged file diff renders directly.
     expect(screen.queryByRole("button", { name: /^Edit:/i })).not.toBeInTheDocument();
     const viewport = getViewport(view.container);
+    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(1);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
       expect((viewport.textContent?.match(/new/g) ?? []).length).toBeGreaterThanOrEqual(2);
@@ -230,8 +404,9 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByRole("button", { name: /2 edits:/i })).toBeInTheDocument();
+    expandGroup(/2 edits:/i);
     const viewport = getViewport(view.container);
+    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(1);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
       expect((viewport.textContent?.match(/const answer = 42;/g) ?? []).length).toBe(2);
@@ -244,6 +419,8 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    // Edit-only groups stay collapsed while live — open the group, then the row.
+    expandGroup(/1 edit/i);
     fireEvent.click(screen.getByText("src/foo.ts"));
 
     await waitFor(() => {
@@ -260,6 +437,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
 
     expect(screen.getByText("+3")).toHaveClass("text-success");
     fireEvent.click(screen.getByText("chatPaneSelectors.ts"));
@@ -278,6 +456,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
 
     expect(screen.getByText("+1")).toHaveClass("text-success");
     expect(screen.getByText("-1")).toHaveClass("text-danger");
@@ -297,6 +476,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
 
     expect(screen.getByText("+1")).toHaveClass("text-success");
     expect(screen.getByText("-1")).toHaveClass("text-danger");
@@ -353,6 +533,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
 
     expect(screen.getByText("+2")).toHaveClass("text-success");
     fireEvent.click(screen.getByText("runtimeToolGrouping.ts"));
@@ -389,6 +570,29 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("Install packages · pnpm install")).toBeInTheDocument();
   });
 
+  it("cleans and syntax-highlights batched Codex sed views", async () => {
+    const threadId = "thread-1";
+    const item: RuntimeChatItem = {
+      ...makeCommandItem(
+        "cmd-batched-view",
+        `/bin/zsh -lc "sed -n '1,80p' src/shared/settings.ts; sed -n '570,630p' src/shared/settings.ts"`,
+      ),
+      streams: {
+        command_output: 'import { z } from "zod";\nexport const setting = true;\n',
+      },
+    };
+    seedThread(threadId, [item]);
+
+    const view = renderToolCallGroup(threadId, [item.id]);
+
+    expect(screen.queryByText(";src/shared/settings.ts")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("src/shared/settings.ts"));
+
+    await waitFor(() => {
+      expect(view.container.querySelector(".lc-shiki")).toBeInTheDocument();
+    });
+  });
+
   it("categorizes persisted compacted tool summaries by their labels", () => {
     const threadId = "thread-1";
     const items = [
@@ -403,8 +607,8 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("2 commands")).toBeInTheDocument();
-    expect(screen.getByText("1 edit")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 edit"))).toBeInTheDocument();
   });
 
   it("categorizes ApplyPatch tool calls as edits in the group heading", () => {
@@ -420,7 +624,7 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("2 edits")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 edits"))).toBeInTheDocument();
   });
 
   it("renders semantic tool-like item buckets as tool rows", () => {
@@ -452,6 +656,38 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("github · search")).toBeInTheDocument();
     expect(screen.getAllByText("screen.png").length).toBeGreaterThan(0);
     expect(screen.getByText("Tool search · deploy")).toBeInTheDocument();
+  });
+
+  it("summarizes MCP calls separately from generic tools", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeSemanticToolItem("mcp-1", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeSemanticToolItem("mcp-2", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeSemanticToolItem("mcp-3", "mcp_tool_call", {
+        name: "wait_for_agent",
+        serverId: "crossagents",
+        status: "success",
+      }),
+      makeReasoningItem("reasoning-1", "Testing website build and pnpm config"),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    expect(screen.getByText(byTextContent("3 MCPs"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 thought"))).toBeInTheDocument();
+    expect(screen.queryByText(byTextContent("3 tools"))).not.toBeInTheDocument();
   });
 
   it("keeps web searches visible when Codex omits the query", () => {
@@ -487,18 +723,19 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    const animatedTitles = Array.from(
-      view.container.querySelectorAll("code.poracode-thinking-text"),
-    );
+    // Rows with structured titles shimmer only the stable prefix (a <span>);
+    // plain titles shimmer the whole <code>. The path segment must never be
+    // part of the shimmer — mutating text under background-clip:text ghosts.
+    const animatedTitles = Array.from(view.container.querySelectorAll(".poracode-thinking-text"));
     expect(animatedTitles).toHaveLength(4);
     expect(animatedTitles.map((title) => title.getAttribute("data-poracode-shimmer-text"))).toEqual(
-      ["Read file", "Check · pnpm run test", "Edit · src/foo.ts", "Poracode"],
+      ["Read file", "Check · pnpm run test", "Edit · ", "Poracode"],
     );
     expect(screen.queryByText("Working")).not.toBeInTheDocument();
     expect(view.container.querySelector(".poracode-pixel-loader")).toBeNull();
   });
 
-  it("renders completed reasoning as a collapsed Thought row with a text preview", () => {
+  it("renders reasoning rows inside the group and counts them in the summary", () => {
     const threadId = "thread-1";
     const items = [
       makeReasoningItem(
@@ -506,6 +743,7 @@ describe("ToolCallGroup", () => {
         "Weighing the tradeoffs.\nChoosing the focused change.\nEditing the selector.",
       ),
       makeToolItem("tool-1", "Read file"),
+      makeToolItem("tool-2", "Read other file"),
     ];
     seedThread(threadId, items);
 
@@ -514,54 +752,96 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("1 thought")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 thought"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 views"))).toBeInTheDocument();
     expect(screen.getByText("Thought")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Weighing the tradeoffs. · Choosing the focused change. · Editing the selector.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Thought").closest("button")).toHaveClass("overflow-hidden");
-    expect(
-      screen.getByText(
-        "Weighing the tradeoffs. · Choosing the focused change. · Editing the selector.",
-      ),
-    ).toHaveClass("truncate");
+    expect(screen.getByText("Read file")).toBeInTheDocument();
+    expect(screen.getByText("Read other file")).toBeInTheDocument();
   });
 
-  it("keeps streaming reasoning collapsed with a live last-line preview, then settles on completion", async () => {
+  it("merges consecutive same-file edits inside a mixed group into one edit row", () => {
     const threadId = "thread-1";
-    const items: RuntimeChatItem[] = [
-      { ...makeReasoningItem("reasoning-1", "Considering the edge cases"), state: "updated" },
-      makeToolItem("tool-1", "Read file"),
+    const items = [
+      makeToolItem("tool-1", "Read file one"),
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }),
     ];
     seedThread(threadId, items);
 
-    renderToolCallGroup(
+    const view = renderToolCallGroup(
       threadId,
       items.map((item) => item.id),
     );
 
-    // Streaming: shimmering "Thinking" title, collapsed, with the current line
-    // as trailing meta — not an expanded viewport.
-    expect(screen.getByText("Thinking")).toBeInTheDocument();
-    const thinkingTrigger = screen.getByText("Thinking").closest("button");
-    expect(thinkingTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(await screen.findByText("Considering the edge cases")).toBeInTheDocument();
+    // Mixed group auto-expands live; the two consecutive foo.ts edits render
+    // as one merged "2 edits: foo.ts" run row next to the view row.
+    const viewport = getViewport(view.container);
+    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(2);
+    const runRow = screen.getByRole("button", { name: /2 edits:/i });
+    expect(within(runRow).getByText("foo.ts")).toBeInTheDocument();
+    expect(within(runRow).getByText("+9")).toHaveClass("text-success");
+    expect(within(runRow).getByText("-5")).toHaveClass("text-danger");
+    expect(screen.getByText("Read file one")).toBeInTheDocument();
+  });
 
-    act(() => {
-      seedThread(threadId, [
-        makeReasoningItem("reasoning-1", "Considering the edge cases"),
-        items[1]!,
-      ]);
-    });
+  it("merges only the consecutive same-file pair in a multi-file edit run", () => {
+    const threadId = "thread-1";
+    // Mirrors a real Claude turn: five edits across four files where only the
+    // 3rd/4th target the same file back-to-back, followed by a lint command.
+    const items = [
+      makeFileChangeItem("edit-1", { added: 2, removed: 10 }, "src/a/chatPaneSelectors.ts"),
+      makeFileChangeItem("edit-2", { added: 3, removed: 4 }, "src/b/toolCallCategorization.ts"),
+      makeFileChangeItem("edit-3", { added: 1, removed: 1 }, "src/a/chatPaneSelectors.test.ts"),
+      makeFileChangeItem("edit-4", { added: 7, removed: 5 }, "src/a/chatPaneSelectors.test.ts"),
+      makeFileChangeItem(
+        "edit-5",
+        { added: 1, removed: 2 },
+        "src/b/toolCallCategorization.test.ts",
+      ),
+      makeCommandItem("cmd-1", "pnpm run lint"),
+    ];
+    seedThread(threadId, items);
 
-    // Completion: stays collapsed as a "Thought" row with the preview as meta.
-    await waitFor(() => expect(screen.getByText("Thought")).toBeInTheDocument());
-    const trigger = screen.getByText("Thought").closest("button");
-    expect(trigger).not.toBeNull();
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByText("Considering the edge cases")).toBeInTheDocument();
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    // Header keeps physical counts; the run merge is a body-level treatment.
+    // The command makes this a mixed group, so it auto-expands while live.
+    expect(screen.getByText(byTextContent("5 edits"))).toBeInTheDocument();
+
+    // 6 items render as 5 rows: the consecutive same-file pair collapses into
+    // one "2 edits: chatPaneSelectors.test.ts" row with the summed diff.
+    const viewport = getViewport(view.container);
+    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(5);
+    const runRow = screen.getByRole("button", { name: /2 edits:/i });
+    expect(within(runRow).getByText("chatPaneSelectors.test.ts")).toBeInTheDocument();
+    expect(within(runRow).getByText("+8")).toHaveClass("text-success");
+    expect(within(runRow).getByText("-6")).toHaveClass("text-danger");
+    expect(screen.getAllByText("chatPaneSelectors.test.ts")).toHaveLength(1);
+  });
+
+  it("keeps same-file edits separate when another tool call sits between them", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
+      makeToolItem("tool-1", "Read file one"),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }),
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    // The interposed tool call breaks the run: no merged "2 edits" row, each
+    // edit stays its own row — but all three still live in the same group.
+    const viewport = getViewport(view.container);
+    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: /2 edits:/i })).not.toBeInTheDocument();
+    expect(screen.getAllByText("foo.ts")).toHaveLength(2);
   });
 
   it("categorizes sub-agent tools as commands", () => {
@@ -571,7 +851,7 @@ describe("ToolCallGroup", () => {
 
     renderToolCallGroup(threadId, [items[0]!.id]);
 
-    expect(screen.getByText("1 command")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("1 command"))).toBeInTheDocument();
   });
 
   it("prefers a synthesized diff over non-diff streamed status text", async () => {
@@ -580,6 +860,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
     fireEvent.click(screen.getByText("src/foo.ts"));
 
     await waitFor(() => {
@@ -597,6 +878,7 @@ function renderToolCallGroup(
   itemIds: readonly string[],
   isLive = true,
   onHeightChange?: () => void,
+  onVirtualizerLayoutChange?: () => void,
 ) {
   return render(
     <AppProvider>
@@ -605,9 +887,15 @@ function renderToolCallGroup(
         itemIds={itemIds}
         isLive={isLive}
         {...(onHeightChange ? { onHeightChange } : {})}
+        {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
       />
     </AppProvider>,
   );
+}
+
+/** Open a live edit-only group that stays collapsed by default. */
+function expandGroup(name: RegExp) {
+  fireEvent.click(screen.getByRole("button", { name }));
 }
 
 function seedThread(threadId: string, items: readonly RuntimeChatItem[]) {

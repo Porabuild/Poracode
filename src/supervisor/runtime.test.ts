@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RuntimeEvent } from "@/shared/contracts";
+import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import type { SessionRuntime } from "./runtime/sessionTypes";
 
 const taskkillSpawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
@@ -331,7 +331,12 @@ describe("SupervisorRuntime thread input", () => {
   it("rolls back provider conversation through the structured session", async () => {
     const runtime = makeRuntime(() => undefined);
     const rollbackThread = vi
-      .fn<(numTurns: number) => Promise<{ providerSessionId: string; messages: [] }>>()
+      .fn<
+        (
+          numTurns: number,
+          config?: ThreadConfig,
+        ) => Promise<{ providerSessionId: string; messages: [] }>
+      >()
       .mockResolvedValue({ providerSessionId: "provider-session-1", messages: [] });
     const session = createRuntimeSession({
       sessionRef: { providerSessionId: "provider-session-1" },
@@ -351,12 +356,18 @@ describe("SupervisorRuntime thread input", () => {
       session,
     );
 
+    const config: ThreadConfig = {
+      model: "gpt-5.6-terra",
+      approvalPolicy: "on-request",
+      sandboxMode: "workspace-write",
+    };
     await runtime.threadSessionManager.rollbackThreadConversation({
       threadId: session.threadId,
       numTurns: 2,
+      config,
     });
 
-    expect(rollbackThread).toHaveBeenCalledWith(2);
+    expect(rollbackThread).toHaveBeenCalledWith(2, config);
   });
 
   it("rejects checkpoint rollback when the provider does not support it", async () => {

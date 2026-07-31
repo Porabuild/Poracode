@@ -6,8 +6,8 @@ import { getComputerUseScope } from "./computerUseScope";
 // terminal="none" fallback; Codex opts terminal in, OpenCode/Antigravity opt
 // everything out.
 const undeclared = {};
-const codexLike = { computerUseMcpScope: { terminal: "launch", gui: "launch" } } as const;
-const optedOut = { computerUseMcpScope: { terminal: "none", gui: "none" } } as const;
+const codexLike = { mcpScope: { terminal: "launch", gui: "launch" } } as const;
+const optedOut = { mcpScope: { terminal: "none", gui: "none" } } as const;
 
 describe("getComputerUseScope", () => {
   it("disables Computer Use for WSL projects", () => {

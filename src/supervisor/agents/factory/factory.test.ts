@@ -29,7 +29,7 @@ describe("Factory Droid detection", () => {
       presentationModes: ["gui"],
       supportsResume: true,
       supportsOneShot: true,
-      defaultApprovalPolicy: "normal",
+      defaultApprovalPolicy: "auto-high",
       bypassPermissions: { approvalPolicy: "auto-high" },
     });
   });
@@ -114,7 +114,12 @@ describe("Factory Droid adapter", () => {
         { id: "agent", projectPath: ".agent/skills" },
       ],
       projectionRoots: [
-        { id: "factory", globalPath: ".factory/skills", projectPath: ".factory/skills" },
+        {
+          id: "factory",
+          globalPath: ".factory/skills",
+          projectPath: ".factory/skills",
+          linkProjectionFromVersion: "0.56.0",
+        },
       ],
       invocation: "slash",
     });

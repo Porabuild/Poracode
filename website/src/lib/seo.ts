@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import contact from "../../../branding/contact.json";
 import { LANDING_FAQ_ITEMS } from "@/lib/landingFaq";
 import type { ReleaseInfo } from "@/lib/releases";
 import { DEFAULT_LOCALE, LOCALE_CODES, localizedPath, type Locale } from "./i18n/config";
@@ -48,14 +49,27 @@ export const SEO_KEYWORDS = [
   "OpenCode",
   "ACP Registry",
   "AI agent orchestrator",
+  "MCP server for coding agents",
+  "agent to agent delegation",
+  "Crossagents",
+  "multi agent coding workflow",
+  "Git worktree automation",
+  "AI agent skills marketplace",
+  "on-device voice dictation for coding",
+  "open source AI coding agent app",
+  "free Claude Code GUI",
+  "run coding agents over SSH",
   "developer tools",
 ];
 
 export const SITEMAP_ROUTES = [
   { path: "/", changeFrequency: "weekly", priority: 1, localized: true },
   { path: "/download", changeFrequency: "daily", priority: 0.9, localized: true },
+  { path: "/about", changeFrequency: "monthly", priority: 0.6, localized: false },
   { path: "/changelog", changeFrequency: "weekly", priority: 0.7, localized: false },
   { path: "/nightly", changeFrequency: "daily", priority: 0.5, localized: true },
+  { path: "/support", changeFrequency: "monthly", priority: 0.4, localized: false },
+  { path: "/privacy", changeFrequency: "yearly", priority: 0.2, localized: false },
 ] as const;
 
 export function absoluteUrl(path: string): string {
@@ -144,6 +158,8 @@ export function createHomeJsonLd(release: ReleaseInfo, locale: Locale = DEFAULT_
     "@id": `${SITE_URL}/#organization`,
     name: SITE_NAME,
     url: SITE_URL,
+    description: SITE_DESCRIPTION,
+    email: contact.supportEmail,
     logo: {
       "@type": "ImageObject",
       url: absoluteUrl("/icon-512.png"),
@@ -151,6 +167,12 @@ export function createHomeJsonLd(release: ReleaseInfo, locale: Locale = DEFAULT_
       height: 512,
     },
     sameAs: [GITHUB_URL],
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "technical support",
+      email: contact.supportEmail,
+      url: absoluteUrl("/support"),
+    },
   };
 
   const softwareApplication = {
@@ -195,6 +217,14 @@ export function createHomeJsonLd(release: ReleaseInfo, locale: Locale = DEFAULT_
       "Run Claude Code, Codex, Gemini, Cursor, OpenCode, and ACP agents",
       "Use terminal-native and structured chat workflows side by side",
       "Keep browser previews, Git diffs, branches, worktrees, and PRs in one workspace",
+      "Let agents orchestrate the app through built-in MCP servers: threads, worktrees, Git, pull requests, MCP servers, skills, and settings",
+      "Delegate work from one coding agent to another with Crossagents",
+      "Compare agents on the same prompt in parallel worktrees and merge the winner",
+      "Schedule recurring agent runs and automate pull-request watching and merging",
+      "Install agent skills from public marketplaces and share them across every provider",
+      "Dictate prompts with on-device Whisper speech recognition",
+      "Rewind a conversation to an earlier checkpoint and restore the files with it",
+      "Run agents on remote machines over SSH with an auto-installed runtime",
       "Resume persistent AI coding sessions across macOS, Windows, and Linux",
     ],
     potentialAction: {
@@ -209,6 +239,7 @@ export function createHomeJsonLd(release: ReleaseInfo, locale: Locale = DEFAULT_
     "@type": "WebSite",
     "@id": `${SITE_URL}/#website`,
     name: SITE_NAME,
+    alternateName: ["Pora.code", "poracode.com"],
     url: SITE_URL,
     description: SITE_DESCRIPTION,
     publisher: {
@@ -230,6 +261,24 @@ export function createHomeJsonLd(release: ReleaseInfo, locale: Locale = DEFAULT_
   };
 
   return [organization, website, softwareApplication, faqPage];
+}
+
+export function createAboutJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "@id": `${absoluteUrl("/about")}#page`,
+    url: absoluteUrl("/about"),
+    name: `About ${SITE_NAME}`,
+    description: SITE_DESCRIPTION,
+    isPartOf: {
+      "@id": `${SITE_URL}/#website`,
+    },
+    mainEntity: {
+      "@id": `${SITE_URL}/#software`,
+    },
+    about: [{ "@id": `${SITE_URL}/#software` }, { "@id": `${SITE_URL}/#organization` }],
+  };
 }
 
 export function stringifyJsonLd(value: unknown): string {

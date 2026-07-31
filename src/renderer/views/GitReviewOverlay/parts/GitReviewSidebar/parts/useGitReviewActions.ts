@@ -1,8 +1,19 @@
 import { useEffect } from "react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import type { GitBranchInfo, GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
+import {
+  type GitBranchInfo,
+  type GitStatusResult,
+  type Project,
+  type ProjectLocation,
+} from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import {
+  classifyAnalyticsModel,
+  classifyModelFamily,
+  normalizeAnalyticsProvider,
+  normalizeComposerEffort,
+} from "@/shared/analytics/posthogPrivacy";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { resolveAiLanguageName } from "@/shared/locale";
 import { msg, friendlyError, friendlyErrorWithDetail } from "@/shared/messages";
@@ -19,6 +30,7 @@ import { startPostPushPrStatusRefresh } from "@/renderer/state/gitRefresh";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { recordAiAction } from "@/renderer/state/usageRecorder";
+import { applyDefaultPrAutomation } from "@/renderer/actions/prAutomationActions";
 import {
   generateCommitMessageWithFallbackDetails,
   getCommitGenCandidates,
@@ -30,6 +42,7 @@ import {
   runGitMergeToSource,
   runGitPullFromSource,
   runGitSyncCommand,
+  refreshGitStatusForWorktree,
   showGitActionError,
   showGitOperationFailure,
   type GitSyncCommand,
@@ -37,6 +50,7 @@ import {
 
 export interface UseGitReviewActionsArgs {
   project: Project;
+  mergeSyncLocation?: ProjectLocation | undefined;
   gitStatus: GitStatusResult | null | undefined;
   worktreeBranch: string | undefined;
   worktreePath: string | undefined;
@@ -67,6 +81,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const { t } = useLingui();
   const {
     project,
+    mergeSyncLocation,
     gitStatus,
     worktreeBranch,
     worktreePath,
@@ -135,6 +150,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     prBody,
     prGen,
     prTargetBranch,
+    createdPrWatch,
     isGenerating,
     isGeneratingPr,
     isCommitting,
@@ -144,6 +160,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     isAbortingMerge,
     isFinishingMerge,
     isCreatingPr,
+    pullStashCommit,
   } = useGitReviewActionState(storeKey);
   const patch = useGitReviewActionStore((s) => s.patch);
   const setCommitMessage = (value: string) => patch(storeKey, { commitMessage: value });
@@ -160,6 +177,16 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const setIsAbortingMerge = (value: boolean) => patch(storeKey, { isAbortingMerge: value });
   const setIsFinishingMerge = (value: boolean) => patch(storeKey, { isFinishingMerge: value });
   const setIsCreatingPr = (value: boolean) => patch(storeKey, { isCreatingPr: value });
+  function handlePullStashResult(result: {
+    stashReapplied?: boolean;
+    reapplyConflicting?: boolean;
+    stashPreserved?: boolean;
+  }): void {
+    patch(storeKey, { pullStashCommit: null });
+    if (result.stashReapplied) toast.success(msg("git.pull.stashReapplied"));
+    else if (result.reapplyConflicting) toast.warning(msg("git.pull.reapplyConflicts"));
+    else if (result.stashPreserved) toast.warning(msg("git.pull.stashPreserved"));
+  }
   const mergeMessage = gitStatus ? gitStatus.mergeMessage || null : undefined;
 
   useEffect(() => {
@@ -176,6 +203,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const writeActions = usePrWriteActions({
     projectLocation: project.location,
     localSyncLocation: getWorktreeLocation(),
+    ...(mergeSyncLocation ? { mergeSyncLocation } : {}),
     prKey: effectivePrKey,
     branch: effectiveBranch,
     projectId: project.id,
@@ -223,7 +251,11 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   // callers that chain further work — e.g. the combined "Commit & Create PR"
   // action — only proceed when there's actually something pushed to open a PR
   // against.
-  async function handleCommit(addAll: boolean, pushAfter = false): Promise<boolean> {
+  async function handleCommit(
+    addAll: boolean,
+    pushAfter = false,
+    skipDelayedRefresh = false,
+  ): Promise<boolean> {
     setIsCommitting(true);
     try {
       let message = commitMessage.trim();
@@ -242,11 +274,17 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         }
       }
       if (!message) throw new Error("Commit message is required");
-      await readBridge().gitCommit({
+      const commitResult = await readBridge().gitCommit({
         projectLocation: project.location,
         message,
         addAll,
+        ...(gitStatus?.mergeInProgress && pullStashCommit
+          ? { reapplyStashCommit: pullStashCommit }
+          : {}),
       });
+      if (gitStatus?.mergeInProgress && pullStashCommit) {
+        handlePullStashResult(commitResult);
+      }
       captureProductEvent("git.commit_created", {
         add_all: addAll,
         auto_generated_message: autoGeneratedMessage,
@@ -282,7 +320,12 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
           // GitHub takes a beat to register the new commits — refreshing
           // immediately fetches a stale PR snapshot. Delay so the post-push
           // refresh picks up fresh state.
-          setTimeout(() => onRefresh(), 1500);
+          // When the caller chains a PR creation (skipDelayedRefresh), the
+          // delayed refresh would race with handleCreatePr's setPrData and
+          // overwrite it with a stale null from ghGetPrForBranch.
+          if (!skipDelayedRefresh) {
+            setTimeout(() => onRefresh(), 2000);
+          }
         } finally {
           setIsSyncing(false);
         }
@@ -294,7 +337,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       // Run it in the background so the user isn't blocked on a wsl.exe
       // network call (1–2s on WSL).
       readBridge()
-        .gitFetch({ projectLocation: project.location, remote: "origin", prune: false })
+        .gitFetch({ projectLocation: project.location, remote: "origin", prune: true })
         .catch(() => undefined)
         .finally(() => onRefresh());
       return true;
@@ -338,9 +381,11 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         },
       });
       captureProductEvent("git.commit_message_generated", {
-        effort: commitGenEffort || "default",
+        effort: normalizeComposerEffort(commitGenEffort),
         has_worktree: Boolean(worktreePath),
-        provider: generated.provider,
+        model: classifyAnalyticsModel(generated.model),
+        model_family: classifyModelFamily(generated.model),
+        provider: normalizeAnalyticsProvider(generated.provider),
       });
     } catch (err) {
       console.error("[git] generate message failed", err);
@@ -354,16 +399,16 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     setIsSyncing(true);
     try {
       if (needsPush) {
+        await runGitSyncCommand({
+          command: "push",
+          projectLocation: project.location,
+          setUpstream: !hasTracking,
+        });
         captureProductEvent("git.sync_action", {
           action: "push",
           has_remote: hasRemote,
           has_tracking: hasTracking,
           has_worktree: Boolean(worktreePath),
-        });
-        await runGitSyncCommand({
-          command: "push",
-          projectLocation: project.location,
-          setUpstream: !hasTracking,
         });
         refreshPrAfterPush();
         // Optimistic: a successful push clears `ahead`. The refresh below
@@ -372,15 +417,15 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         // GitHub takes a beat to register the new commits — refreshing
         // immediately fetches a stale PR snapshot (mergeable/checks not
         // yet updated). Delay so the post-push refresh picks up fresh state.
-        setTimeout(() => onRefresh(), 1500);
+        setTimeout(() => onRefresh(), 2000);
       } else {
+        await runGitSyncCommand({ command: "sync", projectLocation: project.location });
         captureProductEvent("git.sync_action", {
           action: "sync",
           has_remote: hasRemote,
           has_tracking: hasTracking,
           has_worktree: Boolean(worktreePath),
         });
-        await runGitSyncCommand({ command: "sync", projectLocation: project.location });
         onRefresh();
       }
     } catch (err) {
@@ -393,21 +438,21 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   async function handleSyncAction(key: GitSyncCommand): Promise<void> {
     setIsSyncing(true);
     try {
+      await runGitSyncCommand({
+        command: key,
+        projectLocation: project.location,
+        ...(key === "push" ? { setUpstream: !hasTracking } : {}),
+      });
       captureProductEvent("git.sync_action", {
         action: key,
         has_remote: hasRemote,
         has_tracking: hasTracking,
         has_worktree: Boolean(worktreePath),
       });
-      await runGitSyncCommand({
-        command: key,
-        projectLocation: project.location,
-        ...(key === "push" ? { setUpstream: !hasTracking } : {}),
-      });
       if (key === "push") {
         refreshPrAfterPush();
         applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
-        setTimeout(() => onRefresh(), 1500);
+        setTimeout(() => onRefresh(), 2000);
         return;
       }
       onRefresh();
@@ -470,6 +515,9 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         });
         return;
       }
+      if (worktreePath) {
+        await refreshGitStatusForWorktree(getWorktreeLocation(), worktreePath);
+      }
       if (result.conflicting) {
         onRefresh();
         return;
@@ -489,9 +537,11 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   async function handleAbortMerge(): Promise<void> {
     setIsAbortingMerge(true);
     try {
-      await readBridge().gitAbortMerge({
+      const result = await readBridge().gitAbortMerge({
         worktreeLocation: getWorktreeLocation(),
+        ...(pullStashCommit ? { reapplyStashCommit: pullStashCommit } : {}),
       });
+      handlePullStashResult(result);
       onRefresh();
     } catch (err) {
       console.error("[git] abort merge failed", err);
@@ -506,11 +556,13 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     try {
       const result = await readBridge().gitFinishMerge({
         worktreeLocation: getWorktreeLocation(),
+        ...(pullStashCommit ? { reapplyStashCommit: pullStashCommit } : {}),
       });
       if (!result.success) {
         toast.danger(result.error ?? msg("git.merge.finishFailed"));
         return;
       }
+      handlePullStashResult(result);
       onRefresh();
     } catch (err) {
       console.error("[git] finish merge failed", err);
@@ -544,9 +596,11 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
           ...(gitTextLanguage ? { language: gitTextLanguage } : {}),
         });
         captureProductEvent("git.pr_summary_generated", {
-          effort: resolved.effort || "default",
+          effort: normalizeComposerEffort(resolved.effort),
           has_worktree: Boolean(worktreePath),
-          provider: candidate.kind,
+          model: classifyAnalyticsModel(resolved.model),
+          model_family: classifyModelFamily(resolved.model),
+          provider: normalizeAnalyticsProvider(candidate.kind),
         });
         return { ...result, provider: candidate.kind, model: resolved.model || "default" };
       } catch (err) {
@@ -598,8 +652,15 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         body,
         isDraft,
       });
+      const watch = await applyDefaultPrAutomation({
+        project,
+        prNumber: pr.number,
+        headBranch: effectiveBranch,
+        ...(worktreePath ? { worktreePath } : {}),
+      });
+      patch(storeKey, { createdPrWatch: { prNumber: pr.number, watch } });
       captureProductEvent("git.pr_created", {
-        auto_generated: autoGenerated,
+        auto_generated_message: autoGenerated,
         has_worktree: Boolean(worktreePath),
         is_draft: isDraft,
       });
@@ -617,6 +678,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         useGitStore.getState().setPrData(effectivePrKey, pr);
       }
       patch(storeKey, { prTitle: "", prBody: "", prGen: null });
+      onRefresh();
     } catch (err) {
       console.error("[git] create PR failed", err);
       toast.danger(friendlyError(err));
@@ -630,9 +692,10 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   // opens the dialog), so this stays a single uninterrupted action regardless
   // of the prCreateMode setting.
   async function handleCommitAndCreatePr(addAll: boolean): Promise<void> {
-    const committed = await handleCommit(addAll, true);
+    const committed = await handleCommit(addAll, true, true);
     if (!committed) return;
     await handleCreatePr(false);
+    onRefresh();
   }
 
   async function handleGeneratePrSummary(): Promise<void> {
@@ -679,12 +742,15 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     isPullingFromSource,
     isAbortingMerge,
     isFinishingMerge,
+    pullStashCommit,
     prTitle,
     setPrTitle,
     prBody,
     setPrBody,
     prTargetBranch,
     setPrTargetBranch,
+    createdPrWatch,
+    clearCreatedPrWatch: () => patch(storeKey, { createdPrWatch: null }),
     prLoading,
     prPendingAction: writeActions.pendingAction,
     isGeneratingPr,

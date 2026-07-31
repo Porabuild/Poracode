@@ -22,6 +22,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Poracode uses the camera to scan pairing QR codes.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Poracode connects to the Poracode desktop app on your local network.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

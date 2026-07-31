@@ -1,5 +1,5 @@
 import type { PrFile } from "@/shared/contracts";
-import { FileIcon, PathDisplay } from "@/renderer/components/common";
+import { DiffStat, FileIcon, PathDisplay } from "@/renderer/components/common";
 
 export function PrFileRow(props: { file: PrFile; isSelected: boolean; onSelect: () => void }) {
   const { file, isSelected, onSelect } = props;
@@ -16,9 +16,13 @@ export function PrFileRow(props: { file: PrFile; isSelected: boolean; onSelect: 
     >
       <FileIcon path={file.path} />
       <PathDisplay path={file.path} className="flex-1" />
+      {/* Keep the fixed-width column even for a 0/0 file so rows stay aligned. */}
       <span className="flex w-14 shrink-0 items-center justify-end text-[10px] leading-4 font-medium">
-        {file.additions > 0 && <span className="text-success">+{file.additions}</span>}
-        {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
+        <DiffStat
+          className="flex items-center gap-0.5"
+          insertions={file.additions}
+          deletions={file.deletions}
+        />
       </span>
     </button>
   );

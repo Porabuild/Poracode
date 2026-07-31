@@ -189,8 +189,8 @@ describe("launchTailscaleApp", () => {
 });
 
 describe("buildTailscaleHttpsUrl", () => {
-  it("builds an https origin with trailing slash and strips a trailing dot", () => {
-    expect(buildTailscaleHttpsUrl("host.example.ts.net.")).toBe("https://host.example.ts.net/");
-    expect(buildTailscaleHttpsUrl("  host.example.ts.net  ")).toBe("https://host.example.ts.net/");
+  it("builds an https origin without a trailing slash and strips a trailing dot", () => {
+    expect(buildTailscaleHttpsUrl("host.example.ts.net.")).toBe("https://host.example.ts.net");
+    expect(buildTailscaleHttpsUrl("  host.example.ts.net  ")).toBe("https://host.example.ts.net");
   });
 });

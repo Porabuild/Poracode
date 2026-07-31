@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project, ProjectLocation } from "@/shared/contracts";
+import type { GitStatusResult, PrDetails, Project, ProjectLocation } from "@/shared/contracts";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PrContextProvider, type PrContextValue } from "./prContext";
 import { PrOverviewPage } from "./PrOverviewPage";
@@ -20,9 +20,12 @@ const popoverMock = vi.hoisted(() => ({
       }) => void
     >(),
 }));
+const prWatchControlsMock = vi.hoisted(() => vi.fn<(props: unknown) => void>());
 
 const bridgeMock = vi.hoisted(() => ({
   ghMergePr: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  getGitStatus: vi.fn<() => Promise<GitStatusResult>>(),
+  gitPull: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   openExternal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
@@ -45,6 +48,13 @@ vi.mock("@/renderer/views/PrReviewOverlay/parts/PrHeaderCard", () => ({
 
 vi.mock("@/renderer/views/PrReviewOverlay/parts/PrMetaRow", () => ({
   PrMetaRow: () => <div data-testid="pr-meta-row" />,
+}));
+
+vi.mock("@/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls", () => ({
+  PrWatchControls: (props: unknown) => {
+    prWatchControlsMock(props);
+    return <button type="button">PR automation</button>;
+  },
 }));
 
 vi.mock("@/renderer/hooks/usePrCombinedChecksStatus", () => ({
@@ -90,7 +100,24 @@ function renderOverview(overrides?: Partial<PrContextValue>) {
 describe("PrOverviewPage", () => {
   beforeEach(() => {
     popoverMock.submitReview.mockClear();
+    prWatchControlsMock.mockClear();
     bridgeMock.ghMergePr.mockClear();
+    bridgeMock.getGitStatus.mockReset();
+    bridgeMock.getGitStatus.mockResolvedValue({
+      isRepo: true,
+      branch: "main",
+      tracking: "origin/main",
+      hasRemote: true,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    });
+    bridgeMock.gitPull.mockClear();
+    bridgeMock.gitPull.mockResolvedValue(undefined);
     bridgeMock.openExternal.mockClear();
     bridgeMock.openExternal.mockResolvedValue(undefined);
     toastDangerSpy.mockClear();
@@ -112,6 +139,55 @@ describe("PrOverviewPage", () => {
       hidden: false,
       triggerPresentation: "touch",
       onSubmitted: context.reload,
+    });
+  });
+
+  it("exposes PR automation from the mobile PR overview", () => {
+    const reload = vi.fn<() => void>();
+    const details: PrDetails = {
+      number: 42,
+      title: "Ship mobile automation",
+      body: "",
+      baseBranch: "main",
+      headBranch: "feature/mobile",
+      additions: 1,
+      deletions: 0,
+      changedFiles: 1,
+      mergedAt: null,
+      mergedBy: null,
+      closedAt: null,
+      commits: [],
+      comments: [],
+      reviews: [],
+      checks: [],
+    };
+    useGitStore.setState({
+      prData: {
+        "project-1#42": {
+          number: 42,
+          state: "open",
+          title: details.title,
+          url: "https://github.test/repo/pull/42",
+          baseBranch: details.baseBranch,
+          isDraft: false,
+          mergeable: "MERGEABLE",
+          mergeStateStatus: "CLEAN",
+          viewerDidAuthor: false,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+      prDetails: { "project-1#42": details },
+    });
+
+    renderOverview({ reload, worktreePath: "/repo/worktree" });
+
+    expect(screen.getByRole("button", { name: "PR automation" })).toBeInTheDocument();
+    expect(prWatchControlsMock).toHaveBeenCalledWith({
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      worktreePath: "/repo/worktree",
+      onRefreshPr: reload,
     });
   });
 
@@ -147,6 +223,10 @@ describe("PrOverviewPage", () => {
       });
     });
     expect(useGitStore.getState().prData["project-1#42"]?.state).toBe("merged");
+    expect(bridgeMock.gitPull).toHaveBeenCalledWith({
+      projectLocation,
+      remote: "origin",
+    });
     expect(reload).toHaveBeenCalledOnce();
   });
 

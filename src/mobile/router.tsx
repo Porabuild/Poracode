@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouteMask,
   createRouter,
+  lazyRouteComponent,
   Navigate,
   redirect,
 } from "@tanstack/react-router";
@@ -12,6 +13,13 @@ import { capturePairingLaunch } from "./pairing";
 import { isNativeApp } from "./pwaInstall";
 import { migrateLegacyBrowserRoute, mobileRouterBasePath } from "./routing";
 import { isFullscreenScreenPath, navigationTransitionType } from "./navHelpers";
+import {
+  shouldUseLightweightFullscreenPop,
+  shouldUseLightweightFullscreenPush,
+  shouldUseLightweightSubAgentPop,
+  shouldUseLightweightSubAgentPush,
+  shouldUseLightweightThreadListPop,
+} from "./lightweightThreadListPop";
 import { RootLayout } from "./RootLayout";
 import { WIDE_SHELL_QUERY } from "./useMediaQuery";
 import {
@@ -19,22 +27,31 @@ import {
   DesktopsRoute,
   MoreRoute,
   NewThreadRoute,
+  NotesRoute,
   PortsRoute,
   ProjectsRoute,
   SettingsListRoute,
   SettingsSectionRoute,
+  SubAgentRoute,
   TerminalRoute,
   ThreadRoute,
   ThreadsRoute,
   UsageRoute,
   WorkspaceRoute,
 } from "./routeComponents";
-import { PrChangesPage } from "./views/pr/PrChangesPage";
-import { PrChecksPage } from "./views/pr/PrChecksPage";
-import { PrCommitsPage } from "./views/pr/PrCommitsPage";
-import { PrConversationPage } from "./views/pr/PrConversationPage";
-import { PrLayout } from "./views/pr/PrLayout";
-import { PrOverviewPage } from "./views/pr/PrOverviewPage";
+
+const PrLayout = lazyRouteComponent(() => import("./views/pr/PrLayout"), "PrLayout");
+const PrOverviewPage = lazyRouteComponent(
+  () => import("./views/pr/PrOverviewPage"),
+  "PrOverviewPage",
+);
+const PrChangesPage = lazyRouteComponent(() => import("./views/pr/PrChangesPage"), "PrChangesPage");
+const PrCommitsPage = lazyRouteComponent(() => import("./views/pr/PrCommitsPage"), "PrCommitsPage");
+const PrChecksPage = lazyRouteComponent(() => import("./views/pr/PrChecksPage"), "PrChecksPage");
+const PrConversationPage = lazyRouteComponent(
+  () => import("./views/pr/PrConversationPage"),
+  "PrConversationPage",
+);
 
 // Snapshot pairing credentials before history reads the launch URL, then
 // migrate bookmarks from the former hash/state-backed routers.
@@ -60,6 +77,18 @@ const threadRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/thread/$threadId",
   component: ThreadRoute,
+});
+
+const subAgentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/subagent/$threadId/$parentItemId",
+  component: SubAgentRoute,
+});
+
+const notesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/notes/$threadId",
+  component: NotesRoute,
 });
 
 const newRoute = createRoute({
@@ -207,6 +236,8 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   threadsRoute,
   threadRoute,
+  subAgentRoute,
+  notesRoute,
   newRoute,
   desktopsRoute,
   moreRoute,
@@ -242,6 +273,19 @@ function navigationTransitionTypes(fromPath: string | undefined, toPath: string)
   if (typeof window !== "undefined") {
     if (window.matchMedia(WIDE_SHELL_QUERY).matches) return false;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+  }
+  // iOS Safari can block while snapshotting a long virtualized transcript or a
+  // heavy fullscreen overlay (diff / terminal / PR). NarrowShell animates only
+  // the lightweight incoming layer for these routes, so skip the expensive
+  // snapshot here.
+  if (
+    shouldUseLightweightThreadListPop(fromPath, toPath) ||
+    shouldUseLightweightSubAgentPush(fromPath, toPath) ||
+    shouldUseLightweightSubAgentPop(fromPath, toPath) ||
+    shouldUseLightweightFullscreenPush(fromPath, toPath) ||
+    shouldUseLightweightFullscreenPop(fromPath, toPath)
+  ) {
+    return false;
   }
   // Leaving the mirrored browser view via a native edge-swipe/back already plays
   // the OS's own interactive back animation; running our `pop` slide on top of it

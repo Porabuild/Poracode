@@ -18,7 +18,7 @@ function resolveLoginProject(): Project | undefined {
     if (project) return project;
   }
 
-  if (view.kind === "draft") {
+  if (view.kind === "draft" || view.kind === "experiment") {
     const project = app.projects.find((candidate) => candidate.id === view.projectId);
     if (project) return project;
   }
@@ -62,9 +62,11 @@ export function runAgentLoginCommand(input: {
 
   const shellId = `login:${crypto.randomUUID()}`;
   // On WSL the agent CLI can't reach the Windows browser on its own, so we
-  // suppress its opener (BROWSER=/bin/true) and watch stdout for auth URLs to
-  // hand off via the Windows shell. Native macOS / Windows CLIs already open
-  // their own browser, so a renderer-side watcher would just double-launch.
+  // suppress its opener and watch stdout for auth URLs to hand off via the
+  // Windows shell. Clearing the WSLg display variables matters for CLIs such
+  // as Kimi that call xdg-open directly instead of honoring BROWSER. Native
+  // macOS / Windows CLIs already open their own browser, so a renderer-side
+  // watcher would just double-launch.
   const suppressWslBrowser = project.location.kind === "wsl";
   const interceptWslUrls = suppressWslBrowser && !isGeminiLoginCommand(input);
   // Wipe the bash prompt + echoed script line that briefly appear before the
@@ -72,7 +74,14 @@ export function runAgentLoginCommand(input: {
   // overlay a clean canvas so the user only sees the agent's own UI.
   const loginCommand = buildTerminalCommand({
     command: input.command,
-    env: suppressWslBrowser ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
+    env: suppressWslBrowser
+      ? {
+          ...(input.env ?? {}),
+          BROWSER: "/bin/true",
+          DISPLAY: "",
+          WAYLAND_DISPLAY: "",
+        }
+      : input.env,
     locationKind: project.location.kind,
   });
   const command =
@@ -145,10 +154,15 @@ export function runAgentInstallCommand(input: {
   env?: Record<string, string>;
   onCommandComplete?: (exitCode: number) => void;
   project?: Project;
+  purpose?: "install" | "update";
 }): boolean {
   const project = input.project ?? resolveLoginProject();
   if (!project) {
-    toast.warning(i18n._(msg`Add a project before installing an agent.`));
+    toast.warning(
+      input.purpose === "update"
+        ? i18n._(msg`Add a project before updating an agent.`)
+        : i18n._(msg`Add a project before installing an agent.`),
+    );
     return false;
   }
 
@@ -161,7 +175,7 @@ export function runAgentInstallCommand(input: {
       .catch(() => undefined);
   }
 
-  const shellId = `install:${crypto.randomUUID()}`;
+  const shellId = `${input.purpose ?? "install"}:${crypto.randomUUID()}`;
   const command = buildTerminalCommand({
     command: typeof input.command === "function" ? input.command(project) : input.command,
     env: input.env,
@@ -191,7 +205,7 @@ export function runAgentInstallCommand(input: {
     shellId,
     label: input.label,
     projectLocation: project.location,
-    purpose: "install",
+    purpose: input.purpose ?? "install",
     onForceClose: () => {
       stopWatching();
       fireOnce(-1);

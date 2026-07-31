@@ -130,7 +130,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
           ))
         : null}
       {showGoalInComposer ? (
-        <ThreadGoalDock state={goalDockState!} onDismiss={onGoalDockDismiss} />
+        <ThreadGoalDock threadId={threadId} state={goalDockState!} onDismiss={onGoalDockDismiss} />
       ) : null}
       {showTodoInComposer ? (
         <ThreadTodoDock

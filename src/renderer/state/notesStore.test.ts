@@ -11,9 +11,9 @@ vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
 const PID = "project-1";
 
 beforeEach(() => {
+  useNotesStore.getState().resetSession();
   bridge.dbGetProjectNotes.mockReset().mockResolvedValue(null);
   bridge.dbSetProjectNotes.mockReset().mockResolvedValue(undefined);
-  useNotesStore.setState({ byProject: {} });
   // hasBridge() in the store checks for dbSetProjectNotes on window.poracode.
   window.poracode = bridge as unknown as typeof window.poracode;
 });
@@ -120,5 +120,28 @@ describe("notesStore loading", () => {
     useNotesStore.setState({ byProject: { [PID]: { status: "ready", doc: null, todos: [] } } });
     useNotesStore.getState().ensureLoaded(PID);
     expect(bridge.dbGetProjectNotes).not.toHaveBeenCalled();
+  });
+
+  it("ignores a load that resolves after the desktop session resets", async () => {
+    let resolveLoad:
+      | ((value: { projectId: string; doc: null; todos: []; updatedAt: string }) => void)
+      | undefined;
+    bridge.dbGetProjectNotes.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLoad = resolve;
+      }),
+    );
+
+    useNotesStore.getState().ensureLoaded(PID);
+    useNotesStore.getState().resetSession();
+    resolveLoad?.({
+      projectId: PID,
+      doc: null,
+      todos: [],
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    await vi.waitFor(() => expect(bridge.dbGetProjectNotes).toHaveBeenCalledOnce());
+
+    expect(useNotesStore.getState().byProject).toEqual({});
   });
 });

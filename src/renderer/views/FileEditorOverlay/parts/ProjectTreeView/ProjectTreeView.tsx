@@ -125,7 +125,7 @@ export function ProjectTreeView(props: {
         <div className="flex items-center gap-2 border-b border-[color:var(--border)] px-0 py-2">
           <div
             data-poracode-find-scope="tree"
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-background px-3 py-1.5"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-3xl px-2 py-1.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-within:bg-[var(--row-active)] focus-within:text-foreground"
           >
             <Search className="size-3.5 shrink-0 text-muted" />
             <input

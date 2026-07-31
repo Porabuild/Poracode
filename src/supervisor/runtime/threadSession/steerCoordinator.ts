@@ -11,6 +11,8 @@ import { captureSupervisorException } from "../../diagnostics/sentry";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
 import type { PendingSteerSlot, QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 
+const STEER_PREPARATION_TIMEOUT_MS = 750;
+
 /**
  * Stopped states a staged steer can drain from. A failed turn ("error") still
  * leaves the structured session alive and ready for a new turn, so the steer
@@ -96,7 +98,9 @@ export class SteerCoordinator {
   }
 
   fireSteerInterrupt(session: SessionRuntime): void {
-    void this.ctx.interruptStructuredTurn(session).catch((error) => {
+    const pendingSteerId = session.pendingSteer?.id;
+    if (!pendingSteerId) return;
+    void this.prepareAndInterrupt(session, pendingSteerId).catch((error) => {
       if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
         return;
       }
@@ -106,6 +110,53 @@ export class SteerCoordinator {
         "poracode.provider": session.agentKind,
       });
     });
+  }
+
+  private async prepareAndInterrupt(
+    session: SessionRuntime,
+    pendingSteerId: string,
+  ): Promise<void> {
+    const prepareSteerInterrupt = session.structuredSession?.prepareSteerInterrupt;
+    if (prepareSteerInterrupt) {
+      try {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            prepareSteerInterrupt.call(session.structuredSession),
+            new Promise<never>((_resolve, reject) => {
+              timeout = setTimeout(
+                () => reject(new Error("Structured steer preparation timed out.")),
+                STEER_PREPARATION_TIMEOUT_MS,
+              );
+            }),
+          ]);
+        } finally {
+          if (timeout) clearTimeout(timeout);
+        }
+      } catch (error) {
+        // Preparation preserves optional provider work; it must never strand
+        // the user's replacement prompt if the provider rejects the control.
+        console.error("[supervisor] failed to prepare structured steer interrupt:", error);
+        captureSupervisorException(error, {
+          "poracode.feature_area": "supervisor-runtime",
+          "poracode.provider": session.agentKind,
+        });
+      }
+    }
+    if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+      return;
+    }
+    // Preparation can let the old provider turn settle. Its idle update drains
+    // the slot and may already start the replacement before the control request
+    // resolves; never let this delayed continuation interrupt that new turn.
+    if (session.pendingSteer?.id !== pendingSteerId) {
+      return;
+    }
+    if (session.status !== "working") {
+      this.maybeDrainPendingSteer(session);
+      return;
+    }
+    await this.ctx.interruptStructuredTurn(session);
   }
 
   maybeDrainPendingSteer(session: SessionRuntime): void {
@@ -146,6 +197,7 @@ export class SteerCoordinator {
     const effectiveSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
           preserveImageAttachments: true,
+          preservePdfAttachments: session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
       : undefined;
     const prompt =

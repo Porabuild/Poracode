@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { resolveDevServerPort } from "./dev-server-port.mjs";
 
 function parsePort(value) {
   const port = Number.parseInt(value, 10);
@@ -11,8 +12,9 @@ function parsePort(value) {
 }
 
 function parsePorts(values) {
+  // No arguments: free the dev-server port (PORACODE_DEV_SERVER_PORT or 3100).
   if (values.length === 0) {
-    throw new Error("Expected a TCP port or port range");
+    return [resolveDevServerPort()];
   }
 
   return values.flatMap((value) => {
@@ -147,8 +149,7 @@ async function waitForPortsFree(ports, timeoutMs = 5000) {
 try {
   const ports = parsePorts(process.argv.slice(2));
   const pids = findListeningPids(ports);
-  const portLabel =
-    ports.length === 1 ? `Port ${ports[0]}` : `Ports ${process.argv.slice(2).join(", ")}`;
+  const portLabel = ports.length === 1 ? `Port ${ports[0]}` : `Ports ${ports.join(", ")}`;
   const verb = ports.length === 1 ? "is" : "are";
 
   if (pids.length === 0) {

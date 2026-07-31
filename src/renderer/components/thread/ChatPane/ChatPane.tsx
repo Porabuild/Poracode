@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Surface } from "@heroui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Trans } from "@lingui/react/macro";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
+import { resolveGrokSessionDir } from "@/shared/grokSessionMedia";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { chatMessageSurfaceClass } from "./parts/items/chatMessageSurface";
 import { readBridge } from "@/renderer/bridge";
-import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -23,20 +21,21 @@ import {
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
-import { formatElapsed } from "@/renderer/utils/formatTime";
 import {
   buildFileEditorContext,
   openFileInEditor,
   resolveWorktreeBranch,
 } from "@/renderer/utils/gitHelpers";
+import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
+import { ChatTurnElapsedFooter, type TurnTiming } from "./ChatTurnElapsed";
 import { selectVisibleThreadTimelineEntries, type ChatTimelineEntry } from "./chatPaneSelectors";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { normalizeChatProjectPath } from "./chatPathUtils";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
-import { SubAgentOverlay } from "./parts/items/SubAgentOverlay";
+import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 
 interface ChatPaneProps {
   thread: Thread;
@@ -45,10 +44,15 @@ interface ChatPaneProps {
   layoutChangeToken?: string | null;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onRevealProjectFolderInTree?: ((path: string) => void) | undefined;
+  onOpenSubAgent?:
+    | ((parentItemId: string, projectLocation: ProjectLocation | undefined) => void)
+    | undefined;
   canShowProjectEntryInExplorer?: boolean | undefined;
   paneActionsOverride?: ChatPaneActions | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
   checkpointProjectLocation?: ProjectLocation | undefined;
+  initialScrollRevealDelayMs?: number | undefined;
+  onInitialScrollSettled?: (() => void) | undefined;
 }
 
 const EMPTY_COMPLETED_TURNS: NonNullable<
@@ -78,23 +82,21 @@ export function ChatPane(props: ChatPaneProps) {
     layoutChangeToken,
     onOpenProjectRelativePath,
     onRevealProjectFolderInTree,
+    onOpenSubAgent,
     canShowProjectEntryInExplorer,
     paneActionsOverride,
     checkpointActions,
     checkpointProjectLocation,
   } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
+  const isRemoteThread = thread.remoteServerId !== undefined;
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
     scrollToIndexRef.current = handler;
   };
-  // `scrollEl` mirrors `scrollRef.current` as React state so the virtualizer
-  // in `MessageList` sees the element transition from `null` to mounted across
-  // a real React render. Without this, after a drag-drop pane move the
-  // virtualizer's internal observer-driven rerender can be lost and the chat
-  // renders empty (with a scrollbar from `getTotalSize`) until the next state
-  // change forces a recompute.
+  // `scrollEl` mirrors the LegendList-owned scroll node as React state for the
+  // find controller and the shared scroll controls.
   const { setScrollContainer, scrollRef, scrollEl, scrollFadeStyle } =
     useScrollFade<HTMLDivElement>({ contentRef });
   const [initialScrollSettledThreadId, setInitialScrollSettledThreadId] = useState<string | null>(
@@ -118,16 +120,38 @@ export function ChatPane(props: ChatPaneProps) {
     isHomeScope ? undefined : targetContext?.projectLocation,
   );
 
+  // Grok image_gen → session `images/N.jpg`; pass the session dir so markdown
+  // can resolve those relative paths via poracode-local://.
+  const markdownImageRoots = useMemo(() => {
+    if (thread.agentKind !== "grok" || isRemoteThread) return undefined;
+    const sessionId = thread.sessionRef?.providerSessionId;
+    const projectLocation = targetContext?.projectLocation;
+    const homeDir = readBridge().homeDir;
+    if (!sessionId || !projectLocation || !homeDir) return undefined;
+    const sessionDir = resolveGrokSessionDir({ projectLocation, sessionId, homeDir });
+    return sessionDir ? [sessionDir] : undefined;
+  }, [
+    isRemoteThread,
+    thread.agentKind,
+    thread.sessionRef?.providerSessionId,
+    targetContext?.projectLocation,
+  ]);
+
   const paneActions: ChatPaneActions | null = useMemo(() => {
     if (!project || !targetContext || isHomeScope) return null;
     return {
-      openProjectRelativePath: (path, lineNumber) => {
+      openProjectRelativePath: async (path, lineNumber) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
+        const resolvedPath = await resolveBareBasename(
+          normalized,
+          targetContext.projectLocation,
+          projectRootNames,
+        );
         if (onOpenProjectRelativePath) {
-          onOpenProjectRelativePath(normalized, lineNumber);
+          onOpenProjectRelativePath(resolvedPath, lineNumber);
           return;
         }
-        void openFileInEditor(project, worktreePath, branch, normalized, lineNumber);
+        await openFileInEditor(project, worktreePath, branch, resolvedPath, lineNumber);
       },
       revealProjectFolderInTree: (path) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
@@ -172,6 +196,7 @@ export function ChatPane(props: ChatPaneProps) {
       },
       projectLocation: targetContext.projectLocation,
       projectRootNames,
+      ...(markdownImageRoots ? { markdownImageRoots } : {}),
     };
   }, [
     project,
@@ -180,6 +205,7 @@ export function ChatPane(props: ChatPaneProps) {
     branch,
     worktreePath,
     projectRootNames,
+    markdownImageRoots,
     onOpenProjectRelativePath,
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
@@ -187,39 +213,9 @@ export function ChatPane(props: ChatPaneProps) {
 
   useEffect(() => {
     retainThreadRuntimeItems(threadId);
-    void hydrateThreadRuntimeItems(threadId);
+    if (!isRemoteThread) void hydrateThreadRuntimeItems(threadId);
     return () => releaseThreadRuntimeItems(threadId);
-  }, [threadId]);
-
-  useEffect(() => {
-    if (!scrollEl || !isInitialScrollSettled) return;
-    let loading = false;
-    let cancelled = false;
-    const onScroll = () => {
-      if (loading || scrollEl.scrollTop > 160) return;
-      loading = true;
-      const previousHeight = scrollEl.scrollHeight;
-      void loadOlderThreadRuntimeItems(threadId)
-        .then((loaded) => {
-          if (!loaded || cancelled) return;
-          requestAnimationFrame(() => {
-            if (cancelled) return;
-            const delta = scrollEl.scrollHeight - previousHeight;
-            if (delta <= 0) return;
-            scrollControlsRef.current?.noteProgrammaticScroll(scrollEl.scrollTop + delta);
-            scrollEl.scrollTop += delta;
-          });
-        })
-        .finally(() => {
-          loading = false;
-        });
-    };
-    scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      cancelled = true;
-      scrollEl.removeEventListener("scroll", onScroll);
-    };
-  }, [isInitialScrollSettled, scrollEl, threadId]);
+  }, [isRemoteThread, threadId]);
 
   useEffect(() => {
     if (!targetContext || isHomeScope) return;
@@ -286,15 +282,17 @@ export function ChatPane(props: ChatPaneProps) {
   // turn.
   const turn = resolveTurnTiming(thread, showWorkingTimer);
   const mostRecentDisplayableCompletedTurn = useAppStore((s) =>
-    showWorkingTimer
-      ? null
-      : selectMostRecentDisplayableCompletedTurn(s.runtimeCompletedTurnsByThread[threadId]),
+    selectMostRecentDisplayableCompletedTurn(s.runtimeCompletedTurnsByThread[threadId]),
   );
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
+  const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
+    mostRecentCompletedTurnAnchor,
+    timelineEntries,
+  );
   const completedTurnCanRenderInTail =
     !showWorkingTimer &&
     (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
-    isCompletedTurnAnchorAtTimelineTail(mostRecentCompletedTurnAnchor, timelineEntries);
+    completedTurnAnchorAtTail;
   const tailTurn =
     completedTurnCanRenderInTail && mostRecentDisplayableCompletedTurn
       ? mostRecentDisplayableCompletedTurn
@@ -314,9 +312,19 @@ export function ChatPane(props: ChatPaneProps) {
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
   // its anchor so the prompt does not briefly occupy the old footer position.
-  const suppressInlineTurnAnchorId = completedTurnCanRenderInTail
-    ? mostRecentCompletedTurnAnchor
-    : null;
+  // When detached background work keeps the timer live after the foreground
+  // turn settles, the ticking "Working for" reseeds from that turn's start —
+  // its window subsumes the frozen "Worked for" record, so render only the
+  // live timer, never both at once.
+  const liveTimerContinuesCompletedTurn =
+    turn !== null &&
+    turn.endedAt === null &&
+    mostRecentDisplayableCompletedTurn !== null &&
+    turn.startedAt <= mostRecentDisplayableCompletedTurn.startedAt;
+  const suppressInlineTurnAnchorId =
+    completedTurnCanRenderInTail || liveTimerContinuesCompletedTurn
+      ? mostRecentCompletedTurnAnchor
+      : null;
   const checkpointGuard = useAppStore(
     useShallow((s) =>
       resolveCheckpointGuard({
@@ -332,11 +340,41 @@ export function ChatPane(props: ChatPaneProps) {
     <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
       <div className="flex h-full min-h-0 flex-col">
         <div className="relative min-h-0 flex-1">
-          <div
-            ref={setScrollContainer}
-            data-poracode-chat-scroller="true"
-            className="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
-            style={scrollFadeStyle}
+          <MessageList
+            key={threadId}
+            threadId={threadId}
+            threadConfig={thread.config}
+            entries={timelineEntries}
+            isTurnActive={isLive}
+            setScrollContainer={setScrollContainer}
+            scrollContentRef={contentRef}
+            onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
+            onVirtualizerLayoutChange={() =>
+              scrollControlsRef.current?.beginVirtualizerLayoutChange()
+            }
+            onLiveVirtualizerLayoutChange={() =>
+              scrollControlsRef.current?.beginLiveVirtualizerLayoutChange()
+            }
+            registerVirtualScrollToBottom={(handler) => {
+              virtualScrollToBottomRef.current = handler;
+            }}
+            scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+            scrollStyle={scrollFadeStyle}
+            contentClassName={`min-h-full pb-2 ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
+            emptyContent={
+              isEmpty && !showTailLoader && showEmptyHint ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
+                  <span>
+                    <Trans>No messages yet</Trans>
+                  </span>
+                </div>
+              ) : null
+            }
+            footer={
+              showTailLoader && tailTurn ? (
+                <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
+              ) : null
+            }
             onWheelCapture={(event) => {
               if (event.deltaY < 0) {
                 scrollControlsRef.current?.markUserScrollIntent();
@@ -348,7 +386,13 @@ export function ChatPane(props: ChatPaneProps) {
               // empty-canvas drags). Tool expand/collapse clicks must not —
               // sticky row-height compensation then looks like a user
               // scroll-away and strands the transcript above the bottom.
-              if (!shouldMarkUserScrollIntentFromPointerTarget(event.target)) return;
+              if (!shouldMarkUserScrollIntentFromPointerTarget(event.target)) {
+                // The control can commit a taller virtual row before its
+                // post-layout measurement callback runs. Guard that earlier
+                // LegendList anchor adjustment directly from pointerdown.
+                scrollControlsRef.current?.beginVirtualizerLayoutChange();
+                return;
+              }
               scrollControlsRef.current?.markUserScrollIntent();
               // Unpin immediately — same as wheel-up. Native scrollbar thumbs
               // are not DOM nodes and often overlay the content box (Windows
@@ -363,59 +407,47 @@ export function ChatPane(props: ChatPaneProps) {
                 scrollControlsRef.current?.markUserScrollIntent();
               }
             }}
-          >
-            <div
-              ref={contentRef}
-              className={`min-h-full pb-2 ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
-            >
-              {isEmpty && !showTailLoader ? (
-                showEmptyHint ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
-                    <span>
-                      <Trans>No messages yet</Trans>
-                    </span>
-                  </div>
-                ) : null
-              ) : (
-                <>
-                  <MessageList
-                    key={threadId}
-                    threadId={threadId}
-                    entries={timelineEntries}
-                    isTurnActive={isLive}
-                    scrollElement={scrollEl}
-                    registerScrollToIndex={registerScrollToIndex}
-                    suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
-                    canRevertCheckpoints={!isLive && !isHomeScope}
-                    checkpointGuard={checkpointGuard}
-                    checkpointActions={checkpointActions}
-                    projectLocation={
-                      checkpointProjectLocation ??
-                      (isHomeScope ? undefined : targetContext?.projectLocation)
-                    }
-                  />
-                  {showTailLoader && tailTurn ? (
-                    <ChatTailLoader turn={tailTurn} isPaused={isTurnPaused} />
-                  ) : null}
-                </>
-              )}
-            </div>
-          </div>
+            onStartReached={() => {
+              void loadOlderThreadRuntimeItems(threadId);
+            }}
+            registerScrollToIndex={registerScrollToIndex}
+            suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
+            canRevertCheckpoints={!isLive && !isHomeScope}
+            checkpointGuard={checkpointGuard}
+            checkpointActions={checkpointActions}
+            projectLocation={
+              checkpointProjectLocation ??
+              (isHomeScope ? undefined : targetContext?.projectLocation)
+            }
+          />
           <ChatScrollControls
             key={`scroll:${threadId}`}
             ref={scrollControlsRef}
             scrollRef={scrollRef}
+            contentRef={contentRef}
             layoutChangeToken={layoutChangeToken}
+            tailEntryId={timelineEntries.at(-1)?.id ?? null}
             threadId={threadId}
             tailLoaderVisible={showTailLoader}
             initialScrollSettled={isInitialScrollSettled}
+            initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
             virtualScrollToBottomRef={virtualScrollToBottomRef}
-            onInitialScrollSettled={() => setInitialScrollSettledThreadId(threadId)}
+            onInitialScrollSettled={() => {
+              setInitialScrollSettledThreadId(threadId);
+              props.onInitialScrollSettled?.();
+            }}
           />
-          <SubAgentOverlay
+          <SubAgentOpenController
             key={`subagent:${threadId}`}
             threadId={threadId}
-            {...(project ? { projectLocation: project.location } : {})}
+            {...(targetContext ? { projectLocation: targetContext.projectLocation } : {})}
+            onOpen={(parentItemId, projectLocation) => {
+              if (onOpenSubAgent) {
+                onOpenSubAgent(parentItemId, projectLocation);
+                return;
+              }
+              showSubAgentPanel(threadId, parentItemId, projectLocation);
+            }}
           />
           <ChatFindBar
             threadId={threadId}
@@ -426,11 +458,6 @@ export function ChatPane(props: ChatPaneProps) {
       </div>
     </ChatPaneActionsContext.Provider>
   );
-}
-
-interface TurnTiming {
-  startedAt: number;
-  endedAt: number | null;
 }
 
 interface CompletedTurnTiming extends TurnTiming {
@@ -483,91 +510,6 @@ function selectMostRecentDisplayableCompletedTurn(
     if (record.endedAt - record.startedAt >= 1000) return record;
   }
   return null;
-}
-
-function ChatTailLoader({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {
-  return (
-    <div className="mx-auto w-full max-w-[920px]">
-      <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <WorkingFor turn={turn} isPaused={isPaused} />
-        </div>
-      </Surface>
-    </div>
-  );
-}
-
-/**
- * Self-ticking elapsed-time label. While `turn.endedAt` is null, ticks every
- * second as "Working for N"; once set, freezes as "Worked for N". When
- * `isPaused` is true (e.g. the runtime is blocked on a user-input prompt) the
- * counter freezes at its current value and the paused interval is excluded
- * from the elapsed total once it resumes. Mutates `textContent` directly via
- * a ref instead of calling `setState` so the per-second tick produces zero
- * React commits — important while the rest of the chat is potentially
- * streaming.
- */
-function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {
-  const { t } = useLingui();
-  const textRef = useRef<HTMLSpanElement>(null);
-  const pauseStateRef = useRef<{ accumulatedPauseMs: number; pausedSinceMs: number | null }>({
-    accumulatedPauseMs: 0,
-    pausedSinceMs: null,
-  });
-
-  useEffect(() => {
-    pauseStateRef.current = { accumulatedPauseMs: 0, pausedSinceMs: null };
-  }, [turn.startedAt, turn.endedAt]);
-
-  useEffect(() => {
-    const update = () => {
-      const node = textRef.current;
-      if (!node) return;
-      if (turn.endedAt !== null) {
-        const elapsedSeconds = Math.max(0, Math.floor((turn.endedAt - turn.startedAt) / 1000));
-        const elapsed = formatElapsed(elapsedSeconds);
-        const text = elapsedSeconds < 1 ? "" : t`Worked for ${elapsed}`;
-        node.textContent = text;
-        node.dataset.poracodeShimmerText = text;
-        return;
-      }
-      const pauseState = pauseStateRef.current;
-      const now = Date.now();
-      const currentPauseMs =
-        pauseState.pausedSinceMs !== null ? Math.max(0, now - pauseState.pausedSinceMs) : 0;
-      const elapsedMs = now - turn.startedAt - pauseState.accumulatedPauseMs - currentPauseMs;
-      const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-      const elapsed = formatElapsed(elapsedSeconds);
-      const text = elapsedSeconds < 1 ? "" : t`Working for ${elapsed}`;
-      node.textContent = text;
-      node.dataset.poracodeShimmerText = text;
-    };
-
-    if (isPaused) {
-      if (pauseStateRef.current.pausedSinceMs === null) {
-        pauseStateRef.current.pausedSinceMs = Date.now();
-      }
-      update();
-      return;
-    }
-
-    if (pauseStateRef.current.pausedSinceMs !== null) {
-      pauseStateRef.current.accumulatedPauseMs += Math.max(
-        0,
-        Date.now() - pauseStateRef.current.pausedSinceMs,
-      );
-      pauseStateRef.current.pausedSinceMs = null;
-    }
-    update();
-    if (turn.endedAt !== null) return;
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [turn.startedAt, turn.endedAt, isPaused, t]);
-
-  const isThinking = !isPaused && turn.endedAt === null;
-  useShimmerRef(textRef, isThinking);
-  const className = isThinking ? "poracode-thinking-text" : "text-muted";
-  return <span ref={textRef} className={className} aria-live="polite" />;
 }
 
 function isScrollNavigationKey(key: string): boolean {
@@ -647,4 +589,34 @@ function findBaseCheckpointItemId(
     if (itemsById?.[itemId]?.type === "user_message") return itemId;
   }
   return null;
+}
+
+/**
+ * When a chat chip carries a bare basename (no directory separator, not
+ * absolute) that is NOT a top-level project entry, attempt to resolve it to a
+ * real project-relative path via the file search index. Returns the original
+ * path unchanged when it already contains a separator, is absolute, or is a
+ * known root entry (those resolve directly). Throws when the basename cannot
+ * be found so the chip can switch to an inert visual.
+ */
+async function resolveBareBasename(
+  path: string,
+  projectLocation: ProjectLocation,
+  rootNames: ReadonlySet<string> | undefined,
+): Promise<string> {
+  const hasSeparator = path.includes("/") || path.includes("\\");
+  const isAbsolute = path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
+  if (hasSeparator || isAbsolute) return path;
+  if (rootNames?.has(path)) return path;
+
+  const result = await readBridge().searchProjectFiles({
+    projectLocation,
+    query: path,
+    limit: 5,
+  });
+  const exact = result.entries.find(
+    (e) => e.type === "file" && e.name.toLowerCase() === path.toLowerCase(),
+  );
+  if (exact) return exact.path;
+  throw new Error(`File not found: ${path}`);
 }

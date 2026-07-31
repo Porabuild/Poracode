@@ -282,11 +282,11 @@ export function BottomSheet(props: {
 }
 
 /**
- * A tall, near-fullscreen drawer that slides up over the whole pane — the mobile
- * stand-in for a modal form. Where {@link BottomSheet} hosts a short action list,
- * this hosts a scrolling form behind a titled header, dismissed by dragging the
- * grabber down (or tapping the scrim / pressing Escape), opened from a
- * {@link Fab}. Portaled to <body> like the other drawers; drive
+ * A titled form drawer that slides up over the whole pane — near-fullscreen by
+ * default, with an optional content-fit height. Where {@link BottomSheet} hosts
+ * a short action list, this hosts a scrolling form behind a titled header,
+ * dismissed by dragging the grabber down (or tapping the scrim / pressing
+ * Escape), opened from a {@link Fab}. Portaled to <body> like the other drawers; drive
  * `closing`/`onClose` with {@link useSheet} so the slide-out plays.
  */
 export function FullScreenDrawer(props: {
@@ -294,6 +294,8 @@ export function FullScreenDrawer(props: {
   readonly title: ReactNode;
   /** Dialog accessible name. */
   readonly label: string;
+  /** Size the drawer to its contents instead of filling the viewport. */
+  readonly fitContent?: boolean;
   /** Scrim (dismiss) accessible name; defaults to "Close". */
   readonly closeLabel?: string;
   readonly closing?: boolean | undefined;
@@ -331,6 +333,7 @@ export function FullScreenDrawer(props: {
       <div
         ref={drawerRef}
         className="m-drawer"
+        data-fit-content={props.fitContent || undefined}
         data-dragging={dragging || undefined}
         role="dialog"
         aria-modal="true"

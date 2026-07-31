@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Thread } from "@/shared/contracts";
+import "@/renderer/components/providers/bootstrap";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   useComposerInputInbox,
@@ -18,6 +19,7 @@ const bridgeMock = vi.hoisted(() => ({
   isRemoteSession: vi.fn<() => boolean>(() => false),
   clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   refreshAgentStatuses: vi
     .fn<() => Promise<{ windows: AgentStatus[]; wsl: AgentStatus[] }>>()
     .mockResolvedValue({ windows: [], wsl: [] }),
@@ -29,7 +31,24 @@ const runtimeActions = vi.hoisted(() => ({
   submitThreadInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
-vi.mock("@/renderer/actions/threadRuntimeActions", () => ({
+const analytics = vi.hoisted(() => ({
+  captureProductEvent: vi.fn<() => void>(),
+  captureThreadPromptSubmitted: vi.fn<() => void>(),
+}));
+
+vi.mock("@/renderer/analytics/posthog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/analytics/posthog")>()),
+  captureThreadPromptSubmitted: analytics.captureThreadPromptSubmitted,
+}));
+vi.mock("@/renderer/analytics/productAnalytics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/analytics/productAnalytics")>()),
+  captureProductEvent: analytics.captureProductEvent,
+}));
+
+// Partial mock: `clearThreadPendingSteer` keeps its real implementation so the
+// pending-steer cancel path still exercises the (mocked) bridge and its toast.
+vi.mock("@/renderer/actions/threadRuntimeActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadRuntimeActions")>()),
   changeThreadConfig: runtimeActions.changeThreadConfig,
   resolveThreadServerRequest: runtimeActions.resolveThreadServerRequest,
   submitThreadInput: runtimeActions.submitThreadInput,
@@ -41,7 +60,7 @@ vi.mock("../../bridge", () => ({
     pickFiles: vi.fn<() => Promise<string[] | undefined>>().mockResolvedValue(undefined),
     clearPendingSteer: bridgeMock.clearPendingSteer,
     interruptThread: bridgeMock.interruptThread,
-    setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    setPendingSteer: bridgeMock.setPendingSteer,
     writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     refreshAgentStatuses: bridgeMock.refreshAgentStatuses,
   }),
@@ -164,6 +183,18 @@ const claudeTerminalStatus: AgentStatus = {
   },
 };
 
+function typeComposerText(editor: HTMLElement, text: string) {
+  const textNode = document.createTextNode(text);
+  editor.replaceChildren(textNode);
+  const range = document.createRange();
+  range.setStart(textNode, text.length);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  fireEvent.input(editor);
+}
+
 describe("ThreadComposerSection", () => {
   beforeEach(() => {
     useSharedSettings.setState({ collapseTerminalComposer: false });
@@ -177,6 +208,7 @@ describe("ThreadComposerSection", () => {
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
       pendingSteerByThreadId: {},
+      pendingComposerFocusThreadId: null,
       threadDraftContents: {},
     });
     useComposerInputInbox.setState({ itemsByComposer: {} });
@@ -186,6 +218,10 @@ describe("ThreadComposerSection", () => {
     bridgeMock.refreshAgentStatuses.mockClear();
     bridgeMock.interruptThread.mockClear();
     bridgeMock.interruptThread.mockResolvedValue(undefined);
+    bridgeMock.setPendingSteer.mockClear();
+    bridgeMock.setPendingSteer.mockResolvedValue(undefined);
+    analytics.captureProductEvent.mockClear();
+    analytics.captureThreadPromptSubmitted.mockClear();
     runtimeActions.changeThreadConfig.mockClear();
     runtimeActions.resolveThreadServerRequest.mockClear();
     runtimeActions.resolveThreadServerRequest.mockResolvedValue(undefined);
@@ -197,6 +233,7 @@ describe("ThreadComposerSection", () => {
   function composerElement(opts?: {
     thread?: Thread;
     agentStatus?: AgentStatus;
+    autoFocusComposer?: boolean;
     errorDockStates?: ThreadErrorDockState[];
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
@@ -219,6 +256,9 @@ describe("ThreadComposerSection", () => {
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
         {...(opts?.onSubmitInput ? { onSubmitInput: opts.onSubmitInput } : {})}
+        {...(opts?.autoFocusComposer !== undefined
+          ? { autoFocusComposer: opts.autoFocusComposer }
+          : {})}
         {...(opts?.onOpenProjectRelativePath
           ? { onOpenProjectRelativePath: opts.onOpenProjectRelativePath }
           : {})}
@@ -231,6 +271,7 @@ describe("ThreadComposerSection", () => {
   function renderComposer(opts?: {
     thread?: Thread;
     agentStatus?: AgentStatus;
+    autoFocusComposer?: boolean;
     errorDockStates?: ThreadErrorDockState[];
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
@@ -263,6 +304,51 @@ describe("ThreadComposerSection", () => {
     });
 
     expect(screen.getByTestId("control-kinds")).toBeEmptyDOMElement();
+  });
+
+  it("uses GUI presentation capabilities for slash commands and /fast submission", () => {
+    const divergentStatus: AgentStatus = {
+      ...codexGuiStatus,
+      capabilities: {
+        ...codexGuiStatus.capabilities,
+        models: [{ id: "cli-model", label: "CLI model" }],
+        efforts: [],
+        modelEfforts: {},
+        fastModels: [],
+        liveInputMode: "terminal",
+        presentationMode: "terminal",
+        presentationModes: ["terminal", "gui"],
+        presentationCapabilities: {
+          gui: {
+            models: [{ id: "gpt-5.4", label: "5.4" }],
+            efforts: ["high"],
+            defaultEffort: "high",
+            modelEfforts: { "gpt-5.4": ["high"] },
+            fastModels: ["gpt-5.4"],
+            modes: ["agent"],
+            approvalPolicies: [{ id: "on-request", label: "On Request" }],
+            sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
+            supportsResume: true,
+            supportsDirectInput: true,
+            liveInputMode: "server",
+            presentationMode: "gui",
+            settingDefs: [],
+          },
+        },
+      },
+    };
+    renderComposer({ agentStatus: divergentStatus });
+
+    const input = screen.getByRole("textbox");
+    typeComposerText(input, "/fast");
+
+    expect(screen.getByRole("option", { name: /\/fast/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(guiThread.id, {
+      model: "gpt-5.4",
+      fast: true,
+    });
   });
 
   it("hides the terminal composer collapse button in remote sessions", () => {
@@ -433,6 +519,78 @@ describe("ThreadComposerSection", () => {
       { kind: "text", content: "first thread draft" },
     ]);
     expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]).toBeUndefined();
+  });
+
+  it("focuses the reused composer when the desktop switches threads", async () => {
+    const { rerender } = renderComposer();
+    const input = screen.getByRole("textbox");
+    const outsideButton = document.createElement("button");
+    document.body.appendChild(outsideButton);
+    outsideButton.focus();
+    expect(outsideButton).toHaveFocus();
+
+    act(() => {
+      useAppStore.getState().requestComposerFocus(secondGuiThread.id);
+    });
+    rerender(
+      composerElement({
+        thread: secondGuiThread,
+        onSubmitInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      }),
+    );
+
+    await waitFor(() => expect(input).toHaveFocus());
+    outsideButton.remove();
+  });
+
+  it("does not focus a reused composer without an explicit request", () => {
+    const { rerender } = renderComposer();
+    const outsideButton = document.createElement("button");
+    document.body.appendChild(outsideButton);
+    outsideButton.focus();
+
+    rerender(
+      composerElement({
+        thread: secondGuiThread,
+        onSubmitInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      }),
+    );
+
+    expect(outsideButton).toHaveFocus();
+    outsideButton.remove();
+  });
+
+  it("defers an explicit focus request while the terminal composer is collapsed", async () => {
+    useSharedSettings.setState({ collapseTerminalComposer: true });
+    renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
+    const input = screen.getByRole("textbox");
+    const outsideButton = document.createElement("button");
+    document.body.appendChild(outsideButton);
+    outsideButton.focus();
+
+    act(() => {
+      useAppStore.getState().requestComposerFocus(terminalThread.id);
+    });
+    expect(input).not.toHaveFocus();
+    expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(terminalThread.id);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show composer" }));
+
+    await waitFor(() => {
+      expect(input).toHaveFocus();
+      expect(useAppStore.getState().pendingComposerFocusThreadId).toBeNull();
+    });
+    outsideButton.remove();
+  });
+
+  it("lets desktop PWA input opt into autofocus without enabling it for touch", () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    const { unmount } = renderComposer({ autoFocusComposer: false });
+    expect(screen.getByRole("textbox")).not.toHaveFocus();
+    unmount();
+
+    renderComposer({ autoFocusComposer: true });
+    expect(screen.getByRole("textbox")).toHaveFocus();
   });
 
   it("does not let an older thread's failed submit overwrite the reused composer", async () => {
@@ -619,6 +777,32 @@ describe("ThreadComposerSection", () => {
     expect(screen.getByRole("textbox")).toHaveTextContent("retry me");
   });
 
+  it("counts a pending steer after it is successfully staged", async () => {
+    renderComposer({
+      thread: { ...guiThread, status: "working", attention: "working" },
+    });
+
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("change direction"));
+    fireEvent.input(input);
+    fireEvent.click(screen.getByText("send"));
+
+    await waitFor(() => {
+      expect(bridgeMock.setPendingSteer).toHaveBeenCalledWith({
+        threadId: guiThread.id,
+        prompt: "change direction",
+        segments: [{ kind: "text", content: "change direction" }],
+        config: guiThread.config,
+      });
+    });
+    expect(analytics.captureThreadPromptSubmitted).toHaveBeenCalledWith(
+      expect.objectContaining({ id: guiThread.id }),
+      "change direction",
+      [{ kind: "text", content: "change direction" }],
+      "pending_steer",
+    );
+  });
+
   it("restores approval requests and composer text when auto-deny before submit fails", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     runtimeActions.resolveThreadServerRequest.mockRejectedValueOnce(new Error("deny failed"));
@@ -777,6 +961,10 @@ describe("ThreadComposerSection", () => {
         requestId: "terminal-approval",
         method: "requestPermission",
         response: { optionId: "allow" },
+        analytics: {
+          outcome: "accepted",
+          requestType: "command_execution_approval",
+        },
       });
     });
   });
@@ -864,7 +1052,7 @@ describe("ThreadComposerSection", () => {
     expect(screen.getByLabelText("Thread goal dock")).toHaveTextContent("No mobile dead ends");
   });
 
-  it("exposes interrupt for remote terminal sessions while a turn is working", () => {
+  it("captures a successful remote terminal interrupt", async () => {
     bridgeMock.isRemoteSession.mockReturnValue(true);
     renderComposer({
       thread: {
@@ -880,6 +1068,12 @@ describe("ThreadComposerSection", () => {
 
     expect(bridgeMock.interruptThread).toHaveBeenCalledWith({
       threadId: "thread-terminal-working",
+    });
+    await waitFor(() => {
+      expect(analytics.captureProductEvent).toHaveBeenCalledWith(
+        "thread.interrupted",
+        expect.objectContaining({ provider: "claude" }),
+      );
     });
   });
 
@@ -902,6 +1096,10 @@ describe("ThreadComposerSection", () => {
     await waitFor(() => {
       expect(toastDangerSpy).toHaveBeenCalledWith("interrupt failed");
     });
+    expect(analytics.captureProductEvent).not.toHaveBeenCalledWith(
+      "thread.interrupted",
+      expect.anything(),
+    );
     consoleError.mockRestore();
   });
 
@@ -913,7 +1111,7 @@ describe("ThreadComposerSection", () => {
         [guiThread.id]: {
           id: "pending-1",
           prompt: "Actually inspect the diff first",
-          stagedAt: Date.now(),
+          stagedAt: Date.now() - 2_000,
         },
       },
     });
@@ -1140,6 +1338,10 @@ describe("ThreadComposerSection", () => {
             "Should I run validation after each phase?": "After each phase",
           },
         },
+        analytics: {
+          outcome: "answered",
+          requestType: "tool_user_input",
+        },
       });
     });
   });
@@ -1272,6 +1474,10 @@ describe("ThreadComposerSection", () => {
             validation: { answers: ["After each phase"] },
           },
         },
+        analytics: {
+          outcome: "answered",
+          requestType: "tool_user_input",
+        },
       });
     });
   });
@@ -1356,6 +1562,10 @@ describe("ThreadComposerSection", () => {
             scope: "Scope B",
             confirm: true,
           },
+        },
+        analytics: {
+          outcome: "answered",
+          requestType: "tool_user_input",
         },
       });
     });

@@ -27,3 +27,5 @@ export {
   mapCodexServerRequest,
   translateCodexCanonicalResponse,
 } from "./canonicalMapping/serverRequest";
+export { createCodexUsageSpentEvent } from "./canonicalMapping/usage";
+export { CodexUsageScopeTracker } from "./canonicalMapping/usageScope";

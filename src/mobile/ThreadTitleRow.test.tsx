@@ -23,6 +23,19 @@ function makeThread(overrides: Partial<Thread> = {}): Thread {
 }
 
 describe("ThreadTitleRow", () => {
+  it("opens project notes and to-dos from the thread actions", () => {
+    const onOpenNotes = vi.fn<() => void>();
+
+    render(
+      <ThreadTitleRow thread={makeThread()} onAction={() => undefined} onOpenNotes={onOpenNotes} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Thread actions" }));
+    fireEvent.click(screen.getByText("Notes & to-dos"));
+
+    expect(onOpenNotes).toHaveBeenCalledOnce();
+  });
+
   it("offers a new-thread handoff for a worktree thread", () => {
     const onNewThreadInWorktree =
       vi.fn<(input: { projectId: string; worktreePath: string; worktreeBranch: string }) => void>();

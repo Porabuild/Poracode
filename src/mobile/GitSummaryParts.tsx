@@ -1,5 +1,5 @@
 import { useLingui } from "@lingui/react/macro";
-import { ChevronRight, Folder, GitBranch, GitPullRequest } from "lucide-react";
+import { Folder, GitBranch, GitPullRequest } from "lucide-react";
 import { getPrStatusTone, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
 import type { RemoteThreadGitSummary } from "@/shared/remote";
 import type { WorkspaceTab } from "./views/WorkspaceView";
@@ -117,7 +117,6 @@ export function WorkspaceChip(props: {
           <PrGlyph summary={summary} withNumber />
         </span>
       ) : null}
-      <ChevronRight className="m-ws-chip__chevron size-4 shrink-0" />
     </button>
   );
 }

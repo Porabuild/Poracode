@@ -26,6 +26,37 @@ export function createAcpPromptUsageEvent(
 }
 
 /**
+ * Cumulative `usage.spent` from the same `session/prompt` response usage the
+ * context event above parses: per the ACP schema, `usage.totalTokens` is the
+ * session-cumulative counter, so the ledger counts increases per
+ * (provider, scopeId, epoch). `sampleId` folds the counter value in, which
+ * makes replays of the same prompt response exact-once. When the agent
+ * returns no prompt-response usage (most bridges today), emit nothing — the
+ * profile honesty list covers those providers.
+ */
+export function createAcpPromptUsageSpentEvent(
+  threadId: string,
+  usage: unknown,
+  scope: { scopeId: string; epoch: number; fresh?: boolean },
+): RuntimeEvent | undefined {
+  if (!usage || typeof usage !== "object") return undefined;
+  const totalTokens = readNonNegativeInteger((usage as Record<string, unknown>).totalTokens);
+  if (totalTokens === undefined) return undefined;
+  return {
+    type: "usage.spent",
+    threadId,
+    usage: {
+      counterKind: "cumulative",
+      counter: totalTokens,
+      scopeId: scope.scopeId,
+      epoch: scope.epoch,
+      ...(scope.fresh ? { fresh: true } : {}),
+      sampleId: `${scope.scopeId}:${scope.epoch}:${totalTokens}`,
+    },
+  };
+}
+
+/**
  * Replace the raw JSON-RPC error from `session/load` with a message the
  * renderer can show verbatim. Provider-agnostic on purpose: the same code
  * path triggers whenever any ACP agent rejects a `session/load` call (lost,
@@ -108,16 +139,32 @@ function isGenericAcpPromptRpcErrorMessage(message: string): boolean {
 /** JSON-RPC error from `session/prompt` — may follow a separate agent_message_chunk. */
 export function resolveAcpPromptRpcErrorMessage(error: unknown): string {
   if (error instanceof RequestError) {
-    if (error.message.trim().length > 0) return error.message;
     const data = error.data as { details?: unknown; detail?: unknown } | undefined;
-    if (typeof data?.details === "string" && data.details.trim().length > 0) {
-      return data.details.trim();
-    }
-    if (typeof data?.detail === "string" && data.detail.trim().length > 0) {
-      return data.detail.trim();
-    }
+    const detail =
+      typeof data?.details === "string" && data.details.trim().length > 0
+        ? data.details.trim()
+        : typeof data?.detail === "string" && data.detail.trim().length > 0
+          ? data.detail.trim()
+          : undefined;
+    const message = error.message.trim();
+    if (detail && isGenericAcpPromptRpcErrorMessage(message)) return detail;
+    if (message.length > 0) return message;
+    if (detail) return detail;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Some ACP agents acknowledge `session/cancel` by rejecting the in-flight
+ * `session/prompt` request instead of returning a cancelled stop reason.
+ * Treat that transport shape as cancellation only when Poracode actually
+ * requested the interrupt; the same error without a user stop is still a
+ * real prompt failure.
+ */
+export function isAcpPromptCancellationError(error: unknown, interruptRequested: boolean): boolean {
+  if (!interruptRequested) return false;
+  const message = resolveAcpPromptRpcErrorMessage(error).trim();
+  return /^(?:(?:the )?(?:request|operation) was )?abort(?:ed)?\.?$/i.test(message);
 }
 
 export function normalizeAcpStopReason(

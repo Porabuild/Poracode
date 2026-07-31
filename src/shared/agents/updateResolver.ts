@@ -11,7 +11,11 @@ import type { AgentUpdateInfo } from "@/shared/contracts";
  *      install channels (npm → native installer → brew) without our help.
  *   2. A package-manager command inferred from the executable path (brew,
  *      winget, pnpm-global, bun-global, npm-global).
- *   3. A last-resort `npm install -g <pkg>@latest` for kinds that publish on
+ *   3. The provider's own install script (`installer`) re-run non-interactively,
+ *      for agents that ship a `curl … | bash` / `irm … | iex` installer (and
+ *      whose CLI self-updater is an interactive TUI) instead of publishing
+ *      through a package manager.
+ *   4. A last-resort `npm install -g <pkg>@latest` for kinds that publish on
  *      npm but live somewhere we don't recognise (PATH overrides, wrappers).
  */
 
@@ -145,6 +149,15 @@ export function resolveSharedUpdateCommand(
     };
   }
 
+  // A provider that ships its own install script re-runs it non-interactively.
+  // Preferred over the npm last-resort so an agent installed by its own
+  // installer (not a package manager) updates in place instead of spawning a
+  // conflicting global npm install. `posix` covers WSL too.
+  if (pkg.installer) {
+    const spec = input.envKind === "windows" ? pkg.installer.windows : pkg.installer.posix;
+    return { binary: spec.binary, args: spec.args, strategy: "installer" };
+  }
+
   // Last resort: try npm-global. Most legacy agents publish via npm, so even
   // when the install location doesn't match a known pattern (PATH overrides,
   // wrappers, etc.) `npm i -g <pkg>` is usually the right call. Failures are
@@ -170,6 +183,54 @@ export function getNpmPackageNameForUpdate(
   update: AgentUpdateInfo | undefined,
 ): string | undefined {
   return update?.npm;
+}
+
+/**
+ * A supported release window for a package the app installs on the user's
+ * behalf. Consumers declare the window once (see `cursorSdkPackage.ts`) and
+ * both the runtime compatibility check and the registry "is there a newer
+ * release?" probe read it from there.
+ */
+export interface VersionWindow {
+  /** Inclusive lower bound; versions below it are unsupported. */
+  minVersion?: string;
+  /** First major version the consumer has not been validated against. */
+  maxExclusiveMajor?: number;
+}
+
+/** Stable `1`, `1.2`, or `1.2.3` (optionally `v`-prefixed) — no pre-releases. */
+const STABLE_VERSION_PATTERN = /^v?\d+(?:\.\d+){0,2}$/;
+
+/**
+ * True when `version` is a stable release inside `window`. Pre-release and
+ * non-numeric versions are always rejected: the app never installs them on the
+ * user's behalf.
+ */
+export function isVersionInWindow(version: string, window: VersionWindow): boolean {
+  const trimmed = version.trim();
+  if (!STABLE_VERSION_PATTERN.test(trimmed)) return false;
+  const major = Number.parseInt(trimmed.replace(/^v/, ""), 10);
+  if (window.maxExclusiveMajor !== undefined && major >= window.maxExclusiveMajor) return false;
+  if (window.minVersion && isNewerVersion(window.minVersion, trimmed)) return false;
+  return true;
+}
+
+/**
+ * Greatest stable version in `versions` that falls inside `window`, or
+ * undefined when none qualifies (e.g. the only newer release is a major the
+ * consumer does not support yet).
+ */
+export function pickLatestVersionInWindow(
+  versions: Iterable<string>,
+  window: VersionWindow,
+): string | undefined {
+  let best: string | undefined;
+  for (const version of versions) {
+    if (!isVersionInWindow(version, window)) continue;
+    const candidate = version.trim();
+    if (!best || isNewerVersion(candidate, best)) best = candidate;
+  }
+  return best;
 }
 
 /**

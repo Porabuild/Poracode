@@ -50,7 +50,7 @@ export const defaultGeminiCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "never",
   bypassPermissions: { approvalPolicy: "never" },
-  chromeMcpScope: { terminal: "launch", gui: "launch" },
+  mcpScope: { terminal: "launch", gui: "launch" },
   settingDefs: [],
 };
 

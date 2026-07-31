@@ -200,14 +200,12 @@ export const codexDefaultCapabilities: AgentCapability = {
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "on-request",
+  defaultApprovalsReviewer: "auto_review",
   defaultSandboxMode: "workspace-write",
   bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
   // MCP config rides the `-c` launch argv in both presentations — baked in at
   // spawn, read-only once the session is running.
-  browserMcpScope: { terminal: "launch", gui: "launch" },
-  subagentMcpScope: { terminal: "launch", gui: "launch" },
-  computerUseMcpScope: { terminal: "launch", gui: "launch" },
-  chromeMcpScope: { terminal: "launch", gui: "launch" },
+  mcpScope: { terminal: "launch", gui: "launch" },
   settingDefs: [],
   slashCommands: CODEX_BUILT_IN_SLASH_COMMANDS,
   // Codex delivers its enabled skills through the ACP session (`skills/list`),

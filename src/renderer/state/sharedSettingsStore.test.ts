@@ -22,6 +22,9 @@ describe("sharedSettingsStore", () => {
       disabledAgents: [],
       favoriteModels: [],
       recentModels: [],
+      agentSelectionUsage: [],
+      crossagentSelectionUsage: [],
+      crossagentRoutingOverrides: [],
       providerOrder: [],
       lastUsedProjectDirs: {},
     });
@@ -44,6 +47,22 @@ describe("sharedSettingsStore", () => {
   it("updates audio settings", () => {
     useSharedSettings.getState().setAudioSetting("transcriptionLanguage", "es");
     expect(useSharedSettings.getState().audio.transcriptionLanguage).toBe("es");
+  });
+
+  it("counts repeated normal composer selections for Crossagents fallback ranking", () => {
+    const state = useSharedSettings.getState();
+    state.pushRecentModel("kimi", "k3", "gui", "max", false);
+    state.pushRecentModel("kimi", "k3", "gui", "max", false);
+
+    expect(useSharedSettings.getState().agentSelectionUsage).toEqual([
+      expect.objectContaining({
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        count: 2,
+      }),
+    ]);
   });
 
   it("updates provider config when only context size, fast, and thinking change", () => {
@@ -69,6 +88,19 @@ describe("sharedSettingsStore", () => {
       contextSize: "200k",
       fast: true,
       thinking: true,
+    });
+  });
+
+  it("preserves the last experiment judge configuration", () => {
+    useSharedSettings
+      .getState()
+      .setExperimentJudgeConfig("claude", "claude-opus-4-8", "high", true);
+
+    expect(useSharedSettings.getState()).toMatchObject({
+      experimentJudgeProvider: "claude",
+      experimentJudgeModel: "claude-opus-4-8",
+      experimentJudgeEffort: "high",
+      experimentJudgeFast: true,
     });
   });
 

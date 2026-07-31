@@ -119,6 +119,14 @@ export function createCodexAdapter(): AgentAdapter {
           builtInPath: ".system",
           globalOverride: { env: "CODEX_HOME", path: "skills" },
         },
+        {
+          // Codex natively scans `.agents/skills` from the working directory
+          // through the repository root, plus the user's home directory.
+          id: "agents",
+          label: "Shared agent skills",
+          globalPath: ".agents/skills",
+          projectPath: ".agents/skills",
+        },
       ],
       invocation: "dollar",
       precedence: {

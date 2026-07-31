@@ -1,0 +1,5 @@
+# Local agent worktrees and scratch dirs — volatile while agents run; the
+# Vercel CLI's file walker chokes on files vanishing mid-scan.
+.poracode
+.tmp
+tmp

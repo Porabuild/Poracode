@@ -2,6 +2,7 @@ import type { SDKControlGetContextUsageResponse, SDKMessage } from "@anthropic-a
 import { describe, expect, it, vi } from "vitest";
 import {
   buildClaudeQuestionAnswerEvents,
+  ClaudeUsageScopeTracker,
   createClaudeMapperState,
   emitActiveGoalTokenUpdate,
   mapClaudeContextUsageResponse,
@@ -14,6 +15,23 @@ import {
 
 function streamEvent(event: Record<string, unknown>): SDKMessage {
   return { type: "stream_event", session_id: "claude-session", event } as unknown as SDKMessage;
+}
+
+function activeGoalMessage(
+  value: {
+    condition: string;
+    iterations: number;
+    set_at: number;
+    tokens_at_start: number;
+    last_reason?: string;
+  } | null,
+): SDKMessage {
+  return {
+    type: "active_goal",
+    value,
+    uuid: "goal-uuid",
+    session_id: "claude-session",
+  } as unknown as SDKMessage;
 }
 
 function streamEventWithParent(
@@ -54,7 +72,9 @@ describe("sdkCanonicalMapping — prompt content", () => {
           content: [
             { kind: "text", text: "see this" },
             {
-              kind: "file",
+              kind: "image",
+              mimeType: "image/png",
+              dataUrl: "poracode-local://local/C:/tmp/image.png",
               path: "C:\\tmp\\image.png",
               name: "image.png",
               source: "attachment",
@@ -374,6 +394,275 @@ describe("sdkCanonicalMapping — prompt content", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("holds a legacy goal open after background subagents drain for the session grace", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal ship it", undefined, "user-goal");
+      mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "task_started",
+          session_id: "claude-session",
+          task_id: "task-bg",
+          tool_use_id: "toolu_bg",
+          subagent_type: "Explore",
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      vi.setSystemTime(new Date("2026-05-12T10:01:33Z"));
+      const resultEvents = mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "success",
+          session_id: "claude-session",
+          usage: { total_tokens: 30_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      // The clean turn end is not the goal outcome — background work is live.
+      const resultGoalUpdate = resultEvents.find(
+        (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+      );
+      expect(resultGoalUpdate).toMatchObject({
+        payload: { status: "active", timeUsedSeconds: 93 },
+      });
+      expect(state.activeGoalItemId).toBe("goal-turn-goal");
+
+      const drainEvents = mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "task_notification",
+          session_id: "claude-session",
+          task_id: "task-bg",
+          status: "completed",
+          summary: "Done",
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      expect(drainEvents).not.toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
+      );
+      expect(state.activeGoalItemId).toBe("goal-turn-goal");
+      expect(state.pendingGoalCompletionOnTaskDrain).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("updates the active goal from a native active_goal verdict with iterations and reason", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal all auth tests pass", undefined, "user-goal");
+
+      vi.setSystemTime(new Date("2026-05-12T10:02:00Z"));
+      const events = mapClaudeSdkMessage(
+        activeGoalMessage({
+          condition: "all auth tests pass",
+          iterations: 2,
+          set_at: Date.parse("2026-05-12T10:00:00Z") / 1000,
+          tokens_at_start: 0,
+          last_reason: "login.test.ts still failing",
+        }),
+        state,
+      );
+
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({
+            action: "updated",
+            objective: "all auth tests pass",
+            status: "active",
+            iterations: 2,
+            lastReason: "login.test.ts still failing",
+            timeUsedSeconds: 120,
+          }),
+        }),
+      );
+      expect(state.sawActiveGoalMessage).toBe(true);
+      expect(state.activeGoalItemId).toBe("goal-turn-goal");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("resets evaluator metadata when a new goal replaces the active goal", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-first", "/goal first objective", undefined, "user-first");
+    mapClaudeSdkMessage(
+      activeGoalMessage({
+        condition: "first objective",
+        iterations: 4,
+        set_at: Date.now() / 1000,
+        tokens_at_start: 0,
+        last_reason: "first objective is not met",
+      }),
+      state,
+    );
+
+    startClaudeTurn(state, "turn-second", "/goal second objective", undefined, "user-second");
+
+    expect(state.activeGoalObjective).toBe("second objective");
+    expect(state.activeGoalIterations).toBeUndefined();
+    expect(state.activeGoalLastReason).toBeUndefined();
+  });
+
+  it("keeps the goal active on a clean turn result while native goal evaluation is live", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal all auth tests pass", undefined, "user-goal");
+      mapClaudeSdkMessage(
+        activeGoalMessage({
+          condition: "all auth tests pass",
+          iterations: 1,
+          set_at: Date.parse("2026-05-12T10:00:00Z") / 1000,
+          tokens_at_start: 0,
+          last_reason: "tests not run yet",
+        }),
+        state,
+      );
+
+      vi.setSystemTime(new Date("2026-05-12T10:01:00Z"));
+      const resultEvents = mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "success",
+          session_id: "claude-session",
+          usage: { total_tokens: 20_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      const goalUpdate = resultEvents.find(
+        (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+      );
+      expect(goalUpdate).toMatchObject({
+        payload: {
+          status: "active",
+          tokensUsed: 20_000,
+          iterations: 1,
+          lastReason: "tests not run yet",
+        },
+      });
+      expect(state.activeGoalItemId).toBe("goal-turn-goal");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("completes the goal when the evaluator reports the condition met", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal all auth tests pass", undefined, "user-goal");
+      mapClaudeSdkMessage(
+        activeGoalMessage({
+          condition: "all auth tests pass",
+          iterations: 3,
+          set_at: Date.parse("2026-05-12T10:00:00Z") / 1000,
+          tokens_at_start: 0,
+          last_reason: "one test still red",
+        }),
+        state,
+      );
+      mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "success",
+          session_id: "claude-session",
+          usage: { total_tokens: 40_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      vi.setSystemTime(new Date("2026-05-12T10:05:00Z"));
+      const metEvents = mapClaudeSdkMessage(activeGoalMessage(null), state);
+
+      expect(metEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({
+            action: "updated",
+            objective: "all auth tests pass",
+            status: "complete",
+            tokensUsed: 40_000,
+            iterations: 3,
+            timeUsedSeconds: 300,
+          }),
+        }),
+      );
+      expect(metEvents).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-1",
+        itemId: "goal-turn-goal",
+      });
+      expect(state.activeGoalItemId).toBeUndefined();
+      expect(state.activeGoalObjective).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("creates a goal item when a native goal arrives without a local /goal (session resume)", () => {
+    const state = createClaudeMapperState("thread-1");
+
+    const events = mapClaudeSdkMessage(
+      activeGoalMessage({
+        condition: "the migration compiles cleanly",
+        iterations: 4,
+        set_at: Date.now() / 1000 - 600,
+        tokens_at_start: 0,
+        last_reason: "two call sites remain",
+      }),
+      state,
+    );
+
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "goal",
+        payload: expect.objectContaining({
+          action: "set",
+          objective: "the migration compiles cleanly",
+          status: "active",
+          iterations: 4,
+          lastReason: "two call sites remain",
+        }),
+      }),
+    );
+    expect(state.activeGoalItemId).toBeDefined();
+    expect(state.activeGoalObjective).toBe("the migration compiles cleanly");
+  });
+
+  it("ignores a null active_goal verdict when no goal is active", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-goal", "/goal fix the bug", undefined);
+    // `/goal clear` clears local state eagerly in startClaudeTurn; the SDK's
+    // trailing null verdict must not resurrect or re-complete anything.
+    startClaudeTurn(state, "turn-clear", "/goal clear", undefined);
+
+    const events = mapClaudeSdkMessage(activeGoalMessage(null), state);
+
+    expect(events).toEqual([]);
+    expect(state.sawActiveGoalMessage).toBe(true);
   });
 });
 
@@ -799,7 +1088,7 @@ describe("sdkCanonicalMapping — tool use", () => {
           content_block: {
             type: "tool_use",
             id: `toolu_subagents_${tool}`,
-            name: `mcp__subagents__${tool}`,
+            name: `mcp__crossagents__${tool}`,
             input: {},
           },
         }),
@@ -812,7 +1101,7 @@ describe("sdkCanonicalMapping — tool use", () => {
           itemId: `toolu_subagents_${tool}`,
           itemType: "mcp_tool_call",
           payload: {
-            name: `mcp__subagents__${tool}`,
+            name: `mcp__crossagents__${tool}`,
             args: {},
             result: undefined,
             status: "running",
@@ -2294,6 +2583,100 @@ describe("sdkCanonicalMapping — background sub-agents", () => {
     expect(state.activeSubAgentToolToTask?.has("toolu_parent") ?? false).toBe(false);
   });
 
+  it("preserves structured Workflow launch metadata through the task lifecycle", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_wf", "Workflow");
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_started",
+        session_id: "claude-session",
+        task_id: "task-WF",
+        tool_use_id: "toolu_wf",
+        description: "simplify review",
+        task_type: "local_workflow",
+        workflow_name: "simplify-review",
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // The launch tool_result carries the SDK's structured WorkflowOutput in
+    // tool_use_result. The keepalive swallows the result text, but the
+    // normalized workflow metadata must survive on the running payload.
+    const launchEvents = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        tool_use_result: {
+          status: "async_launched",
+          taskId: "task-WF",
+          taskType: "local_workflow",
+          workflowName: "simplify-review",
+          runId: "wf_abc123",
+          summary: "Four-angle simplify review",
+          transcriptDir: "C:\\sess\\subagents\\workflows\\wf_abc123",
+          scriptPath: "C:\\sess\\workflows\\scripts\\simplify-review-wf_abc123.js",
+        },
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_wf",
+              content: "Workflow launched in background. Task ID: task-WF",
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(launchEvents).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_wf",
+        payload: {
+          status: "running",
+          workflow: {
+            name: "simplify-review",
+            runId: "wf_abc123",
+            summary: "Four-angle simplify review",
+            transcriptDir: "C:\\sess\\subagents\\workflows\\wf_abc123",
+            scriptPath: "C:\\sess\\workflows\\scripts\\simplify-review-wf_abc123.js",
+          },
+        },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_wf")).toBe(true);
+
+    // The authoritative task_notification close still carries the workflow
+    // metadata so the overlay can locate the manifest after completion.
+    const closeEvents = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-WF",
+        tool_use_id: "toolu_wf",
+        status: "completed",
+        summary: "12 findings confirmed",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(closeEvents).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_wf",
+        payload: { status: "success", workflow: { runId: "wf_abc123" } },
+      },
+      {
+        type: "item.completed",
+        itemId: "toolu_wf",
+        payload: { status: "success", workflow: { runId: "wf_abc123" } },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_wf")).toBe(false);
+  });
+
   it("closes the parent as error on task_notification stopped (interrupt)", () => {
     const state = createClaudeMapperState("thread-1");
     startAgentTool(state, "toolu_parent");
@@ -3272,5 +3655,218 @@ describe("sdkCanonicalMapping — emitActiveGoalTokenUpdate", () => {
   it("returns undefined when no goal is active", () => {
     const state = createClaudeMapperState("thread-1");
     expect(emitActiveGoalTokenUpdate(state, 1_000)).toBeUndefined();
+  });
+});
+
+describe("sdkCanonicalMapping — usage.spent", () => {
+  function assistantMessage(options: {
+    id: string;
+    uuid?: string;
+    parentToolUseId?: string;
+    requestId?: string;
+    model?: string;
+    usage?: {
+      input_tokens: number;
+      output_tokens: number;
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
+    };
+  }): SDKMessage {
+    return {
+      type: "assistant",
+      session_id: "claude-session",
+      uuid: options.uuid ?? `uuid-${options.id}`,
+      parent_tool_use_id: options.parentToolUseId ?? null,
+      ...(options.requestId ? { request_id: options.requestId } : {}),
+      message: {
+        id: options.id,
+        role: "assistant",
+        model: options.model ?? "claude-opus-4-8",
+        content: [{ type: "text", text: "hello" }],
+        usage: options.usage ?? { input_tokens: 10, output_tokens: 5 },
+      },
+    } as unknown as SDKMessage;
+  }
+
+  function spentOf(state: ReturnType<typeof createClaudeMapperState>, message: SDKMessage) {
+    return mapClaudeSdkMessage(message, state).find((event) => event.type === "usage.spent");
+  }
+
+  it("emits a per-call usage.spent event with the four-field usage sum", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", true);
+
+    const spent = spentOf(
+      state,
+      assistantMessage({
+        id: "msg-1",
+        requestId: "req-1",
+        usage: {
+          input_tokens: 10,
+          output_tokens: 5,
+          cache_creation_input_tokens: 3,
+          cache_read_input_tokens: 2,
+        },
+      }),
+    );
+
+    expect(spent).toEqual({
+      type: "usage.spent",
+      threadId: "thread-1",
+      usage: {
+        counterKind: "per-call",
+        counter: 20,
+        scopeId: "claude-session",
+        epoch: 0,
+        fresh: true,
+        sampleId: "msg-1:req-1",
+        occurredAt: expect.any(Number),
+        model: "claude-opus-4-8",
+      },
+    });
+  });
+
+  it("emits usage.spent for sidechain (parent-attributed) assistant messages", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", false);
+
+    const events = mapClaudeSdkMessage(
+      assistantMessage({
+        id: "msg-sub-1",
+        parentToolUseId: "toolu_parent",
+        requestId: "req-sub-1",
+        model: "claude-haiku-4-5-20251001",
+        usage: {
+          input_tokens: 100,
+          output_tokens: 20,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 80,
+        },
+      }),
+      state,
+    );
+
+    expect(events[0]).toEqual({
+      type: "usage.spent",
+      threadId: "thread-1",
+      usage: {
+        counterKind: "per-call",
+        counter: 200,
+        scopeId: "claude-session",
+        epoch: 0,
+        sampleId: "msg-sub-1:req-sub-1",
+        occurredAt: expect.any(Number),
+        model: "claude-haiku-4-5-20251001",
+      },
+    });
+    // The child items still render alongside the spend event.
+    expect(
+      events.some(
+        (event) => event.type === "item.started" && event.itemType === "assistant_message",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not emit usage.spent from task_progress, task_notification, or result usage", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", false);
+
+    const progress = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_progress",
+        session_id: "claude-session",
+        task_id: "task-1",
+        tool_use_id: "toolu_T1",
+        description: "Searching",
+        usage: { total_tokens: 4_200, tool_uses: 3, duration_ms: 1_500 },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(progress.some((event) => event.type === "usage.spent")).toBe(false);
+
+    const notification = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-1",
+        status: "completed",
+        summary: "Done",
+        usage: { total_tokens: 98_765, tool_uses: 8, duration_ms: 12_000 },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(notification.some((event) => event.type === "usage.spent")).toBe(false);
+
+    const result = mapClaudeSdkMessage(
+      {
+        type: "result",
+        subtype: "success",
+        session_id: "claude-session",
+        usage: { input_tokens: 10, output_tokens: 5 },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(result.some((event) => event.type === "usage.spent")).toBe(false);
+  });
+
+  it("keeps the sampleId stable per API message (message.id + request_id)", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", false);
+
+    const first = spentOf(state, assistantMessage({ id: "msg-1", requestId: "req-1" }));
+    const replay = spentOf(
+      state,
+      assistantMessage({ id: "msg-1", uuid: "uuid-replay", requestId: "req-1" }),
+    );
+    expect(first?.type === "usage.spent" && first.usage.sampleId).toBe("msg-1:req-1");
+    expect(replay?.type === "usage.spent" && replay.usage.sampleId).toBe("msg-1:req-1");
+
+    // Without an SDK request_id the API message id alone is the dedup key.
+    const bare = spentOf(state, assistantMessage({ id: "msg-2" }));
+    expect(bare?.type === "usage.spent" && bare.usage.sampleId).toBe("msg-2");
+  });
+
+  it("emits nothing for assistant messages without usage, and marks only the first sample fresh", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", true);
+
+    expect(
+      spentOf(
+        state,
+        assistantMessage({ id: "msg-0", usage: { input_tokens: 0, output_tokens: 0 } }),
+      ),
+    ).toBeUndefined();
+    // The zero-usage message did not consume the fresh baseline.
+    const first = spentOf(state, assistantMessage({ id: "msg-1" }));
+    expect(first).toMatchObject({ usage: { fresh: true, epoch: 0 } });
+    const second = spentOf(state, assistantMessage({ id: "msg-2" }));
+    expect(second).toMatchObject({ usage: { epoch: 0 } });
+    expect(second?.type === "usage.spent" && second.usage).not.toHaveProperty("fresh");
+  });
+
+  it("bumps the epoch when the SDK session id is adopted mid-thread", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", false);
+
+    expect(spentOf(state, assistantMessage({ id: "msg-1" }))).toMatchObject({
+      usage: { scopeId: "claude-session", epoch: 0, sampleId: "msg-1" },
+    });
+
+    state.usageScope.adoptScope("claude-session-2");
+
+    expect(spentOf(state, assistantMessage({ id: "msg-2" }))).toMatchObject({
+      usage: { scopeId: "claude-session-2", epoch: 1, sampleId: "msg-2" },
+    });
+  });
+
+  it("emits no usage.spent without a usage scope", () => {
+    const state = createClaudeMapperState("thread-1");
+    expect(
+      mapClaudeSdkMessage(assistantMessage({ id: "msg-1" }), state).some(
+        (event) => event.type === "usage.spent",
+      ),
+    ).toBe(false);
   });
 });

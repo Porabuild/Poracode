@@ -24,6 +24,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
   const externalMcpDiscovery = runtime.externalMcpDiscoveryService;
   const skills = runtime.skillsService;
   return defineSupervisorIpcHandlers({
+    confirmCrossagentRoutingOverride: (payload) =>
+      runtime.confirmCrossagentRoutingOverride(payload),
+    getCrossagentRouting: () => runtime.getCrossagentRoutingSnapshot(),
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
     refreshAgentStatuses: (payload) => registry.refreshAgentStatuses(payload),
@@ -46,6 +49,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     startThread: (payload) => threads.startThread(payload),
     sendThreadInput: (payload) => threads.sendThreadInput(payload),
     interruptThread: (payload) => threads.interruptThread(payload),
+    controlThreadGoal: (payload) => threads.controlThreadGoal(payload),
     rollbackThreadConversation: (payload) => threads.rollbackThreadConversation(payload),
     setPendingSteer: (payload) => threads.setPendingSteer(payload),
     clearPendingSteer: (payload) => threads.clearPendingSteer(payload),
@@ -53,6 +57,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     stageThreadInput: (payload) => threads.stageThreadInput(payload),
     resizeTerminal: (payload) => threads.resizeTerminal(payload),
     resolveThreadServerRequest: (payload) => threads.resolveThreadServerRequest(payload),
+    reloadAgentMcpServers: (payload) => threads.reloadAgentMcpServers(payload),
     closeThread: (payload) => threads.closeThread(payload),
     startShell: (payload) => threads.startShell(payload),
     extractContext: (payload) => generation.extractContext(payload),
@@ -76,6 +81,10 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       });
       return { run };
     },
+    workflowAgentChat: async (payload) => {
+      const { readWorkflowAgentChatEvents } = await import("./workflows/agentChatEvents");
+      return { events: await readWorkflowAgentChatEvents(payload) };
+    },
     createFileCheckpoint: async (payload) => ({
       checkpoint: await checkpoints.create(payload),
     }),
@@ -86,7 +95,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     restoreFileCheckpoint: async (payload) => {
       await checkpoints.restore(payload);
     },
-    getGitStatus: (payload) => git.getStatus(payload.projectLocation),
+    getGitStatus: (payload) => git.getStatus(payload.projectLocation, payload.detail),
     getGitDiff: (payload) => git.getDiff(payload.projectLocation, payload.filePath, payload.staged),
     getGitDiffBatch: (payload) => git.getDiffBatch(payload.projectLocation, payload.untrackedPaths),
     getGitFileContent: (payload) =>
@@ -98,18 +107,28 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     gitUnstageAll: (payload) => git.unstageAll(payload.projectLocation),
     gitRevertAll: (payload) => git.revertAll(payload.projectLocation),
     gitCommit: async (payload) => {
-      const { hash } = await git.commit(
+      const result = await git.commit(
         payload.projectLocation,
         payload.message,
         payload.addAll ?? false,
+        payload.reapplyStashCommit,
       );
-      return { hash, message: payload.message };
+      return { ...result, message: payload.message };
     },
     gitInit: (payload) => git.init(payload.projectLocation),
     gitAddRemote: (payload) => git.addRemote(payload.projectLocation, payload.remote, payload.url),
     generateCommitMessage: (payload) => generation.generateCommitMessage(payload),
     generateTitle: (payload) => generation.generateTitle(payload),
     generatePrSummary: (payload) => generation.generatePrSummary(payload),
+    createExperimentWorktrees: (payload) => git.createExperimentWorktrees(payload),
+    removeExperimentWorktrees: (payload) => runtime.removeExperimentWorktrees(payload),
+    captureExperimentSnapshot: (payload) => runtime.captureExperimentSnapshot(payload),
+    judgeExperimentSnapshot: (payload) => runtime.judgeExperimentSnapshot(payload),
+    getExperimentCandidateStats: (payload) =>
+      git.getExperimentCandidateStats(payload.projectLocation, payload.baseRef),
+    cancelJudgeExperiment: (payload) => {
+      generation.cancelJudgeExperiment(payload.experimentId);
+    },
     gitListBranches: (payload) => git.listBranches(payload.projectLocation, payload.includeRemote),
     gitFetch: (payload) => git.fetch(payload.projectLocation, payload.remote, payload.prune),
     gitListWorktrees: (payload) => git.listWorktrees(payload.projectLocation),
@@ -127,13 +146,20 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
           ...(payload.worktreeRoot ? { root: payload.worktreeRoot } : {}),
           ...(payload.worktreeOmitRepoDir ? { omitRepoDir: true } : {}),
         },
+        payload.sourceBranch,
+        payload.ownerToken,
       ),
     gitRemoveWorktree: (payload) => runtime.gitRemoveWorktree(payload),
     gitPruneWorktrees: (payload) => runtime.gitPruneWorktrees(payload),
     gitDeleteBranch: (payload) =>
       payload.remote
         ? git.deleteRemoteBranch(payload.projectLocation, payload.remote, payload.branch)
-        : git.deleteBranch(payload.projectLocation, payload.branch, payload.force),
+        : git.deleteBranch(
+            payload.projectLocation,
+            payload.branch,
+            payload.force,
+            payload.expectedOwnerToken,
+          ),
     gitSwitchBranch: (payload) =>
       git.switchBranch(payload.projectLocation, payload.branch, payload.createNew),
     gitPull: (payload) => git.pull(payload.projectLocation, payload.remote ?? "origin"),
@@ -153,6 +179,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
         payload.branch,
         payload.sourceBranchOverride,
       ),
+    gitGetWorktreeOwner: (payload) => git.getWorktreeOwner(payload.projectLocation, payload.branch),
     gitProjectSnapshot: (payload) => runtime.gitProjectSnapshot(payload),
     gitWorktreeStatusBatch: async (payload) => ({
       statuses: await git.getWorktreeStatusBatch(
@@ -167,6 +194,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
         payload.worktreeLocation,
         payload.worktreeBranch,
         payload.sourceBranch,
+        payload.expectedWorktreeCommit,
       ),
     gitPullFromSource: (payload) =>
       git.pullFromSource(
@@ -174,15 +202,22 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
         payload.sourceBranch,
         payload.preserveLocalChanges,
       ),
-    gitAbortMerge: (payload) => git.abortMerge(payload.worktreeLocation),
-    gitFinishMerge: (payload) => git.finishMerge(payload.worktreeLocation),
+    gitAbortMerge: (payload) =>
+      git.abortMerge(payload.worktreeLocation, payload.reapplyStashCommit),
+    gitFinishMerge: (payload) =>
+      git.finishMerge(payload.worktreeLocation, payload.reapplyStashCommit),
     gitWatchProject: async (payload) => {
       runtime.projectWatcher.watch(payload.projectId, payload.projectLocation);
     },
     gitWatchWorktrees: async (payload) => {
       runtime.projectWatcher.watchWorktrees(payload.projectId, payload.worktreePaths);
     },
-    gitUnwatchProject: (payload) => runtime.projectWatcher.unwatch(payload.projectId),
+    gitUnwatchProject: async (payload) => {
+      await runtime.projectWatcher.unwatch(payload.projectId);
+      if (payload.releaseWslDistro) {
+        runtime.releaseWslBridgeIfUnused(payload.releaseWslDistro);
+      }
+    },
     relocateProject: (payload) => runtime.relocateProject(payload),
     searchProjectFiles: (payload) => fileIndex.searchProjectFiles(payload),
     listProjectTree: (payload) => projectTree.listProjectTree(payload),
@@ -229,6 +264,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghUpdatePrBranch: (payload) =>
       github.updatePrBranch(payload.projectLocation, payload.prNumber, payload.rebase),
     ghGetPrDetails: (payload) => github.getPrDetails(payload.projectLocation, payload.prNumber),
+    ghGetPrReviewComments: (payload) =>
+      github.getPrReviewThreads(payload.projectLocation, payload.prNumber),
     ghPostPrComment: (payload) =>
       github.postPrComment(payload.projectLocation, payload.prNumber, payload.body),
     ghListAccounts: (payload) => github.listAccounts(payload.runtime),

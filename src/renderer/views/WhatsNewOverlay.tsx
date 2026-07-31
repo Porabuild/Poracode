@@ -9,11 +9,10 @@ import { useChangelogStore, useUnseenReleases } from "@/renderer/state/changelog
 import { productNameFor } from "@/shared/channel";
 
 /**
- * The "What's New" dialog. It never opens automatically — an unread update only
- * surfaces as the sidebar "What's New" flag, and the user opens this on their
- * own terms. When opened after an update it lists every release the user hasn't
- * read; when opened while already caught up it shows the latest release.
- * Opening or closing the dialog marks the current version as read.
+ * The "What's New" dialog. It opens from the sidebar or another explicit user
+ * action. When opened after an update it lists every release the user hasn't
+ * read; when already caught up it shows the latest release. Opening or closing
+ * the dialog marks the current version as read.
  */
 export function WhatsNewOverlay() {
   const open = useChangelogStore((s) => s.whatsNewOpen);

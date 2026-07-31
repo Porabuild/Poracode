@@ -5,16 +5,20 @@ import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftCo
 import {
   buildGitAddWorktreePayload,
   navigationTransitionType,
+  openWorktreeDraft,
   screenDepth,
   selectDraftProject,
+  threadIdFromPath,
 } from "./navHelpers";
+
+const draftStore = vi.hoisted(() => ({
+  setPendingDraftWorktreeSelection: vi.fn<(projectId: string, selection: unknown) => void>(),
+  openDraft: vi.fn<(projectId: string) => void>(),
+}));
 
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
-    getState: () => ({
-      setPendingDraftWorktreeSelection: () => undefined,
-      openDraft: () => undefined,
-    }),
+    getState: () => draftStore,
   },
 }));
 
@@ -39,6 +43,44 @@ function makeProject(id: string, overrides: Partial<Project> = {}): Project {
 const home = makeProject(HOME_PROJECT_ID, { name: HOME_PROJECT_NAME, disabled: true });
 const realA = makeProject("real-a");
 const realB = makeProject("real-b");
+
+describe("openWorktreeDraft", () => {
+  it("waits for the full draft route before publishing the one-shot worktree target", async () => {
+    draftStore.setPendingDraftWorktreeSelection.mockReset();
+    draftStore.openDraft.mockReset();
+    let finishNavigation: (() => void) | undefined;
+    const navigateToDraft = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise<void>((resolve) => {
+          finishNavigation = resolve;
+        }),
+    );
+
+    const opening = openWorktreeDraft(
+      {
+        projectId: "real-a",
+        worktreePath: "/repo/real-a-worktree",
+        worktreeBranch: "feature/mobile-target",
+      },
+      navigateToDraft,
+    );
+
+    expect(navigateToDraft).toHaveBeenCalledTimes(1);
+    expect(draftStore.setPendingDraftWorktreeSelection).not.toHaveBeenCalled();
+    expect(draftStore.openDraft).not.toHaveBeenCalled();
+
+    finishNavigation?.();
+    await opening;
+
+    expect(draftStore.setPendingDraftWorktreeSelection).toHaveBeenCalledWith("real-a", {
+      branch: "feature/mobile-target",
+      baseBranch: "feature/mobile-target",
+      isWorktree: true,
+      worktreePath: "/repo/real-a-worktree",
+    });
+    expect(draftStore.openDraft).toHaveBeenCalledWith("real-a");
+  });
+});
 
 describe("selectDraftProject", () => {
   it("selects Home when it is explicitly picked (regression: PWA can't select Home)", () => {
@@ -194,8 +236,20 @@ describe("screenDepth", () => {
     expect(screenDepth("/settings/models")).toBe(3);
     expect(screenDepth("/settings/schedules")).toBe(3);
     expect(screenDepth("/workspace/t1")).toBe(2);
+    expect(screenDepth("/subagent/t1/parent-1")).toBe(2);
+    expect(screenDepth("/notes/t1")).toBe(2);
     expect(screenDepth("/terminal/p1")).toBe(2);
     expect(screenDepth("/pr/42")).toBe(2);
+  });
+});
+
+describe("threadIdFromPath", () => {
+  it("keeps the same thread selected while its desktop workspace panel is open", () => {
+    expect(threadIdFromPath("/thread/thread%20one")).toBe("thread one");
+    expect(threadIdFromPath("/workspace/thread%20one")).toBe("thread one");
+    expect(threadIdFromPath("/notes/thread%20one")).toBe("thread one");
+    expect(threadIdFromPath("/subagent/thread%20one/parent-1")).toBe("thread one");
+    expect(threadIdFromPath("/settings")).toBeNull();
   });
 });
 
@@ -212,6 +266,10 @@ describe("navigationTransitionType", () => {
     expect(navigationTransitionType("/settings/models", "/settings/desktop")).toBe("pop");
     expect(navigationTransitionType("/thread/abc", "/workspace/abc")).toBe("push");
     expect(navigationTransitionType("/workspace/abc", "/thread/abc")).toBe("pop");
+    expect(navigationTransitionType("/thread/abc", "/subagent/abc/parent-1")).toBe("push");
+    expect(navigationTransitionType("/subagent/abc/parent-1", "/thread/abc")).toBe("pop");
+    expect(navigationTransitionType("/thread/abc", "/notes/abc")).toBe("push");
+    expect(navigationTransitionType("/notes/abc", "/thread/abc")).toBe("pop");
   });
 
   it("fades between same-depth screens (sibling switches)", () => {

@@ -47,7 +47,7 @@ export function createSlashCommandChipElement(
 
   const name = document.createElement("span");
   name.className = "poracode-slash-chip__name";
-  name.textContent = command.id;
+  name.textContent = command.skillName ?? command.id;
   chip.appendChild(name);
 
   return chip;

@@ -20,6 +20,7 @@ export function SidebarProjectSection(props: {
     accept: "project",
     group: "projects",
     data: { type: "project", projectId: props.projectId } satisfies DragSourceData,
+    disabled: project?.remoteServerId !== undefined,
   });
   const isDragging = useIsDraggingProject(props.projectId);
 

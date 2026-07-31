@@ -121,6 +121,7 @@ describe("ProviderModelMenu", () => {
     useSharedSettings.setState({
       favoriteModels: [],
       recentModels: [],
+      hiddenModels: {},
     });
   });
 
@@ -138,6 +139,10 @@ describe("ProviderModelMenu", () => {
 
     const listbox = await screen.findByRole("listbox", { name: "Models" });
     expect(listbox).toHaveClass("no-scrollbar");
+    expect(listbox.querySelector(".poracode-model-menu-bottom-spacer")).toHaveAttribute(
+      "data-scroll-end-gap",
+      "6",
+    );
     expect(screen.queryByText("Model 500")).not.toBeInTheDocument();
 
     fireEvent.scroll(listbox, { target: { scrollTop: 500 * 28 } });
@@ -520,6 +525,41 @@ describe("ProviderModelMenu", () => {
     expect(within(listbox).getByText("Gui Recent")).toBeInTheDocument();
     expect(within(listbox).queryByText("Terminal Fav")).not.toBeInTheDocument();
     expect(within(listbox).queryByText("Terminal Recent")).not.toBeInTheDocument();
+  });
+
+  it("keeps hidden models out of the favorites and recents sections", async () => {
+    useSharedSettings.setState({
+      favoriteModels: [{ agentKind: "codex", modelId: "model-2", presentationMode: "gui" }],
+      recentModels: [
+        { agentKind: "codex", modelId: "model-4[1m]", presentationMode: "gui" },
+        { agentKind: "codex", modelId: "model-3", presentationMode: "gui" },
+      ],
+      hiddenModels: { codex: ["model-2", "model-4"] },
+    });
+
+    // Callers strip hidden models from the capabilities they pass in, so the
+    // visible catalog only carries model-1 and model-3.
+    const codex = makeNamedProvider("codex", "Codex", 3);
+    codex.capabilities.models = codex.capabilities.models.filter((m) => m.id !== "model-2");
+
+    render(
+      <ProviderModelMenu
+        providers={[codex, makeNamedProvider("claude", "Claude", 1)]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        presentationMode="gui"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).getByText("Recent")).toBeInTheDocument();
+    expect(within(listbox).getAllByText("Model 3").length).toBeGreaterThan(0);
+    expect(within(listbox).queryAllByText("Favorites")).toHaveLength(0);
+    expect(within(listbox).queryAllByText("Model 2")).toHaveLength(0);
+    expect(within(listbox).queryAllByText(/Model 4/u)).toHaveLength(0);
   });
 
   it("does not duplicate favorites into a separate section when only one provider is visible", async () => {

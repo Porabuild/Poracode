@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,6 +36,13 @@ vi.mock("@/main/db", () => ({
           project.id === projectId,
       ) ?? null,
   ),
+  dbGetProjectNotes: vi.fn<() => string>(() => ""),
+  dbUpsertProject: vi.fn<() => void>(),
+  dbDeleteProject: vi.fn<() => void>(),
+  dbGetPrWatches: vi.fn<() => unknown[]>(() => []),
+  dbGetPrWatch: vi.fn<() => unknown>(() => null),
+  dbUpsertPrWatch: vi.fn<() => void>(),
+  dbDeletePrWatch: vi.fn<() => void>(),
   dbGetThreads: vi.fn<() => unknown[]>(() => []),
   dbGetThread: vi.fn<() => unknown>(() => null),
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
@@ -80,6 +87,7 @@ vi.mock("@/main/poracodeData", () => ({
       baseDir: base,
       dbPath: join(base, "state.sqlite"),
       settingsPath: join(base, "settings.json"),
+      attachmentsDir: join(base, "attachments"),
     };
   },
 }));
@@ -131,6 +139,14 @@ describe("createHeadlessRemoteHost", () => {
     expect(info.wsBaseUrl).toMatch(/^ws:\/\/127\.0\.0\.1:\d+\/$/);
     // The startup pairing link is minted against the advertised loopback host.
     expect(info.pairingUrl).toContain("token=");
+    const descriptor = await fetch(
+      new URL("/.well-known/poracode/environment", info.httpBaseUrl),
+    ).then((response) => response.json());
+    expect(descriptor).toMatchObject({
+      protocolVersion: 1,
+      hostMode: "helper",
+      appVersion: "9.9.9-test",
+    });
 
     await host.dispose();
   });
@@ -198,6 +214,29 @@ describe("createHeadlessRemoteHost", () => {
       mcpServers: [projectServer],
       disabledBuiltInMcpServerIds: ["chrome"],
     });
+    await host.dispose();
+  });
+
+  it("persists remote attachment uploads without Electron", async () => {
+    const host = await makeHost();
+    const save = (
+      host.server as unknown as {
+        options: {
+          attachments?: {
+            save(input: { threadId: string; fileName: string; data: Uint8Array }): string;
+          };
+        };
+      }
+    ).options.attachments?.save;
+
+    const path = save?.({
+      threadId: "thread-1",
+      fileName: "notes.md",
+      data: new TextEncoder().encode("helper upload"),
+    });
+
+    expect(path).toBe(join(h.tmpBase, "attachments", "thread-1", "notes.md"));
+    expect(readFileSync(path!, "utf8")).toBe("helper upload");
     await host.dispose();
   });
 

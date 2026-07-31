@@ -63,7 +63,11 @@ function externalReadAsProjectResult(result: ReadExternalFileResult): ReadProjec
       ...(result.hasBom !== undefined ? { hasBom: result.hasBom } : {}),
     };
   }
-  return { ...base, status: result.status };
+  return {
+    ...base,
+    status: result.status,
+    ...(result.contentBase64 !== undefined ? { contentBase64: result.contentBase64 } : {}),
+  };
 }
 
 export type FileEditorOverlayMode = "modal" | "fullscreen";
@@ -82,6 +86,7 @@ export interface FileEditorBuffer {
   status: ProjectFileReadStatus;
   modifiedAtMs: number;
   content: string;
+  binaryContentBase64?: string;
   savedContent: string;
   lineEnding: "lf" | "crlf";
   hasBom: boolean;
@@ -199,6 +204,7 @@ function buildBuffer(result: ReadProjectFileResult): FileEditorBuffer {
       status: result.status,
       modifiedAtMs: result.modifiedAtMs,
       content: "",
+      ...(result.contentBase64 !== undefined ? { binaryContentBase64: result.contentBase64 } : {}),
       savedContent: "",
       lineEnding: "lf",
       hasBom: false,
@@ -447,6 +453,9 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
               hasBom: existing.hasBom,
             }
           : {}),
+        ...(existing.binaryContentBase64 !== undefined
+          ? { contentBase64: existing.binaryContentBase64 }
+          : {}),
       };
       return cachedResult;
     }
@@ -480,6 +489,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
 
     try {
       const result = await readFileForContext(rootContext, openPath);
+      if (get().rootContext !== rootContext) return result;
       set((state) => ({
         buffers: {
           ...state.buffers,
@@ -496,6 +506,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       }
       return result;
     } catch (error) {
+      if (get().rootContext !== rootContext) throw error;
       set((state) => {
         const { [openPath]: _, ...rest } = state.buffers;
         return {
@@ -569,6 +580,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
     const savedContent = buffer.content;
     const isRemoteContext = isRemoteFileEditorContext(rootContext);
     const result = await writeFileForContext(rootContext, path, savedContent, buffer.modifiedAtMs);
+    if (get().rootContext !== rootContext) return;
 
     if (!isRemoteContext) {
       recentlySavedAt.set(path, Date.now());
@@ -709,6 +721,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         readFileForContext(rootContext, path).then((result) => ({ path, result })),
       ),
     );
+    if (get().rootContext !== rootContext) return;
 
     set((state) => {
       let changed = false;

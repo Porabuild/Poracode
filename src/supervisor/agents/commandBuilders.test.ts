@@ -190,58 +190,57 @@ describe("agent command builders", () => {
   });
 
   it("injects Codex browser MCP config when enabled, using a token env var", () => {
-    const oldUrl = process.env.PORACODE_BROWSER_MCP_URL;
-    const oldToken = process.env.PORACODE_BROWSER_MCP_TOKEN;
-    process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:9123";
-    process.env.PORACODE_BROWSER_MCP_TOKEN = "secret-token";
-    try {
-      const spec = buildCodexAppServerCommand(windowsProject, { browserMcpEnabled: true });
-      const { cmdArgs } = parseWindowsSpec(spec);
-
-      expect(cmdArgs).toContain('mcp_servers.browser.url="http://127.0.0.1:9123/mcp"');
-      expect(cmdArgs).toContain(
-        'mcp_servers.browser.bearer_token_env_var="PORACODE_BROWSER_MCP_TOKEN"',
-      );
-      expect(cmdArgs).not.toContain('mcp_servers.browser.bearer_token="secret-token"');
-
-      const disabledSpec = buildCodexAppServerCommand(windowsProject);
-      const { cmdArgs: disabledArgs } = parseWindowsSpec(disabledSpec);
-      expect(disabledArgs.some((a) => a.startsWith("mcp_servers.browser"))).toBe(false);
-    } finally {
-      if (oldUrl === undefined) {
-        delete process.env.PORACODE_BROWSER_MCP_URL;
-      } else {
-        process.env.PORACODE_BROWSER_MCP_URL = oldUrl;
-      }
-      if (oldToken === undefined) {
-        delete process.env.PORACODE_BROWSER_MCP_TOKEN;
-      } else {
-        process.env.PORACODE_BROWSER_MCP_TOKEN = oldToken;
-      }
-    }
-  });
-
-  it("injects Codex subagents MCP config when enabled, using a distinct token env var", () => {
-    const subagentMcp = {
-      url: "http://127.0.0.1:9200/mcp",
-      token: "subagent-token",
-      headers: { Authorization: "Bearer subagent-token" },
-    };
     const spec = buildCodexAppServerCommand(windowsProject, {
-      subagentMcpEnabled: true,
-      subagentMcp,
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp",
+            headers: { Authorization: "Bearer secret-token" },
+          },
+        },
+      ],
     });
     const { cmdArgs } = parseWindowsSpec(spec);
 
-    expect(cmdArgs).toContain('mcp_servers.subagents.url="http://127.0.0.1:9200/mcp"');
-    expect(cmdArgs).toContain(
-      'mcp_servers.subagents.bearer_token_env_var="PORACODE_SUBAGENT_MCP_TOKEN"',
+    expect(cmdArgs).toContain('mcp_servers.browser.url="http://127.0.0.1:9123/mcp"');
+    expect(cmdArgs.some((arg) => arg.startsWith("mcp_servers.browser.bearer_token_env_var="))).toBe(
+      true,
     );
-    expect(cmdArgs).not.toContain('mcp_servers.subagents.bearer_token="subagent-token"');
+    expect(Object.values(spec.env ?? {})).toContain("secret-token");
+  });
+
+  it("injects Codex Crossagents MCP config when enabled, using a distinct token env var", () => {
+    const spec = buildCodexAppServerCommand(windowsProject, {
+      mcpServers: [
+        {
+          id: "crossagents",
+          name: "crossagents",
+          timeoutMs: 300_000,
+          approvalMode: "approve",
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9200/mcp",
+            headers: { Authorization: "Bearer crossagent-token" },
+          },
+        },
+      ],
+    });
+    const { cmdArgs } = parseWindowsSpec(spec);
+
+    expect(cmdArgs).toContain('mcp_servers.crossagents.url="http://127.0.0.1:9200/mcp"');
+    expect(
+      cmdArgs.some((arg) => arg.startsWith("mcp_servers.crossagents.bearer_token_env_var=")),
+    ).toBe(true);
+    expect(cmdArgs).toContain('mcp_servers.crossagents.default_tools_approval_mode="approve"');
+    expect(cmdArgs).not.toContain('mcp_servers.crossagents.bearer_token="crossagent-token"');
 
     const disabledSpec = buildCodexAppServerCommand(windowsProject);
     const { cmdArgs: disabledArgs } = parseWindowsSpec(disabledSpec);
-    expect(disabledArgs.some((a) => a.startsWith("mcp_servers.subagents"))).toBe(false);
+    expect(disabledArgs.some((a) => a.startsWith("mcp_servers.crossagents"))).toBe(false);
   });
 
   it("resumes the server thread when structured session provides a threadId", () => {
@@ -350,8 +349,6 @@ describe("agent command builders", () => {
           {
             id: "vercel",
             name: "Vercel",
-            description: "",
-            enabled: true,
             timeoutMs: 30_000,
             transport: { type: "http", url: "https://mcp.vercel.com", headers: {} },
           },
@@ -443,6 +440,72 @@ describe("agent command builders", () => {
     ).toEqual({
       command: "grok",
       args: ["-p", "Summarize this diff", "-m", "grok-composer-2.5-fast", "--always-approve"],
+      stdin: "",
+    });
+  });
+
+  it("builds a Claude text-only one-shot with provider extensions disabled", () => {
+    expect(
+      createClaudeAdapter().buildTextOnlyOneShotCommand?.(
+        "claude-opus-4-8",
+        "high",
+        "Judge these diffs",
+      ),
+    ).toEqual({
+      command: "claude",
+      args: [
+        "-p",
+        "Judge these diffs",
+        "--model",
+        "claude-opus-4-8",
+        "--fallback-model",
+        "haiku",
+        "--no-session-persistence",
+        "--safe-mode",
+        "--tools",
+        "",
+        "--mcp-config",
+        '{"mcpServers":{}}',
+        "--strict-mcp-config",
+        "--effort",
+        "high",
+      ],
+      stdin: "",
+    });
+  });
+
+  it("restricts Claude judge workspaces to read and search tools", () => {
+    expect(
+      createClaudeAdapter().buildOneShotCommand?.(
+        "claude-sonnet-5",
+        "high",
+        "Judge the anonymous patch files",
+        undefined,
+        undefined,
+        { readOnlyWorkspace: true },
+      ),
+    ).toEqual({
+      command: "claude",
+      args: [
+        "-p",
+        "Judge the anonymous patch files",
+        "--model",
+        "claude-sonnet-5",
+        "--fallback-model",
+        "haiku",
+        "--no-session-persistence",
+        "--permission-mode",
+        "plan",
+        "--allowedTools",
+        "Read,Glob,Grep",
+        "--disallowedTools",
+        "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill",
+        "--mcp-config",
+        '{"mcpServers":{}}',
+        "--strict-mcp-config",
+        "--effort",
+        "high",
+      ],
       stdin: "",
     });
   });

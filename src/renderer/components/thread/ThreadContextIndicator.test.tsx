@@ -4,6 +4,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadContextDock } from "./ThreadContextDock";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 const summary: ThreadContextUsageSummary = {
   usedTokens: 71_000,
@@ -20,7 +21,7 @@ const summary: ThreadContextUsageSummary = {
 };
 
 describe("ThreadContextIndicator", () => {
-  it("renders the context ring with the percent number inside and toggles the dock", () => {
+  it("renders the context ring without any number and toggles the dock", () => {
     const onToggle = vi.fn<() => void>();
     const { container } = render(
       <ThreadContextIndicator summary={summary} isOpen={false} onToggle={onToggle} />,
@@ -31,9 +32,10 @@ describe("ThreadContextIndicator", () => {
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute("data-tone", "normal");
-    expect(container.querySelector(".poracode-context-indicator__ring-number")).toHaveTextContent(
-      "36",
-    );
+    expect(
+      container.querySelector(".poracode-context-indicator__ring-progress"),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".poracode-context-indicator svg text")).not.toBeInTheDocument();
     expect(container.querySelector(".poracode-context-indicator__percent")).not.toBeInTheDocument();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
@@ -42,7 +44,7 @@ describe("ThreadContextIndicator", () => {
     render(<ThreadContextDock summary={summary} onClose={() => undefined} />);
 
     expect(screen.getByRole("region", { name: "Thread context usage" })).toBeVisible();
-    expect(screen.getByText("36% Full")).toBeVisible();
+    expect(screen.getByText(byTextContent("36% Full"))).toBeVisible();
     expect(screen.getByText("71K used")).toBeVisible();
     expect(screen.getByText("200K limit")).toBeVisible();
     expect(screen.getByText("Input")).toBeVisible();

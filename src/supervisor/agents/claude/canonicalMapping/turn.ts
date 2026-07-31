@@ -1,4 +1,5 @@
-import type { CanonicalContentBlock, PromptSegment, RuntimeEvent } from "@/shared/contracts";
+import type { PromptSegment, RuntimeEvent } from "@/shared/contracts";
+import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
   goalPayloadFromProviderState,
   parseGoalSlashCommand,
@@ -9,34 +10,6 @@ import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
 import { clearActiveGoal, resetActiveGoalTokenAccounting } from "./goal";
 import { newItemId } from "./helpers";
 import { isLiveSubAgentScopedTool } from "./toolItems";
-
-export function buildPromptContentBlocks(
-  prompt: string,
-  segments?: PromptSegment[],
-): CanonicalContentBlock[] {
-  if (!segments || segments.length === 0) {
-    return prompt.length > 0 ? [{ kind: "text", text: prompt }] : [];
-  }
-
-  const blocks: CanonicalContentBlock[] = [];
-  for (const segment of segments) {
-    if (segment.kind === "text") {
-      if (segment.content.length > 0) blocks.push({ kind: "text", text: segment.content });
-      continue;
-    }
-    if (segment.kind === "diff_comment") {
-      blocks.push({ ...segment });
-      continue;
-    }
-    blocks.push({
-      kind: "file",
-      path: segment.path,
-      name: segment.path.split(/[\\/]/).pop(),
-      source: segment.kind === "attachment" ? "attachment" : "mention",
-    });
-  }
-  return blocks;
-}
 
 export function startClaudeTurn(
   state: ClaudeMapperState,
@@ -61,6 +34,9 @@ export function startClaudeTurn(
   }
   delete state.currentAssistantMessageId;
   delete state.currentCompactionItemId;
+  // A new turn means the goal's work continues — a legacy complete-on-drain
+  // scheduled by the previous turn end no longer applies.
+  delete state.pendingGoalCompletionOnTaskDrain;
   state.streamedAssistantMessageIds.clear();
 
   const userItemId = userMessageItemId ?? newItemId("user");
@@ -83,6 +59,8 @@ export function startClaudeTurn(
       state.activeGoalItemId = goalItemId;
       state.activeGoalObjective = goalPayload.objective;
       state.activeGoalStartedAtMs = Date.now();
+      delete state.activeGoalIterations;
+      delete state.activeGoalLastReason;
       resetActiveGoalTokenAccounting(state);
     } else {
       clearActiveGoal(state);

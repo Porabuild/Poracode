@@ -5,7 +5,7 @@ import type { FileEntry } from "@/shared/contracts";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 
 /**
- * A composer MCP server (Browser, Subagents, Computer Use, …) surfaced as an
+ * A composer MCP server (Browser, Crossagents, Computer Use, …) surfaced as an
  * `@`-mention. `path` doubles as the MCP id passed back on select; `icon` and
  * `detail` are supplied already-resolved by the composer so the popover stays
  * registry-agnostic.

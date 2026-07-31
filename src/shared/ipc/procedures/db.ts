@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { projectSchema, threadSchema } from "../../contracts";
+import { projectSchema } from "../../contracts";
 import type { Project, ProjectNotes, Thread, ThreadContextUsage } from "../../contracts";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
@@ -7,6 +7,7 @@ import {
   dbDeleteThreadPayloadSchema,
   dbGetCompletedTurnsPayloadSchema,
   dbGetProjectNotesPayloadSchema,
+  dbPersistExperimentStatePayloadSchema,
   dbGetRuntimeItemsPayloadSchema,
   dbGetRuntimeItemsPagePayloadSchema,
   dbGetThreadContextUsagePayloadSchema,
@@ -18,6 +19,8 @@ import {
   dbStateKeySchema,
   dbStatePayloadSchema,
   dbSyncAllPayloadSchema,
+  persistedThreadSchema,
+  type DbPersistExperimentStatePayload,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,
@@ -48,7 +51,7 @@ export const dbProcedures = {
   dbUpsertThread: definePayloadProcedure<Thread, void, "main-local">(
     "dbUpsertThread",
     "main-local",
-    threadSchema,
+    persistedThreadSchema,
   ),
   dbDeleteThread: defineIpcProcedure<
     [string],
@@ -74,6 +77,11 @@ export const dbProcedures = {
   >("dbSyncAll", "main-local", dbSyncAllPayloadSchema, (projects, threads, viewJson) =>
     dbSyncAllPayloadSchema.parse({ projects, threads, viewJson }),
   ),
+  dbPersistExperimentState: definePayloadProcedure<
+    DbPersistExperimentStatePayload,
+    void,
+    "main-local"
+  >("dbPersistExperimentState", "main-local", dbPersistExperimentStatePayloadSchema),
   dbGetThreadRuntimeItems: defineIpcProcedure<
     [string],
     z.infer<typeof dbGetRuntimeItemsPayloadSchema>,

@@ -513,4 +513,60 @@ describe("fileEditorStore remote roots", () => {
       isDirty: false,
     });
   });
+
+  it("does not apply a file read that resolves after the root session clears", async () => {
+    let resolveRead:
+      | ((value: {
+          path: string;
+          status: "ready";
+          modifiedAtMs: number;
+          content: string;
+          lineEnding: "lf";
+          hasBom: false;
+        }) => void)
+      | undefined;
+    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(
+      () =>
+        new Promise((resolve) => {
+          resolveRead = resolve as typeof resolveRead;
+        }),
+    );
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Remote Desktop",
+          endpoint: "https://remote.example.test/",
+          accessToken: "token",
+          scopes: ["session:read", "session:operate"],
+        },
+      ],
+      clientFactory: () => ({ gitCall }) as unknown as RemoteDesktopClient,
+    });
+    useFileEditorStore.getState().setRootContext({
+      projectId: "p1",
+      projectName: "Remote Project",
+      projectLocation: { kind: "posix", path: "/remote/project" },
+      rootLabel: "Remote Project",
+      remoteServerId: "d1",
+    });
+
+    const load = useFileEditorStore.getState().openFile("README.md");
+    useFileEditorStore.getState().clearSession();
+    resolveRead?.({
+      path: "README.md",
+      status: "ready",
+      modifiedAtMs: 2,
+      content: "from the previous desktop",
+      lineEnding: "lf",
+      hasBom: false,
+    });
+    await load;
+
+    expect(useFileEditorStore.getState()).toMatchObject({
+      rootContext: null,
+      tabs: [],
+      buffers: {},
+    });
+  });
 });

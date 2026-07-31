@@ -13,6 +13,7 @@ export {
   applyThreadSnapshot,
   dispatchRemoteSupervisorEvent,
   clearPendingRuntimeEvents,
+  isThreadVisible,
 } from "./sync";
 export type { RemoteDispatchHooks } from "./sync";
 export {

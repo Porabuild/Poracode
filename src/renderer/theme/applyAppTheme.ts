@@ -79,6 +79,7 @@ export function bootstrapAppThemeFromCache(): void {
     root.classList.remove("light", "dark");
     root.classList.add(appearance);
     root.dataset.theme = appearance;
+    root.dataset.themePreset = themeId;
     applyAppTheme(root, appearance, themeId);
   } catch {
     // Ignore malformed cache; the provider effect applies real settings shortly.

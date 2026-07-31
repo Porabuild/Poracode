@@ -1,3 +1,4 @@
+import { nativeImage } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { dbGetProject, dbGetProjects, dbGetThreads } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
@@ -8,15 +9,21 @@ import type {
   SupervisorEvent,
 } from "@/shared/ipc";
 import { toErrorMessage } from "@/shared/errorMessage";
-import type { PoracodePaths } from "@/shared/poracodePaths";
+import { resolvePoracodePaths, type PoracodePaths } from "@/shared/poracodePaths";
+import type { PoracodeChannel } from "@/shared/channel";
+import { saveUploadedAttachmentFile } from "../attachments/attachmentStorage";
 import {
   pickRemoteSettings,
   type RemoteAccessPairingInfo,
   type RemoteGitSummaries,
 } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { Project } from "@/shared/contracts";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import type { ScheduleService } from "../schedules/ScheduleService";
+import type { PrWatchService } from "../prWatch";
+import type { GitStateService } from "../gitState";
 import { createPersistentRemoteAuthStore } from "./auth";
 import {
   remoteAccessAdvertisedHost,
@@ -25,9 +32,15 @@ import {
   resolveRemoteAccessPort,
 } from "./config";
 import { readOrCreateRemoteAccessIdentity } from "./identity";
+import { setImagePreviewGenerator } from "./server/imagePreview";
 import { getRemoteAccessPairingInfo } from "./pairingInfo";
 import { createPortForwarding, type PortForwarding } from "./portForward/portForwarding";
-import { createPushGateway, PushCoordinator, PushRegistrationStore } from "./push";
+import {
+  createPushGateway,
+  createWebPushPublicKeyResolver,
+  PushCoordinator,
+  PushRegistrationStore,
+} from "./push";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -43,18 +56,31 @@ import {
   type TailscaleStatus,
 } from "./tailscale";
 
-const PRODUCTION_PAIRING_APP_URL = "https://poracode.com";
+const PRODUCTION_PAIRING_APP_URL: Record<PoracodeChannel, string> = {
+  stable: "https://poracode.com",
+  nightly: "https://app-nightly.poracode.com",
+};
+
+const PRODUCTION_HOSTED_APP_URLS = [
+  "https://app.poracode.com",
+  "https://app-nightly.poracode.com",
+] as const;
 
 export interface DesktopRemoteAccessControllerOptions {
   readonly appVersion: string;
+  readonly channel: PoracodeChannel;
   readonly paths: Pick<PoracodePaths, "baseDir" | "settingsPath">;
   readonly devServerUrl?: string;
   readonly callSupervisor: RemoteAccessServerOptions["callSupervisor"];
   readonly dispatchThreadCommand: NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>;
   readonly getBrowserPanelManager: () => BrowserPanelManager | null;
   readonly notifySharedSettingsChanged: (settings: SharedSettings) => void;
+  readonly notifyRemoteAccessPairingChanged: (info: RemoteAccessPairingInfo) => void;
+  readonly notifyProjectStateChanged: (projects: readonly Project[]) => void;
   readonly reportError: (error: unknown, tags?: PoracodeDiagnosticTags) => void;
   readonly scheduleService: ScheduleService;
+  readonly prWatchService: PrWatchService;
+  readonly gitStateService: GitStateService;
 }
 
 export interface DesktopRemoteAccessController {
@@ -79,6 +105,35 @@ class RemoteAccessStartSupersededError extends Error {
     super("Remote access startup was superseded.");
     this.name = "RemoteAccessStartSupersededError";
   }
+}
+
+function remoteAccessStartupDiagnostic(
+  error: unknown,
+  channel: PoracodeChannel,
+): { error: unknown; tags: PoracodeDiagnosticTags } {
+  const code =
+    typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+      ? error.code
+      : null;
+  if (code === "EADDRINUSE") {
+    const diagnostic = new Error("Remote access server port remained unavailable after retries.");
+    diagnostic.name = "RemoteAccessPortConflictError";
+    return {
+      error: diagnostic,
+      tags: {
+        "poracode.feature_area": "remote-access",
+        "poracode.channel": channel,
+        "poracode.platform":
+          process.platform === "darwin" ||
+          process.platform === "linux" ||
+          process.platform === "win32"
+            ? process.platform
+            : "other",
+        "event.origin": "remote-access.listen.port-conflict",
+      },
+    };
+  }
+  return { error, tags: { "poracode.feature_area": "remote-access" } };
 }
 
 interface RemoteAccessStartAttempt {
@@ -113,6 +168,17 @@ export function createDesktopRemoteAccessController(
   let remoteTailscaleLastError: string | null = null;
   let remoteGitSummaries: RemoteGitSummaries = {};
   let disposePromise: Promise<void> | null = null;
+  let gitStatePrewarmed = false;
+
+  const prewarmGitStateOnce = (): void => {
+    if (gitStatePrewarmed) return;
+    gitStatePrewarmed = true;
+    const interests = buildRemoteGitTargetInterests(dbGetThreads(), {
+      includeRecentFallback: true,
+    });
+    if (interests.length === 0) return;
+    void options.gitStateService.refreshInterests(interests, { fetchRemote: true });
+  };
 
   const writeSharedSettingsPatch = (patch: {
     [K in keyof SharedSettings]?: SharedSettings[K];
@@ -243,9 +309,12 @@ export function createDesktopRemoteAccessController(
       attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
       if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
       remoteTailscaleServeActiveUrl = attempt.tailscaleServeUrl;
+      const configuredPairingAppUrl = remoteAccessPairingAppUrl();
       const pairingAppUrl =
-        remoteAccessPairingAppUrl() ??
-        (options.devServerUrl ? undefined : PRODUCTION_PAIRING_APP_URL);
+        configuredPairingAppUrl ??
+        (options.devServerUrl ? undefined : PRODUCTION_PAIRING_APP_URL[options.channel]);
+      const trustedCorsOrigins =
+        !configuredPairingAppUrl && !options.devServerUrl ? PRODUCTION_HOSTED_APP_URLS : undefined;
       // In dev, phones load the PWA from Vite instead of the built bundle.
       let devMobileAppUrl: string | undefined;
       if (options.devServerUrl) {
@@ -261,12 +330,13 @@ export function createDesktopRemoteAccessController(
       });
       attempt.forwarding = portForwarding;
       const pushStore = new PushRegistrationStore(options.paths.baseDir);
+      const pushGatewayOptions = {
+        onError: (error: unknown) =>
+          options.reportError(error, { "poracode.feature_area": "remote-push" }),
+      };
       const coordinator = new PushCoordinator({
         store: pushStore,
-        sendPush: createPushGateway({
-          onError: (error) =>
-            options.reportError(error, { "poracode.feature_area": "remote-push" }),
-        }),
+        sendPush: createPushGateway(pushGatewayOptions),
         getThreads: () => dbGetThreads(),
         getProjects: () => dbGetProjects(),
         getSettings: () => {
@@ -280,10 +350,35 @@ export function createDesktopRemoteAccessController(
       });
       attempt.coordinator = coordinator;
       pushCoordinator = coordinator;
+      // Blurred placeholders for referenced images. `nativeImage` is Electron-only,
+      // which is why this is injected rather than imported by the projector: the
+      // headless server has no resizer and simply ships references without a
+      // preview. Kept to ~24px so the inline cost stays a few hundred bytes.
+      setImagePreviewGenerator(({ data }) => {
+        const image = nativeImage.createFromBuffer(data);
+        if (image.isEmpty()) return null;
+        const { width, height } = image.getSize();
+        if (width <= 0 || height <= 0) return null;
+        const preview = image.resize({
+          width: 24,
+          height: Math.max(1, Math.round((24 * height) / width)),
+          quality: "good",
+        });
+        // JPEG at low quality is the smallest useful encoding for a blurred
+        // stand-in; transparency is irrelevant once it is blurred behind the card.
+        const url = preview.toJPEG(40).toString("base64");
+        return url.length > 0 ? `data:image/jpeg;base64,${url}` : null;
+      });
       const server = new RemoteAccessServer({
         appVersion: options.appVersion,
         identity,
+        isDev: Boolean(options.devServerUrl),
         ownsSupervisorPersistence: false,
+        onOversizedEventDropped: ({ type, bytes }) => {
+          console.warn(
+            `[remote] ${type} event of ${bytes} bytes exceeded the live stream budget; clients asked to resync`,
+          );
+        },
         authStore,
         host: remoteHost,
         port,
@@ -291,7 +386,11 @@ export function createDesktopRemoteAccessController(
         ...(advertisedResolution.advertisedBaseUrl
           ? { advertisedBaseUrl: advertisedResolution.advertisedBaseUrl }
           : {}),
+        ...(advertisedResolution.tailscaleServeUrl
+          ? { tailscaleHttpBaseUrl: advertisedResolution.tailscaleServeUrl }
+          : {}),
         ...(pairingAppUrl ? { pairingAppUrl } : {}),
+        ...(trustedCorsOrigins ? { trustedCorsOrigins } : {}),
         ...(devMobileAppUrl ? { devMobileAppUrl } : {}),
         callSupervisor: options.callSupervisor,
         dispatchThreadCommand: options.dispatchThreadCommand,
@@ -303,6 +402,7 @@ export function createDesktopRemoteAccessController(
         portForward: portForwarding.gateway,
         portProxy: portForwarding.proxy,
         gitSummaries: () => remoteGitSummaries,
+        gitState: options.gitStateService,
         settings: {
           read: () => pickRemoteSettings(readSharedSettingsFile(options.paths.settingsPath)),
           update: (patch) => {
@@ -311,13 +411,23 @@ export function createDesktopRemoteAccessController(
             return pickRemoteSettings(next);
           },
         },
+        attachments: {
+          save: (input) =>
+            saveUploadedAttachmentFile(resolvePoracodePaths(options.paths.baseDir), input),
+        },
         // `ScheduleService`'s public methods already match the gateway
         // interface, so pass it directly instead of re-wrapping each method.
         schedules: options.scheduleService,
+        prWatches: options.prWatchService,
         pushRegistrations: {
+          webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
           upsert: (registration) => pushStore.upsert(registration),
           remove: (deviceId) => pushStore.remove(deviceId),
         },
+        onPairingChanged: () => {
+          options.notifyRemoteAccessPairingChanged(getRemoteAccessPairingInfo(server));
+        },
+        onProjectsChanged: options.notifyProjectStateChanged,
       });
       attempt.server = server;
       remoteAccessServer = server;
@@ -350,7 +460,8 @@ export function createDesktopRemoteAccessController(
       const superseded = !isCurrentStartAttempt(attempt);
       if (!superseded) {
         console.error("[poracode] remote access failed to start:", toErrorMessage(error));
-        options.reportError(error, { "poracode.feature_area": "remote-access" });
+        const diagnostic = remoteAccessStartupDiagnostic(error, options.channel);
+        options.reportError(diagnostic.error, diagnostic.tags);
       }
       throw superseded ? new RemoteAccessStartSupersededError() : error;
     } finally {
@@ -364,6 +475,7 @@ export function createDesktopRemoteAccessController(
     if (disposed) {
       return Promise.reject(new Error("Remote access controller is disposed."));
     }
+    prewarmGitStateOnce();
     const runningInfo = remoteAccessServer?.getInfo();
     if (runningInfo) return Promise.resolve(runningInfo);
     if (remoteAccessStartAttempt) {

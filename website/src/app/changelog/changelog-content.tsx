@@ -68,6 +68,9 @@ function ReleaseSection({ release, index }: { release: ChangelogRelease; index: 
                     key={i}
                     className="relative pl-4 text-[15px] leading-relaxed text-gray-300 before:absolute before:left-0 before:top-2.5 before:size-1 before:rounded-full before:bg-gray-600"
                   >
+                    {change.label ? (
+                      <span className="font-semibold text-gray-100">{change.label} — </span>
+                    ) : null}
                     {change.text}
                   </li>
                 ))}

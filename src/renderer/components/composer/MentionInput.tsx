@@ -9,13 +9,14 @@ import type {
 import { fileNameFromPath, skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { createDiffCommentChipElement } from "./DiffCommentChip";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
+import { createMcpMentionChipElement } from "./McpMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
 
 /**
- * A composer MCP server offered as an `@`-mention (Browser, Subagents, Computer
+ * A composer MCP server offered as an `@`-mention (Browser, Crossagents, Computer
  * Use, …). The caller supplies already-resolved `name`/`icon`/`detail` so this
  * component stays registry-agnostic; `id` is echoed back via `onMcpMentionSelect`
  * when the server still needs enabling. Already-enabled servers are inserted as
@@ -154,7 +155,11 @@ function detectTriggerRange(triggerChar: string): Range | null {
 }
 
 function hasEditorContent(editor: HTMLDivElement): boolean {
-  if (editor.querySelector("[data-mention-path], [data-slash-command], [data-diff-comment-path]")) {
+  if (
+    editor.querySelector(
+      "[data-mention-path], [data-slash-command], [data-diff-comment-path], [data-mcp-id]",
+    )
+  ) {
     return true;
   }
   return (editor.textContent ?? "").trim().length > 0;
@@ -217,6 +222,8 @@ function appendPromptSegments(parent: Node, segments: PromptSegment[]): void {
       );
     } else if (segment.kind === "diff_comment") {
       parent.appendChild(createDiffCommentChipElement(segment));
+    } else if (segment.kind === "mcp") {
+      parent.appendChild(createMcpMentionChipElement({ id: segment.id, name: segment.name }));
     }
   }
 }
@@ -234,7 +241,7 @@ export const MentionInput = forwardRef<
     onSubmit: (segments: PromptSegment[]) => void;
     onPasteImage?: (file: File) => void;
     /**
-     * Composer MCP servers to offer as `@`-mentions (Browser, Subagents,
+     * Composer MCP servers to offer as `@`-mentions (Browser, Crossagents,
      * Computer Use). Enabled entries remain as prompt text; disabled entries
      * call `onMcpMentionSelect` so the composer can enable them first.
      */
@@ -243,6 +250,7 @@ export const MentionInput = forwardRef<
     onSlashCommandChange?: (query: string | null) => void;
     commandListId?: string;
     commandActiveDescendant?: string;
+    submitOnEnter?: boolean;
     /**
      * Called before MentionInput's own key handling (after the mention popover
      * absorbs navigation keys). Return `true` to indicate the key was handled
@@ -265,6 +273,7 @@ export const MentionInput = forwardRef<
     onSlashCommandChange,
     commandListId,
     commandActiveDescendant,
+    submitOnEnter = true,
     onInterceptKey,
   } = props;
   const mcpMentions = props.mcpMentions ?? EMPTY_MCP_MENTIONS;
@@ -490,7 +499,11 @@ export const MentionInput = forwardRef<
       const chip = createSlashCommandChipElement(
         typeof command === "string"
           ? command
-          : { id: command.id, ...(skill ? skillChipDataset(skill) : {}) },
+          : {
+              id: command.id,
+              ...(command.skillName ? { skillName: command.skillName } : {}),
+              ...(skill ? skillChipDataset(skill) : {}),
+            },
       );
       range.insertNode(chip);
 
@@ -576,10 +589,14 @@ export const MentionInput = forwardRef<
       range.deleteContents();
 
       if (entry.enabled) {
-        const mentionText = document.createTextNode(`@${entry.name} `);
-        range.insertNode(mentionText);
+        const chip = createMcpMentionChipElement({ id: entry.path, name: entry.name });
+        range.insertNode(chip);
+        // Trailing nbsp keeps the caret visually separate from the chip, matching
+        // the file mention chip.
+        const space = document.createTextNode(" ");
+        chip.after(space);
         const nextRange = document.createRange();
-        nextRange.setStartAfter(mentionText);
+        nextRange.setStartAfter(space);
         nextRange.collapse(true);
         sel.removeAllRanges();
         sel.addRange(nextRange);
@@ -657,7 +674,7 @@ export const MentionInput = forwardRef<
     if (onInterceptKey?.(e)) return;
 
     // Enter without popover = submit
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (submitOnEnter && e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!editorRef.current) return;
       const segments = serializeToSegments(editorRef.current);
@@ -679,7 +696,8 @@ export const MentionInput = forwardRef<
           if (
             prev?.dataset?.mentionPath ||
             prev?.dataset?.slashCommand ||
-            prev?.dataset?.diffCommentPath
+            prev?.dataset?.diffCommentPath ||
+            prev?.dataset?.mcpId
           ) {
             e.preventDefault();
             prev.remove();
@@ -693,7 +711,8 @@ export const MentionInput = forwardRef<
           if (
             child?.dataset?.mentionPath ||
             child?.dataset?.slashCommand ||
-            child?.dataset?.diffCommentPath
+            child?.dataset?.diffCommentPath ||
+            child?.dataset?.mcpId
           ) {
             e.preventDefault();
             child.remove();

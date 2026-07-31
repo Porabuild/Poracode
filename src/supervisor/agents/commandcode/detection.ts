@@ -1,6 +1,11 @@
 import { stripAnsi } from "@/shared/ansi";
 import type { AgentCapability, AgentTerminalAuthMethod, LabeledOption } from "@/shared/contracts";
-import { type AuthProbe, type DetectionSpec, readAgentCommandOutput } from "../base";
+import {
+  envVarAuthProbe,
+  type AuthProbe,
+  type DetectionSpec,
+  readAgentCommandOutput,
+} from "../base";
 import { getAgentProbeCwd } from "../probeCwd";
 import { commandCodeHasStoredCredentials } from "./session";
 
@@ -23,7 +28,7 @@ export const COMMANDCODE_SKIP_UPDATES_ENV: Record<string, string> = {
 // Source: https://commandcode.ai/docs/reference/cli/models (also `command-code
 // --list-models` for the live, copy-pasteable set). `--model` matching is
 // case-insensitive and accepts either the full id or the part after the `/`.
-export const COMMANDCODE_DEFAULT_MODEL_ID = "moonshotai/Kimi-K2.5";
+export const COMMANDCODE_DEFAULT_MODEL_ID = "deepseek/deepseek-v4-flash";
 
 // Curated sub-provider labels + canonical display order for the model picker.
 // The slash-namespaced ids (`google/…`, `moonshotai/…`) auto-derive a
@@ -38,11 +43,18 @@ const COMMANDCODE_SUB_PROVIDER_LABELS: Record<string, string> = {
   moonshotai: "Moonshot",
   deepseek: "DeepSeek",
   "zai-org": "Z.ai",
-  MiniMaxAI: "MiniMax",
-  Qwen: "Qwen",
+  minimaxai: "MiniMax",
+  qwen: "Qwen",
   stepfun: "StepFun",
   xiaomi: "Xiaomi",
+  tencent: "Tencent",
   nvidia: "NVIDIA",
+  thinkingmachines: "Thinking Machines",
+  poolside: "Poolside",
+  inclusionai: "InclusionAI",
+  sakana: "Sakana AI",
+  meta: "Meta",
+  xai: "xAI",
 };
 
 const COMMANDCODE_SUB_PROVIDER_ORDER = [
@@ -52,11 +64,18 @@ const COMMANDCODE_SUB_PROVIDER_ORDER = [
   "moonshotai",
   "deepseek",
   "zai-org",
-  "MiniMaxAI",
-  "Qwen",
+  "minimaxai",
+  "qwen",
   "stepfun",
   "xiaomi",
+  "tencent",
   "nvidia",
+  "thinkingmachines",
+  "poolside",
+  "inclusionai",
+  "sakana",
+  "meta",
+  "xai",
 ];
 
 // Hand-tuned display labels keyed by model id. These exist only to render known
@@ -68,35 +87,52 @@ const COMMANDCODE_SUB_PROVIDER_ORDER = [
 const COMMANDCODE_MODEL_LABELS: Record<string, string> = {
   "deepseek/deepseek-v4-pro": "DeepSeek V4 Pro",
   "deepseek/deepseek-v4-flash": "DeepSeek V4 Flash",
-  "moonshotai/Kimi-K2.7-Code": "Kimi K2.7 Code",
-  "moonshotai/Kimi-K2.6": "Kimi K2.6",
-  "moonshotai/Kimi-K2.5": "Kimi K2.5",
-  "zai-org/GLM-5.1": "GLM-5.1",
-  "zai-org/GLM-5": "GLM-5",
-  "MiniMaxAI/MiniMax-M3": "MiniMax M3",
-  "MiniMaxAI/MiniMax-M2.7": "MiniMax M2.7",
-  "MiniMaxAI/MiniMax-M2.5": "MiniMax M2.5",
+  "moonshotai/kimi-k3": "Kimi K3",
+  "moonshotai/kimi-k2.7-code": "Kimi K2.7 Code",
+  "moonshotai/kimi-k2.7-code-highspeed": "Kimi K2.7 Code Highspeed",
+  "moonshotai/kimi-k2.6": "Kimi K2.6",
+  "moonshotai/kimi-k2.5": "Kimi K2.5",
+  "zai-org/glm-5.2": "GLM-5.2",
+  "zai-org/glm-5.2-fast": "GLM-5.2 Fast",
+  "zai-org/glm-5.1": "GLM-5.1",
+  "zai-org/glm-5": "GLM-5",
+  "minimaxai/minimax-m3": "MiniMax M3",
+  "minimaxai/minimax-m2.7": "MiniMax M2.7",
+  "minimaxai/minimax-m2.5": "MiniMax M2.5",
   "xiaomi/mimo-v2.5-pro": "MiMo v2.5 Pro",
   "xiaomi/mimo-v2.5": "MiMo v2.5",
-  "Qwen/Qwen3.7-Max": "Qwen3.7 Max",
-  "Qwen/Qwen3.7-Plus": "Qwen3.7 Plus",
-  "Qwen/Qwen3.6-Max-Preview": "Qwen3.6 Max Preview",
-  "Qwen/Qwen3.6-Plus": "Qwen3.6 Plus",
-  "stepfun/Step-3.7-Flash": "Step 3.7 Flash",
-  "stepfun/Step-3.5-Flash": "Step 3.5 Flash",
+  "qwen/qwen3.6-max-preview": "Qwen3.6 Max Preview",
+  "qwen/qwen3.6-plus": "Qwen3.6 Plus",
+  "qwen/qwen3.7-max": "Qwen3.7 Max",
+  "qwen/qwen3.7-plus": "Qwen3.7 Plus",
+  "stepfun/step-3.7-flash": "Step 3.7 Flash",
+  "stepfun/step-3.5-flash": "Step 3.5 Flash",
+  "tencent/hy3-paid": "Hunyuan 3",
   "nvidia/nemotron-3-ultra-550b-a55b": "Nemotron 3 Ultra",
+  "thinkingmachines/inkling": "Inkling",
+  "poolside/laguna-s-2.1-free": "Laguna S 2.1",
+  "inclusionai/ling-3.0-flash-free": "Ling 3.0 Flash",
+  "claude-sonnet-5": "Claude Sonnet 5",
   "claude-sonnet-4-6": "Claude Sonnet 4.6",
   "claude-fable-5": "Claude Fable 5",
+  "claude-opus-5": "Claude Opus 5",
   "claude-opus-4-8": "Claude Opus 4.8",
   "claude-opus-4-7": "Claude Opus 4.7",
-  "claude-opus-4-6": "Claude Opus 4.6",
   "claude-haiku-4-5": "Claude Haiku 4.5",
+  "gpt-5.6-sol": "GPT-5.6 Sol",
+  "gpt-5.6-terra": "GPT-5.6 Terra",
+  "gpt-5.6-luna": "GPT-5.6 Luna",
   "gpt-5.5": "GPT-5.5",
   "gpt-5.4": "GPT-5.4",
-  "gpt-5.4-mini": "GPT-5.4 Mini",
   "gpt-5.3-codex": "GPT-5.3 Codex",
+  "gpt-5.4-mini": "GPT-5.4 Mini",
+  "google/gemini-3.6-flash": "Gemini 3.6 Flash",
   "google/gemini-3.5-flash": "Gemini 3.5 Flash",
+  "google/gemini-3.5-flash-lite": "Gemini 3.5 Flash Lite",
   "google/gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite",
+  "sakana/fugu-ultra": "Fugu Ultra",
+  "meta/muse-spark-1.1": "Muse Spark 1.1",
+  "xai/grok-4.5": "Grok 4.5",
 };
 
 // Offline fallback model ids (a known-good snapshot of `--list-models`). Used to
@@ -105,36 +141,79 @@ const COMMANDCODE_MODEL_LABELS: Record<string, string> = {
 // `command-code --list-models` succeeds, so it never has to stay current.
 const COMMANDCODE_FALLBACK_MODEL_IDS = [
   "deepseek/deepseek-v4-pro",
-  "deepseek/deepseek-v4-flash",
-  "moonshotai/Kimi-K2.7-Code",
-  "moonshotai/Kimi-K2.6",
   COMMANDCODE_DEFAULT_MODEL_ID,
-  "zai-org/GLM-5.1",
-  "zai-org/GLM-5",
-  "MiniMaxAI/MiniMax-M3",
-  "MiniMaxAI/MiniMax-M2.7",
-  "MiniMaxAI/MiniMax-M2.5",
+  "moonshotai/kimi-k3",
+  "moonshotai/kimi-k2.7-code",
+  "moonshotai/kimi-k2.7-code-highspeed",
+  "moonshotai/kimi-k2.6",
+  "moonshotai/kimi-k2.5",
+  "zai-org/glm-5.2",
+  "zai-org/glm-5.2-fast",
+  "zai-org/glm-5.1",
+  "zai-org/glm-5",
+  "minimaxai/minimax-m3",
+  "minimaxai/minimax-m2.7",
+  "minimaxai/minimax-m2.5",
   "xiaomi/mimo-v2.5-pro",
   "xiaomi/mimo-v2.5",
-  "Qwen/Qwen3.6-Max-Preview",
-  "Qwen/Qwen3.6-Plus",
-  "Qwen/Qwen3.7-Max",
-  "Qwen/Qwen3.7-Plus",
-  "stepfun/Step-3.7-Flash",
-  "stepfun/Step-3.5-Flash",
+  "qwen/qwen3.6-max-preview",
+  "qwen/qwen3.6-plus",
+  "qwen/qwen3.7-max",
+  "qwen/qwen3.7-plus",
+  "stepfun/step-3.7-flash",
+  "stepfun/step-3.5-flash",
+  "tencent/hy3-paid",
   "nvidia/nemotron-3-ultra-550b-a55b",
+  "thinkingmachines/inkling",
+  "poolside/laguna-s-2.1-free",
+  "inclusionai/ling-3.0-flash-free",
+  "claude-sonnet-5",
   "claude-sonnet-4-6",
   "claude-fable-5",
+  "claude-opus-5",
   "claude-opus-4-8",
   "claude-opus-4-7",
   "claude-haiku-4-5",
+  "gpt-5.6-sol",
+  "gpt-5.6-terra",
+  "gpt-5.6-luna",
   "gpt-5.5",
   "gpt-5.4",
   "gpt-5.3-codex",
   "gpt-5.4-mini",
+  "google/gemini-3.6-flash",
   "google/gemini-3.5-flash",
+  "google/gemini-3.5-flash-lite",
   "google/gemini-3.1-flash-lite",
+  "sakana/fugu-ultra",
+  "meta/muse-spark-1.1",
+  "xai/grok-4.5",
 ];
+
+const COMMANDCODE_MODEL_EFFORTS: Record<string, string[]> = {
+  "claude-sonnet-5": ["low", "medium", "high", "xhigh", "max"],
+  "claude-sonnet-4-6": ["low", "medium", "high", "xhigh", "max"],
+  "claude-fable-5": ["low", "medium", "high", "xhigh", "max"],
+  "claude-opus-5": ["low", "medium", "high", "xhigh", "max"],
+  "claude-opus-4-8": ["low", "medium", "high", "xhigh", "max"],
+  "claude-opus-4-7": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-5.6-sol": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-5.6-terra": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-5.6-luna": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-5.5": ["low", "medium", "high", "xhigh"],
+  "gpt-5.4": ["low", "medium", "high", "xhigh"],
+  "gpt-5.3-codex": ["low", "medium", "high", "xhigh"],
+  "gpt-5.4-mini": ["low", "medium", "high"],
+  "deepseek/deepseek-v4-pro": ["high", "max"],
+  "deepseek/deepseek-v4-flash": ["high", "max"],
+  "zai-org/glm-5.2": ["high", "max"],
+  "google/gemini-3.6-flash": ["low", "medium", "high"],
+  "google/gemini-3.5-flash": ["low", "medium", "high"],
+  "google/gemini-3.5-flash-lite": ["low", "medium", "high"],
+  "google/gemini-3.1-flash-lite": ["low", "medium", "high"],
+  "sakana/fugu-ultra": ["high", "xhigh"],
+  "xai/grok-4.5": ["low", "medium", "high"],
+};
 
 export interface ParsedCommandCodeModel {
   id: string;
@@ -196,7 +275,7 @@ function humanizeCommandCodeModelLabel(id: string): string {
 
 function commandCodeModelSubProviderId(id: string): string | undefined {
   const slash = id.indexOf("/");
-  if (slash > 0) return id.slice(0, slash);
+  if (slash > 0) return id.slice(0, slash).toLowerCase();
   if (/^claude/i.test(id)) return "anthropic";
   if (/^(?:gpt|o\d|codex)/i.test(id)) return "openai";
   return undefined;
@@ -210,9 +289,10 @@ function commandCodeModelSubProviderId(id: string): string | undefined {
  */
 export function buildCommandCodeModelPickerCapabilities(
   parsed: ParsedCommandCodeModel[],
-): Pick<AgentCapability, "models" | "subProviders" | "modelSubProvider"> {
+): Pick<AgentCapability, "models" | "subProviders" | "modelSubProvider" | "modelEfforts"> {
   const models: LabeledOption[] = [];
   const modelSubProvider: Record<string, string> = {};
+  const modelEfforts: Record<string, string[]> = {};
   const usedSubProviders = new Set<string>();
   const seen = new Set<string>();
   let defaultId: string | undefined;
@@ -224,11 +304,13 @@ export function buildCommandCodeModelPickerCapabilities(
 
     const model: LabeledOption = {
       id,
-      label: COMMANDCODE_MODEL_LABELS[id] ?? humanizeCommandCodeModelLabel(id),
+      label: COMMANDCODE_MODEL_LABELS[id.toLowerCase()] ?? humanizeCommandCodeModelLabel(id),
     };
     const desc = description?.trim();
     if (desc) model.description = desc;
     models.push(model);
+    const efforts = COMMANDCODE_MODEL_EFFORTS[id.toLowerCase()];
+    if (efforts) modelEfforts[id] = efforts;
 
     const sub = commandCodeModelSubProviderId(id);
     if (sub) {
@@ -261,7 +343,7 @@ export function buildCommandCodeModelPickerCapabilities(
   // Any namespace the CLI introduced that we don't have a curated order for.
   for (const subId of usedSubProviders) pushSubProvider(subId);
 
-  return { models, subProviders, modelSubProvider };
+  return { models, subProviders, modelSubProvider, modelEfforts };
 }
 
 export const defaultCommandCodeCapabilities: AgentCapability = {
@@ -272,11 +354,12 @@ export const defaultCommandCodeCapabilities: AgentCapability = {
     })),
   ),
   efforts: [],
-  modelEfforts: {},
+  defaultEffort: "high",
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },
     { id: "auto_edit", label: "Auto-accept edits" },
+    { id: "dont-ask", label: "Don't ask (deny)" },
     { id: "yolo", label: "Bypass Permissions" },
   ],
   sandboxModes: [],
@@ -292,9 +375,7 @@ export const defaultCommandCodeCapabilities: AgentCapability = {
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
   // No dedicated-server hosting path in any presentation.
-  browserMcpScope: { terminal: "none", gui: "none" },
-  subagentMcpScope: { terminal: "none", gui: "none" },
-  chromeMcpScope: { terminal: "none", gui: "none" },
+  mcpScope: { terminal: "none", gui: "none" },
   settingDefs: [],
 };
 
@@ -330,7 +411,7 @@ export const commandCodeDetectionSpec: DetectionSpec = {
   loginCommand: "command-code login",
   capabilities: defaultCommandCodeCapabilities,
   versionArgs: ["--version"],
-  authProbes: [storedCredentialsAuthProbe],
+  authProbes: [envVarAuthProbe(["COMMAND_CODE_API_KEY"]), storedCredentialsAuthProbe],
   // Two cheap, no-TUI jobs in one probe: advertise the terminal login method so
   // the Settings Login button appears, and refresh the model list from
   // `command-code --list-models` (instant, no auth needed) so newly shipped

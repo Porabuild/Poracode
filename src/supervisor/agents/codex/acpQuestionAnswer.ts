@@ -37,13 +37,17 @@ function codexQuestionSources(
       ? q.options.flatMap((opt) => {
           if (!opt || typeof opt !== "object") return [];
           const o = opt as Record<string, unknown>;
-          if (typeof o.label !== "string" || o.label.length === 0) return [];
-          const optionId =
-            typeof o.optionId === "string" && o.optionId.length > 0 ? o.optionId : o.label;
+          const label =
+            typeof o.label === "string" && o.label.length > 0
+              ? o.label
+              : typeof o.optionId === "string" && o.optionId.length > 0
+                ? o.optionId
+                : undefined;
+          if (!label) return [];
           return [
             {
-              optionId,
-              label: o.label,
+              optionId: label,
+              label,
               ...(typeof o.description === "string" && o.description.length > 0
                 ? { description: o.description }
                 : {}),

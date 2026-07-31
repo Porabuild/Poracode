@@ -54,13 +54,12 @@ export { collectCursor, parseCursorUsage, CURSOR_USAGE_ENDPOINT } from "./collec
 export {
   collectCommandCode,
   formatCommandCodePlanLabel,
-  isCommandCodeSessionLive,
   parseCommandCodeUsage,
-  COMMANDCODE_AUTH_SESSION_ENDPOINT,
   COMMANDCODE_BILLING_CREDITS_ENDPOINT,
   COMMANDCODE_BILLING_SUBSCRIPTIONS_ENDPOINT,
   COMMANDCODE_PROVIDER_ID,
   COMMANDCODE_USAGE_SUMMARY_ENDPOINT,
+  COMMANDCODE_WHOAMI_ENDPOINT,
 } from "./collectors/commandcode";
 export {
   collectFactory,
@@ -77,9 +76,13 @@ export type { WorkOSRefreshResult } from "./collectors/factory";
 export {
   collectGrok,
   parseGrokUsage,
+  parseGrokRefreshResponse,
+  refreshGrokOAuthToken,
   GROK_BILLING_ENDPOINT,
   GROK_SETTINGS_ENDPOINT,
+  GROK_OAUTH_TOKEN_ENDPOINT,
 } from "./collectors/grok";
+export type { GrokRefreshedToken } from "./collectors/grok";
 export {
   collectGemini,
   parseGeminiUsage,
@@ -95,6 +98,23 @@ export {
   ZAI_BIGMODEL_QUOTA_ENDPOINT,
 } from "./collectors/zai";
 export type { ZaiQuotaResponse } from "./collectors/zai";
+export {
+  collectKimi,
+  parseKimiUsage,
+  resolveKimiUsagesUrl,
+  KIMI_PROVIDER_ID,
+  KIMI_USAGES_ENDPOINT,
+} from "./collectors/kimi";
+export type { KimiUsagesResponse } from "./collectors/kimi";
+export {
+  collectQwen,
+  parseQwenCodingPlanUsage,
+  QWEN_PROVIDER_ID,
+  ALIBABA_CODING_PLAN_INTL_QUOTA_URL,
+  ALIBABA_CODING_PLAN_CN_QUOTA_URL,
+  ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL,
+} from "./collectors/qwen";
+export type { AlibabaCodingPlanRegion } from "./collectors/qwen";
 export {
   antigravityPool,
   antigravityPoolWindows,

@@ -4,6 +4,7 @@ import {
   Archive,
   CircleCheck,
   Ellipsis,
+  NotebookPen,
   Pencil,
   Plus,
   SquareTerminal,
@@ -59,6 +60,7 @@ function ThreadActionsMenu(props: {
   readonly onAction: (action: ThreadAction) => void;
   readonly onNewThreadInWorktree?: ((input: WorktreeThreadInput) => void) | undefined;
   readonly onDeleteWorktreeGroup?: ((input: WorktreeDeleteInput) => void) | undefined;
+  readonly onOpenNotes?: (() => void) | undefined;
   readonly onOpenTerminal?: (() => void) | undefined;
 }) {
   const { thread } = props;
@@ -68,6 +70,15 @@ function ThreadActionsMenu(props: {
 
   const items: SheetMenuItem[] = [
     { id: "rename", label: t`Rename`, icon: <Pencil className="size-4 text-muted" /> },
+    ...(props.onOpenNotes
+      ? [
+          {
+            id: "open-notes",
+            label: t`Notes & to-dos`,
+            icon: <NotebookPen className="size-4 text-muted" />,
+          },
+        ]
+      : []),
     ...(props.onOpenTerminal
       ? [
           {
@@ -117,6 +128,7 @@ function ThreadActionsMenu(props: {
 
   const handleSelect = (id: string) => {
     if (id === "rename") props.onRename();
+    if (id === "open-notes") props.onOpenNotes?.();
     if (id === "open-terminal") props.onOpenTerminal?.();
     if (id === "new-worktree-thread" && worktreePath && worktreeBranch) {
       props.onNewThreadInWorktree?.({
@@ -177,6 +189,8 @@ export function ThreadTitleRow(props: {
   readonly onDeleteWorktreeGroup?: ((input: WorktreeDeleteInput) => void) | undefined;
   /** Adds an "Open terminal" entry to the actions menu. */
   readonly onOpenTerminal?: (() => void) | undefined;
+  /** Adds a project notes and to-dos entry to the actions menu. */
+  readonly onOpenNotes?: (() => void) | undefined;
 }) {
   const { thread } = props;
   const [renaming, setRenaming] = useState(false);
@@ -214,6 +228,7 @@ export function ThreadTitleRow(props: {
         onAction={props.onAction}
         onNewThreadInWorktree={props.onNewThreadInWorktree}
         onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
+        onOpenNotes={props.onOpenNotes}
         onOpenTerminal={props.onOpenTerminal}
       />
     </>

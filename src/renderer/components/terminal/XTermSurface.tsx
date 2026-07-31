@@ -30,6 +30,7 @@ import {
   clearActiveTerminalFind,
   setActiveTerminalFind,
 } from "@/renderer/components/find/terminalFindBridge";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 
 /** Decoration colors for in-terminal find matches (kept in sync with the CSS
  * highlight colors used elsewhere: amber for matches, orange for the active). */
@@ -1003,7 +1004,10 @@ export const XTermSurface = forwardRef<
           size="sm"
           aria-label={t`Scroll to bottom`}
           onPress={() => terminalRef.current?.scrollToBottom()}
-          className={`absolute bottom-4 right-4 z-10 transition-opacity duration-200 ease-out ${
+          /* Same floating chrome as the chat pane's scroll-to-bottom and the
+             thread tool rail, so the two scroll buttons match across the
+             terminal/chat presentations. */
+          className={`${floatingGlassSurfaceClass} absolute bottom-4 right-4 z-10 size-7 min-w-0 rounded-full transition-opacity duration-200 ease-out ${
             showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
           }`}
         >

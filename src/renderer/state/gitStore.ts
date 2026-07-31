@@ -766,6 +766,35 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
     }),
 }));
 
+export function resetGitStoreCache(): void {
+  useGitStore.setState({
+    statuses: {},
+    worktreeStatuses: {},
+    worktrees: {},
+    branches: {},
+    ghAvailable: {},
+    prData: {},
+    worktreeSourceInfo: {},
+    prFiles: {},
+    prDiffs: {},
+    prDetails: {},
+  });
+  // `setState` synchronously schedules persistence through the subscription
+  // below. A desktop/session reset must remove the previous identity's cache
+  // immediately, rather than leave a reload window before that debounce fires.
+  if (persistTimer !== null) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.removeItem(PERSIST_KEY);
+    } catch {
+      // Storage may be unavailable (privacy mode / sandboxed webview).
+    }
+  }
+}
+
 // Persist a snapshot whenever any of the cached fields change.
 useGitStore.subscribe((state, prev) => {
   if (

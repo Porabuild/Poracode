@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { McpServer } from "@/shared/contracts";
 import {
-  buildAcpUserMcpServers,
-  buildClaudeUserMcpServers,
-  buildCodexUserMcp,
-  buildGeminiUserMcpServers,
-  buildOpenCodeUserMcp,
-  buildOpenCodeUserMcpLaunchConfig,
+  buildAcpMcpServers,
+  buildClaudeMcpServers,
+  buildCodexMcp,
+  buildCursorSdkMcpServers,
+  buildGeminiMcpServers,
+  buildOpenCodeMcp,
+  buildOpenCodeMcpLaunchConfig,
   codexMcpTokenEnvVar,
 } from "./translate";
 
@@ -48,18 +49,33 @@ const servers: McpServer[] = [
 ];
 
 describe("custom MCP translators", () => {
-  it("maps Claude, Gemini, OpenCode, and ACP transport shapes", () => {
-    expect(buildClaudeUserMcpServers(servers)).toMatchObject({
+  it("maps Claude, Cursor SDK, Gemini, OpenCode, and ACP transport shapes", () => {
+    expect(buildClaudeMcpServers(servers)).toMatchObject({
       "local.tools": { type: "stdio", command: "node", timeout: 45_000 },
       remote: { type: "http", url: "https://example.test/mcp", timeout: 12_500 },
       events: { type: "sse", url: "https://example.test/sse" },
     });
-    expect(buildGeminiUserMcpServers(servers)).toMatchObject({
+    expect(buildCursorSdkMcpServers(servers)).toEqual({
+      "local.tools": {
+        type: "stdio",
+        command: "node",
+        args: ["server.js"],
+        env: { MODE: "test" },
+        cwd: "/repo",
+      },
+      remote: {
+        type: "http",
+        url: "https://example.test/mcp",
+        headers: { Authorization: "Bearer secret", "X-Test": "yes" },
+      },
+      events: { type: "sse", url: "https://example.test/sse" },
+    });
+    expect(buildGeminiMcpServers(servers)).toMatchObject({
       "local.tools": { command: "node", cwd: "/repo", timeout: 45_000 },
       remote: { httpUrl: "https://example.test/mcp", timeout: 12_500 },
       events: { url: "https://example.test/sse" },
     });
-    expect(buildOpenCodeUserMcp(servers)).toMatchObject({
+    expect(buildOpenCodeMcp(servers)).toMatchObject({
       "local.tools": {
         type: "local",
         command: ["node", "server.js"],
@@ -69,7 +85,7 @@ describe("custom MCP translators", () => {
       remote: { type: "remote", url: "https://example.test/mcp", timeout: 12_500 },
       events: { type: "remote", url: "https://example.test/sse" },
     });
-    expect(buildAcpUserMcpServers(servers)).toEqual([
+    expect(buildAcpMcpServers(servers)).toEqual([
       {
         name: "local.tools",
         command: "node",
@@ -90,7 +106,7 @@ describe("custom MCP translators", () => {
   });
 
   it("builds safe Codex overrides and carries bearer tokens through env", () => {
-    const built = buildCodexUserMcp(servers);
+    const built = buildCodexMcp(servers);
     expect(built.args).toContain('mcp_servers."local.tools".command="node"');
     expect(built.args).toContain('mcp_servers."local.tools".tool_timeout_sec=45');
     expect(built.args).toContain('mcp_servers.remote.url="https://example.test/mcp"');
@@ -102,6 +118,22 @@ describe("custom MCP translators", () => {
     expect(built.env).toMatchObject({ [envName]: "secret" });
     expect(Object.values(built.env)).toContain("yes");
     expect(built.args.some((arg) => arg.includes("env_http_headers"))).toBe(true);
+  });
+
+  it("projects generic approval policy metadata without inspecting the server name", () => {
+    const built = buildCodexMcp([
+      {
+        id: "runtime-server",
+        name: "runtime-server",
+        timeoutMs: 300_000,
+        approvalMode: "approve",
+        transport: { type: "http", url: "https://example.test/mcp", headers: {} },
+      },
+    ]);
+
+    expect(built.args).toContain(
+      'mcp_servers.runtime-server.default_tools_approval_mode="approve"',
+    );
   });
 
   it("keeps Codex credential env names distinct after label normalization", () => {
@@ -132,7 +164,7 @@ describe("custom MCP translators", () => {
       },
     ];
 
-    const built = buildCodexUserMcp(collidingLabels);
+    const built = buildCodexMcp(collidingLabels);
     const envEntries = Object.entries(built.env);
     const keyFor = (value: string) => envEntries.find((entry) => entry[1] === value)?.[0];
 
@@ -143,7 +175,7 @@ describe("custom MCP translators", () => {
   });
 
   it("keeps OpenCode launch credentials out of the inline config", () => {
-    const launch = buildOpenCodeUserMcpLaunchConfig(servers);
+    const launch = buildOpenCodeMcpLaunchConfig(servers);
     const config = JSON.parse(launch.configContent) as {
       mcp: Record<
         string,

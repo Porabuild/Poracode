@@ -62,6 +62,12 @@ function fireWidths(container: number, fixed: number) {
 }
 
 describe("PathDisplay", () => {
+  it("can render without layout measurement for virtualized rows", () => {
+    const { container } = render(<PathDisplay path="src/main/db.ts" measureOverflow={false} />);
+    expect(container.textContent).toBe("db.tssrc/main");
+    expect(MockResizeObserver.instances).toHaveLength(0);
+  });
+
   it("renders only basename when path has no directory", () => {
     const { container, rerender } = render(<PathDisplay path="README.md" />);
     fireWidths(500, 80);

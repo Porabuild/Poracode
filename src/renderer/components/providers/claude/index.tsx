@@ -42,6 +42,7 @@ registerConflictResolverDefaults(PROVIDER_KIND, {
 // Filter it out for Haiku and other models that don't support it.
 const AUTO_CAPABLE_MODELS = new Set([
   "sonnet",
+  "claude-opus-5",
   "claude-fable-5",
   "claude-opus-4-6",
   "claude-opus-4-7",

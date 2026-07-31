@@ -4,6 +4,7 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { NotificationFilter } from "@/shared/contracts";
 import { isRemoteSession } from "@/renderer/bridge";
+import { requestBrowserNotificationPermission } from "@/renderer/browserNotificationPermission";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
@@ -73,7 +74,7 @@ function BrowserPermissionRow() {
           size="sm"
           variant="secondary"
           onPress={() => {
-            void Notification.requestPermission().then(setPermission);
+            void requestBrowserNotificationPermission().then(setPermission);
           }}
         >
           <Trans>Allow</Trans>
@@ -132,7 +133,7 @@ export function NotificationSettings() {
               typeof Notification !== "undefined" &&
               Notification.permission === "default"
             ) {
-              void Notification.requestPermission();
+              void requestBrowserNotificationPermission();
             }
             startTransition(() => {
               setNotificationsEnabled(selected);

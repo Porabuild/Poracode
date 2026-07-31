@@ -4,7 +4,8 @@
  * panel, this points them at the `chrome` Streamable-HTTP ingress that relays to
  * the user's REAL Chrome via the companion extension. The main process injects
  * the URL + token at launch. Wired per-thread across every provider (Claude SDK,
- * Codex argv, ACP, Gemini/OpenCode plugins) and gated behind `config.chromeMcp`.
+ * The runtime gates it behind `config.chromeMcp` and adds it to the generic
+ * resolved MCP collection.
  *
  * Native (windows/posix) only: a WSL agent would need the in-distro bridge
  * reverse-proxy, matching the embedded browser MCP path — so WSL declines.
@@ -14,8 +15,6 @@ import { encodeThreadQuery, type McpThreadIdentity } from "@/shared/browserMcpTh
 import type { BrowserMcpLocation } from "@/supervisor/agents/browserMcp";
 
 export type ChromeMcpLocation = BrowserMcpLocation;
-
-export const CHROME_MCP_SERVER_NAME = "chrome";
 
 export const CHROME_MCP_URL_ENV = "PORACODE_CHROME_MCP_URL";
 export const CHROME_MCP_TOKEN_ENV = "PORACODE_CHROME_MCP_TOKEN";
@@ -46,21 +45,6 @@ export function resolveChromeMcpHttpConfig(
     token: env.token,
     headers: { Authorization: `Bearer ${env.token}` },
   };
-}
-
-/**
- * Resolve a ChromeMcpHttpConfig from an optional pre-resolved config or by
- * falling back to the environment. Returns `undefined` when the config cannot
- * be resolved (WSL without a launch-time config, or env vars absent).
- *
- * Shared guard used by every provider's `buildXxxChromeMcp*()` function.
- */
-export function resolveOrFallbackChromeMcpConfig(
-  location: ChromeMcpLocation,
-  chromeMcp?: ChromeMcpHttpConfig,
-): ChromeMcpHttpConfig | undefined {
-  if (location.kind === "wsl" && !chromeMcp) return undefined;
-  return chromeMcp ?? resolveChromeMcpHttpConfig(location) ?? undefined;
 }
 
 export function resolveChromeMcpHttpConfigForLaunch(

@@ -1,6 +1,7 @@
 import { memo, useState, type ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
+import { DiffStat } from "@/renderer/components/common/DiffStat";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit } from "lucide-react";
 import type { FileChangePayload } from "@/shared/contracts";
@@ -8,6 +9,7 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { useShimmer } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatFilePath } from "./ChatFilePath";
 import { ChatItemAccordion } from "./ChatItemAccordion";
@@ -40,6 +42,11 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
   const hasStream = !!stream && stream.length > 0;
   const header = payload ? getFileChangeCollapsedHeader(item, payload) : null;
   const paneActions = useChatPaneActions();
+  const isRunning = item.state !== "completed";
+  // The title is a custom node, so shimmer the stable kind label ("Edit",
+  // "Create") here — never the path, which can change while running (see
+  // .poracode-thinking-text in styles.css). Matches grouped tool rows.
+  const kindLabelRef = useShimmer<HTMLSpanElement>(isRunning);
 
   // Some SDKs (e.g. Claude `Write`) don't surface the new file contents on
   // `args.content`; fall back to an on-demand disk read when expanded.
@@ -81,7 +88,19 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
   const right = formatRightLabel(header.payloadStatus, header.diffSummary, t);
   const titleNode = (
     <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-      <span className="shrink-0 !text-[color:var(--muted)]">
+      <span
+        ref={kindLabelRef}
+        className={`shrink-0 !text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text" : ""}`}
+        {...(isRunning
+          ? {
+              "data-poracode-shimmer-text": localizeKindLabel(
+                header.changeKind,
+                header.withPath,
+                t,
+              ),
+            }
+          : {})}
+      >
         {localizeKindLabel(header.changeKind, header.withPath, t)}
       </span>
       {header.withPath ? <ChatRowMetaSeparator /> : null}
@@ -195,17 +214,25 @@ function enrichLanguage(part: ExtractedPart, path: string): ExtractedPart {
   return part;
 }
 
+/**
+ * Callers keep getting `undefined` for an empty summary so they can drop the
+ * whole label slot. Pass `animated` only for aggregated group headers, whose
+ * totals grow as more edits stream into the group — a single tool-call row
+ * mounts with its final value and has nothing to animate.
+ */
 export function formatDiffSummaryLabel(
   diffSummary: FileChangePayload["diffSummary"],
+  options?: { animated?: boolean },
 ): ReactNode | undefined {
   if (!diffSummary || (diffSummary.added === 0 && diffSummary.removed === 0)) {
     return undefined;
   }
   return (
-    <span className="inline-flex items-center gap-0.5">
-      {diffSummary.added > 0 ? <span className="text-success">+{diffSummary.added}</span> : null}
-      {diffSummary.removed > 0 ? <span className="text-danger">-{diffSummary.removed}</span> : null}
-    </span>
+    <DiffStat
+      {...(options?.animated ? { animated: true } : {})}
+      insertions={diffSummary.added}
+      deletions={diffSummary.removed}
+    />
   );
 }
 

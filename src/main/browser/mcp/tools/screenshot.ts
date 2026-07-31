@@ -1,5 +1,6 @@
 import type { NativeImage } from "electron";
 import { captureScreenshotPng, evalJs, queryFirstDocumentRect } from "../../cdp/tools";
+import { withCursorOverlayHidden } from "../../cursorOverlay";
 import { clampInteger, requireTab } from "./helpers";
 import type { ToolContext } from "./types";
 
@@ -254,21 +255,22 @@ export async function runScreenshotTool(
   // from the renderer frame rather than waiting on a non-existent GPU surface.
   let headlessFallback = false;
 
-  try {
-    // Prefer `webContents.capturePage` for in-viewport captures — it reads
-    // the renderer's already-painted bitmap without resizing the page, so
-    // the user sees no jump. Fall back to CDP `captureBeyondViewport` only
-    // for `fullPage` or off-viewport selector captures (those genuinely
-    // need the page to be re-laid out beyond its current viewport).
-    if (selector && !fullPage) {
-      const viewport = await evalJs<{
-        rect: { x: number; y: number; width: number; height: number } | null;
-        inView: boolean;
-        vw: number;
-        vh: number;
-      }>(
-        tab.cdp,
-        `(() => {
+  return await withCursorOverlayHidden(tab.cdp, async () => {
+    try {
+      // Prefer `webContents.capturePage` for in-viewport captures — it reads
+      // the renderer's already-painted bitmap without resizing the page, so
+      // the user sees no jump. Fall back to CDP `captureBeyondViewport` only
+      // for `fullPage` or off-viewport selector captures (those genuinely
+      // need the page to be re-laid out beyond its current viewport).
+      if (selector && !fullPage) {
+        const viewport = await evalJs<{
+          rect: { x: number; y: number; width: number; height: number } | null;
+          inView: boolean;
+          vw: number;
+          vh: number;
+        }>(
+          tab.cdp,
+          `(() => {
         const el = document.querySelector(${JSON.stringify(selector)});
         const vw = window.innerWidth || document.documentElement.clientWidth || 0;
         const vh = window.innerHeight || document.documentElement.clientHeight || 0;
@@ -285,109 +287,110 @@ export async function runScreenshotTool(
           vh,
         };
       })()`,
-      );
-      if (!viewport.rect) throw new Error(`selector not found: ${selector}`);
-      if (viewport.inView) {
+        );
+        if (!viewport.rect) throw new Error(`selector not found: ${selector}`);
+        if (viewport.inView) {
+          const img = await tryCapturePage(
+            tab.webContents.capturePage({
+              x: Math.max(0, Math.floor(viewport.rect.x)),
+              y: Math.max(0, Math.floor(viewport.rect.y)),
+              width: Math.max(1, Math.ceil(viewport.rect.width)),
+              height: Math.max(1, Math.ceil(viewport.rect.height)),
+            }),
+            timeoutMs,
+            "viewport selector screenshot",
+          );
+          if (img) return screenshotResultFromNativeImage(img, screenshotOptions);
+          // null → tab is off-screen/headless; fall through to the CDP path.
+          headlessFallback = true;
+        }
+      } else if (!selector && !fullPage) {
         const img = await tryCapturePage(
-          tab.webContents.capturePage({
-            x: Math.max(0, Math.floor(viewport.rect.x)),
-            y: Math.max(0, Math.floor(viewport.rect.y)),
-            width: Math.max(1, Math.ceil(viewport.rect.width)),
-            height: Math.max(1, Math.ceil(viewport.rect.height)),
-          }),
+          tab.webContents.capturePage(),
           timeoutMs,
-          "viewport selector screenshot",
+          "viewport screenshot",
         );
         if (img) return screenshotResultFromNativeImage(img, screenshotOptions);
         // null → tab is off-screen/headless; fall through to the CDP path.
         headlessFallback = true;
       }
-    } else if (!selector && !fullPage) {
-      const img = await tryCapturePage(
-        tab.webContents.capturePage(),
-        timeoutMs,
-        "viewport screenshot",
-      );
-      if (img) return screenshotResultFromNativeImage(img, screenshotOptions);
-      // null → tab is off-screen/headless; fall through to the CDP path.
-      headlessFallback = true;
-    }
 
-    // Off-viewport selector or fullPage — must use CDP, which will visibly
-    // re-lay out the page to capture content outside the current viewport.
-    let clip: { x: number; y: number; width: number; height: number } | undefined;
-    if (selector) {
-      const rect = await queryFirstDocumentRect(tab.cdp, selector);
-      if (!rect) throw new Error(`selector not found: ${selector}`);
-      clip = {
-        x: Math.max(0, Math.floor(rect.x)),
-        y: Math.max(0, Math.floor(rect.y)),
-        width: Math.max(1, Math.ceil(rect.width)),
-        height: Math.max(1, Math.ceil(rect.height)),
-      };
-    }
-    // Headless viewport capture has no clip; render the whole document instead.
-    const effectiveFullPage = fullPage || (headlessFallback && !selector);
-    const cdpFromSurface = headlessFallback ? { fromSurface: false as const } : {};
-    // Rendering a full document from the renderer is slower than a surface read,
-    // so give headless captures more headroom than the (tight) default.
-    const cdpTimeout = headlessFallback ? Math.max(timeoutMs, 5000) : timeoutMs;
-    const bytes = await withScreenshotTimeout(
-      captureScreenshotPng(tab.cdp, {
-        fullPage: effectiveFullPage,
-        format,
-        quality,
-        ...cdpFromSurface,
-        ...(clip ? { clip, captureBeyondViewport: true } : {}),
-      }),
-      cdpTimeout,
-      "cdp screenshot",
-    );
-    if (bytes.length <= maxBytes || payload.format === "png") {
+      // Off-viewport selector or fullPage — must use CDP, which will visibly
+      // re-lay out the page to capture content outside the current viewport.
+      let clip: { x: number; y: number; width: number; height: number } | undefined;
+      if (selector) {
+        const rect = await queryFirstDocumentRect(tab.cdp, selector);
+        if (!rect) throw new Error(`selector not found: ${selector}`);
+        clip = {
+          x: Math.max(0, Math.floor(rect.x)),
+          y: Math.max(0, Math.floor(rect.y)),
+          width: Math.max(1, Math.ceil(rect.width)),
+          height: Math.max(1, Math.ceil(rect.height)),
+        };
+      }
+      // Headless viewport capture has no clip; render the whole document instead.
+      const effectiveFullPage = fullPage || (headlessFallback && !selector);
+      const cdpFromSurface = headlessFallback ? { fromSurface: false as const } : {};
+      // Rendering a full document from the renderer is slower than a surface read,
+      // so give headless captures more headroom than the (tight) default.
+      const cdpTimeout = headlessFallback ? Math.max(timeoutMs, 5000) : timeoutMs;
+      const bytes = await withScreenshotTimeout(
+        captureScreenshotPng(tab.cdp, {
+          fullPage: effectiveFullPage,
+          format,
+          quality,
+          ...cdpFromSurface,
+          ...(clip ? { clip, captureBeyondViewport: true } : {}),
+        }),
+        cdpTimeout,
+        "cdp screenshot",
+      );
+      if (bytes.length <= maxBytes || payload.format === "png") {
+        return screenshotResultFromBuffer(
+          bytes,
+          maxBytes,
+          format,
+          format === "jpeg" ? quality : undefined,
+        );
+      }
+      for (const next of [
+        { format: "jpeg" as const, quality: Math.min(quality, 80), scale: 1 },
+        { format: "jpeg" as const, quality: 70, scale: 0.8 },
+        { format: "jpeg" as const, quality: 60, scale: 0.65 },
+        { format: "jpeg" as const, quality: 50, scale: 0.5 },
+        { format: "jpeg" as const, quality: 40, scale: 0.35 },
+      ]) {
+        const retry = await withScreenshotTimeout(
+          captureScreenshotPng(tab.cdp, {
+            fullPage: effectiveFullPage,
+            format: next.format,
+            quality: next.quality,
+            scale: next.scale,
+            ...cdpFromSurface,
+            ...(clip ? { clip, captureBeyondViewport: true } : {}),
+          }),
+          cdpTimeout,
+          "cdp screenshot retry",
+        );
+        if (retry.length <= maxBytes) {
+          return {
+            ...screenshotResultFromBuffer(retry, maxBytes, next.format, next.quality),
+            fallback: true,
+            downscaled: next.scale < 1,
+          };
+        }
+      }
       return screenshotResultFromBuffer(
         bytes,
         maxBytes,
         format,
         format === "jpeg" ? quality : undefined,
       );
-    }
-    for (const next of [
-      { format: "jpeg" as const, quality: Math.min(quality, 80), scale: 1 },
-      { format: "jpeg" as const, quality: 70, scale: 0.8 },
-      { format: "jpeg" as const, quality: 60, scale: 0.65 },
-      { format: "jpeg" as const, quality: 50, scale: 0.5 },
-      { format: "jpeg" as const, quality: 40, scale: 0.35 },
-    ]) {
-      const retry = await withScreenshotTimeout(
-        captureScreenshotPng(tab.cdp, {
-          fullPage: effectiveFullPage,
-          format: next.format,
-          quality: next.quality,
-          scale: next.scale,
-          ...cdpFromSurface,
-          ...(clip ? { clip, captureBeyondViewport: true } : {}),
-        }),
-        cdpTimeout,
-        "cdp screenshot retry",
-      );
-      if (retry.length <= maxBytes) {
-        return {
-          ...screenshotResultFromBuffer(retry, maxBytes, next.format, next.quality),
-          fallback: true,
-          downscaled: next.scale < 1,
-        };
+    } catch (err) {
+      if (err instanceof ScreenshotTimeoutError && !failOnTimeout) {
+        return screenshotTimeoutResult(err);
       }
+      throw err;
     }
-    return screenshotResultFromBuffer(
-      bytes,
-      maxBytes,
-      format,
-      format === "jpeg" ? quality : undefined,
-    );
-  } catch (err) {
-    if (err instanceof ScreenshotTimeoutError && !failOnTimeout) {
-      return screenshotTimeoutResult(err);
-    }
-    throw err;
-  }
+  });
 }

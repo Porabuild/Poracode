@@ -17,13 +17,18 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-stable
+  cancel-in-progress: false
+
 jobs:
-  # ── Step 1: Resolve version, commit if needed, tag, push ─────────
+  # ── Step 1: Resolve version and push release commit ──────────────
   prepare:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
       version: ${{ steps.resolve.outputs.version }}
+      source_ref: ${{ steps.commit.outputs.source_ref }}
 
     steps:
       - name: Checkout
@@ -115,23 +120,22 @@ jobs:
             }
           "
 
-      - name: Commit and tag
+      - name: Commit release version
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json
           if git diff --cached --quiet; then
-            echo "No package.json changes; tagging HEAD as-is."
+            echo "No package.json changes; using HEAD as the release commit."
           else
             git commit -m "release: ${{ steps.resolve.outputs.tag }}"
           fi
-          git tag "${{ steps.resolve.outputs.tag }}"
+          echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Push commit and tag
+      - name: Push release commit
         if: ${{ !inputs.dry_run }}
-        run: |
-          git push origin HEAD
-          git push origin "${{ steps.resolve.outputs.tag }}"
+        run: git push origin HEAD
 
   # ── Step 2: Build installers for each platform ───────────────────
   build:
@@ -139,7 +143,8 @@ jobs:
     if: ${{ !inputs.dry_run }}
     uses: ./.github/workflows/_build.yml
     with:
-      tag: ${{ needs.prepare.outputs.tag }}
+      ref: ${{ needs.prepare.outputs.source_ref }}
+      version: ${{ needs.prepare.outputs.version }}
       channel: stable
       sentry_environment: production
     secrets:
@@ -160,40 +165,105 @@ jobs:
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
         with:
-          path: release-assets
+          path: ${{ runner.temp }}/release-assets
           pattern: dist-*
           merge-multiple: true
 
       - name: List release assets
-        run: ls -lh release-assets
+        run: ls -lh "${{ runner.temp }}/release-assets"
 
-      # Upload every asset to a DRAFT release first. A draft is invisible to
-      # electron-updater (it isn't in releases.atom and its assets aren't
-      # publicly downloadable), so clients never observe a release whose
-      # channel manifest (latest-mac.yml) is still mid-upload — the partial
-      # publish that surfaces as a "Cannot find latest-mac.yml" 404.
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
+        run: |
+          gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f "tag_name=$RELEASE_TAG" \
+            -f "target_commitish=$SOURCE_REF" \
+            --jq .body > "$RUNNER_TEMP/release-notes.md"
+
+      # electron-updater treats bare semver tags in GitHub's releases.atom feed
+      # as releases. Use a deliberately non-semver tag while draft assets upload
+      # so the final tag is created only with a complete, published release.
+      - name: Checkout release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - name: Create and push staging tag
+        env:
+          DRAFT_TAG: release-draft-${{ github.run_id }}
+        run: |
+          git tag "$DRAFT_TAG"
+          git push origin "$DRAFT_TAG"
+
+      # Upload every asset to a draft associated with the non-semver staging tag.
+      # Clients ignore that tag, and the final semver tag does not exist yet.
       - name: Create GitHub Release (draft)
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ needs.prepare.outputs.tag }}
+          tag_name: release-draft-${{ github.run_id }}
           name: Poracode ${{ needs.prepare.outputs.tag }}
           draft: true
-          generate_release_notes: true
+          make_latest: false
+          body_path: ${{ runner.temp }}/release-notes.md
           fail_on_unmatched_files: true
-          files: release-assets/*
+          files: ${{ runner.temp }}/release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Flip draft → published only after all assets (manifests included) are
-      # uploaded. This is the single atomic moment the release becomes visible
-      # to the updater, and marks it as the latest stable release.
-      - name: Publish the release
+      # Rename the draft to the final tag and publish it in one API update. The
+      # final tag and complete release therefore become visible together.
+      - name: Publish release atomically
         env:
+          DRAFT_TAG: release-draft-${{ github.run_id }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
         run: |
-          gh release edit "${{ needs.prepare.outputs.tag }}" \
+          release_id=$(gh api "repos/${{ github.repository }}/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$DRAFT_TAG\") | .id")
+          if [ -z "$release_id" ]; then
+            echo "::error::Draft release for $DRAFT_TAG was not found."
+            exit 1
+          fi
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$release_id" \
+            -f tag_name="$RELEASE_TAG" \
+            -f target_commitish="$SOURCE_REF" \
+            -F draft=false \
+            -F prerelease=false \
+            -f make_latest=true
+          gh api --method DELETE \
+            "repos/${{ github.repository }}/git/refs/tags/$DRAFT_TAG" ||
+            echo "::warning::Published successfully but could not delete staging tag $DRAFT_TAG."
+
+  cleanup-failed-release:
+    needs: [prepare, build, release]
+    if: ${{ always() && !inputs.dry_run && (needs.release.result == 'failure' || needs.release.result == 'cancelled') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Remove failed release and tag
+        env:
+          DRAFT_TAG: release-draft-${{ github.run_id }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          gh release delete "$DRAFT_TAG" \
             --repo "${{ github.repository }}" \
-            --draft=false --latest
+            --cleanup-tag --yes 2>/dev/null || true
+          gh release delete "$RELEASE_TAG" \
+            --repo "${{ github.repository }}" \
+            --cleanup-tag --yes 2>/dev/null || true
+          if gh api "repos/${{ github.repository }}/git/ref/tags/$DRAFT_TAG" >/dev/null 2>&1; then
+            gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$DRAFT_TAG"
+          fi
+          if gh api "repos/${{ github.repository }}/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG"
+          fi
 
   # ── Step 4: Bump master to next plain patch version ──────────────
   post-release:

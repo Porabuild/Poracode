@@ -1,18 +1,26 @@
 import type {
   ProjectLocation,
   PromptSegment,
+  RequestOutcome,
   SendThreadInputPayload,
   Thread,
   ThreadConfig,
   ThreadServerRequestId,
 } from "@/shared/contracts";
+import { toast } from "@heroui/react";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { friendlyError } from "@/shared/messages";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { readBridge } from "@/renderer/bridge";
-import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
+import {
+  captureThreadPromptSubmitted,
+  threadProductProperties,
+} from "@/renderer/analytics/posthog";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 /** Resolve a thread and its on-disk project location from the store. */
 function resolveThreadProjectLocation(
@@ -107,7 +115,7 @@ export async function performThreadInputSubmit(input: {
     }
     throw error;
   }
-  captureThreadInputSubmitted(thread, segments);
+  captureThreadPromptSubmitted(thread, prompt, segments);
   store.touchThread(thread.id);
 }
 
@@ -126,6 +134,25 @@ export async function submitThreadInput(
   const resolved = resolveThreadProjectLocation(threadId);
   if (!resolved) return;
   const { thread, projectLocation } = resolved;
+  if (thread.remoteServerId && thread.remoteId) {
+    await performThreadInputSubmit({
+      thread,
+      prompt,
+      ...(segments ? { segments } : {}),
+      transport: {
+        sendThreadInput: (payload) =>
+          useRemoteServersStore.getState().sendThreadInput({
+            desktopId: thread.remoteServerId!,
+            threadId: thread.remoteId!,
+            prompt: payload.prompt,
+            config: payload.config,
+            ...(payload.segments ? { segments: payload.segments } : {}),
+            ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
+          }),
+      },
+    });
+    return;
+  }
   await performThreadInputSubmit({
     thread,
     prompt,
@@ -152,15 +179,38 @@ export async function resolveThreadServerRequest(
     requestId: ThreadServerRequestId;
     method: string;
     response: unknown;
+    analytics?: {
+      outcome: RequestOutcome;
+      requestType: string;
+    };
   },
 ): Promise<void> {
-  await readBridge().resolveThreadServerRequest({
-    threadId,
-    requestId: input.requestId,
-    method: input.method,
-    response: input.response,
-  });
-  useAppStore.getState().touchThread(threadId);
+  const store = useAppStore.getState();
+  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  if (thread?.remoteServerId && thread.remoteId) {
+    await useRemoteServersStore.getState().resolveThreadRequest({
+      desktopId: thread.remoteServerId,
+      threadId: thread.remoteId,
+      requestId: input.requestId,
+      method: input.method,
+      response: input.response,
+    });
+  } else {
+    await readBridge().resolveThreadServerRequest({
+      threadId,
+      requestId: input.requestId,
+      method: input.method,
+      response: input.response,
+    });
+  }
+  if (input.analytics) {
+    captureProductEvent("thread.request_resolved", {
+      ...(thread ? threadProductProperties(thread) : {}),
+      outcome: input.analytics.outcome,
+      request_type: input.analytics.requestType,
+    });
+  }
+  store.touchThread(threadId);
 }
 
 /**
@@ -182,4 +232,44 @@ export function changeThreadConfig(threadId: string, config: ThreadConfig): void
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     });
   }
+}
+
+/**
+ * Drop a queued steer message. Shared by the desktop composer's pending-steer
+ * strip and the mobile PWA's action-dock card, which hosts the same strip
+ * outside the compact composer.
+ */
+export function clearThreadPendingSteer(threadId: string): void {
+  const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
+  const clear =
+    thread?.remoteServerId && thread.remoteId
+      ? useRemoteServersStore.getState().clearPendingSteer(thread.remoteServerId, thread.remoteId)
+      : readBridge().clearPendingSteer({ threadId });
+  void clear.catch((error: unknown) => {
+    console.error("[thread] failed to clear pending steer", error);
+    toast.danger(friendlyError(error));
+  });
+}
+
+export async function setThreadPendingSteer(
+  thread: Thread,
+  prompt: string,
+  segments: PromptSegment[] | undefined,
+): Promise<void> {
+  if (thread.remoteServerId && thread.remoteId) {
+    await useRemoteServersStore.getState().setPendingSteer({
+      desktopId: thread.remoteServerId,
+      threadId: thread.remoteId,
+      prompt,
+      ...(segments ? { segments } : {}),
+      config: thread.config,
+    });
+    return;
+  }
+  await readBridge().setPendingSteer({
+    threadId: thread.id,
+    prompt,
+    ...(segments ? { segments } : {}),
+    config: thread.config,
+  });
 }

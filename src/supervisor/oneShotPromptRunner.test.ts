@@ -107,6 +107,35 @@ describe("isArgvLikelyTooLong", () => {
 });
 
 describe("runOneShotPromptWithFallback", () => {
+  it("forwards read-only workspace access to structured one-shot runtimes", async () => {
+    const runOneShot = vi.fn<() => Promise<string>>().mockResolvedValue("ok");
+    const adapter = {
+      label: "Structured",
+      runOneShot,
+    } as unknown as AgentAdapter;
+
+    await expect(
+      runOneShotPromptWithFallback({
+        location: windowsProject,
+        adapter,
+        model: "model",
+        effort: undefined,
+        timeoutMs: 10_000,
+        logTag: "test",
+        readOnlyWorkspace: true,
+        attempts: [{ level: "artifacts", buildPrompt: () => "read the files" }],
+      }),
+    ).resolves.toBe("ok");
+
+    expect(runOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: windowsProject,
+        prompt: "read the files",
+        readOnlyWorkspace: true,
+      }),
+    );
+  });
+
   it("uses the full attempt when within the budget and spawn succeeds", async () => {
     const child = createMockChildProcess();
     spawnMock.mockReturnValueOnce(child);
@@ -132,6 +161,42 @@ describe("runOneShotPromptWithFallback", () => {
     expect(spawnMock).toHaveBeenCalledTimes(1);
     const args = spawnMock.mock.calls[0]?.[1] as string[];
     expect(args).toEqual(["-p", "hello world", "--model", "haiku"]);
+  });
+
+  it("keeps CLI judges in the isolated artifact workspace", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValueOnce(child);
+    const adapter = {
+      label: "IsolatedByDefault",
+      buildOneShotCommand: (_model: string, _effort?: string, prompt?: string) => ({
+        command: "judge",
+        args: ["-p", prompt ?? ""],
+        isolateCwd: true,
+      }),
+    } as AgentAdapter;
+
+    const pending = runOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter,
+      model: "model",
+      effort: undefined,
+      timeoutMs: 10_000,
+      logTag: "test",
+      readOnlyWorkspace: true,
+      attempts: [{ level: "artifacts", buildPrompt: () => "read solution-1.patch" }],
+    });
+    await flushPromises();
+    child.stdout.emit("data", Buffer.from("ok"));
+    child.emit("close", 0);
+
+    await expect(pending).resolves.toBe("ok");
+    expect(buildAgentCommandMock).toHaveBeenCalledWith(
+      windowsProject,
+      "judge",
+      ["-p", "read solution-1.patch"],
+      undefined,
+      undefined,
+    );
   });
 
   it("proactively skips an attempt whose built argv exceeds the platform budget", async () => {

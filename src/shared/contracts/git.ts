@@ -79,6 +79,7 @@ export type FileCheckpointTurn = z.infer<typeof fileCheckpointTurnSchema>;
 
 export const getGitStatusPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
+  detail: gitStatusDetailSchema.optional(),
 });
 export type GetGitStatusPayload = z.infer<typeof getGitStatusPayloadSchema>;
 
@@ -188,10 +189,17 @@ export const gitRevertAllPayloadSchema = z.object({
 });
 export type GitRevertAllPayload = z.infer<typeof gitRevertAllPayloadSchema>;
 
+export const fullCommitOidSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i);
+
 export const gitCommitPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   message: z.string().min(1),
   addAll: z.boolean().default(false),
+  /**
+   * Poracode pull stash to re-apply (and drop) after the commit succeeds. Used
+   * when the commit completes a conflicted pull-from-source merge.
+   */
+  reapplyStashCommit: fullCommitOidSchema.optional(),
 });
 export type GitCommitPayload = z.infer<typeof gitCommitPayloadSchema>;
 
@@ -210,6 +218,13 @@ export type GitAddRemotePayload = z.infer<typeof gitAddRemotePayloadSchema>;
 export interface GitCommitResult {
   hash: string;
   message: string;
+  /** The pull stash was found, re-applied cleanly, and dropped. */
+  stashReapplied?: boolean;
+  /** Re-applying the pull stash hit conflicts; the stash entry is kept. */
+  reapplyConflicting?: boolean;
+  /** A stash was requested but remains preserved (re-apply conflicted or stash missing). */
+  stashPreserved?: boolean;
+  conflictFiles?: string[];
 }
 
 export const generateCommitMessagePayloadSchema = z.object({
@@ -333,44 +348,92 @@ export const gitListWorktreesPayloadSchema = z.object({
 });
 export type GitListWorktreesPayload = z.infer<typeof gitListWorktreesPayloadSchema>;
 
-export const gitAddWorktreePayloadSchema = z.object({
-  projectLocation: projectLocationSchema,
-  path: z.string().min(1).optional(),
-  branch: z.string().optional(),
-  createBranch: z.boolean().default(false),
-  startPoint: z.string().optional(),
-  /**
-   * Resolved worktree root (from global settings + per-project override). When
-   * set, worktrees go under this directory instead of the built-in default.
-   * Ignored when an explicit `path` is supplied.
-   */
-  worktreeRoot: z.string().min(1).optional(),
-  /**
-   * When true (project-relative mode), skip the disambiguating `<repo-hash>`
-   * segment so the worktree lands directly at `<root>/<branch>`.
-   */
-  worktreeOmitRepoDir: z.boolean().optional(),
-  /** Gitignore-style patterns for ignored files to copy from the main project. */
-  copyIgnoredPatterns: z.array(z.string()).optional(),
-  /**
-   * Bring the main checkout's uncommitted changes (including untracked files)
-   * into the new worktree.
-   */
-  transferUncommitted: z.boolean().default(false),
-  /**
-   * When transferring: keep a copy of the changes on the source branch (COPY).
-   * Defaults to false, which leaves the source branch clean (MOVE).
-   */
-  keepChangesInSource: z.boolean().default(false),
-});
+export const gitAddWorktreePayloadSchema = z
+  .object({
+    projectLocation: projectLocationSchema,
+    path: z.string().min(1).optional(),
+    branch: z.string().optional(),
+    createBranch: z.boolean().default(false),
+    startPoint: z.string().optional(),
+    /** Source branch metadata when `startPoint` is an immutable commit hash. */
+    sourceBranch: z.string().min(1).max(255).optional(),
+    /** Stable owner marker used to prove lifecycle ownership after recovery. */
+    ownerToken: z.string().min(1).max(128).optional(),
+    /**
+     * Resolved worktree root (from global settings + per-project override). When
+     * set, worktrees go under this directory instead of the built-in default.
+     * Ignored when an explicit `path` is supplied.
+     */
+    worktreeRoot: z.string().min(1).optional(),
+    /**
+     * When true (project-relative mode), skip the disambiguating `<repo-hash>`
+     * segment so the worktree lands directly at `<root>/<branch>`.
+     */
+    worktreeOmitRepoDir: z.boolean().optional(),
+    /** Gitignore-style patterns for ignored files to copy from the main project. */
+    copyIgnoredPatterns: z.array(z.string()).optional(),
+    /**
+     * Bring the main checkout's uncommitted changes (including untracked files)
+     * into the new worktree.
+     */
+    transferUncommitted: z.boolean().default(false),
+    /**
+     * When transferring: keep a copy of the changes on the source branch (COPY).
+     * Defaults to false, which leaves the source branch clean (MOVE).
+     */
+    keepChangesInSource: z.boolean().default(false),
+  })
+  .superRefine((payload, ctx) => {
+    if (payload.ownerToken && !payload.sourceBranch) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A worktree owner token requires a frozen source branch",
+        path: ["ownerToken"],
+      });
+    }
+    if (!payload.sourceBranch) return;
+    if (payload.createBranch !== true) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A frozen source branch requires createBranch to be true",
+        path: ["createBranch"],
+      });
+    }
+    if (!payload.branch?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A frozen source branch requires a new branch name",
+        path: ["branch"],
+      });
+    }
+    if (!payload.startPoint || !fullCommitOidSchema.safeParse(payload.startPoint).success) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A frozen source branch requires a full commit hash start point",
+        path: ["startPoint"],
+      });
+    }
+  });
 export type GitAddWorktreePayload = z.infer<typeof gitAddWorktreePayloadSchema>;
 
-export const gitRemoveWorktreePayloadSchema = z.object({
-  projectLocation: projectLocationSchema,
-  path: z.string().min(1),
-  force: z.boolean().default(false),
-  deleteBranch: z.boolean().default(false),
-});
+export const gitRemoveWorktreePayloadSchema = z
+  .object({
+    projectLocation: projectLocationSchema,
+    path: z.string().min(1),
+    force: z.boolean().default(false),
+    deleteBranch: z.boolean().default(false),
+    expectedBranch: z.string().min(1).optional(),
+    expectedOwnerToken: z.string().min(1).max(128).optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (payload.expectedOwnerToken && !payload.expectedBranch) {
+      ctx.addIssue({
+        code: "custom",
+        message: "An expected worktree owner requires an expected branch",
+        path: ["expectedOwnerToken"],
+      });
+    }
+  });
 export type GitRemoveWorktreePayload = z.infer<typeof gitRemoveWorktreePayloadSchema>;
 
 export const gitPruneWorktreesPayloadSchema = z.object({
@@ -379,12 +442,23 @@ export const gitPruneWorktreesPayloadSchema = z.object({
 });
 export type GitPruneWorktreesPayload = z.infer<typeof gitPruneWorktreesPayloadSchema>;
 
-export const gitDeleteBranchPayloadSchema = z.object({
-  projectLocation: projectLocationSchema,
-  branch: z.string().min(1),
-  force: z.boolean().default(false),
-  remote: z.string().optional(),
-});
+export const gitDeleteBranchPayloadSchema = z
+  .object({
+    projectLocation: projectLocationSchema,
+    branch: z.string().min(1),
+    force: z.boolean().default(false),
+    remote: z.string().optional(),
+    expectedOwnerToken: z.string().min(1).max(128).optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (payload.remote && payload.expectedOwnerToken) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A remote branch cannot have a local worktree owner",
+        path: ["expectedOwnerToken"],
+      });
+    }
+  });
 export type GitDeleteBranchPayload = z.infer<typeof gitDeleteBranchPayloadSchema>;
 
 export const gitSwitchBranchPayloadSchema = z.object({
@@ -457,11 +531,22 @@ export interface GitGetWorktreeSourceBranchResult {
   sourceAhead: number;
 }
 
+export const gitGetWorktreeOwnerPayloadSchema = gitGetWorktreeSourceBranchPayloadSchema.pick({
+  projectLocation: true,
+  branch: true,
+});
+export type GitGetWorktreeOwnerPayload = z.infer<typeof gitGetWorktreeOwnerPayloadSchema>;
+
+export interface GitGetWorktreeOwnerResult {
+  ownerToken: string | null;
+}
+
 export const gitMergeToSourcePayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   worktreeLocation: projectLocationSchema,
   worktreeBranch: z.string().min(1),
   sourceBranch: z.string().min(1),
+  expectedWorktreeCommit: fullCommitOidSchema.optional(),
 });
 export type GitMergeToSourcePayload = z.infer<typeof gitMergeToSourcePayloadSchema>;
 
@@ -489,21 +574,46 @@ export interface GitPullFromSourceResult {
   conflicting?: boolean;
   error?: string;
   conflictFiles?: string[];
+  /**
+   * Commit hash of the stash created for this pull when it remains preserved
+   * (merge conflicted before the stash could be re-applied). Pass it to
+   * `gitFinishMerge`/`gitAbortMerge` as `reapplyStashCommit` so the stashed
+   * changes are restored once the merge is resolved or abandoned.
+   */
+  stashCommit?: string;
 }
 
 export const gitAbortMergePayloadSchema = z.object({
   worktreeLocation: projectLocationSchema,
+  /** Poracode pull stash to re-apply (and drop) after the merge is aborted. */
+  reapplyStashCommit: fullCommitOidSchema.optional(),
 });
 export type GitAbortMergePayload = z.infer<typeof gitAbortMergePayloadSchema>;
 
+export interface GitAbortMergeResult {
+  /** The pull stash was found, re-applied cleanly, and dropped. */
+  stashReapplied?: boolean;
+  /** A stash was requested but could not be re-applied; it remains in the stash list. */
+  stashPreserved?: boolean;
+}
+
 export const gitFinishMergePayloadSchema = z.object({
   worktreeLocation: projectLocationSchema,
+  /** Poracode pull stash to re-apply (and drop) after the merge commit succeeds. */
+  reapplyStashCommit: fullCommitOidSchema.optional(),
 });
 export type GitFinishMergePayload = z.infer<typeof gitFinishMergePayloadSchema>;
 
 export interface GitFinishMergeResult {
   success: boolean;
   error?: string;
+  /** The pull stash was found, re-applied cleanly, and dropped. */
+  stashReapplied?: boolean;
+  /** Re-applying the pull stash hit conflicts; the stash entry is kept. */
+  reapplyConflicting?: boolean;
+  /** A stash was requested but remains preserved (re-apply conflicted or stash missing). */
+  stashPreserved?: boolean;
+  conflictFiles?: string[];
 }
 
 export const gitWatchProjectPayloadSchema = z.object({
@@ -520,6 +630,7 @@ export type GitWatchWorktreesPayload = z.infer<typeof gitWatchWorktreesPayloadSc
 
 export const gitUnwatchProjectPayloadSchema = z.object({
   projectId: z.string().min(1),
+  releaseWslDistro: z.string().min(1).optional(),
 });
 export type GitUnwatchProjectPayload = z.infer<typeof gitUnwatchProjectPayloadSchema>;
 

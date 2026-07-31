@@ -5,7 +5,7 @@ export type ComputerUseScope = "none" | "launch";
 
 /**
  * Whether Computer Use can be opted into for a thread. Providers declare their
- * per-presentation gating via `AgentCapability.computerUseMcpScope`; the
+ * per-presentation gating via `AgentCapability.mcpScope`; the
  * cross-cutting host checks live here:
  *
  * - Host platform matters: the MCP ingress only starts on win32/darwin, so
@@ -20,7 +20,7 @@ export type ComputerUseScope = "none" | "launch";
  * UA); see the mobile bridge's `setRemoteBridgeClient(..., platform)`.
  */
 export function getComputerUseScope(
-  capabilities: Pick<AgentCapability, "computerUseMcpScope">,
+  capabilities: Pick<AgentCapability, "mcpScope">,
   presentationMode: ThreadPresentationMode,
   projectLocation?: ProjectLocation,
   hostPlatform?: NodeJS.Platform,
@@ -29,7 +29,5 @@ export function getComputerUseScope(
   if (projectLocation?.kind === "wsl") return "none";
   // The composer toggle only distinguishes "available" from "hidden", so the
   // mid-thread-toggleable "always" scope collapses to "launch".
-  return resolveMcpScope(capabilities.computerUseMcpScope, presentationMode) === "none"
-    ? "none"
-    : "launch";
+  return resolveMcpScope(capabilities.mcpScope, presentationMode) === "none" ? "none" : "launch";
 }

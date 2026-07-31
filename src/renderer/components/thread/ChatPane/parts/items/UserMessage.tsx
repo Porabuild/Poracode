@@ -1,15 +1,17 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronDown, ChevronUp, MessageSquareText, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageSquareText, Plug, Sparkles } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import { openPdfPreview } from "@/renderer/components/pdf/openPdfPreview";
 import type { Attachment } from "@/renderer/components/composer/useAttachments";
 import {
   diffCommentTarget,
   fileNameFromPath,
   formatDiffCommentPrompt,
+  isImagePath,
 } from "@/shared/promptContent";
 import { isRemoteSession } from "@/renderer/bridge";
 import {
@@ -68,12 +70,16 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   const content = payload?.content ?? [];
   const rawText = buildUserPromptText(content);
   const { slashCommand, body } = extractLeadingSlashCommand(rawText);
+  const displaySlashCommand = slashCommand?.startsWith("skill:")
+    ? slashCommand.slice("skill:".length)
+    : slashCommand;
   const text = body;
   const commandPrefixLength = slashCommand ? rawText.length - body.length : 0;
   const hasInlineContent = content.some(
     (block) =>
       block.kind === "skill" ||
       block.kind === "diff_comment" ||
+      block.kind === "mcp" ||
       (block.kind === "file" && block.source !== "attachment"),
   );
   const attachments = enrichWithSelectorPayloads(
@@ -212,7 +218,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
     bodyClass = inlineBodyClass;
     bodyContent = (
       <>
-        <UserMessageSlashChip icon="/" label={slashCommand} />
+        <UserMessageSlashChip icon="/" label={displaySlashCommand ?? slashCommand} />
         {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
       </>
     );
@@ -242,6 +248,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
                 if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
               }}
+              onPreviewPdf={(att) => openPdfPreview(att.path)}
             />
           </div>
         ) : null}
@@ -258,6 +265,11 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
               aria-expanded={isExpanded}
               aria-label={tooltipLabel}
               onClick={() => {
+                // Chromium preserves an overflow container's scrollTop when it
+                // becomes clamped. Reset it before collapsing so the first four
+                // lines paint from the top instead of overlapping the scrolled
+                // tail inside the shorter box.
+                if (isExpanded && bodyRef.current) bodyRef.current.scrollTop = 0;
                 setIsExpanded((prev) => !prev);
                 actions?.onContentHeightChange();
               }}
@@ -284,7 +296,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   );
 });
 
-const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_-]*)(\s+|$)/;
+const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_.:-]*)(\s+|$)/;
 
 function extractLeadingSlashCommand(text: string): { slashCommand: string | null; body: string } {
   const match = text.match(LEADING_SLASH_COMMAND_RE);
@@ -298,6 +310,7 @@ function buildUserPromptText(content: CanonicalContentBlock[]): string {
       if (block.kind === "text") return block.text;
       if (block.kind === "skill") return block.invocation;
       if (block.kind === "diff_comment") return formatDiffCommentPrompt(block);
+      if (block.kind === "mcp") return `@${block.name}`;
       if (block.kind === "file" && block.source !== "attachment") return block.path;
       return "";
     })
@@ -359,6 +372,21 @@ function renderUserMessageInlineContent(
       return;
     }
 
+    if (block.kind === "mcp") {
+      // An @-mention is never part of a leading /slash-command prefix, so —
+      // unlike the skill/file branches — an mcp block can never fall inside the
+      // skipped region and needs no remainingSkip handling.
+      nodes.push(
+        <UserMessageSlashChip
+          key={`mcp-${index}-${block.name}`}
+          icon={<Plug aria-hidden="true" />}
+          label={block.name}
+          mcpName={block.name}
+        />,
+      );
+      return;
+    }
+
     if (block.kind === "file") {
       if (block.source === "attachment") return;
       if (remainingSkip >= block.path.length) {
@@ -387,17 +415,20 @@ function UserMessageSlashChip({
   label,
   skillName,
   title,
+  mcpName,
 }: {
   icon: ReactNode;
   label: string;
   skillName?: string;
   title?: string;
+  mcpName?: string;
 }) {
   return (
     <span
       className="poracode-slash-chip mr-1.5"
       title={title}
       {...(skillName ? { "data-skill-name": skillName } : {})}
+      {...(mcpName ? { "data-mcp-name": mcpName } : {})}
     >
       <span className="poracode-slash-chip__slash">{icon}</span>
       <span className="poracode-slash-chip__name">{label}</span>
@@ -503,12 +534,14 @@ function buildUserPromptAttachments(content: CanonicalContentBlock[]): Attachmen
       ];
     }
     if (block.kind === "file" && block.source === "attachment") {
+      const isImage = isImagePath(block.path, block.mimeType);
       return [
         {
-          id: `attachment-${index}-${block.path}`,
+          id: `${isImage ? "image" : "attachment"}-${index}-${block.path}`,
           path: block.path,
           name: block.name ?? fileNameFromPath(block.path),
-          isImage: false,
+          ...(block.mimeType ? { mimeType: block.mimeType } : {}),
+          isImage,
         },
       ];
     }

@@ -16,17 +16,23 @@ import {
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap } from "@/shared/ipc";
+import { msg } from "@/shared/messages";
 import {
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjects,
   dbGetThreads,
+  dbUpdateProject,
   dbUpsertProject,
   dbUpsertThread,
 } from "../../db";
 import { RemoteHttpError } from "../auth";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
+import {
+  assertRemoteGitMutationExperimentSafe,
+  hasPersistedProjectExperiment,
+} from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
 import { readJsonBody } from "./requestBody";
@@ -60,6 +66,7 @@ export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage)
   const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
     typeof name
   >;
+  assertRemoteGitMutationExperimentSafe(procedure, parsedPayload);
   return ctx.options.callSupervisor(name, parsedPayload);
 }
 
@@ -76,11 +83,17 @@ export function runProjectCommand(
 ): Promise<RemoteProjectCommandResult> {
   return applyRemoteProjectCommand(command, {
     getProjects: () => dbGetProjects(),
+    hasProjectExperiment: (projectId) => hasPersistedProjectExperiment(projectId),
+    hasRunningProjectThread: (projectId) =>
+      dbGetThreads().some(
+        (thread) => thread.projectId === projectId && thread.status === "working",
+      ),
     listProjectThreadIds: (projectId) =>
       dbGetThreads()
         .filter((thread) => thread.projectId === projectId)
         .map((thread) => thread.id),
     upsertProject: (project, sortOrder) => dbUpsertProject(project, sortOrder),
+    updateProject: (project) => dbUpdateProject(project),
     deleteProject: (projectId) => dbDeleteProject(projectId),
     closeThread: (threadId) => closeThreadBestEffort(ctx, threadId),
     cloneRepo: (input) => ctx.options.callSupervisor("cloneRepo", input),
@@ -102,6 +115,8 @@ export async function applyRemoteThreadCommand(
   command: RemoteThreadCommand,
 ): Promise<boolean> {
   switch (command.kind) {
+    case "prepare-worktree":
+      return true;
     case "start":
       await startRemoteThread(ctx, command);
       return false;
@@ -111,6 +126,11 @@ export async function applyRemoteThreadCommand(
         title: command.title,
         updatedAt: new Date().toISOString(),
       }));
+      return false;
+    case "acknowledge":
+      updateRemoteThread(command.threadId, (thread) =>
+        thread.status === "finished" ? { ...thread, status: "idle" } : thread,
+      );
       return false;
     case "set-done":
       if (command.done) {
@@ -144,6 +164,13 @@ export async function applyRemoteThreadCommand(
         updatedAt: new Date().toISOString(),
       }));
       return false;
+    case "set-group":
+      updateRemoteThread(command.threadId, (thread) => ({
+        ...thread,
+        groupId: command.groupId,
+        groupName: command.groupName,
+      }));
+      return false;
     case "archive":
       await closeThreadBestEffort(ctx, command.threadId);
       updateRemoteThread(command.threadId, (thread) => ({
@@ -164,6 +191,8 @@ export async function applyRemoteThreadCommand(
       dbDeleteThread(command.threadId);
       return false;
     case "delete-worktree-group":
+      await Promise.all(command.threadIds.map((threadId) => closeThreadBestEffort(ctx, threadId)));
+      for (const threadId of command.threadIds) dbDeleteThread(threadId);
       return true;
   }
 }
@@ -174,7 +203,7 @@ async function startRemoteThread(
 ): Promise<void> {
   const project = dbGetProjects().find((entry) => entry.id === command.projectId);
   if (!project) {
-    throw new RemoteHttpError("project_not_found", "Project not found.", 404);
+    throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
   }
 
   const threads = dbGetThreads();

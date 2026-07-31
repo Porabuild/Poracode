@@ -8,12 +8,14 @@ import "./index";
 
 const capabilities = {
   models: [
+    { id: "claude-opus-5", label: "Opus 5" },
     { id: "claude-fable-5", label: "Fable 5" },
     { id: "haiku", label: "Haiku" },
   ],
   efforts: ["low", "medium", "high", "xHigh", "max", "ultracode"],
   defaultEffort: "high",
   modelEfforts: {
+    "claude-opus-5": ["low", "medium", "high", "xHigh", "max", "ultracode"],
     "claude-fable-5": ["low", "medium", "high", "xHigh", "max", "ultracode"],
     haiku: [],
   },
@@ -38,6 +40,21 @@ function isPermissionControl(
 }
 
 describe("Claude composer controls", () => {
+  it("allows auto permissions for Opus 5", () => {
+    const controls = getComposerControls("claude")?.({
+      capabilities,
+      config: { model: "claude-opus-5" },
+      isDisabled: false,
+      onConfigChange: () => undefined,
+    });
+
+    const permission = controls?.find(isPermissionControl);
+    expect(permission && "options" in permission ? permission.options : []).toContainEqual({
+      id: "auto",
+      label: "Auto mode",
+    });
+  });
+
   it("allows auto permissions for Fable 5", () => {
     const controls = getComposerControls("claude")?.({
       capabilities,

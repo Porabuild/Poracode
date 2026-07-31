@@ -18,6 +18,7 @@ const cjs = requireFromHere("../../scripts/electron-builder.shared.cjs") as {
   userDataDirNameFor: (channel: string) => string;
   updaterChannelFor: (channel: string) => string | undefined;
   artifactPrefixFor: (channel: string) => string;
+  macExecutableNameFor: (channel: string, artifactKind: "branded" | "updater") => string;
 };
 
 describe("electron-builder.shared.cjs mirrors src/shared/channel.ts", () => {
@@ -40,5 +41,12 @@ describe("electron-builder.shared.cjs mirrors src/shared/channel.ts", () => {
     expect(cjs.normalizeChannel("stable")).toBe("stable");
     expect(cjs.normalizeChannel(undefined)).toBe("stable");
     expect(cjs.normalizeChannel("beta")).toBe("stable");
+  });
+
+  it("keeps macOS updater ZIPs on the legacy technical executable name", () => {
+    expect(cjs.macExecutableNameFor("stable", "updater")).toBe("Lightcode");
+    expect(cjs.macExecutableNameFor("nightly", "updater")).toBe("Lightcode Nightly");
+    expect(cjs.macExecutableNameFor("stable", "branded")).toBe("Poracode");
+    expect(cjs.macExecutableNameFor("nightly", "branded")).toBe("Poracode Nightly");
   });
 });

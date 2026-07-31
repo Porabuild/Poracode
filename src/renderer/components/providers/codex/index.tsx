@@ -17,35 +17,25 @@ import { registerTitleGenDefaults } from "../titleGen";
 const PROVIDER_KIND = providerManifest.kind;
 
 registerProviderIcon(PROVIDER_KIND, CodexStatusIcon);
-// Title/commit defaults were chosen by an empirical benchmark (latency + blind
-// quality judging) across the Codex model/effort matrix on real prompts and
-// diffs — not by model-tier intuition. Two findings drove these:
-//   1. The dominant latency cost is reasoning effort, not model size. The old
-//      mini-at-xhigh commit default ran ~13-20x slower (≈54s median, 116s max)
-//      than low effort for no quality gain.
-//   2. gpt-5.4-mini at low effort scored in the top quality cluster on BOTH
-//      tasks while being the most consistent (no case bombed) and the cheapest.
-//      Bigger models did not reliably win: gpt-5.4 and gpt-5.3-codex-spark
-//      mislabeled a feature commit as "fix", and the fast lane / xhigh added
-//      latency without quality. So we keep mini and only fix the effort.
-// Frontier gpt-5.5 stays for the conflict resolver (a real interactive task).
+// Codex 5.6 utility defaults: Luna for cheap title gen, Terra for commit
+// messages, Sol for interactive conflict resolution.
 registerCommitGenDefaults(PROVIDER_KIND, {
   label: "Codex",
-  hint: "GPT-5.4 Mini low",
-  model: "gpt-5.4-mini",
+  hint: "GPT-5.6 Terra low",
+  model: "gpt-5.6-terra",
   effort: "low",
 });
 registerTitleGenDefaults(PROVIDER_KIND, {
   label: "Codex",
-  hint: "GPT-5.4 Mini low",
-  model: "gpt-5.4-mini",
+  hint: "GPT-5.6 Luna low",
+  model: "gpt-5.6-luna",
   effort: "low",
 });
 registerConflictResolverDefaults(PROVIDER_KIND, {
   label: "Codex",
-  hint: "GPT-5.5 high",
-  model: "gpt-5.5",
-  effort: "high",
+  hint: "GPT-5.6 Sol medium",
+  model: "gpt-5.6-sol",
+  effort: "medium",
 });
 
 registerConfigNormalizer(PROVIDER_KIND, ({ config, presentationMode }) => {

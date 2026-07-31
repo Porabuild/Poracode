@@ -185,14 +185,14 @@ export function McpServersManager(props: {
       icon: <Globe className="size-4" />,
     },
     {
-      id: "subagents",
-      name: BUILT_IN_MCP_SERVER_NAMES.subagents,
-      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES.subagents,
-      label: t`Subagents`,
+      id: "crossagents",
+      name: BUILT_IN_MCP_SERVER_NAMES.crossagents,
+      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES.crossagents,
+      label: t`Crossagents`,
       description: builtInDescription,
       icon: <Users className="size-4" />,
-      ...(props.builtInSettings?.subagents !== undefined
-        ? { settingsLabel: props.builtInSettings.subagents.actionLabel }
+      ...(props.builtInSettings?.crossagents !== undefined
+        ? { settingsLabel: props.builtInSettings.crossagents.actionLabel }
         : {}),
     },
     {

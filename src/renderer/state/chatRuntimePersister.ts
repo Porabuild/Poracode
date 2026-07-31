@@ -1,7 +1,7 @@
 import type { ToolCallPayload } from "@/shared/contracts";
+import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { captureRendererException } from "../diagnostics/sentry";
 import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
-import { isSubAgentTool } from "../components/thread/ChatPane/parts/items/toolDisplay";
 import { readBridge } from "../bridge";
 import { useAppStore } from "./appStore";
 import {
@@ -10,7 +10,8 @@ import {
   type RuntimeChatItem,
 } from "./slices/runtimeEventSlice";
 
-const RUNTIME_PAGE_SIZE = 200;
+const RUNTIME_PAGE_SCAN_SIZE = 500;
+const RUNTIME_TIMELINE_PAGE_SIZE = 40;
 const MAX_CACHED_THREAD_TRANSCRIPTS = 40;
 const hydratedThreadRuntimeIds = new Set<string>();
 const pendingThreadRuntimeHydrations = new Map<string, Promise<boolean>>();
@@ -18,6 +19,32 @@ const olderRuntimePageCursorByThread = new Map<string, number | null>();
 const pendingOlderRuntimePages = new Map<string, Promise<boolean>>();
 const retainedThreadRuntimeCounts = new Map<string, number>();
 const inactiveThreadRuntimeLru = new Set<string>();
+
+/**
+ * Seed the older-page cursor when a remote thread snapshot supplies its tail.
+ * A remote snapshot is already the thread's authoritative hydration, so mark
+ * it hydrated before ChatPane mounts; otherwise the PWA bridge's intentional
+ * empty initial-DB response would overwrite this cursor with `null`.
+ *
+ * Preserve a cursor that has already moved farther back only when the caller
+ * confirms the refreshed tail overlaps the transcript currently in memory.
+ * A disjoint authoritative tail replaced that transcript, so its cursor must
+ * replace the old one as well or pagination skips the missing middle pages.
+ */
+export function seedOlderThreadRuntimeItemsCursor(
+  threadId: string,
+  cursor: number | null,
+  options: { readonly preserveExistingCursor?: boolean } = {},
+): void {
+  hydratedThreadRuntimeIds.add(threadId);
+  const currentCursor = olderRuntimePageCursorByThread.get(threadId);
+  if (options.preserveExistingCursor !== true || currentCursor === undefined || cursor === null) {
+    olderRuntimePageCursorByThread.set(threadId, cursor);
+    return;
+  }
+  if (currentCursor === null) return;
+  olderRuntimePageCursorByThread.set(threadId, Math.min(currentCursor, cursor));
+}
 
 export function hasHydratedThreadRuntimeItems(threadId: string): boolean {
   return (
@@ -53,11 +80,14 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
     const page = await readBridge().dbGetThreadRuntimeItemsPage({
       threadId,
       beforePosition: cursor,
-      limit: RUNTIME_PAGE_SIZE,
+      limit: RUNTIME_PAGE_SCAN_SIZE,
+      targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
     });
     olderRuntimePageCursorByThread.set(threadId, page.nextCursor);
     if (page.items.length === 0) return false;
-    useAppStore.getState().prependThreadRuntimeItems(threadId, page.items.map(toRuntimeChatItem));
+    const items = compactRuntimeItemsForHydration(page.items.map(toRuntimeChatItem));
+    useAppStore.getState().prependThreadRuntimeItems(threadId, items);
+    useAppStore.getState().reconcileStaleSubAgents(threadId);
     return true;
   })().catch((error: unknown) => {
     console.warn("[chat] failed to load older runtime items for thread %s", threadId, error);
@@ -101,7 +131,11 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
   const bridge = readBridge();
   const [itemsResult, turnsResult, contextResult] = await Promise.allSettled([
     Promise.resolve().then(() =>
-      bridge.dbGetThreadRuntimeItemsPage({ threadId, limit: RUNTIME_PAGE_SIZE }),
+      bridge.dbGetThreadRuntimeItemsPage({
+        threadId,
+        limit: RUNTIME_PAGE_SCAN_SIZE,
+        targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
+      }),
     ),
     Promise.resolve().then(() => bridge.dbGetThreadCompletedTurns(threadId)),
     Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
@@ -278,7 +312,10 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
   // them on reopen. Sub-agent parents carry the final result on their payload;
   // bundling either into a tool-call summary would erase that history.
   if (item.parentItemId) return false;
-  if (item.type === "tool_call" && isSubAgentTool(item.payload as ToolCallPayload | undefined)) {
+  if (
+    item.type === "tool_call" &&
+    isDelegatedAgentTool(item.payload as ToolCallPayload | undefined)
+  ) {
     return false;
   }
   // Tool rows that render as a standalone inline image (ImageView) must NOT be
@@ -319,7 +356,7 @@ function categorizeItem(item: RuntimeChatItem): SummaryCategory {
   if (item.type === "web_search") return "searched";
   const payload = item.payload as Partial<ToolCallPayload> | undefined;
   if (!payload) return "other";
-  if (isSubAgentTool(payload as ToolCallPayload)) return "executed";
+  if (isDelegatedAgentTool(payload as ToolCallPayload)) return "executed";
 
   switch (payload.kind) {
     case "read":

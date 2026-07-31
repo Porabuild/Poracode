@@ -5,6 +5,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
@@ -93,6 +94,7 @@ const codexStatus: AgentStatus = {
       { id: "danger-full-access", label: "Full Access" },
     ],
     defaultApprovalPolicy: "on-request",
+    defaultApprovalsReviewer: "auto_review",
     defaultSandboxMode: "workspace-write",
     supportsResume: true,
     supportsDirectInput: true,
@@ -170,11 +172,15 @@ const commandCodeStatus: AgentStatus = {
   authState: "authenticated",
   capabilities: {
     models: [
-      { id: "moonshotai/Kimi-K2.5", label: "Kimi K2.5" },
+      { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash" },
       { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
     ],
     efforts: [],
-    modelEfforts: {},
+    defaultEffort: "high",
+    modelEfforts: {
+      "deepseek/deepseek-v4-flash": ["high", "max"],
+      "gpt-5.4-mini": ["low", "medium", "high"],
+    },
     modes: ["agent", "plan"],
     approvalPolicies: [{ id: "yolo", label: "Bypass Permissions" }],
     sandboxModes: [],
@@ -263,6 +269,7 @@ const acpGenericStatus: AgentStatus = {
       { id: "default", label: "Supervised" },
       { id: "never", label: "Auto Approve" },
     ],
+    defaultApprovalPolicy: "never",
     sandboxModes: [],
     supportsResume: false,
     supportsDirectInput: true,
@@ -287,6 +294,24 @@ function collectElementTypeNames(node: ReactNode): string[] {
     if (props.children !== undefined) names.push(...collectElementTypeNames(props.children));
   });
   return names;
+}
+
+function findElementByTypeName(
+  node: ReactNode,
+  name: string,
+): ReactElement<Record<string, unknown>> | undefined {
+  let match: ReactElement<Record<string, unknown>> | undefined;
+  Children.forEach(node, (child) => {
+    if (match || !isValidElement(child)) return;
+    const type = child.type;
+    if (typeof type === "function" && type.name === name) {
+      match = child as ReactElement<Record<string, unknown>>;
+      return;
+    }
+    const props = child.props as { children?: ReactNode };
+    match = findElementByTypeName(props.children, name);
+  });
+  return match;
 }
 
 function installDraftComposerLayoutMetrics(): () => void {
@@ -395,6 +420,59 @@ describe("ThreadDraftView", () => {
       disabledBuiltInMcpServers: {},
       sharedSettingsHydrated: true,
     });
+    useAppStore.setState({ pendingDraftWorktreeSelections: {} });
+  });
+
+  it("adds experiment candidates without a prompt and keeps the composer submit button", () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />);
+
+    const initialComposer = composerSpy.mock.lastCall?.[0] as {
+      afterControls: ReactElement<{
+        experiment?: { onToggle: (enabled: boolean) => void };
+      }>;
+    };
+    act(() => initialComposer.afterControls.props.experiment?.onToggle(true));
+
+    let composer = composerSpy.mock.lastCall?.[0] as {
+      fixedContent: ReactNode;
+      submitContent?: ReactNode;
+      submitDisabled: boolean;
+      submitLabel: string;
+    };
+    expect(composer.submitLabel).toBe("Run experiment");
+    expect(composer.submitContent).toBeUndefined();
+    expect(screen.getByRole("button", { name: "Worktree mode" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select branch" })).toBeEnabled();
+    expect(screen.getByText("from")).toBeInTheDocument();
+
+    let targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+    expect(targets?.props.isAddDisabled).toBe(false);
+    if (!targets) throw new Error("Expected experiment targets");
+    const addCandidate = targets.props.onAdd as () => void;
+    act(addCandidate);
+
+    composer = composerSpy.mock.lastCall?.[0] as typeof composer;
+    targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+    expect(targets?.props.candidates).toHaveLength(1);
+    expect(targets?.props.isAddDisabled).toBe(false);
+    expect(composer.submitDisabled).toBe(true);
   });
 
   it("renders the quick-composer surface with new-thread project and worktree controls", () => {
@@ -435,6 +513,62 @@ describe("ThreadDraftView", () => {
     expect(container.querySelector(".quick-composer-control-surface")).toBeInTheDocument();
     expect(container.querySelector("[data-draft-controls]")).toBeInTheDocument();
     expect(container.querySelector("[data-draft-worktree-row]")).toBeInTheDocument();
+  });
+
+  it("restores the selection replaced by a targeted worktree when the inline composer collapses", async () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+    useAppStore.getState().setPendingDraftWorktreeSelection(project.id, {
+      branch: "poracode/calm-viper",
+      baseBranch: "poracode/calm-viper",
+      isWorktree: true,
+      worktreePath: "C:\\repo-worktrees\\calm-viper",
+    });
+
+    const { rerender } = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexStatus]}
+        quickComposer
+        restoreWorktreeSelectionToken={0}
+        onStart={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(
+        "poracode/calm-viper",
+      );
+    });
+
+    rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexStatus]}
+        quickComposer
+        restoreWorktreeSelectionToken={1}
+        onStart={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("main");
+    });
   });
 
   afterEach(() => {
@@ -601,8 +735,8 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("gpt-5.4");
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
       expect(effortContext?.effortValue).toBe("high");
-      const permission = props.controls.find((control) => control.value === "review-on-request");
-      expect(permission?.options?.some((option) => option.label === "Ask for approval")).toBe(true);
+      const permission = props.controls.find((control) => control.value === "auto-review");
+      expect(permission?.options?.some((option) => option.label === "Auto-review")).toBe(true);
     });
 
     fireEvent.click(screen.getByText("set-prompt"));
@@ -615,6 +749,7 @@ describe("ThreadDraftView", () => {
         effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
         sandboxMode: "workspace-write",
       },
       presentationMode: "gui",
@@ -652,7 +787,7 @@ describe("ThreadDraftView", () => {
     );
   });
 
-  it("submits the Codex Auto-review reviewer override", async () => {
+  it("submits the Codex Ask for approval reviewer override", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
 
     render(
@@ -663,22 +798,24 @@ describe("ThreadDraftView", () => {
       const props = composerSpy.mock.lastCall?.[0] as {
         controls: Array<{ value?: string; onChange?: (value: string) => void }>;
       };
-      expect(props.controls.some((control) => control.value === "review-on-request")).toBe(true);
+      expect(props.controls.some((control) => control.value === "auto-review")).toBe(true);
     });
 
     const props = composerSpy.mock.lastCall?.[0] as {
       controls: Array<{ value?: string; onChange?: (value: string) => void }>;
     };
-    const permission = props.controls.find((control) => control.value === "review-on-request");
+    const permission = props.controls.find((control) => control.value === "auto-review");
     act(() => {
-      permission?.onChange?.("auto-review");
+      permission?.onChange?.("review-on-request");
     });
 
     await waitFor(() => {
       const nextProps = composerSpy.mock.lastCall?.[0] as {
         controls: Array<{ value?: string }>;
       };
-      expect(nextProps.controls.some((control) => control.value === "auto-review")).toBe(true);
+      expect(nextProps.controls.some((control) => control.value === "review-on-request")).toBe(
+        true,
+      );
     });
 
     fireEvent.click(screen.getByText("set-prompt"));
@@ -691,7 +828,7 @@ describe("ThreadDraftView", () => {
         effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
-        approvalsReviewer: "auto_review",
+        approvalsReviewer: "user",
         sandboxMode: "workspace-write",
       },
       presentationMode: "gui",
@@ -762,7 +899,7 @@ describe("ThreadDraftView", () => {
       const providerModel = props.controls.find((c) => c.kind === "provider-model");
       expect(providerModel?.currentAgentKind).toBe("codex");
       expect(providerModel?.currentModel).toBe("gpt-5.4");
-      expect(props.controls.some((control) => control.value === "review-on-request")).toBe(true);
+      expect(props.controls.some((control) => control.value === "auto-review")).toBe(true);
     });
 
     fireEvent.click(screen.getByText("set-prompt"));
@@ -775,6 +912,7 @@ describe("ThreadDraftView", () => {
         effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
         sandboxMode: "workspace-write",
       },
       presentationMode: "gui",
@@ -782,7 +920,7 @@ describe("ThreadDraftView", () => {
     });
   });
 
-  it("defaults synthetic generic ACP permissions to supervised", async () => {
+  it("defaults synthetic generic ACP permissions to auto approve", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
 
     render(
@@ -797,10 +935,10 @@ describe("ThreadDraftView", () => {
           isSelected?: boolean;
         }>;
       };
-      const permission = props.controls.find((control) => control.label === "Supervised");
+      const permission = props.controls.find((control) => control.label === "Auto Approve");
       expect(permission).toMatchObject({
         kind: "toggle",
-        isSelected: false,
+        isSelected: true,
       });
     });
 
@@ -812,7 +950,7 @@ describe("ThreadDraftView", () => {
       config: {
         model: "model-a",
         mode: "agent",
-        approvalPolicy: "default",
+        approvalPolicy: "never",
       },
       presentationMode: "gui",
       prompt: "hello world",
@@ -954,8 +1092,8 @@ describe("ThreadDraftView", () => {
     const onStart = vi.fn<(input: unknown) => void>();
     const lastDraftConfig = {
       agentKind: "commandcode",
-      model: "moonshotai/Kimi-K2.5",
-      effort: "",
+      model: "deepseek/deepseek-v4-flash",
+      effort: "high",
       mode: "agent",
       approvalPolicy: "yolo",
       sandboxMode: "",
@@ -1011,7 +1149,7 @@ describe("ThreadDraftView", () => {
         (provider) => provider.kind === "commandcode",
       );
       expect(commandCodeProvider?.capabilities.models.map((model) => model.id)).toEqual([
-        "moonshotai/Kimi-K2.5",
+        "deepseek/deepseek-v4-flash",
         "gpt-5.4-mini",
       ]);
     });

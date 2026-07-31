@@ -126,7 +126,7 @@ export function GitReviewOverlay(props: {
     try {
       if (statusKey && effectiveLocation !== project.location) {
         await readBridge()
-          .gitFetch({ projectLocation: effectiveLocation, remote: "origin", prune: false })
+          .gitFetch({ projectLocation: effectiveLocation, remote: "origin", prune: true })
           .catch(() => undefined);
         const status = await readBridge()
           .getGitStatus({ projectLocation: effectiveLocation })
@@ -303,6 +303,7 @@ export function GitReviewOverlay(props: {
       sidebar={
         <GitReviewSidebar
           project={effectiveProject}
+          mergeSyncLocation={project.location}
           gitStatus={gitStatus}
           selectedFile={selectedFile}
           selectedStaged={selectedStaged}

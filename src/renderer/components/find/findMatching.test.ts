@@ -46,6 +46,22 @@ describe("getChatItemSearchText", () => {
   it("reads user text from payload content blocks", () => {
     expect(getChatItemSearchText(user("u", "a prompt"))).toBe("a prompt");
   });
+
+  it("makes an MCP mention badge findable by its @name directive", () => {
+    const item: RuntimeChatItem = {
+      id: "u",
+      type: "user_message",
+      state: "completed",
+      streams: {},
+      payload: {
+        content: [
+          { kind: "mcp", name: "Browser" },
+          { kind: "text", text: " open" },
+        ],
+      },
+    };
+    expect(getChatItemSearchText(item)).toBe("@Browser open");
+  });
 });
 
 describe("collectChatMatches", () => {

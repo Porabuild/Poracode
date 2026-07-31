@@ -8,7 +8,8 @@ import type { SharedSettingsInput } from "@/shared/settings";
 import type { RemoteDesktopClient } from "./remoteClient";
 
 /**
- * Two-way sync for the desktop's remote-editable settings (the AI helpers).
+ * Two-way sync for the desktop's remote-editable settings (AI helpers,
+ * agent/model configuration, and persistent composer MCP enablement).
  * The PWA's settings store holds both kinds of keys: device-local ones that
  * live in this device's localStorage, and the remote keys mirrored here from
  * the paired desktop. Hydration pulls the desktop's values in (without

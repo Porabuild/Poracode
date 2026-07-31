@@ -1,7 +1,5 @@
-import { useShallow } from "zustand/shallow";
 import { X } from "lucide-react";
 import { toast } from "@heroui/react";
-import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type {
   ExtractContextResult,
@@ -12,31 +10,18 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import { friendlyError } from "@/shared/messages";
-import { isHomeProject } from "@/shared/homeScope";
-import { buildWorktreeLocation } from "@/shared/worktree";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
-import { titlePromptFromSegments } from "@/shared/threadTitle";
 import { readBridge } from "@/renderer/bridge";
-import { i18n } from "@/renderer/i18n/i18n";
-import {
-  isDetectingAgentsForLocation,
-  useAgentStatusesStore,
-} from "@/renderer/state/agentStatusesStore";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
-import { getProjectActiveWorktreePaths, refreshGitProject } from "@/renderer/state/gitRefresh";
-import { useGitStore } from "@/renderer/state/gitStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import {
   useInitialProjectDraftConfig,
   useProjectIds,
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
-import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
-import { closeAllPanels } from "@/renderer/actions/panelActions";
-import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
+import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import {
   resolvePaneDomKey,
   SplitPaneContainer,
@@ -45,128 +30,14 @@ import {
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
-import {
-  normalizeShellScript,
-  startShellWithToast,
-  writeScriptToShellThenExitOnSuccess,
-} from "@/renderer/utils/shellUtils";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
+import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { HomeView } from "@/renderer/views/HomeView";
+import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
 import { PullRequestsView } from "@/renderer/views/PullRequestsView/PullRequestsView";
 import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
-import { buildProjectDraftConfig } from "./draftConfig";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
-
-export async function startThreadFromDraft(
-  project: Project,
-  input: DraftStartInput,
-  options: { replacePaneId?: string; preserveActiveGroup?: boolean } = {},
-): Promise<void> {
-  const {
-    agentKind,
-    config,
-    prompt,
-    segments,
-    existingWorktreePath,
-    worktreeBranch,
-    worktreeBaseBranch,
-    worktreeIsNewBranch,
-    worktreeTransferUncommitted,
-    presentationMode,
-  } = input;
-  const isHomeScope = isHomeProject(project);
-  const store = useAppStore.getState();
-
-  store.updateProjectDraftConfig(
-    project.id,
-    buildProjectDraftConfig({
-      agentKind,
-      config,
-      worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
-    }),
-  );
-
-  let worktreePath: string | undefined;
-  let newWorktreeSetupPath: string | undefined;
-  if (isHomeScope) {
-    worktreePath = undefined;
-  } else if (existingWorktreePath) {
-    worktreePath = existingWorktreePath;
-  } else if (worktreeBranch) {
-    try {
-      const result = await readBridge().gitAddWorktree({
-        projectLocation: project.location,
-        branch: worktreeBranch,
-        createBranch: worktreeIsNewBranch ?? false,
-        startPoint: worktreeBaseBranch,
-        ...worktreePlacementPayload(project),
-        copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
-        transferUncommitted: worktreeTransferUncommitted ?? false,
-        keepChangesInSource: worktreeTransferUncommitted ?? false,
-      });
-      worktreePath = result.path;
-      newWorktreeSetupPath = result.path;
-      if (worktreeTransferUncommitted && result.changesTransferred === false) {
-        toast.danger(
-          i18n._(
-            msg`Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch.`,
-          ),
-        );
-      }
-    } catch (error) {
-      console.error("[renderer] failed to create worktree:", error);
-      toast.danger(friendlyError(error));
-      throw error;
-    }
-  }
-
-  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-  const projectAgentStatuses = getProjectAgentStatuses(
-    project.location,
-    agentStatuses,
-    wslAgentStatuses,
-  );
-  const titlePrompt = titlePromptFromSegments(prompt, segments);
-  const currentView = store.view;
-  const activeGroup =
-    options.preserveActiveGroup !== false &&
-    currentView.kind === "thread" &&
-    currentView.activeGroupId
-      ? {
-          groupId: currentView.activeGroupId,
-          groupName: store.threads.find((thread) => thread.groupId === currentView.activeGroupId)
-            ?.groupName,
-        }
-      : undefined;
-
-  const thread = store.createThread({
-    projectId: project.id,
-    agentKind,
-    config,
-    prompt: titlePrompt,
-    ...(presentationMode ? { presentationMode } : {}),
-    ...(worktreePath ? { worktreePath, ...(worktreeBranch ? { worktreeBranch } : {}) } : {}),
-    ...(options.replacePaneId ? { replacePaneId: options.replacePaneId } : {}),
-    ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
-    ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
-  });
-  const composerInputInbox = useComposerInputInbox.getState();
-  const draftInboxKey = options.replacePaneId ?? `draft:${project.id}`;
-  for (const pendingSegments of composerInputInbox.drain(draftInboxKey)) {
-    composerInputInbox.enqueue(thread.id, pendingSegments);
-  }
-  store.queueThreadLaunch(thread.id, prompt, segments);
-  generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
-  if (worktreePath) {
-    void primeWorktreeGitState(project, worktreePath);
-    void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-  }
-  if (newWorktreeSetupPath) {
-    const setupScript = project.scripts?.setupScript;
-    if (setupScript) runWorktreeSetupScript(project, newWorktreeSetupPath, setupScript);
-  }
-}
 
 export function AppContent() {
   const { t } = useLingui();
@@ -193,6 +64,7 @@ export function AppContent() {
     closeOriginal: boolean,
     extractedContext: ExtractContextResult | null,
   ) {
+    if (findExperimentByThreadId(sourceThread.id)) return;
     const storeProjects = useAppStore.getState().projects;
     const project = storeProjects.find((p) => p.id === sourceThread.projectId);
     if (!project) return;
@@ -279,6 +151,10 @@ export function AppContent() {
         ? t`Context transferred to ${targetLabel}`
         : t`Started ${targetLabel} thread`,
     );
+  }
+
+  if (view.kind === "experiment") {
+    return <ExperimentView experimentId={view.experimentId} />;
   }
 
   if (view.kind === "schedules") {
@@ -369,7 +245,13 @@ export function AppContent() {
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={() => closePane(paneId)}
-          onContinueInProvider={(...args) => void handleContinueInProvider(...args)}
+          {...(!findExperimentByThreadId(paneId)
+            ? {
+                onContinueInProvider: (...args: Parameters<typeof handleContinueInProvider>) => {
+                  void handleContinueInProvider(...args);
+                },
+              }
+            : {})}
         />
       );
       return (
@@ -418,97 +300,6 @@ export function AppContent() {
   );
 }
 
-export async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
-  const worktreePaths = [
-    ...new Set([...getProjectActiveWorktreePaths(project.id), worktreePath]),
-  ].sort();
-  const watchWorktrees = readBridge()
-    .gitWatchWorktrees({ projectId: project.id, worktreePaths })
-    .catch(() => undefined);
-  if (project.location.kind === "wsl") return;
-  await watchWorktrees;
-  void readBridge()
-    .getGitStatus({ projectLocation: buildWorktreeLocation(project.location, worktreePath) })
-    .then((status) => useGitStore.getState().setWorktreeStatus(worktreePath, status))
-    .catch(() => undefined);
-}
-
-export function runWorktreeSetupScript(
-  project: Project,
-  worktreePath: string,
-  setupScript: string,
-): void {
-  // Blank / comments-only scripts have nothing to run — skip the terminal
-  // entirely rather than leaving an idle "setup" shell behind.
-  if (!normalizeShellScript(setupScript)) return;
-
-  const wtLocation = buildWorktreeLocation(project.location, worktreePath);
-  const store = useDevTerminalStore.getState();
-  const tab = store.addTab(project.id, "setup", worktreePath);
-  const autoShow = useSharedSettings.getState().autoShowTerminalPanel;
-  const panelAlreadyOpen = store.isOpen;
-  if (autoShow) {
-    store.openWorktreePanel(project.id, worktreePath);
-  }
-  store.setActiveTab(tab.id);
-
-  // When the terminal panel is (or becomes) visible, every tab mounts its own
-  // XTermSurface, which spawns the PTY itself at the measured viewport size.
-  // Spawning eagerly too would create a second PTY for the same shell id and
-  // race it, re-running the setup chain. Only spawn eagerly when the panel
-  // stays closed (no surface ever mounts), where this is the sole spawn.
-  if (!autoShow && !panelAlreadyOpen) {
-    startShellWithToast(
-      {
-        shellId: tab.id,
-        projectLocation: wtLocation,
-        worktreePath,
-      },
-      "setup shell",
-    );
-  }
-
-  // Auto-close the setup terminal once every command succeeds (the script
-  // self-exits) so worktrees don't accumulate stale shells. A failed setup
-  // stops short of the exit and leaves the shell open for inspection.
-  const detach = writeScriptToShellThenExitOnSuccess(tab.id, setupScript, wtLocation.kind, () =>
-    removeWorktreeSetupTab(tab),
-  );
-  // If the tab is closed before setup finishes (manual close, worktree
-  // deletion), `closeThread` suppresses `thread-exited`, so detach the exit
-  // listener here instead of leaking it for the rest of the session.
-  const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
-    if (state.tabs === prev.tabs) return;
-    if (state.tabs.some((t) => t.id === tab.id)) return;
-    detach();
-    unsubscribeTabs();
-  });
-}
-
-/**
- * Removes a finished setup terminal tab. The PTY has already exited (success or
- * a manual `exit`), so the supervisor session is gone — removing the tab is
- * sufficient and `closeThread` would be a no-op. If the setup tab was the only
- * one in the worktree context the panel is showing, close the panel too so the
- * auto-opened panel doesn't linger on an empty "Open a terminal" state (mirrors
- * manual close in DevTerminalPanel).
- */
-function removeWorktreeSetupTab(tab: DevTerminalTab): void {
-  const store = useDevTerminalStore.getState();
-  const showingThisContext =
-    store.isOpen &&
-    store.activeProjectId === tab.projectId &&
-    (store.activeWorktreePath ?? undefined) === tab.worktreePath;
-  store.removeTab(tab.id);
-  if (!showingThisContext) return;
-  const remaining = useDevTerminalStore
-    .getState()
-    .tabs.filter((t) => t.projectId === tab.projectId && t.worktreePath === tab.worktreePath);
-  if (remaining.length > 0) return;
-  if (useSharedSettings.getState().terminalPosition !== "bottom") closeAllPanels();
-  useDevTerminalStore.getState().closePanel();
-}
-
 /**
  * Draft view for the full-screen "draft" app view (no thread panes yet).
  * Subscribes to the agent statuses store so the composer re-renders when
@@ -521,19 +312,13 @@ function DraftViewContent(props: {
   onStart: (input: DraftStartInput) => void | Promise<void>;
 }) {
   const { project, lastDraftConfig, onStart } = props;
-  const projectAgentStatuses = useAgentStatusesStore(
-    useShallow((s) =>
-      getProjectAgentStatuses(project.location, s.agentStatuses, s.wslAgentStatuses),
-    ),
-  );
-  const isDetectingAgents = useAgentStatusesStore((s) =>
-    isDetectingAgentsForLocation(s, project.location),
-  );
+  const draftEnvironment = useDraftEnvironment(project);
   return (
     <ThreadDraftView
       project={project}
-      agentStatuses={projectAgentStatuses}
-      isDetectingAgents={isDetectingAgents}
+      agentStatuses={draftEnvironment.agentStatuses}
+      isDetectingAgents={draftEnvironment.isDetectingAgents}
+      {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
       {...(lastDraftConfig ? { lastDraftConfig } : {})}
       onStart={onStart}
     />

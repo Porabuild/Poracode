@@ -9,7 +9,11 @@ vi.mock("electron", () => ({
   shell: { openExternal },
 }));
 
-import { installSessionPermissions, openMicrophoneSettings } from "./permissions";
+import {
+  installSessionPermissions,
+  isNavigationUrlAllowed,
+  openMicrophoneSettings,
+} from "./permissions";
 
 type FakeWebContents = { getType(): string };
 type RequestHandler = (
@@ -59,6 +63,28 @@ const originalPlatform = process.platform;
 function setPlatform(platform: NodeJS.Platform): void {
   Object.defineProperty(process, "platform", { value: platform, configurable: true });
 }
+
+describe("isNavigationUrlAllowed", () => {
+  it("allows http(s) navigation", () => {
+    expect(isNavigationUrlAllowed("https://example.com/doc.pdf")).toBe(true);
+    expect(isNavigationUrlAllowed("http://localhost:3000/")).toBe(true);
+  });
+
+  it("allows local PDF file URLs for in-app preview", () => {
+    expect(isNavigationUrlAllowed("file:///C:/Users/me/Biometric%20Reuse.pdf")).toBe(true);
+    expect(isNavigationUrlAllowed("file:///Users/me/report.PDF")).toBe(true);
+  });
+
+  it("blocks non-PDF local file URLs", () => {
+    expect(isNavigationUrlAllowed("file:///C:/Users/me/secret.txt")).toBe(false);
+    expect(isNavigationUrlAllowed("file:///etc/passwd")).toBe(false);
+  });
+
+  it("blocks dangerous schemes", () => {
+    expect(isNavigationUrlAllowed("javascript:alert(1)")).toBe(false);
+    expect(isNavigationUrlAllowed("chrome://settings")).toBe(false);
+  });
+});
 
 // Drain microtasks so a stray *second* callback invocation (e.g. a dropped
 // `return` after callback(false) falling through to the media branch) is

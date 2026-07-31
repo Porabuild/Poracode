@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project, Thread, ToolCallPayload } from "@/shared/contracts";
+import type { AgentStatus, Project, Thread, ToolCallPayload } from "@/shared/contracts";
+import "@/renderer/components/providers/bootstrap";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -16,8 +17,17 @@ const fixtures = vi.hoisted(() => ({
   } as Project,
   composerProps: [] as Array<{
     onSubmitInput?: (prompt: string) => Promise<void>;
+    autoFocusComposer?: boolean;
+    composerPlaceholder?: string;
+    submitOnEnter?: boolean;
   }>,
+  guiThreadProps: [] as Array<{
+    initialScrollRevealDelayMs?: number;
+    onInitialScrollSettled?: () => void;
+  }>,
+  desktopPointer: false,
   keyboardOffset: 0,
+  agentStatuses: [] as AgentStatus[],
 }));
 
 const bridgeMock = vi.hoisted(() => ({
@@ -39,6 +49,7 @@ function createDeferred(): { promise: Promise<void>; resolve: () => void } {
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridgeMock,
+  isRemoteSession: () => true,
 }));
 
 vi.mock("@heroui/react", async (importOriginal) => {
@@ -77,7 +88,11 @@ vi.mock("../GitSummaryParts", () => ({
 }));
 
 vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
-  ThreadComposerSection: (props: { onSubmitInput?: (prompt: string) => Promise<void> }) => {
+  ThreadComposerSection: (props: {
+    onSubmitInput?: (prompt: string) => Promise<void>;
+    autoFocusComposer?: boolean;
+    composerPlaceholder?: string;
+  }) => {
     fixtures.composerProps.push(props);
     return (
       <div data-testid="thread-composer-section">
@@ -96,7 +111,13 @@ vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
 }));
 
 vi.mock("@/renderer/components/thread/ThreadContent", () => ({
-  GuiThreadContent: () => <div data-testid="gui-thread-content" />,
+  GuiThreadContent: (props: {
+    initialScrollRevealDelayMs?: number;
+    onInitialScrollSettled?: () => void;
+  }) => {
+    fixtures.guiThreadProps.push(props);
+    return <div data-testid="gui-thread-content" />;
+  },
 }));
 
 vi.mock("@/renderer/components/thread/useThreadDockState", () => ({
@@ -115,7 +136,7 @@ vi.mock("@/renderer/components/thread/useThreadDockState", () => ({
 }));
 
 vi.mock("@/renderer/hooks/uiSelectors", () => ({
-  useProjectAgentStatuses: () => [],
+  useProjectAgentStatuses: () => fixtures.agentStatuses,
 }));
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
@@ -136,6 +157,11 @@ vi.mock("../useKeyboardOffset", () => ({
   useKeyboardVisibilityOffset: () => fixtures.keyboardOffset,
 }));
 
+vi.mock("../useMediaQuery", () => ({
+  DESKTOP_POINTER_QUERY: "desktop-pointer",
+  useMediaQuery: () => fixtures.desktopPointer,
+}));
+
 vi.mock("../composeScrollLock", () => ({
   focusWithoutScroll: vi.fn<(element: HTMLElement | null | undefined) => void>(),
   lockComposeScroll: vi.fn<(source?: HTMLElement | null) => void>(),
@@ -150,19 +176,67 @@ describe("mobile ThreadView", () => {
     bridgeMock.subagentUnsubscribe.mockClear();
     toastDanger.mockClear();
     fixtures.composerProps.length = 0;
+    fixtures.guiThreadProps.length = 0;
+    fixtures.desktopPointer = false;
     fixtures.keyboardOffset = 0;
+    fixtures.agentStatuses = [];
     useAppStore.setState({
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
       runtimeStructuralVersionByThread: {},
       openSubAgentByThread: {},
+      pendingSteerByThreadId: {},
+      pendingComposerFocusThreadId: null,
     });
   });
 
-  it("mounts the subagent overlay for terminal threads", async () => {
+  it("enables desktop composer behavior only for desktop-like PWA input", () => {
+    const thread = makeTerminalThread();
+    const props = {
+      thread,
+      terminalScrollback: "",
+      onThreadAction: () => undefined,
+      onSubmitInput: () => Promise.resolve(),
+    };
+
+    const { container, unmount } = render(<ThreadView {...props} />);
+    expect(fixtures.composerProps.at(-1)?.submitOnEnter).toBe(false);
+    expect(fixtures.composerProps.at(-1)?.autoFocusComposer).toBe(false);
+    expect(container.querySelector(".m-thread-compose-dock")).not.toHaveAttribute("data-expanded");
+    unmount();
+
+    fixtures.desktopPointer = true;
+    const desktopView = render(<ThreadView {...props} />);
+    expect(fixtures.composerProps.at(-1)?.submitOnEnter).toBe(true);
+    expect(fixtures.composerProps.at(-1)?.autoFocusComposer).toBe(true);
+    expect(desktopView.container.querySelector(".m-thread-compose-dock")).toHaveAttribute(
+      "data-expanded",
+    );
+  });
+
+  it("requests composer focus when the desktop PWA switches threads in place", () => {
+    fixtures.desktopPointer = true;
+    const firstThread = makeTerminalThread();
+    const props = {
+      thread: firstThread,
+      terminalScrollback: "",
+      onThreadAction: () => undefined,
+      onSubmitInput: () => Promise.resolve(),
+    };
+    const view = render(<ThreadView {...props} />);
+    useAppStore.getState().clearComposerFocusRequest(firstThread.id);
+
+    const nextThread = { ...firstThread, id: "thread-2", title: "Next thread" };
+    view.rerender(<ThreadView {...props} thread={nextThread} />);
+
+    expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(nextThread.id);
+  });
+
+  it("hands terminal subagents to the routed host instead of mounting an overlay", async () => {
     const thread = makeTerminalThread();
     const parentItem = makeSubAgentItem("agent-1");
+    const onOpenSubAgent = vi.fn<(parentItemId: string) => void>();
 
     useAppStore.setState({
       runtimeItemIdsByThread: { [thread.id]: [parentItem.id] },
@@ -181,18 +255,16 @@ describe("mobile ThreadView", () => {
         terminalScrollback=""
         onThreadAction={() => undefined}
         onSubmitInput={() => Promise.resolve()}
+        onOpenSubAgent={onOpenSubAgent}
       />,
     );
 
-    expect(
-      await screen.findByRole("dialog", {
-        name: "Agent (rubber-duck): Checking mobile parity",
-      }),
-    ).toBeInTheDocument();
-    expect(bridgeMock.subagentSubscribe).toHaveBeenCalledWith({
-      threadId: thread.id,
-      parentItemId: parentItem.id,
+    await waitFor(() => {
+      expect(onOpenSubAgent).toHaveBeenCalledWith(parentItem.id);
     });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(bridgeMock.subagentSubscribe).not.toHaveBeenCalled();
+    expect(useAppStore.getState().openSubAgentByThread[thread.id]).toBeNull();
   });
 
   it("reports failed terminal thread reloads", async () => {
@@ -282,6 +354,315 @@ describe("mobile ThreadView", () => {
     expect(dock).not.toHaveAttribute("data-expanded");
   });
 
+  it("uses the mobile follow-up placeholder for an active thread", () => {
+    render(
+      <ThreadView
+        thread={{ ...makeTerminalThread(), presentationMode: "gui" }}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    expect(fixtures.composerProps.at(-1)?.composerPlaceholder).toBe("Follow up...");
+  });
+
+  it("mounts GUI history only after the remote snapshot is ready", () => {
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+    const props = {
+      thread,
+      terminalScrollback: "",
+      loading: true,
+      onThreadAction: () => undefined,
+      onSubmitInput: () => Promise.resolve(),
+    };
+    const view = render(<ThreadView {...props} />);
+
+    expect(screen.queryByTestId("gui-thread-content")).toBeNull();
+
+    view.rerender(<ThreadView {...props} loading={false} />);
+
+    expect(screen.getByTestId("gui-thread-content")).toBeInTheDocument();
+    expect(fixtures.guiThreadProps.at(-1)?.initialScrollRevealDelayMs).toBe(50);
+    expect(view.container.querySelector(".m-thread-content")).toHaveClass("invisible");
+
+    act(() => fixtures.guiThreadProps.at(-1)?.onInitialScrollSettled?.());
+
+    expect(view.container.querySelector(".m-thread-content")).not.toHaveClass("invisible");
+  });
+
+  it("shows model and effort text with the compact active-thread icons", () => {
+    fixtures.agentStatuses = [makeCodexStatus()];
+    const thread = {
+      ...makeTerminalThread(),
+      presentationMode: "gui",
+      config: {
+        model: "gpt-5",
+        effort: "high",
+        fast: true,
+        mode: "plan",
+        approvalPolicy: "never",
+        sandboxMode: "danger-full-access",
+      },
+    } as Thread;
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    const summary = view.container.querySelector(".m-compose-summary");
+    expect(summary?.querySelector(".poracode-provider-icon")).not.toBeNull();
+    expect(summary?.querySelector(".lucide-zap")).not.toBeNull();
+    // Fast is only summarized when on, so its chip carries the fill modifier
+    // (the real toolbar fills via the toggle's selected state, which this inert
+    // summary never has).
+    expect(summary?.querySelector(".m-compose-summary__item--fast .lucide-zap")).not.toBeNull();
+    expect(summary?.querySelector(".poracode-composer-mode-icon")).not.toBeNull();
+    expect(summary?.querySelector(".poracode-composer-permission-icon")).not.toBeNull();
+    expect(summary).toHaveTextContent("GPT-5");
+    expect(summary).toHaveTextContent("High");
+
+    view.rerender(
+      <ThreadView
+        thread={{ ...thread, config: { ...thread.config, fast: false } }}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+    expect(view.container.querySelector(".m-compose-summary .lucide-zap")).toBeNull();
+  });
+
+  it("shows the session-pinned runtime model in the compact summary", () => {
+    const baseStatus = makeCodexStatus();
+    fixtures.agentStatuses = [
+      {
+        ...baseStatus,
+        runtimeVariants: {
+          sdk: {
+            presentationMode: "gui",
+            installed: true,
+            authState: "authenticated",
+            authUsesProviderLogin: false,
+            capabilities: {
+              ...baseStatus.capabilities,
+              models: [{ id: "sdk-model", label: "Pinned SDK model" }],
+              efforts: ["high"],
+              modelEfforts: { "sdk-model": ["high"] },
+            },
+          },
+        },
+        sessionRuntimeRouting: { prefixes: { "sdk:": "sdk" } },
+      },
+    ];
+    const thread = {
+      ...makeTerminalThread(),
+      presentationMode: "gui",
+      config: { model: "sdk-model", effort: "high" },
+      sessionRef: {
+        providerSessionId: "sdk:session-1",
+        discoveredAt: "2026-01-01T00:00:00.000Z",
+      },
+    } as Thread;
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    expect(view.container.querySelector(".m-compose-summary")).toHaveTextContent(
+      "Pinned SDK model",
+    );
+  });
+
+  it("hosts an open runtime request above the composer bubble, outside its clip", () => {
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [thread.id]: [
+          {
+            requestId: "request-1",
+            threadId: thread.id,
+            requestType: "command_execution_approval",
+            payload: {
+              summary: "Run rm -rf build",
+              details: { toolName: "Bash", description: "rm -rf build" },
+            },
+            receivedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    const card = view.container.querySelector(".m-thread-action-docks");
+    expect(card).not.toBeNull();
+    expect(card).toHaveTextContent("Run rm -rf build");
+    // The collapsed bubble clips to one control line, so the card must be a
+    // sibling of the bubble inside the dock — never nested in it.
+    expect(card?.closest(".m-thread-compose-dock")).not.toBeNull();
+    expect(card?.closest(".m-compose-bubble")).toBeNull();
+  });
+
+  it("pins the touch composer collapsed while a runtime request is open", async () => {
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [thread.id]: [
+          {
+            requestId: "request-1",
+            threadId: thread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run rm -rf build", details: { toolName: "Bash" } },
+            receivedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    const { container } = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+    const dock = container.querySelector(".m-thread-compose-dock");
+    expect(dock).toHaveAttribute("data-locked");
+
+    // Focusing the pill would normally expand the dock (see the keyboard-dismiss
+    // test below); under an open request it must stay collapsed so the card keeps
+    // the surface. The pill remains a one-line input for deny-with-feedback.
+    fireEvent.focusIn(screen.getByRole("textbox"));
+    await waitFor(() => expect(dock).toBeInTheDocument());
+    expect(dock).not.toHaveAttribute("data-expanded");
+  });
+
+  it("leaves the desktop PWA composer open while a runtime request is up", () => {
+    fixtures.desktopPointer = true;
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [thread.id]: [
+          {
+            requestId: "request-1",
+            threadId: thread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run rm -rf build", details: { toolName: "Bash" } },
+            receivedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    const { container } = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+    const dock = container.querySelector(".m-thread-compose-dock");
+    expect(dock).not.toHaveAttribute("data-locked");
+    expect(dock).toHaveAttribute("data-expanded");
+  });
+
+  it("hosts a waiting pending steer in the same action-dock card", () => {
+    const thread = {
+      ...makeTerminalThread(),
+      presentationMode: "gui",
+      status: "working",
+    } as Thread;
+    useAppStore.setState({
+      pendingSteerByThreadId: {
+        [thread.id]: {
+          id: "steer-1",
+          prompt: "Focus on the parser instead",
+          // Older than the reveal delay, so it is visible on first render.
+          stagedAt: Date.now() - 10_000,
+        },
+      },
+    });
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    const card = view.container.querySelector(".m-thread-action-docks");
+    expect(card).toHaveTextContent("Focus on the parser instead");
+    expect(card?.closest(".m-compose-bubble")).toBeNull();
+  });
+
+  it("uses GUI authentication for the auth-required action dock", () => {
+    fixtures.agentStatuses = [
+      {
+        ...makeCodexStatus(),
+        authState: "authenticated",
+        presentationAuthStates: { gui: "missing" },
+      },
+    ];
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    const card = view.container.querySelector(".m-thread-action-docks");
+    expect(card).not.toBeNull();
+    expect(card?.closest(".m-compose-bubble")).toBeNull();
+  });
+
+  it("does not show an auth dock when GUI auth is ready despite missing root auth", () => {
+    fixtures.agentStatuses = [
+      {
+        ...makeCodexStatus(),
+        authState: "missing",
+        presentationAuthStates: { gui: "authenticated" },
+      },
+    ];
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    expect(view.container.querySelector(".m-thread-action-docks")).toBeNull();
+  });
+
   it("keeps the composer expanded when the keyboard is dismissed (no collapse-on-focus-loss)", async () => {
     const { container } = render(
       <ThreadView
@@ -317,6 +698,37 @@ function makeTerminalThread(): Thread {
     updatedAt: "2026-01-01T00:00:00.000Z",
     canResumeWithConfig: true,
   } as Thread;
+}
+
+function makeCodexStatus(): AgentStatus {
+  return {
+    kind: "codex",
+    label: "Codex",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      models: [{ id: "gpt-5", label: "GPT-5" }],
+      efforts: ["low", "high"],
+      modelEfforts: { "gpt-5": ["low", "high"] },
+      fastModels: ["gpt-5"],
+      thinkingModels: [],
+      modes: ["agent", "plan"],
+      approvalPolicies: [
+        { id: "on-request", label: "On request" },
+        { id: "never", label: "Never" },
+      ],
+      sandboxModes: [
+        { id: "workspace-write", label: "Workspace write" },
+        { id: "danger-full-access", label: "Full access" },
+      ],
+      supportsResume: true,
+      supportsDirectInput: true,
+      liveInputMode: "server",
+      presentationMode: "gui",
+      presentationModes: ["gui"],
+      settingDefs: [],
+    },
+  };
 }
 
 function makeSubAgentItem(id: string): RuntimeChatItem {

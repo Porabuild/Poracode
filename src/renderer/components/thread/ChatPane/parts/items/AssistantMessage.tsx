@@ -10,7 +10,7 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { CopyTextButton } from "./CopyTextButton";
-import { ImageCard } from "./ImageView";
+import { ImageCard } from "./ImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
 
@@ -26,27 +26,28 @@ export const AssistantMessage = memo(function AssistantMessage({
   isTurnActive,
 }: AssistantMessageProps) {
   const { t } = useLingui();
-  // Matching Codex: the copy action only appears under a turn's *final* answer,
-  // i.e. the last assistant message before the next user message (or the end of
-  // the thread). Every turn keeps its button, not just the most recent one.
-  // Sub-agent messages (those nested under a tool call) are ignored so they
-  // neither qualify nor cancel a top-level answer's terminal status. A
-  // completed item at the live tail is still an intermediate update until the
-  // turn itself settles, so it must not expose a copy action yet.
-  const isFinalAnswer = useAppStore((state) => {
-    if (item.parentItemId) return false;
+  // The copy action only appears under a turn's *final* answer: the message
+  // must be the last top-level item of its turn — any trailing item (another
+  // message, a tool call, an error from a failed turn) means the text was an
+  // intermediate status note, not the answer. Every turn keeps its button, not
+  // just the most recent one. Sub-agent messages (those nested under a tool
+  // call) are ignored so they neither qualify nor cancel a top-level answer's
+  // terminal status. A completed item at the live tail is still an
+  // intermediate update until the turn itself settles, so it must not expose
+  // a copy action yet.
+  const finalAnswerStatus = useAppStore((state): "confirmed" | "candidate" | "none" => {
+    if (item.parentItemId) return "none";
     const ids = state.runtimeItemIdsByThread[threadId];
     const byId = state.runtimeItemsByIdByThread[threadId];
-    if (!ids || !byId) return false;
+    if (!ids || !byId) return "none";
     const index = ids.indexOf(item.id);
-    if (index < 0) return false;
+    if (index < 0) return "none";
     for (let i = index + 1; i < ids.length; i += 1) {
       const next = byId[ids[i]!];
       if (!next || next.parentItemId) continue;
-      if (next.type === "user_message") return true;
-      if (next.type === "assistant_message") return false;
+      return next.type === "user_message" ? "confirmed" : "none";
     }
-    return !isTurnActive;
+    return isTurnActive ? "candidate" : "confirmed";
   });
   const stream = item.streams.assistant_text ?? "";
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
@@ -68,7 +69,12 @@ export const AssistantMessage = memo(function AssistantMessage({
         .filter((s): s is NonNullable<typeof s> => s !== null),
     [payload?.content],
   );
-  const showCopyButton = isFinalAnswer && !isStreaming && rawText.length > 0;
+  const showCopyButton = finalAnswerStatus === "confirmed" && !isStreaming && rawText.length > 0;
+  // The tail answer's copy action becomes available only once its turn
+  // settles. Reserve the same strip while the answer is still a candidate so
+  // revealing the button cannot grow the virtual row and move the transcript
+  // past the pinned bottom edge.
+  const reserveCopyButtonSpace = finalAnswerStatus !== "none" && rawText.length > 0;
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
@@ -88,9 +94,13 @@ export const AssistantMessage = memo(function AssistantMessage({
           </div>
         ) : null}
       </div>
-      {showCopyButton ? (
+      {reserveCopyButtonSpace ? (
         <div className="poracode-message-action-strip mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
-          <CopyTextButton text={rawText} label={t`Copy message`} />
+          {showCopyButton ? (
+            <CopyTextButton text={rawText} label={t`Copy message`} />
+          ) : (
+            <span aria-hidden="true" className="block size-5" />
+          )}
         </div>
       ) : null}
     </Surface>

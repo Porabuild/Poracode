@@ -64,8 +64,8 @@ export function UsageProviderCard(props: {
   const { t } = useLingui();
   const snapshot = useProviderUsage(id);
   const {
-    isApiKeyLogin,
-    canSignIn,
+    canBrowserSignIn,
+    canApiKeySignIn,
     canSignOut,
     signingIn,
     signingOut,
@@ -200,7 +200,17 @@ export function UsageProviderCard(props: {
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-muted">{usageStatusText(snapshot, label, id)}</p>
-              {canSignIn && isApiKeyLogin ? (
+              {canBrowserSignIn ? (
+                <button
+                  type="button"
+                  onClick={() => void handleSignIn()}
+                  disabled={signingIn}
+                  className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
+                >
+                  {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
+                </button>
+              ) : null}
+              {canApiKeySignIn ? (
                 <form onSubmit={onSubmitApiKey} className="flex items-center gap-1.5">
                   <input
                     type="password"
@@ -220,15 +230,6 @@ export function UsageProviderCard(props: {
                     {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
                   </button>
                 </form>
-              ) : canSignIn ? (
-                <button
-                  type="button"
-                  onClick={() => void handleSignIn()}
-                  disabled={signingIn}
-                  className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
-                >
-                  {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
-                </button>
               ) : null}
             </div>
           )}

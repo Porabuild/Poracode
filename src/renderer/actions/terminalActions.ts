@@ -2,8 +2,17 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
+import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { readBridge } from "@/renderer/bridge";
+import {
+  useSharedSettings,
+  whenSharedSettingsHydrated,
+} from "@/renderer/state/sharedSettingsStore";
+import {
+  normalizeShellScript,
+  startShellWithToast,
+  writeScriptToShell,
+} from "@/renderer/utils/shellUtils";
 import { closeAllPanels } from "./panelActions";
 
 function applyTerminalPanel(
@@ -75,15 +84,19 @@ export function runProjectAction(projectId: string, actionId: string, worktreePa
   const store = useDevTerminalStore.getState();
   const tabLabel = action.name;
   const tab = store.addTab(projectId, tabLabel, worktreePath);
+  store.setActiveTab(tab.id);
 
-  if (useSharedSettings.getState().autoShowTerminalPanel) {
+  // Decide panel visibility only once the authoritative settings are loaded —
+  // right after launch the store still holds defaults (autoShowTerminalPanel:
+  // true), which would open the panel for users who keep it hidden.
+  void whenSharedSettingsHydrated().then(() => {
+    if (!useSharedSettings.getState().autoShowTerminalPanel) return;
     if (worktreePath) {
       store.openWorktreePanel(projectId, worktreePath);
     } else {
       store.openPanel(projectId);
     }
-  }
-  store.setActiveTab(tab.id);
+  });
 
   startShellWithToast(
     {
@@ -93,5 +106,23 @@ export function runProjectAction(projectId: string, actionId: string, worktreePa
     },
     tabLabel,
   );
-  writeScriptToShell(tab.id, action.command);
+  if (project.remoteServerId) {
+    let armed = true;
+    const unsubscribe = watchRemoteTerminal(project.remoteServerId, tab.id, {
+      onOutput: () => {
+        if (!armed) return;
+        armed = false;
+        void readBridge().writeTerminal({
+          threadId: tab.id,
+          data: `${normalizeShellScript(action.command)}\r`,
+        });
+      },
+      onReset: () => {
+        armed = true;
+      },
+      onExited: () => unsubscribe(),
+    });
+  } else {
+    writeScriptToShell(tab.id, action.command);
+  }
 }

@@ -6,6 +6,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useProjectAgentStatuses } from "@/renderer/hooks/uiSelectors";
 import { MobileSetupEmptyState, type MobileSetupKind } from "../setupEmptyState";
+import { DESKTOP_POINTER_QUERY, useMediaQuery } from "../useMediaQuery";
 
 /**
  * New-thread screen: the desktop's draft view rendered as-is — project
@@ -16,10 +17,12 @@ export function NewThreadView(props: {
   readonly project: Project | null;
   readonly setupKind?: MobileSetupKind;
   readonly onSetupAction?: (kind: MobileSetupKind) => void;
+  readonly restoreWorktreeSelectionToken?: number;
   readonly onStart: (project: Project, input: DraftStartInput) => void | Promise<void>;
 }) {
   const project = props.project;
   const agentStatuses = useProjectAgentStatuses(project?.location);
+  const submitOnEnter = useMediaQuery(DESKTOP_POINTER_QUERY);
 
   // The desktop populates `useGitStore` from local git watchers; the shell
   // snapshot only ships per-thread git summaries, so on mobile the project's
@@ -80,6 +83,10 @@ export function NewThreadView(props: {
         key={project.id}
         project={project}
         agentStatuses={agentStatuses}
+        submitOnEnter={submitOnEnter}
+        {...(props.restoreWorktreeSelectionToken !== undefined
+          ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
+          : {})}
         {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
         onStart={(input) => props.onStart(project, input)}
       />

@@ -6,7 +6,7 @@ import {
   browserMcpServer,
   chromeMcpServer,
   mcpTogglePatch,
-  subagentMcpServer,
+  crossagentMcpServer,
 } from "./composerMcpServers";
 
 const bridgeMock = vi.hoisted(() => ({
@@ -107,7 +107,7 @@ describe("ComposerAddMenu", () => {
             onToggle: vi.fn<(next: boolean) => void>(),
           },
           {
-            descriptor: subagentMcpServer,
+            descriptor: crossagentMcpServer,
             enabled: true,
             visible: true,
             onToggle: vi.fn<(next: boolean) => void>(),
@@ -128,12 +128,17 @@ describe("ComposerAddMenu", () => {
 
   it("toggles a single server without closing the menu", () => {
     const browserToggle = vi.fn<(next: boolean) => void>();
-    const subagentToggle = vi.fn<(next: boolean) => void>();
+    const crossagentToggle = vi.fn<(next: boolean) => void>();
     render(
       <ComposerAddMenu
         mcpServers={[
           { descriptor: browserMcpServer, enabled: false, visible: true, onToggle: browserToggle },
-          { descriptor: subagentMcpServer, enabled: true, visible: true, onToggle: subagentToggle },
+          {
+            descriptor: crossagentMcpServer,
+            enabled: true,
+            visible: true,
+            onToggle: crossagentToggle,
+          },
         ]}
         showFileOption={false}
         onPickFiles={vi.fn<() => void>()}
@@ -150,15 +155,15 @@ describe("ComposerAddMenu", () => {
     // Only the flipped server fires, with the new value.
     expect(browserToggle).toHaveBeenCalledTimes(1);
     expect(browserToggle).toHaveBeenCalledWith(true);
-    expect(subagentToggle).not.toHaveBeenCalled();
+    expect(crossagentToggle).not.toHaveBeenCalled();
 
     // The submenu stays open so multiple toggles are possible.
-    expect(screen.getByText("Subagents")).toBeInTheDocument();
+    expect(screen.getByText("Crossagents")).toBeInTheDocument();
   });
 
   it("registers Chrome for native projects and hides it for WSL", () => {
     const capabilities = {
-      chromeMcpScope: { terminal: "launch", gui: "launch" },
+      mcpScope: { terminal: "launch", gui: "launch" },
     } as Parameters<typeof chromeMcpServer.getScope>[0];
 
     expect(
@@ -243,6 +248,59 @@ describe("ComposerAddMenu", () => {
 
     expect(computerUseToggle).toHaveBeenCalledTimes(1);
     expect(computerUseToggle).toHaveBeenCalledWith(true);
+  });
+
+  it("shows read-only session bindings without firing toggles", () => {
+    const browserToggle = vi.fn<(next: boolean) => void>();
+    render(
+      <ComposerAddMenu
+        readOnly
+        mcpServers={[
+          { descriptor: browserMcpServer, enabled: true, visible: true, onToggle: browserToggle },
+        ]}
+        customMcpServers={[{ id: "context7", name: "context7", enabled: true }]}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+      />,
+    );
+
+    openMenu();
+    // Count badge includes built-in + custom servers bound to this run.
+    expect(screen.getByText("2")).toBeInTheDocument();
+    openMcpSubmenu();
+
+    expect(screen.getByText("Browser")).toBeInTheDocument();
+    expect(screen.getByText("context7")).toBeInTheDocument();
+    expect(
+      screen.getByText("Set when this session started — start a new thread to change servers"),
+    ).toBeInTheDocument();
+
+    // Read-only bindings render as a static list, not interactive menu items.
+    expect(screen.getByRole("list", { name: "MCP servers" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Browser/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitemcheckbox", { name: /Browser/i })).not.toBeInTheDocument();
+
+    act(() => {
+      fireEvent.click(screen.getByText("Browser"));
+    });
+    expect(browserToggle).not.toHaveBeenCalled();
+  });
+
+  it("shows an explicit empty state in read-only mode with no servers", () => {
+    render(
+      <ComposerAddMenu
+        readOnly
+        mcpServers={[]}
+        customMcpServers={[]}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+      />,
+    );
+
+    openMenu();
+    openMcpSubmenu();
+
+    expect(screen.getByText("No MCP servers are enabled for this run")).toBeInTheDocument();
   });
 
   it("shows a paired-desktop subtitle for Computer Use in a remote session", () => {

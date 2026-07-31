@@ -74,16 +74,18 @@ export function formatCursorBaseModelLabel(baseId: string, fallbackLabel?: strin
   const codex = formatCodexFamilyModelLabel(baseId);
   if (codex) return codex;
 
-  const gpt = /^gpt-(\d+(?:\.\d+)?)(?:-(mini|nano))?$/i.exec(baseId);
+  const gpt = /^gpt-(\d+(?:\.\d+)?)(?:-([a-z]+))?$/i.exec(baseId);
   if (gpt) {
     const suffix = gpt[2] ? ` ${capitalizeSegment(gpt[2])}` : "";
     return `GPT-${gpt[1]}${suffix}`;
   }
 
-  const claude = /^claude-(opus|sonnet|haiku)-(\d+)(?:-(\d+))?$/i.exec(baseId);
+  // Accepts an optional 8-digit snapshot date: "claude-sonnet-4-5-20250929".
+  const claude = /^claude-(opus|sonnet|haiku)-(\d+)(?:-(\d{1,2}))?(?:-(\d{8}))?$/i.exec(baseId);
   if (claude) {
     const version = claude[3] ? `${claude[2]}.${claude[3]}` : claude[2]!;
-    return `${capitalizeSegment(claude[1]!)} ${version}`;
+    const snapshot = claude[4] ? ` (${claude[4]})` : "";
+    return `${capitalizeSegment(claude[1]!)} ${version}${snapshot}`;
   }
 
   const family = /^(gemini|grok|kimi)-(.+)$/i.exec(baseId);

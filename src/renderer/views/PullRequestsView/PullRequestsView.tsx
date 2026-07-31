@@ -10,6 +10,7 @@ import { readBridge } from "@/renderer/bridge";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -36,9 +37,14 @@ interface PullRequestEntry {
 
 export function PullRequestsView() {
   const { t } = useLingui();
+  // Scoped to the active workspace, so this view agrees with the sidebar about
+  // which projects exist right now.
+  const isInWorkspace = useWorkspaceProjectFilter();
   const activeProjects = useAppStore(
     useShallow((state) =>
-      state.projects.filter((project) => !project.disabled && !isHomeProject(project)),
+      state.projects.filter(
+        (project) => !project.disabled && !isHomeProject(project) && isInWorkspace(project),
+      ),
     ),
   );
   const prReviewOpen = usePanelStore((state) => state.prReviewContext !== null);

@@ -27,6 +27,17 @@ vi.mock("@/renderer/components/common", () => ({
   OptionMenu: () => null,
 }));
 
+// Drive the desktop-pointer branch of the shared context menu wrapper: `false`
+// (default) keeps the touch bottom-sheet presentation, `true` switches to the
+// pointer-anchored popover.
+const media = vi.hoisted(() => ({ desktopPointer: false }));
+vi.mock("../useMediaQuery", () => ({
+  DESKTOP_POINTER_QUERY: "desktop-pointer",
+  WIDE_SHELL_QUERY: "wide-shell",
+  DESKTOP_RIGHT_PANEL_QUERY: "desktop-right",
+  useMediaQuery: () => media.desktopPointer,
+}));
+
 const PROJECT: Project = { id: "p1", name: "Proj" } as unknown as Project;
 
 function makeThread(overrides: Partial<Thread> & Pick<Thread, "id" | "title">): Thread {
@@ -93,7 +104,10 @@ function renderView(
 
 describe("ThreadsView grouping", () => {
   // Collapse state lives in a module-level cache; reset it so cases don't leak.
-  beforeEach(__resetCollapsedGroupCache);
+  beforeEach(() => {
+    __resetCollapsedGroupCache();
+    media.desktopPointer = false;
+  });
 
   it("collects threads sharing a worktree under one group header", () => {
     const { container } = renderView([
@@ -116,6 +130,8 @@ describe("ThreadsView grouping", () => {
     const header = screen.getByRole("button", { expanded: true });
     expect(header.textContent).toContain("feature/x");
     expect(container.querySelector(".m-thread-group__count")?.textContent).toBe("2");
+    expect(header.querySelector(".m-thread-group__kind-icon")).not.toBeNull();
+    expect(header.querySelector(".m-thread-group__chevron")).toBeNull();
 
     // ...and its members render (expanded by default), alongside the lone thread.
     expect(screen.getByText("Alpha")).toBeTruthy();
@@ -286,7 +302,7 @@ describe("ThreadsView grouping", () => {
   });
 
   it("keeps per-row git badges for a provider (groupId) group", () => {
-    renderView([
+    const { container } = renderView([
       makeThread({ id: "d", title: "Delta", groupId: "g1", groupName: "Compare providers" }),
       makeThread({ id: "e", title: "Echo", groupId: "g1", groupName: "Compare providers" }),
     ]);
@@ -296,6 +312,8 @@ describe("ThreadsView grouping", () => {
     // ...and each member keeps its own.
     expect(screen.getByTestId("row-git-d")).toBeTruthy();
     expect(screen.getByTestId("row-git-e")).toBeTruthy();
+    expect(container.querySelector(".m-thread-group__chevron")).not.toBeNull();
+    expect(container.querySelector(".m-thread-group__kind-icon")).toBeNull();
   });
 
   // Timestamps resolved against real wall-clock so `isRecent` (< 24h) is stable.
@@ -364,6 +382,38 @@ describe("ThreadsView grouping", () => {
     // Two recent, unpinned threads → a single "Current" section; a lone label
     // over the whole list would be noise, so none renders.
     expect(container.querySelector(".m-thread-section")).toBeNull();
+  });
+
+  it("sinks done threads into a trailing Done section ordered by last update", () => {
+    const { container } = renderView([
+      makeThread({ id: "done-old", title: "Done old", done: true, updatedAt: oldIso() }),
+      makeThread({ id: "live", title: "Live", updatedAt: recentIso() }),
+      makeThread({ id: "done-new", title: "Done new", done: true, updatedAt: recentIso() }),
+    ]);
+
+    expect(rowTitles(container)).toEqual(["Live", "Done new", "Done old"]);
+    expect(
+      [...container.querySelectorAll(".m-thread-section")].map((el) => el.textContent),
+    ).toEqual(["Done"]);
+  });
+
+  it("keeps a mixed worktree group live until every member is done", () => {
+    const worktree = { worktreePath: "/repo/wt", worktreeBranch: "feature/x" };
+    const mixed = renderView([
+      makeThread({ id: "done", title: "Done member", done: true, ...worktree }),
+      makeThread({ id: "live", title: "Live member", ...worktree }),
+    ]);
+
+    expect(mixed.container.querySelector(".m-thread-section")).toBeNull();
+    mixed.unmount();
+
+    const allDone = renderView([
+      makeThread({ id: "done-a", title: "Done A", done: true, ...worktree }),
+      makeThread({ id: "done-b", title: "Done B", done: true, ...worktree }),
+    ]);
+    expect(
+      [...allDone.container.querySelectorAll(".m-thread-section")].map((el) => el.textContent),
+    ).toEqual(["Done"]);
   });
 
   it("filters threads from the touch search box", () => {
@@ -551,6 +601,124 @@ describe("ThreadsView grouping", () => {
     expect(screen.getByText("Delete Thread")).toBeTruthy();
   });
 
+  it("opens the row menu as a right-click Dropdown (no bottom sheet) on desktop pointers", () => {
+    media.desktopPointer = true;
+    const { baseElement } = renderView([makeThread({ id: "c", title: "Charlie" })]);
+
+    fireEvent.contextMenu(screen.getByText("Charlie").closest("button")!, {
+      clientX: 120,
+      clientY: 80,
+    });
+
+    // Actions render in a HeroUI Dropdown menu, not the touch bottom sheet.
+    const menu = screen.getByRole("menu");
+    expect(menu).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toBeTruthy();
+    // The destructive entry carries the danger variant.
+    expect(screen.getByRole("menuitem", { name: "Delete Thread" })).toBeTruthy();
+    expect(baseElement.querySelector(".m-sheet-backdrop")).toBeNull();
+  });
+
+  it("opens the group header menu as a right-click Dropdown on desktop pointers", () => {
+    media.desktopPointer = true;
+    const { baseElement } = renderView([
+      makeThread({
+        id: "a",
+        title: "Alpha",
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feature/x",
+      }),
+      makeThread({
+        id: "b",
+        title: "Bravo",
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feature/x",
+      }),
+    ]);
+
+    fireEvent.contextMenu(screen.getByRole("button", { expanded: true }), {
+      clientX: 40,
+      clientY: 200,
+    });
+
+    expect(screen.getByRole("menu")).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Mark all done" })).toBeTruthy();
+    expect(baseElement.querySelector(".m-sheet-backdrop")).toBeNull();
+  });
+
+  it("exposes the group's project 'Run' actions as a desktop submenu entry", () => {
+    media.desktopPointer = true;
+    renderView(
+      [
+        makeThread({
+          id: "a",
+          title: "Alpha",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+        makeThread({
+          id: "b",
+          title: "Bravo",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+      ],
+      {
+        projects: [
+          { id: "p1", name: "Proj", scripts: { actions: [{ id: "build", name: "Build" }] } },
+        ] as unknown as Project[],
+      },
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { expanded: true }), {
+      clientX: 40,
+      clientY: 200,
+    });
+
+    // The "Run" submenu trigger is a menu item (its children reveal on open).
+    expect(screen.getByRole("menuitem", { name: /Run/ })).toBeTruthy();
+  });
+
+  it("moves the desktop menu to another row on right-click (ContextMenu singleton)", () => {
+    media.desktopPointer = true;
+    const onThreadAction = vi.fn<(thread: Thread, action: unknown) => void>();
+    renderView([makeThread({ id: "a", title: "Alpha" }), makeThread({ id: "b", title: "Bravo" })], {
+      onThreadAction,
+    });
+
+    // Open on row A, then right-click row B: the module-level closeActiveMenu
+    // dismisses A and the menu re-opens anchored on B.
+    fireEvent.contextMenu(screen.getByText("Alpha").closest("button")!, {
+      clientX: 10,
+      clientY: 10,
+    });
+    const rowB = screen.getByText("Bravo").closest("button")!;
+    const evt = createEvent.contextMenu(rowB, { clientX: 30, clientY: 40 });
+    fireEvent(rowB, evt);
+
+    // Our handler suppressed the native menu and exactly one menu is open.
+    expect(evt.defaultPrevented).toBe(true);
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+
+    // Acting on the menu targets row B, proving it moved.
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete Thread" }));
+    expect(onThreadAction).toHaveBeenCalledTimes(1);
+    expect(onThreadAction.mock.calls[0]![0].id).toBe("b");
+  });
+
+  it("still opens the row menu as a bottom sheet on touch devices", () => {
+    // Default (no desktop pointer): the long-press / context menu must keep the
+    // full-width bottom sheet, backdrop and all.
+    const { baseElement } = renderView([makeThread({ id: "c", title: "Charlie" })]);
+
+    fireEvent.contextMenu(screen.getByText("Charlie").closest("button")!);
+
+    expect(screen.getByText("Rename")).toBeTruthy();
+    expect(baseElement.querySelector(".m-sheet-backdrop")).not.toBeNull();
+    // No desktop Dropdown menu on touch.
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("offers 'New thread in worktree' from a worktree group and passes its identity", () => {
     const onNewThreadInWorktree =
       vi.fn<(input: { projectId: string; worktreePath: string; worktreeBranch: string }) => void>();
@@ -688,7 +856,17 @@ describe("ThreadsView grouping", () => {
     );
 
     fireEvent.contextMenu(screen.getByRole("button", { expanded: true }));
-    fireEvent.click(screen.getByText("Run Tests"));
+    const pageStack = document.querySelector(".m-sheet-page-stack");
+    expect(pageStack).toHaveAttribute("data-page", "main");
+    expect(screen.queryByRole("button", { name: "Run Tests" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    expect(pageStack).toHaveAttribute("data-page", "submenu");
+    expect(screen.getByRole("button", { name: "Run Tests" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(pageStack).toHaveAttribute("data-page", "main");
+    expect(screen.queryByRole("button", { name: "Run Tests" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run Tests" }));
 
     expect(onRunProjectAction).toHaveBeenCalledWith({
       projectId: "p1",
@@ -712,7 +890,9 @@ describe("ThreadsView grouping", () => {
     });
 
     fireEvent.contextMenu(screen.getByText("Charlie").closest("button")!);
-    fireEvent.click(screen.getByText("Build"));
+    expect(screen.queryByRole("button", { name: "Build" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    fireEvent.click(screen.getByRole("button", { name: "Build" }));
 
     expect(onRunProjectAction).toHaveBeenCalledWith({
       projectId: "p1",
@@ -741,17 +921,18 @@ describe("ThreadsView header-driven (floating) search", () => {
   function renderFloating(input: {
     searchOpen: boolean;
     onSearchOpenChange?: (open: boolean) => void;
-    onChromeHiddenChange?: (hidden: boolean) => void;
+    projects?: readonly Project[];
+    searchContainer?: HTMLElement;
   }) {
     return render(
       <ThreadsView
-        projects={[PROJECT]}
+        projects={input.projects ?? [PROJECT]}
         threads={[makeThread({ id: "a", title: "Alpha" }), makeThread({ id: "b", title: "Bravo" })]}
         selectedThreadId={null}
         projectFilter={null}
         searchOpen={input.searchOpen}
+        {...(input.searchContainer ? { searchContainer: input.searchContainer } : {})}
         onSearchOpenChange={input.onSearchOpenChange ?? (() => {})}
-        onChromeHiddenChange={input.onChromeHiddenChange ?? (() => {})}
         onProjectFilterChange={() => {}}
         onOpenThread={() => {}}
         onThreadAction={() => {}}
@@ -767,6 +948,24 @@ describe("ThreadsView header-driven (floating) search", () => {
   it("hides the search box until the header toggles it open", () => {
     renderFloating({ searchOpen: false });
     expect(screen.queryByLabelText("Search threads")).not.toBeInTheDocument();
+  });
+
+  it("portals the project picker into the shared mobile header", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    try {
+      const { container } = renderFloating({
+        searchOpen: false,
+        projects: [PROJECT, { ...PROJECT, id: "p2", name: "Other" }],
+        searchContainer: host,
+      });
+
+      expect(host.querySelector(".m-threads__picker")).not.toBeNull();
+      expect(host).toHaveTextContent("All projects");
+      expect(container.querySelector(".m-threads__picker")).toBeNull();
+    } finally {
+      host.remove();
+    }
   });
 
   it("shows a floating search box that filters and closes via its X button", () => {
@@ -795,7 +994,6 @@ describe("ThreadsView header-driven (floating) search", () => {
         projectFilter={null}
         searchOpen={false}
         onSearchOpenChange={() => {}}
-        onChromeHiddenChange={() => {}}
         onProjectFilterChange={() => {}}
         onOpenThread={() => {}}
         onThreadAction={() => {}}
@@ -826,7 +1024,6 @@ describe("ThreadsView header-driven (floating) search", () => {
           projectFilter={null}
           searchOpen={false}
           onSearchOpenChange={() => {}}
-          onChromeHiddenChange={() => {}}
           onProjectFilterChange={() => {}}
           onOpenThread={() => {}}
           onThreadAction={() => {}}
@@ -898,26 +1095,5 @@ describe("ThreadsView header-driven (floating) search", () => {
     } finally {
       Object.defineProperty(window, "visualViewport", { configurable: true, value: undefined });
     }
-  });
-
-  it("reports scroll direction so the shell can collapse/reveal its chrome", () => {
-    const onChromeHiddenChange = vi.fn<(hidden: boolean) => void>();
-    const { container } = renderFloating({ searchOpen: false, onChromeHiddenChange });
-    const list = container.querySelector(".m-thread-list")!;
-
-    // Scrolling down past the slop hides the chrome…
-    Object.defineProperty(list, "scrollTop", { configurable: true, value: 80 });
-    fireEvent.scroll(list);
-    expect(onChromeHiddenChange).toHaveBeenLastCalledWith(true);
-
-    // …scrolling back up reveals it…
-    Object.defineProperty(list, "scrollTop", { configurable: true, value: 40 });
-    fireEvent.scroll(list);
-    expect(onChromeHiddenChange).toHaveBeenLastCalledWith(false);
-
-    // …and resting near the top always reveals it.
-    Object.defineProperty(list, "scrollTop", { configurable: true, value: 0 });
-    fireEvent.scroll(list);
-    expect(onChromeHiddenChange).toHaveBeenLastCalledWith(false);
   });
 });

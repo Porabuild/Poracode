@@ -1,17 +1,27 @@
 // @vitest-environment jsdom
-import { StrictMode, type ReactNode } from "react";
+import { StrictMode, useEffect, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  closeImageLightbox,
+  openImageLightbox,
+} from "@/renderer/components/composer/ImageLightbox";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { RootLayout } from "./RootLayout";
+import { useDesktopPanelStore } from "./desktopPanelStore";
 
 const routerMock = vi.hoisted(() => ({
   navigate: vi.fn<(options: unknown) => void>(),
   pathname: "/threads",
+  pendingPathname: null as string | null,
+  historyBack: vi.fn<() => void>(),
+  canGoBack: true,
 }));
 
-const mediaMock = vi.hoisted(() => ({ isWide: false }));
+const mediaMock = vi.hoisted(() => ({ isWide: false, rightPanel: false }));
+const threadDetailMock = vi.hoisted(() => ({ mounts: 0 }));
 
 const remoteMock = vi.hoisted(() => ({
   session: {
@@ -63,12 +73,34 @@ const remoteMock = vi.hoisted(() => ({
 vi.mock("@tanstack/react-router", () => ({
   Outlet: () => <div data-testid="outlet" />,
   useNavigate: () => routerMock.navigate,
-  useRouterState: ({ select }: { select: (state: { location: { pathname: string } }) => string }) =>
-    select({ location: { pathname: routerMock.pathname } }),
+  useRouter: () => ({
+    history: {
+      back: routerMock.historyBack,
+      canGoBack: () => routerMock.canGoBack,
+    },
+  }),
+  useRouterState: ({
+    select,
+  }: {
+    select: (state: {
+      location: { pathname: string };
+      resolvedLocation: { pathname: string };
+      matches: { pathname: string }[];
+    }) => string;
+  }) =>
+    select({
+      location: { pathname: routerMock.pendingPathname ?? routerMock.pathname },
+      resolvedLocation: { pathname: routerMock.pathname },
+      matches: [{ pathname: routerMock.pathname }],
+    }),
 }));
 
 vi.mock("@/renderer/views/MainView/parts/PullFromSourceDialog", () => ({
   PullFromSourceDialog: () => <div data-testid="pull-from-source-dialog" />,
+}));
+
+vi.mock("@/renderer/deferredFeatures", () => ({
+  DeferredFileEditorPanel: () => <div data-testid="file-editor-panel" />,
 }));
 
 vi.mock("./components", () => ({
@@ -117,6 +149,10 @@ vi.mock("./UserMessageActionsSheet", () => ({
   UserMessageActionsSheet: () => null,
 }));
 
+vi.mock("./TodoActionsSheet", () => ({
+  TodoActionsSheet: () => null,
+}));
+
 vi.mock("./storage", () => ({
   getStoredPreference: vi.fn<() => Promise<string>>().mockResolvedValue(""),
   setStoredPreference: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -137,12 +173,23 @@ vi.mock("./ThreadUsageIndicator", () => ({
 }));
 
 vi.mock("./useMediaQuery", () => ({
+  DESKTOP_RIGHT_PANEL_QUERY: "(min-width: 1200px)",
   WIDE_SHELL_QUERY: "(min-width: 900px)",
-  useMediaQuery: () => mediaMock.isWide,
+  useMediaQuery: (query: string) =>
+    query === "(min-width: 1200px)" ? mediaMock.rightPanel : mediaMock.isWide,
 }));
 
 vi.mock("./useRemoteDesktop", () => ({
   useRemoteDesktop: () => remoteMock.session,
+}));
+
+vi.mock("./ThreadDetail", () => ({
+  ThreadDetail: (props: { thread: { id: string } | null }) => {
+    useEffect(() => {
+      threadDetailMock.mounts += 1;
+    }, []);
+    return <div data-testid="persistent-thread-detail" data-thread-id={props.thread?.id} />;
+  },
 }));
 
 vi.mock("./views/ThreadsView", () => ({
@@ -153,10 +200,16 @@ vi.mock("./views/ThreadsView", () => ({
 
 describe("mobile RootLayout", () => {
   beforeEach(() => {
+    closeImageLightbox();
     localStorage.removeItem("poracode-mobile.sidebar-width");
     routerMock.navigate.mockReset();
     routerMock.pathname = "/threads";
+    routerMock.pendingPathname = null;
+    routerMock.historyBack.mockReset();
+    routerMock.canGoBack = true;
     mediaMock.isWide = false;
+    mediaMock.rightPanel = false;
+    threadDetailMock.mounts = 0;
     remoteMock.session.connection = "online";
     remoteMock.session.desktops = [{ id: "desktop-1", label: "Poracode on Mac" }];
     remoteMock.session.activeDesktop = { id: "desktop-1", label: "Poracode on Mac" };
@@ -167,6 +220,14 @@ describe("mobile RootLayout", () => {
       gitOverlayOpen: false,
       prReviewContext: null,
     });
+    useDesktopPanelStore.setState({
+      open: false,
+      activeTab: "files",
+      threadId: null,
+      subAgentThreadId: null,
+      subAgentParentItemId: null,
+    });
+    useFileEditorStore.getState().clearSession();
   });
 
   it("drives home navigation from the header (search + quick menu) with no tab bar", () => {
@@ -191,6 +252,40 @@ describe("mobile RootLayout", () => {
     expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/desktops" });
     fireEvent.click(screen.getByText("Settings"));
     expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/settings" });
+  });
+
+  it("uses real browser history when leaving a routed subagent page", () => {
+    routerMock.pathname = "/subagent/thread-1/parent-1";
+
+    const { container } = render(<RootLayout />);
+
+    expect(container.querySelector(".m-shell")).toHaveAttribute("data-chrome", "subagent");
+    expect(screen.getByText("Subagent")).toBeInTheDocument();
+    fireEvent.click(container.querySelector(".m-back")!);
+    expect(routerMock.historyBack).toHaveBeenCalledTimes(1);
+    expect(routerMock.navigate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the parent thread mounted while the routed subagent page covers it", () => {
+    routerMock.pathname = "/thread/thread-1";
+    const view = render(<RootLayout />);
+
+    expect(screen.getByTestId("persistent-thread-detail")).toHaveAttribute(
+      "data-thread-id",
+      "thread-1",
+    );
+    expect(threadDetailMock.mounts).toBe(1);
+
+    routerMock.pathname = "/subagent/thread-1/parent-1";
+    view.rerender(<RootLayout />);
+    expect(screen.getByTestId("persistent-thread-detail").parentElement).toHaveAttribute(
+      "data-covered",
+      "true",
+    );
+
+    routerMock.pathname = "/thread/thread-1";
+    view.rerender(<RootLayout />);
+    expect(threadDetailMock.mounts).toBe(1);
   });
 
   it("keeps the disconnected icon hidden until a desktop is active", () => {
@@ -246,6 +341,26 @@ describe("mobile RootLayout", () => {
     expect(screen.getByText("Connect desktop")).toBeInTheDocument();
   });
 
+  it("uses the ghost button treatment for the wide-shell new thread action", () => {
+    mediaMock.isWide = true;
+
+    render(<RootLayout />);
+
+    expect(screen.getByRole("button", { name: "New thread" })).toHaveClass("button--ghost");
+  });
+
+  it("hosts shared image previews opened from user messages", () => {
+    openImageLightbox([{ src: "data:image/png;base64,AA==", alt: "Screenshot" }], 0);
+
+    render(<RootLayout />);
+
+    expect(screen.getByRole("dialog", { name: "Screenshot" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Screenshot" })).toHaveAttribute(
+      "src",
+      "data:image/png;base64,AA==",
+    );
+  });
+
   it("shows the offline banner when the selected desktop is offline", () => {
     mediaMock.isWide = true;
     remoteMock.session.connection = "offline";
@@ -273,6 +388,17 @@ describe("mobile RootLayout", () => {
     fireEvent.mouseUp(document, { clientX: 424 });
     expect(shell?.style.getPropertyValue("--m-sidebar-width")).toBe("424px");
     expect(localStorage.getItem("poracode-mobile.sidebar-width")).toBe("424");
+  });
+
+  it("hosts the shared file editor in the desktop PWA content pane", () => {
+    mediaMock.isWide = true;
+    mediaMock.rightPanel = true;
+    useFileEditorStore.setState({ overlayMode: "modal" });
+
+    render(<RootLayout />);
+
+    expect(screen.getByTestId("file-editor-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("file-editor-panel").parentElement).toHaveClass("m-detail");
   });
 
   it("places the home connection indicator after the brand before the More menu", () => {
@@ -313,6 +439,17 @@ describe("mobile RootLayout", () => {
     const row = screen.getByTestId("thread-title-row");
     expect(row).toHaveAttribute("data-thread-id", "thread-1");
     expect(screen.getByTestId("thread-usage")).toHaveAttribute("data-thread-id", "thread-1");
+  });
+
+  it("keeps outgoing chrome while the next location is pending", () => {
+    remoteMock.session.selectedThread = remoteMock.session.threads[0]!;
+    routerMock.pathname = "/threads";
+    routerMock.pendingPathname = "/thread/thread-1";
+
+    render(<RootLayout />);
+
+    expect(screen.getByRole("button", { name: "Poracode" })).toBeInTheDocument();
+    expect(screen.queryByTestId("thread-title-row")).not.toBeInTheDocument();
   });
 
   it("holds the previous thread header while pushing into the workspace screen", () => {
@@ -368,6 +505,28 @@ describe("mobile RootLayout", () => {
     });
     expect(usePanelStore.getState().gitReviewContext).toBeNull();
     expect(usePanelStore.getState().gitOverlayOpen).toBe(false);
+  });
+
+  it("bridges desktop git-review signals into the desktop panel without route navigation", async () => {
+    mediaMock.rightPanel = true;
+    usePanelStore.setState({
+      gitReviewContext: { projectId: "project-1", worktreePath: "/repo-wt" },
+      gitOverlayOpen: true,
+      gitReviewAsPanel: false,
+    });
+
+    render(<RootLayout />);
+
+    await waitFor(() => {
+      expect(useDesktopPanelStore.getState()).toMatchObject({
+        open: true,
+        activeTab: "git",
+        threadId: "thread-1",
+      });
+    });
+    expect(routerMock.navigate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ to: "/workspace/$threadId" }),
+    );
   });
 
   it("bridges desktop PR-review signals with branch-specific PR keys", async () => {

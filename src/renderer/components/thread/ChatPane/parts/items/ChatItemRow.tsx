@@ -18,7 +18,7 @@ import { SubAgentToolCall } from "./SubAgentToolCall";
 import { ToolCallGroup } from "./ToolCallGroup";
 import { UserMessage } from "./UserMessage";
 import { WebSearchItem } from "./WebSearchItem";
-import { isSubAgentTool } from "./toolDisplay";
+import { isDelegatedAgentTool } from "./toolDisplay";
 
 interface ChatItemRowProps {
   threadId: string;
@@ -26,6 +26,7 @@ interface ChatItemRowProps {
   /** True when this is the tail of the visible timeline. Drives live-group expand state. */
   isLastEntry?: boolean;
   onHeightChange?: () => void;
+  onVirtualizerLayoutChange?: () => void;
   isTurnActive?: boolean;
   checkpointRevert: CheckpointRevertRequest | null;
 }
@@ -43,6 +44,7 @@ export const ChatItemRow = memo(function ChatItemRow({
   entry,
   isLastEntry = false,
   onHeightChange,
+  onVirtualizerLayoutChange,
   isTurnActive = false,
   checkpointRevert,
 }: ChatItemRowProps) {
@@ -54,6 +56,7 @@ export const ChatItemRow = memo(function ChatItemRow({
         itemIds={entry.itemIds}
         isLive={isLastEntry}
         {...(onHeightChange ? { onHeightChange } : {})}
+        {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
       />
     );
   }
@@ -90,7 +93,7 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
   if (!item) return null;
   if (item.type === "tool_call") {
     const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
-    if (isSubAgentTool(payload)) {
+    if (isDelegatedAgentTool(payload)) {
       return <SubAgentToolCall threadId={threadId} item={item} />;
     }
   }

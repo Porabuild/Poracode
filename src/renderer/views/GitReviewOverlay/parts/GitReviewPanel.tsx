@@ -125,7 +125,7 @@ export function GitReviewPanel(props: {
       if (statusKey && effectiveLocation !== project.location) {
         const prRefresh = refreshWorktreePrData();
         await readBridge()
-          .gitFetch({ projectLocation: effectiveLocation, remote: "origin", prune: false })
+          .gitFetch({ projectLocation: effectiveLocation, remote: "origin", prune: true })
           .catch(() => undefined);
         const status = await readBridge()
           .getGitStatus({ projectLocation: effectiveLocation })
@@ -377,6 +377,7 @@ export function GitReviewPanel(props: {
         <div className="min-h-0 flex-1 overflow-hidden">
           <GitReviewSidebar
             project={effectiveProject}
+            mergeSyncLocation={project.location}
             gitStatus={gitStatus}
             selectedFile={selectedFile}
             selectedStaged={selectedStaged}

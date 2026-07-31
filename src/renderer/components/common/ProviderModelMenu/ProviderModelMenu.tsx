@@ -36,7 +36,7 @@ const MODEL_MENU_EXPANDED_MOBILE_CHROME_HEIGHT = 180;
 const MODEL_MENU_PROVIDER_HEADER_BOTTOM_GAP = 4;
 const MODEL_MENU_MAX_HEIGHT = 288;
 const MODEL_MENU_LISTBOX_PADDING_BOTTOM = 6;
-const MODEL_MENU_LISTBOX_VERTICAL_PADDING = MODEL_MENU_LISTBOX_PADDING_BOTTOM;
+const MODEL_MENU_MOBILE_SCROLL_END_GAP = 32;
 const MODEL_MENU_OVERSCAN_ROWS = 16;
 const MODEL_DESCRIPTION_TOOLTIP_DELAY_MS = 1000;
 
@@ -66,6 +66,8 @@ export interface ProviderModelMenuProps {
   lockedAgentKind?: string;
   presentationMode?: ThreadPresentationMode;
   isDisabled?: boolean;
+  /** Fast mode is on for the current draft, so supported rows mark it filled. */
+  isFastEnabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
   collapseTier?: number;
@@ -225,6 +227,24 @@ function expandedMobileModelMenuMaxHeight(): number {
   );
 }
 
+/* In iOS Safari browser mode the sheet extends below the visible viewport so
+   its paint fills the band under the floating toolbar (styles.css,
+   --m-browser-band-paint). The virtual list must add that depth to its scroll
+   end gap or the last rows park under the toolbar. Resolve the CSS token with
+   a probe so the JS gap and the CSS geometry can never drift; it computes to
+   0 everywhere the token is undefined (desktop, standalone, Android). */
+function browserToolbarScrollClearance(): number {
+  if (typeof document === "undefined") return 0;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;width:0;" +
+    "height:var(--m-browser-toolbar-safe-area,0px);";
+  document.body.append(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height;
+}
+
 function refsForPresentation(
   refs: readonly ModelRef[],
   presentationMode: ThreadPresentationMode | undefined,
@@ -241,6 +261,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     lockedAgentKind,
     presentationMode,
     isDisabled,
+    isFastEnabled = false,
     hideLabelOnWrap,
     forceHideLabel = false,
     collapseTier,
@@ -265,6 +286,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const favorites = useSharedSettings((s) => s.favoriteModels);
   const recents = useSharedSettings((s) => s.recentModels);
   const providerOrder = useSharedSettings((s) => s.providerOrder);
+  const hiddenModels = useSharedSettings((s) => s.hiddenModels);
   const toggleFavoriteModel = useSharedSettings((s) => s.toggleFavoriteModel);
   const latestFavoritesRef = useRef(favorites);
   const latestRecentsRef = useRef(recents);
@@ -338,6 +360,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         favorites: sectionFavorites,
         favoriteStateRefs: activeFavorites,
         recents: sectionRecents,
+        hiddenModels,
         providerOrder,
       })
     : [];
@@ -379,7 +402,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       isDisabled={(isDisabled ?? false) || providers.length === 0}
       size="sm"
       variant="ghost"
-      className="poracode-composer-menu min-w-0 px-2.5"
+      className="poracode-composer-menu poracode-composer-model-control min-w-0 px-2.5"
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
       <ProviderIcon
@@ -450,7 +473,9 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           selectedKeys={selectedKeys}
           scrollRef={windowedListRef}
           modelRowHeight={mobile ? MODEL_MENU_ROW_HEIGHT_MOBILE : MODEL_MENU_ROW_HEIGHT}
+          mobile={mobile}
           mobileExpanded={mobile && expanded}
+          isFastEnabled={isFastEnabled}
           toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
             toggleFavoriteModel(
               providerKind,
@@ -482,7 +507,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         )
       }
       placement="top start"
-      contentClassName="w-96 p-0"
+      contentClassName="w-fit min-w-64 max-w-96 p-0"
       dialogClassName="flex max-h-[28rem] flex-col overflow-hidden !p-0"
     >
       {renderContent}
@@ -497,7 +522,9 @@ function WindowedProviderModelList(props: {
   scrollRef: RefObject<HTMLDivElement | null>;
   /** Height of a model row; larger on mobile so drawer rows are finger-sized. */
   modelRowHeight: number;
+  mobile: boolean;
   mobileExpanded: boolean;
+  isFastEnabled: boolean;
   toggleFavorite: (
     providerKind: string,
     modelId: string,
@@ -511,7 +538,9 @@ function WindowedProviderModelList(props: {
     selectedKeys,
     scrollRef,
     modelRowHeight,
+    mobile,
     mobileExpanded,
+    isFastEnabled,
     toggleFavorite,
     onSelect,
   } = props;
@@ -550,13 +579,15 @@ function WindowedProviderModelList(props: {
   }, [activeIndex, initialActiveRowId, meta]);
 
   const totalHeight = meta.totalHeight;
+  const [browserToolbarClearance] = useState(() => (mobile ? browserToolbarScrollClearance() : 0));
+  const scrollEndGapHeight = mobile
+    ? MODEL_MENU_MOBILE_SCROLL_END_GAP + browserToolbarClearance
+    : MODEL_MENU_LISTBOX_PADDING_BOTTOM;
+  const totalScrollHeight = totalHeight + scrollEndGapHeight;
   const maxViewportHeight = mobileExpanded
     ? expandedMobileModelMenuMaxHeight()
     : MODEL_MENU_MAX_HEIGHT;
-  const viewportHeight = Math.min(
-    totalHeight + MODEL_MENU_LISTBOX_VERTICAL_PADDING,
-    maxViewportHeight,
-  );
+  const viewportHeight = Math.min(totalScrollHeight, maxViewportHeight);
   const visibleRowCount = Math.max(1, Math.ceil(viewportHeight / modelRowHeight));
   const clampedVisibleRow = Math.min(visibleRow, Math.max(0, items.length - 1));
   const startIndex = Math.max(0, clampedVisibleRow - MODEL_MENU_OVERSCAN_ROWS);
@@ -579,19 +610,20 @@ function WindowedProviderModelList(props: {
         (stickySubHeaderIndex === clampedVisibleRow && visibleItemIsPastTop)));
 
   const topSpacerHeight = itemTop(meta, startIndex);
-  const bottomSpacerHeight = Math.max(0, totalHeight - itemTop(meta, endIndex));
+  const bottomSpacerHeight =
+    Math.max(0, totalHeight - itemTop(meta, endIndex)) + scrollEndGapHeight;
   const visibleItems = items.slice(startIndex, endIndex);
 
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
-    const maxScrollTop = Math.max(0, totalHeight - viewportHeight);
+    const maxScrollTop = Math.max(0, totalScrollHeight - viewportHeight);
     if (element.scrollTop > maxScrollTop) {
       element.scrollTop = maxScrollTop;
       setScrollTop(maxScrollTop);
       setVisibleRow(itemIndexAtOffset(meta, maxScrollTop));
     }
-  }, [meta, scrollRef, totalHeight, viewportHeight]);
+  }, [meta, scrollRef, totalScrollHeight, viewportHeight]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -616,7 +648,7 @@ function WindowedProviderModelList(props: {
     const viewTop = element.scrollTop;
     const visibleHeight = element.clientHeight || viewportHeight;
     const viewBottom = viewTop + visibleHeight;
-    const maxScrollTop = Math.max(0, totalHeight - visibleHeight);
+    const maxScrollTop = Math.max(0, totalScrollHeight - visibleHeight);
     if (shouldCenterActiveRef.current) {
       shouldCenterActiveRef.current = false;
       const centered = rowTop + rowHeight / 2 - visibleHeight / 2;
@@ -640,7 +672,7 @@ function WindowedProviderModelList(props: {
       setScrollTop(nextScrollTop);
       setVisibleRow(itemIndexAtOffset(meta, nextScrollTop));
     }
-  }, [activeIndex, items, meta, modelRowHeight, scrollRef, totalHeight, viewportHeight]);
+  }, [activeIndex, items, meta, modelRowHeight, scrollRef, totalScrollHeight, viewportHeight]);
 
   function moveActive(delta: number) {
     if (modelRowIndices.length === 0) return;
@@ -662,7 +694,7 @@ function WindowedProviderModelList(props: {
       aria-activedescendant={
         activeIndex >= 0 ? `${domIdPrefix}-${items[activeIndex]?.id}` : undefined
       }
-      className={`poracode-model-menu-listbox no-scrollbar overflow-y-auto pb-1.5 outline-none ${
+      className={`poracode-model-menu-listbox no-scrollbar overflow-y-auto outline-none ${
         mobileExpanded ? "max-h-none" : "max-h-72"
       }`}
       style={{ height: viewportHeight }}
@@ -792,10 +824,16 @@ function WindowedProviderModelList(props: {
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                   <span className="min-w-0 truncate">{name}</span>
                   {item.supportsFast ? (
+                    // Filled while Fast mode is on, outlined when the model
+                    // merely supports it.
                     <Zap
                       role="img"
-                      aria-label={t`Supports Fast mode`}
-                      className="size-3 shrink-0 text-muted/60"
+                      aria-label={isFastEnabled ? t`Fast mode` : t`Supports Fast mode`}
+                      className={
+                        isFastEnabled
+                          ? "size-3 shrink-0 fill-current text-muted"
+                          : "size-3 shrink-0 text-muted/60"
+                      }
                     />
                   ) : null}
                   {mutedHint ? (
@@ -856,7 +894,12 @@ function WindowedProviderModelList(props: {
           </div>
         );
       })}
-      <div style={{ height: bottomSpacerHeight }} aria-hidden="true" />
+      <div
+        className="poracode-model-menu-bottom-spacer"
+        data-scroll-end-gap={scrollEndGapHeight}
+        style={{ height: bottomSpacerHeight }}
+        aria-hidden="true"
+      />
     </div>
   );
 }

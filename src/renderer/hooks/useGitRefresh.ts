@@ -3,6 +3,7 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { buildActiveProjectsKey } from "@/renderer/state/projectKeys";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -86,6 +87,11 @@ export function useGitRefresh(storeHydrated: boolean) {
         return priorityProjectIds;
       }
 
+      if (state.view.kind === "experiment") {
+        priorityProjectIds.add(state.view.projectId);
+        return priorityProjectIds;
+      }
+
       if (state.view.kind !== "thread") {
         return priorityProjectIds;
       }
@@ -153,6 +159,11 @@ export function useGitRefresh(storeHydrated: boolean) {
       (state) => [state.threads, state.view, state.projects],
       syncActiveWorktrees,
     );
+    const unsubActiveWorktreeExperiments = subscribeToFieldChanges(
+      useExperimentStore.subscribe,
+      (state) => [state.experiments],
+      syncActiveWorktrees,
+    );
     const unsubActiveWorktreePanel = subscribeToFieldChanges(
       usePanelStore.subscribe,
       (state) => [
@@ -211,7 +222,7 @@ export function useGitRefresh(storeHydrated: boolean) {
             await readBridge().gitFetch({
               projectLocation: project.location,
               remote: "origin",
-              prune: false,
+              prune: true,
             });
           } catch {
             // ignore — remote may be unreachable
@@ -255,6 +266,7 @@ export function useGitRefresh(storeHydrated: boolean) {
       watcherDebounceTimers.clear();
       unsubPendingPrRefresh();
       unsubActiveWorktreeApp();
+      unsubActiveWorktreeExperiments();
       unsubActiveWorktreePanel();
       unsubActiveWorktreeSidebar();
       unsubActiveWorktreeTerminal();

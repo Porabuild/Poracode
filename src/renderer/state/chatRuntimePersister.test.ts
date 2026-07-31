@@ -1,6 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAppStore } from "./appStore";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
-import { compactRuntimeItemsForHydration } from "./chatRuntimePersister";
+import {
+  compactRuntimeItemsForHydration,
+  hydrateThreadRuntimeItems,
+  loadOlderThreadRuntimeItems,
+  seedOlderThreadRuntimeItemsCursor,
+} from "./chatRuntimePersister";
+
+const { bridge } = vi.hoisted(() => ({
+  bridge: {
+    dbGetThreadRuntimeItemsPage: vi.fn<
+      (input: {
+        threadId: string;
+        beforePosition?: number;
+        limit: number;
+        targetTimelineEntryCount?: number;
+      }) => Promise<{
+        items: RuntimeChatItem[];
+        nextCursor: number | null;
+      }>
+    >(),
+    dbGetThreadCompletedTurns: vi
+      .fn<(threadId: string) => Promise<never[]>>()
+      .mockResolvedValue([]),
+    dbGetThreadContextUsage: vi.fn<(threadId: string) => Promise<null>>().mockResolvedValue(null),
+  },
+}));
+
+vi.mock("../bridge", () => ({ readBridge: () => bridge }));
 
 function makeItem(
   input: Partial<RuntimeChatItem> & Pick<RuntimeChatItem, "id" | "type">,
@@ -119,5 +147,142 @@ describe("compactRuntimeItemsForHydration", () => {
     ]);
 
     expect(items.map((item) => item.id)).toEqual(["assistant-1", "assistant-2"]);
+  });
+});
+
+describe("paged runtime hydration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    bridge.dbGetThreadCompletedTurns.mockResolvedValue([]);
+    bridge.dbGetThreadContextUsage.mockResolvedValue(null);
+    useAppStore.setState((state) => ({
+      ...state,
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+      runtimeStructuralVersionByThread: {},
+    }));
+  });
+
+  it("hydrates the tail and coalesces concurrent requests for the next cursor", async () => {
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "newer", type: "assistant_message" })],
+      nextCursor: 100,
+    });
+
+    await hydrateThreadRuntimeItems("paged-thread");
+
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledWith({
+      threadId: "paged-thread",
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+
+    let resolveOlderPage: (page: {
+      items: RuntimeChatItem[];
+      nextCursor: number | null;
+    }) => void = () => undefined;
+    bridge.dbGetThreadRuntimeItemsPage.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOlderPage = resolve;
+      }),
+    );
+
+    const firstLoad = loadOlderThreadRuntimeItems("paged-thread");
+    const duplicateLoad = loadOlderThreadRuntimeItems("paged-thread");
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledTimes(2);
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith({
+      threadId: "paged-thread",
+      beforePosition: 100,
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+
+    resolveOlderPage({
+      items: [makeItem({ id: "older", type: "user_message" })],
+      nextCursor: null,
+    });
+    await expect(Promise.all([firstLoad, duplicateLoad])).resolves.toEqual([true, true]);
+
+    expect(useAppStore.getState().runtimeItemIdsByThread["paged-thread"]).toEqual([
+      "older",
+      "newer",
+    ]);
+    await expect(loadOlderThreadRuntimeItems("paged-thread")).resolves.toBe(false);
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the remote snapshot cursor through ChatPane hydration", async () => {
+    seedOlderThreadRuntimeItemsCursor("remote-paged-thread", 77);
+    await hydrateThreadRuntimeItems("remote-paged-thread");
+    expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
+
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "remote-older", type: "assistant_message" })],
+      nextCursor: null,
+    });
+
+    await expect(loadOlderThreadRuntimeItems("remote-paged-thread")).resolves.toBe(true);
+
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledWith({
+      threadId: "remote-paged-thread",
+      beforePosition: 77,
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+    expect(useAppStore.getState().runtimeItemIdsByThread["remote-paged-thread"]).toEqual([
+      "remote-older",
+    ]);
+  });
+
+  it("does not rewind an advanced remote cursor on a periodic tail refresh", async () => {
+    seedOlderThreadRuntimeItemsCursor("remote-refresh-thread", 80);
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "middle-page", type: "assistant_message" })],
+      nextCursor: 40,
+    });
+    await expect(loadOlderThreadRuntimeItems("remote-refresh-thread")).resolves.toBe(true);
+
+    seedOlderThreadRuntimeItemsCursor("remote-refresh-thread", 80, {
+      preserveExistingCursor: true,
+    });
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "oldest-page", type: "assistant_message" })],
+      nextCursor: null,
+    });
+    await expect(loadOlderThreadRuntimeItems("remote-refresh-thread")).resolves.toBe(true);
+
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith({
+      threadId: "remote-refresh-thread",
+      beforePosition: 40,
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+    expect(useAppStore.getState().runtimeItemIdsByThread["remote-refresh-thread"]).toEqual([
+      "oldest-page",
+      "middle-page",
+    ]);
+  });
+
+  it("adopts a fresh cursor when the authoritative tail is disjoint", async () => {
+    seedOlderThreadRuntimeItemsCursor("remote-disjoint-thread", 80);
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "replaced-middle-page", type: "assistant_message" })],
+      nextCursor: 40,
+    });
+    await expect(loadOlderThreadRuntimeItems("remote-disjoint-thread")).resolves.toBe(true);
+
+    seedOlderThreadRuntimeItemsCursor("remote-disjoint-thread", 120);
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "fresh-middle-page", type: "assistant_message" })],
+      nextCursor: null,
+    });
+    await expect(loadOlderThreadRuntimeItems("remote-disjoint-thread")).resolves.toBe(true);
+
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith({
+      threadId: "remote-disjoint-thread",
+      beforePosition: 120,
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
   });
 });

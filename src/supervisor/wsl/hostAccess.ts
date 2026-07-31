@@ -1,6 +1,6 @@
 /**
  * Resolve how a process running *inside* a WSL distro can reach a service bound
- * on the Windows host (the subagents MCP ingress binds `0.0.0.0` on Windows for
+ * on the Windows host (the Crossagents MCP ingress binds `0.0.0.0` on Windows for
  * exactly this reason). The answer depends on the distro's networking mode:
  *
  * - NAT (classic WSL2 default): the host is reachable at the distro's default
@@ -37,6 +37,10 @@ const execFileAsync = promisify(execFile);
  * - `loopback`: the native `127.0.0.1` URL works as-is (mirrored mode).
  */
 export type WslHostAccess = { kind: "gateway"; ip: string } | { kind: "loopback" };
+
+export interface WslHostAccessResolver {
+  resolveHostAccess(distro: string): Promise<WslHostAccess | undefined>;
+}
 
 /** DNS-tunneling virtual address (modern WSL default). Not connectable, and
  *  never the host gateway — must be skipped when scanning resolv.conf. */

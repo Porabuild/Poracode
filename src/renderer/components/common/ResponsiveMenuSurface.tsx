@@ -4,6 +4,7 @@ import { Popover, useMediaQuery } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
 import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useSheetGrabber";
+import { lockMobileSheetViewport } from "./mobileSheetViewportLock";
 
 /** The placement union HeroUI's popover accepts, derived from the component. */
 type Placement = ComponentProps<typeof Popover.Content>["placement"];
@@ -77,6 +78,9 @@ export function ResponsiveMenuSurface(props: {
     typeof props.children === "function"
       ? props.children({ expanded: mobile ? expanded : false })
       : props.children;
+  const mobilePortalTarget = mobile
+    ? (document.querySelector<HTMLElement>(".m-shell") ?? document.body)
+    : null;
 
   useEffect(() => {
     if (!mobile) return;
@@ -113,6 +117,21 @@ export function ResponsiveMenuSurface(props: {
     return () => document.removeEventListener("keydown", onKey);
   }, [mobile, props.isOpen, props]);
 
+  // iOS can pan the layout document when an input inside a fixed sheet gains
+  // focus. Blur before the sheet disappears, then keep restoring the opening
+  // offset while the keyboard's delayed dismissal geometry settles.
+  useEffect(() => {
+    if (!mobile || !props.isOpen) return;
+    const unlockViewport = lockMobileSheetViewport();
+    return () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && activeElement.closest(".m-sheet-backdrop")) {
+        activeElement.blur();
+      }
+      unlockViewport();
+    };
+  }, [mobile, props.isOpen]);
+
   if (!mobile) {
     return (
       <Popover isOpen={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -142,10 +161,11 @@ export function ResponsiveMenuSurface(props: {
       ) : (
         props.trigger
       )}
-      {rendered
-        ? // Portal to <body>: the composer animates with CSS transforms, which
-          // would otherwise become the containing block for the sheet's
-          // `position: fixed` and break its full-screen backdrop.
+      {rendered && mobilePortalTarget
+        ? // Portal to the top-level mobile shell, outside the transformed
+          // composer. Keeping the sheet in the page compositor preserves
+          // Safari's transparent floating toolbar; tests/non-shell consumers
+          // fall back to <body> above.
           createPortal(
             <div className="m-sheet-backdrop" data-closing={closing || undefined}>
               <button
@@ -169,7 +189,7 @@ export function ResponsiveMenuSurface(props: {
                 <div className="flex min-h-0 flex-1 flex-col">{body}</div>
               </div>
             </div>,
-            document.body,
+            mobilePortalTarget,
           )
         : null}
     </>

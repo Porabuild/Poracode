@@ -1,16 +1,19 @@
 import { startTransition } from "react";
-import type { Thread } from "@/shared/contracts";
+import { isProjectInWorkspace, type Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import {
   hasHydratedThreadRuntimeItems,
   hydrateThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { getActiveWorkspaceId, useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { readWorktreeDeletePref } from "@/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog";
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
@@ -96,11 +99,40 @@ export function openNewThreadInWorktree(input: {
   });
 }
 
-export function openThread(threadId: string, options?: { focusComposer?: boolean }): void {
+export function openThread(
+  threadId: string,
+  options?: { focusComposer?: boolean; standalone?: boolean; switchWorkspace?: boolean },
+): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
+  if (thread && options?.switchWorkspace) {
+    const project = store.projects.find((item) => item.id === thread.projectId);
+    const targetWorkspaceId = project?.workspaceId;
+    const knownWorkspaceIds = new Set(
+      (useSharedSettings.getState().workspaces ?? []).map((workspace) => workspace.id),
+    );
+    if (
+      project &&
+      targetWorkspaceId &&
+      !isProjectInWorkspace(project, getActiveWorkspaceId(), knownWorkspaceIds)
+    ) {
+      useWorkspaceStore.getState().setActiveWorkspaceId(targetWorkspaceId);
+    }
+  }
+  if (thread?.remoteServerId && thread.remoteId) {
+    store.setPendingActiveThread(threadId);
+    startTransition(() => {
+      if (options?.standalone) store.openThreadStandalone(threadId);
+      else store.openThread(threadId);
+      store.setPendingActiveThread(null);
+      if (options?.focusComposer !== false) store.requestComposerFocus(threadId);
+    });
+    void useRemoteServersStore.getState().openRemoteThread(thread.remoteServerId, thread.remoteId);
+    return;
+  }
+  const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
   const requestId = ++openThreadRequestId;
-  const threadIdsToHydrate = getGuiThreadIdsToHydrateBeforeOpen(threadId);
+  const threadIdsToHydrate = getGuiThreadIdsToHydrateBeforeOpen(threadId, standalone);
 
   // Phase 1 (urgent): flip the optimistic active-thread id in its own cheap
   // commit so the sidebar row highlights immediately. This does not touch
@@ -125,11 +157,16 @@ export function openThread(threadId: string, options?: { focusComposer?: boolean
     }
 
     startTransition(() => {
-      useAppStore.getState().openThread(threadId);
+      const nextStore = useAppStore.getState();
+      if (standalone) nextStore.openThreadStandalone(threadId);
+      else nextStore.openThread(threadId);
       // Clear in the same auto-batched commit as the pane swap so the highlight
       // hands off to `view.panes` without a flicker.
-      useAppStore.getState().setPendingActiveThread(null);
-      if (options?.focusComposer) {
+      nextStore.setPendingActiveThread(null);
+      // Opening a thread on the desktop is a handoff to its composer. GUI
+      // panes deliberately keep their DOM slot mounted across thread switches,
+      // so mount-time autofocus alone cannot cover this path.
+      if (options?.focusComposer !== false) {
         useAppStore.getState().requestComposerFocus(threadId);
       }
       // Late-rendering items (virtualizer measurement, hydration, streaming) can
@@ -206,13 +243,13 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
   if (nextId && nextId !== current.id) openThread(nextId);
 }
 
-function getGuiThreadIdsToHydrateBeforeOpen(threadId: string): string[] {
+function getGuiThreadIdsToHydrateBeforeOpen(threadId: string, standalone = false): string[] {
   const state = useAppStore.getState();
   const clickedThread = state.threads.find((thread) => thread.id === threadId);
   if (!clickedThread) return [];
 
   let candidates = [clickedThread];
-  if (clickedThread.groupId) {
+  if (!standalone && clickedThread.groupId) {
     const groupThreads = state.threads.filter(
       (thread) => thread.groupId === clickedThread.groupId && !thread.done && !thread.archived,
     );
@@ -260,7 +297,11 @@ export async function unloadStoredThread(
   const view = useAppStore.getState().view;
   const inVisiblePane = view.kind === "thread" && view.panes.includes(threadId);
 
-  await readBridge().closeThread({ threadId });
+  if (thread.remoteServerId && thread.remoteId) {
+    await useRemoteServersStore.getState().closeThread(thread.remoteServerId, thread.remoteId);
+  } else {
+    await readBridge().closeThread({ threadId });
+  }
   startTransition(() => {
     useAppStore.getState().markThreadExited(threadId);
     if (inVisiblePane && !options?.keepSidePanels) {
@@ -278,6 +319,12 @@ export function sweepStaleThreads(): void {
 
   const store = useAppStore.getState();
   const visibleThreadIds = new Set(store.view.kind === "thread" ? store.view.panes : []);
+  if (store.view.kind === "experiment") {
+    const experiment = useExperimentStore.getState().experiments[store.view.experimentId];
+    for (const candidate of experiment?.candidates ?? []) {
+      visibleThreadIds.add(candidate.threadId);
+    }
+  }
   const staleBefore = Date.now() - staleThreadUnloadMinutes * 60_000;
 
   for (const thread of store.threads) {
@@ -296,37 +343,96 @@ export function sweepStaleThreads(): void {
 }
 
 export function archiveThread(threadId: string): void {
+  if (findExperimentByThreadId(threadId)) return;
+  const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
+  if (thread?.remoteServerId && thread.remoteId) {
+    useAppStore.getState().archiveThread(threadId);
+    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
+      kind: "archive",
+      threadId: thread.remoteId,
+    });
+    return;
+  }
   void unloadStoredThread(threadId).catch(() => undefined);
   useAppStore.getState().archiveThread(threadId);
+}
+
+export function unarchiveThread(threadId: string): void {
+  const store = useAppStore.getState();
+  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  if (!thread) return;
+  store.unarchiveThread(threadId);
+  if (thread.remoteServerId && thread.remoteId) {
+    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
+      kind: "unarchive",
+      threadId: thread.remoteId,
+    });
+  }
 }
 
 export function unloadThread(threadId: string): void {
   void unloadStoredThread(threadId, { closeThreadPane: true }).catch(() => undefined);
 }
 
+/**
+ * Marks a thread done: unloads its runtime, drops the worktree's terminal tabs
+ * once no live thread is left there, and flips the store flag. Shared by the
+ * manual affordances (context menu, sidebar Done button) and the PR-merge
+ * automation.
+ */
+export function markThreadDone(threadId: string): void {
+  if (findExperimentByThreadId(threadId)) return;
+  const store = useAppStore.getState();
+  const thread = store.threads.find((t) => t.id === threadId);
+  if (!thread || thread.done) return;
+  if (thread.remoteServerId && thread.remoteId) {
+    store.markThreadDone(threadId);
+    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
+      kind: "set-done",
+      threadId: thread.remoteId,
+      done: true,
+    });
+    return;
+  }
+
+  void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
+  const worktreePath = thread.worktreePath;
+  const isLastOpenWorktreeThread =
+    worktreePath !== undefined &&
+    store.threads.every(
+      (t) => t.id === threadId || t.worktreePath !== worktreePath || t.done || t.archived,
+    );
+  if (worktreePath && isLastOpenWorktreeThread) {
+    const termStore = useDevTerminalStore.getState();
+    const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
+    void closeThreads(removedTabIds);
+    if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
+      termStore.closePanel();
+    }
+  }
+  store.markThreadDone(threadId);
+}
+
 export function toggleMarkThreadDone(threadId: string): void {
+  if (findExperimentByThreadId(threadId)) return;
   const store = useAppStore.getState();
   const thread = store.threads.find((t) => t.id === threadId);
   if (!thread) return;
+  if (thread.remoteServerId && thread.remoteId) {
+    const done = !thread.done;
+    if (done) store.markThreadDone(threadId);
+    else store.unmarkThreadDone(threadId);
+    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
+      kind: "set-done",
+      threadId: thread.remoteId,
+      done,
+    });
+    return;
+  }
   if (thread.done) {
     store.unmarkThreadDone(threadId);
   } else {
-    void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
-    const worktreePath = thread.worktreePath;
-    const isLastOpenWorktreeThread =
-      worktreePath !== undefined &&
-      store.threads.every(
-        (t) => t.id === threadId || t.worktreePath !== worktreePath || t.done || t.archived,
-      );
-    if (worktreePath && isLastOpenWorktreeThread) {
-      const termStore = useDevTerminalStore.getState();
-      const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
-      void closeThreads(removedTabIds);
-      if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
-        termStore.closePanel();
-      }
-    }
-    store.markThreadDone(threadId);
+    markThreadDone(threadId);
   }
 }
 
@@ -334,6 +440,17 @@ export function toggleStarThread(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((t) => t.id === threadId);
   if (!thread) return;
+  if (thread.remoteServerId && thread.remoteId) {
+    const starred = !thread.starred;
+    if (starred) store.starThread(threadId);
+    else store.unstarThread(threadId);
+    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
+      kind: "set-starred",
+      threadId: thread.remoteId,
+      starred,
+    });
+    return;
+  }
   if (thread.starred) {
     store.unstarThread(threadId);
   } else {
@@ -342,17 +459,56 @@ export function toggleStarThread(threadId: string): void {
 }
 
 export function renameThread(threadId: string, title: string): void {
-  useAppStore.getState().renameThread(threadId, title);
+  const store = useAppStore.getState();
+  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  store.renameThread(threadId, title);
+  if (thread?.remoteServerId && thread.remoteId) {
+    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
+      kind: "rename",
+      threadId: thread.remoteId,
+      title,
+    });
+  }
+}
+
+/** Clear the unread completion marker without navigating the source desktop. */
+export function acknowledgeThread(threadId: string): void {
+  const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+  useAppStore.setState((state) => {
+    const current = state.threads.find((item) => item.id === threadId);
+    if (current?.status !== "finished") return {};
+    return {
+      threads: state.threads.map((item) =>
+        item.id === threadId ? { ...item, status: "idle" as const } : item,
+      ),
+    };
+  });
+  if (thread?.remoteServerId && thread.remoteId) {
+    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
+      kind: "acknowledge",
+      threadId: thread.remoteId,
+    });
+  }
 }
 
 function deleteThreadOnly(threadId: string): void {
-  useAppStore.getState().deleteThread(threadId);
+  const store = useAppStore.getState();
+  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  store.deleteThread(threadId);
+  if (thread?.remoteServerId && thread.remoteId) {
+    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
+      kind: "delete",
+      threadId: thread.remoteId,
+    });
+    return;
+  }
   void readBridge()
     .closeThread({ threadId })
     .catch(() => undefined);
 }
 
 export function deleteThread(threadId: string, worktreePath?: string, projectId?: string): void {
+  if (findExperimentByThreadId(threadId)) return;
   if (!worktreePath) {
     deleteThreadOnly(threadId);
     return;

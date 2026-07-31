@@ -3,10 +3,6 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { stripAnsi } from "@/shared/ansi";
 import {
-  OPENCODE_BROWSER_MCP_DEFAULT,
-  OPENCODE_BROWSER_MCP_SETTING_KEY,
-} from "@/shared/opencodeSettings";
-import {
   type AgentSlashCommand,
   compactAgentProviderMetadata,
   type AgentCapability,
@@ -63,40 +59,18 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
-  // Browser MCP: no per-thread gating point in either presentation — the TUI
-  // reads install-time global config, and the GUI shares pooled `opencode
-  // serve` processes.
-  //
-  // Subagents GUI is "launch": the structured session hosts the subagents MCP
-  // by acquiring a DEDICATED per-thread `opencode serve` (pool key includes
-  // the thread id) and registering the server dynamically via `client.mcp.add`
-  // (mirroring the browser MCP), so the per-thread bearer token never touches
-  // the GLOBAL `~/.config/opencode/opencode.json` (where it would be clobbered
-  // by the next launch) nor a POOLED server shared by sibling threads (where
-  // it would misattribute their spawns). The dedicated server dies with the
-  // thread. See `opencode/sdkClient.ts` (`dedicatedKey` + `syncSubagentMcp`).
-  //
-  // Subagents TUI stays "none": the terminal TUI reads the same global config,
-  // and an always-present `{env:...}` template entry (the only
-  // per-process-gatable shape, since OpenCode rejects a templated `enabled`)
-  // would pollute the GUI shared-pool servers with a broken empty-URL
-  // `subagents` entry. OpenCode can still be SPAWNED as a subagent — children
-  // run through the SDK session and the run manager's recursion guard never
-  // sets `subagentMcp`.
-  browserMcpScope: { terminal: "none", gui: "none" },
-  subagentMcpScope: { terminal: "none", gui: "launch" },
-  computerUseMcpScope: { terminal: "none", gui: "none" },
-  chromeMcpScope: { terminal: "none", gui: "launch" },
-  settingDefs: [
-    {
-      key: OPENCODE_BROWSER_MCP_SETTING_KEY,
-      type: "toggle",
-      env: {},
-      label: "Use Browser",
-      description: "Expose Poracode's internal browser to OpenCode via MCP.",
-      default: OPENCODE_BROWSER_MCP_DEFAULT,
-    },
-  ],
+  // MCP is provider-level for OpenCode: the composer shows no MCP controls;
+  // built-in server flags come from the OpenCode settings page
+  // (`agentSettings.opencode`) at launch. OpenCode applies that set to each
+  // project directory inside the shared runtime server instead of hosting
+  // per-thread MCP credentials.
+  mcpScope: { terminal: "none", gui: "none" },
+  mcpConfigSource: "agentSettings",
+  // The installed OpenCode plugin injects the trusted provider session id
+  // into Crossagents calls, allowing every directory/session in the pooled
+  // server to share one MCP credential without losing parent-thread routing.
+  crossagentMcpRouting: "provider-session",
+  settingDefs: [],
 };
 
 /**
@@ -458,16 +432,14 @@ export const opencodeDetectionSpec: DetectionSpec = {
     // `opencode serve`). If the server fails to come up — corporate firewall,
     // sandboxed binary, missing libc — fall back to the CLI `models --verbose`
     // parser so the user still sees a usable model list.
-    const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location, ctx.executablePath).catch(
-      (cause) => {
-        console.warn(
-          `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
-            cause instanceof Error ? cause.message : String(cause)
-          }`,
-        );
-        return undefined;
-      },
-    );
+    const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location).catch((cause) => {
+      console.warn(
+        `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
+          cause instanceof Error ? cause.message : String(cause)
+        }`,
+      );
+      return undefined;
+    });
 
     if (sdkInventory) {
       return buildCapabilityPartialFromSdkInventory(sdkInventory);

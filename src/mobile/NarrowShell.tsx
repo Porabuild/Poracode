@@ -11,13 +11,17 @@ import {
   Server,
   Settings2,
 } from "lucide-react";
-import { Outlet, useNavigate } from "@tanstack/react-router";
+import { Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
+import { SubAgentHeaderText } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
 import { ConnectionPill, SheetMenu } from "./components";
+import { NarrowThreadHostProvider } from "./narrowThreadHostContext";
 import { preselectWorktreeDraft, runThreadAction } from "./navHelpers";
+import { ThreadDetail } from "./ThreadDetail";
 import { ThreadTitleRow } from "./ThreadTitleRow";
 import { ThreadUsageIndicator } from "./ThreadUsageIndicator";
 import { useHeldThreadHeader } from "./useHeldThreadHeader";
+import { useLightweightThreadListPop } from "./useLightweightThreadListPop";
 import type { RemoteDesktopSession } from "./useRemoteDesktop";
 import { useSwipeBack } from "./useSwipeBack";
 import type { Chrome } from "./chrome";
@@ -92,13 +96,20 @@ export function NarrowShell(props: {
   readonly searchOpen: boolean;
   readonly onSearchOpenChange: (open: boolean) => void;
   readonly onSearchHostChange: (element: HTMLDivElement | null) => void;
-  readonly chromeHidden: boolean;
 }) {
   const { remote, chrome, pathname } = props;
   const navigate = useNavigate();
+  const router = useRouter();
   const { t } = useLingui();
   const hasActiveDesktop = remote.activeDesktop !== null;
+  const hostedThreadId =
+    chrome.layout === "thread" || chrome.layout === "subagent" ? chrome.threadId : null;
+  const hostedThread = hostedThreadId
+    ? (remote.threads.find((thread) => thread.id === hostedThreadId) ?? null)
+    : null;
+  const subagentCoversThread = chrome.layout === "subagent";
   const shellRef = useRef<HTMLDivElement | null>(null);
+  useLightweightThreadListPop(shellRef, pathname);
   const ignoreSearchClickRef = useRef(false);
   const ignoreSearchClickTimerRef = useRef<number | null>(null);
 
@@ -112,11 +123,26 @@ export function NarrowShell(props: {
   // Edge-swipe back mirrors the header back button: subscreens pop to their
   // parent, a thread pops to the list. Home has nowhere to go; fullscreen
   // routes own their chrome (and their own horizontal gestures).
-  const swipeBackTo =
-    chrome.layout === "thread" ? "/threads" : chrome.layout === "subscreen" ? chrome.backTo : null;
-  useSwipeBack(shellRef, swipeBackTo !== null, () => {
-    if (swipeBackTo) void navigate({ to: swipeBackTo });
-  });
+  const canSwipeBack =
+    chrome.layout === "thread" || chrome.layout === "subscreen" || chrome.layout === "subagent";
+  const navigateBack = () => {
+    if (chrome.layout === "thread") {
+      void navigate({ to: "/threads" });
+    } else if (chrome.layout === "subscreen") {
+      void navigate({ to: chrome.backTo });
+    } else if (chrome.layout === "subagent") {
+      if (router.history.canGoBack()) {
+        router.history.back();
+      } else {
+        void navigate({
+          to: "/thread/$threadId",
+          params: { threadId: chrome.threadId },
+          replace: true,
+        });
+      }
+    }
+  };
+  useSwipeBack(shellRef, canSwipeBack, navigateBack);
 
   const { headerThread, visibleHeldThreadHeader } = useHeldThreadHeader({
     pathname,
@@ -130,21 +156,15 @@ export function NarrowShell(props: {
   // remounts) the routed subtree when the chrome flips between fullscreen and
   // the regular shell. A positional remount would wipe the thread composer's
   // state and hand the view transition a half-mounted page to snapshot.
-  // Fullscreen routes (workspace, PR review, terminal) render their own chrome
-  // as fixed overlays. The shell's top bar stays MOUNTED for them too — the
-  // opaque z-50 overlay covers it, and styles.css hides it with
-  // `visibility: hidden` (which keeps its layout height, so .m-main and the
-  // page beneath never reflow into the status-bar safe zone) and drops the
-  // m-topbar/m-main view-transition-names via [data-chrome="fullscreen"].
+  // For ordinary routes styles.css captures this whole shell as one transition
+  // image, so the header and routed page cannot be composited from different
+  // route states. Fullscreen routes (workspace, PR review, terminal) render
+  // their own fixed overlay and opt the shell out of that transition group.
+  // The shell's top bar stays MOUNTED for them too — the opaque z-50 overlay
+  // covers it, and `visibility: hidden` keeps its layout height so .m-main and
+  // the page beneath never reflow into the status-bar safe zone.
   return (
-    <div
-      className="m-shell"
-      ref={shellRef}
-      data-chrome={chrome.layout}
-      data-chrome-hidden={
-        (chrome.layout === "home" && props.chromeHidden && !props.searchOpen) || undefined
-      }
-    >
+    <div className="m-shell" ref={shellRef} data-chrome={chrome.layout}>
       <header className="m-topbar" data-chrome-layout={chrome.layout}>
         {chrome.layout === "thread" ? (
           <>
@@ -169,12 +189,18 @@ export function NarrowShell(props: {
                 }
                 onNewThreadInWorktree={(input) => {
                   preselectWorktreeDraft(input);
-                  void navigate({ to: "/new" });
+                  void navigate({ to: "/threads" });
                 }}
                 onDeleteWorktreeGroup={(input) => {
                   void remote.deleteWorktreeGroup(input);
                   void navigate({ to: "/threads" });
                 }}
+                onOpenNotes={() =>
+                  void navigate({
+                    to: "/notes/$threadId",
+                    params: { threadId: headerThread.id },
+                  })
+                }
                 onOpenTerminal={() =>
                   void navigate({
                     to: "/terminal/$projectId",
@@ -194,6 +220,13 @@ export function NarrowShell(props: {
               </span>
             )}
             {headerThread ? <ThreadUsageIndicator thread={headerThread} /> : null}
+          </>
+        ) : chrome.layout === "subagent" ? (
+          <>
+            <button className="m-back" type="button" onClick={navigateBack}>
+              <ChevronLeft className="size-5" />
+            </button>
+            <SubAgentHeaderText threadId={chrome.threadId} parentItemId={chrome.parentItemId} />
           </>
         ) : chrome.layout === "subscreen" ? (
           <>
@@ -217,15 +250,13 @@ export function NarrowShell(props: {
                 onPair={() => void navigate({ to: "/desktops" })}
               />
             </div>
+            <div className="m-topbar-search" ref={props.onSearchHostChange} />
           </>
         )}
         {chrome.layout === "home" ? null : (
           <ConnectionControl remote={remote} onPair={() => void navigate({ to: "/desktops" })} />
         )}
       </header>
-      {chrome.layout === "home" ? (
-        <div className="m-topbar-search" ref={props.onSearchHostChange} />
-      ) : null}
       {visibleHeldThreadHeader ? (
         <header
           className="m-topbar m-topbar--transition-hold"
@@ -242,6 +273,7 @@ export function NarrowShell(props: {
             onAction={() => undefined}
             onNewThreadInWorktree={() => undefined}
             onDeleteWorktreeGroup={() => undefined}
+            onOpenNotes={() => undefined}
             onOpenTerminal={() => undefined}
           />
           <ThreadUsageIndicator thread={visibleHeldThreadHeader.thread} />
@@ -250,7 +282,19 @@ export function NarrowShell(props: {
       ) : null}
 
       <main className="m-main">
-        <Outlet />
+        <NarrowThreadHostProvider value>
+          {hostedThreadId ? (
+            <div
+              className="m-thread-route-host"
+              data-covered={subagentCoversThread || undefined}
+              aria-hidden={subagentCoversThread || undefined}
+              {...(subagentCoversThread ? { inert: true } : {})}
+            >
+              <ThreadDetail thread={hostedThread} hideHeader />
+            </div>
+          ) : null}
+          <Outlet />
+        </NarrowThreadHostProvider>
       </main>
       {chrome.layout === "home" ? (
         <div className="m-home-compose-actions">

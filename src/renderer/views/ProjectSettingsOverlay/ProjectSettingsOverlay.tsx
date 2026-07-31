@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
+import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { useAppStore } from "@/renderer/state/appStore";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
@@ -20,6 +21,18 @@ export function ProjectSettingsOverlay(props: { projectId: string; onClose: () =
     (s) => s.projects.find((p) => p.id === projectId)?.name ?? t`Project`,
   );
   const [activeSection, setActiveSection] = useState<ProjectSettingsSection>("general");
+  useProductViewTracking(
+    {
+      key: `project-settings:${activeSection}`,
+      seenEvent: "settings.section_seen",
+      durationEvent: "settings.section_duration",
+      properties: {
+        settings_scope: "project",
+        settings_section: activeSection,
+      },
+    },
+    "project_settings",
+  );
 
   return (
     <PageLayout

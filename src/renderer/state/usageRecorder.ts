@@ -13,7 +13,9 @@ import { readBridge } from "@/renderer/bridge";
  * `RuntimeEvent` stream before they reach here, so this is the single place we
  * derive usage facts - no per-provider splits. Each fact is written to the
  * durable `usage_events` log (no thread FK), with provider/model/mode embedded,
- * so the stats survive thread delete/archive.
+ * so the stats survive thread delete/archive. Token consumption is the one
+ * exception: it is counted by the main-process usage ledger from `usage.spent`
+ * events (kind="tokens_v2"), never here.
  *
  * Writes are buffered and flushed on a debounce (fire-and-forget IPC) so the hot
  * event path is never blocked. This module intentionally does NOT import the app
@@ -33,25 +35,6 @@ const DEDUP_CAP = 20000;
 let buffer: UsageEventInputPayload[] = [];
 let scheduled: { cancel: () => void } | null = null;
 const turnStartByThread = new Map<string, { turnId: string; startedAt: number }>();
-// Cumulative usedTokens per thread, used for the LAG delta. Intentionally NOT
-// cleared per turn: usedTokens is cumulative across a thread's whole life, so
-// resetting it would make the next delta count the full context again. One int
-// per thread that streamed tokens this session - cleared on app restart.
-//
-// Presence (`.has`), not just value, carries meaning. A thread created THIS
-// session is seeded to 0 by recordThreadStarted, so its first context.updated
-// counts the whole new context (delta from 0). A thread RESUMED from a prior
-// session has no entry: its first context.updated reports a context whose
-// tokens were already counted last session, so we only establish the baseline
-// and emit nothing - otherwise the restored context would be double-counted on
-// every restart, inflating lifetime/peak. See the context.updated case below.
-const lastUsedByThread = new Map<string, number>();
-// Token deltas coalesced per provider|model between flushes, so a turn that
-// streams many context.updated events produces ONE row, not dozens.
-const pendingTokens = new Map<
-  string,
-  { provider: string | null; model: string | null; value: number }
->();
 const seenItems = new Set<string>();
 const seenTurns = new Set<string>();
 const pendingItemHits = new Map<string, ItemHit>();
@@ -61,13 +44,6 @@ function flush(): void {
   if (scheduled) {
     scheduled.cancel();
     scheduled = null;
-  }
-  if (pendingTokens.size > 0) {
-    const ts = Date.now();
-    for (const t of pendingTokens.values()) {
-      buffer.push({ ts, kind: "tokens", provider: t.provider, model: t.model, value: t.value });
-    }
-    pendingTokens.clear();
   }
   if (buffer.length === 0) return;
   const events = buffer;
@@ -141,10 +117,10 @@ function metaOf(thread: Thread): Meta {
     // profiles of the same provider is counted separately. The global rollup
     // folds to the base provider at read time.
     provider: thread.agentKind,
-    model: thread.config.model ?? null,
+    model: thread.config?.model ?? null,
     mode: thread.presentationMode === "gui" ? "chat" : "cli",
-    fast: thread.config.fast === true,
-    effort: thread.config.effort ?? null,
+    fast: thread.config?.fast === true,
+    effort: thread.config?.effort ?? null,
   };
 }
 
@@ -301,10 +277,6 @@ export function recordAiAction(type: AiActionType, provider: string, model: stri
 /** Record that a thread was started (provider/model/mode/fast/effort). */
 export function recordThreadStarted(thread: Thread): void {
   const m = metaOf(thread);
-  // Seed the token baseline so this freshly-started thread's first
-  // context.updated counts its initial context as new (delta from 0). Resumed
-  // threads get no seed and are handled in the context.updated case below.
-  if (!lastUsedByThread.has(thread.id)) lastUsedByThread.set(thread.id, 0);
   push({
     ts: Date.now(),
     kind: "thread_started",
@@ -362,7 +334,6 @@ export function recordRuntimeUsage(
   };
 
   const now = Date.now();
-  let tokensTouched = false;
 
   for (const event of events) {
     switch (event.type) {
@@ -390,32 +361,6 @@ export function recordRuntimeUsage(
           }
         }
         turnStartByThread.delete(threadId);
-        break;
-      }
-      case "context.updated": {
-        const used = event.usage.usedTokens;
-        if (typeof used === "number" && used > 0) {
-          // No baseline means this thread was resumed from a prior session: its
-          // usedTokens already reflects context counted then, so only establish
-          // the baseline and emit nothing. Counting delta-from-zero here would
-          // re-add the whole restored context. Threads started this session are
-          // seeded to 0 by recordThreadStarted, so they DO count their first
-          // context.
-          const hasBaseline = lastUsedByThread.has(threadId);
-          const prev = lastUsedByThread.get(threadId) ?? 0;
-          lastUsedByThread.set(threadId, used);
-          const delta = hasBaseline ? Math.max(0, used - prev) : 0;
-          if (delta > 0) {
-            const m = getMeta();
-            if (m) {
-              const key = `${m.provider}|${m.model ?? ""}`;
-              const entry = pendingTokens.get(key);
-              if (entry) entry.value += delta;
-              else pendingTokens.set(key, { provider: m.provider, model: m.model, value: delta });
-              tokensTouched = true;
-            }
-          }
-        }
         break;
       }
       case "item.started": {
@@ -458,6 +403,4 @@ export function recordRuntimeUsage(
         break;
     }
   }
-
-  if (tokensTouched) scheduleFlush();
 }

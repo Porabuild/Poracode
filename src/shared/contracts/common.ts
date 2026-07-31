@@ -93,16 +93,19 @@ export const projectLocationSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("windows"),
     path: z.string().min(1),
+    remoteServerId: z.string().min(1).optional(),
   }),
   z.object({
     kind: z.literal("wsl"),
     distro: z.string().min(1),
     linuxPath: z.string().min(1),
     uncPath: z.string().min(1),
+    remoteServerId: z.string().min(1).optional(),
   }),
   z.object({
     kind: z.literal("posix"),
     path: z.string().min(1),
+    remoteServerId: z.string().min(1).optional(),
   }),
 ]);
 export type ProjectLocation = z.infer<typeof projectLocationSchema>;

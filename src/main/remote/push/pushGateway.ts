@@ -1,14 +1,16 @@
 /**
  * Client for the hosted push gateway. The desktop cannot talk to APNs directly
  * (that needs the team's `.p8` auth key, which can't ship in the app), so a
- * small stateless gateway holds the key and forwards to `api.push.apple.com`.
- * We POST `{ token, pushType, payload, priority, ... }` to `<gatewayUrl>/api/push`
- * and relay the status so the caller can prune tokens on APNs `410`.
+ * small stateless gateway holds provider credentials and forwards to APNs, FCM,
+ * or a standards-based Web Push service. We relay provider status so callers
+ * can prune expired registrations.
  */
+
+import type { RemoteWebPushSubscription } from "@/shared/remote";
 
 /** Production gateway origin (co-hosted with the marketing site / PWA). The
  * canonical domain is `website/src/lib/seo.ts` `SITE_URL`. */
-const DEFAULT_PUSH_GATEWAY_URL = "https://poracodeapp.com";
+const DEFAULT_PUSH_GATEWAY_URL = "https://poracode.com";
 
 /** Resolve the gateway origin: env override, else the production default. */
 export function resolvePushGatewayUrl(): string {
@@ -16,7 +18,7 @@ export function resolvePushGatewayUrl(): string {
   return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_PUSH_GATEWAY_URL;
 }
 
-export interface SendPushInput {
+interface NativeSendPushInput {
   /** APNs token: device token (alert) or activity/push-to-start token (liveactivity). */
   readonly token: string;
   /**
@@ -37,11 +39,24 @@ export interface SendPushInput {
   readonly expiration?: number;
 }
 
+interface WebSendPushInput {
+  readonly platform: "web";
+  readonly subscription: RemoteWebPushSubscription;
+  readonly pushType: "alert";
+  /** `{ title, body, threadId, url }`, displayed by the PWA service worker. */
+  readonly payload: unknown;
+  readonly priority?: number;
+  readonly collapseId?: string;
+  readonly expiration?: number;
+}
+
+export type SendPushInput = NativeSendPushInput | WebSendPushInput;
+
 export interface SendPushResult {
   readonly ok: boolean;
-  /** HTTP status from the gateway (relaying APNs); `0` on a network error. */
+  /** HTTP status from the gateway/provider; `0` on a network error. */
   readonly status: number;
-  /** APNs reported the token is no longer valid (410 Unregistered) — prune it. */
+  /** The provider reported the registration is gone (404/410) — prune it. */
   readonly unregistered: boolean;
   readonly reason?: string;
 }
@@ -56,7 +71,7 @@ type FetchLike = (
     body?: string;
     signal?: AbortSignal;
   },
-) => Promise<{ ok: boolean; status: number }>;
+) => Promise<{ ok: boolean; status: number; json?: () => Promise<unknown> }>;
 
 export interface CreatePushGatewayOptions {
   /** Gateway origin; defaults to {@link resolvePushGatewayUrl}. */
@@ -65,11 +80,111 @@ export interface CreatePushGatewayOptions {
   readonly fetchImpl?: FetchLike;
   /** Per-request timeout; defaults to 10s. */
   readonly timeoutMs?: number;
-  /** Structured-log sink for gateway failures. */
+  /**
+   * Non-transient diagnostic sink. Receives only bounded, privacy-safe
+   * malformed-response failures; raw transport errors, transient operational
+   * outcomes, and request data are never forwarded.
+   */
   readonly onError?: (error: unknown) => void;
+  /** Injectable clock and reporting window for deterministic tests. */
+  readonly now?: () => number;
+  readonly operationalReportIntervalMs?: number;
 }
 
 const DEFAULT_GATEWAY_TIMEOUT_MS = 10_000;
+const DEFAULT_OPERATIONAL_REPORT_INTERVAL_MS = 15 * 60 * 1_000;
+const TRANSIENT_GATEWAY_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+type PushGatewayOperation = "send" | "resolve-web-key";
+type PushGatewayOutcome = "network-error" | "timeout" | "transient-response" | "invalid-response";
+
+class PushGatewayOperationalError extends Error {
+  constructor(
+    readonly operation: PushGatewayOperation,
+    readonly outcome: PushGatewayOutcome,
+    readonly platform: SendPushInput["platform"] | "none",
+    readonly status: number,
+  ) {
+    const transient = outcome !== "invalid-response";
+    super(`Remote push ${operation} ${transient ? "warning" : "failed"}: ${outcome}.`);
+    this.name = transient ? "PushGatewayOperationalWarning" : "PushGatewayDiagnosticError";
+  }
+}
+
+function classifyTransportOutcome(error: unknown): PushGatewayOutcome {
+  const code =
+    typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+      ? error.code.toUpperCase()
+      : null;
+  if (
+    (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) ||
+    code === "ETIMEDOUT"
+  ) {
+    return "timeout";
+  }
+  return "network-error";
+}
+
+function createOperationalReporter(options: CreatePushGatewayOptions) {
+  const lastReports = new Map<string, number>();
+  const now = options.now ?? Date.now;
+  const interval = options.operationalReportIntervalMs ?? DEFAULT_OPERATIONAL_REPORT_INTERVAL_MS;
+  return (
+    operation: PushGatewayOperation,
+    outcome: PushGatewayOutcome,
+    platform: SendPushInput["platform"] | "none",
+    status: number,
+  ): void => {
+    const key = `${operation}:${outcome}:${platform}:${status}`;
+    const timestamp = now();
+    const lastReport = lastReports.get(key);
+    if (lastReport !== undefined && timestamp - lastReport < interval) return;
+    lastReports.set(key, timestamp);
+    const diagnostic = new PushGatewayOperationalError(operation, outcome, platform, status);
+    if (outcome === "invalid-response") {
+      options.onError?.(diagnostic);
+      return;
+    }
+    console.warn(`[poracode] ${diagnostic.message}`);
+  };
+}
+
+interface GatewayTransport {
+  /** Absolute `/api/push` URL on the resolved gateway origin. */
+  readonly endpoint: string;
+  /** Run one request against the gateway, aborting it after the timeout. */
+  request(init: {
+    method: string;
+    headers?: Record<string, string>;
+    body?: string;
+  }): Promise<{ ok: boolean; status: number; json?: () => Promise<unknown> }>;
+}
+
+/**
+ * Resolve the gateway origin, fetch impl, and timeout once, and expose a
+ * timeout-guarded request runner. Shared by {@link createPushGateway} and
+ * {@link createWebPushPublicKeyResolver} so the `/api/push` URL and the
+ * abort/timeout dance have one source of truth. `/api/push` is root-absolute,
+ * so only `base`'s origin matters (no trailing-slash fixup needed).
+ */
+function createGatewayTransport(options: CreatePushGatewayOptions): GatewayTransport {
+  const base = options.gatewayUrl ?? resolvePushGatewayUrl();
+  const doFetch: FetchLike = options.fetchImpl ?? ((url, init) => fetch(url, init as RequestInit));
+  const timeoutMs = options.timeoutMs ?? DEFAULT_GATEWAY_TIMEOUT_MS;
+  const endpoint = new URL("/api/push", base).toString();
+  return {
+    endpoint,
+    async request(init) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await doFetch(endpoint, { ...init, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  };
+}
 
 /**
  * Builds a {@link SendPush} that posts to the gateway. It never throws: network
@@ -77,20 +192,17 @@ const DEFAULT_GATEWAY_TIMEOUT_MS = 10_000;
  * coordinator can decide whether to prune (410) or ignore (transient).
  */
 export function createPushGateway(options: CreatePushGatewayOptions = {}): SendPush {
-  const base = options.gatewayUrl ?? resolvePushGatewayUrl();
-  const doFetch: FetchLike = options.fetchImpl ?? ((url, init) => fetch(url, init as RequestInit));
-  const timeoutMs = options.timeoutMs ?? DEFAULT_GATEWAY_TIMEOUT_MS;
-  const endpoint = new URL("/api/push", base.endsWith("/") ? base : `${base}/`).toString();
-
+  const transport = createGatewayTransport(options);
+  const reportOperationalIssue = createOperationalReporter(options);
   return async (input: SendPushInput): Promise<SendPushResult> => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await doFetch(endpoint, {
+      const response = await transport.request({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          token: input.token,
+          ...(input.platform === "web"
+            ? { subscription: input.subscription }
+            : { token: input.token }),
           platform: input.platform,
           pushType: input.pushType,
           payload: input.payload,
@@ -98,23 +210,87 @@ export function createPushGateway(options: CreatePushGatewayOptions = {}): SendP
           ...(input.collapseId ? { collapseId: input.collapseId } : {}),
           ...(input.expiration !== undefined ? { expiration: input.expiration } : {}),
         }),
-        signal: controller.signal,
       });
+      if (TRANSIENT_GATEWAY_STATUSES.has(response.status)) {
+        reportOperationalIssue("send", "transient-response", input.platform, response.status);
+      } else if (!response.ok && response.status !== 404 && response.status !== 410) {
+        reportOperationalIssue("send", "invalid-response", input.platform, response.status);
+      }
       return {
         ok: response.ok,
         status: response.status,
-        unregistered: response.status === 410,
+        unregistered:
+          response.status === 410 || (input.platform === "web" && response.status === 404),
       };
     } catch (error) {
-      options.onError?.(error);
+      const outcome = classifyTransportOutcome(error);
+      reportOperationalIssue("send", outcome, input.platform, 0);
       return {
         ok: false,
         status: 0,
         unregistered: false,
-        reason: error instanceof Error ? error.message : String(error),
+        reason: outcome === "timeout" ? "Gateway request timed out." : "Gateway request failed.",
       };
-    } finally {
-      clearTimeout(timer);
     }
+  };
+}
+
+export type ResolveWebPushPublicKey = () => Promise<string>;
+
+/**
+ * Resolves the public VAPID application-server key from the hosted gateway.
+ * The desktop proxies this public value to authenticated mobile clients so
+ * hosted, relayed, and local PWAs use one subscription key.
+ */
+export function createWebPushPublicKeyResolver(
+  options: CreatePushGatewayOptions = {},
+): ResolveWebPushPublicKey {
+  const transport = createGatewayTransport(options);
+  const reportOperationalIssue = createOperationalReporter(options);
+  const fetchPublicKey = async (): Promise<string> => {
+    try {
+      const response = await transport.request({ method: "GET" });
+      if (!response.ok || !response.json) {
+        reportOperationalIssue(
+          "resolve-web-key",
+          TRANSIENT_GATEWAY_STATUSES.has(response.status)
+            ? "transient-response"
+            : "invalid-response",
+          "web",
+          response.status,
+        );
+        throw new Error(`Web Push config request failed with status ${response.status}.`);
+      }
+      const body = (await response.json()) as { publicKey?: unknown };
+      if (typeof body.publicKey !== "string" || body.publicKey.length === 0) {
+        reportOperationalIssue("resolve-web-key", "invalid-response", "web", response.status);
+        throw new Error("Web Push config response did not include a public key.");
+      }
+      return body.publicKey;
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        (!error.message.startsWith("Web Push config request failed") &&
+          error.message !== "Web Push config response did not include a public key.")
+      ) {
+        reportOperationalIssue("resolve-web-key", classifyTransportOutcome(error), "web", 0);
+      }
+      throw error;
+    }
+  };
+
+  // The public VAPID key is constant for the gateway, but the config endpoint
+  // is hit on every `/api/push/config` request and on every client reconnect.
+  // Cache the resolved (or in-flight) promise so those collapse into one fetch;
+  // drop it on failure so a transient error still retries on the next call.
+  let cached: Promise<string> | null = null;
+  return () => {
+    if (!cached) {
+      cached = fetchPublicKey().catch((error) => {
+        cached = null;
+        throw error;
+      });
+    }
+    return cached;
   };
 }

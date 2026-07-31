@@ -79,6 +79,12 @@ export function AgentEnvironmentRow(props: {
    * status's own `providerMetadata` for the summary line.
    */
   accountMetadata?: AgentProviderMetadata | undefined;
+  /**
+   * Plan label read from the provider's live usage snapshot. Takes precedence
+   * over the detected `providerMetadata.plan`, which snapshots the plan at
+   * sign-in time and goes stale when the user changes subscription.
+   */
+  livePlan?: string | undefined;
 }) {
   const { t } = useLingui();
   const { status, authMethods } = props;
@@ -103,7 +109,12 @@ export function AgentEnvironmentRow(props: {
     props.accountMetadata && isAuthenticated
       ? { ...status, providerMetadata: props.accountMetadata }
       : status,
-    { includeAuthFallback: props.includeAuthFallback },
+    {
+      includeAuthFallback: props.includeAuthFallback,
+      // Same gate as `accountMetadata`: usage is collected for the signed-in
+      // account, so a row awaiting its own login must not borrow that plan.
+      ...(isAuthenticated && props.livePlan ? { livePlan: props.livePlan } : {}),
+    },
   );
 
   const installedVer = status.version;

@@ -3,8 +3,15 @@ import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  getRunningExperimentCandidateIds,
+  useExperimentStore,
+} from "@/renderer/state/experimentStore";
+import { recoverExperimentCandidateWorktrees } from "@/renderer/state/experimentHydration";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { bootstrapWorkspaces } from "@/renderer/state/workspaceStore";
+import { startPrMergeAutoDone } from "@/renderer/state/prMergeAutoDone";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 
 interface IdleCallbackHandle {
@@ -30,22 +37,37 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   const view = useAppStore((state) => state.view);
 
   const [initialLoading, setInitialLoading] = useState(true);
-  const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
+  const [appStoreHydrated, setAppStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
+  const [experimentStoreHydrated, setExperimentStoreHydrated] = useState(() =>
+    useExperimentStore.persist.hasHydrated(),
+  );
+  const storeHydrated = appStoreHydrated && experimentStoreHydrated;
   const [loadT0] = useState(() => Date.now());
 
   useEffect(() => {
     const unsubscribeHydrate = useAppStore.persist.onHydrate(() => {
-      setStoreHydrated(false);
+      setAppStoreHydrated(false);
     });
     const unsubscribeFinishHydration = useAppStore.persist.onFinishHydration(() => {
-      setStoreHydrated(true);
+      setAppStoreHydrated(true);
     });
+    const unsubscribeExperimentHydrate = useExperimentStore.persist.onHydrate(() => {
+      setExperimentStoreHydrated(false);
+    });
+    const unsubscribeExperimentFinishHydration = useExperimentStore.persist.onFinishHydration(
+      () => {
+        setExperimentStoreHydrated(true);
+      },
+    );
 
-    setStoreHydrated(useAppStore.persist.hasHydrated());
+    setAppStoreHydrated(useAppStore.persist.hasHydrated());
+    setExperimentStoreHydrated(useExperimentStore.persist.hasHydrated());
 
     return () => {
       unsubscribeHydrate();
       unsubscribeFinishHydration();
+      unsubscribeExperimentHydrate();
+      unsubscribeExperimentFinishHydration();
     };
   }, []);
 
@@ -56,21 +78,44 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     }
 
     let isActive = true;
-    const restoredView = useAppStore.getState().view;
+    const appState = useAppStore.getState();
+    const experimentStore = useExperimentStore.getState();
+    experimentStore.reconcileExperiments(new Set(appState.projects.map((project) => project.id)));
+    const restoredView = appState.view;
+    if (
+      restoredView.kind === "experiment" &&
+      !useExperimentStore.getState().experiments[restoredView.experimentId]
+    ) {
+      appState.openHome();
+    }
     console.log(
       `[renderer] +${Date.now() - loadT0}ms: store hydrated, view=${JSON.stringify(restoredView)}, ${useAppStore.getState().projects.length} projects, ${useAppStore.getState().threads.length} threads`,
     );
 
-    if (!runtimeOwner) {
-      setInitialLoading(false);
-      return;
+    // Seed default workspaces and file pre-existing projects. Runtime-owner
+    // only: a remote client must not decide how the desktop's projects are
+    // grouped. Projects are hydrated by now, so nothing is missed.
+    if (runtimeOwner) {
+      void bootstrapWorkspaces().catch((error: unknown) => {
+        captureRendererException(error, { featureArea: "hydration" });
+      });
     }
 
     void (async () => {
+      const candidateRecovery = recoverExperimentCandidateWorktrees();
+      if (candidateRecovery) await candidateRecovery;
+      if (!isActive) return;
+      if (!runtimeOwner) {
+        setInitialLoading(false);
+        return;
+      }
+
       startTransition(() => {
         markThreadsInactiveOnLaunch();
         purgeStaleArchivedThreads(30);
       });
+
+      const snapshotsPromise = readBridge().getThreadSnapshots();
 
       const visibleGuiThreadIds = collectVisibleGuiThreadIds();
       if (visibleGuiThreadIds.length > 0) {
@@ -80,32 +125,13 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
       }
 
       if (!isActive) return;
-      startTransition(() => {
-        console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
-        setInitialLoading(false);
-      });
-    })();
-
-    const idleHandle = scheduleIdle(() => {
-      if (!isActive) return;
-      const days = useSharedSettings.getState().autoArchiveDoneAfterDays;
-      if (days > 0) {
-        startTransition(() => {
-          archiveOldDoneThreads(days);
-        });
-      }
-    });
-
-    void readBridge()
-      .getThreadSnapshots()
-      .then((snapshots) => {
-        if (!isActive) {
-          return;
-        }
+      try {
+        const snapshots = await snapshotsPromise;
+        if (!isActive) return;
 
         const currentView = useAppStore.getState().view;
-        const selectedIds = new Set(currentView.kind === "thread" ? currentView.panes : []);
-        const storeThreadIds = new Set(useAppStore.getState().threads.map((t) => t.id));
+        const selectedIds = collectRetainedThreadIds(currentView);
+        const storeThreadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
 
         for (const snapshot of snapshots) {
           if (!selectedIds.has(snapshot.threadId) && storeThreadIds.has(snapshot.threadId)) {
@@ -119,17 +145,56 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
         startTransition(() => {
           reconcileRuntimeSnapshots(
-            selectedIds.size > 0 ? snapshots.filter((s) => selectedIds.has(s.threadId)) : [],
+            selectedIds.size > 0
+              ? snapshots.filter((snapshot) => selectedIds.has(snapshot.threadId))
+              : [],
           );
+          console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
+          setInitialLoading(false);
         });
-      })
-      .catch((error: unknown) => {
+      } catch (error) {
         captureRendererException(error, { featureArea: "hydration" });
-      });
+        if (!isActive) return;
+        startTransition(() => {
+          const candidateIds = getRunningExperimentCandidateIds();
+          for (const threadId of candidateIds) {
+            const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+            if (thread?.status === "inactive") {
+              updateThreadRuntime(threadId, {
+                status: "launching",
+                attention: "none",
+                canResumeWithConfig: thread.canResumeWithConfig,
+              });
+            }
+          }
+          console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
+          setInitialLoading(false);
+        });
+      }
+    })();
+
+    if (!runtimeOwner) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    const idleHandle = scheduleIdle(() => {
+      if (!isActive) return;
+      const days = useSharedSettings.getState().autoArchiveDoneAfterDays;
+      if (days > 0) {
+        startTransition(() => {
+          archiveOldDoneThreads(days);
+        });
+      }
+    });
+
+    const stopPrMergeAutoDone = startPrMergeAutoDone();
 
     return () => {
       isActive = false;
       idleHandle.cancel();
+      stopPrMergeAutoDone();
     };
   }, [
     loadT0,
@@ -137,6 +202,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     purgeStaleArchivedThreads,
     archiveOldDoneThreads,
     reconcileRuntimeSnapshots,
+    updateThreadRuntime,
     runtimeOwner,
     storeHydrated,
   ]);
@@ -150,11 +216,21 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     void readBridge()
       .getThreadSnapshots()
       .then((snapshots) => {
-        if (cancelled || snapshots.length === 0) {
-          return;
-        }
+        if (cancelled) return;
+        const snapshotIds = new Set(snapshots.map((snapshot) => snapshot.threadId));
         for (const snapshot of snapshots) {
           updateThreadRuntime(snapshot.threadId, snapshot);
+        }
+        for (const threadId of getRunningExperimentCandidateIds()) {
+          if (snapshotIds.has(threadId)) continue;
+          const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+          if (thread?.status === "launching") {
+            updateThreadRuntime(threadId, {
+              status: "inactive",
+              attention: "none",
+              canResumeWithConfig: thread.canResumeWithConfig,
+            });
+          }
         }
       })
       .catch((error: unknown) => {
@@ -184,8 +260,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
 function collectVisibleGuiThreadIds(): string[] {
   const state = useAppStore.getState();
-  if (state.view.kind !== "thread") return [];
-  const visibleThreadIds = new Set(state.view.panes);
+  const visibleThreadIds = collectRetainedThreadIds(state.view);
   return state.threads
     .filter(
       (thread) =>
@@ -194,4 +269,17 @@ function collectVisibleGuiThreadIds(): string[] {
         !isThreadTurnActive(thread.status),
     )
     .map((thread) => thread.id);
+}
+
+function collectRetainedThreadIds(
+  view: ReturnType<typeof useAppStore.getState>["view"],
+): Set<string> {
+  const retained = getRunningExperimentCandidateIds();
+  if (view.kind === "thread") {
+    for (const threadId of view.panes) retained.add(threadId);
+  } else if (view.kind === "experiment") {
+    const experiment = useExperimentStore.getState().experiments[view.experimentId];
+    for (const candidate of experiment?.candidates ?? []) retained.add(candidate.threadId);
+  }
+  return retained;
 }

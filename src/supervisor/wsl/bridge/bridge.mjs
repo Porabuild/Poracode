@@ -580,11 +580,12 @@ function writeNewFileHandler(req, body) {
   return { status: 200, data: { mtimeMs: st.mtimeMs, size: st.size } };
 }
 
-function git(args, cwd, env) {
+function git(args, cwd, env, input) {
   return execFileSync("git", args, {
     cwd,
     env: { ...sanitizeGitEnv(process.env), GIT_OPTIONAL_LOCKS: "0", ...(env ?? {}) },
     encoding: "utf8",
+    ...(input !== undefined ? { input } : {}),
     maxBuffer: 50 * 1024 * 1024,
   });
 }
@@ -857,16 +858,9 @@ function gitCheckpointSnapshotHandler(req, body) {
       git(["add", "-A", "--", "."], projectRoot, env);
       const tree = git(["write-tree"], projectRoot, env).trim();
       const head = gitMaybe(["rev-parse", "--verify", "HEAD"], projectRoot);
-      const commitArgs = [
-        "commit-tree",
-        tree,
-        ...(head ? ["-p", head] : []),
-        "-m",
-        "Poracode checkpoint",
-        "-m",
-        JSON.stringify(body.metadata),
-      ];
-      const commit = git(commitArgs, projectRoot, env).trim();
+      const commitArgs = ["commit-tree", tree, ...(head ? ["-p", head] : []), "-F", "-"];
+      const message = `Poracode checkpoint\n\n${JSON.stringify(body.metadata)}\n`;
+      const commit = git(commitArgs, projectRoot, env, message).trim();
       git(["update-ref", body.ref, commit], projectRoot);
       return { status: 200, data: { commit } };
     } finally {

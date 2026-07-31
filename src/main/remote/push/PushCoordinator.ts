@@ -173,26 +173,32 @@ export class PushCoordinator {
     const causedEnd = hadAnyActive && !hasAnyActive;
 
     const changed = status !== prevStatus;
+    const suppressNotification = event.forceCloseActiveTurn === true;
     const attentionAlert =
-      changed && ATTENTION_STATUSES.has(status)
+      changed && !suppressNotification && ATTENTION_STATUSES.has(status)
         ? this.alertContent(event.threadId, status)
         : undefined;
     const urgent = causedStart || causedEnd || attentionAlert !== undefined;
 
     // iOS: aggregate desktop-session Live Activity sync per device.
     for (const reg of this.options.store.list()) {
-      if (reg.platform === "android") continue;
+      if (reg.platform !== "ios") continue;
       this.scheduleDeviceSync(reg.deviceId, urgent, attentionAlert);
     }
 
     // iOS: ordinary alert pushes on attention / terminal transitions.
-    if (changed && ALERT_STATUSES.has(status)) {
+    if (changed && !suppressNotification && ALERT_STATUSES.has(status)) {
       void this.sendAlertPushes(event.threadId, status).catch(() => {});
     }
 
     // Android: per-thread replaceable status notification (no Live Activity).
     if (changed) {
-      this.handleAndroidTransition(event.threadId, status, event.errorMessage);
+      this.handleAndroidTransition(
+        event.threadId,
+        status,
+        event.errorMessage,
+        suppressNotification,
+      );
     }
   }
 
@@ -207,9 +213,13 @@ export class PushCoordinator {
     threadId: string,
     status: ThreadStatus,
     errorMessage: string | undefined,
+    suppressNotification: boolean,
   ): void {
     const spec = androidStatusFor(status, errorMessage);
-    if (!spec) return;
+    if (suppressNotification || !spec) {
+      this.clearAndroidTimersForThread(threadId);
+      return;
+    }
     const payload = buildAndroidStatusPayload({
       title: this.androidTitle(threadId),
       body: spec.body,
@@ -224,6 +234,14 @@ export class PushCoordinator {
         void this.sendAndroidPush(reg.deviceId, token, payload, spec.priority).catch(() => {});
       } else {
         this.scheduleAndroidPush(reg.deviceId, threadId, token, payload, spec.priority);
+      }
+    }
+  }
+
+  private clearAndroidTimersForThread(threadId: string): void {
+    for (const reg of this.options.store.list()) {
+      if (reg.platform === "android") {
+        this.clearAndroidTimer(reg.deviceId, threadId);
       }
     }
   }
@@ -309,7 +327,7 @@ export class PushCoordinator {
     alert: AlertContent | undefined,
   ): Promise<void> {
     const reg = this.options.store.get(deviceId);
-    if (!reg || reg.platform === "android") return;
+    if (!reg || reg.platform !== "ios") return;
     const active = [...this.activeThreads.values()];
     const contentState = buildContentState(active, this.options.getSettings().redactContent);
     const now = this.now();
@@ -395,7 +413,29 @@ export class PushCoordinator {
     await Promise.all(
       this.options.store.list().map(async (reg) => {
         // Android devices get their own status notifications (handleAndroidTransition).
-        if (reg.platform === "android" || !reg.deviceToken) return;
+        if (reg.platform === "android") return;
+        if (reg.platform === "web") {
+          if (!reg.webPushSubscription || !reg.webAppBasePath) return;
+          const basePath = reg.webAppBasePath === "/" ? "" : reg.webAppBasePath.replace(/\/$/, "");
+          const result = await this.options.sendPush({
+            platform: "web",
+            pushType: "alert",
+            subscription: reg.webPushSubscription,
+            payload: {
+              title: content.title,
+              body: content.body,
+              threadId,
+              url: `${basePath}/thread/${encodeURIComponent(threadId)}`,
+            },
+            priority: 10,
+            collapseId: threadId,
+          });
+          if (result.unregistered) {
+            this.options.store.removeToken(reg.deviceId, { kind: "web" });
+          }
+          return;
+        }
+        if (!reg.deviceToken) return;
         const result = await this.options.sendPush({
           token: reg.deviceToken,
           platform: "ios",

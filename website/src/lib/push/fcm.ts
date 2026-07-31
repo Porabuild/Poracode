@@ -1,6 +1,6 @@
 import type { FcmConfig } from "./config";
 import { getAccessToken } from "./googleAuth";
-import type { PushRequest } from "./validate";
+import type { AndroidPushRequest } from "./validate";
 
 /**
  * FCM HTTP v1 transport. Builds a **notification** message (the OS renders it
@@ -48,7 +48,7 @@ export interface FcmMessage {
  * (both = collapseId) coalesce/replace a thread's successive status pushes.
  * `silent` maps to a low notification priority (a quiet tray update).
  */
-export function buildFcmMessage(req: PushRequest): FcmMessage {
+export function buildFcmMessage(req: AndroidPushRequest): FcmMessage {
   const { title, body, silent } = req.payload as {
     title: string;
     body: string;
@@ -154,7 +154,7 @@ export interface SendToFcmDeps {
  */
 export async function sendToFcm(
   config: FcmConfig,
-  req: PushRequest,
+  req: AndroidPushRequest,
   deps: SendToFcmDeps = {},
 ): Promise<FcmResult> {
   const getToken = deps.getToken ?? getAccessToken;

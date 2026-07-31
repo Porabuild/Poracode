@@ -39,7 +39,7 @@ export function ConfirmDialog(props: {
           </AlertDialog.Header>
           <AlertDialog.Body>{body}</AlertDialog.Body>
           <AlertDialog.Footer>
-            <Button slot="close" variant="tertiary">
+            <Button slot="close" variant="ghost" className="text-muted">
               {resolvedCancelLabel}
             </Button>
             <Button variant={confirmVariant} onPress={onConfirm}>

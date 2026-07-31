@@ -40,6 +40,16 @@ export const canonicalRequestTypeSchema = z.enum([
 ]);
 export type CanonicalRequestType = z.infer<typeof canonicalRequestTypeSchema>;
 
+/**
+ * Runtime item type used to persist an open agent request (approval/question)
+ * alongside the transcript. Requests are ephemeral runtime state and never
+ * render as a chat row, but persisting the open one lets a remote client
+ * recover the pending prompt from a thread snapshot after it missed the live
+ * `request.opened` broadcast. The type deliberately contains "request" so the
+ * snapshot recovery path (`requestsFromRuntimeItems`) recognizes it.
+ */
+export const RUNTIME_REQUEST_ITEM_TYPE = "pending_request";
+
 export const runtimeContentStreamKindSchema = z.enum([
   "assistant_text",
   "reasoning_text",
@@ -52,6 +62,7 @@ export type RuntimeContentStreamKind = z.infer<typeof runtimeContentStreamKindSc
 export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), text: z.string() }),
   z.object({ kind: z.literal("skill"), name: z.string(), invocation: z.string() }),
+  z.object({ kind: z.literal("mcp"), name: z.string() }),
   z.object({
     kind: z.literal("diff_comment"),
     path: z.string(),
@@ -72,6 +83,7 @@ export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
     kind: z.literal("file"),
     path: z.string(),
     name: z.string().optional(),
+    mimeType: z.string().optional(),
     source: z.enum(["attachment", "mention"]).optional(),
   }),
 ]);
@@ -103,16 +115,31 @@ export const planItemPayloadSchema = z.object({
 });
 export type PlanItemPayload = z.infer<typeof planItemPayloadSchema>;
 
-export const goalStatusSchema = z.enum(["active", "paused", "budget_limited", "complete"]);
+export const goalStatusSchema = z.enum([
+  "active",
+  "paused",
+  "budget_limited",
+  "complete",
+  "failed",
+  "cancelled",
+]);
 export type GoalStatus = z.infer<typeof goalStatusSchema>;
+
+export const goalControlActionSchema = z.enum(["edit", "pause", "resume", "clear"]);
+export type GoalControlAction = z.infer<typeof goalControlActionSchema>;
 
 export const goalItemPayloadSchema = z.object({
   action: z.enum(["set", "updated", "cleared", "viewed"]).optional(),
   objective: z.string().optional(),
   status: goalStatusSchema.optional(),
+  availableActions: z.array(goalControlActionSchema).optional(),
   tokenBudget: z.number().int().nonnegative().nullable().optional(),
   tokensUsed: z.number().int().nonnegative().optional(),
   timeUsedSeconds: z.number().nonnegative().optional(),
+  /** Number of completed goal evaluations that reported "not yet met". */
+  iterations: z.number().int().nonnegative().optional(),
+  /** The goal evaluator's most recent reason for its met / not-met verdict. */
+  lastReason: z.string().optional(),
   providerThreadId: z.string().optional(),
   updatedAt: z.number().optional(),
 });
@@ -188,6 +215,34 @@ export const acpToolLocationSchema = z.object({
 });
 export type AcpToolLocation = z.infer<typeof acpToolLocationSchema>;
 
+/**
+ * Structured launch metadata for an orchestration workflow (e.g. Claude Code's
+ * `Workflow` tool). Normalized at the provider boundary from the provider's
+ * structured tool result so the renderer can locate the run manifest and
+ * transcripts without parsing free-form result text.
+ */
+export const toolCallWorkflowSchema = z.object({
+  /** Workflow name from the script's meta block. */
+  name: z.string().optional(),
+  /** Run identifier (e.g. `wf_<hash>`), also the manifest file stem. */
+  runId: z.string().optional(),
+  /** Human summary/description of what the workflow does. */
+  summary: z.string().optional(),
+  /** Directory holding the per-agent transcript files for this run. */
+  transcriptDir: z.string().optional(),
+  /** Path to the persisted workflow script for this invocation. */
+  scriptPath: z.string().optional(),
+  /**
+   * Ordered distinct live progress descriptions observed while the run is in
+   * flight (e.g. "Verify: verify:file.ts"). The run manifest is only written
+   * at completion, so these are the sole live source of agent labels/phases —
+   * the renderer pairs them with journal-ordered agents until the manifest
+   * takes over.
+   */
+  liveDescriptions: z.array(z.string()).optional(),
+});
+export type ToolCallWorkflow = z.infer<typeof toolCallWorkflowSchema>;
+
 export const toolCallPayloadSchema = z.object({
   name: z.string(),
   title: z.string().optional(),
@@ -207,6 +262,8 @@ export const toolCallPayloadSchema = z.object({
   status: toolCallStatusSchema,
   progress: toolCallProgressSchema.optional(),
   isSubAgent: z.boolean().optional(),
+  isCrossagent: z.boolean().optional(),
+  workflow: toolCallWorkflowSchema.optional(),
 });
 export type ToolCallPayload = z.infer<typeof toolCallPayloadSchema>;
 
@@ -259,6 +316,38 @@ export const threadContextUsageSchema = z.object({
   breakdown: z.array(contextUsageBreakdownEntrySchema).optional(),
 });
 export type ThreadContextUsage = z.infer<typeof threadContextUsageSchema>;
+
+/**
+ * Provider-reported token CONSUMPTION, kept strictly separate from
+ * `context.updated` (which carries context-window occupancy for the dock).
+ * Adapters normalize their native usage payloads into this shape; the
+ * main-process usage ledger is the only consumer that persists it.
+ *
+ * - `counterKind: "cumulative"` — `counter` is an absolute, monotonically
+ *   increasing total for the scope `(provider, scopeId, epoch)` (e.g. Codex
+ *   `total_token_usage.total_tokens`). The ledger counts increases, ignores
+ *   equal/lower values (out-of-order safe); resets are signalled by bumping
+ *   `epoch`, never inferred from a counter decrease.
+ * - `counterKind: "per-call"` — `counter` is one API call's total
+ *   (e.g. Claude assistant-message usage). The ledger sums these; `sampleId`
+ *   gives exact-once dedup across replays.
+ * `scopeId` is the PROVIDER-side scope (session/thread id), not the Poracode
+ * thread id, so resume/fork semantics stay explicit. `fresh: true` marks a
+ * scope the adapter knows was just created (baseline 0); otherwise the first
+ * sample in a scope+epoch establishes the baseline and counts nothing.
+ */
+export const usageSpentSchema = z.object({
+  counterKind: z.enum(["cumulative", "per-call"]),
+  counter: z.number().int().nonnegative(),
+  scopeId: z.string().min(1),
+  epoch: z.number().int().nonnegative(),
+  fresh: z.boolean().optional(),
+  sampleId: z.string().min(1),
+  turnId: z.string().optional(),
+  occurredAt: z.number().int().nonnegative().optional(),
+  model: z.string().optional(),
+});
+export type UsageSpent = z.infer<typeof usageSpentSchema>;
 
 // ── Request payloads ─────────────────────────────────────────────────
 
@@ -429,6 +518,11 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     type: z.literal("context.updated"),
     threadId: z.string(),
     usage: threadContextUsageSchema,
+  }),
+  z.object({
+    type: z.literal("usage.spent"),
+    threadId: z.string(),
+    usage: usageSpentSchema,
   }),
   z.object({
     type: z.literal("request.opened"),

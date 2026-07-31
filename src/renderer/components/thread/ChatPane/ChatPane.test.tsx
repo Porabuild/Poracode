@@ -5,6 +5,7 @@ import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts"
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ChatPane } from "./ChatPane";
+import { byTextContent } from "@/renderer/testUtils/text";
 
 const {
   hydrateThreadRuntimeItems,
@@ -21,9 +22,9 @@ const { hydrateFileCheckpoints, finalizeFileCheckpoint } = vi.hoisted(() => ({
   hydrateFileCheckpoints: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   finalizeFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
-const { virtualizerScrollToIndex } = vi.hoisted(() => ({
-  virtualizerScrollToIndex:
-    vi.fn<(index: number, options?: { align?: "auto" | "center" | "end" | "start" }) => void>(),
+const { legendScrollToEnd, legendScrollToIndex } = vi.hoisted(() => ({
+  legendScrollToEnd: vi.fn<(options?: { animated?: boolean }) => void>(),
+  legendScrollToIndex: vi.fn<(options: { index: number; viewPosition?: number }) => void>(),
 }));
 
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
@@ -38,36 +39,130 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   finalizeFileCheckpoint,
 }));
 
-vi.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: (options: {
-    count: number;
-    getScrollElement?: () => Element | null;
-    getItemKey?: (index: number) => string | number;
-  }) => ({
-    getVirtualItems: () =>
-      Array.from({ length: options.count }, (_, index) => ({
-        key: options.getItemKey?.(index) ?? index,
-        index,
-        start: index * 96,
-      })),
-    getTotalSize: () => options.count * 96,
-    measure: vi.fn<() => void>(),
-    measureElement: vi.fn<(element: HTMLDivElement | null) => void>(),
-    resizeItem: vi.fn<(index: number, size: number) => void>(),
-    takeSnapshot: () => [],
-    options: { measureElement: () => 96 },
-    scrollToIndex: (
-      index: number,
-      scrollOptions?: { align?: "auto" | "center" | "end" | "start" },
-    ) => {
-      virtualizerScrollToIndex(index, scrollOptions);
-      const element = options.getScrollElement?.();
-      if (element instanceof HTMLElement) {
-        element.scrollTop = element.scrollHeight;
-      }
-    },
-  }),
-}));
+vi.mock("@legendapp/list/react", async () => {
+  const React = await import("react");
+  return {
+    LegendList: React.forwardRef(function MockLegendList(
+      props: {
+        data: readonly { id: string }[];
+        renderItem: (input: { item: { id: string }; index: number }) => React.ReactNode;
+        keyExtractor: (item: { id: string }, index: number) => string;
+        ListEmptyComponent?: React.ReactNode;
+        ListFooterComponent?: React.ReactNode;
+        className?: string;
+        contentContainerClassName?: string;
+        contentContainerStyle?: React.CSSProperties;
+        onLoad?: () => void;
+        onStartReached?: () => void;
+        onKeyDownCapture?: React.KeyboardEventHandler<HTMLDivElement>;
+        onPointerDownCapture?: React.PointerEventHandler<HTMLDivElement>;
+        onWheelCapture?: React.WheelEventHandler<HTMLDivElement>;
+        style?: React.CSSProperties;
+      },
+      forwardedRef: React.ForwardedRef<unknown>,
+    ) {
+      const scrollRef = React.useRef<HTMLDivElement>(null);
+      const sizesRef = React.useRef(new Map<string, number>());
+      const totalSizeListenerRef = React.useRef<(() => void) | null>(null);
+      const onLoadRef = React.useRef(props.onLoad);
+      React.useImperativeHandle(forwardedRef, () => ({
+        getScrollableNode: () => scrollRef.current,
+        getState: () => ({
+          sizes: sizesRef.current,
+          positionAtIndex: (index: number) =>
+            props.data
+              .slice(0, index)
+              .reduce(
+                (top, item, itemIndex) =>
+                  top + (sizesRef.current.get(props.keyExtractor(item, itemIndex)) ?? 100),
+                0,
+              ),
+          sizeAtIndex: (index: number) => {
+            const item = props.data[index];
+            return item
+              ? (sizesRef.current.get(props.keyExtractor(item, index)) ?? 100)
+              : Number.NaN;
+          },
+          listen: (_name: string, listener: () => void) => {
+            totalSizeListenerRef.current = listener;
+            return () => {
+              totalSizeListenerRef.current = null;
+            };
+          },
+        }),
+        scrollToEnd: (options?: { animated?: boolean }) => {
+          legendScrollToEnd(options);
+          const element = scrollRef.current;
+          if (element) element.scrollTop = element.scrollHeight;
+          return Promise.resolve();
+        },
+        scrollToIndex: (options: { index: number; viewPosition?: number }) => {
+          legendScrollToIndex(options);
+          return Promise.resolve();
+        },
+        setItemSize: (itemKey: string, size: { height: number }) => {
+          sizesRef.current.set(itemKey, size.height);
+          const content = scrollRef.current?.querySelector(".legend-list-content-container");
+          let top = 0;
+          for (let index = 0; index < props.data.length; index += 1) {
+            const item = props.data[index]!;
+            const key = props.keyExtractor(item, index);
+            const container = Array.from(content?.children ?? []).find(
+              (element) => element instanceof HTMLElement && element.dataset.mockLegendKey === key,
+            );
+            if (container instanceof HTMLElement) container.style.top = `${top}px`;
+            top += sizesRef.current.get(key) ?? 100;
+          }
+          totalSizeListenerRef.current?.();
+        },
+      }));
+      React.useLayoutEffect(() => {
+        onLoadRef.current?.();
+      }, []);
+      return (
+        <div
+          ref={scrollRef}
+          className={props.className}
+          onKeyDownCapture={props.onKeyDownCapture}
+          onPointerDownCapture={props.onPointerDownCapture}
+          onWheelCapture={props.onWheelCapture}
+          onScroll={(event) => {
+            if (event.currentTarget.scrollTop === 0) props.onStartReached?.();
+          }}
+          style={props.style}
+        >
+          <div
+            className={`legend-list-content-container ${props.contentContainerClassName ?? ""}`}
+            style={props.contentContainerStyle}
+          >
+            {props.data.length === 0 ? props.ListEmptyComponent : null}
+            {props.data.map((item, index) => (
+              <div
+                key={props.keyExtractor(item, index)}
+                data-mock-legend-key={props.keyExtractor(item, index)}
+                style={{
+                  position: "absolute",
+                  top: `${props.data
+                    .slice(0, index)
+                    .reduce(
+                      (top, preceding, precedingIndex) =>
+                        top +
+                        (sizesRef.current.get(props.keyExtractor(preceding, precedingIndex)) ??
+                          100),
+                      0,
+                    )}px`,
+                }}
+              >
+                {props.renderItem({ item, index })}
+              </div>
+            ))}
+            {props.ListFooterComponent}
+          </div>
+        </div>
+      );
+    }),
+  };
+});
 
 const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
 
@@ -138,6 +233,9 @@ describe("ChatPane", () => {
       configurable: true,
       writable: true,
       value: {
+        dbSetState: vi
+          .fn<(key: string, value: string) => Promise<void>>()
+          .mockResolvedValue(undefined),
         dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -155,6 +253,57 @@ describe("ChatPane", () => {
       fileCheckpointsByThread: {},
       fileCheckpointTurnsByThread: {},
     }));
+  });
+
+  it("loads the next persisted page when LegendList reaches the start", async () => {
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Latest answer");
+    loadOlderThreadRuntimeItems.mockResolvedValueOnce(true);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const scrollElement = getScrollElement(container);
+    fireEvent.scroll(scrollElement, { target: { scrollTop: 0 } });
+
+    await waitFor(() => expect(loadOlderThreadRuntimeItems).toHaveBeenCalledTimes(1));
+    expect(loadOlderThreadRuntimeItems).toHaveBeenLastCalledWith(thread.id);
+  });
+
+  it("resolves a bare filename chip through the project index before opening it", async () => {
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Open BrowserPanelManager.ts:288.");
+    useAppStore.setState({ projects: [project] });
+    const searchProjectFiles = vi
+      .fn<typeof window.poracode.searchProjectFiles>()
+      .mockResolvedValue({
+        entries: [
+          {
+            path: "src/main/browser/BrowserPanelManager.ts",
+            name: "BrowserPanelManager.ts",
+            type: "file",
+          },
+        ],
+        totalIndexed: 1,
+      });
+    Object.assign(window.poracode, { searchProjectFiles });
+    const onOpenProjectRelativePath = vi.fn<(path: string, lineNumber?: number) => void>();
+
+    renderChatPane(thread, { onOpenProjectRelativePath });
+
+    fireEvent.click(await screen.findByRole("button", { name: /BrowserPanelManager\.ts.*288/ }));
+
+    await waitFor(() =>
+      expect(onOpenProjectRelativePath).toHaveBeenCalledWith(
+        "src/main/browser/BrowserPanelManager.ts",
+        288,
+      ),
+    );
+    expect(searchProjectFiles).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      query: "BrowserPanelManager.ts",
+      limit: 5,
+    });
   });
 
   it("keeps the chat pinned when the last assistant message grows without changing the scroll anchor", async () => {
@@ -180,7 +329,7 @@ describe("ChatPane", () => {
       appendAssistantText(thread.id, " — Open logs");
     });
 
-    await screen.findByText(/Open logs/);
+    await screen.findByText(/Open logs/, {}, { timeout: 3_000 });
 
     act(() => {
       metrics.setScrollHeight(300);
@@ -210,16 +359,16 @@ describe("ChatPane", () => {
       metrics.setScrollTop(200);
       fireEvent.scroll(scrollElement);
     });
-    virtualizerScrollToIndex.mockClear();
+    legendScrollToEnd.mockClear();
 
     act(() => {
       metrics.setScrollHeight(300);
-      // TanStack's end anchor applies the virtual row delta first.
+      // LegendList's end anchor applies the virtual row delta first.
       metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });
 
-    expect(virtualizerScrollToIndex).not.toHaveBeenCalled();
+    expect(legendScrollToEnd).not.toHaveBeenCalled();
     expect(metrics.getScrollTop()).toBe(300);
   });
 
@@ -242,14 +391,14 @@ describe("ChatPane", () => {
       metrics.setScrollTop(200);
       fireEvent.scroll(scrollElement);
     });
-    virtualizerScrollToIndex.mockClear();
+    legendScrollToEnd.mockClear();
 
     act(() => {
       metrics.setScrollHeight(300);
       appendAssistantText(thread.id, " continued");
     });
 
-    await waitFor(() => expect(virtualizerScrollToIndex).toHaveBeenCalledWith(0, { align: "end" }));
+    await waitFor(() => expect(legendScrollToEnd).toHaveBeenCalledWith({ animated: false }));
     expect(metrics.getScrollTop()).toBe(300);
   });
 
@@ -285,7 +434,7 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(220);
-      // TanStack's end anchor applies the virtual row delta first.
+      // LegendList's end anchor applies the virtual row delta first.
       metrics.setScrollTop(220);
       MockResizeObserver.notify(contentElement);
     });
@@ -324,7 +473,7 @@ describe("ChatPane", () => {
     });
 
     act(() => {
-      // TanStack's end anchor applies the delayed virtual row delta.
+      // LegendList's end anchor applies the delayed virtual row delta.
       metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });
@@ -535,7 +684,7 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(300);
-      // TanStack follows the append after sticky mode was re-engaged.
+      // LegendList follows the append after sticky mode was re-engaged.
       metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });
@@ -652,13 +801,15 @@ describe("ChatPane", () => {
 
     act(() => {
       fireEvent.pointerDown(toolButton);
-      metrics.setScrollHeight(420);
-      // Browser leaves scrollTop where it was; we are no longer at bottom until
-      // sticky re-pins.
+      // LegendList's visible-content anchoring can move scrollTop upward while
+      // the disclosure commit starts, before the larger row height becomes
+      // observable. This is layout-driven, not a user scroll-away.
+      metrics.setScrollTop(180);
       fireEvent.scroll(scrollElement);
     });
 
     act(() => {
+      metrics.setScrollHeight(420);
       MockResizeObserver.notify(contentElement);
     });
 
@@ -916,6 +1067,39 @@ describe("ChatPane", () => {
     expect(await screen.findByRole("heading", { name: "Protocol result" })).toBeInTheDocument();
   });
 
+  it("labels a Crossagents child separately from native subagents", async () => {
+    const thread = makeThread();
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "crossagent-result",
+      itemType: "tool_call",
+      payload: {
+        name: "protocol specialist",
+        status: "running",
+        isCrossagent: true,
+      },
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.completed",
+      threadId: thread.id,
+      itemId: "crossagent-result",
+      payload: {
+        name: "protocol specialist",
+        status: "success",
+        isCrossagent: true,
+        result: "Cross-provider result",
+      },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(await screen.findByRole("button", { name: "Crossagent Result" })).toBeInTheDocument();
+    expect(document.body).toHaveTextContent("Crossagent · protocol specialist");
+    expect(screen.queryByRole("button", { name: "Subagent Result" })).not.toBeInTheDocument();
+  });
+
   it("separates the collapsed Agent label from its step count", async () => {
     const thread = makeThread();
     useAppStore.getState().applyRuntimeEvent(thread.id, {
@@ -970,6 +1154,43 @@ describe("ChatPane", () => {
     );
   });
 
+  it("resets a long user message scroll position before collapsing it", async () => {
+    const thread = makeThread();
+    seedUserMessage(
+      thread.id,
+      [
+        "Validate optimisations and plan fixes",
+        "Issue one with enough context to fill the first visible line.",
+        "Issue two with enough context to fill the second visible line.",
+        "Issue three with enough context to fill the third visible line.",
+        "Issue four should be hidden until the message is expanded.",
+      ].join("\n"),
+    );
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const content = getUserMessageContent(container);
+    const metrics = installScrollMetrics(content, {
+      scrollHeight: 240,
+      clientHeight: 88,
+      scrollTop: 0,
+    });
+    act(() => {
+      MockResizeObserver.notify(content);
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Show more" }));
+    metrics.setScrollTop(152);
+    fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+
+    expect(metrics.getScrollTop()).toBe(0);
+    expect(screen.getByRole("button", { name: "Show more" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
   it("does not collapse a long raw prompt when it only renders as two rows", async () => {
     const thread = makeThread();
     seedUserMessage(
@@ -1012,6 +1233,27 @@ describe("ChatPane", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders legacy image file attachments as image previews", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      {
+        kind: "file",
+        path: "C:\\tmp\\screenshot.png",
+        name: "screenshot.png",
+        source: "attachment",
+      },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByAltText("screenshot.png")).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-poracode-attachment-image-preview="true"]'),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".poracode-attachment-chip__icon")).not.toBeInTheDocument();
+  });
+
   it("renders selected skills in user messages as skill badges", async () => {
     const thread = makeThread();
     seedUserMessageContent(thread.id, [
@@ -1026,6 +1268,20 @@ describe("ChatPane", () => {
     expect(badge?.querySelector("svg")).toBeInTheDocument();
     expect(badge).not.toHaveClass("poracode-slash-chip--user-message");
     expect(screen.queryByText("$simplify")).not.toBeInTheDocument();
+  });
+
+  it("renders MCP mentions in user messages as badges", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [{ kind: "mcp", name: "Browser" }]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-mcp-name="Browser"]');
+    expect(badge).toHaveTextContent("Browser");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    // The raw `@Browser` directive text is replaced by the badge.
+    expect(screen.queryByText("@Browser")).not.toBeInTheDocument();
   });
 
   it("copies user message text from the inline action", async () => {
@@ -1077,7 +1333,7 @@ describe("ChatPane", () => {
 
     expect(screen.getByText("Still working")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy message" })).not.toBeInTheDocument();
-    expect(container.querySelector(".poracode-message-action-strip")).toBeNull();
+    expect(container.querySelector(".poracode-message-action-strip")).not.toBeNull();
   });
 
   it("shows the assistant copy action after the turn settles", async () => {
@@ -1101,6 +1357,17 @@ describe("ChatPane", () => {
 
     expect(screen.getByText("goal").parentElement).toHaveClass("poracode-slash-chip");
     expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
+  });
+
+  it("renders ACP skill commands with their short display name", async () => {
+    const thread = makeThread();
+    seedUserMessage(thread.id, "/skill:simplify review these changes");
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByText("simplify").parentElement).toHaveClass("poracode-slash-chip");
+    expect(screen.queryByText("skill:simplify")).not.toBeInTheDocument();
   });
 
   it("reports failed user message link opens", async () => {
@@ -1184,12 +1451,57 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    const trigger = screen.getByText(/^2 commands$/).closest("button");
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     fireEvent.click(trigger!);
 
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("keeps following virtual rows aligned through repeated tool-group toggles", async () => {
+    const thread = makeThread();
+    seedCommandItem(thread.id, "cmd-1", "echo one", "one");
+    seedCommandItem(thread.id, "cmd-2", "echo two", "two");
+    seedAssistantMessage(thread.id, "Following answer", "assistant-after-group");
+    seedUserMessage(thread.id, "Following prompt", "user-after-group");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
+    const groupRow = trigger?.closest<HTMLElement>("[data-chat-virtual-row='true']");
+    const assistantRow = container.querySelector<HTMLElement>(
+      "[data-chat-virtual-row='true'][data-item-id='assistant-after-group']",
+    );
+    const userRow = container.querySelector<HTMLElement>(
+      "[data-chat-virtual-row='true'][data-item-id='user-after-group']",
+    );
+    if (!trigger || !groupRow || !assistantRow || !userRow) {
+      throw new Error("missing virtualized tool-group fixture");
+    }
+    Object.defineProperties(groupRow, {
+      offsetHeight: {
+        configurable: true,
+        get: () => (trigger.getAttribute("aria-expanded") === "true" ? 220 : 100),
+      },
+      offsetWidth: { configurable: true, value: 500 },
+    });
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(virtualRowTop(assistantRow)).toBe(100);
+    expect(virtualRowTop(userRow)).toBe(200);
+
+    for (let toggle = 0; toggle < 6; toggle += 1) {
+      fireEvent.click(trigger);
+      act(() => MockResizeObserver.notify(groupRow));
+
+      const expanded = toggle % 2 === 0;
+      const groupHeight = expanded ? 220 : 100;
+      expect(trigger).toHaveAttribute("aria-expanded", String(expanded));
+      expect(virtualRowTop(assistantRow)).toBe(groupHeight);
+      expect(virtualRowTop(userRow)).toBe(groupHeight + 100);
+    }
   });
 
   it("collapses the tool-call group automatically once a non-group item arrives after it", async () => {
@@ -1200,7 +1512,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    const trigger = screen.getByText(/^2 commands$/).closest("button");
+    const trigger = screen.getByText(byTextContent("2 commands")).closest("button");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     act(() => {
@@ -1286,6 +1598,42 @@ describe("ChatPane", () => {
       lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
       lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
     };
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "agent-1",
+      itemType: "tool_call",
+      payload: {
+        name: "Agent",
+        status: "running",
+        args: { subagent_type: "Explore" },
+      },
+    });
+
+    renderChatPane(thread);
+
+    expect(screen.getByText("Working for 2m 00s")).toBeInTheDocument();
+    expect(screen.queryByText("Worked for 1m 15s")).not.toBeInTheDocument();
+  });
+
+  it("suppresses the anchored completed turn while background work keeps the timer live", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:02:00.000Z"));
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+    };
+    seedAssistantMessage(thread.id, "Inspect output");
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+    ]);
     useAppStore.getState().applyRuntimeEvent(thread.id, {
       type: "item.started",
       threadId: thread.id,
@@ -1419,7 +1767,16 @@ describe("ChatPane", () => {
   });
 
   it("shows checkpoint buttons on later user messages and reverts to before that prompt", async () => {
-    const thread = { ...makeThread(), status: "idle" as const };
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      config: {
+        model: "gpt-5.6-terra",
+        effort: "high",
+        approvalPolicy: "on-request",
+        sandboxMode: "workspace-write",
+      },
+    };
     const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     Object.assign(window, {
       poracode: {
@@ -1454,6 +1811,7 @@ describe("ChatPane", () => {
       expect(rollbackThreadConversation).toHaveBeenCalledWith({
         threadId: thread.id,
         numTurns: 1,
+        config: thread.config,
       }),
     );
     await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
@@ -1501,6 +1859,7 @@ describe("ChatPane", () => {
       expect(rollbackThreadConversation).toHaveBeenCalledWith({
         threadId: thread.id,
         numTurns: 1,
+        config: thread.config,
       }),
     );
   });
@@ -1781,6 +2140,12 @@ function getContentElement(scrollElement: HTMLDivElement): HTMLDivElement {
     throw new Error("missing chat content wrapper");
   }
   return element;
+}
+
+function virtualRowTop(row: HTMLElement): number {
+  const container = row.parentElement;
+  if (!(container instanceof HTMLElement)) throw new Error("missing virtual row container");
+  return Number.parseFloat(container.style.top);
 }
 
 function getUserMessageContent(container: HTMLElement): HTMLDivElement {

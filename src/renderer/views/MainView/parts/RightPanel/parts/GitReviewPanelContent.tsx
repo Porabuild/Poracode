@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -22,6 +23,12 @@ export function GitReviewPanelContent(props: {
   if (!gitPanelContext || !project) {
     return undefined;
   }
+
+  // Experiment candidate worktrees are viewable, but their lifecycle (merge/
+  // remove) is owned by the experiment crown flow — never the review surface.
+  const isExperimentWorktree = Boolean(
+    findExperimentByWorktree(gitPanelContext.projectId, gitPanelContext.worktreePath),
+  );
 
   const gitReviewKey = `${gitPanelContext.projectId}:${gitPanelContext.worktreePath ?? ""}`;
 
@@ -47,6 +54,10 @@ export function GitReviewPanelContent(props: {
               worktreeBranch:
                 resolveWorktreeBranch(gitPanelContext.projectId, gitPanelContext.worktreePath) ??
                 undefined,
+            }
+          : {})}
+        {...(gitPanelContext.worktreePath && !isExperimentWorktree
+          ? {
               onMergeAndRemove: () => {
                 const allThreads = useAppStore.getState().threads;
                 const wtPath = gitPanelContext!.worktreePath;

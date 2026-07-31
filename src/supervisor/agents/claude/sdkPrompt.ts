@@ -87,6 +87,11 @@ export async function buildSdkUserMessage(
       });
       continue;
     }
+    if (segment.kind === "mcp") {
+      // MCP mentions are a plain-text directive for the turn, not a file ref.
+      textParts.push(`@${segment.name}`);
+      continue;
+    }
     textParts.push(`@${segment.path}`);
   }
   flushText();

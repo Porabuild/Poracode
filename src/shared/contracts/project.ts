@@ -58,6 +58,9 @@ export type ProjectSearchSettings = z.infer<typeof projectSearchSettingsSchema>;
 
 export const projectSchema = z.object({
   id: z.string().min(1),
+  /** Server-owned identity for a transient project mirrored into a desktop client. */
+  remoteServerId: z.string().min(1).optional(),
+  remoteId: z.string().min(1).optional(),
   name: z.string().min(1),
   location: projectLocationSchema,
   lastDraftConfig: projectDraftConfigSchema.optional(),
@@ -66,6 +69,11 @@ export const projectSchema = z.object({
   worktreeLocation: projectWorktreeLocationSchema.optional(),
   /** Project MCP entries override global entries by name (case-insensitive). */
   mcpServers: mcpServerListSchema.optional(),
+  /**
+   * Workspace this project belongs to (see `./workspace.ts`). Absent or dangling
+   * means "unfiled" — such a project stays visible in every workspace.
+   */
+  workspaceId: z.string().optional(),
   disabled: z.boolean().optional(),
   createdAt: z.string().min(1),
 });

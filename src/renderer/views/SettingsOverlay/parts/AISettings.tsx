@@ -357,7 +357,7 @@ export function AISettings() {
 
   return (
     <SettingsPage
-      title={t`AI`}
+      title={t`AI Helpers`}
       bodyClassName="space-y-8"
       actions={
         hasWsl ? (

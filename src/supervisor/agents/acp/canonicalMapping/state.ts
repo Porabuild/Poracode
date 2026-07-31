@@ -3,13 +3,15 @@
  * mapper. Tracks open items so streamed deltas land on the right item id.
  */
 
-import type { CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
+import type { CanonicalItemType, GoalItemPayload, RuntimeEvent } from "@/shared/contracts";
 
 export interface AcpToolCallItemState {
   itemId: string;
   itemType: CanonicalItemType;
   payload: Record<string, unknown>;
   isSubAgent: boolean;
+  /** Keep this subagent open across the foreground prompt's turn boundary. */
+  detached: boolean;
   subAgentProgressItemId?: string;
   subAgentProgressText?: string;
   /**
@@ -24,6 +26,8 @@ export interface AcpToolCallItemState {
 export interface ActiveAcpSubAgent {
   toolCallId: string;
   itemId: string;
+  /** Whether this agent has emitted at least one inferred or explicit child. */
+  hasChildActivity: boolean;
 }
 
 /** Per-session state — tracks open items so deltas land on the right item id. */
@@ -42,14 +46,29 @@ export interface AcpMapperState {
    * we conservatively infer nesting from active sub-agent tool-call lifetimes.
    */
   activeSubAgents: ActiveAcpSubAgent[];
+  /** Stable canonical item for an ACP provider's persistent goal lifecycle. */
+  activeGoalItemId?: string;
+  /** Objective retained across `/goal pause`, resume, status, and completion. */
+  activeGoalObjective?: string;
+  /** Most recently observed provider goal status. */
+  activeGoalStatus?: NonNullable<GoalItemPayload["status"]>;
   /** Item id of the most recent plan, if open. */
   openPlanItemId?: string;
   /** Last plan steps emitted for the open plan item. */
   openPlanSteps?: Array<{ step: string; status: "pending" | "in_progress" | "completed" }>;
+  /** Current goal item created from provider-normalized ACP goal metadata. */
+  goalItemId?: string;
   /** ACP `toolCallId`s rerouted to other item types (e.g. assistant_message
    * for Copilot's `task_complete` summary). Their `tool_call_update`s must be
    * dropped so we don't emit ghost updates against the wrong item. */
   suppressedToolCallIds: Set<string>;
+  /**
+   * Subset of `suppressedToolCallIds` that are `todo_write` / `todowrite`
+   * tool calls. Their `tool_call_update` notifications may carry a more
+   * complete `rawInput` with updated plan steps, so we keep tracking them
+   * separately to re-extract plan state on completion.
+   */
+  suppressedTodoWriteIds: Set<string>;
   /**
    * Resolve the live output of a client-hosted ACP terminal by its
    * `terminalId`. Gemini's shell tool surfaces output via `createTerminal`
@@ -73,6 +92,7 @@ export function createAcpMapperState(threadId: string): AcpMapperState {
     toolCallItems: new Map(),
     activeSubAgents: [],
     suppressedToolCallIds: new Set(),
+    suppressedTodoWriteIds: new Set(),
   };
 }
 
@@ -103,9 +123,14 @@ export function closeOpenContentItems(state: AcpMapperState): RuntimeEvent[] {
  * abandoned mid-turn).
  */
 export function resetMapperForTurnEnd(state: AcpMapperState): void {
-  state.toolCallItems.clear();
-  state.activeSubAgents.length = 0;
+  for (const [toolCallId, item] of state.toolCallItems) {
+    if (!item.detached) state.toolCallItems.delete(toolCallId);
+  }
+  state.activeSubAgents = state.activeSubAgents.filter((active) =>
+    state.toolCallItems.has(active.toolCallId),
+  );
   state.suppressedToolCallIds.clear();
+  state.suppressedTodoWriteIds.clear();
   delete state.openPlanItemId;
   delete state.openPlanSteps;
 }

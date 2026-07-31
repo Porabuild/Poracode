@@ -70,13 +70,6 @@ export function createGrokAdapter(): AgentAdapter {
           projectPath: ".agents/skills",
         },
       ],
-      projectionRoots: [
-        {
-          id: "grok",
-          label: grokDetectionSpec.label,
-          projectPath: ".grok/skills",
-        },
-      ],
       invocation: "slash",
       precedence: {
         global: ["grok", "agents", "claude"],

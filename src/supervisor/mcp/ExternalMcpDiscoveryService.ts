@@ -21,7 +21,7 @@ import {
 } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import { resolveWslHomeDirectoryAsync } from "../agents/base";
-import { sanitizeCommandCodeCwd } from "../agents/commandcode/sessionFiles";
+import { sanitizeCommandCodeMcpCwd } from "../agents/commandcode/sessionFiles";
 
 const MAX_CONFIG_BYTES = 4 * 1024 * 1024;
 
@@ -752,7 +752,7 @@ export class ExternalMcpDiscoveryService {
         home,
         ".commandcode",
         "projects",
-        sanitizeCommandCodeCwd(projectPath),
+        sanitizeCommandCodeMcpCwd(projectPath),
         "mcp.json",
       );
       this.addGroup(

@@ -21,6 +21,7 @@ const invocationByProvider = {
   cursor: "slash",
   grok: "slash",
   antigravity: "prompt",
+  pi: "skill",
 } as const;
 
 function emptyScan(): SkillScanResult {
@@ -101,9 +102,11 @@ describe("buildSkillSlashCommands", () => {
           skillInvocation:
             invocation === "dollar"
               ? "$unique-managed-skill"
-              : invocation === "prompt"
-                ? "Use the unique-managed-skill skill."
-                : "/unique-managed-skill",
+              : invocation === "skill"
+                ? "/skill:unique-managed-skill"
+                : invocation === "prompt"
+                  ? "Use the unique-managed-skill skill."
+                  : "/unique-managed-skill",
         }),
       ]);
       expect(provider).toBeTruthy();

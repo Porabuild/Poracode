@@ -21,6 +21,22 @@ function readTaskUsage(obj: { usage?: unknown }): TaskUsage | undefined {
   return obj.usage && typeof obj.usage === "object" ? (obj.usage as TaskUsage) : undefined;
 }
 
+/**
+ * Record a live progress description on a Workflow tool's structured metadata.
+ * Descriptions are the only in-flight source of agent labels ("Phase: label");
+ * the manifest with authoritative labels is only written at completion. Kept
+ * distinct and in first-seen order so the renderer can pair them positionally
+ * with journal-ordered agents.
+ */
+function recordWorkflowLiveDescription(tool: ToolItemState, description: unknown): void {
+  if (tool.toolName !== "Workflow") return;
+  if (typeof description !== "string" || description.length === 0) return;
+  const workflow = (tool.workflow ??= {});
+  const log = (workflow.liveDescriptions ??= []);
+  if (log.length >= 1000 || log.includes(description)) return;
+  log.push(description);
+}
+
 /** Merge a task lifecycle message's descriptive/usage fields onto a tool's progress. */
 function mergeTaskProgress(
   tool: ToolItemState,
@@ -63,6 +79,7 @@ export function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState
   const tool = state.toolItemsById.get(toolUseId);
   if (!tool) return events;
   syncSubAgentModelProgress(tool);
+  recordWorkflowLiveDescription(tool, obj.description);
 
   const next = mergeTaskProgress(tool, obj, usage);
   if (Object.keys(next).length === 0) return events;
@@ -127,6 +144,7 @@ export function applyTaskUpdated(message: SDKMessage, state: ClaudeMapperState):
       : undefined;
   const error = typeof patch.error === "string" && patch.error.length > 0 ? patch.error : undefined;
   if (!description && !error) return [];
+  recordWorkflowLiveDescription(tool, description);
   tool.progress = {
     ...tool.progress,
     ...(description ? { description } : {}),

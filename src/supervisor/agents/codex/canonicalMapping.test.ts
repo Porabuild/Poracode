@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  CodexUsageScopeTracker,
   createCodexMapperState,
   mapCodexNotification,
   mapCodexServerRequest,
@@ -49,7 +50,7 @@ describe("mapCodexNotification — turn lifecycle", () => {
     expect(state.currentTurnId).toBeUndefined();
   });
 
-  it("treats turn/aborted as turn.completed with state=interrupted", () => {
+  it("treats legacy turn/aborted as turn.completed with state=interrupted", () => {
     const state = createCodexMapperState("t-codex");
     mapCodexNotification("turn/started", { turnId: "t-1", threadId: "x" }, state);
     const events = mapCodexNotification("turn/aborted", { threadId: "x" }, state);
@@ -84,6 +85,14 @@ describe("mapCodexNotification — turn lifecycle", () => {
     expect(events).toEqual([
       { type: "error", threadId: "t-codex", message: "Rate limit exceeded" },
       { type: "turn.completed", threadId: "t-codex", turnId: "t-1", state: "failed" },
+    ]);
+  });
+
+  it("falls back from whitespace-only Codex error messages", () => {
+    const state = createCodexMapperState("t-codex");
+
+    expect(mapCodexNotification("error", { error: { message: "   " } }, state)).toEqual([
+      { type: "error", threadId: "t-codex", message: "Codex thread error" },
     ]);
   });
 
@@ -197,6 +206,177 @@ describe("mapCodexNotification — turn lifecycle", () => {
   });
 });
 
+describe("mapCodexNotification — usage.spent", () => {
+  function tokenUsageParams(totalTokens: number, lastTotalTokens = 130): Record<string, unknown> {
+    return {
+      threadId: "codex-thread-1",
+      turnId: "turn-1",
+      tokenUsage: {
+        total: {
+          inputTokens: totalTokens - 6,
+          cachedInputTokens: 0,
+          outputTokens: 6,
+          reasoningOutputTokens: 0,
+          totalTokens,
+        },
+        last: {
+          inputTokens: lastTotalTokens - 6,
+          cachedInputTokens: 0,
+          outputTokens: 6,
+          reasoningOutputTokens: 0,
+          totalTokens: lastTotalTokens,
+        },
+        modelContextWindow: 258_400,
+      },
+    };
+  }
+
+  function spentEventOf(
+    state: ReturnType<typeof createCodexMapperState>,
+    params: Record<string, unknown>,
+  ) {
+    return mapCodexNotification("thread/tokenUsage/updated", params, state).find(
+      (event) => event.type === "usage.spent",
+    );
+  }
+
+  it("emits a cumulative usage.spent sample from the total (never last) alongside context.updated", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", true);
+
+    const events = mapCodexNotification(
+      "thread/tokenUsage/updated",
+      tokenUsageParams(11_839),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "context.updated",
+        threadId: "t-codex",
+        usage: {
+          usedTokens: 130,
+          maxTokens: 258_400,
+          breakdown: [
+            { id: "input", label: "Input", tokens: 124 },
+            { id: "output", label: "Output", tokens: 6 },
+          ],
+        },
+      },
+      {
+        type: "usage.spent",
+        threadId: "t-codex",
+        usage: {
+          counterKind: "cumulative",
+          counter: 11_839,
+          scopeId: "codex-thread-1",
+          epoch: 0,
+          fresh: true,
+          sampleId: "codex-thread-1:0:11839",
+          occurredAt: expect.any(Number),
+        },
+      },
+    ]);
+  });
+
+  it("reads the cumulative total from legacy snake_case payloads", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", false);
+
+    const spent = spentEventOf(state, {
+      threadId: "codex-thread-1",
+      token_usage: {
+        total_token_usage: { total_tokens: 5_000, input_tokens: 4_000, output_tokens: 1_000 },
+        last_token_usage: { total_tokens: 42 },
+        model_context_window: 200_000,
+      },
+    });
+
+    expect(spent).toEqual({
+      type: "usage.spent",
+      threadId: "t-codex",
+      usage: {
+        counterKind: "cumulative",
+        counter: 5_000,
+        scopeId: "codex-thread-1",
+        epoch: 0,
+        sampleId: "codex-thread-1:0:5000",
+        occurredAt: expect.any(Number),
+      },
+    });
+  });
+
+  it("marks only the first sample of a brand-new thread fresh", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", true);
+
+    expect(spentEventOf(state, tokenUsageParams(1_000))).toMatchObject({
+      usage: { fresh: true, epoch: 0 },
+    });
+    const second = spentEventOf(state, tokenUsageParams(1_500));
+    expect(second).toMatchObject({ usage: { counter: 1_500, epoch: 0 } });
+    expect(second?.type === "usage.spent" && second.usage).not.toHaveProperty("fresh");
+  });
+
+  it("emits no usage.spent without a usage scope (terminal mode)", () => {
+    const state = createCodexMapperState("t-codex");
+
+    const events = mapCodexNotification(
+      "thread/tokenUsage/updated",
+      tokenUsageParams(11_839),
+      state,
+    );
+
+    expect(events.every((event) => event.type === "context.updated")).toBe(true);
+  });
+
+  it("bumps the epoch when the cumulative counter resets", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", false);
+
+    expect(spentEventOf(state, tokenUsageParams(1_000))).toMatchObject({
+      usage: { counter: 1_000, epoch: 0, sampleId: "codex-thread-1:0:1000" },
+    });
+    expect(spentEventOf(state, tokenUsageParams(1_500))).toMatchObject({
+      usage: { counter: 1_500, epoch: 0, sampleId: "codex-thread-1:0:1500" },
+    });
+    // Upstream reset (e.g. ContextWindowExceeded): a lower total starts a new epoch.
+    expect(spentEventOf(state, tokenUsageParams(300))).toMatchObject({
+      usage: { counter: 300, epoch: 1, sampleId: "codex-thread-1:1:300" },
+    });
+    expect(spentEventOf(state, tokenUsageParams(400))).toMatchObject({
+      usage: { counter: 400, epoch: 1, sampleId: "codex-thread-1:1:400" },
+    });
+  });
+
+  it("starts a new epoch on fork (replaceScope) with a baseline, non-fresh sample", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", true);
+
+    expect(spentEventOf(state, tokenUsageParams(1_000))).toMatchObject({
+      usage: { scopeId: "codex-thread-1", epoch: 0, fresh: true },
+    });
+
+    state.usageScope.replaceScope("codex-thread-2");
+
+    // The forked thread's first sample carries inherited history: new epoch,
+    // baseline-only (no fresh), and the lower counter is NOT read as a reset.
+    const forked = spentEventOf(state, {
+      ...tokenUsageParams(500),
+      threadId: "codex-thread-2",
+    });
+    expect(forked).toMatchObject({
+      usage: {
+        counter: 500,
+        scopeId: "codex-thread-2",
+        epoch: 1,
+        sampleId: "codex-thread-2:1:500",
+      },
+    });
+    expect(forked?.type === "usage.spent" && forked.usage).not.toHaveProperty("fresh");
+  });
+});
+
 describe("mapCodexNotification — goals", () => {
   it("maps Codex thread goal updates to a shared goal chat item", () => {
     const state = createCodexMapperState("t-codex");
@@ -229,6 +409,7 @@ describe("mapCodexNotification — goals", () => {
           action: "set",
           objective: "ship unified GUI goal support",
           status: "active",
+          availableActions: ["edit", "pause", "clear"],
           tokenBudget: 5000,
           tokensUsed: 120,
           timeUsedSeconds: 3,
@@ -242,6 +423,36 @@ describe("mapCodexNotification — goals", () => {
         itemId: events[0]?.type === "item.started" ? events[0].itemId : "",
       },
     ]);
+  });
+
+  it.each([
+    ["blocked", "paused"],
+    ["usageLimited", "budget_limited"],
+  ] as const)("maps Codex %s goals to canonical %s goals", (status, expectedStatus) => {
+    const state = createCodexMapperState("t-codex");
+    const events = mapCodexNotification(
+      "thread/goal/updated",
+      {
+        threadId: "provider-thread",
+        turnId: null,
+        goal: {
+          threadId: "provider-thread",
+          objective: "finish protocol integration",
+          status,
+          tokenBudget: null,
+          tokensUsed: 0,
+          timeUsedSeconds: 0,
+          createdAt: 1778570000,
+          updatedAt: 1778570000,
+        },
+      },
+      state,
+    );
+
+    expect(events[0]).toMatchObject({
+      type: "item.started",
+      payload: { status: expectedStatus },
+    });
   });
 
   it("updates the existing Codex goal item when the goal is cleared", () => {
@@ -332,6 +543,7 @@ describe("mapCodexNotification — goals", () => {
           action: "set",
           objective: "ship next goal",
           status: "active",
+          availableActions: ["edit", "pause", "clear"],
           tokenBudget: null,
           tokensUsed: 0,
           timeUsedSeconds: 0,
@@ -1268,6 +1480,78 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
     expect(events.map((event) => event.type)).toEqual(["item.completed"]);
   });
 
+  it("keeps a running command attached to its original item after the turn completes", () => {
+    const state = createCodexMapperState("t-codex");
+    mapCodexNotification("turn/started", { threadId: "x", turnId: "turn-1" }, state);
+    const started = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "cmd-running",
+        item: { id: "cmd-running", type: "commandExecution", command: "pnpm run dev" },
+      },
+      state,
+    );
+    const commandItemId = started[0]?.type === "item.started" ? started[0].itemId : "";
+    mapCodexNotification(
+      "item/commandExecution/outputDelta",
+      { threadId: "x", itemId: "cmd-running", delta: "[app] booting\n" },
+      state,
+    );
+
+    expect(mapCodexNotification("turn/completed", { threadId: "x" }, state)).toEqual([
+      {
+        type: "turn.completed",
+        threadId: "t-codex",
+        turnId: "turn-1",
+        state: "completed",
+      },
+    ]);
+    expect(state.commandOutputSeenSet.has("cmd-running")).toBe(true);
+
+    expect(
+      mapCodexNotification(
+        "item/commandExecution/outputDelta",
+        { threadId: "x", itemId: "cmd-running", delta: "[app] ready\n" },
+        state,
+      ),
+    ).toEqual([
+      {
+        type: "content.delta",
+        threadId: "t-codex",
+        itemId: commandItemId,
+        stream: "command_output",
+        delta: "[app] ready\n",
+      },
+    ]);
+
+    expect(
+      mapCodexNotification(
+        "item/completed",
+        {
+          threadId: "x",
+          itemId: "cmd-running",
+          item: {
+            id: "cmd-running",
+            type: "commandExecution",
+            status: "completed",
+            aggregatedOutput: "[app] booting\n[app] ready\n",
+            exitCode: 0,
+          },
+        },
+        state,
+      ),
+    ).toEqual([
+      {
+        type: "item.completed",
+        threadId: "t-codex",
+        itemId: commandItemId,
+        payload: { status: "success", exitCode: 0 },
+      },
+    ]);
+    expect(state.itemIdMap.has("cmd-running")).toBe(false);
+  });
+
   it("synthesises started+completed when only item/completed is observed", () => {
     const state = createCodexMapperState("t-codex");
     const events = mapCodexNotification(
@@ -1422,6 +1706,18 @@ describe("mapCodexNotification — streaming deltas", () => {
       ),
     ).toEqual([{ type: "error", threadId: "t-codex", message: "Tool failed" }]);
     expect(
+      mapCodexNotification(
+        "error",
+        {
+          threadId: "x",
+          turnId: "turn-1",
+          error: { message: "Stream disconnected" },
+          willRetry: true,
+        },
+        state,
+      ),
+    ).toEqual([{ type: "warning", threadId: "t-codex", message: "Stream disconnected" }]);
+    expect(
       mapCodexNotification("serverRequest/resolved", { threadId: "x", requestId: 42 }, state),
     ).toEqual([
       { type: "request.resolved", threadId: "t-codex", requestId: "42", outcome: "answered" },
@@ -1466,7 +1762,7 @@ describe("mapCodexNotification — streaming deltas", () => {
     });
   });
 
-  it("maps file-read approval requests", () => {
+  it("maps legacy file-read approval requests", () => {
     const event = mapCodexServerRequest("thread-1", "read-1", "item/fileRead/requestApproval", {
       path: "src/index.ts",
       reason: "Read outside workspace",
@@ -1516,6 +1812,28 @@ describe("mapCodexServerRequest — approvals", () => {
         options: [
           { optionId: "accept", label: "Allow" },
           { optionId: "acceptForSession", label: "Allow always" },
+          { optionId: "decline", label: "Deny" },
+        ],
+      },
+    });
+  });
+
+  it("skips structured command approval decisions when building options", () => {
+    const event = mapCodexServerRequest("thread-1", "0", "item/commandExecution/requestApproval", {
+      command: "pnpm test",
+      availableDecisions: [
+        "accept",
+        { acceptWithExecpolicyAmendment: { execpolicy_amendment: {} } },
+        { applyNetworkPolicyAmendment: { network_policy_amendment: {} } },
+        "decline",
+      ],
+    });
+
+    expect(event).toMatchObject({
+      type: "request.opened",
+      payload: {
+        options: [
+          { optionId: "accept", label: "Allow" },
           { optionId: "decline", label: "Deny" },
         ],
       },
@@ -1583,17 +1901,25 @@ describe("mapCodexServerRequest — approvals", () => {
 describe("mapCodexServerRequest — user input", () => {
   it("carries multi-question requestUserInput payloads as structured form details", () => {
     const event = mapCodexServerRequest("thread-1", "req-1", "item/tool/requestUserInput", {
+      threadId: "provider-thread",
+      turnId: "turn-1",
+      itemId: "item-1",
+      autoResolutionMs: null,
       questions: [
         {
           id: "scope",
           header: "Scope",
           question: "Which scope?",
+          isOther: false,
+          isSecret: false,
           options: [{ label: "Scope A", description: "Minimal" }],
         },
         {
           id: "validation",
           header: "Validation",
           question: "Which validation?",
+          isOther: false,
+          isSecret: false,
           options: [{ label: "After each phase", description: "Incremental" }],
         },
       ],
@@ -1612,11 +1938,25 @@ describe("mapCodexServerRequest — user input", () => {
                 id: "scope",
                 header: "Scope",
                 question: "Which scope?",
+                options: [
+                  {
+                    optionId: "Scope A",
+                    label: "Scope A",
+                    description: "Minimal",
+                  },
+                ],
               },
               {
                 id: "validation",
                 header: "Validation",
                 question: "Which validation?",
+                options: [
+                  {
+                    optionId: "After each phase",
+                    label: "After each phase",
+                    description: "Incremental",
+                  },
+                ],
               },
             ],
           },

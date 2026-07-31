@@ -1,10 +1,14 @@
 import type {
   ClearPendingSteerPayload,
   CloseThreadPayload,
+  ControlThreadGoalPayload,
   RefreshAgentScope,
   InterruptThreadPayload,
+  PrWatchInput,
+  PrWatchKey,
   ProfileIdentity,
   ProfileStatsRequest,
+  ProjectNotes,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   SearchProjectFilesPayload,
@@ -21,8 +25,13 @@ import {
   isGitRemoteNoopProcedure,
   isGitRemoteProcedure,
   type RemoteBrowserCommand,
+  type RemoteRuntimeItemsPageRequest,
 } from "@/shared/remote";
+import { setRemoteLocalImageResolver } from "@/shared/localImageDisplay";
+import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
+import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import type { SharedSettingsInput } from "@/shared/settings";
+import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
 import { useBrowserMirrorStore } from "./browserMirror";
 import type { RemoteDesktopClient } from "./remoteClient";
 import { pushDesktopSettingsDiff } from "./settingsSync";
@@ -52,6 +61,37 @@ export function setRemoteBridgeClient(
 ): void {
   activeClient = client;
   hostPlatform = client ? (platform ?? null) : null;
+  // poracode-local <img> sources load only inside the desktop's Electron
+  // shell; in the PWA, swap them for the desktop's authenticated HTTP image
+  // endpoint at render time (see shared/localImageDisplay.ts).
+  setRemoteLocalImageResolver(client ? (url) => remoteLocalImageUrl(client, url) : null);
+  // The host strips inline image bytes out of remote transcripts and sends a
+  // reference instead; resolve those to its authenticated image endpoint (see
+  // shared/imageRefDisplay.ts).
+  setRemoteImageRefResolver(client ? (ref) => client.imageRefUrl(ref) : null);
+}
+
+/**
+ * Maps a poracode-local image URL to the desktop's authenticated image
+ * endpoint. The PWA has no `process.platform`, so the path decode keys off the
+ * paired desktop's advertised platform when known, else just strips a leading
+ * "/" before a Windows drive letter. Falls back to the original URL when the
+ * client has no access token or the URL can't be parsed.
+ */
+function remoteLocalImageUrl(client: RemoteDesktopClient, url: string): string {
+  try {
+    const path = hostPlatform
+      ? resolveLocalFileUrlPath(url, hostPlatform)
+      : decodeLocalFileUrlPath(url);
+    return client.localImageUrl(path) || url;
+  } catch {
+    return url;
+  }
+}
+
+function decodeLocalFileUrlPath(url: string): string {
+  const raw = decodeURIComponent(new URL(url).pathname);
+  return /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
 }
 
 /** Mobile-native views (BrowserView) call the remote API directly. */
@@ -98,6 +138,21 @@ function toArrayBuffer(data: Uint8Array): ArrayBuffer {
   return buffer;
 }
 
+async function pickBrowserFiles(options?: {
+  readonly attachmentThreadId?: string;
+  readonly filters?: readonly { readonly extensions: readonly string[] }[];
+}): Promise<string[] | null> {
+  if (!options?.attachmentThreadId) {
+    throw new Error("Remote file selection requires an attachment destination.");
+  }
+  const client = requireClient();
+  return pickAndUploadBrowserFiles({
+    attachmentThreadId: options.attachmentThreadId,
+    ...(options.filters ? { filters: options.filters } : {}),
+    upload: (input) => client.uploadAttachment(input),
+  });
+}
+
 const remoteBridge = {
   // Metadata reads. Analytics/diagnostics stay disabled in remote sessions.
   // `platform` is a getter so it tracks the paired desktop after connect.
@@ -121,6 +176,8 @@ const remoteBridge = {
   sendThreadInput: (payload: SendThreadInputPayload) => requireClient().sendThreadInput(payload),
   interruptThread: (payload: InterruptThreadPayload) =>
     requireClient().interruptThread(payload.threadId),
+  controlThreadGoal: (payload: ControlThreadGoalPayload) =>
+    requireClient().controlThreadGoal(payload),
   writeTerminal: (payload: WriteTerminalPayload) => requireClient().writeTerminal(payload),
   resizeTerminal: (payload: ResizeTerminalPayload) => requireClient().resizeTerminal(payload),
   startThread: (payload: StartThreadPayload) => requireClient().startThread(payload),
@@ -141,6 +198,8 @@ const remoteBridge = {
   getProviderUsage: () => requireClient().providerUsage(),
   refreshProviderUsage: () => requireClient().providerUsage(),
   getUsageLoginState: () => Promise.resolve({ stored: {} }),
+  dbGetProjectNotes: (projectId: string) => requireClient().projectNotes(projectId),
+  dbSetProjectNotes: (notes: ProjectNotes) => requireClient().setProjectNotes(notes),
   refreshAgentStatuses: async (_wslDistros?: string[], _scope?: RefreshAgentScope) => {
     const statuses = await requireClient().agentStatuses();
     applyAgentStatuses(statuses);
@@ -164,14 +223,20 @@ const remoteBridge = {
     requireClient().updateSchedule(id, task),
   deleteSchedule: ({ id }: { id: string }) => requireClient().deleteSchedule(id),
   runScheduleNow: ({ id }: { id: string }) => requireClient().runScheduleNow(id),
+  getPrWatch: (input: PrWatchKey) => requireClient().getPrWatch(input),
+  checkPrWatch: (input: PrWatchKey) => requireClient().checkPrWatch(input),
+  upsertPrWatch: (input: PrWatchInput) => requireClient().upsertPrWatch(input),
+  deletePrWatch: (input: PrWatchKey) => requireClient().deletePrWatch(input),
 
   // Shared settings persist per device via the store's localStorage fallback.
-  // Remote-editable keys (the desktop's AI helpers) are additionally diffed
-  // and forwarded to the paired desktop — see settingsSync.ts.
+  // Remote-editable keys (including persistent composer MCP enablement) are
+  // additionally diffed and forwarded to the paired desktop — see settingsSync.ts.
   setSharedSettings: (settings: SharedSettingsInput) => {
     pushDesktopSettingsDiff(activeClient, settings);
     return Promise.resolve();
   },
+  removeCrossagentRoutingOverride: () =>
+    Promise.reject(new Error("Manual routing preferences can only be changed on desktop.")),
 
   // Shell conveniences with browser-native equivalents.
   openExternal: (url: string) => {
@@ -184,7 +249,13 @@ const remoteBridge = {
     return Promise.resolve();
   },
   getDroppedFilePaths: () => [],
-  pickFiles: () => Promise.resolve(null),
+  pickFiles: pickBrowserFiles,
+  saveClipboardImage: (payload: { threadId: string; data: Uint8Array; extension: string }) =>
+    requireClient().uploadAttachment({
+      threadId: payload.threadId,
+      fileName: `Image.${payload.extension || "png"}`,
+      data: payload.data,
+    }),
   // Image copy/download use the browser clipboard and an anchor download in
   // place of the desktop's native clipboard and Save dialog.
   copyImageToClipboard: async ({ data }: { data: Uint8Array }): Promise<boolean> => {
@@ -194,6 +265,11 @@ const remoteBridge = {
     const blob = new Blob([toArrayBuffer(data)], { type: "image/png" });
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     return true;
+  },
+  readLocalImageFile: async ({ url }: { url: string }): Promise<Uint8Array> => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to load image (${response.status})`);
+    return new Uint8Array(await response.arrayBuffer());
   },
   saveImageFile: ({
     data,
@@ -218,10 +294,15 @@ const remoteBridge = {
   getAgentHookPluginStatuses: () => Promise.resolve([]),
 
   // Runtime history hydration is fed by the remote sync layer instead of the
-  // local DB; empty results keep `hydrateThreadRuntimeItems` a no-op.
+  // local DB. The selected thread's tail arrives with its snapshot; older
+  // pages are fetched lazily when ChatPane reaches the start.
   dbGetThreadRuntimeItems: () => Promise.resolve([]),
-  dbGetThreadRuntimeItemsPage: () => Promise.resolve({ items: [], nextCursor: null }),
-  dbTruncateThreadRuntimeAfter: () => Promise.resolve(),
+  dbGetThreadRuntimeItemsPage: (payload: RemoteRuntimeItemsPageRequest) =>
+    payload.beforePosition === undefined
+      ? Promise.resolve({ items: [], nextCursor: null })
+      : requireClient().threadRuntimeItemsPage(payload),
+  dbTruncateThreadRuntimeAfter: (payload: { threadId: string; itemId: string }) =>
+    requireClient().truncateThreadRuntimeAfter(payload),
   dbGetThreadCompletedTurns: () => Promise.resolve([]),
   dbGetThreadContextUsage: () => Promise.resolve(null),
 
@@ -282,10 +363,12 @@ const remoteBridge = {
 
   // Event subscriptions: remote events arrive over the WebSocket instead.
   onSupervisorEvent: () => () => undefined,
+  onGitStateChanged: () => () => undefined,
   onUpdateStatus: () => () => undefined,
   onBrowserEvent: () => () => undefined,
   onRemoteThreadCommand: () => () => undefined,
   onSharedSettingsChanged: () => () => undefined,
+  onThreadOpenRequested: () => () => undefined,
 };
 
 export function installRemoteBridge(): void {
@@ -296,6 +379,9 @@ export function installRemoteBridge(): void {
         return Reflect.get(target, prop, receiver) as unknown;
       }
       if (typeof prop !== "string") return undefined;
+      // Optional bridge metadata is genuinely unavailable in a browser. Do not
+      // expose the missing value as the generic unavailable-method fallback.
+      if (prop === "homeDir") return undefined;
       // Reused/mobile desktop-backed surfaces call bridge methods directly;
       // forward allowlisted git/gh/project-tree calls to the paired desktop.
       if (isGitRemoteProcedure(prop)) {

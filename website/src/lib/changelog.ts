@@ -12,6 +12,8 @@ export type ChangelogChangeKind = "added" | "improved" | "fixed";
 
 export interface ChangelogChange {
   kind: ChangelogChangeKind;
+  /** Optional short feature name rendered as a bold prefix, e.g. "Crossagents". */
+  label?: string;
   text: string;
 }
 
@@ -28,7 +30,11 @@ const VALID_KINDS: ReadonlySet<string> = new Set(["added", "improved", "fixed"])
 function isChange(value: unknown): value is ChangelogChange {
   if (typeof value !== "object" || value === null) return false;
   const c = value as Record<string, unknown>;
-  return VALID_KINDS.has(c.kind as string) && typeof c.text === "string";
+  return (
+    VALID_KINDS.has(c.kind as string) &&
+    typeof c.text === "string" &&
+    (c.label === undefined || typeof c.label === "string")
+  );
 }
 
 function isRelease(value: unknown): value is ChangelogRelease {

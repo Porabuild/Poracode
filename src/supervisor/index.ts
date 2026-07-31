@@ -4,6 +4,7 @@ import {
   flushSupervisorSentry,
   initializeSupervisorSentry,
 } from "./diagnostics/sentry";
+import { handleSupervisorIpcFailure } from "./ipcFailure";
 import { createSupervisorIpcHandlers } from "./ipcHandlers";
 import { SupervisorRuntime } from "./supervisorRuntime";
 import { configureSecretStorageKey } from "./secretStorage";
@@ -54,12 +55,7 @@ process.on("message", (message: SupervisorRequest) => {
       }),
     )
     .catch((error: unknown): SupervisorReply => {
-      captureSupervisorException(error, { "poracode.feature_area": "supervisor-ipc" });
-      return {
-        replyTo: message.id,
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return handleSupervisorIpcFailure(error, message.type, message.id);
     })
     .then((reply) => process.send?.(reply));
 });

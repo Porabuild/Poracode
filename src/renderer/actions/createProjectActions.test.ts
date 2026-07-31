@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+const ACTIVE_WORKSPACE_ID = "ws-active";
+
 const mocks = vi.hoisted(() => ({
   createProjectDirectory: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
   cloneRepo: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
   pickFolder: vi.fn<(d?: string) => Promise<string | null>>(),
-  addProject: vi.fn<(location: unknown, name?: string) => unknown>((location, name) => ({
-    id: "p1",
-    name: name ?? "x",
-    location,
-    createdAt: "t",
-  })),
+  addProject: vi.fn<(location: unknown, name?: string, workspaceId?: string) => unknown>(
+    (location, name) => ({
+      id: "p1",
+      name: name ?? "x",
+      location,
+      createdAt: "t",
+    }),
+  ),
   openDraft: vi.fn<(id: string) => void>(),
   setLastUsedProjectDir: vi.fn<(key: string, dir: string) => void>(),
   autoDetectSetupScript: vi.fn<(project: unknown) => void>(),
@@ -32,6 +36,10 @@ vi.mock("@/renderer/actions/projectActions", () => ({
 }));
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: { getState: () => ({ addProject: mocks.addProject, openDraft: mocks.openDraft }) },
+}));
+// New projects inherit whichever workspace the user is currently viewing.
+vi.mock("@/renderer/state/workspaceStore", () => ({
+  getActiveWorkspaceId: () => ACTIVE_WORKSPACE_ID,
 }));
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: {
@@ -67,7 +75,11 @@ describe("commitCreateProject", () => {
     });
 
     expect(createProjectDirectory).not.toHaveBeenCalled();
-    expect(addProject).toHaveBeenCalledWith({ kind: "posix", path: "/Users/me/code/app" }, "app");
+    expect(addProject).toHaveBeenCalledWith(
+      { kind: "posix", path: "/Users/me/code/app" },
+      "app",
+      ACTIVE_WORKSPACE_ID,
+    );
     expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
     expect(openDraft).toHaveBeenCalledWith("p1");
   });
@@ -87,7 +99,11 @@ describe("commitCreateProject", () => {
       name: "new",
       kind: "posix",
     });
-    expect(addProject).toHaveBeenCalledWith({ kind: "posix", path: "/Users/me/code/new" }, "new");
+    expect(addProject).toHaveBeenCalledWith(
+      { kind: "posix", path: "/Users/me/code/new" },
+      "new",
+      ACTIVE_WORKSPACE_ID,
+    );
     // scratch records the parent the user browsed, not the new folder.
     expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
   });
@@ -142,6 +158,7 @@ describe("commitCloneProject", () => {
     expect(addProject).toHaveBeenCalledWith(
       { kind: "posix", path: "/Users/me/code/poracode" },
       "poracode",
+      ACTIVE_WORKSPACE_ID,
     );
     // Records the parent the user cloned into, not the new folder.
     expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
@@ -163,7 +180,11 @@ describe("commitCloneProject", () => {
       name: "repo",
       source: { kind: "url", url: "https://github.com/owner/repo.git" },
     });
-    expect(addProject).toHaveBeenCalledWith({ kind: "posix", path: "/Users/me/code/repo" }, "repo");
+    expect(addProject).toHaveBeenCalledWith(
+      { kind: "posix", path: "/Users/me/code/repo" },
+      "repo",
+      ACTIVE_WORKSPACE_ID,
+    );
   });
 
   test("clone failure propagates and does not add a project", async () => {
@@ -199,6 +220,7 @@ describe("addExistingProject", () => {
     expect(addProject).toHaveBeenCalledWith(
       { kind: "posix", path: "/Users/me/code/app" },
       undefined,
+      ACTIVE_WORKSPACE_ID,
     );
     expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
     expect(createProjectDirectory).not.toHaveBeenCalled();
@@ -227,6 +249,7 @@ describe("addExistingProject", () => {
         uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\app",
       },
       undefined,
+      ACTIVE_WORKSPACE_ID,
     );
     expect(setLastUsedProjectDir).toHaveBeenCalledWith(
       "Ubuntu",

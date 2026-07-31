@@ -12,6 +12,18 @@ import { firstNonEmptyLine, normalizeToolText } from "./contentExtraction";
 import type { ActiveAcpSubAgent, AcpMapperState, AcpToolCallItemState } from "./state";
 import { newItemId } from "./state";
 
+export const PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY = "poracodeParentToolCallId";
+/**
+ * Provider-boundary assertion that this tool call belongs to the foreground
+ * agent. Without it, the generic ACP fallback may infer that a newly-started
+ * subagent is nested under the most recently active subagent.
+ */
+export const PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY = "poracodeTopLevelToolCall";
+export const PORACODE_ACP_DETACHED_SUBAGENT_META_KEY = "poracodeDetachedSubAgent";
+export const PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY = "poracodeDetachedSubAgentActivity";
+export const PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY = "poracodeNewAssistantItem";
+export const PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY = "poracodeSynthesizeSubAgentResult";
+
 export function buildSubAgentProgress(
   toolCall: {
     title?: string | null;
@@ -50,6 +62,7 @@ export function buildSubAgentProgressEvents(
       threadId: state.threadId,
       itemId: item.subAgentProgressItemId,
       itemType: "assistant_message",
+      parentItemId: item.itemId,
     });
   }
   const previous = item.subAgentProgressText ?? "";
@@ -98,8 +111,104 @@ function readSubAgentText(value: unknown): string | undefined {
   return undefined;
 }
 
-export function getActiveSubAgent(state: AcpMapperState): ActiveAcpSubAgent | undefined {
-  return state.activeSubAgents.at(-1);
+export function getActiveSubAgentForNotification(
+  state: AcpMapperState,
+  update: { _meta?: unknown; toolCallId?: unknown },
+): ActiveAcpSubAgent | undefined {
+  const meta =
+    update._meta && typeof update._meta === "object" && !Array.isArray(update._meta)
+      ? (update._meta as Record<string, unknown>)
+      : undefined;
+  if (meta?.[PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY] === true) return undefined;
+  const explicitToolCallId = meta?.[PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY];
+  if (typeof explicitToolCallId === "string") {
+    return state.activeSubAgents.find((active) => active.toolCallId === explicitToolCallId);
+  }
+  // The parent tool's own later updates may create a progress assistant item.
+  // Allow that item to nest even when the parent is detached.
+  if (typeof update.toolCallId === "string") {
+    const matchingTool = state.activeSubAgents.find(
+      (active) => active.toolCallId === update.toolCallId,
+    );
+    if (matchingTool) return matchingTool;
+  }
+  // Detached parents persist beyond the foreground turn that launched them.
+  // They may only claim explicitly-parented notifications; otherwise a later
+  // user turn would be nested under the most recent background agent.
+  return state.activeSubAgents.findLast(
+    (active) => state.toolCallItems.get(active.toolCallId)?.detached !== true,
+  );
+}
+
+export function getDetachedSubAgentToolCallIdForNotification(
+  state: AcpMapperState,
+  update: { _meta?: unknown },
+): string | undefined {
+  const meta =
+    update._meta && typeof update._meta === "object" && !Array.isArray(update._meta)
+      ? (update._meta as Record<string, unknown>)
+      : undefined;
+  const activityToolCallId = meta?.[PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY];
+  if (
+    typeof activityToolCallId === "string" &&
+    state.toolCallItems.get(activityToolCallId)?.detached === true
+  ) {
+    return activityToolCallId;
+  }
+  const active = getActiveSubAgentForNotification(state, update);
+  return active && state.toolCallItems.get(active.toolCallId)?.detached === true
+    ? active.toolCallId
+    : undefined;
+}
+
+/**
+ * When sibling ACP subagents run concurrently, a child tool call can arrive
+ * while both lifetimes are active. ACP has no parent id, but providers usually
+ * repeat the relevant file, command, or subject from the launch prompt in the
+ * child tool input. Prefer the one sibling with uniquely matching terms;
+ * retain stack order when the payload carries no useful identity.
+ */
+export function selectActiveSubAgentForToolCall(
+  state: AcpMapperState,
+  toolCall: {
+    title?: string | null;
+    rawInput?: unknown;
+    _meta?: unknown;
+    locations?: Array<{ path?: string | null }> | null;
+  },
+): ActiveAcpSubAgent | undefined {
+  const fallback = getActiveSubAgentForNotification(state, toolCall);
+  if (!fallback) return undefined;
+  const meta =
+    toolCall._meta && typeof toolCall._meta === "object" && !Array.isArray(toolCall._meta)
+      ? (toolCall._meta as Record<string, unknown>)
+      : undefined;
+  if (typeof meta?.[PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY] === "string") return fallback;
+  const candidates = state.activeSubAgents.filter(
+    (active) => state.toolCallItems.get(active.toolCallId)?.detached !== true,
+  );
+  if (candidates.length < 2) return fallback;
+  const childTerms = extractIdentityTerms({
+    title: toolCall.title,
+    rawInput: toolCall.rawInput,
+    locations: toolCall.locations,
+  });
+  if (childTerms.size === 0) return fallback;
+
+  const rankedCandidates = candidates.map((active) => ({
+    active,
+    terms: extractIdentityTerms(state.toolCallItems.get(active.toolCallId)?.payload.args),
+    score: 0,
+  }));
+  for (const term of childTerms) {
+    const matches = rankedCandidates.filter((candidate) => candidate.terms.has(term));
+    if (matches.length === 1) matches[0]!.score += 1;
+  }
+  const ranked = rankedCandidates.toSorted((left, right) => right.score - left.score);
+  const best = ranked[0];
+  const runnerUp = ranked[1];
+  if (!best || best.score === 0 || best.score === runnerUp?.score) return fallback;
+  return best.active;
 }
 
 export function removeActiveSubAgent(state: AcpMapperState, toolCallId: string): void {
@@ -115,24 +224,36 @@ export function tagSubAgentChildStarts(
   parent: ActiveAcpSubAgent,
   state: AcpMapperState,
 ): void {
-  let taggedStarts = 0;
+  const childStartsByParent = new Map<string, number>();
   for (let index = 0; index < events.length; index += 1) {
     const event = events[index];
     if (!event || event.type !== "item.started") continue;
-    if ("parentItemId" in event && typeof event.parentItemId === "string") continue;
-    events[index] = { ...event, parentItemId: parent.itemId };
-    taggedStarts += 1;
+    // A newly classified subagent and its first progress item can be emitted
+    // by the same ACP update. Never make the parent tool its own child.
+    if (event.itemId === parent.itemId) continue;
+    const explicitParent = "parentItemId" in event ? event.parentItemId : undefined;
+    const parentItemId = typeof explicitParent === "string" ? explicitParent : parent.itemId;
+    if (typeof explicitParent !== "string") {
+      events[index] = { ...event, parentItemId };
+    }
+    childStartsByParent.set(parentItemId, (childStartsByParent.get(parentItemId) ?? 0) + 1);
   }
-  if (taggedStarts === 0) return;
-  const parentTool = state.toolCallItems.get(parent.toolCallId);
-  if (!parentTool) return;
-  parentTool.payload = withBumpedSubAgentStepCount(parentTool.payload, taggedStarts);
-  events.push({
-    type: "item.updated",
-    threadId: state.threadId,
-    itemId: parent.itemId,
-    payload: parentTool.payload,
-  });
+  for (const [parentItemId, taggedStarts] of childStartsByParent) {
+    const activeParent = state.activeSubAgents.find(
+      (candidate) => candidate.itemId === parentItemId,
+    );
+    if (!activeParent) continue;
+    activeParent.hasChildActivity = true;
+    const parentTool = state.toolCallItems.get(activeParent.toolCallId);
+    if (!parentTool) continue;
+    parentTool.payload = withBumpedSubAgentStepCount(parentTool.payload, taggedStarts);
+    events.push({
+      type: "item.updated",
+      threadId: state.threadId,
+      itemId: parentItemId,
+      payload: parentTool.payload,
+    });
+  }
 }
 
 function withBumpedSubAgentStepCount(
@@ -149,6 +270,34 @@ function withBumpedSubAgentStepCount(
       : 0;
   progress.stepCount = prevCount + stepDelta;
   return { ...payload, status: "running", progress };
+}
+
+const SUBAGENT_IDENTITY_STOP_WORDS = new Set([
+  "agent",
+  "current",
+  "directory",
+  "file",
+  "files",
+  "inspect",
+  "modify",
+  "read",
+  "return",
+  "task",
+  "tool",
+]);
+
+function extractIdentityTerms(value: unknown): Set<string> {
+  let text: string;
+  try {
+    text = typeof value === "string" ? value : JSON.stringify(value);
+  } catch {
+    return new Set();
+  }
+  return new Set(
+    (text.toLowerCase().match(/[a-z0-9][a-z0-9._-]{2,}/gu) ?? []).filter(
+      (term) => !SUBAGENT_IDENTITY_STOP_WORDS.has(term),
+    ),
+  );
 }
 
 /**

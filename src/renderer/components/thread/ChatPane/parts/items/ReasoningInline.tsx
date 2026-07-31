@@ -2,6 +2,7 @@ import { Disclosure } from "@heroui/react";
 import { memo, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { Brain } from "lucide-react";
+import { useSmoothStreamedText } from "@/renderer/hooks/useSmoothStreamedText";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { useBrainThinking, useShimmer } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
@@ -26,11 +27,12 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
   const isStreaming = item.state !== "completed";
   const [isExpanded, setIsExpanded] = useState(false);
   const rawText = item.streams.reasoning_text ?? "";
+  const smoothedText = useSmoothStreamedText(rawText, isStreaming && !isExpanded);
   const hasText = rawText.trim().length > 0;
   const preview = isExpanded
     ? ""
     : isStreaming
-      ? getReasoningLastLine(rawText)
+      ? getReasoningLastLine(smoothedText)
       : getReasoningInlinePreview(rawText);
   const brainRef = useBrainThinking(isStreaming);
   const shimmerRef = useShimmer<HTMLElement>(isStreaming);
@@ -77,6 +79,8 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
           {preview ? (
             <>
               <ChatRowMetaSeparator />
+              {/* Italic-overhang padding comes from the global
+                  `.italic.truncate` rule in styles.css. */}
               <span className="min-w-0 flex-1 truncate italic text-[color:var(--muted)]">
                 {preview}
               </span>

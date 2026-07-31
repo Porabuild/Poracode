@@ -11,6 +11,7 @@ import type {
 import { friendlyError, msg } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
+import { useGitStore } from "@/renderer/state/gitStore";
 
 export type GitSyncCommand = "pull" | "pullRebase" | "push" | "sync" | "syncRebase";
 export type SyncAction = "push" | "pull" | "sync";
@@ -76,6 +77,54 @@ export async function runGitPullFromSource(
   payload: GitPullFromSourcePayload,
 ): Promise<GitPullFromSourceResult> {
   return readBridge().gitPullFromSource(payload);
+}
+
+export async function pullMergedPrBaseIfPossible(
+  projectLocation: ProjectLocation,
+  baseBranch: string,
+): Promise<void> {
+  try {
+    const status = await readBridge().getGitStatus({ projectLocation, detail: "summary" });
+    if (
+      status.branch !== baseBranch ||
+      !status.hasRemote ||
+      !status.tracking ||
+      status.ahead > 0 ||
+      status.staged.length > 0 ||
+      status.unstaged.length > 0 ||
+      status.mergeInProgress
+    ) {
+      return;
+    }
+
+    const separator = status.tracking.indexOf("/");
+    if (separator <= 0) return;
+    await runGitSyncCommand({
+      command: "pull",
+      projectLocation,
+      remote: status.tracking.slice(0, separator),
+    });
+  } catch (error) {
+    console.warn("[git] post-merge pull skipped", error);
+  }
+}
+
+/**
+ * Refresh one worktree directly after a renderer-initiated Git mutation.
+ * Remote PWA clients do not receive the desktop's noisy `git-changed` watcher
+ * event, so conflict controls and diffs must not rely on that event to replace
+ * their cached pre-operation status.
+ */
+export async function refreshGitStatusForWorktree(
+  worktreeLocation: ProjectLocation,
+  worktreePath: string,
+): Promise<void> {
+  try {
+    const status = await readBridge().getGitStatus({ projectLocation: worktreeLocation });
+    useGitStore.getState().setWorktreeStatus(worktreePath, status);
+  } catch (error) {
+    console.warn(`[git] worktree status refresh failed path=${worktreePath}`, error);
+  }
 }
 
 function buildGitSyncPayload(projectLocation: ProjectLocation, remote?: string): GitSyncPayload {

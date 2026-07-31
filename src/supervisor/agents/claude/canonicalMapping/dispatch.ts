@@ -2,7 +2,7 @@ import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, ToolCallProgress, TurnState } from "@/shared/contracts";
 import { readFileChangePath, readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
-import { completeActiveGoalEvents } from "./goal";
+import { applyActiveGoalMessage, completeActiveGoalEvents, isActiveGoalMessage } from "./goal";
 import {
   extractCompletedStringFields,
   extractText,
@@ -10,6 +10,7 @@ import {
   fileChangeMetadataFromToolResult,
   inputFingerprint,
   newItemId,
+  readClaudeAssistantMessageId,
   tryParseJsonRecord,
 } from "./helpers";
 import { applyPlanAggregatorInput, bindTaskCreateResult } from "./planMapping";
@@ -30,15 +31,11 @@ import { completeTextItem, ensureTextItem, closeClaudeOpenItems } from "./textIt
 import { createToolItemState, hasToolCallPayload, isSubAgentToolName } from "./toolClassification";
 import { startToolItem, syncSubAgentModelProgress } from "./toolItems";
 import { toolPayload } from "./toolPayload";
+import { createClaudeUsageSpentEvent, readClaudeAssistantSpendTokens } from "./usageSpent";
+import { workflowFromToolUseResult } from "./workflowOutput";
 
 export function readParentToolUseId(message: SDKMessage): string | undefined {
   const value = (message as { parent_tool_use_id?: unknown }).parent_tool_use_id;
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-function readClaudeAssistantMessageId(message: unknown): string | undefined {
-  if (!message || typeof message !== "object") return undefined;
-  const value = (message as { id?: unknown }).id;
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
@@ -213,6 +210,11 @@ function mapClaudeSdkMessageInner(
   options?: ClaudeSdkMessageMappingOptions,
 ): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
+  // Native /goal Stop-hook verdicts. Typed outside the SDKMessage union but
+  // yielded on the same stream.
+  if (isActiveGoalMessage(message)) {
+    return applyActiveGoalMessage(state, message);
+  }
   if (message.type === "stream_event") {
     // Sub-agent partial streams (parent_tool_use_id set) interleave with the
     // main-thread stream but share the same per-block-index lane maps. Their
@@ -366,13 +368,23 @@ function mapClaudeSdkMessageInner(
   }
 
   if (message.type === "assistant") {
+    // Per-call spend for EVERY assistant API message — main-thread and
+    // sub-agent (parent-attributed) alike — emitted here, exactly once, before
+    // either rendering path. Never emitted from task_progress/task_notification
+    // or result.usage: those would double-count sidechain calls.
+    const usageSpentEvent =
+      state.usageScope && readClaudeAssistantSpendTokens(message) !== undefined
+        ? createClaudeUsageSpentEvent(state.threadId, message, state.usageScope.sample())
+        : undefined;
     // Sub-agent (parent-attributed) whole messages must not touch the shared
     // main-lane per-index maps — index 0 of a sub-agent message would collide
     // with the main thread's streaming block at index 0. Emit self-contained,
     // already-complete child items instead (tagParent attaches parentItemId).
     if (readParentToolUseId(message)) {
-      return flushSubAgentAssistantMessage(message, state);
+      const subAgentEvents = flushSubAgentAssistantMessage(message, state);
+      return usageSpentEvent ? [usageSpentEvent, ...subAgentEvents] : subAgentEvents;
     }
+    if (usageSpentEvent) events.push(usageSpentEvent);
     const messageId = readClaudeAssistantMessageId(message.message);
     const skipTextSnapshot = messageId ? state.streamedAssistantMessageIds.has(messageId) : false;
     const content = (message.message as { content?: unknown }).content;
@@ -445,6 +457,12 @@ function mapClaudeSdkMessageInner(
       if (!tool) continue;
       const text = extractText(obj.content);
       const images = extractToolResultImages(obj.content);
+      if (tool.toolName === "Workflow") {
+        const workflow = workflowFromToolUseResult(
+          (message as { tool_use_result?: unknown }).tool_use_result,
+        );
+        if (workflow) tool.workflow = workflow;
+      }
       if (tool.planAggregatorRole) {
         if (tool.planAggregatorRole === "TaskCreate" && text.length > 0) {
           bindTaskCreateResult(state, tool, text);

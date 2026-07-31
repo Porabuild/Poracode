@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import slugify from "@sindresorhus/slugify";
 import type { ProjectLocation, SessionRef } from "@/shared/contracts";
 import {
   createKnownSessionRef,
@@ -59,14 +60,13 @@ export function commandCodeTranscriptId(name: string): string | undefined {
 }
 
 /**
- * Reproduce command-code's `cwd → projects/<dir>` mapping. Verified
- * empirically against the v0.37.2 on-disk layout: resolve symlinks first
- * (macOS `/tmp` and `/var` are symlinks into `/private/...`), drop the leading
- * slash, lowercase, then collapse every non-alphanumeric run to a single dash.
- *   /Users/me/work/lc               -> users-me-work-lc
- *   /private/var/folders/…/T/cc.x   -> private-var-folders-…-t-cc-x
+ * Reproduce Command Code v1.4.1's `cwd → projects/<dir>` mapping. The CLI uses
+ * `@sindresorhus/slugify`; resolving symlinks first keeps macOS `/tmp` and
+ * `/var` aligned with the physical cwd Node reports inside the spawned process.
+ *   C:\Users\me\AppData\Local\cc     -> c-users-me-app-data-local-cc
+ *   /private/var/folders/…/T/cc.x   -> private-var-folders-t-cc-x
  */
-export function sanitizeCommandCodeCwd(cwd: string): string {
+function commandCodeCwdSlug(cwd: string): string {
   let real = cwd;
   try {
     real = realpathSync.native(cwd);
@@ -74,10 +74,16 @@ export function sanitizeCommandCodeCwd(cwd: string): string {
     // A freshly created worktree dir may not be realpath-able yet; the raw
     // path is then the best key we have.
   }
-  return real
-    .replace(/^\/+/, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-");
+  return slugify(real);
+}
+
+export function sanitizeCommandCodeCwd(cwd: string): string {
+  return commandCodeCwdSlug(cwd) || "root";
+}
+
+/** Command Code omits the project slug segment for a root cwd's local MCP config. */
+export function sanitizeCommandCodeMcpCwd(cwd: string): string {
+  return commandCodeCwdSlug(cwd);
 }
 
 // Build the project dir from an ALREADY-sanitized cwd key, so callers sanitize

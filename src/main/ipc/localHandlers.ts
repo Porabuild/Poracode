@@ -15,6 +15,7 @@ import {
   dbGetThreadRuntimeItemsPage,
   dbTruncateThreadRuntimeAfter,
   dbGetThreads,
+  dbPersistExperimentState,
   dbListScheduleRuns,
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeSnapshot,
@@ -27,12 +28,15 @@ import {
 } from "../db";
 import {
   deleteThreadAttachments,
+  deleteThreadAttachmentsAsync,
+  readLocalImageFile,
   resolveProjectFsPath,
   saveClipboardImageFile,
   saveHandoffContextFile,
   writeImageFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
+import { diffSyncedThreads } from "./threadSyncBroadcast";
 import { showOsNotification } from "../osNotifications";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import {
@@ -43,7 +47,9 @@ import {
   setProfileIdentityResponse,
 } from "../profile";
 import {
+  applyAgentSecretSetting,
   applyClaudeProfileEnvironment,
+  mergeManagedSharedSettings,
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "../sharedSettingsFile";
@@ -62,13 +68,14 @@ import {
   type WindowChromeResult,
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
-import type { AgentInstanceConfig } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
+import { removeCrossagentRoutingOverride } from "@/shared/crossagentRanking";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshConnectionManager } from "../ssh/SshConnectionManager";
 import type { ScheduleService } from "../schedules/ScheduleService";
+import type { PrWatchService } from "../prWatch";
 import { homeScopeLocation } from "../schedules";
 import { resolvePoracodeChannel } from "@/shared/channel";
 import {
@@ -102,6 +109,7 @@ interface CreateLocalIpcHandlersOptions {
   /** Relaunch the app (exposed via the relaunchApp IPC). */
   requestRelaunch(): void;
   scheduleService: ScheduleService;
+  prWatchService: PrWatchService;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -204,6 +212,7 @@ export function createLocalIpcHandlers(
       clipboard.writeImage(image);
       return true;
     },
+    readLocalImageFile: ({ url }) => readLocalImageFile(url),
     createProjectDirectory: (payload) => createProjectDirectory(payload),
     // Desktop-as-client: proxy a remote Poracode server request through the
     // main process (no browser CORS). Restricted to http(s) and a bounded
@@ -223,7 +232,11 @@ export function createLocalIpcHandlers(
           method: payload.method ?? "GET",
           signal: controller.signal,
           ...(payload.headers ? { headers: payload.headers } : {}),
-          ...(payload.body !== undefined ? { body: payload.body } : {}),
+          ...(payload.body !== undefined
+            ? { body: payload.body }
+            : payload.bodyBase64 !== undefined
+              ? { body: Buffer.from(payload.bodyBase64, "base64") }
+              : {}),
         });
         const buffer = await readBoundedResponseBody(response, REMOTE_HTTP_RESPONSE_MAX_BYTES);
         return {
@@ -300,6 +313,11 @@ export function createLocalIpcHandlers(
     setGlobalShortcutsSuspended: (payload) =>
       options.setGlobalShortcutsSuspended?.(payload.suspended),
     getRemoteAccessPairing: () => getRemoteAccessPairingInfo(options.getRemoteAccessServer()),
+    refreshRemoteAccessPairing: () => {
+      const server = options.getRemoteAccessServer();
+      server?.issuePairingUrl("Settings QR");
+      return getRemoteAccessPairingInfo(server);
+    },
     setRemoteAccessEnabled: (payload) => options.setRemoteAccessEnabled(payload.enabled),
     sshDiscoverHosts: () => options.sshConnectionManager.discoverHosts(),
     sshConnect: (payload) => options.sshConnectionManager.connect(payload),
@@ -325,43 +343,34 @@ export function createLocalIpcHandlers(
     getSharedSettings: () => readSharedSettingsFile(options.requirePoracodePaths().settingsPath),
     setSharedSettings: (settings) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
-      // Preserve supervisor-managed fields so the renderer's persist cycle
-      // doesn't clobber writes made out-of-band by the supervisor.
-      const onDisk = readSharedSettingsFile(settingsPath);
-      const rendererManagedInstances = Object.fromEntries(
-        Object.entries(settings.agentInstances)
-          .filter(([, instance]) => instance.driver !== "acp-generic")
-          .map(([id, instance]): [string, AgentInstanceConfig] => {
-            // A Claude profile's `environment` is owned by the encrypting
-            // `setClaudeProfileEnvironment` path. Pin it to disk so the
-            // renderer's plaintext-capable persist cycle can never write a
-            // secret in the clear or clear a saved one. Other drivers keep
-            // their existing renderer-managed behavior.
-            if (instance.driver !== "claude") return [id, instance];
-            const onDiskEnv = onDisk.agentInstances[id]?.environment;
-            const next: AgentInstanceConfig = { ...instance };
-            if (onDiskEnv) next.environment = onDiskEnv;
-            else delete next.environment;
-            return [id, next];
-          }),
-      );
-      const supervisorManagedInstances = Object.fromEntries(
-        Object.entries(onDisk.agentInstances).filter(
-          ([, instance]) => instance.driver === "acp-generic",
-        ),
-      );
-      const merged: SharedSettings = {
-        ...settings,
-        acpRegistryInstalledAgents: onDisk.acpRegistryInstalledAgents,
-        agentInstances: {
-          ...rendererManagedInstances,
-          ...supervisorManagedInstances,
-        },
-        agentHookSupport: onDisk.agentHookSupport,
-      };
+      // Preserve supervisor-managed fields and encrypted Claude-profile
+      // environments so the renderer's persist cycle doesn't clobber writes
+      // made out-of-band by the supervisor. (Shared with the app-controls MCP
+      // `update_settings` tool via `mergeManagedSharedSettings`.)
+      const merged = mergeManagedSharedSettings(readSharedSettingsFile(settingsPath), settings);
       writeSharedSettingsFile(settingsPath, merged);
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.(merged);
+    },
+    setAgentSecretSetting: (payload) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const { settings, storedValue } = applyAgentSecretSetting(
+        readSharedSettingsFile(settingsPath),
+        payload,
+        dirname(settingsPath),
+      );
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return { storedValue };
+    },
+    removeCrossagentRoutingOverride: ({ tags }) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const current = readSharedSettingsFile(settingsPath);
+      const overrides = removeCrossagentRoutingOverride(current.crossagentRoutingOverrides, tags);
+      const settings = { ...current, crossagentRoutingOverrides: overrides };
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return overrides;
     },
     setClaudeProfileEnvironment: (payload) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
@@ -413,10 +422,33 @@ export function createLocalIpcHandlers(
       deleteThreadAttachments(options.requirePoracodePaths(), threadId);
     },
     dbDeleteProject: ({ projectId }) => dbDeleteProject(projectId),
-    dbSyncAll: ({ projects, threads, viewJson }) => dbSyncAll(projects, threads, viewJson),
+    dbSyncAll: ({ projects, threads, viewJson }) => {
+      // Desktop-originated thread changes (auto-title, rename, done/star,
+      // archive, status, delete) reach SQLite only through this persist — they
+      // emit no supervisor event, so remote clients never learned about them.
+      // Diff before writing, then publish the same event remote-issued thread
+      // commands send; the remote's debounced refresh reads the post-write
+      // state.
+      const { changedThreadIds, viewedThreadIds } = diffSyncedThreads(dbGetThreads(), threads);
+      dbSyncAll(projects, threads, viewJson);
+      if (changedThreadIds.length > 0) {
+        options.getRemoteAccessServer()?.publishSupervisorEvent({
+          type: "remote-threads-changed",
+          threadIds: changedThreadIds,
+          ...(viewedThreadIds.length > 0 ? { viewedThreadIds } : {}),
+        });
+      }
+    },
+    dbPersistExperimentState: async (payload) => {
+      dbPersistExperimentState(payload);
+      const paths = options.requirePoracodePaths();
+      await Promise.all(
+        payload.deletedThreadIds.map((threadId) => deleteThreadAttachmentsAsync(paths, threadId)),
+      );
+    },
     dbGetThreadRuntimeItems: ({ threadId }) => dbGetThreadRuntimeItems(threadId),
-    dbGetThreadRuntimeItemsPage: ({ threadId, beforePosition, limit }) =>
-      dbGetThreadRuntimeItemsPage(threadId, beforePosition, limit),
+    dbGetThreadRuntimeItemsPage: ({ threadId, beforePosition, limit, targetTimelineEntryCount }) =>
+      dbGetThreadRuntimeItemsPage(threadId, beforePosition, limit, targetTimelineEntryCount),
     dbTruncateThreadRuntimeAfter: ({ threadId, itemId }) =>
       dbTruncateThreadRuntimeAfter(threadId, itemId),
     dbReplaceThreadRuntimeItems: ({ threadId, items }) =>
@@ -435,6 +467,11 @@ export function createLocalIpcHandlers(
     deleteSchedule: ({ id }) => options.scheduleService.delete(id),
     runScheduleNow: ({ id }) => options.scheduleService.runNow(id),
     getScheduleRuns: ({ id }) => dbListScheduleRuns(id),
+    getPrWatch: ({ projectId, prNumber }) => options.prWatchService.get(projectId, prNumber),
+    checkPrWatch: ({ projectId, prNumber }) =>
+      options.prWatchService.requestCheck(projectId, prNumber),
+    upsertPrWatch: (watch) => options.prWatchService.upsert(watch),
+    deletePrWatch: ({ projectId, prNumber }) => options.prWatchService.delete(projectId, prNumber),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),
     startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
     installUpdate: () => options.autoUpdater.installUpdate(),
@@ -443,6 +480,7 @@ export function createLocalIpcHandlers(
       requireBrowserPanel(options.getBrowserPanelManager).createTab({
         ...(payload.url !== undefined ? { url: payload.url } : {}),
         ...(payload.activate !== undefined ? { activate: payload.activate } : {}),
+        ...(payload.reveal !== undefined ? { reveal: payload.reveal } : {}),
       }),
     browserCloseTab: ({ tabId }) =>
       requireBrowserPanel(options.getBrowserPanelManager).closeTab(tabId),

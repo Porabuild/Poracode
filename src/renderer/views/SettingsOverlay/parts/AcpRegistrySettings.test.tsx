@@ -50,8 +50,8 @@ const bridge = {
     vi.fn<(payload: { agentKind: string }) => Promise<{ source: string; version?: string }>>(),
 };
 
-const runAgentInstallCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => void>());
-const runAgentLoginCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => void>());
+const runAgentInstallCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => boolean>());
+const runAgentLoginCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => boolean>());
 const resetDiscoveredAgentsMock = vi.hoisted(() => vi.fn<() => void>());
 
 vi.mock("@/renderer/state/agentStatusesStore", () => {
@@ -126,6 +126,8 @@ describe("native ACP registry aliases", () => {
       "github-copilot-cli": "copilot",
       "grok-build": "grok",
       opencode: "opencode",
+      "pi-acp": "pi",
+      qoder: "qoder",
     });
   });
 
@@ -142,6 +144,7 @@ describe("native ACP registry aliases", () => {
       "gemini",
       "github-copilot",
       "github-copilot-cli",
+      "qoder",
     ]);
     expect(
       [...APP_SUPPORTED_ACP_AGENT_IDS].every((id) => KNOWN_NATIVE_FAMILY_ACP_AGENT_IDS.has(id)),
@@ -180,6 +183,39 @@ function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {})
     capabilities: baseCapabilities,
     ...input,
   };
+}
+
+function makeCursorStatus(input: {
+  acpInstalled: boolean;
+  sdkInstalled: boolean;
+  acpVersion?: string;
+  sdkVersion?: string;
+  sdkInstallationSource?: string;
+}): AgentStatus {
+  return makeStatus("cursor", {
+    label: "Cursor",
+    ...(input.acpVersion ? { version: input.acpVersion } : {}),
+    envKind: "posix",
+    runtimeVariants: {
+      acp: {
+        presentationMode: "gui",
+        installed: input.acpInstalled,
+        ...(input.acpVersion ? { version: input.acpVersion } : {}),
+        authState: "authenticated",
+        authUsesProviderLogin: true,
+        capabilities: baseCapabilities,
+      },
+      sdk: {
+        presentationMode: "gui",
+        installed: input.sdkInstalled,
+        ...(input.sdkVersion ? { version: input.sdkVersion } : {}),
+        ...(input.sdkInstallationSource ? { installationSource: input.sdkInstallationSource } : {}),
+        authState: "authenticated",
+        authUsesProviderLogin: false,
+        capabilities: baseCapabilities,
+      },
+    },
+  });
 }
 
 function makeProject(input: { id: string; name: string; location: Project["location"] }): Project {
@@ -294,8 +330,8 @@ describe("AcpRegistrySettings", () => {
     bridge.focusWindow.mockReset().mockResolvedValue(undefined);
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
     bridge.getLatestAgentVersion.mockReset().mockResolvedValue({ source: "unknown" });
-    runAgentLoginCommandMock.mockReset();
-    runAgentInstallCommandMock.mockReset();
+    runAgentLoginCommandMock.mockReset().mockReturnValue(true);
+    runAgentInstallCommandMock.mockReset().mockReturnValue(true);
     resetDiscoveredAgentsMock.mockReset();
     settingsState.syncAcpRegistryInstalledAgents.mockReset().mockImplementation((installed) => {
       settingsState.acpRegistryInstalledAgents = Object.fromEntries(
@@ -355,6 +391,90 @@ describe("AcpRegistrySettings", () => {
     });
   });
 
+  it("offers Cursor ACP, SDK, or both as distinct installation choices", async () => {
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
+    expect(cursorCard).toBeTruthy();
+
+    fireEvent.click(within(cursorCard as HTMLElement).getByRole("button", { name: "Install" }));
+
+    expect(
+      await screen.findByRole("menuitem", { name: "Install Cursor Agent (ACP)" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Install Cursor SDK" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Install ACP + SDK" })).toBeInTheDocument();
+  });
+
+  it("shows independent Cursor runtime versions and updates a managed SDK", async () => {
+    statusesState.agentStatuses = [
+      makeCursorStatus({
+        acpInstalled: true,
+        sdkInstalled: true,
+        acpVersion: "2026.07.23",
+        sdkVersion: "1.0.31",
+        sdkInstallationSource: "global-npm",
+      }),
+    ];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
+    expect(cursorCard).toBeTruthy();
+    expect(within(cursorCard as HTMLElement).getByText(/ACP v2026\.07\.23/u)).toBeInTheDocument();
+    expect(
+      within(cursorCard as HTMLElement).getByText(/SDK v1\.0\.31 \(global npm\)/u),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(cursorCard as HTMLElement).getByRole("button", { name: "Update SDK" }));
+
+    expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Update Cursor SDK",
+        command: expect.any(Function),
+        onCommandComplete: expect.any(Function),
+      }),
+    );
+    const updateInput = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
+      | { command: (project: Project) => string }
+      | undefined;
+    expect(
+      updateInput?.command(
+        makeProject({
+          id: "project",
+          name: "Project",
+          location: { kind: "posix", path: "/repo" },
+        }),
+      ),
+    ).toContain("npm install -g '@cursor/sdk@^1.0.24'");
+  });
+
+  it("shows externally managed SDK versions without a misleading update action", async () => {
+    statusesState.agentStatuses = [
+      makeCursorStatus({
+        acpInstalled: true,
+        sdkInstalled: true,
+        acpVersion: "2026.07.23",
+        sdkVersion: "1.0.31",
+        sdkInstallationSource: "project",
+      }),
+    ];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
+    expect(cursorCard).toBeTruthy();
+    expect(
+      within(cursorCard as HTMLElement).getByText(/SDK v1\.0\.31 \(project managed\)/u),
+    ).toBeInTheDocument();
+    expect(
+      within(cursorCard as HTMLElement).queryByRole("button", { name: "Update SDK" }),
+    ).toBeNull();
+  });
+
   it("offers Antigravity as a native install", async () => {
     render(<AcpRegistrySettings />);
 
@@ -400,7 +520,7 @@ describe("AcpRegistrySettings", () => {
     await screen.findByRole("heading", { name: "Agent Registry" });
 
     const cases = [
-      { pattern: /First-class Cursor Agent integration/u, label: "Cursor" },
+      { pattern: /First-class Cursor integration/u, label: "Cursor" },
       { pattern: /First-class Factory Droid integration/u, label: "Factory Droid" },
       { pattern: /First-class Gemini CLI integration/u, label: "Gemini" },
       { pattern: /First-class GitHub Copilot CLI integration/u, label: "GitHub Copilot" },
@@ -411,6 +531,11 @@ describe("AcpRegistrySettings", () => {
       expect(card).toBeTruthy();
 
       fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Install" }));
+      if (expected.label === "Cursor") {
+        fireEvent.click(
+          await screen.findByRole("menuitem", { name: "Install Cursor Agent (ACP)" }),
+        );
+      }
 
       await waitFor(() => {
         expect(runAgentInstallCommandMock).toHaveBeenLastCalledWith(
@@ -507,6 +632,16 @@ describe("AcpRegistrySettings", () => {
     expect(entries.get("gemini")?.installCommand(wslProject)).toContain(
       "npm install -g @google/gemini-cli",
     );
+    expect(entries.get("commandcode")?.installCommand(wslProject)).toContain(
+      'prefix="$(npm config get prefix)"',
+    );
+    expect(entries.get("commandcode")?.installCommand(wslProject)).toContain(
+      'ln -sf "$prefix/bin/command-code" "$HOME/.local/bin/command-code"',
+    );
+    expect(entries.get("qwen")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash",
+    );
+    expect(entries.get("qwen")?.installCommand(wslProject)).not.toContain("brew install");
     expect(entries.get("copilot")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://gh.io/copilot-install | bash",
     );
@@ -523,6 +658,7 @@ describe("AcpRegistrySettings", () => {
         "brew install anomalyco/tap/opencode",
       );
       expect(entries.get("gemini")?.installCommand(macProject)).not.toContain("brew install");
+      expect(entries.get("qwen")?.installCommand(macProject)).toContain("brew install qwen-code");
       expect(entries.get("copilot")?.installCommand(macProject)).toContain(
         "brew install --cask copilot-cli",
       );
@@ -546,6 +682,9 @@ describe("AcpRegistrySettings", () => {
       );
       expect(entries.get("gemini")?.installCommand(windowsProject)).toContain(
         "npm install -g @google/gemini-cli",
+      );
+      expect(entries.get("qwen")?.installCommand(windowsProject)).toContain(
+        "irm https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.ps1 | iex",
       );
       expect(entries.get("copilot")?.installCommand(windowsProject)).toContain(
         "winget install GitHub.Copilot",
@@ -729,9 +868,7 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const cursorCard = screen
-      .getByText(/First-class Cursor Agent integration/u)
-      .closest(".rounded-lg");
+    const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
     expect(cursorCard).toBeTruthy();
     expect(within(cursorCard as HTMLElement).getByText("(local)")).toBeInTheDocument();
     expect(within(cursorCard as HTMLElement).getByText("WSL (Ubuntu)")).toBeInTheDocument();

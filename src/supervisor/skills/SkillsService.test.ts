@@ -33,6 +33,7 @@ describe("SkillsService", () => {
   let adapters: ReadonlyMap<string, AgentAdapter>;
 
   beforeEach(async () => {
+    vi.stubEnv("PORACODE_BUNDLED_SKILLS_DIR", "");
     root = await mkdtemp(join(tmpdir(), "poracode-skills-"));
     home = join(root, "home");
     projectPath = join(root, "project");
@@ -72,6 +73,7 @@ describe("SkillsService", () => {
 
   afterEach(async () => {
     await rm(root, { recursive: true, force: true });
+    vi.unstubAllEnvs();
   });
 
   it("discovers provider skills and imports a managed copy", async () => {
@@ -783,6 +785,109 @@ describe("SkillsService", () => {
     expect(
       scan.skills.find((skill) => skill.name === "testing" && skill.origin === "managed"),
     ).toMatchObject({ enabled: false });
+  });
+
+  it("upgrades copied projections to links when the provider version supports them", async () => {
+    let providerVersion = "2.1.202";
+    const linkedClaude = {
+      kind: "claude",
+      label: "Claude Code",
+      binary: "claude",
+      capabilities: {},
+      skillSupport: {
+        roots: [
+          {
+            id: "claude",
+            label: "Claude Code",
+            projectPath: ".claude/skills",
+          },
+        ],
+        projectionRoots: [
+          {
+            id: "claude",
+            label: "Claude Code",
+            projectPath: ".claude/skills",
+            linkProjectionFromVersion: "2.1.203",
+          },
+        ],
+        invocation: "slash",
+      },
+    } as unknown as AgentAdapter;
+    const linkedService = new SkillsService({
+      adapters: new Map([["claude", linkedClaude]]),
+      homeDirectory: () => home,
+      resolveAgentVersion: () => providerVersion,
+    });
+    const managed = join(projectPath, ".agents", "skills", "testing");
+    const projection = join(projectPath, ".claude", "skills", "testing");
+    await writeSkill(managed, "testing");
+
+    await linkedService.prepareForLaunch(projectLocation, "claude");
+    expect((await lstat(projection)).isSymbolicLink()).toBe(false);
+    expect(
+      JSON.parse(await readFile(join(projection, ".poracode-skill.json"), "utf8")),
+    ).toMatchObject({ mode: "projection", sourcePath: managed });
+
+    providerVersion = "2.1.203";
+    await linkedService.prepareForLaunch(projectLocation, "claude");
+
+    expect((await lstat(projection)).isSymbolicLink()).toBe(true);
+    expect(await realpath(projection)).toBe(await realpath(managed));
+    const scan = await linkedService.scan({ projectLocation, agentKind: "claude" });
+    expect(scan.skills.filter((skill) => skill.name === "testing")).toHaveLength(1);
+    expect(scan.skills.find((skill) => skill.name === "testing")).toMatchObject({
+      providerId: "agents",
+      origin: "managed",
+    });
+  });
+
+  it("removes retired Poracode projections without deleting provider-owned skills", async () => {
+    const grok = {
+      kind: "grok",
+      label: "Grok",
+      binary: "grok",
+      capabilities: {},
+      skillSupport: {
+        roots: [
+          {
+            id: "grok",
+            label: "Grok",
+            projectPath: ".grok/skills",
+          },
+          {
+            id: "agents",
+            label: "Shared agent skills",
+            projectPath: ".agents/skills",
+          },
+        ],
+        invocation: "slash",
+      },
+    } as unknown as AgentAdapter;
+    const grokService = new SkillsService({
+      adapters: new Map([["grok", grok]]),
+      homeDirectory: () => home,
+    });
+    const managed = join(projectPath, ".agents", "skills", "testing");
+    const retiredProjection = join(projectPath, ".grok", "skills", "testing");
+    const providerOwned = join(projectPath, ".grok", "skills", "custom");
+    await writeSkill(managed, "testing");
+    await writeSkill(retiredProjection, "testing");
+    await writeFile(
+      join(retiredProjection, ".poracode-skill.json"),
+      JSON.stringify({
+        version: 1,
+        mode: "projection",
+        sourcePath: managed,
+        sourceHash: "stale",
+      }),
+      "utf8",
+    );
+    await writeSkill(providerOwned, "custom");
+
+    await grokService.prepareForLaunch(projectLocation, "grok");
+
+    await expect(lstat(retiredProjection)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await readFile(join(providerOwned, "SKILL.md"), "utf8")).toContain("custom");
   });
 
   it("keeps an imported provider copy disabled and restores it over a stale projection", async () => {

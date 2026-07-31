@@ -98,7 +98,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
       isDisabled={isDisabled ?? false}
       size="sm"
       variant="ghost"
-      className="poracode-composer-menu min-w-0 px-2.5"
+      className="poracode-composer-menu poracode-composer-effort-control min-w-0 px-2.5"
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
       {icon}

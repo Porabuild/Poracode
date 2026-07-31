@@ -1,5 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { remoteShellSnapshotSchema } from "./protocol";
+import { defaultSharedSettings } from "../settings";
+import {
+  pickRemoteSettings,
+  remotePushRegistrationSchema,
+  remoteSettingsPatchSchema,
+  remoteShellSnapshotSchema,
+} from "./protocol";
+
+describe("remote push registrations", () => {
+  const subscription = {
+    endpoint: "https://web.push.apple.com/subscription-1",
+    expirationTime: null,
+    keys: { p256dh: "key-1", auth: "auth-1" },
+  };
+
+  it("accepts an installed-web-app subscription and route base", () => {
+    expect(
+      remotePushRegistrationSchema.parse({
+        deviceId: "browser-1234",
+        platform: "web",
+        webPushSubscription: subscription,
+        webAppBasePath: "/app",
+      }),
+    ).toMatchObject({ platform: "web", webPushSubscription: subscription });
+  });
+
+  it("rejects native credentials on web and web subscriptions on native", () => {
+    expect(
+      remotePushRegistrationSchema.safeParse({
+        deviceId: "browser-1234",
+        platform: "web",
+        deviceToken: "not-allowed",
+        webPushSubscription: subscription,
+        webAppBasePath: "/",
+      }).success,
+    ).toBe(false);
+    expect(
+      remotePushRegistrationSchema.safeParse({
+        deviceId: "native-1234",
+        platform: "ios",
+        webPushSubscription: subscription,
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe("remote project snapshots", () => {
   it("strip MCP definitions because env and headers may contain secrets", () => {
@@ -35,5 +79,68 @@ describe("remote project snapshots", () => {
     expect(snapshot.projects).toHaveLength(1);
     expect(snapshot.projects[0]).not.toHaveProperty("mcpServers");
     expect(JSON.stringify(snapshot)).not.toContain("Bearer secret");
+  });
+});
+
+describe("remote settings", () => {
+  it("exposes composer MCP enablement without exposing custom MCP definitions", () => {
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      enabledMcpServers: { browser: true, crossagents: false, "computer-use": true },
+      disabledBuiltInMcpServers: { chrome: true },
+      mcpServers: [
+        {
+          id: "secret-server",
+          name: "private",
+          description: "",
+          enabled: true,
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "https://example.test/mcp",
+            headers: { Authorization: "Bearer secret" },
+          },
+        },
+      ],
+    });
+
+    expect(settings.enabledMcpServers).toEqual({
+      browser: true,
+      crossagents: false,
+      "computer-use": true,
+    });
+    expect(settings.disabledBuiltInMcpServers).toEqual({ chrome: true });
+    expect(settings).not.toHaveProperty("mcpServers");
+    expect(JSON.stringify(settings)).not.toContain("Bearer secret");
+  });
+
+  it("does not inject empty MCP maps into an unrelated settings patch", () => {
+    expect(remoteSettingsPatchSchema.parse({ titleGenProvider: "claude" })).toEqual({
+      titleGenProvider: "claude",
+    });
+  });
+
+  it("never exposes or accepts sensitive agent settings", () => {
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      agentSettings: {
+        cursor: {
+          structuredRuntime: "sdk",
+          sdkApiKey: "lc-safe:encrypted-secret",
+        },
+      },
+    });
+
+    expect(settings.agentSettings.cursor).toEqual({ structuredRuntime: "sdk" });
+    expect(
+      remoteSettingsPatchSchema.parse({
+        agentSettings: {
+          cursor: {
+            structuredRuntime: "acp",
+            sdkApiKey: "plaintext-secret",
+          },
+        },
+      }).agentSettings?.cursor,
+    ).toEqual({ structuredRuntime: "acp" });
   });
 });

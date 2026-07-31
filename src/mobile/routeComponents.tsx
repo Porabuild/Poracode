@@ -11,38 +11,46 @@ import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useAppStore } from "@/renderer/state/appStore";
-import type { Thread } from "@/shared/contracts";
+import { SubAgentContent } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
 import { getBasename } from "@/shared/pathUtils";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import { buildWorktreeLocation, resolveProjectLocation } from "@/shared/worktree";
 import { useGitSummariesStore } from "./gitSummaries";
 import { useMobileApp, useRemote } from "./remoteContext";
 import {
   buildFilesTarget,
   buildGitTarget,
+  openWorktreeDraft,
   preselectWorktreeDraft,
-  runThreadAction,
 } from "./navHelpers";
 import {
   clearPairingLaunch,
+  desktopServedPairingUrl,
   isMixedContentEndpoint,
   normalizePairingEndpoint,
   parsePairingLaunch,
   parsePairingUrl,
   subscribePairingLaunch,
 } from "./pairing";
+import { RemoteClientError } from "./remoteClient";
 import { MobileSetupEmptyState, type MobileSetupKind } from "./setupEmptyState";
 import { isDesktopSettingsSection } from "./settingsSections";
 import type { MobileSshPairRequest } from "./views/DesktopsView";
 import { useGitSummaryHydration } from "./useGitSummaryHydration";
-import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
+import { DESKTOP_RIGHT_PANEL_QUERY, useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
+import { useDesktopPanelStore } from "./desktopPanelStore";
+import { useNarrowThreadHost } from "./narrowThreadHostContext";
+import { ThreadDetail } from "./ThreadDetail";
 import { DesktopsView } from "./views/DesktopsView";
 import { ManageProjectsView } from "./views/ManageProjectsView";
 import { MoreView } from "./views/MoreView";
-import { NewThreadFlow } from "./views/NewThreadFlow";
-import { QuickCompose } from "./views/QuickCompose";
 import { ThreadsView } from "./views/ThreadsView";
-import { ThreadView } from "./views/ThreadView";
 
+const NewThreadFlow = lazy(() =>
+  import("./views/NewThreadFlow").then((module) => ({ default: module.NewThreadFlow })),
+);
+const QuickCompose = lazy(() =>
+  import("./views/QuickCompose").then((module) => ({ default: module.QuickCompose })),
+);
 const BrowserView = lazy(() =>
   import("./views/BrowserView").then((module) => ({ default: module.BrowserView })),
 );
@@ -54,6 +62,9 @@ const WorkspaceView = lazy(() =>
 );
 const TerminalView = lazy(() =>
   import("./views/TerminalView").then((module) => ({ default: module.TerminalView })),
+);
+const NotesView = lazy(() =>
+  import("./views/NotesView").then((module) => ({ default: module.NotesView })),
 );
 const SettingsView = lazy(() =>
   import("./views/SettingsView").then((module) => ({ default: module.SettingsView })),
@@ -69,6 +80,8 @@ const UsagePanel = lazy(() =>
 // Typed route APIs (params/search) — decoupled from the route consts so this
 // file never imports router.tsx (which imports these components).
 const threadRouteApi = getRouteApi("/thread/$threadId");
+const subAgentRouteApi = getRouteApi("/subagent/$threadId/$parentItemId");
+const notesRouteApi = getRouteApi("/notes/$threadId");
 const settingsSectionRouteApi = getRouteApi("/settings/$section");
 const workspaceRouteApi = getRouteApi("/workspace/$threadId");
 const terminalRouteApi = getRouteApi("/terminal/$projectId");
@@ -96,8 +109,8 @@ function LazyRoute(props: { readonly children: ReactNode }) {
  * on a cold chunk that's the fallback, so the fallback itself must be a
  * fullscreen, `m-screen`-named surface or the slide has nothing to animate
  * (the old page then just dissolves via the root cross-fade, and the late-
- * arriving screen paints with no coherent entry). The idle warmup below makes
- * this fallback a rare slow-network sight.
+ * arriving screen paints with no coherent entry). Connected sessions warm
+ * these chunks after the first paint, keeping the fallback a rare sight.
  */
 function FullscreenLazyRoute(props: { readonly children: ReactNode }) {
   return (
@@ -115,98 +128,6 @@ function FullscreenLazyRoute(props: { readonly children: ReactNode }) {
   );
 }
 
-// Warm the fullscreen screens' chunks once the first paint has settled, so the
-// first push into workspace/terminal captures real content for its slide
-// instead of the cold Suspense fallback.
-if (typeof window !== "undefined") {
-  const warmFullscreenChunks = () => {
-    void import("./views/WorkspaceView");
-    void import("./views/TerminalView");
-  };
-  if (typeof window.requestIdleCallback === "function") {
-    window.requestIdleCallback(warmFullscreenChunks, { timeout: 4_000 });
-  } else {
-    window.setTimeout(warmFullscreenChunks, 2_000);
-  }
-}
-
-/**
- * Shared thread detail pane. Used by the /thread/:id route and, in the wide
- * layout, by the /threads route (where the list lives in the sidebar and the
- * detail shows the selected thread, or an empty state when none is selected).
- */
-function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHeader: boolean }) {
-  const remote = useRemote();
-  const navigate = useNavigate();
-  const thread = props.thread;
-  // Still fetching this thread's history when no snapshot matches it yet.
-  const loading = Boolean(thread) && remote.selectedThreadSnapshot?.thread.id !== thread?.id;
-  return (
-    <ThreadView
-      thread={thread}
-      terminalScrollback={remote.selectedThreadSnapshot?.terminalScrollback}
-      terminalSize={remote.selectedThreadSnapshot?.terminalSize}
-      hideHeader={props.hideHeader}
-      loading={loading}
-      onThreadAction={(action) =>
-        runThreadAction(remote, thread, action, () => void navigate({ to: "/threads" }))
-      }
-      onSubmitInput={(prompt, segments) => remote.sendPrompt(prompt, segments)}
-      onOpenWorkspace={(tab) => {
-        if (thread) {
-          void navigate({
-            to: "/workspace/$threadId",
-            params: { threadId: thread.id },
-            search: { tab },
-          });
-        }
-      }}
-      onOpenWorkspaceFile={(path, lineNumber) => {
-        if (thread) {
-          void navigate({
-            to: "/workspace/$threadId",
-            params: { threadId: thread.id },
-            search: {
-              tab: "files",
-              file: path,
-              ...(lineNumber !== undefined ? { line: lineNumber } : {}),
-            },
-          });
-        }
-      }}
-      onOpenWorkspaceFolder={(path) => {
-        if (thread) {
-          void navigate({
-            to: "/workspace/$threadId",
-            params: { threadId: thread.id },
-            search: { tab: "files", folder: path },
-          });
-        }
-      }}
-      onOpenTerminal={() => {
-        if (thread) {
-          void navigate({
-            to: "/terminal/$projectId",
-            params: { projectId: thread.projectId },
-            search: {
-              fromThread: thread.id,
-              ...(thread.worktreePath ? { worktree: thread.worktreePath } : {}),
-            },
-          });
-        }
-      }}
-      onNewThreadInWorktree={(input) => {
-        preselectWorktreeDraft(input);
-        void navigate({ to: "/new" });
-      }}
-      onDeleteWorktreeGroup={(input) => {
-        void remote.deleteWorktreeGroup(input);
-        void navigate({ to: "/threads" });
-      }}
-    />
-  );
-}
-
 export function ThreadsRoute() {
   const {
     remote,
@@ -215,13 +136,16 @@ export function ThreadsRoute() {
     threadSearchOpen,
     setThreadSearchOpen,
     threadSearchHost,
-    setChromeHidden,
   } = useMobileApp();
   const navigate = useNavigate();
   const isWide = useMediaQuery(WIDE_SHELL_QUERY);
   // The home composer's expand state (kept here so the list's empty-state
   // "New thread" button grows the same bubble as a tap on it).
-  const [composeExpanded, setComposeExpanded] = useState(false);
+  const hasPendingWorktreeDraft = useAppStore(
+    (state) => Object.keys(state.pendingDraftWorktreeSelections).length > 0,
+  );
+  const [composeExpanded, setComposeExpanded] = useState(hasPendingWorktreeDraft);
+  const [restoreWorktreeSelectionToken, setRestoreWorktreeSelectionToken] = useState(0);
   const readyToCompose = remote.connection === "online" && remote.projects.length > 0;
   const needsDesktop = remote.connection !== "online";
   const setupKind: MobileSetupKind | null = readyToCompose
@@ -248,9 +172,34 @@ export function ThreadsRoute() {
     if (!isWide) useAppStore.getState().openHome();
   }, [isWide]);
 
-  // Wide: the sidebar owns the list; this pane shows the selected thread.
+  // Worktree actions from another narrow route return here with a one-shot
+  // target already queued. Reveal the inline composer that will consume it.
+  useEffect(() => {
+    if (hasPendingWorktreeDraft) setComposeExpanded(true);
+  }, [hasPendingWorktreeDraft]);
+
+  // Once a desktop is connected, warm the fullscreen chunks after first paint
+  // so their push transition normally captures real content. Disconnected
+  // startup keeps them off the network entirely.
+  const activeDesktopId = remote.activeDesktop?.desktopId;
+  useEffect(() => {
+    if (!activeDesktopId) return;
+    const warmFullscreenChunks = () => {
+      void import("./views/WorkspaceView");
+      void import("./views/TerminalView");
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(warmFullscreenChunks, { timeout: 4_000 });
+      return () => window.cancelIdleCallback(handle);
+    }
+    const handle = window.setTimeout(warmFullscreenChunks, 2_000);
+    return () => window.clearTimeout(handle);
+  }, [activeDesktopId]);
+
+  // Wide: the sidebar already owns the list. Keep the detail empty until the
+  // user explicitly opens a thread or navigates to /new.
   if (isWide) {
-    return <ThreadDetail thread={remote.selectedThread} hideHeader={false} />;
+    return <ThreadDetail thread={null} hideHeader={false} />;
   }
 
   return (
@@ -264,7 +213,6 @@ export function ThreadsRoute() {
         searchOpen={threadSearchOpen}
         searchContainer={threadSearchHost}
         onSearchOpenChange={setThreadSearchOpen}
-        onChromeHiddenChange={setChromeHidden}
         onProjectFilterChange={setProjectFilter}
         onOpenThread={(thread) => {
           void remote.openThread(thread);
@@ -279,7 +227,7 @@ export function ThreadsRoute() {
         onNew={() => setComposeExpanded(true)}
         onNewThreadInWorktree={(input) => {
           preselectWorktreeDraft(input);
-          void navigate({ to: "/new" });
+          setComposeExpanded(true);
         }}
         onOpenTerminal={(input) =>
           void navigate({
@@ -305,14 +253,20 @@ export function ThreadsRoute() {
         {...(setupEmptyState ? { emptyStateOverride: setupEmptyState } : {})}
       />
       {readyToCompose ? (
-        <QuickCompose
-          expanded={composeExpanded}
-          onExpandedChange={setComposeExpanded}
-          onStarted={(threadId) => {
-            setComposeExpanded(false);
-            void navigate({ to: "/thread/$threadId", params: { threadId } });
-          }}
-        />
+        <Suspense fallback={null}>
+          <QuickCompose
+            expanded={composeExpanded}
+            restoreWorktreeSelectionToken={restoreWorktreeSelectionToken}
+            onExpandedChange={(expanded) => {
+              if (!expanded) setRestoreWorktreeSelectionToken((token) => token + 1);
+              setComposeExpanded(expanded);
+            }}
+            onStarted={(threadId) => {
+              setComposeExpanded(false);
+              void navigate({ to: "/thread/$threadId", params: { threadId } });
+            }}
+          />
+        </Suspense>
       ) : null}
     </>
   );
@@ -322,33 +276,83 @@ export function ThreadRoute() {
   const { threadId } = threadRouteApi.useParams();
   const remote = useRemote();
   const isWide = useMediaQuery(WIDE_SHELL_QUERY);
-  // Track existence rather than the array reference (which changes every render)
-  // so the open effect only re-runs when the routed thread appears/leaves.
-  const targetExists = remote.threads.some((entry) => entry.id === threadId);
-
-  // Open (load snapshot for) the routed thread once it appears in the list.
-  // A missing thread renders the empty detail state (parity with the old shell,
-  // which never redirected away from a thread view).
-  useEffect(() => {
-    if (remote.selectedThread?.id === threadId) return;
-    const thread = remote.threads.find((entry) => entry.id === threadId);
-    if (thread) void remote.openThread(thread);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the routed thread + its availability
-  }, [threadId, targetExists, remote.selectedThread?.id]);
-
+  const narrowShellOwnsThread = useNarrowThreadHost();
+  // Opening (store watch + snapshot load) is owned by ThreadDetail's effect: it
+  // also covers the fallback-selected thread on reloads, which a check against
+  // remote.selectedThread here would wrongly consider already open.
   const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  if (!isWide && narrowShellOwnsThread) return null;
   return <ThreadDetail thread={thread} hideHeader={!isWide} />;
 }
 
+/** A history-backed subagent page on phones; desktop-width PWA shells migrate it into the panel. */
+export function SubAgentRoute() {
+  const { threadId, parentItemId } = subAgentRouteApi.useParams();
+  const remote = useRemote();
+  const navigate = useNavigate();
+  const useRightPanel = useMediaQuery(DESKTOP_RIGHT_PANEL_QUERY);
+  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  const project = thread
+    ? (remote.projects.find((entry) => entry.id === thread.projectId) ?? null)
+    : null;
+  const activeDesktopId = remote.activeDesktop?.desktopId ?? null;
+  const hasSnapshot = remote.selectedThreadSnapshot?.thread.id === threadId;
+
+  useEffect(() => {
+    if (!thread || hasSnapshot) return;
+    void remote.openThread(thread);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on route target + connection; openThread deduplicates in-flight history loads
+  }, [activeDesktopId, hasSnapshot, threadId]);
+
+  useEffect(() => {
+    if (!useRightPanel) return;
+    useDesktopPanelStore.getState().showSubAgent(threadId, parentItemId);
+    void navigate({
+      to: "/thread/$threadId",
+      params: { threadId },
+      replace: true,
+    });
+  }, [navigate, parentItemId, threadId, useRightPanel]);
+
+  if (useRightPanel) return null;
+
+  const projectLocation =
+    thread && project ? resolveProjectLocation(project.location, thread.worktreePath) : undefined;
+
+  return (
+    <LazyRoute>
+      <section className="m-page m-subagent-page">
+        {hasSnapshot ? (
+          <SubAgentContent
+            threadId={threadId}
+            parentItemId={parentItemId}
+            hideHeader
+            {...(projectLocation ? { projectLocation } : {})}
+          />
+        ) : (
+          <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted">
+            <Trans>Loading…</Trans>
+          </div>
+        )}
+      </section>
+    </LazyRoute>
+  );
+}
+
+/**
+ * The /new route: the New-thread composer pane on every layout.
+ */
 export function NewThreadRoute() {
   const navigate = useNavigate();
   return (
-    <NewThreadFlow
-      onStarted={(threadId) => void navigate({ to: "/thread/$threadId", params: { threadId } })}
-      onSetupAction={(kind) =>
-        void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/projects" })
-      }
-    />
+    <LazyRoute>
+      <NewThreadFlow
+        onStarted={(threadId) => void navigate({ to: "/thread/$threadId", params: { threadId } })}
+        onSetupAction={(kind) =>
+          void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/projects" })
+        }
+      />
+    </LazyRoute>
   );
 }
 
@@ -382,6 +386,9 @@ export function DesktopsRoute() {
   const canPairManually = Boolean(
     manualPairingLink?.credential || (manualEndpointValue && manualTokenValue),
   );
+  // Set only once the browser has actually refused a cleartext LAN endpoint, so
+  // the escape hatch appears exactly when it is the answer.
+  const [blockedHandoffUrl, setBlockedHandoffUrl] = useState<string | null>(null);
 
   async function pair(endpoint: string, credential: string) {
     let normalizedEndpoint: string;
@@ -391,18 +398,33 @@ export function DesktopsRoute() {
       toast.danger(t`Enter a valid desktop endpoint.`);
       return;
     }
-    if (isMixedContentEndpoint(normalizedEndpoint)) {
-      toast.danger(
-        t`This app is served over HTTPS but the desktop is on plain HTTP, which browsers block. Open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS.`,
-      );
-      return;
-    }
+    setBlockedHandoffUrl(null);
     try {
       await remote.pairDesktop(normalizedEndpoint, credential);
       clearPairingLaunch();
       setManualToken("");
       void navigate({ to: "/threads" });
     } catch (error) {
+      // A desktop that answered has a real reason (expired credential, rate
+      // limit, protocol mismatch) — report it verbatim rather than blaming the
+      // browser. Only a transport failure can be the page being blocked from a
+      // cleartext LAN endpoint, and Chromium reaches it fine once its local
+      // network permission is granted, so the handoff is the last resort.
+      const remoteError = error instanceof RemoteClientError ? error : null;
+      const answered = (remoteError?.status ?? 0) >= 400;
+      if (!answered && isMixedContentEndpoint(normalizedEndpoint)) {
+        setBlockedHandoffUrl(desktopServedPairingUrl(normalizedEndpoint, credential));
+        toast.danger(t`Couldn't reach the desktop from this HTTPS page.`);
+        return;
+      }
+      // A one-time code is also spent or expired under this status; the desktop's
+      // own "Invalid pairing token." says nothing about how to recover.
+      if (remoteError?.code === "invalid_pairing_token") {
+        toast.danger(
+          t`That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again.`,
+        );
+        return;
+      }
       toast.danger(error instanceof Error ? error.message : t`Unable to pair with that desktop.`);
     }
   }
@@ -456,6 +478,9 @@ export function DesktopsRoute() {
       onTokenChange={setManualToken}
       onPair={submitManualPairing}
       onScan={handleScan}
+      {...(blockedHandoffUrl
+        ? { onOpenDesktopServedApp: () => window.location.assign(blockedHandoffUrl) }
+        : {})}
       onSwitch={(desktop) => {
         void remote.switchDesktop(desktop).then(() => navigate({ to: "/threads" }));
       }}
@@ -578,6 +603,8 @@ export function WorkspaceRoute() {
   const { tab, file, folder, line } = workspaceRouteApi.useSearch();
   const remote = useRemote();
   const navigate = useNavigate();
+  const isWide = useMediaQuery(WIDE_SHELL_QUERY);
+  const useRightPanel = useMediaQuery(DESKTOP_RIGHT_PANEL_QUERY);
   const { t } = useLingui();
   const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
   const project = thread
@@ -598,7 +625,23 @@ export function WorkspaceRoute() {
     if (remote.booted && !hasTarget) void navigate({ to: "/threads" });
   }, [remote.booted, hasTarget, navigate]);
 
+  useEffect(() => {
+    if (!useRightPanel || !hasTarget) return;
+    const panel = useDesktopPanelStore.getState();
+    if (file) panel.showFile(threadId, file, line);
+    else if (folder) panel.showFolder(threadId, folder);
+    else panel.show(tab === "changes" ? "git" : "files", threadId);
+    void navigate({
+      to: "/thread/$threadId",
+      params: { threadId },
+      replace: true,
+    });
+  }, [file, folder, hasTarget, line, navigate, tab, threadId, useRightPanel]);
+
   if (!filesTarget) return null;
+  if (useRightPanel) {
+    return null;
+  }
   // The workspace belongs to a thread; closing returns there deterministically
   // (robust even on a fresh load with no back-history).
   return (
@@ -625,12 +668,17 @@ export function WorkspaceRoute() {
             });
             return;
           }
-          preselectWorktreeDraft({
+          const input = {
             projectId: filesTarget.project.id,
             worktreePath,
             worktreeBranch,
-          });
-          void navigate({ to: "/new" });
+          };
+          if (!isWide) {
+            preselectWorktreeDraft(input);
+            void navigate({ to: "/threads" });
+            return;
+          }
+          void openWorktreeDraft(input, () => navigate({ to: "/new" }));
         }}
         onLaunchConflictResolverThread={(input) => {
           remote
@@ -647,6 +695,51 @@ export function WorkspaceRoute() {
               toast.danger(error instanceof Error ? error.message : t`Unable to start the thread.`);
             });
         }}
+      />
+    </FullscreenLazyRoute>
+  );
+}
+
+export function NotesRoute() {
+  const { threadId } = notesRouteApi.useParams();
+  const remote = useRemote();
+  const navigate = useNavigate();
+  const useRightPanel = useMediaQuery(DESKTOP_RIGHT_PANEL_QUERY);
+  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  const project = thread
+    ? (remote.projects.find((entry) => entry.id === thread.projectId) ?? null)
+    : null;
+
+  useEffect(() => {
+    if (remote.booted && !project) {
+      void navigate({ to: "/threads", replace: true });
+    }
+  }, [navigate, project, remote.booted]);
+
+  useEffect(() => {
+    if (!useRightPanel || !project) return;
+    useDesktopPanelStore.getState().show("notes", threadId);
+    void navigate({
+      to: "/thread/$threadId",
+      params: { threadId },
+      replace: true,
+    });
+  }, [navigate, project, threadId, useRightPanel]);
+
+  if (!project || useRightPanel) return null;
+
+  return (
+    <FullscreenLazyRoute>
+      <NotesView
+        key={project.id}
+        projectId={project.id}
+        projectName={project.name}
+        onClose={() =>
+          void navigate({
+            to: "/thread/$threadId",
+            params: { threadId },
+          })
+        }
       />
     </FullscreenLazyRoute>
   );

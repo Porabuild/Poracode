@@ -1,11 +1,13 @@
 import type {
   AgentStatus,
   GetLatestAgentVersionResult,
+  NpmPackageVersionQuery,
   UpdateAgentBinaryResult,
 } from "@/shared/contracts";
 import {
   formatUpdateCommandLine,
   getNpmPackageNameForUpdate,
+  pickLatestVersionInWindow,
   resolveSharedUpdateCommand,
 } from "@/shared/agents/updateResolver";
 import type { AgentAdapter, AgentEnvContext, AgentUpdaterCommand } from "./base";
@@ -151,32 +153,68 @@ interface LatestVersionCacheEntry {
 
 const latestVersionCache = new Map<string, LatestVersionCacheEntry>();
 
-async function fetchNpmLatestVersion(pkg: string): Promise<string | undefined> {
-  const url = `https://registry.npmjs.org/${encodeURIComponent(pkg)}/latest`;
+/**
+ * GET a JSON document from the npm registry. Best-effort: HTTP errors, aborts
+ * and malformed responses are logged and resolve to undefined so no caller has
+ * to handle a rejection.
+ */
+async function fetchNpmRegistryJson(
+  url: string,
+  accept: string,
+  pkg: string,
+): Promise<unknown | undefined> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { accept: "application/json" },
-    });
-    clearTimeout(timer);
+    const response = await fetch(url, { signal: controller.signal, headers: { accept } });
     if (!response.ok) {
       console.warn(`[updateAgent] npm registry probe failed for ${pkg}: HTTP ${response.status}`);
       return undefined;
     }
-    const data = (await response.json()) as { version?: unknown };
-    if (typeof data.version === "string" && data.version.length > 0) {
-      return data.version;
-    }
-    console.warn(`[updateAgent] npm registry probe for ${pkg} returned no version`);
-    return undefined;
+    return await response.json();
   } catch (error) {
     console.warn(
       `[updateAgent] npm registry probe for ${pkg} threw: ${error instanceof Error ? error.message : String(error)}`,
     );
     return undefined;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+async function fetchNpmLatestVersion(pkg: string): Promise<string | undefined> {
+  const data = (await fetchNpmRegistryJson(
+    `https://registry.npmjs.org/${encodeURIComponent(pkg)}/latest`,
+    "application/json",
+    pkg,
+  )) as { version?: unknown } | undefined;
+  if (!data) return undefined;
+  if (typeof data.version === "string" && data.version.length > 0) {
+    return data.version;
+  }
+  console.warn(`[updateAgent] npm registry probe for ${pkg} returned no version`);
+  return undefined;
+}
+
+/**
+ * The abbreviated packument: same version list as the full document, a fraction
+ * of the bytes (no READMEs, no per-version metadata we don't read).
+ */
+const NPM_ABBREVIATED_DOCUMENT_ACCEPT = "application/vnd.npm.install-v1+json";
+
+async function fetchNpmPublishedVersions(pkg: string): Promise<string[] | undefined> {
+  const data = (await fetchNpmRegistryJson(
+    `https://registry.npmjs.org/${encodeURIComponent(pkg)}`,
+    NPM_ABBREVIATED_DOCUMENT_ACCEPT,
+    pkg,
+  )) as { versions?: unknown } | undefined;
+  if (!data) return undefined;
+  const versions = data.versions;
+  if (typeof versions !== "object" || versions === null) {
+    console.warn(`[updateAgent] npm registry probe for ${pkg} returned no versions`);
+    return undefined;
+  }
+  return Object.keys(versions);
 }
 
 function parseHomebrewCaskVersion(source: string): string | undefined {
@@ -297,9 +335,49 @@ export async function getLatestVersionForAdapter(
   return result;
 }
 
+const npmPackageVersionCache = new Map<string, LatestVersionCacheEntry>();
+
 /**
- * Test hook: wipe the latest-version cache. Not used in product code.
+ * Resolve the newest published version of a provider-managed npm package that
+ * still falls inside the caller's supported window (`minVersion` /
+ * `maxExclusiveMajor`). Unlike `getLatestVersionForAdapter` this is not tied to
+ * an agent's own release channel — it serves settings rows that install an
+ * extra package next to the CLI (e.g. Cursor's `@cursor/sdk`), which must not
+ * be offered an update to a major the runtime cannot load.
+ *
+ * Cached for `LATEST_VERSION_TTL_MS` per package + window. Best-effort: never
+ * throws, and returns `{ source: "unknown" }` when the registry is unreachable
+ * or publishes nothing supported.
+ */
+export async function getLatestSupportedNpmPackageVersion(
+  query: NpmPackageVersionQuery,
+): Promise<GetLatestAgentVersionResult> {
+  const cacheKey = `${query.name}|${query.minVersion ?? ""}|${query.maxExclusiveMajor ?? ""}`;
+  const cached = npmPackageVersionCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < LATEST_VERSION_TTL_MS) {
+    return cached.result;
+  }
+
+  const published = await fetchNpmPublishedVersions(query.name);
+  const version = published
+    ? pickLatestVersionInWindow(published, {
+        ...(query.minVersion ? { minVersion: query.minVersion } : {}),
+        ...(query.maxExclusiveMajor !== undefined
+          ? { maxExclusiveMajor: query.maxExclusiveMajor }
+          : {}),
+      })
+    : undefined;
+  const result: GetLatestAgentVersionResult = version
+    ? { version, source: "npm" }
+    : { source: "unknown" };
+  npmPackageVersionCache.set(cacheKey, { ts: Date.now(), result });
+  return result;
+}
+
+/**
+ * Test hook: wipe the latest-version caches. Not used in product code.
  */
 export function clearLatestVersionCache(): void {
   latestVersionCache.clear();
+  npmPackageVersionCache.clear();
 }

@@ -7,7 +7,7 @@
 // by glob is a moving target. Instead we copy the build artifacts into a clean
 // staging directory, write a fresh package.json that lists ONLY the runtime
 // externals reported by `scripts/scan-runtime-externals.mjs`, run a flat
-// `pnpm install` (node-linker=hoisted), and run electron-builder there.
+// `npm install`, and run electron-builder there.
 
 import { spawnSync } from "node:child_process";
 import {
@@ -32,6 +32,10 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const requireFromHere = createRequire(import.meta.url);
 const channelTable = requireFromHere("./electron-builder.shared.cjs");
+const { restoreMacUpdaterManifests, snapshotMacUpdaterManifests } = requireFromHere(
+  "./mac-updater-manifest.cjs",
+);
+const { supportEmail } = requireFromHere("../branding/contact.json");
 
 // Runtime externals — packages tsdown does NOT inline into dist/main/*.cjs.
 // Regenerate with `node scripts/scan-runtime-externals.mjs`.
@@ -192,10 +196,18 @@ function validateRuntimeDeps() {
   const emittedExternals = scanRuntimeExternals(repoRoot);
   const staged = new Set(RUNTIME_DEPS);
   const missing = emittedExternals.filter((name) => !staged.has(name));
-  if (missing.length > 0) {
+  const emitted = new Set(emittedExternals);
+  const stale = RUNTIME_DEPS.filter((name) => !emitted.has(name));
+  if (missing.length > 0 || stale.length > 0) {
+    const details = [
+      missing.length > 0 ? `missing from RUNTIME_DEPS: ${missing.join(", ")}` : "",
+      stale.length > 0 ? `not present in bundled output: ${stale.join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join("; ");
     throw new Error(
-      `Bundled output requires unstaged runtime dependencies: ${missing.join(", ")}. ` +
-        "Update RUNTIME_DEPS before packaging.",
+      `Runtime dependency staging is out of sync (${details}). ` +
+        "Regenerate RUNTIME_DEPS with scripts/scan-runtime-externals.mjs before packaging.",
     );
   }
   console.log(`[stage] validated ${emittedExternals.length} emitted runtime dependencies`);
@@ -300,6 +312,7 @@ async function main() {
   const arch = args.arch;
   const target = args.target; // optional, e.g. dmg/zip/nsis/AppImage/deb
   const skipBuild = Boolean(args["skip-build"]);
+  const checkRuntimeDeps = Boolean(args["check-runtime-deps"]);
   const publish = args.publish ?? "never";
   const outputDir = resolve(repoRoot, args["output-dir"] ?? "release");
   const keepStage = Boolean(args["keep-stage"]);
@@ -318,6 +331,9 @@ async function main() {
   // Fail before the expensive clean install/rebuild if tsdown emitted a new
   // external that the curated staging package would otherwise omit.
   validateRuntimeDeps();
+  if (checkRuntimeDeps) {
+    return;
+  }
 
   // 2. Create the stage in tmp (outside the pnpm workspace).
   const stageRoot = mkdtempSync(join(tmpdir(), "poracode-stage-"));
@@ -334,17 +350,18 @@ async function main() {
     const stagePkg = buildStagePackageJson(rootPkg);
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
 
-    // 5. Stage electron-builder config.
-    writeFileSync(join(stageRoot, "electron-builder.yml"), buildElectronBuilderConfig());
+    // 5. Stage the initial electron-builder config.
+    const initialMacArtifactKind = macArtifactKindFor(platform, target);
+    writeFileSync(
+      join(stageRoot, "electron-builder.yml"),
+      buildElectronBuilderConfig(initialMacArtifactKind),
+    );
 
-    // 6. Install prod + stage devdeps with a flat layout.
-    //    node-linker=hoisted makes pnpm produce an npm-style flat node_modules,
-    //    which electron-builder's file walker (and our asar globs) expect.
-    //    dangerously-allow-all-builds bypasses pnpm 10+'s build-script gating
-    //    (electron's postinstall must run to download the binary; better-sqlite3
-    //    and node-pty compile native bindings). The stage's deps are pinned to
-    //    versions the root project already trusts, so this is no riskier than
-    //    `pnpm install` on the root.
+    // 6. Install prod + stage devdeps with a genuinely flat npm layout.
+    //    electron-builder's file walker (and our asar globs) expect this.
+    //    npm runs electron's postinstall and the native dependency build
+    //    scripts by default. The stage's deps are pinned to versions the root
+    //    project already trusts.
     //    We DON'T disable optionals because electron-builder's dmg-builder
     //    requires the `dmg-license` optionalDependency unconditionally at
     //    import time. Instead we install optionals normally, then surgically
@@ -421,14 +438,42 @@ async function main() {
       ".bin",
       process.platform === "win32" ? "electron-builder.cmd" : "electron-builder",
     );
-    const electronBuilderArgs = [PLATFORM_FLAG[platform]];
-    if (target) {
-      electronBuilderArgs.push(arch ? `${target}:${arch}` : target);
-    } else if (arch) {
-      electronBuilderArgs.push(`--${arch}`);
+    const runElectronBuilder = (
+      selectedTarget,
+      macArtifactKind = macArtifactKindFor(platform, selectedTarget),
+    ) => {
+      if (platform === "mac") {
+        writeFileSync(
+          join(stageRoot, "electron-builder.yml"),
+          buildElectronBuilderConfig(macArtifactKind),
+        );
+      }
+      const electronBuilderArgs = [PLATFORM_FLAG[platform]];
+      if (selectedTarget) {
+        electronBuilderArgs.push(arch ? `${selectedTarget}:${arch}` : selectedTarget);
+      } else if (arch) {
+        electronBuilderArgs.push(`--${arch}`);
+      }
+      electronBuilderArgs.push("--publish", publish);
+      run(electronBuilderBin, electronBuilderArgs, { cwd: stageRoot });
+    };
+
+    if (platform === "mac" && !target) {
+      // Build updater ZIPs first with the legacy technical executable name so
+      // Lightcode -> Poracode does not trigger Squirrel's broken outer-bundle
+      // rename. Then build branded DMGs for fresh/manual installs. The second
+      // pass overwrites the channel manifest with DMG metadata, so preserve the
+      // updater ZIP manifest around it and restore that as the published feed.
+      runElectronBuilder("zip", "updater");
+      const updaterManifests = snapshotMacUpdaterManifests(join(stageRoot, "release"));
+      if (updaterManifests.size === 0) {
+        throw new Error("macOS updater ZIP build produced no channel manifest");
+      }
+      runElectronBuilder("dmg", "branded");
+      restoreMacUpdaterManifests(join(stageRoot, "release"), updaterManifests);
+    } else {
+      runElectronBuilder(target);
     }
-    electronBuilderArgs.push("--publish", publish);
-    run(electronBuilderBin, electronBuilderArgs, { cwd: stageRoot });
 
     // 8. Copy artifacts back to release/.
     const copied = copyArtifactsBack(join(stageRoot, "release"), outputDir);
@@ -443,7 +488,13 @@ async function main() {
   }
 }
 
-function buildElectronBuilderConfig() {
+// macOS ZIP updates ship under the legacy executable name as a Squirrel.Mac
+// migration bridge; DMGs and every other platform stay fully Poracode-branded.
+function macArtifactKindFor(platform, target) {
+  return platform === "mac" && target === "zip" ? "updater" : "branded";
+}
+
+function buildElectronBuilderConfig(macArtifactKind = "branded") {
   // Generate the staged electron-builder config with a drastically simplified
   // `files:` block — the stage's node_modules contains only the runtime
   // externals we listed, so we can include all of node_modules without dragging
@@ -456,7 +507,8 @@ function buildElectronBuilderConfig() {
   const updaterChannel = channelTable.updaterChannelFor(channel);
   const prefix = channelTable.artifactPrefixFor(channel);
   const iconSuffix = channel === "nightly" ? "-nightly" : "";
-  const runtimeIconSuffix = channel === "nightly" ? "-nightly-mac" : "";
+  const runtimeIconSuffix = channel === "nightly" ? "-nightly-mac" : "-mac";
+  const macExecutableName = channelTable.macExecutableNameFor(channel, macArtifactKind);
   const publishChannelLine = updaterChannel ? `\n  channel: ${updaterChannel}` : "";
   const macEntitlements = "build/entitlements.mac.plist";
   const macEntitlementsInherit = "build/entitlements.mac.plist";
@@ -497,6 +549,10 @@ extraResources:
     to: app-icon.png
   - from: build/tray-icon${iconSuffix}.ico
     to: tray-icon.ico
+  - from: build/tray-icon-mac.png
+    to: tray-icon-mac.png
+  - from: build/tray-icon-mac@2x.png
+    to: tray-icon-mac@2x.png
 
 extraMetadata:
   main: dist/main/main.cjs
@@ -506,6 +562,7 @@ asarUnpack:
   - node_modules/node-pty/**/*
   - node_modules/better-sqlite3/**/*
   - dist/main/claudeSdkProbeWorker.mjs
+  - dist/main/cursorSdkWorker.mjs
   - node_modules/@anthropic-ai/claude-agent-sdk/**/*
 
 afterPack: build/after-pack.cjs
@@ -540,10 +597,11 @@ linux:
         - x64
   icon: build/icon${iconSuffix}.png
   category: Development
-  maintainer: SDSLeon <SDSLeon999@gmail.com>
+  maintainer: SDSLeon <${supportEmail}>
   artifactName: ${prefix}-\${version}-\${arch}.\${ext}
 
 mac:
+  executableName: ${macExecutableName}
   target:
     - target: dmg
       arch:

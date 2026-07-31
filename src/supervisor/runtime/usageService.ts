@@ -89,7 +89,7 @@ export class UsageService {
   private stopped = false;
 
   constructor(private readonly options: UsageServiceOptions) {
-    this.host = options.host ?? createNodeUsageHost(options.cacheDir);
+    this.host = options.host ?? createNodeUsageHost(options.cacheDir, options.settingsPath);
     this.localCollectors = new Map(
       (options.localCollectors ?? createLocalUsageCollectors()).map((c) => [c.id, c]),
     );

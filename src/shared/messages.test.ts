@@ -50,4 +50,25 @@ describe("friendlyErrorWithDetail", () => {
     expect(result.summary).toContain("nothing to commit");
     expect(result.details).toBe("");
   });
+
+  it("maps remote server error codes to shared messages", () => {
+    const error = Object.assign(new Error("A project path may not contain traversal segments."), {
+      code: "invalid_project_path",
+    });
+    expect(friendlyErrorWithDetail(error)).toEqual({
+      summary: "Enter a valid absolute project path.",
+      details: "A project path may not contain traversal segments.",
+    });
+  });
+
+  it("maps helper bootstrap failures to shared messages", () => {
+    expect(friendlyError(new Error("Poracode Helper probe returned HTTP 503."))).toBe(
+      "Poracode Helper is not ready yet (HTTP 503).",
+    );
+    expect(
+      friendlyError(new Error("Poracode SSH requires Node 24.10 or newer on the remote host.")),
+    ).toBe(
+      "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
+    );
+  });
 });

@@ -88,6 +88,38 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
+  it("hides persisted open-request items from the visible transcript", () => {
+    const state = {
+      runtimeItemIdsByThread: { t1: ["assistant", "pending_request:req-1"] },
+      runtimeItemsByIdByThread: {
+        t1: {
+          assistant: {
+            id: "assistant",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "Let me ask you something" },
+          },
+          "pending_request:req-1": {
+            id: "pending_request:req-1",
+            type: "pending_request",
+            state: "started",
+            payload: {
+              requestId: "req-1",
+              requestType: "tool_user_input",
+              payload: { summary: "Which framework?" },
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { t1: 1 },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      { kind: "item", id: "assistant" },
+    ]);
+  });
+
   it("anchors the main chat to its visible tail instead of a hidden subagent child", () => {
     const state = {
       runtimeItemIdsByThread: { t1: ["parent", "assistant", "child"] },
@@ -156,6 +188,61 @@ describe("chatPaneSelectors", () => {
       "user-1",
       "reasoning-1",
       "assistant-1",
+    ]);
+  });
+
+  it("hides completed assistant messages with no renderable content", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["empty", "streaming", "stream-text", "payload-text", "payload-image"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          empty: {
+            id: "empty",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "" },
+          },
+          streaming: {
+            id: "streaming",
+            type: "assistant_message",
+            state: "started",
+            streams: {},
+          },
+          "stream-text": {
+            id: "stream-text",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "answer" },
+          },
+          "payload-text": {
+            id: "payload-text",
+            type: "assistant_message",
+            state: "completed",
+            payload: { content: [{ kind: "text", text: "payload answer" }] },
+            streams: {},
+          },
+          "payload-image": {
+            id: "payload-image",
+            type: "assistant_message",
+            state: "completed",
+            payload: {
+              content: [
+                { kind: "image", mimeType: "image/png", dataUrl: "data:image/png;base64,eA==" },
+              ],
+            },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadRuntimeItemIds(state, "t1")).toEqual([
+      "streaming",
+      "stream-text",
+      "payload-text",
+      "payload-image",
     ]);
   });
 
@@ -252,6 +339,47 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
+  it("hides AskUserQuestion tool rows after a late ACP name update", () => {
+    const itemIds = ["assistant-1", "tool-question", "answer-1"];
+    const state = {
+      runtimeItemIdsByThread: { question: itemIds },
+      runtimeItemsByIdByThread: {
+        question: {
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "Choose one" },
+          },
+          "tool-question": {
+            id: "tool-question",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "AskUserQuestion", title: "AskUserQuestion", status: "success" },
+            streams: {},
+          },
+          "answer-1": {
+            id: "answer-1",
+            type: "question_answer",
+            state: "completed",
+            payload: { questions: [] },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { question: 1 },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadRuntimeItemIds(state, "question")).toEqual([
+      "assistant-1",
+      "answer-1",
+    ]);
+    expect(selectVisibleThreadTimelineEntries(state, "question")).toEqual([
+      { kind: "item", id: "assistant-1" },
+      { kind: "item", id: "answer-1" },
+    ]);
+  });
+
   it("groups adjacent tool calls into one timeline entry", () => {
     const state = {
       runtimeItemIdsByThread: {
@@ -322,7 +450,7 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
-  it("folds reasoning items into adjacent tool-call groups", () => {
+  it("folds reasoning into adjacent tool-call groups as glue", () => {
     const state = {
       runtimeItemIdsByThread: {
         t1: ["reasoning-1", "tool-1", "command-1", "assistant-1", "reasoning-2"],
@@ -365,6 +493,8 @@ describe("chatPaneSelectors", () => {
       },
     } as unknown as AppStoreState;
 
+    // Providers emit a Thought before nearly every tool call; treating them as
+    // run breakers would disable grouping outright.
     expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
       {
         kind: "tool_call_group",
@@ -373,6 +503,188 @@ describe("chatPaneSelectors", () => {
       },
       { kind: "item", id: "assistant-1" },
       { kind: "item", id: "reasoning-2" },
+    ]);
+  });
+
+  it("groups a lone tool call together with its surrounding thoughts", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["reasoning-1", "tool-1", "reasoning-2", "assistant-1"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "reasoning-1": {
+            id: "reasoning-1",
+            type: "reasoning",
+            state: "completed",
+            streams: { reasoning_text: "planning" },
+          },
+          "tool-1": {
+            id: "tool-1",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Viewing src/a.ts", status: "success" },
+            streams: {},
+          },
+          "reasoning-2": {
+            id: "reasoning-2",
+            type: "reasoning",
+            state: "completed",
+            streams: { reasoning_text: "reviewing" },
+          },
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "done" },
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    // Thoughts are group members like any other tool row, so `thought → tool
+    // → thought` is a group of three.
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      {
+        kind: "tool_call_group",
+        id: "tool-call-group:reasoning-1",
+        itemIds: ["reasoning-1", "tool-1", "reasoning-2"],
+      },
+      { kind: "item", id: "assistant-1" },
+    ]);
+  });
+
+  it("groups same-file edits even when thoughts sit between them", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["edit-1", "reasoning-1", "edit-2", "reasoning-2", "edit-3", "assistant-1"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "edit-1": {
+            id: "edit-1",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 10, removed: 2 },
+            },
+            streams: {},
+          },
+          "reasoning-1": {
+            id: "reasoning-1",
+            type: "reasoning",
+            state: "completed",
+            streams: { reasoning_text: "Now update the mobile section." },
+          },
+          "edit-2": {
+            id: "edit-2",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 20, removed: 4 },
+            },
+            streams: {},
+          },
+          "reasoning-2": {
+            id: "reasoning-2",
+            type: "reasoning",
+            state: "completed",
+            streams: { reasoning_text: "Now update the desktop submenu." },
+          },
+          "edit-3": {
+            id: "edit-3",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 5, removed: 1 },
+            },
+            streams: {},
+          },
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "done" },
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    // Thoughts are glue: the run still collapses into one group, and the
+    // group body merges the consecutive same-file edits into one edit row.
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      {
+        kind: "tool_call_group",
+        id: "tool-call-group:edit-1",
+        itemIds: ["edit-1", "reasoning-1", "edit-2", "reasoning-2", "edit-3"],
+      },
+      { kind: "item", id: "assistant-1" },
+    ]);
+  });
+
+  it("still groups consecutive same-file edits with no intervening items", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["edit-1", "edit-2", "edit-3", "assistant-1"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "edit-1": {
+            id: "edit-1",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 10, removed: 2 },
+            },
+            streams: {},
+          },
+          "edit-2": {
+            id: "edit-2",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 20, removed: 4 },
+            },
+            streams: {},
+          },
+          "edit-3": {
+            id: "edit-3",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 5, removed: 1 },
+            },
+            streams: {},
+          },
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "done" },
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      {
+        kind: "tool_call_group",
+        id: "tool-call-group:edit-1",
+        itemIds: ["edit-1", "edit-2", "edit-3"],
+      },
+      { kind: "item", id: "assistant-1" },
     ]);
   });
 
@@ -396,6 +708,7 @@ describe("chatPaneSelectors", () => {
             state: "started",
             payload: { name: "Workflow", status: "running" },
             streams: {},
+            observedLive: true,
           },
           "tool-2": {
             id: "tool-2",
@@ -415,6 +728,28 @@ describe("chatPaneSelectors", () => {
       { kind: "item", id: "workflow-1" },
       { kind: "item", id: "tool-2" },
     ]);
+  });
+
+  it("drops workflows hydrated from history (not observed live this session)", () => {
+    const state = {
+      runtimeItemIdsByThread: { t1: ["workflow-replayed"] },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "workflow-replayed": {
+            id: "workflow-replayed",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Workflow", status: "success" },
+            streams: {},
+            // No observedLive — seeded from the DB on thread reopen. The
+            // launching process is gone; the composer dock must stay empty.
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { t1: 1 },
+    } as unknown as AppStoreState;
+
+    expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual([]);
   });
 
   it("tracks running native Agent calls without retaining completed ones", () => {
@@ -448,6 +783,7 @@ describe("chatPaneSelectors", () => {
         state: "completed",
         payload: { name: "Workflow", status: "success" },
         streams: {},
+        observedLive: true,
       },
     };
     const activeState = {
@@ -463,7 +799,7 @@ describe("chatPaneSelectors", () => {
           "agent-running": {
             ...items["agent-running"],
             state: "completed",
-            payload: { ...items["agent-running"].payload, status: "success" },
+            payload: { ...items["agent-running"].payload },
           },
         },
       },
@@ -487,10 +823,10 @@ describe("chatPaneSelectors", () => {
     );
   });
 
-  it("keeps subagents MCP calls as tools and only treats the synthetic tile as an agent", () => {
+  it("hides Crossagents spawn calls and only treats the synthetic tile as an agent", () => {
     const state = {
       runtimeItemIdsByThread: {
-        t1: ["tool-1", "raw-run", "list-1", "sub:run-1", "raw-spawn"],
+        t1: ["tool-1", "raw-run", "failed-run", "list-1", "sub:run-1", "raw-spawn"],
       },
       runtimeItemsByIdByThread: {
         t1: {
@@ -505,14 +841,21 @@ describe("chatPaneSelectors", () => {
             id: "raw-run",
             type: "mcp_tool_call",
             state: "started",
-            payload: { name: "mcp__subagents__run_agent", status: "running" },
+            payload: { name: "mcp__crossagents__run_agent", status: "running" },
+            streams: {},
+          },
+          "failed-run": {
+            id: "failed-run",
+            type: "mcp_tool_call",
+            state: "completed",
+            payload: { name: "mcp__crossagents__run_agent", status: "error" },
             streams: {},
           },
           "list-1": {
             id: "list-1",
             type: "mcp_tool_call",
             state: "completed",
-            payload: { name: "mcp__subagents__list_agents", status: "success" },
+            payload: { name: "mcp__crossagents__list_agents", status: "success" },
             streams: {},
           },
           "sub:run-1": {
@@ -522,7 +865,7 @@ describe("chatPaneSelectors", () => {
             payload: {
               name: "Codex · GPT-5.5",
               status: "running",
-              isSubAgent: true,
+              isCrossagent: true,
             },
             streams: {},
           },
@@ -530,7 +873,7 @@ describe("chatPaneSelectors", () => {
             id: "raw-spawn",
             type: "tool_call",
             state: "completed",
-            payload: { name: "spawn_agent", serverId: "subagents", status: "success" },
+            payload: { name: "spawn_agent", serverId: "crossagents", status: "success" },
             streams: {},
           },
         },
@@ -539,22 +882,74 @@ describe("chatPaneSelectors", () => {
 
     expect(selectVisibleThreadRuntimeItemIds(state, "t1")).toEqual([
       "tool-1",
-      "raw-run",
+      "failed-run",
       "list-1",
       "sub:run-1",
-      "raw-spawn",
     ]);
     expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
       {
         kind: "tool_call_group",
         id: "tool-call-group:tool-1",
-        itemIds: ["tool-1", "raw-run", "list-1"],
+        itemIds: ["tool-1", "failed-run", "list-1"],
       },
       { kind: "item", id: "sub:run-1" },
-      { kind: "item", id: "raw-spawn" },
     ]);
     // The synthetic tile still drives the active sub-agent strip.
     expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual(["sub:run-1"]);
+  });
+
+  it("keeps provider-native subagents nested inside their Crossagent", () => {
+    const parentItemId = "sub:run-1";
+    const nestedItemIds = ["explore-github", "explore-git", "explore-misc"];
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: [parentItemId, ...nestedItemIds],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          [parentItemId]: {
+            id: parentItemId,
+            type: "tool_call",
+            state: "completed",
+            payload: {
+              name: "Kimi · K2.5",
+              status: "error",
+              isCrossagent: true,
+            },
+            streams: {},
+          },
+          ...Object.fromEntries(
+            nestedItemIds.map((id) => [
+              id,
+              {
+                id,
+                type: "tool_call",
+                state: "started",
+                parentItemId,
+                payload: {
+                  name: `Agent (explore): ${id}`,
+                  status: "running",
+                  isSubAgent: true,
+                },
+                streams: {},
+              },
+            ]),
+          ),
+        },
+      },
+      runtimeStructuralVersionByThread: { t1: 1 },
+    } as unknown as AppStoreState;
+
+    // The parent thread has no active Agent dock/sidebar state after the
+    // Crossagent itself settles, even if an inner provider omitted completion.
+    expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual([]);
+    expect(selectThreadHasActiveNativeSubAgent(state, "t1")).toBe(false);
+    expect(selectActiveNativeSubAgentThreadIds(state, [{ id: "t1" }] as Thread[])).toEqual([]);
+
+    // Internal rows remain available in the Crossagent overlay.
+    expect(selectChildTimelineEntries(state, "t1", parentItemId)).toEqual(
+      nestedItemIds.map((id) => ({ kind: "item", id })),
+    );
   });
 
   it("groups adjacent edits with the rest of the tool-call run", () => {

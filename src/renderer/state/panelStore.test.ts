@@ -13,6 +13,8 @@ function resetPanelStore() {
     gitOverlayOpen: false,
     prReviewContext: null,
     filesPanelContext: null,
+    subAgentPanelContext: null,
+    subAgentPanelOpen: false,
     browserPanelOpen: false,
     browserOverlayOpen: false,
     settingsOpen: false,
@@ -74,6 +76,11 @@ describe("selectAnyObstructingOverlayOpen", () => {
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 
+  it("returns true when the file editor overlay is modal", () => {
+    useFileEditorStore.setState({ overlayMode: "modal" });
+    expect(selectAnyObstructingOverlayOpen()).toBe(true);
+  });
+
   it("does not treat gitReviewAsPanel as obstructing on its own", () => {
     usePanelStore.setState({ gitReviewAsPanel: true });
     expect(selectAnyObstructingOverlayOpen()).toBe(false);
@@ -100,6 +107,53 @@ describe("setPrReviewContext", () => {
     usePanelStore.getState().setPrReviewContext(context);
 
     expect(usePanelStore.getState().prReviewContext).toEqual(context);
+  });
+});
+
+describe("subagent panel lifecycle", () => {
+  beforeEach(() => {
+    resetPanelStore();
+  });
+
+  afterEach(() => {
+    resetPanelStore();
+  });
+
+  it("hides the temporary target without forgetting it, then closes it explicitly", () => {
+    const panel = usePanelStore.getState();
+    panel.setSubAgentPanelContext({
+      threadId: "thread-1",
+      parentItemId: "parent-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+    });
+    panel.setRightPanelTab("subagent");
+
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "subagent",
+      subAgentPanelContext: {
+        threadId: "thread-1",
+        parentItemId: "parent-1",
+      },
+      subAgentPanelOpen: true,
+    });
+
+    usePanelStore.getState().closeAllPanels();
+    expect(usePanelStore.getState()).toMatchObject({
+      subAgentPanelOpen: false,
+      subAgentPanelContext: {
+        threadId: "thread-1",
+        parentItemId: "parent-1",
+      },
+    });
+
+    usePanelStore.getState().setRightPanelTab("subagent");
+    expect(usePanelStore.getState().subAgentPanelOpen).toBe(true);
+
+    usePanelStore.getState().setSubAgentPanelContext(null);
+    expect(usePanelStore.getState()).toMatchObject({
+      subAgentPanelOpen: false,
+      subAgentPanelContext: null,
+    });
   });
 });
 

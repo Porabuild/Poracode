@@ -1,15 +1,22 @@
-import type {
-  CompletedTurnRecord,
-  RuntimeChatItem,
+import {
+  getRuntimeItemPayload,
+  type CompletedTurnRecord,
+  type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
-import type { ToolCallPayload } from "@/shared/contracts";
+import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
+import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
+import {
+  isAskUserQuestionToolName,
+  isCrossagentSpawnAgentTool,
+  isDelegatedAgentTool,
+} from "@/shared/toolCallClassification";
 import { imageViewRendersInline } from "./parts/items/imageViewSource";
 import {
+  getToolLikePayload,
   isToolGroupItem as isGroupableItemType,
   isToolLikeItem,
 } from "./parts/items/toolCallCategorization";
-import { isSubAgentTool } from "./parts/items/toolDisplay";
 
 export const EMPTY_THREAD_ITEM_IDS = Object.freeze([]) as readonly string[];
 export const EMPTY_THREAD_TIMELINE_ENTRIES = Object.freeze([]) as readonly ChatTimelineEntry[];
@@ -181,7 +188,10 @@ function buildTimelineEntries(
 function isToolGroupItem(item: RuntimeChatItem): boolean {
   // Sub-agent parents render as their own pill (with overlay) — never fold
   // them into a tool-call group.
-  if (item.type === "tool_call" && isSubAgentTool(item.payload as ToolCallPayload | undefined)) {
+  if (
+    item.type === "tool_call" &&
+    isDelegatedAgentTool(item.payload as ToolCallPayload | undefined)
+  ) {
     return false;
   }
   // Any tool-like row that renders as a standalone inline image card
@@ -245,20 +255,40 @@ function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // in chat. Empty completed reasoning items are already dropped at the data
   // layer.
   if (item.type === "plan" || item.type === "goal") return false;
+  // Open agent requests (approvals/questions) are persisted only so remote
+  // clients can recover the pending prompt from a snapshot; they render as the
+  // blocking request form, never as a chat row.
+  if ((item.type as string) === RUNTIME_REQUEST_ITEM_TYPE) return false;
   // Error items have no renderer in the chat row switch (ChatItemRow returns
   // null for `error`); excluding them here keeps the virtualized list from
   // allocating an empty slot that shows up as a gap.
   if (item.type === "error") return false;
-  // Tool renderers defer rows without a name. Keep those incomplete calls out
-  // of the virtualized timeline and group counts until a later update names them.
-  if (
-    (item.type === "tool_call" ||
-      item.type === "mcp_tool_call" ||
-      item.type === "image_view" ||
-      item.type === "dynamic_tool_call") &&
-    !(item.payload as Partial<ToolCallPayload> | undefined)?.name?.trim()
-  ) {
-    return false;
+  // Old ACP sessions may contain completed assistant items created from an
+  // empty provider stream-boundary chunk. They have no renderable content, so
+  // allocating a virtualized row for them only produces a blank gap. Keep an
+  // empty in-flight item visible for its loader and preserve text/image payloads.
+  if (item.type === "assistant_message" && item.state === "completed") {
+    const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
+    const hasPayloadContent = payload?.content.some(
+      (block) => (block.kind === "text" && block.text.length > 0) || block.kind === "image",
+    );
+    if (!(item.streams.assistant_text?.length || hasPayloadContent)) return false;
+  }
+  if (isToolLikeItem(item)) {
+    const payload = getToolLikePayload(item);
+    // AskUserQuestion is rendered as the blocking request form while open and
+    // as a question_answer row after submission. ACP providers may reveal the
+    // tool name only on a later update, so filter it here as a final defense
+    // against both live races and already-persisted redundant rows.
+    if (isAskUserQuestionToolName(payload?.name) || isAskUserQuestionToolName(payload?.title)) {
+      return false;
+    }
+    // Successful Crossagents runs render as the richer delegated-agent row.
+    // Keep failed transport calls visible because they may have no delegated row.
+    if (payload?.status !== "error" && isCrossagentSpawnAgentTool(payload)) return false;
+    // Tool renderers defer rows without a name. Keep those incomplete calls out
+    // of the virtualized timeline and group counts until a later update names them.
+    if (!payload?.name?.trim()) return false;
   }
   return true;
 }

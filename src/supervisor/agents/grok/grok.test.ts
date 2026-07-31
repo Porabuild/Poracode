@@ -86,6 +86,15 @@ describe("createGrokAdapter OSC plumbing", () => {
   });
 });
 
+describe("createGrokAdapter skill roots", () => {
+  it("uses the native shared root without creating Grok projections", () => {
+    const support = createGrokAdapter().skillSupport;
+
+    expect(support?.roots.map((root) => root.id)).toContain("agents");
+    expect(support?.projectionRoots).toBeUndefined();
+  });
+});
+
 describe("grokDetectionSpec", () => {
   it("uses device auth for WSL login to avoid localhost callback nonce mismatches", () => {
     expect(typeof grokDetectionSpec.loginCommand).toBe("function");
