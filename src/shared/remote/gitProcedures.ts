@@ -71,6 +71,10 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   ghGetPrFiles: "session:read",
   ghGetPrDiff: "session:read",
   ghGetPrDetails: "session:read",
+  ghListWorkflows: "session:read",
+  ghListWorkflowRuns: "session:read",
+  ghGetWorkflowRun: "session:read",
+  ghGetWorkflowDefinition: "session:read",
 
   // Working-tree + index mutations
   gitStage: "session:operate",
@@ -114,6 +118,9 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   ghSubmitPrReview: "session:operate",
   ghUpdatePrBranch: "session:operate",
   ghPostPrComment: "session:operate",
+  ghDispatchWorkflow: "session:operate",
+  ghRerunWorkflowRun: "session:operate",
+  ghDeleteWorkflowRun: "session:operate",
 } as const satisfies Record<string, RemoteAccessScope>;
 
 export type GitRemoteProcedureName = keyof typeof GIT_REMOTE_PROCEDURE_SCOPES;

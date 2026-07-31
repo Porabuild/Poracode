@@ -138,6 +138,10 @@ const REMOTE_GIT_ROUTE_TABLE = {
   ghGetPrFiles: "projectLocation",
   ghGetPrDiff: "projectLocation",
   ghGetPrDetails: "projectLocation",
+  ghListWorkflows: "projectLocation",
+  ghListWorkflowRuns: "projectLocation",
+  ghGetWorkflowRun: "projectLocation",
+  ghGetWorkflowDefinition: "projectLocation",
   gitStage: "projectLocation",
   gitUnstage: "projectLocation",
   gitRevert: "projectLocation",
@@ -173,6 +177,9 @@ const REMOTE_GIT_ROUTE_TABLE = {
   ghSubmitPrReview: "projectLocation",
   ghUpdatePrBranch: "projectLocation",
   ghPostPrComment: "projectLocation",
+  ghDispatchWorkflow: "projectLocation",
+  ghRerunWorkflowRun: "projectLocation",
+  ghDeleteWorkflowRun: "projectLocation",
 } as const satisfies Record<GitRemoteProcedureName, RemoteOwnerStrategy>;
 
 const REMOTE_NOOP_ROUTE_TABLE = {

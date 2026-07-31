@@ -4656,7 +4656,21 @@ describe("RemoteAccessServer", () => {
     await expect(statusResponse.json()).resolves.toEqual({ result: { ok: "getGitStatus" } });
     expect(calls).toContainEqual({ name: "getGitStatus", payload: { projectLocation } });
 
-    const checkpointCalls = [
+    const dispatchPayload = {
+      projectLocation,
+      workflowId: 12,
+      ref: "main",
+      inputs: { release: "true" },
+    };
+    const forwardedCalls = [
+      {
+        procedure: "ghListWorkflows",
+        payload: { projectLocation },
+      },
+      {
+        procedure: "ghDispatchWorkflow",
+        payload: dispatchPayload,
+      },
       {
         procedure: "rollbackThreadConversation",
         payload: {
@@ -4678,7 +4692,7 @@ describe("RemoteAccessServer", () => {
         payload: { threadId: "thread-1", checkpointItemId: "user-2", projectLocation },
       },
     ] as const;
-    for (const call of checkpointCalls) {
+    for (const call of forwardedCalls) {
       const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
         method: "POST",
         headers: fullHeaders,
@@ -4753,6 +4767,17 @@ describe("RemoteAccessServer", () => {
       error: { code: "missing_scope" },
     });
     expect(calls.filter((c) => c.name === "gitPush")).toHaveLength(1);
+
+    const dispatchWithoutOperateResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${readToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ procedure: "ghDispatchWorkflow", payload: dispatchPayload }),
+    });
+    expect(dispatchWithoutOperateResponse.status).toBe(403);
+    await expect(dispatchWithoutOperateResponse.json()).resolves.toMatchObject({
+      error: { code: "missing_scope" },
+    });
+    expect(calls.filter((c) => c.name === "ghDispatchWorkflow")).toHaveLength(1);
   });
 
   it("rejects remote Git lifecycle mutations for experiment-owned branches and worktrees", async () => {

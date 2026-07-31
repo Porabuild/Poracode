@@ -51,6 +51,42 @@ describe("remote-aware renderer bridge", () => {
     expect(local).not.toHaveBeenCalled();
   });
 
+  it("routes GitHub Actions procedures through the remote project owner", async () => {
+    const local = vi.fn<() => Promise<unknown>>(async () => ({ local: true }));
+    const calls = [
+      ["ghListWorkflows", {}],
+      ["ghListWorkflowRuns", { workflowId: 12 }],
+      ["ghGetWorkflowRun", { runId: 34 }],
+      ["ghGetWorkflowDefinition", { workflowId: 12, ref: "main" }],
+      ["ghDispatchWorkflow", { workflowId: 12, ref: "main", inputs: { release: "true" } }],
+      ["ghRerunWorkflowRun", { runId: 34, failedOnly: true }],
+      ["ghDeleteWorkflowRun", { runId: 34 }],
+    ] as const;
+    window.poracode = Object.fromEntries(
+      calls.map(([procedure]) => [procedure, local]),
+    ) as unknown as PoracodeBridge;
+    const remote = vi.fn<RemoteProcedureHost["gitCall"]>(async () => ({ remote: true }));
+    registerRemoteProcedureHost(makeRemoteHost(remote));
+
+    for (const [procedure, fields] of calls) {
+      const payload = {
+        projectLocation: {
+          kind: "posix" as const,
+          path: "/remote/project",
+          remoteServerId: "d1",
+        },
+        ...fields,
+      };
+      const invoke = readBridge()[procedure] as (input: typeof payload) => Promise<unknown>;
+      await expect(invoke(payload)).resolves.toEqual({ remote: true });
+      expect(remote).toHaveBeenLastCalledWith("d1", procedure, {
+        ...payload,
+        projectLocation: { kind: "posix", path: "/remote/project" },
+      });
+    }
+    expect(local).not.toHaveBeenCalled();
+  });
+
   it("falls through to the local bridge when the router declines the payload", async () => {
     const local = vi.fn<() => Promise<unknown>>(async () => ({ local: true }));
     window.poracode = {
