@@ -6231,6 +6231,7 @@ msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "실험 우승자를 {sourceBranch}에 병합했습니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merging is blocked"
 msgstr "병합이 차단되었습니다."
 

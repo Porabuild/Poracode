@@ -32,6 +32,7 @@ import {
   usePrMergeable,
   usePrBaseBranch,
   usePrNumber,
+  usePrReviewDecision,
   usePrState,
   usePrTitle,
   usePrUrl,
@@ -95,6 +96,7 @@ export function PrSection(props: {
   const cacheKey = number !== undefined ? `${projectId}#${number}` : undefined;
   const details = useGitStore((s) => (cacheKey ? s.prDetails[cacheKey] : undefined));
   const combinedChecksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
+  const reviewDecision = usePrReviewDecision(prKey);
   const mergeStateStatus = usePrMergeStateStatus(prKey);
   const mergeable = usePrMergeable(prKey);
   const prMergeMethod = useSharedSettings((s) => s.prMergeMethod);
@@ -117,9 +119,15 @@ export function PrSection(props: {
     void onRefreshPr();
   }, [cacheKey, details, isRefreshingPr, onRefreshPr, state]);
 
-  const indicatorColor = PR_TONE_BG_CLASS[getPrStatusTone(state, combinedChecksStatus)];
-
   const reasonKey = mergeable === "CONFLICTING" ? "DIRTY" : mergeStateStatus;
+  const indicatorColor =
+    PR_TONE_BG_CLASS[
+      getPrStatusTone(state, combinedChecksStatus, {
+        reviewDecision,
+        mergeable,
+        mergeStateStatus,
+      })
+    ];
   const isBlocked =
     reasonKey !== undefined &&
     reasonKey !== "CLEAN" &&

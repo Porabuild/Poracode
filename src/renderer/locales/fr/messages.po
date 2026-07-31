@@ -6230,6 +6230,7 @@ msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "Le gagnant de l’expérience a été fusionné dans {sourceBranch}."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merging is blocked"
 msgstr "La fusion est bloquée"
 

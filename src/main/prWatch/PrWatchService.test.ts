@@ -270,15 +270,25 @@ describe("PrWatchService", () => {
     );
   });
 
-  it("does not launch an agent for merge blockers it cannot resolve", async () => {
-    const { service, createThread } = setup(watch(), {
-      getPrForBranch: async () => ({ ...pr, mergeStateStatus: "BLOCKED" }),
-    });
+  it.each(["BLOCKED", "HAS_HOOKS"] as const)(
+    "uses lightweight polling for an external %s merge blocker",
+    async (mergeStateStatus) => {
+      const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => details);
+      const getPrReviewThreads = vi.fn<PrWatchServiceOptions["getPrReviewThreads"]>(async () => []);
+      const { service, createThread } = setup(watch(), {
+        getPrForBranch: async () => ({ ...pr, mergeStateStatus }),
+        getPrDetails,
+        getPrReviewThreads,
+      });
 
-    await service.tick();
+      await service.tick();
+      await service.tick();
 
-    expect(createThread).not.toHaveBeenCalled();
-  });
+      expect(createThread).not.toHaveBeenCalled();
+      expect(getPrDetails).toHaveBeenCalledOnce();
+      expect(getPrReviewThreads).toHaveBeenCalledOnce();
+    },
+  );
 
   it("rechecks the PR immediately after its repair thread settles", async () => {
     const failedDetails: PrDetails = {
@@ -410,6 +420,26 @@ describe("PrWatchService", () => {
     expect(store.get(project.id, pr.number)).not.toBeNull();
   });
 
+  it("uses lightweight polling while auto-merge is waiting for required approval", async () => {
+    const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => details);
+    const getPrReviewThreads = vi.fn<PrWatchServiceOptions["getPrReviewThreads"]>(async () => []);
+    const { service, mergePr } = setup(
+      withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
+      {
+        getPrForBranch: async () => ({ ...pr, reviewDecision: "REVIEW_REQUIRED" }),
+        getPrDetails,
+        getPrReviewThreads,
+      },
+    );
+
+    await service.tick();
+    await service.tick();
+
+    expect(mergePr).not.toHaveBeenCalled();
+    expect(getPrDetails).toHaveBeenCalledOnce();
+    expect(getPrReviewThreads).toHaveBeenCalledOnce();
+  });
+
   it("checks immediately when pending checks settle", async () => {
     let currentPr = { ...pr, checksStatus: "PENDING" };
     let currentDetails: PrDetails = {
@@ -464,12 +494,18 @@ describe("PrWatchService", () => {
   });
 
   it("removes a watch after the PR closes", async () => {
+    const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => details);
+    const getPrReviewThreads = vi.fn<PrWatchServiceOptions["getPrReviewThreads"]>(async () => []);
     const { service, store } = setup(watch(), {
       getPrForBranch: async () => ({ ...pr, state: "closed" }),
+      getPrDetails,
+      getPrReviewThreads,
     });
 
     await service.tick();
 
     expect(store.get(project.id, pr.number)).toBeNull();
+    expect(getPrDetails).not.toHaveBeenCalled();
+    expect(getPrReviewThreads).not.toHaveBeenCalled();
   });
 });

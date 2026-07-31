@@ -155,26 +155,35 @@ export class PrWatchService {
         return;
       }
 
-      const [pr, details, reviewThreads] = await Promise.all([
-        this.options.getPrForBranch(project, watch.headBranch),
-        this.options.getPrDetails(project, watch.prNumber),
-        this.options.getPrReviewThreads(project, watch.prNumber),
-      ]);
-      const current = this.options.store.get(watch.projectId, watch.prNumber);
-      if (!current) return;
+      const pr = await this.options.getPrForBranch(project, watch.headBranch);
+      const summaryCurrent = this.options.store.get(watch.projectId, watch.prNumber);
+      if (!summaryCurrent) return;
       if (!pr || pr.state === "merged" || pr.state === "closed") {
-        this.options.store.delete(current.projectId, current.prNumber);
+        this.options.store.delete(summaryCurrent.projectId, summaryCurrent.prNumber);
         return;
       }
 
+      const passiveBlockerKey = getPassiveBlockerKey(pr);
+      // Once a policy-only blocker has been fully inspected, keep only the
+      // compact PR summary poll active until GitHub reports a changed state.
+      if (passiveBlockerKey && passiveBlockerKey === summaryCurrent.lastCheckKey) return;
+
+      const [details, reviewThreads] = await Promise.all([
+        this.options.getPrDetails(project, watch.prNumber),
+        this.options.getPrReviewThreads(project, watch.prNumber),
+      ]);
+
+      const current = this.options.store.get(watch.projectId, watch.prNumber);
+      if (!current) return;
       const signals = collectSignals(pr, details, reviewThreads);
       if (current.activeThreadId && this.options.isThreadActive(current.activeThreadId)) return;
 
       const hasActionableSignal =
         typeof signals.issueKey === "string" && signals.issueKey !== current.lastCheckKey;
+      const observedCheckKey = signals.issueKey === null ? passiveBlockerKey : signals.issueKey;
       const observed: PrWatch = {
         ...current,
-        lastCheckKey: signals.issueKey === undefined ? current.lastCheckKey : signals.issueKey,
+        lastCheckKey: observedCheckKey === undefined ? current.lastCheckKey : observedCheckKey,
         activeThreadId: null,
         lastError: null,
       };
@@ -325,13 +334,34 @@ function isPendingCheck(check: PrCheck): boolean {
   return !["COMPLETED", "SUCCESS", "NEUTRAL", "SKIPPED"].includes(check.state.toUpperCase());
 }
 
+function getPassiveBlockerKey(pr: PrData): string | null {
+  const reviewDecision = pr.reviewDecision?.toUpperCase();
+  if (
+    reviewDecision !== "REVIEW_REQUIRED" &&
+    pr.mergeStateStatus !== "BLOCKED" &&
+    pr.mergeStateStatus !== "HAS_HOOKS"
+  ) {
+    return null;
+  }
+  return JSON.stringify([
+    "passive",
+    pr.updatedAt,
+    reviewDecision ?? "",
+    pr.checksStatus ?? "",
+    pr.mergeable ?? "",
+    pr.mergeStateStatus ?? "",
+  ]);
+}
+
 export function isReadyForAutoMerge(pr: PrData, checks: PrCheck[]): boolean {
+  const reviewDecision = pr.reviewDecision?.toUpperCase();
   return (
     pr.state === "open" &&
     !pr.isDraft &&
     pr.mergeable === "MERGEABLE" &&
     pr.mergeStateStatus === "CLEAN" &&
-    pr.reviewDecision !== "CHANGES_REQUESTED" &&
+    reviewDecision !== "CHANGES_REQUESTED" &&
+    reviewDecision !== "REVIEW_REQUIRED" &&
     pr.checksStatus !== "PENDING" &&
     pr.checksStatus !== "FAILURE" &&
     !checks.some((check) => isFailedCheck(check) || isPendingCheck(check))

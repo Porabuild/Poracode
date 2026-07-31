@@ -129,6 +129,36 @@ describe("ThreadChangesBubble", () => {
     expect(bubble.querySelector(".lucide-git-fork")).toBeNull();
   });
 
+  it("shows a danger icon when a review is required despite successful checks", () => {
+    const worktreePath = "C:\\repo-worktrees\\calm-viper";
+    useGitStore.setState({
+      worktreeStatuses: {
+        [worktreePath]: makeStatus(),
+      },
+      prData: {
+        [worktreePath]: {
+          number: 427,
+          state: "open",
+          title: "Fix thread tool menu",
+          url: "https://github.com/poracode/poracode/pull/427",
+          baseBranch: "master",
+          isDraft: false,
+          checksStatus: "SUCCESS",
+          reviewDecision: "REVIEW_REQUIRED",
+          updatedAt: "2026-07-30T00:00:00.000Z",
+        },
+      },
+    });
+
+    render(<ThreadChangesBubble projectId="project-1" worktreePath={worktreePath} />);
+
+    expect(
+      screen
+        .getByRole("button", { name: "Review changes" })
+        .querySelector(".lucide-git-pull-request"),
+    ).toHaveClass("text-danger");
+  });
+
   it("stays hidden for a clean root project", () => {
     useGitStore.setState({
       statuses: {
