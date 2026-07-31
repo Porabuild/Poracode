@@ -16,6 +16,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { getPrStatusTone, PR_TONE_BG_CLASS, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
+import { dedupePrProjects, repoIdentityKey } from "./prProjectDedupe";
 
 type FilterMode = "all" | "reviewing" | "authored";
 
@@ -47,6 +48,16 @@ export function PullRequestsView() {
       ),
     ),
   );
+  // Two checkouts of the same origin (typically a local clone plus the same
+  // clone mirrored from a remote desktop) return identical `gh pr list` rows, so
+  // only one of them is queried — the local one when there is one.
+  const prProjects = useGitStore(
+    useShallow((state) =>
+      dedupePrProjects(activeProjects, (project) =>
+        repoIdentityKey(state.statuses[project.id]?.remoteInfo),
+      ),
+    ),
+  );
   const prReviewOpen = usePanelStore((state) => state.prReviewContext !== null);
   const [loadedProjects, setLoadedProjects] = useState<LoadedProject[]>([]);
   const [failures, setFailures] = useState<ProjectFailure[]>([]);
@@ -63,9 +74,9 @@ export function PullRequestsView() {
     let cancelled = false;
     setLoadedProjects([]);
     setFailures([]);
-    setLoading(activeProjects.length > 0);
+    setLoading(prProjects.length > 0);
 
-    const requests = activeProjects.map((project) =>
+    const requests = prProjects.map((project) =>
       readBridge()
         .ghListPullRequests({ projectLocation: project.location })
         .then(
@@ -94,7 +105,7 @@ export function PullRequestsView() {
     return () => {
       cancelled = true;
     };
-  }, [activeProjects, prReviewOpen, refreshVersion]);
+  }, [prProjects, prReviewOpen, refreshVersion]);
 
   const accountLogins = [
     ...new Set(
@@ -250,7 +261,7 @@ export function PullRequestsView() {
                 </div>
                 <div className="max-h-80 space-y-3 overflow-y-auto px-3 py-3">
                   <FilterGroup title={<Trans>Projects</Trans>}>
-                    {activeProjects.map((project) => (
+                    {prProjects.map((project) => (
                       <Checkbox
                         key={project.id}
                         className="block"
@@ -351,7 +362,7 @@ export function PullRequestsView() {
         <div className="py-12 text-center text-muted">
           <GitPullRequest className="mx-auto mb-3 size-8" />
           <p className="text-sm font-medium text-foreground">
-            {activeProjects.length === 0 ? (
+            {prProjects.length === 0 ? (
               <Trans>Add a project to see pull requests.</Trans>
             ) : totalPullRequests === 0 && failures.length === 0 ? (
               <Trans>No pull requests found.</Trans>

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GhListPullRequestsPayload,
   GhListPullRequestsResult,
+  GitStatusResult,
   Project,
   PullRequestSummary,
 } from "@/shared/contracts";
@@ -42,6 +43,23 @@ const wslProject: Project = {
   },
   createdAt: "2026-07-13T10:00:00.000Z",
 };
+
+function makeStatus(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
+  return {
+    isRepo: true,
+    branch: "main",
+    tracking: "origin/main",
+    hasRemote: true,
+    remoteInfo: null,
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+    ...overrides,
+  };
+}
 
 const summary: PullRequestSummary = {
   pr: {
@@ -103,6 +121,45 @@ describe("PullRequestsView", () => {
 
     act(() => usePanelStore.getState().setPrReviewContext(null));
     await waitFor(() => expect(bridge.ghListPullRequests).toHaveBeenCalledTimes(4));
+  });
+
+  it("queries only the local checkout when a mirrored project shares its origin", async () => {
+    const mirroredProject: Project = {
+      id: "mirrored-project",
+      name: "Mac app",
+      location: { kind: "posix", path: "/Users/leon/work/windows-app", remoteServerId: "mac" },
+      remoteServerId: "mac",
+      remoteId: "remote-1",
+      createdAt: "2026-07-13T10:00:00.000Z",
+    };
+    const remoteInfo = {
+      url: "https://github.com/example/windows-app.git",
+      platform: "github" as const,
+      owner: "example",
+      repo: "windows-app",
+    };
+    useAppStore.setState({ projects: [mirroredProject, windowsProject] });
+    useGitStore.setState({
+      statuses: {
+        [windowsProject.id]: makeStatus({ remoteInfo }),
+        // The same repo over an SSH host alias, so the URL and platform differ.
+        [mirroredProject.id]: makeStatus({
+          remoteInfo: { ...remoteInfo, url: "gh:example/windows-app.git", platform: "unknown" },
+        }),
+      },
+    });
+
+    render(<PullRequestsView />);
+
+    expect(await screen.findByText(summary.pr.title)).toBeInTheDocument();
+    expect(bridge.ghListPullRequests).toHaveBeenCalledTimes(1);
+    expect(bridge.ghListPullRequests).toHaveBeenCalledWith({
+      projectLocation: windowsProject.location,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter pull requests" }));
+    expect(screen.getByRole("checkbox", { name: windowsProject.name })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: mirroredProject.name })).not.toBeInTheDocument();
   });
 
   it("shows a successful project while another project is still loading", async () => {
