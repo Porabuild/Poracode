@@ -365,6 +365,7 @@ const remoteBridge = {
   onSupervisorEvent: () => () => undefined,
   onGitStateChanged: () => () => undefined,
   onPrWatchMerged: () => () => undefined,
+  onPrWatchStatus: () => () => undefined,
   onUpdateStatus: () => () => undefined,
   onBrowserEvent: () => () => undefined,
   onRemoteThreadCommand: () => () => undefined,

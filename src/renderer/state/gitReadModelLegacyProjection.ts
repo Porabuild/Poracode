@@ -1,4 +1,5 @@
 import type { GitStateSnapshot } from "@/shared/gitState";
+import { resolvePrKey } from "./gitSelectors";
 import { useGitStore } from "./gitStore";
 
 /**
@@ -27,7 +28,9 @@ export function projectGitReadModelIntoLegacyStore(snapshot: GitStateSnapshot): 
       }
     }
     const pr = target.pullRequestKey ? snapshot.pullRequests[target.pullRequestKey] : undefined;
-    const legacyPrKey = target.ref.worktreePath ?? target.ref.projectId;
+    // Legacy readers key the project row by the `__branch:` sentinel, never the
+    // bare project id.
+    const legacyPrKey = resolvePrKey(target.ref.projectId, target.ref.worktreePath);
     if (target.pullRequestKey === null) {
       store.setPrData(legacyPrKey, null);
     } else if (pr) {
