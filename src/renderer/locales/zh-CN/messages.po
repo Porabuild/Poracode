@@ -9121,6 +9121,7 @@ msgstr "运行{loginCommand}进行登录。"
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "在 {0} 上运行新线程。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "运行操作"

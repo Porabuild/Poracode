@@ -9122,6 +9122,7 @@ msgstr "Chạy {loginCommand} để đăng nhập."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "Chạy luồng mới trên {0}."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "Thao tác lượt chạy"

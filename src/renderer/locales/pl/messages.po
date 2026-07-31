@@ -9122,6 +9122,7 @@ msgstr "Uruchom {loginCommand}, aby się zalogować."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "Uruchom nowy wątek na {0}."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "Akcje uruchomienia"

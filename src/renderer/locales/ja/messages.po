@@ -9120,6 +9120,7 @@ msgstr "{loginCommand}を実行してサインインします。"
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "{0} で新しいスレッドを実行します。"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "実行アクション"

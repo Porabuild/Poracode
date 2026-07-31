@@ -9122,6 +9122,7 @@ msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "{0} üzerinde yeni bir iş parçacığı çalıştır."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "Çalıştırma eylemleri"

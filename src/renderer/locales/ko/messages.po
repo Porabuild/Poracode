@@ -9122,6 +9122,7 @@ msgstr "{loginCommand}을 실행하여 로그인합니다."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "{0}에서 새 스레드를 실행합니다."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "실행 작업"

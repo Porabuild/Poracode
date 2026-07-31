@@ -9122,6 +9122,7 @@ msgstr "Запустіть {loginCommand}, щоб увійти."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "Запустити новий потік на {0}."
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "Дії із запуском"
