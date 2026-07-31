@@ -11,6 +11,9 @@ import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
 const readDetectedVersionMock = vi.hoisted(() =>
   vi.fn<typeof import("../agents/base").readDetectedVersion>(),
 );
+const detectProbeLocationMock = vi.hoisted(() =>
+  vi.fn<typeof import("../agents/base").detectProbeLocation>(),
+);
 const runUpdateCommandWithFallbackMock = vi.hoisted(() =>
   vi.fn<typeof import("../agents/updateAgent").runUpdateCommandWithFallback>(),
 );
@@ -24,7 +27,11 @@ const getLatestSupportedNpmPackageVersionMock = vi.hoisted(() =>
 
 vi.mock("../agents/base", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../agents/base")>();
-  return { ...actual, readDetectedVersion: readDetectedVersionMock };
+  return {
+    ...actual,
+    detectProbeLocation: detectProbeLocationMock,
+    readDetectedVersion: readDetectedVersionMock,
+  };
 });
 
 vi.mock("../agents/updateAgent", async (importOriginal) => {
@@ -258,6 +265,10 @@ describe("AgentRegistryService.updateAgentBinary", () => {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
       getAgentStatusService: () => agentStatusService,
+    });
+    detectProbeLocationMock.mockReturnValueOnce({
+      kind: "windows",
+      path: "C:\\Users\\test",
     });
     readDetectedVersionMock.mockResolvedValueOnce("0.21.0");
     runUpdateCommandWithFallbackMock.mockImplementationOnce(
