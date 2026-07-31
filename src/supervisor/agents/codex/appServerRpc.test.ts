@@ -652,4 +652,58 @@ describe("CodexAppServerRpc", () => {
       "stdin closed",
     );
   });
+
+  it("keeps a replacement channel alive when the superseded session for the same thread disposes", async () => {
+    let transportListener: CodexStdioTransportListener | undefined;
+    const writes: Array<Record<string, unknown>> = [];
+    const transport: CodexAppServerRpcTransport = {
+      setListener: (listener) => {
+        transportListener = listener;
+      },
+      write: (message) => writes.push(message),
+      dispose: () => {},
+      formatOutput: () => "",
+    };
+    const connection = new CodexAppServerConnection(transport);
+    // A force-stopped session is replaced while its own teardown still drains,
+    // so both sessions share the Poracode thread id.
+    const forceStopped = new CodexAppServerRpc(connection, "local-thread");
+    forceStopped.claimThread("provider-thread");
+    const replacement = new CodexAppServerRpc(connection, "local-thread");
+    const replacementNotifications =
+      vi.fn<(method: string, params: Record<string, unknown> | undefined) => void>();
+    replacement.setListener({
+      onNotification: replacementNotifications,
+      onRuntimeEvents: () => {},
+      onClose: () => {},
+      onError: () => {},
+    });
+    // A sibling channel keeps the connection multi-channel so nothing falls
+    // back to the single-channel delivery path.
+    const sibling = new CodexAppServerRpc(connection, "local-sibling");
+    sibling.claimThread("provider-sibling");
+    replacement.claimThread("provider-thread");
+
+    expect(forceStopped.ownsThread("provider-thread")).toBe(false);
+    expect(replacement.ownsThread("provider-thread")).toBe(true);
+
+    const pending = replacement.request("turn/start", {
+      threadId: "provider-thread",
+      input: [],
+      model: "gpt-5.6-sol",
+    });
+    forceStopped.dispose(new Error("Codex app-server session disposed."));
+
+    transportListener!.onMessage({
+      method: "turn/started",
+      params: { threadId: "provider-thread" },
+    });
+    expect(replacementNotifications).toHaveBeenCalledWith("turn/started", {
+      threadId: "provider-thread",
+    });
+
+    const requestId = writes.find((message) => message.method === "turn/start")?.id;
+    transportListener!.onMessage({ id: requestId, result: { turn: { id: "turn-1" } } });
+    await expect(pending).resolves.toMatchObject({ turn: { id: "turn-1" } });
+  });
 });

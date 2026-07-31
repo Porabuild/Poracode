@@ -897,13 +897,20 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           )
           .catch(() => undefined);
       }
-      await this.rpc
-        .request(
-          "thread/unsubscribe",
-          { threadId: this.remoteThreadId },
-          CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
-        )
-        .catch(() => undefined);
+      // Re-check ownership *after* the interrupt round-trip: a force-stopped
+      // session is replaced while this teardown drains, and the replacement
+      // resubscribes to the same provider thread on the shared app-server.
+      // Unsubscribing then would silence the live session's notifications and
+      // strand it on "working" with no output.
+      if (this.rpc.ownsThread(this.remoteThreadId)) {
+        await this.rpc
+          .request(
+            "thread/unsubscribe",
+            { threadId: this.remoteThreadId },
+            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+          )
+          .catch(() => undefined);
+      }
     }
     this.rpc.dispose(new Error("Codex app-server session disposed."));
     this.releaseAppServer();

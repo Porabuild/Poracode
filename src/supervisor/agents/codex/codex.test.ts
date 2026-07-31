@@ -1004,6 +1004,27 @@ describe("CodexStructuredSession", () => {
     expect(releaseAppServer).toHaveBeenCalledOnce();
   });
 
+  it("keeps a replacement session subscribed when a superseded session disposes", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-1";
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      // The replacement session claims the provider thread while this teardown
+      // waits on its interrupt round-trip.
+      ownsThread: () => requests.length === 0,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    await structuredSession.dispose();
+
+    expect(requests.map((request) => request.method)).toEqual(["turn/interrupt"]);
+  });
+
   it("interrupts the active Codex app-server turn", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
