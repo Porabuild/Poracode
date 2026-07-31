@@ -7,7 +7,6 @@ import {
   PanelLeftClose,
   Pin,
   Play,
-  RefreshCw,
   Workflow,
 } from "lucide-react";
 import type { GitHubActionsWorkflow } from "@/shared/contracts";
@@ -30,7 +29,6 @@ export function GitHubActionsSidebar(props: {
   loading: boolean;
   onClose: () => void;
   onSelectProject: (projectId: string) => void;
-  onRefresh: () => void;
   onSelect: (workflowId: number) => void;
   onRun: (workflowId: number) => void;
   onTogglePin: (workflowId: number) => void;
@@ -82,7 +80,7 @@ export function GitHubActionsSidebar(props: {
       >
         <div className={sidebarBodyScrollClass()}>
           {selectedProject ? (
-            <div className="px-2 pb-2 pt-1">
+            <div className="px-2 py-1">
               <Dropdown>
                 <Button
                   variant="ghost"
@@ -111,23 +109,6 @@ export function GitHubActionsSidebar(props: {
               </Dropdown>
             </div>
           ) : null}
-
-          <div className="flex items-center justify-between px-2 py-1">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">
-              <Trans>Workflows</Trans>
-            </h2>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              className="size-7 min-w-0"
-              isDisabled={props.loading}
-              aria-label={t`Refresh workflows`}
-              onPress={props.onRefresh}
-            >
-              <RefreshCw className={`size-3.5 ${props.loading ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
 
           <nav className="space-y-0.5" aria-label={t`Workflows`}>
             {workflows.map((workflow) => {

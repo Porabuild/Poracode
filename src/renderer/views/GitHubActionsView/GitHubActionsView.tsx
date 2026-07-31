@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button } from "@heroui/react";
+import { Button, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Play, RefreshCw, Workflow } from "lucide-react";
 import { ConfirmDialog } from "@/renderer/components/common";
@@ -112,7 +112,6 @@ export function GitHubActionsView(props: {
       loading={loadingWorkflows}
       onClose={props.onClose}
       onSelectProject={openGitHubActions}
-      onRefresh={refresh}
       onSelect={selectWorkflowPage}
       onRun={requestWorkflowDispatch}
       onTogglePin={(workflowId) => {
@@ -232,6 +231,28 @@ export function GitHubActionsView(props: {
     <>
       <PageLayout
         title={t`GitHub Actions`}
+        sidebarHeaderChildren={
+          <div className="poracode-overlay-header__controls flex items-center">
+            <Tooltip delay={150}>
+              <Tooltip.Trigger>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  className="size-6 min-w-0 text-muted hover:text-foreground"
+                  aria-label={t`Refresh workflows`}
+                  isDisabled={loadingWorkflows}
+                  onPress={refresh}
+                >
+                  <RefreshCw className={`size-3.5 ${loadingWorkflows ? "animate-spin" : ""}`} />
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Content placement="bottom">
+                <Trans>Refresh workflows</Trans>
+              </Tooltip.Content>
+            </Tooltip>
+          </div>
+        }
         sidebar={sidebar}
         content={content}
         rightPanel={

@@ -173,6 +173,15 @@ describe("GitHubActionsView", () => {
     });
   });
 
+  it("selects the first active project by default", async () => {
+    render(<GitHubActionsView onClose={() => {}} />);
+
+    expect(await screen.findByRole("button", { name: "Project" })).toHaveTextContent(project.name);
+    expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
+      projectLocation: project.location,
+    });
+  });
+
   it("deep-links directly to a PR check run", async () => {
     render(<GitHubActionsView projectId={project.id} runId={run.id} onClose={() => {}} />);
 

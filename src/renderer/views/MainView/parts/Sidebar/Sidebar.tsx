@@ -287,7 +287,7 @@ export function Sidebar() {
       id: "githubActions" as const,
       icon: <Workflow className="size-4" />,
       label: t`GitHub Actions`,
-      onPress: () => startTransition(() => openGitHubActions()),
+      onPress: () => startTransition(() => openGitHubActions(currentProjectId)),
     },
     {
       id: "schedules" as const,
