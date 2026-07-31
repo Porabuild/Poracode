@@ -3,6 +3,7 @@ import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { deriveSyncAction, type SyncAction } from "@/renderer/actions/gitCommandRunner";
+import { isPrActive } from "@/renderer/utils/prStatus";
 
 export type GitMenuIcons = {
   review: React.ReactNode;
@@ -135,7 +136,7 @@ function derive(
   const ahead = wtStatus?.ahead ?? 0;
   const behind = wtStatus?.behind ?? 0;
   const isPushed = hasTracking && ahead === 0;
-  const hasPr = Boolean(pr && pr.state !== "closed");
+  const activePr = pr && isPrActive(pr.state) ? pr : undefined;
 
   return {
     syncAction: deriveSyncAction(hasTracking, ahead, behind),
@@ -144,10 +145,10 @@ function derive(
     sourceAhead: sourceInfo?.sourceAhead ?? 0,
     ahead,
     behind,
-    showCreatePr: ghOk && !hasPr && isPushed,
-    showOpenPr: ghOk && hasPr,
-    prNumber: hasPr ? pr!.number : undefined,
-    prUrl: hasPr ? pr!.url : undefined,
+    showCreatePr: ghOk && !activePr && isPushed,
+    showOpenPr: ghOk && Boolean(activePr),
+    prNumber: activePr?.number,
+    prUrl: activePr?.url,
     isPushed,
   };
 }

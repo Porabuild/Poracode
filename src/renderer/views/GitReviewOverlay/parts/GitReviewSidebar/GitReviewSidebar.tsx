@@ -37,6 +37,7 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
+import { isPrActive } from "@/renderer/utils/prStatus";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { getCommitGenCandidates } from "@/renderer/components/providers/commitGen";
 import {
@@ -255,10 +256,8 @@ export function GitReviewSidebar(props: {
     effectiveBranch && sourceBranch && sourceAhead > 0 && !isExperimentWorktree,
   );
   const isPushed = hasTracking && ahead === 0;
-  // Shared PR eligibility: a GitHub repo with a target branch and no open PR.
-  const prEligible = Boolean(
-    showPrSection && ghAvailable && sourceBranch && (!prState || prState === "closed"),
-  );
+  // Shared PR eligibility: a GitHub repo with a target branch and no active PR.
+  const prEligible = Boolean(showPrSection && ghAvailable && sourceBranch && !isPrActive(prState));
   const showCreatePrButton = prEligible && isPushed;
   // Whether the one-click "Commit & Create PR" action is offered. Unlike
   // showCreatePrButton this does NOT require an already-pushed branch (it only
@@ -540,7 +539,7 @@ export function GitReviewSidebar(props: {
             />
           )}
 
-          {showPrSection && ghAvailable && hasPr && prState !== "closed" && effectivePrKey && (
+          {showPrSection && ghAvailable && hasPr && effectivePrKey && (
             <PrSection
               prKey={effectivePrKey}
               projectId={project.id}

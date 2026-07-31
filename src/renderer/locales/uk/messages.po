@@ -2431,6 +2431,7 @@ msgstr "Закрити робочі процеси"
 msgid "Close workflows panel"
 msgstr "Закрити панель робочих процесів"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"

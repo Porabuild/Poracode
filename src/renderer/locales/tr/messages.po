@@ -2431,6 +2431,7 @@ msgstr "İş akışlarını kapat"
 msgid "Close workflows panel"
 msgstr "İş akışları panelini kapat"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"

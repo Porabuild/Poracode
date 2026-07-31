@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitStatusResult, Project } from "@/shared/contracts";
+import type { GitStatusResult, PrData, Project } from "@/shared/contracts";
 
 const bridgeMock = vi.hoisted(() => ({
   gitStage: vi.fn<() => Promise<void>>(),
@@ -17,7 +17,7 @@ const bridgeMock = vi.hoisted(() => ({
     vi.fn<
       () => Promise<{ sourceBranch: string | null; commitsAhead: number; sourceAhead: number }>
     >(),
-  ghGetPrForBranch: vi.fn<() => Promise<null>>(),
+  ghGetPrForBranch: vi.fn<() => Promise<PrData | null>>(),
   generateCommitMessage: vi.fn<() => Promise<{ message: string }>>(),
 }));
 
@@ -104,6 +104,7 @@ vi.mock("@heroui/react", () => {
     ButtonGroup,
     Dropdown,
     Label: (props: { children: ReactNode }) => <span>{props.children}</span>,
+    Link: Button,
     ListBox,
     Select,
     Separator: () => <span />,
@@ -1014,6 +1015,74 @@ describe("GitReviewSidebar", () => {
     expect(screen.getByText("Merge Worktree")).toBeInTheDocument();
     expect(screen.getByText("Merge Locally & Remove Worktree")).toBeInTheDocument();
     expect(screen.queryByText("Merge & Remove Worktree")).not.toBeInTheDocument();
+  });
+
+  it("shows the latest merged PR and allows creating a follow-up PR", async () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo-worktree" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/worktree",
+      tracking: "origin/feature/worktree",
+      hasRemote: true,
+      remoteInfo: {
+        url: "https://github.com/example/poracode.git",
+        platform: "github",
+        owner: "example",
+        repo: "poracode",
+      },
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+    const mergedPr: PrData = {
+      number: 429,
+      state: "merged",
+      title: "Add GitHub Actions workflow management view",
+      url: "https://github.com/example/poracode/pull/429",
+      baseBranch: "master",
+      isDraft: false,
+      updatedAt: "2026-07-30T00:00:00.000Z",
+    };
+
+    bridgeMock.gitGetWorktreeSourceBranch.mockResolvedValue({
+      sourceBranch: "master",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    bridgeMock.ghGetPrForBranch.mockResolvedValue(mergedPr);
+    useGitStore.setState({ ghAvailable: { [project.id]: true } });
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        worktreeBranch="feature/worktree"
+        worktreePath="C:\\repo-worktree"
+        refreshKey={1}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(
+      await screen.findByText("#429 - Add GitHub Actions workflow management view"),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole("button", { name: "Create PR" })
+        .some((button) => button.classList.contains("flex-1")),
+    ).toBe(true);
   });
 
   it("does not show the removed merge section while worktree source info is still loading", () => {

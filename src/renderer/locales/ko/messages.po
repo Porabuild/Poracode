@@ -2431,6 +2431,7 @@ msgstr "워크플로 닫기"
 msgid "Close workflows panel"
 msgstr "워크플로 패널 닫기"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
