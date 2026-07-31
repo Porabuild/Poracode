@@ -3,20 +3,19 @@ import type {
   AgentStatus,
   GetLatestAgentVersionResult,
   NpmPackageVersionQuery,
-  UpdateAgentBinaryResult,
 } from "@/shared/contracts";
-import type { AgentAdapter, AgentEnvContext } from "../agents/base";
+import type { AgentAdapter } from "../agents/base";
 import type { AgentStatusService } from "./agentStatusService";
 import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
 
+const readDetectedVersionMock = vi.hoisted(() =>
+  vi.fn<typeof import("../agents/base").readDetectedVersion>(),
+);
+const detectProbeLocationMock = vi.hoisted(() =>
+  vi.fn<typeof import("../agents/base").detectProbeLocation>(),
+);
 const runUpdateCommandWithFallbackMock = vi.hoisted(() =>
-  vi.fn<
-    (
-      adapter: AgentAdapter,
-      status: AgentStatus,
-      envContext: AgentEnvContext,
-    ) => Promise<UpdateAgentBinaryResult>
-  >(),
+  vi.fn<typeof import("../agents/updateAgent").runUpdateCommandWithFallback>(),
 );
 
 const getLatestVersionForAdapterMock = vi.hoisted(() =>
@@ -25,6 +24,15 @@ const getLatestVersionForAdapterMock = vi.hoisted(() =>
 const getLatestSupportedNpmPackageVersionMock = vi.hoisted(() =>
   vi.fn<(query: NpmPackageVersionQuery) => Promise<GetLatestAgentVersionResult>>(),
 );
+
+vi.mock("../agents/base", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../agents/base")>();
+  return {
+    ...actual,
+    detectProbeLocation: detectProbeLocationMock,
+    readDetectedVersion: readDetectedVersionMock,
+  };
+});
 
 vi.mock("../agents/updateAgent", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../agents/updateAgent")>();
@@ -207,6 +215,84 @@ describe("AgentRegistryService.updateAgentBinary", () => {
         agentKinds: ["claude", "claude:personal", "claude:work"],
       },
     });
+  });
+
+  it("tracks the installed version for built-in updaters that require verification", async () => {
+    const status: AgentStatus = {
+      kind: "qwen",
+      label: "Qwen Code",
+      installed: true,
+      version: "0.21.0",
+      executablePath: "C:\\Users\\test\\AppData\\Roaming\\npm\\qwen.cmd",
+      authState: "authenticated",
+      capabilities,
+      envKind: "windows",
+      update: {
+        builtIn: { binary: "qwen", args: ["update"] },
+        verifyBuiltInVersionChange: true,
+        npm: "@qwen-code/qwen-code",
+      },
+    };
+    const adapter = {
+      kind: "qwen",
+      label: "Qwen Code",
+      capabilities,
+      update: status.update,
+      detectInstall: vi.fn<AgentAdapter["detectInstall"]>(),
+      buildLaunchArgv: vi.fn<AgentAdapter["buildLaunchArgv"]>(),
+      buildResumeArgv: vi.fn<AgentAdapter["buildResumeArgv"]>(),
+      createInitialSessionRef: vi.fn<AgentAdapter["createInitialSessionRef"]>(() => undefined),
+    } as unknown as AgentAdapter;
+    const refreshAgentStatuses = vi
+      .fn<AgentStatusService["refreshAgentStatuses"]>()
+      .mockResolvedValueOnce({ windows: [status], wsl: [], fromCache: false })
+      .mockResolvedValue({
+        windows: [{ ...status, version: "0.21.2" }],
+        wsl: [],
+        fromCache: false,
+      });
+    const agentStatusService = {
+      refreshAgentStatuses,
+      getAgentStatuses: vi.fn<AgentStatusService["getAgentStatuses"]>(),
+      listWslDistros: vi.fn<AgentStatusService["listWslDistros"]>().mockResolvedValue([]),
+    } as unknown as AgentStatusService;
+    const service = new AgentRegistryService({
+      adapters: new Map([["qwen", adapter]]),
+      settingsPath: "C:\\data\\settings.json",
+      baseDir: "C:\\data",
+      acpIconsDir: "C:\\data\\icons",
+      sharedSettingsCache: {
+        invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
+      } as unknown as SupervisorSharedSettingsCache,
+      getAgentStatusService: () => agentStatusService,
+    });
+    detectProbeLocationMock.mockReturnValueOnce({
+      kind: "windows",
+      path: "C:\\Users\\test",
+    });
+    readDetectedVersionMock.mockResolvedValueOnce("0.21.0");
+    runUpdateCommandWithFallbackMock.mockImplementationOnce(
+      async (_adapter, _status, _envContext, options) => {
+        expect(await options?.verifyBuiltInSuccess?.()).toBe(false);
+        return { ok: true, strategy: "npm-global" };
+      },
+    );
+
+    const result = await service.updateAgentBinary({ agentKind: "qwen", envKind: "windows" });
+
+    expect(result).toEqual({ ok: true, strategy: "npm-global" });
+    expect(runUpdateCommandWithFallbackMock).toHaveBeenCalledWith(
+      adapter,
+      status,
+      { envKind: "windows", baseDir: "C:\\data" },
+      { verifyBuiltInSuccess: expect.any(Function) },
+    );
+    expect(readDetectedVersionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "windows" }),
+      status.executablePath,
+      ["--version"],
+    );
+    expect(refreshAgentStatuses).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -95,13 +95,18 @@ export async function runUpdateCommandWithFallback(
   adapter: AgentAdapter,
   status: AgentStatus,
   envContext: AgentEnvContext,
+  options?: { verifyBuiltInSuccess?: () => Promise<boolean> },
 ): Promise<UpdateAgentBinaryResult> {
   const command = resolveUpdateCommand(adapter, status, envContext);
   if (!command) return buildUnsupportedResult();
 
   try {
     const result = await runUpdateCommand(command, envContext);
-    if (result.ok || command.strategy !== "built-in") {
+    const needsFallback =
+      command.strategy === "built-in" &&
+      (!result.ok ||
+        (options?.verifyBuiltInSuccess ? !(await options.verifyBuiltInSuccess()) : false));
+    if (!needsFallback) {
       return {
         ok: result.ok,
         strategy: command.strategy,

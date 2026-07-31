@@ -78,6 +78,7 @@ describe("createQwenAdapter", () => {
     expect(adapter.createStructuredSession).toBeTypeOf("function");
     expect(adapter.update).toEqual({
       builtIn: { binary: "qwen", args: ["update"] },
+      verifyBuiltInVersionChange: true,
       npm: "@qwen-code/qwen-code",
       brew: "qwen-code",
     });

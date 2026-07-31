@@ -73,6 +73,8 @@ const agentUpdateCommandSchema = z.object({
 
 export const agentUpdateInfoSchema = z.object({
   builtIn: agentUpdateCommandSchema.optional(),
+  /** Fall back when the built-in command exits successfully without changing the detected version. */
+  verifyBuiltInVersionChange: z.boolean().optional(),
   npm: z.string().min(1).optional(),
   homebrewCask: z.string().min(1).optional(),
   brew: z.string().min(1).optional(),
