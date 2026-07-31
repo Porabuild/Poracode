@@ -24,6 +24,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { findExperimentByGroupId } from "@/renderer/state/experimentStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
@@ -145,6 +146,16 @@ export async function startThreadFromDraft(
     worktreeTransferUncommitted,
     presentationMode,
   } = input;
+  // Everything below runs on the project's host, so a mirrored remote project
+  // can't launch while its server is unreachable. Bail before creating a
+  // worktree we would then have to unwind.
+  if (isRemoteProjectUnreachable(project)) {
+    toast.danger(
+      i18n._(msg`This project's remote server is offline. Reconnect it to start a thread.`),
+    );
+    return;
+  }
+
   const isHomeScope = isHomeProject(project);
   const host = threadLaunchHost(project);
 

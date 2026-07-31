@@ -17,7 +17,7 @@ import { SubAgentHeaderText } from "@/renderer/components/thread/ChatPane/parts/
 import { ConnectionPill, SheetMenu } from "./components";
 import { NarrowThreadHostProvider } from "./narrowThreadHostContext";
 import { preselectWorktreeDraft, runThreadAction } from "./navHelpers";
-import { desktopTitle } from "./presentation";
+import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { ThreadDetail } from "./ThreadDetail";
 import { ThreadTitleRow } from "./ThreadTitleRow";
 import { ThreadUsageIndicator } from "./ThreadUsageIndicator";

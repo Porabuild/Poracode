@@ -18,6 +18,13 @@ import NumberFlow, {
  * `{n}` interpolation these call sites replaced; pass `format` to opt into
  * grouping or compact notation.
  *
+ * Digits always render with `tabular-nums`. Geist's default figures are
+ * proportional — a `1` is barely half the advance of a `0` — so a rolling value
+ * resized its own box on every commit and shoved its neighbours sideways. The
+ * feature is inherited, so it reaches number-flow's shadow digits, and it is
+ * applied here rather than at the call sites because those pass a `className`
+ * that replaces the wrapper's default classes.
+ *
  * Where the platform lacks the CSS/Web Animations support number-flow needs
  * (jsdom under test, older WebKit) this degrades to a plain span with the same
  * formatted text. Reduced-motion is *not* handled here: the `<number-flow>`
@@ -46,12 +53,13 @@ export function AnimatedNumber({
   willChange?: boolean;
 }) {
   const resolvedFormat: Format = { useGrouping: false, ...format };
+  const numeralClass = className ? `tabular-nums ${className}` : "tabular-nums";
   const isSupported = useIsSupported();
 
   if (!isSupported) {
     const text = new Intl.NumberFormat(undefined, resolvedFormat).format(value);
     return (
-      <span className={className}>
+      <span className={numeralClass}>
         {prefix}
         {text}
         {suffix}
@@ -66,7 +74,7 @@ export function AnimatedNumber({
       // NumberFlowGroup ignores this and still coordinates intentional pairs.
       isolate
       value={value}
-      className={className}
+      className={numeralClass}
       format={resolvedFormat}
       {...(prefix !== undefined ? { prefix } : {})}
       {...(suffix !== undefined ? { suffix } : {})}

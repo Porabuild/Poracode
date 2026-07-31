@@ -43,6 +43,7 @@ vi.mock("@/renderer/bridge", () => ({
 
 import { buildWorkflowDispatchInputs } from "./GitHubActionsDispatchPopover";
 import { GitHubActionsView } from "./GitHubActionsView";
+import { resetGitHubActionsCaches } from "./useGitHubActionsViewModel";
 
 const project: Project = {
   id: "project-1",
@@ -115,6 +116,9 @@ describe("buildWorkflowDispatchInputs", () => {
 
 describe("GitHubActionsView", () => {
   beforeEach(() => {
+    // The workflow/run/definition caches persist across mounts by design, so
+    // each case has to start cold or it inherits the previous one's data.
+    resetGitHubActionsCaches();
     bridge.ghListWorkflows.mockReset().mockResolvedValue({
       workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
     });
@@ -391,6 +395,93 @@ describe("GitHubActionsView", () => {
       });
     });
     expect(await screen.findByText("Refreshed CI run")).toBeInTheDocument();
+  });
+
+  it("renders workflows and runs from cache on the first frame after reopening", async () => {
+    const { unmount } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+    expect(await screen.findByText(run.title)).toBeInTheDocument();
+
+    // Closing the overlay unmounts the view; the caches must outlive it.
+    unmount();
+
+    let resolveWorkflows: ((result: GhListWorkflowsResult) => void) | undefined;
+    bridge.ghListWorkflows.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWorkflows = resolve;
+        }),
+    );
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    // Synchronous — no findBy, no awaited fetch: the sidebar and run list are
+    // painted from cache while the refetch is still pending.
+    expect(screen.getByRole("heading", { name: "CI" })).toBeInTheDocument();
+    expect(screen.getByText(run.title)).toBeInTheDocument();
+    expect(resolveWorkflows).toBeDefined();
+
+    await act(async () => {
+      resolveWorkflows!({
+        workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
+      });
+    });
+    expect(screen.getByText(run.title)).toBeInTheDocument();
+  });
+
+  it("drops the cached seed once its TTL lapses", async () => {
+    const { unmount } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+    expect(await screen.findByText(run.title)).toBeInTheDocument();
+    unmount();
+
+    // Runs expire after a minute; the workflow list lasts ten.
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 2 * 60_000);
+
+    let resolveWorkflows: ((result: GhListWorkflowsResult) => void) | undefined;
+    bridge.ghListWorkflows.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWorkflows = resolve;
+        }),
+    );
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    // Sidebar still seeds from the workflow cache, but the stale run is gone.
+    expect(screen.getByRole("heading", { name: "CI" })).toBeInTheDocument();
+    expect(screen.queryByText(run.title)).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveWorkflows!({
+        workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
+      });
+    });
+    expect(await screen.findByText(run.title)).toBeInTheDocument();
+    vi.mocked(Date.now).mockRestore();
+  });
+
+  it("re-applies the pinned default after reopening with a cached list", async () => {
+    bridge.ghListWorkflows.mockResolvedValue({
+      workflows: [
+        { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+        { id: 33, name: "Alpha", path: ".github/workflows/alpha.yml", state: "active" },
+      ],
+    });
+    bridge.ghListWorkflowRuns.mockResolvedValue({ runs: [] });
+    bridge.ghGetWorkflowDefinition.mockImplementation(async ({ workflowId }) => ({
+      definition: { ...definition.definition, workflowId },
+    }));
+
+    const { unmount } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+    expect(await screen.findByRole("heading", { name: "CI" })).toBeInTheDocument();
+    unmount();
+
+    // Pinned while the overlay was closed — the cache seed must not pin the
+    // stale selection in place once the fresh list arrives.
+    useSidebarUiStore.setState({ pinnedGitHubWorkflows: { [project.id]: [33] } });
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+    expect(await screen.findByRole("heading", { name: "Alpha" })).toBeInTheDocument();
   });
 
   it("does not expand or count jobs without steps", async () => {

@@ -1,5 +1,6 @@
 import {
   ChevronRight,
+  EyeOff,
   FileDiff,
   FolderOpen,
   GitFork,
@@ -15,7 +16,12 @@ import {
 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
+import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import {
+  RemoteServerStatusDot,
+  useRemoteServerStatusLabel,
+} from "@/renderer/components/common/RemoteServerStatusDot";
 import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { setProjectDisabled, deleteProject } from "@/renderer/actions/projectActions";
@@ -71,7 +77,17 @@ export function SidebarProjectHeader(props: {
       ? state.servers.find((server) => server.desktopId === project.remoteServerId)
       : undefined,
   );
+  const remoteStatus = useRemoteServersStore((state) =>
+    project.remoteServerId ? state.runtime[project.remoteServerId]?.status : undefined,
+  );
+  const setRemoteProjectSynced = useRemoteServersStore((state) => state.setRemoteProjectSynced);
+  const remoteServerName = remoteServer ? desktopTitle(remoteServer.label) : undefined;
+  const remoteStatusLabel = useRemoteServerStatusLabel(remoteStatus ?? "offline");
   const isRemote = project.remoteServerId !== undefined && project.remoteId !== undefined;
+  // Git, run-scripts and removal all execute on the project's host, so they are
+  // unavailable while a mirrored project's server is unreachable. The row
+  // tooltip carries the status, so the greyed-out items read as explained.
+  const isUnreachable = project.remoteServerId !== undefined && remoteStatus !== "online";
   const showBody = !isCollapsed && !isDisabled;
 
   return (
@@ -95,16 +111,19 @@ export function SidebarProjectHeader(props: {
                     id: "git-review",
                     label: t`Review Changes`,
                     icon: <FileDiff className="size-3.5" />,
+                    isDisabled: isUnreachable,
                   },
                   {
                     id: "github-actions",
                     label: t`GitHub Actions`,
                     icon: <Workflow className="size-3.5" />,
+                    isDisabled: isUnreachable,
                   },
                   {
                     id: "git-sync",
                     label: t`Sync`,
                     icon: <RefreshCw className="size-3.5" />,
+                    isDisabled: isUnreachable,
                   },
                 ],
               },
@@ -119,6 +138,7 @@ export function SidebarProjectHeader(props: {
                         id: `action:${action.id}`,
                         label: action.name,
                         icon: resolveActionIcon(action.icon),
+                        isDisabled: isUnreachable,
                       })),
                     },
                   ]
@@ -153,15 +173,31 @@ export function SidebarProjectHeader(props: {
           label: isDisabled ? t`Enable Project` : t`Disable Project`,
           icon: isDisabled ? <Power className="size-3.5" /> : <PowerOff className="size-3.5" />,
         },
+        // Dropping a mirrored project from this client is local state, so it
+        // stays available while the server is offline — unlike Remove Project,
+        // which deletes it on the host.
+        ...(isRemote
+          ? [
+              {
+                id: "stop-syncing",
+                label: t`Stop syncing`,
+                icon: <EyeOff className="size-3.5" />,
+              },
+            ]
+          : []),
         {
           id: "remove-project",
           label: t`Remove Project`,
           icon: <Trash2 className="size-3.5" />,
           variant: "danger" as const,
+          isDisabled: isUnreachable,
         },
       ]}
       onAction={(key) => {
         if (key === "project-settings") openProjectSettings(project.id);
+        if (key === "stop-syncing" && project.remoteServerId && project.remoteId) {
+          setRemoteProjectSynced(project.remoteServerId, project.remoteId, false);
+        }
         if (key === "remove-project") deleteProject(project.id);
         if (key === "toggle-disabled") setProjectDisabled(project.id, !isDisabled);
         if (key === "git-review") openGitReview(project.id);
@@ -192,9 +228,12 @@ export function SidebarProjectHeader(props: {
           <span className="flex items-center gap-1.5">
             <span className="truncate text-xs font-semibold text-foreground">{project.name}</span>
             {isRemote ? <Server className="size-3 shrink-0 text-muted/60" /> : null}
-            {remoteServer ? (
-              <span className="max-w-24 truncate text-[10px] font-normal text-muted/60">
-                {remoteServer.label}
+            {remoteServerName ? (
+              <span className="flex min-w-0 items-center gap-1">
+                <RemoteServerStatusDot status={remoteStatus ?? "offline"} />
+                <span className="max-w-24 truncate text-[10px] font-normal text-muted/60">
+                  {remoteServerName}
+                </span>
               </span>
             ) : null}
             {project.location.kind === "wsl" && (
@@ -205,8 +244,8 @@ export function SidebarProjectHeader(props: {
         tooltip={
           isDisabled
             ? t`${projectLocation} (disabled)`
-            : remoteServer
-              ? `${projectLocation} · ${remoteServer.label}`
+            : remoteServerName
+              ? `${projectLocation} · ${remoteServerName} · ${remoteStatusLabel}`
               : projectLocation
         }
         className={`poracode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${

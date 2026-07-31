@@ -12,6 +12,21 @@ describe("friendlyErrorWithDetail", () => {
     expect(friendlyError(wrapped)).toBe("real message");
   });
 
+  it("strips the IPC wrapper for a non-Error class such as undici's TypeError", () => {
+    const wrapped = new Error(
+      "Error invoking remote method 'poracode:remote-http-request': TypeError: fetch failed",
+    );
+    expect(friendlyError(wrapped)).toBe(
+      "Can't reach the remote server. Check that it is online, then reconnect it.",
+    );
+  });
+
+  it("maps transport-level failures to the unreachable-server message", () => {
+    expect(friendlyError(new Error("connect ECONNREFUSED 127.0.0.1:39001"))).toBe(
+      "Can't reach the remote server. Check that it is online, then reconnect it.",
+    );
+  });
+
   it("splits an attached details block out of the message", () => {
     const composed = attachErrorDetails("Git commit failed: stuff", "stderr line 1\nstderr line 2");
     const result = friendlyErrorWithDetail(new Error(composed));

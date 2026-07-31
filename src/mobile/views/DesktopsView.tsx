@@ -22,7 +22,7 @@ import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts
 import { Fab, EmptyState, FullScreenDrawer, SheetMenu, useSheet } from "../components";
 import { QrScanner } from "../QrScanner";
 import { parsePairingUrl } from "../pairing";
-import { desktopTitle } from "../presentation";
+import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { isNativeApp, isStandaloneDisplay, promptInstall, useCanInstall } from "../pwaInstall";
 import type { StoredDesktop } from "../storage";
 

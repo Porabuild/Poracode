@@ -14,7 +14,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { ConnectionBanner } from "./components";
 import { Brand, ConnectionControl } from "./NarrowShell";
 import { openWorktreeDraft, threadIdFromPath } from "./navHelpers";
-import { desktopTitle } from "./presentation";
+import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { MobileSetupEmptyState } from "./setupEmptyState";
 import type { RemoteDesktopSession } from "./useRemoteDesktop";
 import { ThreadsView } from "./views/ThreadsView";

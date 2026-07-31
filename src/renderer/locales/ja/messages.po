@@ -1810,6 +1810,10 @@ msgstr "カメラアクセスがブロックされています"
 msgid "Can't load ports"
 msgstr "ポートを読み込めません"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Can't reach the remote server. Check that it is online, then reconnect it."
+msgstr "リモートサーバーに接続できません。オンラインであることを確認してから再接続してください。"
+
 #. Dialog button: dismiss without deleting
 #: src/mobile/push/WebPushPermissionPrompt.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2754,11 +2758,12 @@ msgid "Connecting to the desktop browser…"
 msgstr "デスクトップのブラウザに接続しています…"
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "接続中…"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Connection error"
 msgstr "接続エラー"
 
@@ -4205,6 +4210,10 @@ msgstr "毎時"
 msgid "Every hour at {0} minutes past"
 msgstr "毎時{0}分"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Exclude from sync"
+msgstr "同期から除外"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
@@ -5282,6 +5291,10 @@ msgstr "アプリ内のカメラスキャンは HTTPS でのみ動作します�
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "非アクティブ"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Include in sync"
+msgstr "同期に追加"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Inherit global"
@@ -6979,7 +6992,7 @@ msgstr "プロジェクトがありません"
 msgid "No projects in this workspace"
 msgstr "このワークスペースにプロジェクトはありません"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "No projects on this server."
 msgstr "このサーバーにプロジェクトはありません。"
 
@@ -7159,6 +7172,10 @@ msgstr "サインインしていません"
 msgid "Not supported"
 msgstr "サポートされていません"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Not synced"
+msgstr "未同期"
+
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -7213,7 +7230,7 @@ msgid "Official sources only"
 msgstr "公式ソースのみ"
 
 #: src/mobile/useRemoteDesktop.ts
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "オフライン"
 
@@ -7254,9 +7271,9 @@ msgstr "1行につきKEY=VALUEのペアを1つ"
 msgid "One time"
 msgstr "1回のみ"
 
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Online"
 msgstr "オンライン"
 
@@ -8454,6 +8471,10 @@ msgstr "最近のスレッド"
 msgid "Reconnect"
 msgstr "再接続"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Reconnect the server to add projects."
+msgstr "プロジェクトを追加するにはサーバーに再接続してください。"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Reconnecting"
 msgstr "再接続中"
@@ -8696,7 +8717,6 @@ msgid "Remove pinned route for {tagLabel}"
 msgstr "{tagLabel} の固定ルートを削除"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove project"
 msgstr "プロジェクトを削除"
 
@@ -10341,6 +10361,10 @@ msgstr "転送を停止"
 msgid "Stop response"
 msgstr "応答停止"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Stop syncing"
+msgstr "同期を停止"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Stop task"
 msgstr "タスクの停止"
@@ -10992,6 +11016,10 @@ msgstr "これにより、ブランチ「{0}」が完全に削除されます。
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "このプロジェクト"
+
+#: src/renderer/actions/threadLaunchActions.ts
+msgid "This project's remote server is offline. Reconnect it to start a thread."
+msgstr "このプロジェクトのリモートサーバーはオフラインです。スレッドを開始するには再接続してください。"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
