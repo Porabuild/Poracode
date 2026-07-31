@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { RuntimeEvent, ThreadServerRequestId } from "@/shared/contracts";
 import { mapCodexServerRequest, translateCodexCanonicalResponse } from "./canonicalMapping";
 import { parseCodexSocketMessage } from "./acpProtocol";
@@ -499,6 +500,15 @@ export class CodexAppServerConnection {
 export class CodexAppServerRpc {
   private readonly connection: CodexAppServerConnection;
   private readonly ownsConnection: boolean;
+  /**
+   * Channel identity is per *session instance*, not per Poracode thread: a
+   * force-stopped session is replaced by a new session for the same thread id
+   * while its own `dispose()` is still draining. Keying channels by thread id
+   * would let that late teardown unregister the replacement's channel and
+   * reject its in-flight requests, leaving the thread stuck on "working" with
+   * no notifications ever routed to it.
+   */
+  private readonly channelId: string;
 
   constructor(
     transportOrConnection: CodexAppServerRpcTransport | CodexAppServerConnection,
@@ -511,11 +521,12 @@ export class CodexAppServerRpc {
       this.ownsConnection = true;
       this.connection = new CodexAppServerConnection(transportOrConnection);
     }
-    this.connection.registerChannel(this.localThreadId, this.localThreadId);
+    this.channelId = `${this.localThreadId}#${randomUUID()}`;
+    this.connection.registerChannel(this.channelId, this.localThreadId);
   }
 
   setListener(listener: CodexAppServerRpcListener): void {
-    this.connection.setChannelListener(this.localThreadId, listener);
+    this.connection.setChannelListener(this.channelId, listener);
   }
 
   request<M extends keyof CodexClientRequestMap>(
@@ -523,7 +534,7 @@ export class CodexAppServerRpc {
     params: CodexClientRequestMap[M]["params"],
     timeoutMs = 30_000,
   ): Promise<CodexClientRequestMap[M]["result"]> {
-    return this.connection.request(this.localThreadId, method, params, timeoutMs) as Promise<
+    return this.connection.request(this.channelId, method, params, timeoutMs) as Promise<
       CodexClientRequestMap[M]["result"]
     >;
   }
@@ -533,23 +544,23 @@ export class CodexAppServerRpc {
     params: Record<string, unknown> | null,
     timeoutMs = 30_000,
   ): Promise<unknown> {
-    return this.connection.request(this.localThreadId, method, params, timeoutMs);
+    return this.connection.request(this.channelId, method, params, timeoutMs);
   }
 
   notify(method: string): void {
-    this.connection.notify(this.localThreadId, method);
+    this.connection.notify(this.channelId, method);
   }
 
   claimThread(threadId: string): void {
-    this.connection.claimThread(this.localThreadId, threadId);
+    this.connection.claimThread(this.channelId, threadId);
   }
 
   ownsThread(threadId: string): boolean {
-    return this.connection.ownsThread(this.localThreadId, threadId);
+    return this.connection.ownsThread(this.channelId, threadId);
   }
 
   resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): void {
-    this.connection.resolveServerRequest(this.localThreadId, requestId, response);
+    this.connection.resolveServerRequest(this.channelId, requestId, response);
   }
 
   dispose(error: Error): void {
@@ -557,6 +568,6 @@ export class CodexAppServerRpc {
       this.connection.dispose(error);
       return;
     }
-    this.connection.unregisterChannel(this.localThreadId, error);
+    this.connection.unregisterChannel(this.channelId, error);
   }
 }
