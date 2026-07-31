@@ -179,7 +179,7 @@ export function patchConfigForModelChange(
     ...(!effortValid && nextEfforts.length > 0 ? { effort: nextEfforts[0] } : {}),
     ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
     ...(supportsUsableFastMode(capabilities, model) ? {} : { fast: false }),
-    ...(capabilities.thinkingModels?.includes(model) ? {} : { thinking: false }),
+    thinking: capabilities.thinkingModels?.includes(model) ?? false,
   };
 }
 

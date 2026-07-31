@@ -29,6 +29,7 @@ import {
   appendProviderComposerControls,
   buildModelPickerControls,
   buildProviderModelMenuProviders,
+  patchConfigForModelChange,
 } from "./buildModelPickerControls";
 import {
   agentWithCapabilities,
@@ -709,7 +710,7 @@ export function ThreadDraftView(props: {
     model: nextModel,
     presentationMode: nextPresentationMode,
   }) => {
-    if (!selectedAgent) return;
+    if (!selectedAgent || !selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
     const targetPresentationMode = nextPresentationMode ?? presentationMode;
     if (targetPresentationMode !== presentationMode) {
@@ -765,7 +766,12 @@ export function ThreadDraftView(props: {
         worktreeMode: effectiveWorktreeMode,
       });
     } else {
-      latestConfigPatchRef.current({ model: nextModel });
+      latestConfigPatchRef.current(
+        patchConfigForModelChange(selectedAgentForConfig.capabilities, nextModel, {
+          ...(effort ? { effort } : {}),
+          ...(contextSize ? { contextSize } : {}),
+        }),
+      );
     }
   };
 
