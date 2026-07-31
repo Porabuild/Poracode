@@ -44,7 +44,8 @@ import {
   showGitReviewPanel,
 } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
-import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
+import { getCurrentProjectId } from "@/renderer/actions/currentProject";
+import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 import { buildFileEditorContext } from "@/renderer/utils/gitHelpers";
 import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import { GitReviewPanelContent } from "./RightPanel/parts/GitReviewPanelContent";
@@ -113,10 +114,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   const terminalProjectId = useDevTerminalStore((s) => s.activeProjectId);
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
   const terminalProject = projects.find((project) => project.id === terminalProjectId);
-  const currentThreadId = useAppStore((state) => {
-    if (state.view.kind !== "thread") return null;
-    return resolveActivePaneId(state.view.panes, state.focusedPaneId);
-  });
+  const currentThreadId = useFocusedThreadId();
   const todoDockPlacement = useThreadTodoDockStore((state) =>
     currentThreadId
       ? (state.byThreadId[currentThreadId]?.placement ?? state.defaultPlacement)

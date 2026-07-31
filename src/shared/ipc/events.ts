@@ -4,6 +4,8 @@ import type {
   AgentSlashCommand,
   AgentStatus,
   PendingSteerState,
+  PrData,
+  PrDetails,
   Project,
   RuntimeEvent,
   ThreadAttention,
@@ -180,6 +182,21 @@ export type PrWatchMergedEvent = {
   projectId: string;
   prNumber: number;
   worktreePath?: string;
+};
+
+/**
+ * Live PR state seen by the desktop PR-watch loop on one of its polls. The loop
+ * always refetches the PR and fetches details when needed, so forwarding what it
+ * saw keeps the renderer's cached snapshot honest — including the open→merged
+ * flip an auto-merge performs behind the UI's back — without extra `gh` calls.
+ */
+export type PrWatchStatusEvent = {
+  projectId: string;
+  prNumber: number;
+  headBranch: string;
+  worktreePath?: string;
+  pr: PrData;
+  details?: PrDetails;
 };
 
 export type UpdateStatus =

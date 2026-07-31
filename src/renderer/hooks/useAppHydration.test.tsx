@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     getThreadSnapshots: vi.fn<() => Promise<ThreadRuntimeSnapshot[]>>(),
     closeThread: vi.fn<(payload: { threadId: string }) => Promise<void>>(),
     onPrWatchMerged: vi.fn<() => () => void>(() => () => undefined),
+    onPrWatchStatus: vi.fn<() => () => void>(() => () => undefined),
     gitListWorktrees: vi.fn<
       (payload: unknown) => Promise<{
         worktrees: Array<{ path: string; branch: string }>;

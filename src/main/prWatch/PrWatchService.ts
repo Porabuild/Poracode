@@ -33,6 +33,8 @@ export interface PrWatchServiceOptions {
   getMergeMethod(): PrMergeMethod;
   mergePr(project: Project, prNumber: number, method: PrMergeMethod): Promise<void>;
   onPrMerged?(watch: PrWatch): void;
+  /** Live PR state seen on a poll, with details when that poll fetched them. */
+  onPrObserved?(watch: PrWatch, pr: PrData, details?: PrDetails): void;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
   isThreadActive(threadId: string): boolean;
   worktreeExists(path: string): boolean;
@@ -159,6 +161,7 @@ export class PrWatchService {
       const summaryCurrent = this.options.store.get(watch.projectId, watch.prNumber);
       if (!summaryCurrent) return;
       if (!pr || pr.state === "merged" || pr.state === "closed") {
+        if (pr) this.options.onPrObserved?.(summaryCurrent, pr);
         this.options.store.delete(summaryCurrent.projectId, summaryCurrent.prNumber);
         return;
       }
@@ -166,7 +169,10 @@ export class PrWatchService {
       const passiveBlockerKey = getPassiveBlockerKey(pr);
       // Once a policy-only blocker has been fully inspected, keep only the
       // compact PR summary poll active until GitHub reports a changed state.
-      if (passiveBlockerKey && passiveBlockerKey === summaryCurrent.lastCheckKey) return;
+      if (passiveBlockerKey && passiveBlockerKey === summaryCurrent.lastCheckKey) {
+        this.options.onPrObserved?.(summaryCurrent, pr);
+        return;
+      }
 
       const [details, reviewThreads] = await Promise.all([
         this.options.getPrDetails(project, watch.prNumber),
@@ -175,6 +181,7 @@ export class PrWatchService {
 
       const current = this.options.store.get(watch.projectId, watch.prNumber);
       if (!current) return;
+      this.options.onPrObserved?.(current, pr, details);
       const signals = collectSignals(pr, details, reviewThreads);
       if (current.activeThreadId && this.options.isThreadActive(current.activeThreadId)) return;
 
@@ -227,6 +234,11 @@ export class PrWatchService {
       if (current.autoMerge && isReadyForAutoMerge(pr, details.checks)) {
         try {
           await this.options.mergePr(project, current.prNumber, this.options.getMergeMethod());
+          // The watch is about to be dropped, so this is the last chance to tell
+          // the UI the PR is no longer open. `pr` was fetched moments ago and the
+          // merge just succeeded, so patching its state avoids a refetch whose
+          // head branch may already be deleted.
+          this.options.onPrObserved?.(current, { ...pr, state: "merged" }, details);
           this.options.onPrMerged?.(current);
           this.options.store.delete(current.projectId, current.prNumber);
         } catch (error) {

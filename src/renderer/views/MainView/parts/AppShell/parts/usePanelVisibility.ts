@@ -4,7 +4,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { selectThreadTodoDockState } from "@/renderer/components/thread/threadTodoState";
-import { resolveActivePaneId } from "@/renderer/actions/currentProject";
+import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 export function usePanelVisibility() {
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
@@ -17,10 +17,7 @@ export function usePanelVisibility() {
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
-  const currentThreadId = useAppStore((state) => {
-    if (state.view.kind !== "thread") return null;
-    return resolveActivePaneId(state.view.panes, state.focusedPaneId);
-  });
+  const currentThreadId = useFocusedThreadId();
   const todoDockPlacement = useThreadTodoDockStore((state) =>
     currentThreadId
       ? (state.byThreadId[currentThreadId]?.placement ?? state.defaultPlacement)

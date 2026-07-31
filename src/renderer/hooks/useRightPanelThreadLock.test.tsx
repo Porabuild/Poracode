@@ -28,6 +28,7 @@ function makeThread(input: Partial<Thread> = {}): Thread {
 }
 
 const threadA = makeThread({ id: "thread-a", projectId: "project-a" });
+const threadA2 = makeThread({ id: "thread-a2", projectId: "project-a" });
 const threadBWorktreePath = "/repo-b/.poracode/worktrees/feature";
 const threadB = makeThread({
   id: "thread-b",
@@ -38,11 +39,31 @@ const threadB = makeThread({
 function focusThread(threadId: string) {
   useAppStore.setState((state) => ({
     ...state,
-    threads: [threadA, threadB],
+    threads: [threadA, threadA2, threadB],
     view: { kind: "thread", panes: [threadId] },
     focusedPaneId: threadId,
   }));
 }
+
+const terminalTabA = {
+  id: "terminal-a",
+  projectId: "project-a",
+  title: "Project A",
+  createdAt: "2026-03-22T00:00:00.000Z",
+};
+const terminalTabB = {
+  id: "terminal-b",
+  projectId: "project-b",
+  title: "Project B",
+  createdAt: "2026-03-22T00:00:00.000Z",
+};
+/** thread-b's worktree shell — distinct from `terminalTabB`, project-b's plain shell. */
+const terminalTabBWorktree = {
+  ...terminalTabB,
+  id: "terminal-b-worktree",
+  worktreePath: threadBWorktreePath,
+  title: "Feature",
+};
 
 describe("useRightPanelThreadLock", () => {
   beforeEach(() => {
@@ -118,22 +139,8 @@ describe("useRightPanelThreadLock", () => {
     useDevTerminalStore.setState({
       isOpen: true,
       activeProjectId: "project-a",
-      tabs: [
-        {
-          id: "terminal-a",
-          projectId: "project-a",
-          title: "Project A",
-          createdAt: "2026-03-22T00:00:00.000Z",
-        },
-        {
-          id: "terminal-b",
-          projectId: "project-b",
-          worktreePath: threadBWorktreePath,
-          title: "Feature",
-          createdAt: "2026-03-22T00:00:00.000Z",
-        },
-      ],
-      activeTabId: "terminal-a",
+      tabs: [terminalTabA, terminalTabBWorktree],
+      activeTabId: terminalTabA.id,
     });
     const { rerender } = renderHook(() => useRightPanelThreadLock());
 
@@ -144,17 +151,63 @@ describe("useRightPanelThreadLock", () => {
       isOpen: true,
       activeProjectId: "project-b",
       activeWorktreePath: threadBWorktreePath,
-      activeTabId: "terminal-b",
+      activeTabId: terminalTabBWorktree.id,
     });
   });
 
-  it("leaves a right-docked terminal on its existing scope", () => {
+  it("keeps a terminal the user opened for another project", () => {
+    usePanelStore.setState({ gitReviewContext: null, gitReviewAsPanel: false });
+    useDevTerminalStore.setState({ tabs: [terminalTabA, terminalTabB] });
+    const { rerender } = renderHook(() => useRightPanelThreadLock());
+
+    // Opening a terminal directly is explicit intent — the lock must not snap
+    // it back to the focused thread's project.
+    useDevTerminalStore.getState().openPanel("project-b");
+    rerender();
+
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      activeProjectId: "project-b",
+    });
+  });
+
+  it("re-scopes an explicitly opened terminal on the next thread switch", () => {
+    usePanelStore.setState({ gitReviewContext: null, gitReviewAsPanel: false });
+    useDevTerminalStore.setState({ tabs: [terminalTabA, terminalTabB] });
+    const { rerender } = renderHook(() => useRightPanelThreadLock());
+
+    useDevTerminalStore.getState().openPanel("project-b");
+    rerender();
+
+    focusThread("thread-a2");
+    rerender();
+
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      activeProjectId: "project-a",
+      activeWorktreePath: null,
+      activeTabId: terminalTabA.id,
+    });
+  });
+
+  it("keeps a git panel the user re-pointed when a terminal opens", () => {
+    const { rerender } = renderHook(() => useRightPanelThreadLock());
+
+    usePanelStore.getState().setGitReviewContext({ projectId: "project-b" });
+    useDevTerminalStore.getState().openPanel("project-b");
+    rerender();
+
+    expect(usePanelStore.getState().gitReviewContext).toEqual({ projectId: "project-b" });
+  });
+
+  it("re-scopes a right-docked terminal to the focused thread", () => {
     usePanelStore.setState({ gitReviewContext: null, gitReviewAsPanel: false });
     useSharedSettings.setState({ terminalPosition: "right" });
     useDevTerminalStore.setState({
       isOpen: true,
       activeProjectId: "project-a",
       activeWorktreePath: null,
+      tabs: [terminalTabA, terminalTabBWorktree],
+      activeTabId: terminalTabA.id,
     });
     const { rerender } = renderHook(() => useRightPanelThreadLock());
 
@@ -162,8 +215,34 @@ describe("useRightPanelThreadLock", () => {
     rerender();
 
     expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      activeProjectId: "project-b",
+      activeWorktreePath: threadBWorktreePath,
+      activeTabId: terminalTabBWorktree.id,
+    });
+  });
+
+  it("shows the empty state instead of spawning a shell for an unscoped thread", () => {
+    usePanelStore.setState({ gitReviewContext: null, gitReviewAsPanel: false });
+    useDevTerminalStore.setState({
+      isOpen: true,
       activeProjectId: "project-a",
-      activeWorktreePath: null,
+      tabs: [terminalTabA],
+      activeTabId: terminalTabA.id,
+    });
+    const { rerender } = renderHook(() => useRightPanelThreadLock());
+
+    focusThread("thread-b");
+    rerender();
+
+    // No tab exists for thread-b's worktree — the panel stays open with no
+    // selected shell rather than starting one.
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      activeProjectId: "project-b",
+      activeWorktreePath: threadBWorktreePath,
+      activeTabId: null,
+      tabs: [terminalTabA],
     });
   });
 });

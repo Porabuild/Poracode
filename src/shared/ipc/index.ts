@@ -36,6 +36,7 @@ export {
   type AgentStatusSupervisorEvent,
   type BrowserEvent,
   type PrWatchMergedEvent,
+  type PrWatchStatusEvent,
   type ProjectStateChangedEvent,
   type ThreadOpenRequestedEvent,
   type SupervisorEvent,

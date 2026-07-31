@@ -83,6 +83,7 @@ function setup(
   store: PrWatchStore;
   createThread: ReturnType<typeof vi.fn<PrWatchServiceOptions["createThread"]>>;
   mergePr: ReturnType<typeof vi.fn<PrWatchServiceOptions["mergePr"]>>;
+  onPrObserved: ReturnType<typeof vi.fn<NonNullable<PrWatchServiceOptions["onPrObserved"]>>>;
 } {
   const store = memoryStore(initial);
   const createThread = vi.fn<PrWatchServiceOptions["createThread"]>(async () => ({
@@ -91,6 +92,7 @@ function setup(
     projectId: project.id,
   }));
   const mergePr = vi.fn<PrWatchServiceOptions["mergePr"]>(async () => undefined);
+  const onPrObserved = vi.fn<NonNullable<PrWatchServiceOptions["onPrObserved"]>>();
   const service = new PrWatchService({
     store,
     getProject: () => project,
@@ -99,12 +101,13 @@ function setup(
     getPrReviewThreads: async () => [],
     getMergeMethod: () => "squash",
     mergePr,
+    onPrObserved,
     createThread,
     isThreadActive: () => false,
     worktreeExists: () => false,
     ...overrides,
   });
-  return { service, store, createThread, mergePr };
+  return { service, store, createThread, mergePr, onPrObserved };
 }
 
 describe("PrWatchService", () => {
@@ -496,8 +499,9 @@ describe("PrWatchService", () => {
   it("removes a watch after the PR closes", async () => {
     const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => details);
     const getPrReviewThreads = vi.fn<PrWatchServiceOptions["getPrReviewThreads"]>(async () => []);
-    const { service, store } = setup(watch(), {
-      getPrForBranch: async () => ({ ...pr, state: "closed" }),
+    const closedPr: PrData = { ...pr, state: "closed" };
+    const { service, store, onPrObserved } = setup(watch(), {
+      getPrForBranch: async () => closedPr,
       getPrDetails,
       getPrReviewThreads,
     });
@@ -507,5 +511,53 @@ describe("PrWatchService", () => {
     expect(store.get(project.id, pr.number)).toBeNull();
     expect(getPrDetails).not.toHaveBeenCalled();
     expect(getPrReviewThreads).not.toHaveBeenCalled();
+    expect(onPrObserved).toHaveBeenCalledWith(expect.anything(), closedPr);
+  });
+
+  it("publishes the PR state seen on every poll", async () => {
+    const { service, onPrObserved } = setup(watch({ worktreePath: "/repo-wt" }));
+
+    await service.tick();
+
+    expect(onPrObserved).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ prNumber: pr.number, worktreePath: "/repo-wt" }),
+      pr,
+      details,
+    );
+  });
+
+  it("publishes a terminal PR state before dropping the watch", async () => {
+    const mergedPr: PrData = { ...pr, state: "merged" };
+    const { service, store, onPrObserved } = setup(watch(), {
+      getPrForBranch: async () => mergedPr,
+    });
+
+    await service.tick();
+
+    expect(onPrObserved).toHaveBeenCalledWith(expect.anything(), mergedPr);
+    expect(store.get(project.id, pr.number)).toBeNull();
+  });
+
+  it("publishes the merged state it produced when auto-merging", async () => {
+    const { service, mergePr, onPrObserved } = setup(
+      withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
+    );
+
+    await service.tick();
+
+    expect(mergePr).toHaveBeenCalledOnce();
+    expect(onPrObserved).toHaveBeenLastCalledWith(
+      expect.anything(),
+      { ...pr, state: "merged" },
+      details,
+    );
+  });
+
+  it("skips publishing when the branch has no PR", async () => {
+    const { service, onPrObserved } = setup(watch(), { getPrForBranch: async () => null });
+
+    await service.tick();
+
+    expect(onPrObserved).not.toHaveBeenCalled();
   });
 });

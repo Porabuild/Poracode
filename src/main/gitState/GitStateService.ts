@@ -8,6 +8,7 @@ import type {
   GitProjectSnapshotResult,
   GitStatusResult,
   GitWorktreeStatusBatchResult,
+  PrDetails,
   Project,
   ProjectLocation,
 } from "@/shared/contracts";
@@ -29,6 +30,32 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const DEFAULT_REMOTE_FETCH_INTERVAL_MS = 3 * 60_000;
+
+/**
+ * One PR reading folded into its snapshot entry. `existing` is spread first so a
+ * core/details publish keeps the review-bundle fields (`files`, `diff`,
+ * `reviewThreads`) and their freshness stamps, which only
+ * {@link GitStateService.refreshPullRequestReviewBundle} fetches.
+ */
+function mergePullRequestState(input: {
+  readonly existing: PullRequestState | undefined;
+  readonly ref: PullRequestState["ref"];
+  readonly data: PullRequestState["data"];
+  readonly details: PrDetails | undefined;
+  readonly at: string;
+}): PullRequestState {
+  return {
+    ...input.existing,
+    ref: input.ref,
+    data: input.data,
+    ...(input.details ? { details: input.details } : {}),
+    freshness: {
+      ...input.existing?.freshness,
+      core: input.at,
+      ...(input.details ? { details: input.at } : {}),
+    },
+  };
+}
 
 export interface GitStateExecutor {
   gitFetch(input: {
@@ -262,22 +289,53 @@ export class GitStateService {
         : undefined;
       this.publish({
         pullRequests: {
-          [key]: {
-            ...existing,
-            ref,
-            data,
-            ...(details ? { details } : {}),
-            freshness: {
-              ...existing?.freshness,
-              core: fetchedAt,
-              ...(details ? { details: fetchedAt } : {}),
-            },
-          },
+          [key]: mergePullRequestState({ existing, ref, data, details, at: fetchedAt }),
         },
         pullRequestKeyByBranch: { [branchKey]: key },
         targets: this.targetsForBranch(projectId, branch, key),
       });
       return data;
+    });
+  }
+
+  /**
+   * Fold a PR reading taken outside this service — the PR-watch loop, which
+   * polls its own watches — into the snapshot so remote clients see it on the
+   * next patch instead of waiting for their own poll to come around. Publishes
+   * only; it never spawns `gh`. `watch` is structural so callers can hand over
+   * their `PrWatch` row as-is.
+   *
+   * The branch alias is left alone when it already points at a different PR:
+   * that means a newer PR for the same head branch was discovered elsewhere,
+   * and the watched PR must not steal the branch back.
+   */
+  applyObservedPullRequest(
+    watch: { readonly projectId: string; readonly headBranch: string },
+    data: PullRequestState["data"],
+    details?: PrDetails,
+  ): void {
+    const projectRef = { hostId: this.options.hostId, projectId: watch.projectId };
+    const ref = { ...projectRef, prNumber: data.number };
+    const key = pullRequestKey(ref);
+    const branchKey = pullRequestBranchKey(projectRef, watch.headBranch);
+    const existingBranchKey = this.snapshot.pullRequestKeyByBranch[branchKey];
+    const ownsBranch = existingBranchKey === undefined || existingBranchKey === key;
+    this.publish({
+      pullRequests: {
+        [key]: mergePullRequestState({
+          existing: this.snapshot.pullRequests[key],
+          ref,
+          data,
+          details,
+          at: this.timestamp(),
+        }),
+      },
+      ...(ownsBranch
+        ? {
+            pullRequestKeyByBranch: { [branchKey]: key },
+            targets: this.targetsForBranch(watch.projectId, watch.headBranch, key),
+          }
+        : {}),
     });
   }
 

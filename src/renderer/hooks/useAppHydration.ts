@@ -12,6 +12,7 @@ import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { bootstrapWorkspaces } from "@/renderer/state/workspaceStore";
 import { startPrMergeAutoDone } from "@/renderer/state/prMergeAutoDone";
+import { startPrWatchStatusSync } from "@/renderer/state/prWatchStatusSync";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 
 interface IdleCallbackHandle {
@@ -190,11 +191,13 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     });
 
     const stopPrMergeAutoDone = startPrMergeAutoDone();
+    const stopPrWatchStatusSync = startPrWatchStatusSync();
 
     return () => {
       isActive = false;
       idleHandle.cancel();
       stopPrMergeAutoDone();
+      stopPrWatchStatusSync();
     };
   }, [
     loadT0,

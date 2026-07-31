@@ -277,6 +277,10 @@ export async function createHeadlessRemoteHost(
         method,
         admin: false,
       }),
+    // Headless has no renderer; connected remote clients read PR state from the
+    // git-state snapshot, so the watch loop's observations go straight there.
+    onPrObserved: (observedWatch, pr, details) =>
+      gitStateService?.applyObservedPullRequest(observedWatch, pr, details),
     createThread: sharedAppControlsDeps.createThread,
     isThreadActive: (threadId) => {
       const status = dbGetThread(threadId)?.status;
