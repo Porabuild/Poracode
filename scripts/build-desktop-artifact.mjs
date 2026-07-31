@@ -54,6 +54,7 @@ const RUNTIME_DEPS = [
   "smol-toml",
   "vscode-jsonrpc",
   "ws",
+  "yaml",
 ];
 
 // devDependencies the stage needs to run electron-builder + rebuild natives.
