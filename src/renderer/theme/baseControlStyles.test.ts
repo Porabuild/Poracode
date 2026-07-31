@@ -44,4 +44,13 @@ describe("base control styles", () => {
       /html\[data-platform="win32"\]\.dark,[^{]*html\[data-platform="win32"\]\[data-theme="dark"\]\s*\{[^}]*--floating-chrome-surface:\s*color-mix\(in oklab, var\(--sidebar-background\) 30%, transparent\);[^}]*--floating-chrome-backdrop:\s*blur\(10px\) saturate\(130%\);/s,
     );
   });
+
+  it("lets the auto-focused draft composer become GPU-idle", () => {
+    expect(ruleFor(".poracode-composer-border-glow::before")).not.toContain("animation:");
+    expect(
+      ruleFor(
+        ".poracode-composer-shell--draft:focus-within .poracode-composer-border-glow::before",
+      ),
+    ).toContain("animation: poracode-composer-border-spin 1.2s ease-out 1 both");
+  });
 });

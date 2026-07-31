@@ -2231,7 +2231,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
    child disc — not by an `@property` CSS variable — so the conic gradient is
    rasterized once and the animation stays on the compositor. The disc is sized
    2× the shell's width as a square; that guarantees full coverage of the
-   wide-and-short shell shape under any rotation, so the ring never breaks. */
+   wide-and-short shell shape under any rotation, so the ring never breaks.
+   Keep the rotation finite: draft inputs are auto-focused, so an infinite
+   focus animation would keep Chromium's GPU process rendering forever while
+   an untouched new-thread page is otherwise idle. */
 .poracode-composer-border-glow {
   position: absolute;
   inset: 0;
@@ -2269,8 +2272,6 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
     var(--foreground) 85%,
     transparent 100%
   );
-  animation: poracode-composer-border-spin 6s linear infinite;
-  animation-play-state: paused;
   will-change: transform;
 }
 
@@ -2280,7 +2281,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-composer-shell--draft:focus-within .poracode-composer-border-glow::before {
-  animation-play-state: running;
+  animation: poracode-composer-border-spin 1.2s ease-out 1 both;
 }
 
 .poracode-composer-label-hideable.is-hidden {
