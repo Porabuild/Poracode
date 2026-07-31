@@ -11,7 +11,7 @@ import { SETTINGS_SEARCH_INDEX, searchSettings } from "./settingsSearchIndex";
 function anchorsDeclaredInComponents(): Set<string> {
   const dir = import.meta.dirname;
   const anchorAttr =
-    /(?:anchorId|data-settings-anchor|useIgnoreFilesAnchorId|excludePatternsAnchorId)="([^"]+)"/g;
+    /(?:anchorId|data-settings-anchor|useIgnoreFilesAnchorId|excludePatternsAnchorId)(?:=|:\s*)"([^"]+)"/g;
   const anchors = new Set<string>();
   for (const file of readdirSync(dir)) {
     if (!file.endsWith(".tsx") || file.includes(".test.")) continue;
