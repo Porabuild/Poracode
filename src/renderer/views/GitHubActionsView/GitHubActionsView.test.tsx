@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GhDeleteWorkflowRunPayload,
@@ -203,5 +203,35 @@ describe("GitHubActionsView", () => {
     expect(await screen.findByText("Release channel")).toBeInTheDocument();
     expect(screen.getByText("Skip publishing")).toBeInTheDocument();
     expect(screen.queryByText("Inputs (JSON)")).not.toBeInTheDocument();
+  });
+
+  it("opens dispatch controls after selecting another workflow from its run button", async () => {
+    bridge.ghListWorkflows.mockResolvedValue({
+      workflows: [
+        { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+        { id: 22, name: "Release", path: ".github/workflows/release.yml", state: "active" },
+      ],
+    });
+    bridge.ghGetWorkflowDefinition.mockImplementation(async ({ workflowId }) => ({
+      definition: { ...definition.definition, workflowId },
+    }));
+
+    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+    const releaseWorkflowButton = (await screen.findByText("Release")).closest("button");
+    expect(releaseWorkflowButton).not.toBeNull();
+    const releaseWorkflowRow = releaseWorkflowButton!.parentElement;
+    expect(releaseWorkflowRow).not.toBeNull();
+
+    fireEvent.click(
+      within(releaseWorkflowRow!).getByRole("button", {
+        name: "Run workflow",
+      }),
+    );
+
+    expect(await screen.findByText("Release channel")).toBeInTheDocument();
+    expect(bridge.ghGetWorkflowDefinition).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      workflowId: 22,
+    });
   });
 });

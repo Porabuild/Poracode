@@ -1,4 +1,4 @@
-import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
+import { Button, Dropdown, Label } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
@@ -138,40 +138,30 @@ export function GitHubActionsSidebar(props: {
                   </Button>
 
                   <div className="mr-1 flex shrink-0 items-center">
-                    <Tooltip delay={150}>
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="ghost"
-                        className="size-7 min-w-0 text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                        aria-label={t`Run workflow`}
-                        onPress={() => props.onRun(workflow.id)}
-                      >
-                        <Play className="size-3.5" />
-                      </Button>
-                      <Tooltip.Content placement="right">
-                        <Trans>Run workflow</Trans>
-                      </Tooltip.Content>
-                    </Tooltip>
-                    <Tooltip delay={150}>
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="ghost"
-                        className={`size-7 min-w-0 ${
-                          isPinned
-                            ? "text-accent"
-                            : "text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                        }`}
-                        aria-label={isPinned ? t`Unpin workflow` : t`Pin workflow`}
-                        onPress={() => props.onTogglePin(workflow.id)}
-                      >
-                        <Pin className={`size-3.5 ${isPinned ? "fill-current" : ""}`} />
-                      </Button>
-                      <Tooltip.Content placement="right">
-                        {isPinned ? <Trans>Unpin workflow</Trans> : <Trans>Pin workflow</Trans>}
-                      </Tooltip.Content>
-                    </Tooltip>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="ghost"
+                      className="size-7 min-w-0 text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      aria-label={t`Run workflow`}
+                      onPress={() => props.onRun(workflow.id)}
+                    >
+                      <Play className="size-3.5" />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="ghost"
+                      className={`size-7 min-w-0 ${
+                        isPinned
+                          ? "text-accent"
+                          : "text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      }`}
+                      aria-label={isPinned ? t`Unpin workflow` : t`Pin workflow`}
+                      onPress={() => props.onTogglePin(workflow.id)}
+                    >
+                      <Pin className={`size-3.5 ${isPinned ? "fill-current" : ""}`} />
+                    </Button>
                   </div>
                 </div>
               );

@@ -79,11 +79,13 @@ export function GitHubActionsView(props: {
     if (
       requestedDispatchWorkflowId === null ||
       requestedDispatchWorkflowId !== selectedWorkflowId ||
-      loadingDefinition
+      loadingDefinition ||
+      !definition ||
+      definition.workflowId !== requestedDispatchWorkflowId
     ) {
       return;
     }
-    if (definition?.dispatchable) setDispatchOpen(true);
+    if (definition.dispatchable) setDispatchOpen(true);
     setRequestedDispatchWorkflowId(null);
   }, [definition, loadingDefinition, requestedDispatchWorkflowId, selectedWorkflowId]);
 
@@ -147,14 +149,14 @@ export function GitHubActionsView(props: {
               <h1 className="truncate text-base font-semibold text-foreground">
                 {selectedWorkflow.name}
               </h1>
-              <p className="mt-1 truncate font-mono text-[11px] text-muted">
-                {selectedWorkflow.path}
+              <p className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap font-mono text-[11px] text-muted">
+                <span className="min-w-0 truncate">{selectedWorkflow.path}</span>
+                {definition?.triggers.length ? (
+                  <span className="min-w-0 truncate border-l border-[var(--hairline)] pl-2">
+                    <Trans>Triggers:</Trans> {definition.triggers.join(", ")}
+                  </span>
+                ) : null}
               </p>
-              {definition?.triggers.length ? (
-                <p className="mt-2 text-xs text-muted">
-                  <Trans>Triggers:</Trans> {definition.triggers.join(", ")}
-                </p>
-              ) : null}
             </div>
             {definition?.dispatchable && selectedProject ? (
               <GitHubActionsDispatchPopover
