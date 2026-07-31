@@ -1811,6 +1811,10 @@ msgstr "Quyền truy cập camera bị chặn"
 msgid "Can't load ports"
 msgstr "Không thể tải danh sách cổng"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Can't reach the remote server. Check that it is online, then reconnect it."
+msgstr "Không thể kết nối tới máy chủ từ xa. Hãy kiểm tra máy chủ đang trực tuyến rồi kết nối lại."
+
 #. Dialog button: dismiss without deleting
 #: src/mobile/push/WebPushPermissionPrompt.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2755,11 +2759,12 @@ msgid "Connecting to the desktop browser…"
 msgstr "Đang kết nối tới trình duyệt trên desktop…"
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Đang kết nối…"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Connection error"
 msgstr "Lỗi kết nối"
 
@@ -4206,6 +4211,10 @@ msgstr "Mỗi giờ"
 msgid "Every hour at {0} minutes past"
 msgstr "Mỗi giờ vào phút thứ {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Exclude from sync"
+msgstr "Loại khỏi đồng bộ hóa"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
@@ -5283,6 +5292,10 @@ msgstr "Quét bằng camera trong ứng dụng chỉ hoạt động qua HTTPS. D
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Không hoạt động"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Include in sync"
+msgstr "Thêm vào đồng bộ hóa"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Inherit global"
@@ -6981,7 +6994,7 @@ msgstr "Không có dự án"
 msgid "No projects in this workspace"
 msgstr "Không có dự án nào trong không gian làm việc này"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "No projects on this server."
 msgstr "Không có dự án nào trên máy chủ này."
 
@@ -7161,6 +7174,10 @@ msgstr "Chưa đăng nhập"
 msgid "Not supported"
 msgstr "Không được hỗ trợ"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Not synced"
+msgstr "Chưa đồng bộ"
+
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -7215,7 +7232,7 @@ msgid "Official sources only"
 msgstr "Chỉ nguồn chính thức"
 
 #: src/mobile/useRemoteDesktop.ts
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -7256,9 +7273,9 @@ msgstr "Mỗi dòng một cặp KEY=VALUE"
 msgid "One time"
 msgstr "Một lần"
 
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Online"
 msgstr "Trực tuyến"
 
@@ -8456,6 +8473,10 @@ msgstr "Luồng gần đây"
 msgid "Reconnect"
 msgstr "Kết nối lại"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Reconnect the server to add projects."
+msgstr "Kết nối lại máy chủ để thêm dự án."
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Reconnecting"
 msgstr "Đang kết nối lại"
@@ -8698,7 +8719,6 @@ msgid "Remove pinned route for {tagLabel}"
 msgstr "Xóa tuyến đã ghim cho {tagLabel}"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove project"
 msgstr "Xóa dự án"
 
@@ -10343,6 +10363,10 @@ msgstr "Dừng chuyển tiếp"
 msgid "Stop response"
 msgstr "Dừng phản hồi"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Stop syncing"
+msgstr "Ngừng đồng bộ hóa"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Stop task"
 msgstr "Dừng tác vụ"
@@ -10994,6 +11018,10 @@ msgstr "Việc này sẽ xóa vĩnh viễn nhánh \"{0}\"."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "dự án này"
+
+#: src/renderer/actions/threadLaunchActions.ts
+msgid "This project's remote server is offline. Reconnect it to start a thread."
+msgstr "Máy chủ từ xa của dự án này đang ngoại tuyến. Hãy kết nối lại để bắt đầu một luồng."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."

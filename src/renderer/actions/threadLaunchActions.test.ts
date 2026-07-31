@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
       hostMode?: "desktop" | "helper";
       transport?: { kind: "direct" } | { kind: "ssh" };
     }>,
+    runtime: {} as Record<string, { status: string }>,
     launchRemoteThread: vi.fn<(input: unknown) => Promise<void>>(),
   };
   return {
@@ -130,6 +131,7 @@ describe("startThreadFromDraft host transport", () => {
       changesTransferred: true,
     });
     mocks.remoteState.servers = [];
+    mocks.remoteState.runtime = { d1: { status: "online" } };
     mocks.remoteState.launchRemoteThread.mockResolvedValue(undefined);
     mocks.primeWorktreeGitState.mockResolvedValue(undefined);
     mocks.runWorktreeSetupScript.mockResolvedValue(undefined);
@@ -210,6 +212,23 @@ describe("startThreadFromDraft host transport", () => {
       "/srv/worktrees/feature",
       "pnpm install",
     );
+  });
+
+  it("refuses to launch on a remote project whose server is offline", async () => {
+    mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
+    mocks.remoteState.runtime = { d1: { status: "offline" } };
+
+    await startThreadFromDraft(remoteProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "build it",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+
+    // Bails before creating a worktree we would have to unwind.
+    expect(mocks.bridge.gitAddWorktree).not.toHaveBeenCalled();
+    expect(mocks.remoteState.launchRemoteThread).not.toHaveBeenCalled();
   });
 
   it("does not duplicate setup owned by a desktop remote host", async () => {

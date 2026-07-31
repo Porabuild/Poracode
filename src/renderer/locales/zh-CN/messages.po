@@ -1811,6 +1811,10 @@ msgstr "摄像头访问已被阻止"
 msgid "Can't load ports"
 msgstr "无法加载端口"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Can't reach the remote server. Check that it is online, then reconnect it."
+msgstr "无法连接远程服务器。请确认其处于在线状态，然后重新连接。"
+
 #. Dialog button: dismiss without deleting
 #: src/mobile/push/WebPushPermissionPrompt.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2755,11 +2759,12 @@ msgid "Connecting to the desktop browser…"
 msgstr "正在连接桌面浏览器…"
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "正在连接…"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Connection error"
 msgstr "连接错误"
 
@@ -4206,6 +4211,10 @@ msgstr "每小时"
 msgid "Every hour at {0} minutes past"
 msgstr "每小时过 {0} 分钟"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Exclude from sync"
+msgstr "从同步中排除"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
@@ -5283,6 +5292,10 @@ msgstr "应用内摄像头扫描仅支持 HTTPS。请使用手机相机应用扫
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "不活跃"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Include in sync"
+msgstr "加入同步"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Inherit global"
@@ -6980,7 +6993,7 @@ msgstr "没有项目"
 msgid "No projects in this workspace"
 msgstr "此工作区中没有项目"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "No projects on this server."
 msgstr "此服务器上没有项目。"
 
@@ -7160,6 +7173,10 @@ msgstr "未登录"
 msgid "Not supported"
 msgstr "不支持"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
+msgid "Not synced"
+msgstr "未同步"
+
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -7214,7 +7231,7 @@ msgid "Official sources only"
 msgstr "仅官方来源"
 
 #: src/mobile/useRemoteDesktop.ts
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "离线"
 
@@ -7255,9 +7272,9 @@ msgstr "每行一组 KEY=VALUE"
 msgid "One time"
 msgstr "仅一次"
 
+#: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Online"
 msgstr "在线"
 
@@ -8455,6 +8472,10 @@ msgstr "最近的线程"
 msgid "Reconnect"
 msgstr "重新连接"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Reconnect the server to add projects."
+msgstr "重新连接服务器后即可添加项目。"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Reconnecting"
 msgstr "正在重新连接"
@@ -8697,7 +8718,6 @@ msgid "Remove pinned route for {tagLabel}"
 msgstr "移除 {tagLabel} 的固定路由"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove project"
 msgstr "移除项目"
 
@@ -10342,6 +10362,10 @@ msgstr "停止转发"
 msgid "Stop response"
 msgstr "停止响应"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Stop syncing"
+msgstr "停止同步"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Stop task"
 msgstr "停止任务"
@@ -10993,6 +11017,10 @@ msgstr "这将永久删除分支“{0}”。"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "此项目"
+
+#: src/renderer/actions/threadLaunchActions.ts
+msgid "This project's remote server is offline. Reconnect it to start a thread."
+msgstr "该项目的远程服务器处于离线状态。请重新连接后再开始线程。"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."

@@ -12,6 +12,7 @@ import type {
   TerminalSize,
   WriteProjectFileResult,
 } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { RemoteDesktopClient, type RemoteFetch } from "@/shared/remote/client";
 import { reconnectBackoffDelay } from "@/shared/remote/backoff";
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
@@ -52,6 +53,10 @@ import {
   shouldRefreshRemoteServerAfterEvent,
 } from "@/renderer/state/remoteServers/eventRouting";
 import { syncRemoteGitSummaries } from "@/renderer/state/remoteServers/gitSummaries";
+import {
+  filterSyncedRemoteProjects,
+  withRemoteProjectSync,
+} from "@/renderer/state/remoteServers/projectSync";
 import type {
   OpenRemoteThread,
   RemoteClientFactory,
@@ -155,7 +160,30 @@ function buildOpenThread(
   };
 }
 
-function syncRemoteAppRows(desktopId: string, projects?: Project[], threads?: Thread[]): void {
+/**
+ * Mirror a server's snapshot into the app store, restricted to the projects the
+ * user syncs. Threads of an unsynced project are dropped too — without their
+ * project row they would be orphans in the sidebar.
+ */
+function syncRemoteAppRows(
+  desktopId: string,
+  allProjects?: readonly Project[],
+  allThreads?: readonly Thread[],
+): void {
+  const remoteState = useRemoteServersStore.getState();
+  const excluded = remoteState.excludedProjectIds[desktopId];
+  const projects = allProjects ? filterSyncedRemoteProjects(allProjects, excluded) : undefined;
+  // A threads-only update has no project list to scope against, so fall back to
+  // the cached snapshot — always written before rows are synced.
+  const cachedProjects = remoteState.runtime[desktopId]?.projects ?? [];
+  const syncedProjectIds = allThreads
+    ? new Set(
+        (projects ?? filterSyncedRemoteProjects(cachedProjects, excluded)).map(
+          (project) => project.id,
+        ),
+      )
+    : undefined;
+  const threads = allThreads?.filter((thread) => syncedProjectIds?.has(thread.projectId));
   const currentProjects = projects
     ? new Map(
         useAppStore
@@ -275,10 +303,6 @@ function clearRemoteServerRefreshTimer(desktopId: string): void {
   remoteServerAgentStatusRefreshes.delete(desktopId);
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function normalizeEndpoint(raw: string): string {
   const trimmed = raw.trim();
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
@@ -294,7 +318,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
        * offline/errored. The renderer's global unhandledrejection handler would
        * otherwise crash-screen on any stray rejection from a `void action(...)`. */
       const reportRemoteServerError = (desktopId: string, error: unknown, fallback: string) => {
-        const message = errorMessage(error) || fallback;
+        const message = friendlyError(error) || fallback;
         toast.danger(message);
         set((state) => {
           const current = state.runtime[desktopId];
@@ -591,6 +615,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       return {
         servers: [],
         runtime: {},
+        excludedProjectIds: {},
         openThread: null,
         clientFactory: defaultClientFactory,
         socketFactory: defaultSocketFactory,
@@ -931,7 +956,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             if (!isLatest()) return;
             setRuntime({
               status: "error",
-              message: error instanceof Error ? error.message : i18n._(msg`Connection failed.`),
+              message: friendlyError(error) || i18n._(msg`Connection failed.`),
               projects: cached()?.projects ?? [],
               threads: cached()?.threads ?? [],
             });
@@ -974,6 +999,17 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           const server = get().servers.find((entry) => entry.desktopId === desktopId);
           if (!server) return;
           await connectServer(server);
+        },
+
+        setRemoteProjectSynced: (desktopId, remoteId, synced) => {
+          const current = get().excludedProjectIds;
+          const next = withRemoteProjectSync(current, desktopId, remoteId, synced);
+          if (next === current) return;
+          set({ excludedProjectIds: next });
+          // Re-mirror from the cached snapshot. Selection is local state, so
+          // adding or dropping a project never needs the server to be reachable.
+          const runtime = get().runtime[desktopId];
+          if (runtime) syncRemoteAppRows(desktopId, runtime.projects, runtime.threads);
         },
 
         runProjectCommand: async (desktopId, command) => {
@@ -1047,7 +1083,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // connect and the socket/client factories are process-local. Storing the
       // token in renderer localStorage mirrors the PWA (IndexedDB) and is scoped
       // to the Electron renderer; the server can revoke a session at any time.
-      partialize: (state) => ({ servers: state.servers }),
+      partialize: (state) => ({
+        servers: state.servers,
+        excludedProjectIds: state.excludedProjectIds,
+      }),
     },
   ),
 );

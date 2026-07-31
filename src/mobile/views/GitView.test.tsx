@@ -138,7 +138,11 @@ describe("GitView", () => {
 
   it("reports failed refresh fetches instead of silently doing nothing", async () => {
     const project = makeProject();
-    bridge.gitFetch.mockRejectedValueOnce(new Error("fetch failed"));
+    // A real git failure, not the bare "fetch failed" undici emits for an
+    // unreachable host — that one is remapped by friendlyError (messages.ts).
+    bridge.gitFetch.mockRejectedValueOnce(
+      new Error("fatal: could not read from remote repository"),
+    );
 
     render(
       <GitView
@@ -152,7 +156,7 @@ describe("GitView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh changes" }));
 
     await waitFor(() => {
-      expect(toastDanger).toHaveBeenCalledWith("fetch failed");
+      expect(toastDanger).toHaveBeenCalledWith("fatal: could not read from remote repository");
     });
   });
 
