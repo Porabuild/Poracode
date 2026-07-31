@@ -94,7 +94,7 @@ export function summarizeToolCalls(items: readonly RuntimeChatItem[]): GroupSect
         count,
         label: count === 1 ? meta.singular : meta.plural,
         Icon: meta.Icon,
-        ...(category === "edited" && count > 1 && !hasMissingEditDiffSummary
+        ...(category === "edited" && !hasMissingEditDiffSummary
           ? { diffSummary: { added: editAdded, removed: editRemoved } }
           : {}),
       };

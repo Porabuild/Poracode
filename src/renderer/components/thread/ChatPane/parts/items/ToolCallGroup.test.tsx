@@ -303,6 +303,25 @@ describe("ToolCallGroup", () => {
     expect(within(heading).getByText("-6")).toHaveClass("text-danger");
   });
 
+  it("shows diff counts for a single edit in a mixed group header", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeReasoningItem("reasoning-1", "Planning the edit."),
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
+      makeCommandItem("cmd-1", "pnpm run test"),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    const heading = screen.getByRole("button", { name: /1 edit/i });
+    expect(within(heading).getByText("+4")).toHaveClass("text-success");
+    expect(within(heading).getByText("-2")).toHaveClass("text-danger");
+  });
+
   it("summarizes same-file edit groups with the file path and total diff", () => {
     const threadId = "thread-1";
     const items = [
@@ -439,8 +458,9 @@ describe("ToolCallGroup", () => {
     renderToolCallGroup(threadId, [item.id]);
     expandGroup(/1 edit/i);
 
-    expect(screen.getByText("+3")).toHaveClass("text-success");
-    fireEvent.click(screen.getByText("chatPaneSelectors.ts"));
+    const editRow = screen.getByRole("button", { name: /chatPaneSelectors\.ts/i });
+    expect(within(editRow).getByText("+3")).toHaveClass("text-success");
+    fireEvent.click(editRow);
 
     await waitFor(() => {
       expect(document.body).toHaveTextContent(/canShareRuntimeToolGroup/);
@@ -458,9 +478,10 @@ describe("ToolCallGroup", () => {
     renderToolCallGroup(threadId, [item.id]);
     expandGroup(/1 edit/i);
 
-    expect(screen.getByText("+1")).toHaveClass("text-success");
-    expect(screen.getByText("-1")).toHaveClass("text-danger");
-    fireEvent.click(screen.getByText("toolDisplay.ts"));
+    const editRow = screen.getByRole("button", { name: /toolDisplay\.ts/i });
+    expect(within(editRow).getByText("+1")).toHaveClass("text-success");
+    expect(within(editRow).getByText("-1")).toHaveClass("text-danger");
+    fireEvent.click(editRow);
 
     await waitFor(() => {
       expect(document.body).toHaveTextContent(/before/);
@@ -478,9 +499,10 @@ describe("ToolCallGroup", () => {
     renderToolCallGroup(threadId, [item.id]);
     expandGroup(/1 edit/i);
 
-    expect(screen.getByText("+1")).toHaveClass("text-success");
-    expect(screen.getByText("-1")).toHaveClass("text-danger");
-    fireEvent.click(screen.getByText("droidFile.ts"));
+    const editRow = screen.getByRole("button", { name: /droidFile\.ts/i });
+    expect(within(editRow).getByText("+1")).toHaveClass("text-success");
+    expect(within(editRow).getByText("-1")).toHaveClass("text-danger");
+    fireEvent.click(editRow);
 
     await waitFor(() => {
       expect(document.body).toHaveTextContent(/old droid/);
@@ -535,8 +557,9 @@ describe("ToolCallGroup", () => {
     renderToolCallGroup(threadId, [item.id]);
     expandGroup(/1 edit/i);
 
-    expect(screen.getByText("+2")).toHaveClass("text-success");
-    fireEvent.click(screen.getByText("runtimeToolGrouping.ts"));
+    const editRow = screen.getByRole("button", { name: /runtimeToolGrouping\.ts/i });
+    expect(within(editRow).getByText("+2")).toHaveClass("text-success");
+    fireEvent.click(editRow);
 
     await waitFor(() => {
       expect(document.body).toHaveTextContent(/const EDIT_TOOL_NAMES/);
