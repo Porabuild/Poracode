@@ -372,7 +372,7 @@ export function GitReviewSidebar(props: {
             className={gitReviewSidebarListScrollClass()}
             style={scrollFadeStyle}
           >
-            <div ref={scrollContentRef} className="min-h-full space-y-2">
+            <div ref={scrollContentRef} className="relative min-h-full space-y-2">
               {mergeConflicting && mergeConflictFiles.length > 0 && (
                 <ConflictGroup
                   files={mergeConflictFiles}
@@ -435,7 +435,7 @@ export function GitReviewSidebar(props: {
               )}
               {gitStatus && !gitStatus.isRepo && (
                 <div
-                  className={`flex min-h-full flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
+                  className={`absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
                 >
                   <span>
                     <Trans>Not a git repository</Trans>
@@ -469,7 +469,7 @@ export function GitReviewSidebar(props: {
                 gitStatus.unstaged.length === 0 &&
                 !mergeConflicting && (
                   <div
-                    className={`flex min-h-full flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
+                    className={`absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
                   >
                     <span className="text-foreground/80">
                       <Trans>Working tree clean</Trans>
