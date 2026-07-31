@@ -53,6 +53,7 @@ describe("patchConfigForModelChange", () => {
       model: "b",
       contextSize: "128k",
       fast: false,
+      thinking: true,
     });
   });
 
@@ -67,6 +68,7 @@ describe("patchConfigForModelChange", () => {
       effort: "high",
       contextSize: "128k",
       fast: false,
+      thinking: true,
     });
   });
 

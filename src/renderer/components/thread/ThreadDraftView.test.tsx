@@ -1330,6 +1330,55 @@ describe("ThreadDraftView", () => {
     });
   });
 
+  it("enables Thinking by default when switching to a supported Cursor model", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    render(<ThreadDraftView project={project} agentStatuses={[cursorStatus]} onStart={onStart} />);
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{
+          kind?: string;
+          currentModel?: string;
+          onChange?: (next: { agentKind: string; model: string }) => void;
+        }>;
+      };
+      expect(
+        props.controls.find((control) => control.kind === "provider-model")?.currentModel,
+      ).toBe("composer-2");
+    });
+
+    const initialProps = composerSpy.mock.lastCall?.[0] as {
+      controls: Array<{
+        kind?: string;
+        onChange?: (next: { agentKind: string; model: string }) => void;
+      }>;
+    };
+    const providerModel = initialProps.controls.find(
+      (control) => control.kind === "provider-model",
+    );
+
+    act(() => {
+      providerModel?.onChange?.({ agentKind: "cursor", model: "gpt-5.5" });
+    });
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{
+          kind?: string;
+          currentModel?: string;
+          thinkingValue?: boolean;
+        }>;
+      };
+      expect(
+        props.controls.find((control) => control.kind === "provider-model")?.currentModel,
+      ).toBe("gpt-5.5");
+      expect(
+        props.controls.find((control) => control.kind === "effort-context")?.thinkingValue,
+      ).toBe(true);
+    });
+  });
+
   it("does not expose a single Cursor context option as a dropdown control", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
 
