@@ -213,6 +213,28 @@ describe("agent command builders", () => {
     expect(Object.values(spec.env ?? {})).toContain("secret-token");
   });
 
+  it("keeps pooled Codex MCP config out of argv while preserving token env vars", () => {
+    const spec = buildCodexAppServerCommand(windowsProject, {
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp?thread=local-thread",
+            headers: { Authorization: "Bearer secret-token" },
+          },
+        },
+      ],
+      includeMcpConfig: false,
+    });
+    const { cmdArgs } = parseWindowsSpec(spec);
+
+    expect(cmdArgs.some((arg) => arg.startsWith("mcp_servers.browser"))).toBe(false);
+    expect(Object.values(spec.env ?? {})).toContain("secret-token");
+  });
+
   it("injects Codex Crossagents MCP config when enabled, using a distinct token env var", () => {
     const spec = buildCodexAppServerCommand(windowsProject, {
       mcpServers: [

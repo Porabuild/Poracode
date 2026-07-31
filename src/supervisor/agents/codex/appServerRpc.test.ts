@@ -1,9 +1,11 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import { describe, expect, it, vi } from "vitest";
 import {
+  CodexAppServerConnection,
   CodexAppServerRpc,
   CodexRpcResponseError,
   isUnsupportedCodexRequestError,
+  type CodexAppServerRpcListener,
   type CodexAppServerRpcTransport,
   type CodexRpcDebugDirection,
 } from "./appServerRpc";
@@ -347,5 +349,307 @@ describe("CodexAppServerRpc", () => {
     await expect(pending).rejects.toBe(error);
     expect(dispose).toHaveBeenCalledOnce();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("shares initialization and routes thread notifications across RPC channels", async () => {
+    let transportListener: CodexStdioTransportListener | undefined;
+    const writes: Array<Record<string, unknown>> = [];
+    const dispose = vi.fn<() => void>();
+    const transport: CodexAppServerRpcTransport = {
+      setListener: (listener) => {
+        transportListener = listener;
+      },
+      write: (message) => writes.push(message),
+      dispose,
+      formatOutput: () => "",
+    };
+    const connection = new CodexAppServerConnection(transport);
+    const first = new CodexAppServerRpc(connection, "local-first");
+    const second = new CodexAppServerRpc(connection, "local-second");
+    const firstNotifications =
+      vi.fn<(method: string, params: Record<string, unknown> | undefined) => void>();
+    const secondNotifications =
+      vi.fn<(method: string, params: Record<string, unknown> | undefined) => void>();
+    const listener = (onNotification: typeof firstNotifications): CodexAppServerRpcListener => ({
+      onNotification,
+      onRuntimeEvents: () => {},
+      onClose: () => {},
+      onError: () => {},
+    });
+    first.setListener(listener(firstNotifications));
+    second.setListener(listener(secondNotifications));
+
+    const firstInitialize = first.request("initialize", {
+      clientInfo: { name: "poracode", version: "test" },
+      capabilities: null,
+    });
+    const secondInitialize = second.request("initialize", {
+      clientInfo: { name: "poracode", version: "test" },
+      capabilities: null,
+    });
+    expect(writes).toHaveLength(1);
+    transportListener!.onMessage({ id: "poracode-0", result: { userAgent: "codex/test" } });
+    await expect(Promise.all([firstInitialize, secondInitialize])).resolves.toHaveLength(2);
+    first.notify("initialized");
+    second.notify("initialized");
+    expect(writes.filter((message) => message.method === "initialized")).toHaveLength(1);
+
+    first.claimThread("provider-first");
+    second.claimThread("provider-second");
+    transportListener!.onMessage({
+      method: "turn/started",
+      params: { threadId: "provider-second" },
+    });
+    expect(firstNotifications).not.toHaveBeenCalled();
+    expect(secondNotifications).toHaveBeenCalledWith("turn/started", {
+      threadId: "provider-second",
+    });
+
+    first.dispose(new Error("first closed"));
+    expect(dispose).not.toHaveBeenCalled();
+    const pending = second.request("thread/read", {
+      threadId: "provider-second",
+      includeTurns: false,
+    });
+    transportListener!.onMessage({
+      id: "poracode-1",
+      result: { thread: { id: "provider-second" } },
+    });
+    await expect(pending).resolves.toMatchObject({ thread: { id: "provider-second" } });
+
+    connection.dispose(new Error("shutdown"));
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("routes inbound server requests to the owning local thread", () => {
+    let transportListener: CodexStdioTransportListener | undefined;
+    const writes: Array<Record<string, unknown>> = [];
+    const transport: CodexAppServerRpcTransport = {
+      setListener: (listener) => {
+        transportListener = listener;
+      },
+      write: (message) => writes.push(message),
+      dispose: () => {},
+      formatOutput: () => "",
+    };
+    const connection = new CodexAppServerConnection(transport);
+    const first = new CodexAppServerRpc(connection, "local-first");
+    const second = new CodexAppServerRpc(connection, "local-second");
+    const firstEvents: RuntimeEvent[] = [];
+    const secondEvents: RuntimeEvent[] = [];
+    const listener = (events: RuntimeEvent[]): CodexAppServerRpcListener => ({
+      onNotification: () => {},
+      onRuntimeEvents: (next) => events.push(...next),
+      onClose: () => {},
+      onError: () => {},
+    });
+    first.setListener(listener(firstEvents));
+    second.setListener(listener(secondEvents));
+    first.claimThread("provider-first");
+    second.claimThread("provider-second");
+
+    transportListener!.onMessage({
+      id: "approval-2",
+      method: "item/commandExecution/requestApproval",
+      params: { threadId: "provider-second", command: "pnpm test" },
+    });
+
+    expect(firstEvents).toEqual([]);
+    expect(secondEvents).toContainEqual(
+      expect.objectContaining({
+        type: "request.opened",
+        threadId: "local-second",
+        requestId: "approval-2",
+      }),
+    );
+    second.resolveServerRequest("approval-2", { optionId: "accept" });
+    expect(writes.at(-1)).toEqual({ id: "approval-2", result: { decision: "accept" } });
+  });
+
+  it("routes legacy conversation approvals and child threads to their owning channel", () => {
+    let transportListener: CodexStdioTransportListener | undefined;
+    const writes: Array<Record<string, unknown>> = [];
+    const transport: CodexAppServerRpcTransport = {
+      setListener: (listener) => {
+        transportListener = listener;
+      },
+      write: (message) => writes.push(message),
+      dispose: () => {},
+      formatOutput: () => "",
+    };
+    const connection = new CodexAppServerConnection(transport);
+    const first = new CodexAppServerRpc(connection, "local-first");
+    const second = new CodexAppServerRpc(connection, "local-second");
+    const firstEvents: RuntimeEvent[] = [];
+    const secondEvents: RuntimeEvent[] = [];
+    const firstNotifications = vi.fn<CodexAppServerRpcListener["onNotification"]>();
+    const secondNotifications = vi.fn<CodexAppServerRpcListener["onNotification"]>();
+    const listener = (
+      events: RuntimeEvent[],
+      onNotification: CodexAppServerRpcListener["onNotification"],
+    ): CodexAppServerRpcListener => ({
+      onNotification,
+      onRuntimeEvents: (next) => events.push(...next),
+      onClose: () => {},
+      onError: () => {},
+    });
+    first.setListener(listener(firstEvents, firstNotifications));
+    second.setListener(listener(secondEvents, secondNotifications));
+    first.claimThread("provider-first");
+    second.claimThread("provider-second");
+
+    transportListener!.onMessage({
+      id: "legacy-approval",
+      method: "execCommandApproval",
+      params: {
+        conversationId: "provider-second",
+        callId: "call-1",
+        approvalId: null,
+        command: ["pwd"],
+        cwd: "C:\\repo",
+        reason: null,
+        parsedCmd: [],
+      },
+    });
+    expect(firstEvents).toEqual([]);
+    expect(secondEvents).toContainEqual(
+      expect.objectContaining({
+        type: "request.opened",
+        threadId: "local-second",
+        requestId: "legacy-approval",
+      }),
+    );
+    second.resolveServerRequest("legacy-approval", { optionId: "decline" });
+    expect(writes.at(-1)).toEqual({
+      id: "legacy-approval",
+      result: { decision: "decline" },
+    });
+
+    transportListener!.onMessage({
+      method: "thread/started",
+      params: { thread: { id: "provider-child", parentThreadId: "provider-second" } },
+    });
+    transportListener!.onMessage({
+      method: "turn/started",
+      params: { threadId: "provider-child", turn: { id: "child-turn" } },
+    });
+    expect(first.ownsThread("provider-child")).toBe(false);
+    expect(second.ownsThread("provider-child")).toBe(true);
+    expect(firstNotifications).not.toHaveBeenCalled();
+    expect(secondNotifications).toHaveBeenCalledWith("turn/started", {
+      threadId: "provider-child",
+      turn: { id: "child-turn" },
+    });
+  });
+
+  it("buffers startup notifications until the matching thread is claimed", () => {
+    let transportListener: CodexStdioTransportListener | undefined;
+    const transport: CodexAppServerRpcTransport = {
+      setListener: (listener) => {
+        transportListener = listener;
+      },
+      write: () => {},
+      dispose: () => {},
+      formatOutput: () => "",
+    };
+    const connection = new CodexAppServerConnection(transport);
+    const first = new CodexAppServerRpc(connection, "local-first");
+    const second = new CodexAppServerRpc(connection, "local-second");
+    const firstNotifications = vi.fn<CodexAppServerRpcListener["onNotification"]>();
+    const secondNotifications = vi.fn<CodexAppServerRpcListener["onNotification"]>();
+    const listener = (
+      onNotification: CodexAppServerRpcListener["onNotification"],
+    ): CodexAppServerRpcListener => ({
+      onNotification,
+      onRuntimeEvents: () => {},
+      onClose: () => {},
+      onError: () => {},
+    });
+    first.setListener(listener(firstNotifications));
+    second.setListener(listener(secondNotifications));
+
+    transportListener!.onMessage({
+      method: "thread/started",
+      params: { thread: { id: "provider-second", status: { type: "idle" } } },
+    });
+    transportListener!.onMessage({
+      method: "thread/status/changed",
+      params: { threadId: "provider-second", status: { type: "active" } },
+    });
+    expect(firstNotifications).not.toHaveBeenCalled();
+    expect(secondNotifications).not.toHaveBeenCalled();
+
+    second.claimThread("provider-second");
+    expect(secondNotifications.mock.calls).toEqual([
+      ["thread/started", { thread: { id: "provider-second", status: { type: "idle" } } }],
+      ["thread/status/changed", { threadId: "provider-second", status: { type: "active" } }],
+    ]);
+    expect(firstNotifications).not.toHaveBeenCalled();
+  });
+
+  it("cancels a closing channel's request and keeps sibling requests working", async () => {
+    let transportListener: CodexStdioTransportListener | undefined;
+    const writes: Array<Record<string, unknown>> = [];
+    const transport: CodexAppServerRpcTransport = {
+      setListener: (listener) => {
+        transportListener = listener;
+      },
+      write: (message) => writes.push(message),
+      dispose: () => {},
+      formatOutput: () => "",
+    };
+    const connection = new CodexAppServerConnection(transport);
+    const first = new CodexAppServerRpc(connection, "local-first");
+    const second = new CodexAppServerRpc(connection, "local-second");
+    const listener: CodexAppServerRpcListener = {
+      onNotification: () => {},
+      onRuntimeEvents: () => {},
+      onClose: () => {},
+      onError: () => {},
+    };
+    first.setListener(listener);
+    second.setListener(listener);
+    first.claimThread("provider-first");
+    second.claimThread("provider-second");
+
+    transportListener!.onMessage({
+      id: "approval-first",
+      method: "item/commandExecution/requestApproval",
+      params: { threadId: "provider-first", command: "pnpm test" },
+    });
+    first.dispose(new Error("first closed"));
+    expect(writes.at(-1)).toEqual({
+      id: "approval-first",
+      error: {
+        code: -32800,
+        message: "Request cancelled because the Poracode thread closed.",
+      },
+    });
+
+    const pending = second.request("thread/read", {
+      threadId: "provider-second",
+      includeTurns: false,
+    });
+    transportListener!.onMessage({
+      id: "poracode-0",
+      result: { thread: { id: "provider-second" } },
+    });
+    await expect(pending).resolves.toMatchObject({ thread: { id: "provider-second" } });
+  });
+
+  it("rejects immediately when writing a request fails", async () => {
+    const transport: CodexAppServerRpcTransport = {
+      setListener: () => {},
+      write: () => {
+        throw new Error("stdin closed");
+      },
+      dispose: () => {},
+      formatOutput: () => "",
+    };
+    const rpc = new CodexAppServerRpc(transport, "local-thread");
+
+    await expect(rpc.request("thread/read", { threadId: "provider-thread" })).rejects.toThrow(
+      "stdin closed",
+    );
   });
 });

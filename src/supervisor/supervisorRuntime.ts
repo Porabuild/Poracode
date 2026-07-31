@@ -807,6 +807,8 @@ export class SupervisorRuntime {
     });
     const { shutdownSpawnedOpenCodeServers } = await import("./agents/opencode/sdkClient");
     shutdownSpawnedOpenCodeServers();
+    const { shutdownSpawnedCodexAppServers } = await import("./agents/codex/serverPool");
+    shutdownSpawnedCodexAppServers();
   }
 
   private handlePtyData(session: SessionRuntime, data: string): void {

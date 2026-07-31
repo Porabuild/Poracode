@@ -155,8 +155,8 @@ describe("CrossagentMcpIngress", () => {
         arguments: {
           provider: "codex",
           prompt: "first",
-          [CROSSAGENT_PROVIDER_SESSION_ID_ARG]: "session-1",
         },
+        _meta: { threadId: "session-1" },
       }),
       providerRpc("tools/call", {
         name: "spawn_agent",

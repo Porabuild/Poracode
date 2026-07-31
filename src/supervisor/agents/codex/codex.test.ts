@@ -920,6 +920,8 @@ describe("CodexStructuredSession", () => {
     session["seenErrorMessages"] = new Set<string>();
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
+      claimThread: () => {},
+      ownsThread: (threadId: string) => threadId === "provider-thread",
       request: async (
         method: string,
         params: Record<string, unknown> | null,
@@ -954,6 +956,53 @@ describe("CodexStructuredSession", () => {
       }
     ).handleNotification(message.method, message.params);
   }
+
+  it("exposes provider-thread ownership for shared Crossagents routing", () => {
+    const structuredSession = makeStructuredSession([]);
+
+    expect(structuredSession.ownsProviderSession("provider-thread")).toBe(true);
+    expect(structuredSession.ownsProviderSession("unrelated-thread")).toBe(false);
+  });
+
+  it("interrupts its provider turn and releases its shared-server lease once", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{
+      method: string;
+      params: Record<string, unknown>;
+      timeoutMs?: number;
+    }> = [];
+    const rpcDispose = vi.fn<(error: Error) => void>();
+    const releaseAppServer = vi.fn<() => void>();
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-1";
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] =
+      releaseAppServer;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
+        return Promise.resolve({});
+      },
+      dispose: rpcDispose,
+    };
+
+    await structuredSession.dispose();
+    await structuredSession.dispose();
+
+    expect(requests).toEqual([
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-1" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "thread/unsubscribe",
+        params: { threadId: "provider-thread" },
+        timeoutMs: 2_000,
+      },
+    ]);
+    expect(rpcDispose).toHaveBeenCalledOnce();
+    expect(releaseAppServer).toHaveBeenCalledOnce();
+  });
 
   it("interrupts the active Codex app-server turn", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
@@ -1006,6 +1055,7 @@ describe("CodexStructuredSession", () => {
       onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
     };
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
       request: (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
         if (method === "thread/read" && params.includeTurns === true) {
@@ -1050,7 +1100,7 @@ describe("CodexStructuredSession", () => {
 
     const history = await structuredSession.rollbackThread(2, rollbackConfig);
 
-    expect(requests.slice(0, 2)).toEqual([
+    expect(requests).toEqual([
       {
         method: "thread/read",
         params: {
@@ -1073,11 +1123,20 @@ describe("CodexStructuredSession", () => {
           lastTurnId: "turn-2",
         },
       },
+      {
+        method: "thread/unsubscribe",
+        params: {
+          threadId: "provider-thread",
+        },
+      },
+      {
+        method: "thread/read",
+        params: {
+          threadId: "forked-thread",
+          includeTurns: false,
+        },
+      },
     ]);
-    expect(requests[2]).toEqual({
-      method: "thread/unsubscribe",
-      params: { threadId: "provider-thread" },
-    });
     expect(history).toEqual({ providerSessionId: "forked-thread", messages: [] });
     expect((structuredSession as unknown as { remoteThreadId: string }).remoteThreadId).toBe(
       "forked-thread",
@@ -1109,6 +1168,7 @@ describe("CodexStructuredSession", () => {
     mapperState.usageScope = new CodexUsageScopeTracker("provider-thread", false);
     (structuredSession as unknown as Record<string, unknown>)["mapperState"] = mapperState;
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
       request: (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
         if (method === "thread/read" && params.includeTurns === true) {
@@ -1175,6 +1235,7 @@ describe("CodexStructuredSession", () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
       request: async (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
         if (method === "thread/read" && params.includeTurns === true) {
@@ -1210,6 +1271,7 @@ describe("CodexStructuredSession", () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
       request: async (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
         if (method === "thread/read") {
@@ -1519,6 +1581,7 @@ describe("CodexStructuredSession", () => {
       onRuntimeEvent: (event) => runtimeEvents.push(event),
     });
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
       request: async (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
         if (method === "thread/goal/get") {
@@ -1626,6 +1689,7 @@ describe("CodexStructuredSession", () => {
     const requests: CodexRequestRecord[] = [];
     const structuredSession = makeStructuredSession(requests);
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
       request: async (
         method: string,
         params: Record<string, unknown> | null,
@@ -1897,6 +1961,7 @@ describe("CodexStructuredSession", () => {
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
+      claimThread: () => {},
       request: async (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({
           method,
