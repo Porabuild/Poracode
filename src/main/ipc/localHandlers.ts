@@ -36,7 +36,7 @@ import {
   writeImageFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
-import { diffSyncedThreads } from "./threadSyncBroadcast";
+import { diffSyncedThreads, syncedProjectsChanged } from "./threadSyncBroadcast";
 import { showOsNotification } from "../osNotifications";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import {
@@ -53,7 +53,11 @@ import {
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "../sharedSettingsFile";
-import type { RemoteAccessPairingInfo, RemoteGitSummaries } from "@/shared/remote";
+import {
+  remoteProjectSchema,
+  type RemoteAccessPairingInfo,
+  type RemoteGitSummaries,
+} from "@/shared/remote";
 import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
 import type { KeybindingsFile } from "@/shared/keybindings";
 import type { RemoteAccessServer } from "../remote";
@@ -172,6 +176,25 @@ export async function showAddFilesDialog(
 export function createLocalIpcHandlers(
   options: CreateLocalIpcHandlersOptions,
 ): MainLocalIpcHandlerMap {
+  const publishProjectsChanged = (projects = dbGetProjects()): void => {
+    const server = options.getRemoteAccessServer();
+    if (!server) return;
+    server.publishSupervisorEvent({
+      type: "remote-projects-changed",
+      projects: projects.map((project) => remoteProjectSchema.parse(project)),
+    });
+  };
+  const publishThreadsChanged = (
+    threadIds: readonly string[],
+    viewedThreadIds: readonly string[] = [],
+  ): void => {
+    if (threadIds.length === 0) return;
+    options.getRemoteAccessServer()?.publishSupervisorEvent({
+      type: "remote-threads-changed",
+      threadIds: [...new Set(threadIds)],
+      ...(viewedThreadIds.length > 0 ? { viewedThreadIds: [...new Set(viewedThreadIds)] } : {}),
+    });
+  };
   return defineMainLocalIpcHandlers({
     pickFolder: async (defaultPath) => {
       const result = await dialog.showOpenDialog(options.getMainWindow()!, {
@@ -415,32 +438,43 @@ export function createLocalIpcHandlers(
     dbGetThreads: () => dbGetThreads(),
     dbGetState: (key) => dbGetState(key),
     dbSetState: ({ key, value }) => dbSetState(key, value),
-    dbUpsertProject: (project) => dbUpsertProject(project, 0),
-    dbUpsertThread: (thread) => dbUpsertThread(thread, 0),
+    dbUpsertProject: (project) => {
+      dbUpsertProject(project, 0);
+      publishProjectsChanged();
+    },
+    dbUpsertThread: (thread) => {
+      dbUpsertThread(thread, 0);
+      publishThreadsChanged([thread.id]);
+    },
     dbDeleteThread: ({ threadId }) => {
       dbDeleteThread(threadId);
       deleteThreadAttachments(options.requirePoracodePaths(), threadId);
+      publishThreadsChanged([threadId]);
     },
-    dbDeleteProject: ({ projectId }) => dbDeleteProject(projectId),
+    dbDeleteProject: ({ projectId }) => {
+      const threadIds = dbGetThreads()
+        .filter((thread) => thread.projectId === projectId)
+        .map((thread) => thread.id);
+      dbDeleteProject(projectId);
+      publishProjectsChanged();
+      publishThreadsChanged(threadIds);
+    },
     dbSyncAll: ({ projects, threads, viewJson }) => {
-      // Desktop-originated thread changes (auto-title, rename, done/star,
-      // archive, status, delete) reach SQLite only through this persist — they
-      // emit no supervisor event, so remote clients never learned about them.
-      // Diff before writing, then publish the same event remote-issued thread
-      // commands send; the remote's debounced refresh reads the post-write
-      // state.
+      // Desktop-originated project and thread changes reach SQLite only through
+      // this persist. Diff before writing, then publish the same events remote
+      // commands send; the remote's debounced refresh reads the post-write state.
+      const projectsChanged = syncedProjectsChanged(dbGetProjects(), projects);
       const { changedThreadIds, viewedThreadIds } = diffSyncedThreads(dbGetThreads(), threads);
       dbSyncAll(projects, threads, viewJson);
-      if (changedThreadIds.length > 0) {
-        options.getRemoteAccessServer()?.publishSupervisorEvent({
-          type: "remote-threads-changed",
-          threadIds: changedThreadIds,
-          ...(viewedThreadIds.length > 0 ? { viewedThreadIds } : {}),
-        });
-      }
+      if (projectsChanged) publishProjectsChanged(projects);
+      publishThreadsChanged(changedThreadIds, viewedThreadIds);
     },
     dbPersistExperimentState: async (payload) => {
       dbPersistExperimentState(payload);
+      publishThreadsChanged([
+        ...payload.upsertThreads.map(({ thread }) => thread.id),
+        ...payload.deletedThreadIds,
+      ]);
       const paths = options.requirePoracodePaths();
       await Promise.all(
         payload.deletedThreadIds.map((threadId) => deleteThreadAttachmentsAsync(paths, threadId)),

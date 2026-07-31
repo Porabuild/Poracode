@@ -21,7 +21,7 @@ import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
 import { closePanelsForUnloadedThread } from "./panelActions";
 import { getCurrentProjectId } from "./currentProject";
-import { performWorktreeRemoval } from "./worktreeActions";
+import { deleteWorktreeGroup } from "./worktreeActions";
 
 let openThreadRequestId = 0;
 
@@ -530,16 +530,12 @@ export function deleteThread(threadId: string, worktreePath?: string, projectId?
   }
 
   if (pref === "thread-and-worktree") {
-    const thread = allThreads.find((t) => t.id === threadId);
-    useAppStore.getState().deleteThread(threadId);
-
     const project = useAppStore.getState().projects.find((p) => p.id === projectId);
     if (project) {
-      void (async () => {
-        await closeThreads([threadId]);
-        await performWorktreeRemoval(project, worktreePath, thread?.worktreeBranch);
-      })();
+      deleteWorktreeGroup(project.id, worktreePath, [threadId]);
+      return;
     }
+    useAppStore.getState().deleteThread(threadId);
     return;
   }
 

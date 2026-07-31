@@ -11,6 +11,7 @@ import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads, runShellScriptToCompletion } from "@/renderer/utils/shellUtils";
@@ -128,14 +129,36 @@ export function deleteWorktreeGroup(
   threadIds: string[],
 ): void {
   if (threadIds.some((threadId) => findExperimentByThreadId(threadId))) return;
-  const project = useAppStore.getState().projects.find((p) => p.id === projectId);
+  const app = useAppStore.getState();
+  const project = app.projects.find((p) => p.id === projectId);
   if (!project) return;
 
-  const sampleThread = useAppStore
-    .getState()
-    .threads.find((t) => threadIds.includes(t.id) && t.worktreeBranch);
+  const threadIdSet = new Set(threadIds);
+  const groupThreads = app.threads.filter((thread) => threadIdSet.has(thread.id));
+  const sampleThread = groupThreads.find((thread) => thread.worktreeBranch);
 
-  const deleteThread = useAppStore.getState().deleteThread;
+  const deleteThread = app.deleteThread;
+  if (project.remoteServerId && project.remoteId) {
+    const remoteThreadIds = groupThreads
+      .filter((thread) => thread.remoteServerId === project.remoteServerId && thread.remoteId)
+      .map((thread) => thread.remoteId!);
+    if (remoteThreadIds.length !== threadIds.length) return;
+    for (const threadId of threadIds) deleteThread(threadId);
+    void useRemoteServersStore
+      .getState()
+      .sendThreadCommand(project.remoteServerId, {
+        kind: "delete-worktree-group",
+        threadId: remoteThreadIds[0]!,
+        projectId: project.remoteId,
+        worktreePath,
+        threadIds: remoteThreadIds,
+      })
+      .catch((error) => {
+        toast.danger(errorDetail(error) || i18n._(msg`Unable to remove worktree.`));
+        void useRemoteServersStore.getState().refreshServer(project.remoteServerId!);
+      });
+    return;
+  }
   for (const threadId of threadIds) {
     deleteThread(threadId);
   }

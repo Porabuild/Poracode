@@ -169,6 +169,34 @@ describe("applyShellSnapshot", () => {
     expect(after[1]).toBe(before[1]);
   });
 
+  it("closes an open thread pane when the authoritative snapshot removes it", () => {
+    useAppStore.setState({ threads: [makeThread("idle")] });
+    useAppStore.getState().openThread(THREAD_ID);
+
+    applyShellSnapshot(makeShellSnapshot([]));
+
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+  });
+
+  it("closes an open project draft when the authoritative snapshot removes it", () => {
+    const project = {
+      id: "proj-1",
+      name: "Demo",
+      location: { kind: "windows" as const, path: "C:\\demo" },
+      createdAt: "2026-03-21T10:00:00.000Z",
+    };
+    useAppStore.setState({
+      projects: [project],
+      view: { kind: "draft", projectId: project.id },
+    });
+
+    applyShellSnapshot(makeShellSnapshot([]));
+
+    expect(useAppStore.getState().projects).toEqual([]);
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+  });
+
   it("hydrates the host-owned Git read model from the shell snapshot", () => {
     applyShellSnapshot({
       ...makeShellSnapshot([]),

@@ -1,4 +1,15 @@
-import type { Thread } from "@/shared/contracts";
+import type { Project, Thread } from "@/shared/contracts";
+import { remoteProjectSchema } from "@/shared/remote";
+
+export function syncedProjectsChanged(
+  before: readonly Project[],
+  after: readonly Project[],
+): boolean {
+  return (
+    JSON.stringify(before.map((project) => remoteProjectSchema.parse(project))) !==
+    JSON.stringify(after.map((project) => remoteProjectSchema.parse(project)))
+  );
+}
 
 /**
  * Diff the renderer's persisted thread list against the rows currently in

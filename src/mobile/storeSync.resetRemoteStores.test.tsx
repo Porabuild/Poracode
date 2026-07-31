@@ -26,6 +26,7 @@ describe("resetRemoteStores", () => {
     useAppStore.setState({
       projects: [{ id: "p" } as never],
       threads: [{ id: tid } as never],
+      view: { kind: "thread", panes: [tid] },
       // A representative of the maps reset already cleared…
       runtimeStructuralVersionByThread: { [tid]: 3 },
       // …plus the four it used to leak across desktop switches (stale "running"
@@ -97,6 +98,7 @@ describe("resetRemoteStores", () => {
     const s = useAppStore.getState();
     expect(s.projects).toHaveLength(0);
     expect(s.threads).toHaveLength(0);
+    expect(s.view).toEqual({ kind: "home" });
     expect(s.runtimeStructuralVersionByThread).toEqual({});
     expect(s.runtimeOpenTurnByThread).toEqual({});
     expect(s.fileCheckpointsByThread).toEqual({});

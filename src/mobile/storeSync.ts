@@ -61,6 +61,14 @@ function reuseSnapshotRows<T extends { readonly id: string }>(current: T[], inco
 }
 
 export function applyShellSnapshot(snapshot: RemoteShellSnapshot): void {
+  const projectIds = new Set(snapshot.projects.map((project) => project.id));
+  for (const project of useAppStore.getState().projects) {
+    if (!projectIds.has(project.id)) useAppStore.getState().deleteProject(project.id);
+  }
+  const threadIds = new Set(snapshot.threads.map((thread) => thread.id));
+  for (const thread of useAppStore.getState().threads) {
+    if (!threadIds.has(thread.id)) useAppStore.getState().deleteThread(thread.id);
+  }
   useAppStore.setState((current) => {
     const currentById = new Map(current.threads.map((thread) => [thread.id, thread]));
     // "finished" is a client-side derivation (an unwatched turn completed —
@@ -115,6 +123,7 @@ export function resetRemoteStores(): void {
   useAppStore.setState({
     projects: [],
     threads: [],
+    view: { kind: "home" },
     // Spread the slices' own initial state so every per-thread runtime map is
     // cleared — a hand-listed subset here previously leaked runtimeOpenTurn,
     // fileCheckpoint(s|Turns) and openSubAgent maps across desktop switches

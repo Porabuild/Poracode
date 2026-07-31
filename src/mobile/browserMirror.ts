@@ -49,7 +49,10 @@ export const useBrowserMirrorStore = create<BrowserMirrorStore>()((set) => ({
   // The reused desktop components (BrowserTabStrip, …) read tab state from
   // the renderer's browser panel store, so mirror it on every update.
   setState: (state) => {
-    set({ state });
+    set((current) => ({
+      state,
+      ...(current.frame?.tabId === state.activeTabId ? {} : { frame: null }),
+    }));
     useBrowserPanelStore.getState().setState(state);
   },
   setFrame: (frame) => set({ frame }),

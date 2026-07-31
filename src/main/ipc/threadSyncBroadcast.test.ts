@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { Thread } from "@/shared/contracts";
-import { diffSyncedThreadIds, diffSyncedThreads } from "./threadSyncBroadcast";
+import type { Project, Thread } from "@/shared/contracts";
+import {
+  diffSyncedThreadIds,
+  diffSyncedThreads,
+  syncedProjectsChanged,
+} from "./threadSyncBroadcast";
+
+const project: Project = {
+  id: "project-1",
+  name: "Test project",
+  location: { kind: "windows", path: "C:\\test" },
+  createdAt: "2026-01-01T00:00:00.000Z",
+};
 
 function testThread(overrides: Partial<Thread> = {}): Thread {
   return {
@@ -81,5 +92,39 @@ describe("diffSyncedThreadIds", () => {
       changedThreadIds: ["thread-1", "thread-2", "thread-3"],
       viewedThreadIds: ["thread-1"],
     });
+  });
+});
+
+describe("syncedProjectsChanged", () => {
+  it("detects added, removed, reordered, and edited projects", () => {
+    const second = { ...project, id: "project-2", name: "Second project" };
+
+    expect(syncedProjectsChanged([project], [project, second])).toBe(true);
+    expect(syncedProjectsChanged([project, second], [project])).toBe(true);
+    expect(syncedProjectsChanged([project, second], [second, project])).toBe(true);
+    expect(syncedProjectsChanged([project], [{ ...project, name: "Renamed" }])).toBe(true);
+  });
+
+  it("ignores secret project MCP settings that remote snapshots omit", () => {
+    expect(
+      syncedProjectsChanged(
+        [project],
+        [
+          {
+            ...project,
+            mcpServers: [
+              {
+                id: "private-id",
+                name: "private",
+                description: "Private server",
+                enabled: true,
+                timeoutMs: 30_000,
+                transport: { type: "stdio", command: "secret", args: [], env: {} },
+              },
+            ],
+          },
+        ],
+      ),
+    ).toBe(false);
   });
 });

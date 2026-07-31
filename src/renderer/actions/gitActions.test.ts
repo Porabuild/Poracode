@@ -61,8 +61,8 @@ vi.mock("@/renderer/utils/shellUtils", () => ({
 }));
 vi.mock("./gitCommandRunner", () => runnerMock);
 vi.mock("./worktreeActions", () => ({
-  performWorktreeRemoval:
-    vi.fn<(project: Project, path: string, branch: string) => Promise<void>>(),
+  deleteWorktreeGroup:
+    vi.fn<(projectId: string, worktreePath: string, threadIds: string[]) => void>(),
 }));
 
 import { gitPullFromSource } from "./gitActions";
