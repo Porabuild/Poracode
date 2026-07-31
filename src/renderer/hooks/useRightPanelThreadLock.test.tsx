@@ -57,9 +57,10 @@ const terminalTabB = {
   title: "Project B",
   createdAt: "2026-03-22T00:00:00.000Z",
 };
-/** Same tab id as `terminalTabB`, but scoped to thread-b's worktree. */
+/** thread-b's worktree shell — distinct from `terminalTabB`, project-b's plain shell. */
 const terminalTabBWorktree = {
   ...terminalTabB,
+  id: "terminal-b-worktree",
   worktreePath: threadBWorktreePath,
   title: "Feature",
 };
@@ -139,7 +140,7 @@ describe("useRightPanelThreadLock", () => {
       isOpen: true,
       activeProjectId: "project-a",
       tabs: [terminalTabA, terminalTabBWorktree],
-      activeTabId: "terminal-a",
+      activeTabId: terminalTabA.id,
     });
     const { rerender } = renderHook(() => useRightPanelThreadLock());
 
@@ -150,7 +151,7 @@ describe("useRightPanelThreadLock", () => {
       isOpen: true,
       activeProjectId: "project-b",
       activeWorktreePath: threadBWorktreePath,
-      activeTabId: "terminal-b",
+      activeTabId: terminalTabBWorktree.id,
     });
   });
 
@@ -184,7 +185,7 @@ describe("useRightPanelThreadLock", () => {
     expect(useDevTerminalStore.getState()).toMatchObject({
       activeProjectId: "project-a",
       activeWorktreePath: null,
-      activeTabId: "terminal-a",
+      activeTabId: terminalTabA.id,
     });
   });
 
@@ -206,7 +207,7 @@ describe("useRightPanelThreadLock", () => {
       activeProjectId: "project-a",
       activeWorktreePath: null,
       tabs: [terminalTabA, terminalTabBWorktree],
-      activeTabId: "terminal-a",
+      activeTabId: terminalTabA.id,
     });
     const { rerender } = renderHook(() => useRightPanelThreadLock());
 
@@ -217,7 +218,7 @@ describe("useRightPanelThreadLock", () => {
       isOpen: true,
       activeProjectId: "project-b",
       activeWorktreePath: threadBWorktreePath,
-      activeTabId: "terminal-b",
+      activeTabId: terminalTabBWorktree.id,
     });
   });
 
@@ -227,7 +228,7 @@ describe("useRightPanelThreadLock", () => {
       isOpen: true,
       activeProjectId: "project-a",
       tabs: [terminalTabA],
-      activeTabId: "terminal-a",
+      activeTabId: terminalTabA.id,
     });
     const { rerender } = renderHook(() => useRightPanelThreadLock());
 
