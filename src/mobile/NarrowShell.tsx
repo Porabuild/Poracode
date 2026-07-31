@@ -17,6 +17,7 @@ import { SubAgentHeaderText } from "@/renderer/components/thread/ChatPane/parts/
 import { ConnectionPill, SheetMenu } from "./components";
 import { NarrowThreadHostProvider } from "./narrowThreadHostContext";
 import { preselectWorktreeDraft, runThreadAction } from "./navHelpers";
+import { desktopTitle } from "./presentation";
 import { ThreadDetail } from "./ThreadDetail";
 import { ThreadTitleRow } from "./ThreadTitleRow";
 import { ThreadUsageIndicator } from "./ThreadUsageIndicator";
@@ -35,22 +36,20 @@ export function Brand(props: { readonly onPress: () => void }) {
   );
 }
 
-/** Header/sidebar connection indicator: silent when online, otherwise a
- * {@link ConnectionPill} that doubles as the recovery action. Shared by
- * {@link NarrowShell} and the wide-shell sidebar. */
+/** Header/sidebar connection indicator that doubles as the recovery action.
+ * Shared by {@link NarrowShell} and the wide-shell sidebar. */
 export function ConnectionControl(props: {
   readonly remote: RemoteDesktopSession;
   readonly onPair: () => void;
+  readonly showDesktopName?: boolean;
 }) {
   const { remote } = props;
-  // Healthy is silent: the pill appears only when the session needs attention
-  // (booting/pairing spinner, reconnecting, offline, expired, errored) and is
-  // itself the recovery action.
   if (!remote.activeDesktop) return null;
-  if (remote.connection === "online") return null;
+  if (remote.connection === "online" && !props.showDesktopName) return null;
   return (
     <ConnectionPill
       state={remote.connection}
+      {...(props.showDesktopName ? { label: desktopTitle(remote.activeDesktop.label) } : {})}
       onPress={() => {
         if (remote.connection === "unauthorized") {
           props.onPair();

@@ -107,13 +107,15 @@ vi.mock("./components", () => ({
   ConnectionBanner: (props: { state: string }) => (
     <div data-testid="connection-banner" data-state={props.state} />
   ),
-  ConnectionPill: (props: { state: string }) => (
+  ConnectionPill: (props: { state: string; label?: string }) => (
     <button
       type="button"
       data-testid="connection-pill"
       data-state={props.state}
       aria-label="Connection status"
-    />
+    >
+      {props.label}
+    </button>
   ),
   EmptyState: (props: { title: ReactNode; hint?: ReactNode; action?: ReactNode }) => (
     <div>
@@ -347,6 +349,16 @@ describe("mobile RootLayout", () => {
     render(<RootLayout />);
 
     expect(screen.getByRole("button", { name: "New thread" })).toHaveClass("button--ghost");
+  });
+
+  it("shows the remote name and online connection state in the wide sidebar", () => {
+    mediaMock.isWide = true;
+
+    render(<RootLayout />);
+
+    expect(screen.getByTestId("connection-pill")).toHaveAttribute("data-state", "online");
+    expect(screen.getByTestId("connection-pill")).toHaveTextContent("Mac");
+    expect(screen.queryByText("Poracode on Mac")).not.toBeInTheDocument();
   });
 
   it("hosts shared image previews opened from user messages", () => {
