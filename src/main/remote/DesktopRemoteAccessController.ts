@@ -20,6 +20,7 @@ import {
 import type { SharedSettings } from "@/shared/settings";
 import type { Project } from "@/shared/contracts";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import type { ScheduleService } from "../schedules/ScheduleService";
 import type { PrWatchService } from "../prWatch";
 import type { GitStateService } from "../gitState";
@@ -167,6 +168,17 @@ export function createDesktopRemoteAccessController(
   let remoteTailscaleLastError: string | null = null;
   let remoteGitSummaries: RemoteGitSummaries = {};
   let disposePromise: Promise<void> | null = null;
+  let gitStatePrewarmed = false;
+
+  const prewarmGitStateOnce = (): void => {
+    if (gitStatePrewarmed) return;
+    gitStatePrewarmed = true;
+    const interests = buildRemoteGitTargetInterests(dbGetThreads(), {
+      includeRecentFallback: true,
+    });
+    if (interests.length === 0) return;
+    void options.gitStateService.refreshInterests(interests, { fetchRemote: true });
+  };
 
   const writeSharedSettingsPatch = (patch: {
     [K in keyof SharedSettings]?: SharedSettings[K];
@@ -463,6 +475,7 @@ export function createDesktopRemoteAccessController(
     if (disposed) {
       return Promise.reject(new Error("Remote access controller is disposed."));
     }
+    prewarmGitStateOnce();
     const runningInfo = remoteAccessServer?.getInfo();
     if (runningInfo) return Promise.resolve(runningInfo);
     if (remoteAccessStartAttempt) {

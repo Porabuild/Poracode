@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { posix, win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ProjectLocation, PromptSegment } from "@/shared/contracts";
+import { formatDiffCommentPrompt } from "@/shared/promptContent";
 import { readOpenCodeErrorText } from "./opencodeErrors";
 
 export type OpenCodePromptPart =
@@ -198,6 +199,10 @@ export function buildOpenCodePromptParts(
     for (const segment of segments) {
       if (segment.kind === "text") {
         if (segment.content.length > 0) parts.push({ type: "text", text: segment.content });
+        continue;
+      }
+      if (segment.kind === "diff_comment") {
+        parts.push({ type: "text", text: formatDiffCommentPrompt(segment) });
         continue;
       }
       if (segment.kind === "mcp") {

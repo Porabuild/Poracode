@@ -40,6 +40,7 @@ import {
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { isThreadTurnActive, resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import { pickRemoteSettings, remoteProjectCommandResultSchema } from "@/shared/remote";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
@@ -400,6 +401,12 @@ export async function createHeadlessRemoteHost(
         scheduleService.start();
         prWatchService?.start();
         gitStateService?.start();
+        const gitWarmupInterests = buildRemoteGitTargetInterests(dbGetThreads(), {
+          includeRecentFallback: true,
+        });
+        if (gitWarmupInterests.length > 0) {
+          void gitStateService?.refreshInterests(gitWarmupInterests, { fetchRemote: true });
+        }
         started = true;
       }
       const info = await server.start();

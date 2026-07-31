@@ -628,12 +628,13 @@ msgstr "~{money}{tokens} · {0} · est."
 msgid "≈{0}% by reset"
 msgstr "≈{0}% até a redefinição"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "1 run"
-msgstr "1 execução"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 #~ msgid "1 project"
 #~ msgstr "1 projeto"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "1 run"
+msgstr "1 execução"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
@@ -1828,6 +1829,7 @@ msgstr "Não foi possível carregar as portas"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -2305,7 +2307,6 @@ msgstr "Fechar ações do encaminhamento"
 #~ msgid "Close GitHub Actions"
 #~ msgstr "Fechar GitHub Actions"
 
-#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "Fechar meta"
@@ -2517,6 +2518,7 @@ msgstr "Comando não encontrado."
 msgid "Commands"
 msgstr "Comandos"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Comment"
@@ -3544,6 +3546,7 @@ msgstr "Excluir execução do workflow"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete workflow run?"
 msgstr "Excluir execução do workflow?"
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete workspace"
 msgstr "Excluir espaço de trabalho"
@@ -4383,6 +4386,7 @@ msgstr "Falhou"
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "As tarefas com falha foram enfileiradas para executar novamente."
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Failed to clear goal"
 msgstr "Não foi possível limpar o objetivo"
@@ -5614,6 +5618,7 @@ msgstr "Iniciando"
 msgid "Launching…"
 msgstr "Iniciando…"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
 msgstr "Deixe um comentário"
@@ -8089,7 +8094,7 @@ msgstr "Perfis"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -8518,7 +8523,7 @@ msgstr "Atualizar skills"
 msgid "Refresh workflow runs"
 msgstr "Atualizar execuções do workflow"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflows"
 msgstr "Atualizar fluxos de trabalho"
 
@@ -9031,6 +9036,7 @@ msgstr "Revisar mudanças"
 msgid "Review Changes"
 msgstr "Revisar alterações"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Review comment"
 msgstr "Comentário de revisão"
@@ -11116,6 +11122,7 @@ msgstr "Horário"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Timed out"
 msgstr "Tempo limite excedido"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Timed out waiting for Poracode Helper."
 msgstr "O tempo de espera pelo Poracode Helper expirou."
@@ -11678,6 +11685,10 @@ msgstr "Remover tudo do stage"
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FileHeader.tsx
 msgid "unstaged"
 msgstr "fora do stage"
+
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
+#~ msgid "Unstaged"
+#~ msgstr "Fora do stage"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"

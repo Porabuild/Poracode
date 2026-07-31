@@ -1,13 +1,18 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronDown, ChevronUp, Plug, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageSquareText, Plug, Sparkles } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
 import { openPdfPreview } from "@/renderer/components/pdf/openPdfPreview";
 import type { Attachment } from "@/renderer/components/composer/useAttachments";
-import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
+import {
+  diffCommentTarget,
+  fileNameFromPath,
+  formatDiffCommentPrompt,
+  isImagePath,
+} from "@/shared/promptContent";
 import { isRemoteSession } from "@/renderer/bridge";
 import {
   getRuntimeItemPayload,
@@ -73,6 +78,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   const hasInlineContent = content.some(
     (block) =>
       block.kind === "skill" ||
+      block.kind === "diff_comment" ||
       block.kind === "mcp" ||
       (block.kind === "file" && block.source !== "attachment"),
   );
@@ -303,6 +309,7 @@ function buildUserPromptText(content: CanonicalContentBlock[]): string {
     .map((block) => {
       if (block.kind === "text") return block.text;
       if (block.kind === "skill") return block.invocation;
+      if (block.kind === "diff_comment") return formatDiffCommentPrompt(block);
       if (block.kind === "mcp") return `@${block.name}`;
       if (block.kind === "file" && block.source !== "attachment") return block.path;
       return "";
@@ -342,6 +349,24 @@ function renderUserMessageInlineContent(
           icon={<Sparkles aria-hidden="true" />}
           label={block.name}
           skillName={block.name}
+        />,
+      );
+      return;
+    }
+
+    if (block.kind === "diff_comment") {
+      const promptText = formatDiffCommentPrompt(block);
+      if (remainingSkip >= promptText.length) {
+        remainingSkip -= promptText.length;
+        return;
+      }
+      remainingSkip = 0;
+      nodes.push(
+        <UserMessageSlashChip
+          key={`diff-comment-${index}-${block.path}-${block.lineNumber}`}
+          icon={<MessageSquareText aria-hidden="true" />}
+          label={diffCommentTarget(block, true)}
+          title={`${diffCommentTarget(block)}\n${block.body}`}
         />,
       );
       return;
@@ -389,16 +414,19 @@ function UserMessageSlashChip({
   icon,
   label,
   skillName,
+  title,
   mcpName,
 }: {
   icon: ReactNode;
   label: string;
   skillName?: string;
+  title?: string;
   mcpName?: string;
 }) {
   return (
     <span
       className="poracode-slash-chip mr-1.5"
+      title={title}
       {...(skillName ? { "data-skill-name": skillName } : {})}
       {...(mcpName ? { "data-mcp-name": mcpName } : {})}
     >

@@ -2231,7 +2231,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
    child disc — not by an `@property` CSS variable — so the conic gradient is
    rasterized once and the animation stays on the compositor. The disc is sized
    2× the shell's width as a square; that guarantees full coverage of the
-   wide-and-short shell shape under any rotation, so the ring never breaks. */
+   wide-and-short shell shape under any rotation, so the ring never breaks.
+   Keep the rotation finite: draft inputs are auto-focused, so an infinite
+   focus animation would keep Chromium's GPU process rendering forever while
+   an untouched new-thread page is otherwise idle. */
 .poracode-composer-border-glow {
   position: absolute;
   inset: 0;
@@ -2269,8 +2272,6 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
     var(--foreground) 85%,
     transparent 100%
   );
-  animation: poracode-composer-border-spin 6s linear infinite;
-  animation-play-state: paused;
   will-change: transform;
 }
 
@@ -2280,7 +2281,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-composer-shell--draft:focus-within .poracode-composer-border-glow::before {
-  animation-play-state: running;
+  animation: poracode-composer-border-spin 1.2s ease-out 1 both;
 }
 
 .poracode-composer-label-hideable.is-hidden {
@@ -2736,6 +2737,35 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   align-items: center;
   font-weight: 400;
   white-space: nowrap;
+}
+
+.poracode-diff-comment-chip {
+  gap: 0.25em;
+}
+
+.poracode-diff-comment-chip__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0;
+  height: 1em;
+  overflow: hidden;
+  color: var(--muted);
+  opacity: 0;
+  transition:
+    width 120ms ease,
+    opacity 120ms ease;
+  cursor: var(--interactive-cursor, pointer);
+}
+
+.poracode-diff-comment-chip:hover .poracode-diff-comment-chip__delete {
+  width: 1em;
+  opacity: 1;
+}
+
+.poracode-diff-comment-chip__delete svg {
+  width: 0.8em;
+  height: 0.8em;
 }
 
 .poracode-user-message-inline-content .poracode-inline-path-chip {

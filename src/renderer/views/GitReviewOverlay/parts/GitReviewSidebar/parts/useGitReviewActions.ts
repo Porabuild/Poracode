@@ -337,7 +337,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       // Run it in the background so the user isn't blocked on a wsl.exe
       // network call (1–2s on WSL).
       readBridge()
-        .gitFetch({ projectLocation: project.location, remote: "origin", prune: false })
+        .gitFetch({ projectLocation: project.location, remote: "origin", prune: true })
         .catch(() => undefined)
         .finally(() => onRefresh());
       return true;

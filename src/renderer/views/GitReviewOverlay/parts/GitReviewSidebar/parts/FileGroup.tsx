@@ -15,6 +15,7 @@ import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { useGitTouch } from "../gitTouchContext";
 import { FileRow } from "./FileRow";
 import { reconcileStagingStatus } from "./reconcileStagingStatus";
+import { VirtualizedFileRows } from "./VirtualizedFileRows";
 
 export function FileGroup(props: {
   title: string;
@@ -32,6 +33,8 @@ export function FileGroup(props: {
   mode?: "overlay" | "panel";
   diffTheme?: "light" | "dark";
   wrapLines?: boolean;
+  scrollElement: HTMLDivElement | null;
+  scrollContentElement: HTMLDivElement | null;
 }) {
   const {
     title,
@@ -49,6 +52,8 @@ export function FileGroup(props: {
     mode,
     diffTheme,
     wrapLines,
+    scrollElement,
+    scrollContentElement,
   } = props;
   const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
@@ -56,6 +61,7 @@ export function FileGroup(props: {
   const openGroupMenu = () => touch?.openGroupMenu({ title, staged });
   const longPressHandlers = useLongPress(touch ? openGroupMenu : null);
   const [expanded, setExpanded] = useState(true);
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(() => new Set());
   const [revertAllOpen, setRevertAllOpen] = useState(false);
   const inlineDiffs = mode === "panel";
   const totalInsertions = files.reduce((s, f) => s + f.insertions, 0);
@@ -201,37 +207,53 @@ export function FileGroup(props: {
         </AlertDialog.Backdrop>
       )}
       {expanded && (
-        <div className={inlineDiffs ? "min-w-0 divide-y divide-border" : "space-y-px"}>
-          {inlineDiffs
-            ? sorted.map((file) => (
-                <StackedFileCard
-                  key={`${file.staged ? "s" : "u"}:${file.path}`}
-                  file={file}
-                  project={project}
-                  theme={diffTheme ?? "dark"}
-                  wrapLines={wrapLines ?? false}
-                  onRefresh={onRefresh}
-                  storeKey={storeKey}
-                  isWorktree={isWorktree}
-                  worktreePath={worktreePath}
-                  worktreeBranch={worktreeBranch}
-                />
-              ))
-            : sorted.map((file) => (
-                <FileRow
-                  key={`${file.staged ? "s" : "u"}:${file.path}`}
-                  path={file.path}
-                  project={project}
-                  isSelected={selectedFile === file.path}
-                  onSelect={() => onSelectFile(file.path, file.staged)}
-                  onRefresh={onRefresh}
-                  storeKey={storeKey}
-                  isWorktree={isWorktree}
-                  worktreePath={worktreePath}
-                  worktreeBranch={worktreeBranch}
-                />
-              ))}
-        </div>
+        <VirtualizedFileRows
+          items={sorted}
+          getKey={(file) => `${file.staged ? "s" : "u"}:${file.path}`}
+          scrollElement={scrollElement}
+          scrollContentElement={scrollContentElement}
+          estimateSize={touch ? 44 : 24}
+          gap={inlineDiffs ? 0 : 1}
+          divided={inlineDiffs}
+          persistentKeys={expandedFiles}
+          renderItem={(file) =>
+            inlineDiffs ? (
+              <StackedFileCard
+                file={file}
+                project={project}
+                theme={diffTheme ?? "dark"}
+                wrapLines={wrapLines ?? false}
+                onRefresh={onRefresh}
+                storeKey={storeKey}
+                isWorktree={isWorktree}
+                worktreePath={worktreePath}
+                worktreeBranch={worktreeBranch}
+                isExpanded={expandedFiles.has(`${file.staged ? "s" : "u"}:${file.path}`)}
+                onExpandedChange={(isExpanded) => {
+                  const key = `${file.staged ? "s" : "u"}:${file.path}`;
+                  setExpandedFiles((current) => {
+                    const next = new Set(current);
+                    if (isExpanded) next.add(key);
+                    else next.delete(key);
+                    return next;
+                  });
+                }}
+              />
+            ) : (
+              <FileRow
+                path={file.path}
+                project={project}
+                isSelected={selectedFile === file.path}
+                onSelect={() => onSelectFile(file.path, file.staged)}
+                onRefresh={onRefresh}
+                storeKey={storeKey}
+                isWorktree={isWorktree}
+                worktreePath={worktreePath}
+                worktreeBranch={worktreeBranch}
+              />
+            )
+          }
+        />
       )}
     </div>
   );

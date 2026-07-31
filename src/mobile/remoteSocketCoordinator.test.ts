@@ -265,6 +265,12 @@ describe("remoteSocketCoordinator", () => {
       type: "git-state-interests",
       interests: [{ kind: "project-pull-requests", projectId: "project-1" }],
     });
+
+    const sentCount = socket.sent.length;
+    harness.coordinator.setGitStateInterests([
+      { kind: "project-pull-requests", projectId: "project-1" },
+    ]);
+    expect(socket.sent).toHaveLength(sentCount);
   });
 
   it("advances to an authoritative snapshot sequence and ignores covered replay events", async () => {

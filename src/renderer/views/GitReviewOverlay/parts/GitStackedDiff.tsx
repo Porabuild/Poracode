@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DiffFile, DiffView, highlighter, setEnableFastDiffTemplate } from "@git-diff-view/react";
+import { DiffFile, highlighter, setEnableFastDiffTemplate } from "@git-diff-view/react";
 import "@git-diff-view/react/styles/diff-view.css";
 import { Button } from "@heroui/react";
 
@@ -30,6 +30,7 @@ import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { useGitReviewRowPadX } from "./GitReviewSidebar/gitReviewPadXContext";
 import { reconcileStagingStatus } from "./GitReviewSidebar/parts/reconcileStagingStatus";
+import { DiffAnnotationView } from "./DiffAnnotationView";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -66,6 +67,8 @@ export function StackedFileCard(props: {
   isWorktree?: boolean;
   worktreePath?: string | undefined;
   worktreeBranch?: string | undefined;
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
 }) {
   const {
     file,
@@ -77,10 +80,12 @@ export function StackedFileCard(props: {
     isWorktree,
     worktreePath,
     worktreeBranch,
+    isExpanded,
+    onExpandedChange,
   } = props;
   const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
-  const [expanded, setExpanded] = useState(false);
+  const [actionsVisible, setActionsVisible] = useState(false);
   const [revertOpen, setRevertOpen] = useState(false);
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -93,7 +98,7 @@ export function StackedFileCard(props: {
   const fetchKey = `${file.path}|${file.staged ? "s" : "u"}|${file.status}|${file.insertions}|${file.deletions}|${retryKey}`;
 
   useEffect(() => {
-    if (!expanded || tooLarge) return;
+    if (!isExpanded || tooLarge) return;
     if (loadedKeyRef.current === fetchKey) return;
     loadedKeyRef.current = fetchKey;
     let cancelled = false;
@@ -149,7 +154,7 @@ export function StackedFileCard(props: {
     return () => {
       cancelled = true;
     };
-  }, [expanded, tooLarge, fetchKey, file.path, file.staged, project.location, theme]);
+  }, [isExpanded, tooLarge, fetchKey, file.path, file.staged, project.location, theme]);
 
   function retryLoad() {
     loadedKeyRef.current = null;
@@ -237,8 +242,19 @@ export function StackedFileCard(props: {
           role="button"
           tabIndex={0}
           draggable
-          className={`sticky top-0 z-10 bg-[var(--content-background)] group flex cursor-pointer select-none items-center gap-1.5 py-1 text-xs transition-colors hover:bg-content2 ${rowPadX}`}
-          onClick={() => setExpanded((v) => !v)}
+          className={`${isExpanded ? "sticky top-0 z-10" : ""} bg-[var(--content-background)] group flex cursor-pointer select-none items-center gap-1.5 py-1 text-xs transition-colors hover:bg-content2 ${rowPadX}`}
+          onClick={() => onExpandedChange(!isExpanded)}
+          onPointerMove={() => setActionsVisible(true)}
+          onPointerLeave={(event) => {
+            if (!event.currentTarget.contains(document.activeElement)) setActionsVisible(false);
+          }}
+          onFocus={() => setActionsVisible(true)}
+          onBlur={(event) => {
+            const nextTarget = event.relatedTarget;
+            if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+              setActionsVisible(false);
+            }
+          }}
           onDragStart={(event) => {
             event.dataTransfer.setData(
               COMPOSER_FILE_DRAG_TYPE,
@@ -246,9 +262,9 @@ export function StackedFileCard(props: {
             );
             event.dataTransfer.effectAllowed = "copy";
           }}
-          onKeyDown={(e) => handleKeyActivate(e, () => setExpanded((v) => !v))}
+          onKeyDown={(e) => handleKeyActivate(e, () => onExpandedChange(!isExpanded))}
         >
-          {expanded ? (
+          {isExpanded ? (
             <ChevronDown className="size-3 shrink-0 text-muted" />
           ) : (
             <ChevronRight className="size-3 shrink-0 text-muted" />
@@ -256,6 +272,7 @@ export function StackedFileCard(props: {
           <FileIcon path={file.path} />
           <PathDisplay
             path={file.path}
+            measureOverflow={false}
             className="flex-1"
             basenameClassName="font-medium text-foreground"
             trailing={
@@ -269,63 +286,67 @@ export function StackedFileCard(props: {
           />
           <span className="relative w-14 shrink-0">
             {/* Stats — visible when not hovering */}
-            <span className="flex items-center justify-end text-[10px] leading-4 font-medium transition-opacity group-hover:opacity-0">
+            <span
+              className={`flex items-center justify-end text-[10px] leading-4 font-medium transition-opacity ${actionsVisible ? "opacity-0" : ""}`}
+            >
               {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
               {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
             </span>
             {/* Action buttons — visible on hover */}
-            <span className="absolute inset-0 flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-              <div
-                role="button"
-                tabIndex={0}
-                className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                title={t`Open in editor`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenInEditor();
-                }}
-                onKeyDown={(e) =>
-                  handleKeyActivate(e, handleOpenInEditor, { stopPropagation: true })
-                }
-              >
-                <FileEdit className="size-3" />
-              </div>
-              <div
-                role="button"
-                tabIndex={0}
-                className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                title={file.staged ? t`Unstage` : t`Stage`}
-                onClick={(event) => void handleStageToggle(event)}
-                onKeyDown={(e) =>
-                  handleKeyActivate(
-                    e,
-                    () => void handleStageToggle(e as unknown as React.MouseEvent),
-                    { stopPropagation: true },
-                  )
-                }
-              >
-                {file.staged ? <Minus className="size-3" /> : <Plus className="size-3" />}
-              </div>
-              {!file.staged && (
+            {actionsVisible && (
+              <span className="absolute inset-0 flex items-center justify-end gap-0.5">
                 <div
                   role="button"
                   tabIndex={0}
-                  className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                  title={t`Revert changes`}
-                  onClick={handleRevertClick}
+                  className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                  title={t`Open in editor`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenInEditor();
+                  }}
                   onKeyDown={(e) =>
-                    handleKeyActivate(e, () => setRevertOpen(true), { stopPropagation: true })
+                    handleKeyActivate(e, handleOpenInEditor, { stopPropagation: true })
                   }
                 >
-                  <Undo2 className="size-3" />
+                  <FileEdit className="size-3" />
                 </div>
-              )}
-            </span>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                  title={file.staged ? t`Unstage` : t`Stage`}
+                  onClick={(event) => void handleStageToggle(event)}
+                  onKeyDown={(e) =>
+                    handleKeyActivate(
+                      e,
+                      () => void handleStageToggle(e as unknown as React.MouseEvent),
+                      { stopPropagation: true },
+                    )
+                  }
+                >
+                  {file.staged ? <Minus className="size-3" /> : <Plus className="size-3" />}
+                </div>
+                {!file.staged && (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                    title={t`Revert changes`}
+                    onClick={handleRevertClick}
+                    onKeyDown={(e) =>
+                      handleKeyActivate(e, () => setRevertOpen(true), { stopPropagation: true })
+                    }
+                  >
+                    <Undo2 className="size-3" />
+                  </div>
+                )}
+              </span>
+            )}
           </span>
         </div>
 
         {/* Diff content */}
-        {expanded && (
+        {isExpanded && (
           <div className="border-t border-border">
             {loading && (
               <div className="flex items-center justify-center py-6">
@@ -360,8 +381,12 @@ export function StackedFileCard(props: {
             )}
             {diffFile && (
               <div className={isNewFile ? "diff-new-file" : undefined}>
-                <DiffView
+                <DiffAnnotationView
                   diffFile={diffFile}
+                  filePath={file.path}
+                  projectId={project.id}
+                  staged={file.staged}
+                  worktreePath={worktreePath}
                   diffViewMode={4}
                   diffViewTheme={theme}
                   diffViewFontSize={12}
@@ -375,18 +400,20 @@ export function StackedFileCard(props: {
         )}
       </div>
 
-      <ConfirmDialog
-        isOpen={revertOpen}
-        title={t`Revert changes`}
-        body={
-          <Trans>
-            Are you sure you want to revert <strong>{file.path}</strong>? This cannot be undone.
-          </Trans>
-        }
-        confirmLabel={t`Revert`}
-        onConfirm={() => void handleRevert()}
-        onClose={() => setRevertOpen(false)}
-      />
+      {revertOpen && (
+        <ConfirmDialog
+          isOpen
+          title={t`Revert changes`}
+          body={
+            <Trans>
+              Are you sure you want to revert <strong>{file.path}</strong>? This cannot be undone.
+            </Trans>
+          }
+          confirmLabel={t`Revert`}
+          onConfirm={() => void handleRevert()}
+          onClose={() => setRevertOpen(false)}
+        />
+      )}
     </>
   );
 }

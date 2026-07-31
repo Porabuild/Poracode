@@ -7,6 +7,7 @@ interface PathDisplayProps {
   className?: string;
   basenameClassName?: string;
   dirClassName?: string;
+  measureOverflow?: boolean;
   /** Inline content rendered between the basename and the muted directory,
    *  e.g. status badges that should follow the filename. */
   trailing?: ReactNode;
@@ -21,7 +22,11 @@ interface PathDisplayProps {
  * prepends a leading ellipsis (`…er/components/common`). The basename and any
  * `trailing` content are never truncated.
  */
-export function PathDisplay({
+export function PathDisplay({ measureOverflow = true, ...props }: PathDisplayProps) {
+  return measureOverflow ? <MeasuredPathDisplay {...props} /> : <CssPathDisplay {...props} />;
+}
+
+function MeasuredPathDisplay({
   path,
   className,
   basenameClassName = "text-foreground",
@@ -109,6 +114,37 @@ export function PathDisplay({
         <span className={`ml-1 min-w-0 shrink-0 ${dirClassName}`}>
           {dirDisplay.truncated && "…"}
           {dirDisplay.suffix}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function CssPathDisplay({
+  path,
+  className,
+  basenameClassName = "text-foreground",
+  dirClassName = "text-muted/60",
+  trailing,
+  title,
+}: PathDisplayProps) {
+  const { dirWithSlash, basename } = splitPath(path);
+  const dir = dirWithSlash.replace(/[\\/]$/, "");
+
+  return (
+    <span
+      className={`flex min-w-0 items-center whitespace-nowrap overflow-hidden ${className ?? ""}`}
+      title={title ?? path}
+    >
+      <span className="flex max-w-full shrink-0 items-center">
+        <span className={`min-w-0 truncate ${basenameClassName}`}>{basename}</span>
+        {trailing}
+      </span>
+      {dir && (
+        <span
+          className={`ml-1 min-w-0 overflow-hidden text-left text-ellipsis whitespace-nowrap [direction:rtl] ${dirClassName}`}
+        >
+          {dir}
         </span>
       )}
     </span>

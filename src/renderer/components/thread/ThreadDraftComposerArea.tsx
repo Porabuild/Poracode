@@ -45,6 +45,7 @@ import { useAttachments } from "@/renderer/components/composer/useAttachments";
 import type { VoiceInputHandle } from "@/renderer/components/composer/VoiceInputButton";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
   BranchSelector,
@@ -306,8 +307,13 @@ export function ThreadDraftComposerArea(props: {
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments();
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
+  const fallbackInboxKey = `draft:${props.project.id}`;
   const pendingPickedAttachments = useBrowserAttachInbox((s) =>
     inboxKey ? s.itemsByThread[inboxKey] : undefined,
+  );
+  const pendingComposerInputs = useComposerInputInbox((s) => s.itemsByComposer[inboxKey]);
+  const pendingFallbackComposerInputs = useComposerInputInbox((s) =>
+    inboxKey === fallbackInboxKey ? undefined : s.itemsByComposer[fallbackInboxKey],
   );
   const addPickedRef = useRef(attachments.addPicked);
   addPickedRef.current = attachments.addPicked;
@@ -820,6 +826,35 @@ export function ThreadDraftComposerArea(props: {
     mentionRef.current?.insertText(pendingComposerSeed.text);
     useAppStore.getState().clearComposerSeed(projectId);
   }, [pendingComposerSeed, projectId, skillCommands, skillCommandsResolved]);
+
+  useEffect(() => {
+    const composer = mentionRef.current;
+    if (
+      isSubmitting ||
+      !composer ||
+      (!pendingComposerInputs?.length && !pendingFallbackComposerInputs?.length)
+    ) {
+      return;
+    }
+    const keys = inboxKey === fallbackInboxKey ? [inboxKey] : [fallbackInboxKey, inboxKey];
+    let composerHasContent = composer.serializeSegments().length > 0;
+    for (const key of keys) {
+      const items = useComposerInputInbox.getState().drain(key);
+      for (const segments of items) {
+        const separator: PromptSegment[] = composerHasContent
+          ? [{ kind: "text", content: "\n\n" }]
+          : [];
+        composer.insertSegments([...separator, ...segments], { atEnd: true, focus: false });
+        composerHasContent = true;
+      }
+    }
+  }, [
+    fallbackInboxKey,
+    inboxKey,
+    isSubmitting,
+    pendingComposerInputs,
+    pendingFallbackComposerInputs,
+  ]);
 
   useEffect(() => {
     const pid = props.project.id;

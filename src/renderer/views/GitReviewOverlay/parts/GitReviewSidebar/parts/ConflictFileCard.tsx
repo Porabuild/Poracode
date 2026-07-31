@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, FileEdit, Plus } from "lucide-react";
-import { DiffFile, DiffView, highlighter } from "@git-diff-view/react";
+import { DiffFile, highlighter } from "@git-diff-view/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -16,6 +16,7 @@ import {
 } from "../../diffBuildClient";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { reconcileStagingStatus } from "./reconcileStagingStatus";
+import { DiffAnnotationView } from "../../DiffAnnotationView";
 
 const LARGE_DIFF_THRESHOLD = 500;
 const COMPOSER_FILE_DRAG_TYPE = "application/poracode-composer-file";
@@ -30,6 +31,8 @@ export function ConflictFileCard(props: {
   isWorktree: boolean;
   theme: "light" | "dark";
   wrapLines: boolean;
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
 }) {
   const {
     file,
@@ -41,10 +44,11 @@ export function ConflictFileCard(props: {
     isWorktree,
     theme,
     wrapLines,
+    isExpanded,
+    onExpandedChange,
   } = props;
   const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
-  const [expanded, setExpanded] = useState(false);
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null);
   const [loading, setLoading] = useState(false);
   const loadedKeyRef = useRef<string | null>(null);
@@ -53,7 +57,7 @@ export function ConflictFileCard(props: {
   const fetchKey = `${file.path}|${file.insertions}|${file.deletions}`;
 
   useEffect(() => {
-    if (!expanded || tooLarge) return;
+    if (!isExpanded || tooLarge) return;
     if (loadedKeyRef.current === fetchKey) return;
     loadedKeyRef.current = fetchKey;
     let cancelled = false;
@@ -106,7 +110,7 @@ export function ConflictFileCard(props: {
     return () => {
       cancelled = true;
     };
-  }, [expanded, tooLarge, fetchKey, file.path, project.location, theme]);
+  }, [isExpanded, tooLarge, fetchKey, file.path, project.location, theme]);
 
   function handleOpenInEditor(e: React.MouseEvent | React.KeyboardEvent) {
     e.stopPropagation();
@@ -130,8 +134,8 @@ export function ConflictFileCard(props: {
         role="button"
         tabIndex={0}
         draggable
-        className={`sticky top-0 z-10 group flex cursor-pointer select-none items-center gap-1.5 bg-[var(--content-background)] py-1 text-xs transition-colors hover:bg-content2 ${rowPadX}`}
-        onClick={() => setExpanded((v) => !v)}
+        className={`${isExpanded ? "sticky top-0 z-10" : ""} group flex cursor-pointer select-none items-center gap-1.5 bg-[var(--content-background)] py-1 text-xs transition-colors hover:bg-content2 ${rowPadX}`}
+        onClick={() => onExpandedChange(!isExpanded)}
         onDragStart={(event) => {
           event.dataTransfer.setData(
             COMPOSER_FILE_DRAG_TYPE,
@@ -139,9 +143,9 @@ export function ConflictFileCard(props: {
           );
           event.dataTransfer.effectAllowed = "copy";
         }}
-        onKeyDown={(e) => handleKeyActivate(e, () => setExpanded((v) => !v))}
+        onKeyDown={(e) => handleKeyActivate(e, () => onExpandedChange(!isExpanded))}
       >
-        {expanded ? (
+        {isExpanded ? (
           <ChevronDown className="size-3 shrink-0 text-muted" />
         ) : (
           <ChevronRight className="size-3 shrink-0 text-muted" />
@@ -149,6 +153,7 @@ export function ConflictFileCard(props: {
         <FileIcon path={file.path} />
         <PathDisplay
           path={file.path}
+          measureOverflow={false}
           className="flex-1"
           basenameClassName="font-medium text-foreground"
           trailing={<FileStatusBadge status={file.status} />}
@@ -187,7 +192,7 @@ export function ConflictFileCard(props: {
         </span>
       </div>
 
-      {expanded && (
+      {isExpanded && (
         <div className="border-t border-border">
           {loading && (
             <div className="flex items-center justify-center py-6">
@@ -213,8 +218,12 @@ export function ConflictFileCard(props: {
             </div>
           )}
           {diffFile && (
-            <DiffView
+            <DiffAnnotationView
               diffFile={diffFile}
+              filePath={file.path}
+              projectId={project.id}
+              staged={false}
+              worktreePath={worktreePath}
               diffViewMode={4}
               diffViewTheme={theme}
               diffViewFontSize={12}

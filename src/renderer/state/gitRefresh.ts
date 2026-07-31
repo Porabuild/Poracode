@@ -683,7 +683,7 @@ export async function refreshGitProject(
             await readBridge().gitFetch({
               projectLocation: project.location,
               remote: "origin",
-              prune: false,
+              prune: true,
             });
           } catch {
             // ignore — remote may be unreachable

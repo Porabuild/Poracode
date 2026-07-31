@@ -627,12 +627,13 @@ msgstr "~{money}{tokens}·{0}· 推定。"
 msgid "≈{0}% by reset"
 msgstr "≈{0}% (リセットまでに)"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "1 run"
-msgstr "1 件の実行"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 #~ msgid "1 project"
 #~ msgstr "1 件のプロジェクト"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "1 run"
+msgstr "1 件の実行"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
@@ -1827,6 +1828,7 @@ msgstr "ポートを読み込めません"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -2304,7 +2306,6 @@ msgstr "転送の操作メニューを閉じる"
 #~ msgid "Close GitHub Actions"
 #~ msgstr "GitHub Actions を閉じる"
 
-#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "ゴールを閉じる"
@@ -2516,6 +2517,7 @@ msgstr "コマンドが見つかりません。"
 msgid "Commands"
 msgstr "コマンド"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Comment"
@@ -3543,6 +3545,7 @@ msgstr "ワークフロー実行を削除"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete workflow run?"
 msgstr "ワークフロー実行を削除しますか？"
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete workspace"
 msgstr "ワークスペースを削除"
@@ -4382,6 +4385,7 @@ msgstr "失敗"
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "失敗したジョブを再実行キューに追加しました。"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Failed to clear goal"
 msgstr "目標をクリアできませんでした"
@@ -5613,6 +5617,7 @@ msgstr "起動中"
 msgid "Launching…"
 msgstr "起動中…"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
 msgstr "コメントを残す"
@@ -8087,7 +8092,7 @@ msgstr "プロファイル"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -8516,7 +8521,7 @@ msgstr "スキルを更新"
 msgid "Refresh workflow runs"
 msgstr "ワークフロー実行を更新"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflows"
 msgstr "ワークフローを更新"
 
@@ -9029,6 +9034,7 @@ msgstr "変更点をレビューする"
 msgid "Review Changes"
 msgstr "変更の確認"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Review comment"
 msgstr "レビューコメント"
@@ -11114,6 +11120,7 @@ msgstr "時刻"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Timed out"
 msgstr "タイムアウト"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Timed out waiting for Poracode Helper."
 msgstr "Poracode Helper の待機中にタイムアウトしました。"
@@ -11676,6 +11683,10 @@ msgstr "すべてのステージを解除する"
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FileHeader.tsx
 msgid "unstaged"
 msgstr "未ステージ"
+
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
+#~ msgid "Unstaged"
+#~ msgstr "未ステージ"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"

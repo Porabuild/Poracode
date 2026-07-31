@@ -628,12 +628,13 @@ msgstr "~{money}{tokens} · {0} · 예상"
 msgid "≈{0}% by reset"
 msgstr "재설정 시 ≈{0}%"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-msgid "1 run"
-msgstr "실행 1개"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 #~ msgid "1 project"
 #~ msgstr "프로젝트 1개"
+
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+msgid "1 run"
+msgstr "실행 1개"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "1 thread"
@@ -1828,6 +1829,7 @@ msgstr "포트를 불러올 수 없습니다"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -2305,7 +2307,6 @@ msgstr "전달 작업 닫기"
 #~ msgid "Close GitHub Actions"
 #~ msgstr "GitHub Actions 닫기"
 
-#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Close goal"
 msgstr "목표 닫기"
@@ -2517,6 +2518,7 @@ msgstr "명령을 찾을 수 없습니다."
 msgid "Commands"
 msgstr "명령"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Comment"
@@ -3544,6 +3546,7 @@ msgstr "워크플로 실행 삭제"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete workflow run?"
 msgstr "워크플로 실행을 삭제할까요?"
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete workspace"
 msgstr "작업 영역 삭제"
@@ -4383,6 +4386,7 @@ msgstr "실패"
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Failed jobs queued to run again."
 msgstr "실패한 작업을 다시 실행하도록 대기열에 추가했습니다."
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Failed to clear goal"
 msgstr "목표를 지우지 못했습니다"
@@ -5614,6 +5618,7 @@ msgstr "시작 중"
 msgid "Launching…"
 msgstr "실행 중…"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
 msgstr "댓글 남기기"
@@ -8089,7 +8094,7 @@ msgstr "프로필"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -8518,7 +8523,7 @@ msgstr "스킬 새로 고침"
 msgid "Refresh workflow runs"
 msgstr "워크플로 실행 새로고침"
 
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Refresh workflows"
 msgstr "워크플로 새로 고침"
 
@@ -9031,6 +9036,7 @@ msgstr "변경 사항 검토"
 msgid "Review Changes"
 msgstr "변경사항 검토"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Review comment"
 msgstr "리뷰 코멘트"
@@ -11116,6 +11122,7 @@ msgstr "시간"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Timed out"
 msgstr "시간 초과"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Timed out waiting for Poracode Helper."
 msgstr "Poracode Helper를 기다리는 동안 시간이 초과되었습니다."
@@ -11678,6 +11685,10 @@ msgstr "모두 언스테이징"
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FileHeader.tsx
 msgid "unstaged"
 msgstr "스테이징되지 않음"
+
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
+#~ msgid "Unstaged"
+#~ msgstr "스테이징되지 않음"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"

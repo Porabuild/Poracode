@@ -2309,6 +2309,41 @@ describe("Codex skills", () => {
     ]);
   });
 
+  it("keeps diff comments in the text sent alongside a structured skill", () => {
+    expect(
+      buildCodexTurnInput("$review-code", [
+        {
+          kind: "skill",
+          name: "review-code",
+          path: "/home/me/.agents/skills/review-code/SKILL.md",
+          invocation: "$review-code",
+          provider: "Codex",
+          scope: "global",
+        },
+        { kind: "text", content: "\n\n" },
+        {
+          kind: "diff_comment",
+          path: "src/app.ts",
+          lineNumber: 42,
+          side: "new",
+          staged: false,
+          body: "Handle the empty state.",
+        },
+      ]),
+    ).toEqual([
+      {
+        type: "skill",
+        name: "review-code",
+        path: "/home/me/.agents/skills/review-code/SKILL.md",
+      },
+      {
+        type: "text",
+        text: "Review comment on src/app.ts:+42 (unstaged):\nHandle the empty state.",
+        text_elements: [],
+      },
+    ]);
+  });
+
   it("keeps an MCP mention directive in the text when a skill segment is also present", () => {
     expect(
       buildCodexTurnInput("$review-code @Browser check the page", [

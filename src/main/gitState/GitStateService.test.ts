@@ -68,6 +68,7 @@ function details(conclusion = ""): PrDetails {
 
 function executor(): GitStateExecutor {
   return {
+    gitFetch: vi.fn<GitStateExecutor["gitFetch"]>(async () => undefined),
     gitProjectSnapshot: vi.fn<GitStateExecutor["gitProjectSnapshot"]>(async () => ({
       status: status(),
       branches: { current: "feature/unified", branches: [] },
@@ -223,5 +224,90 @@ describe("GitStateService", () => {
     expect(fakeExecutor.ghGetPrForBranch).toHaveBeenCalledTimes(2);
     expect(fakeExecutor.ghGetPrDetails).toHaveBeenCalledTimes(2);
     service.dispose();
+  });
+
+  it("does not arm a recurring timer until a remote client has interests", async () => {
+    vi.useFakeTimers();
+    const { service, executor: fakeExecutor } = createService({ pollIntervalMs: 1000 });
+
+    service.start();
+    expect(vi.getTimerCount()).toBe(0);
+
+    await service.refreshInterests(
+      [
+        {
+          kind: "target",
+          projectId: project.id,
+          worktreePath: "/repo/.poracode/worktrees/a",
+        },
+      ],
+      { fetchRemote: true },
+    );
+
+    expect(fakeExecutor.gitFetch).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+    service.dispose();
+  });
+
+  it("ignores repeated identical retained interests and stops polling after disconnect", async () => {
+    vi.useFakeTimers();
+    const { service, executor: fakeExecutor } = createService({ pollIntervalMs: 1000 });
+    const interests = [
+      {
+        kind: "target" as const,
+        projectId: project.id,
+        worktreePath: "/repo/.poracode/worktrees/a",
+      },
+    ];
+    service.start();
+    service.setInterests("remote-session", interests);
+    await vi.waitFor(() => {
+      expect(fakeExecutor.getGitStatus).toHaveBeenCalledTimes(1);
+    });
+
+    service.setInterests(
+      "remote-session",
+      interests.map((interest) => ({ ...interest })),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fakeExecutor.getGitStatus).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(1);
+
+    service.clearInterests("remote-session");
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fakeExecutor.getGitStatus).toHaveBeenCalledTimes(1);
+    service.dispose();
+  });
+
+  it("fetches and prunes once per project before refreshing several target sources", async () => {
+    const { service, executor: fakeExecutor } = createService({ remoteFetchIntervalMs: 0 });
+
+    await service.refreshInterests(
+      [
+        {
+          kind: "target",
+          projectId: project.id,
+          worktreePath: "/repo/.poracode/worktrees/a",
+        },
+        {
+          kind: "target",
+          projectId: project.id,
+          worktreePath: "/repo/.poracode/worktrees/b",
+        },
+      ],
+      { fetchRemote: true },
+    );
+
+    expect(fakeExecutor.gitFetch).toHaveBeenCalledTimes(1);
+    expect(fakeExecutor.gitFetch).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      remote: "origin",
+      prune: true,
+    });
+    expect(fakeExecutor.gitGetWorktreeSourceBranch).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(fakeExecutor.gitFetch).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(fakeExecutor.gitGetWorktreeSourceBranch).mock.invocationCallOrder[0]!,
+    );
   });
 });

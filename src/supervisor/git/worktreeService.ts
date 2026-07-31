@@ -148,6 +148,8 @@ export function parseWorktreeListOutput(
 }
 
 export class GitWorktreeService {
+  private readonly inFlightFetches = new Map<string, Promise<void>>();
+
   async listBranches(
     location: ProjectLocation,
     includeRemote: boolean,
@@ -158,6 +160,21 @@ export class GitWorktreeService {
   }
 
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
+    const key = JSON.stringify([location, remote, prune]);
+    const existing = this.inFlightFetches.get(key);
+    if (existing) return existing;
+    const pending = this.performFetch(location, remote, prune).finally(() => {
+      if (this.inFlightFetches.get(key) === pending) this.inFlightFetches.delete(key);
+    });
+    this.inFlightFetches.set(key, pending);
+    return pending;
+  }
+
+  private async performFetch(
+    location: ProjectLocation,
+    remote: string,
+    prune: boolean,
+  ): Promise<void> {
     let remotes: string;
     try {
       remotes = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });
@@ -808,7 +825,7 @@ export class GitWorktreeService {
     let sourceAhead = 0;
     if (sourceBranch) {
       try {
-        const sourceRef = await this.resolveFetchedSourceRef(location, sourceBranch);
+        const sourceRef = await this.resolveSourceRef(location, sourceBranch);
         const output = await execGit(location, [
           "rev-list",
           "--left-right",
@@ -881,6 +898,15 @@ export class GitWorktreeService {
 
   async resolveFetchedSourceRef(location: ProjectLocation, sourceBranch: string): Promise<string> {
     await this.fetch(location, "origin", true);
+    return this.resolveSourceRef(location, sourceBranch);
+  }
+
+  /**
+   * Resolve against already-fetched refs for passive status reads. Periodic
+   * project fetches keep these refs current; a status query must not start its
+   * own network operation for every historical worktree.
+   */
+  private async resolveSourceRef(location: ProjectLocation, sourceBranch: string): Promise<string> {
     if (sourceBranch.startsWith("origin/")) return sourceBranch;
 
     const remoteRef = `origin/${sourceBranch}`;

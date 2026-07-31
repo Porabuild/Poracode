@@ -108,6 +108,7 @@ export function createRemoteSocketCoordinator(
   let connectWatchdog = 0;
   let heartbeat = 0;
   let gitStateInterests: readonly GitStateInterest[] = [];
+  let gitStateInterestsKey = "[]";
   let threadItemInterests: readonly string[] = [];
 
   function publishThreadItemInterests(): void {
@@ -368,7 +369,10 @@ export function createRemoteSocketCoordinator(
       if (Number.isInteger(seq) && seq >= 0) lastSeenSeq = Math.max(lastSeenSeq, seq);
     },
     setGitStateInterests(interests) {
+      const nextKey = JSON.stringify(interests);
+      if (nextKey === gitStateInterestsKey) return;
       gitStateInterests = interests;
+      gitStateInterestsKey = nextKey;
       publishGitStateInterests();
     },
     setThreadItemInterests(threadIds) {

@@ -6,6 +6,10 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Thread } from "@/shared/contracts";
 import "@/renderer/components/providers/bootstrap";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  useComposerInputInbox,
+  worktreeComposerInboxKey,
+} from "@/renderer/state/composerInputInbox";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ThreadComposerSection } from "./ThreadComposerSection";
@@ -207,6 +211,7 @@ describe("ThreadComposerSection", () => {
       pendingComposerFocusThreadId: null,
       threadDraftContents: {},
     });
+    useComposerInputInbox.setState({ itemsByComposer: {} });
     bridgeMock.isRemoteSession.mockReturnValue(false);
     bridgeMock.clearPendingSteer.mockClear();
     bridgeMock.clearPendingSteer.mockResolvedValue(undefined);
@@ -383,6 +388,106 @@ describe("ThreadComposerSection", () => {
     });
     // The draft is consumed on restore so a later real send can't resurrect it.
     expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+  });
+
+  it("appends rapid queued inputs to an existing draft as separate blocks", async () => {
+    const { onSubmitInput } = renderComposer();
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("existing draft"));
+    fireEvent.input(input);
+
+    act(() => {
+      const inbox = useComposerInputInbox.getState();
+      inbox.enqueue(guiThread.id, [{ kind: "text", content: "first note" }]);
+      inbox.enqueue(guiThread.id, [{ kind: "text", content: "second note" }]);
+    });
+
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("existing draft\n\nfirst note\n\nsecond note", [
+        { kind: "text", content: "existing draft\n\nfirst note\n\nsecond note" },
+      ]);
+    });
+  });
+
+  it("leaves queued input untouched until its target thread is shown", async () => {
+    const { rerender } = renderComposer();
+
+    act(() => {
+      useComposerInputInbox
+        .getState()
+        .enqueue(secondGuiThread.id, [{ kind: "text", content: "second thread only" }]);
+    });
+
+    expect(screen.getByRole("textbox")).not.toHaveTextContent("second thread only");
+    expect(useComposerInputInbox.getState().itemsByComposer[secondGuiThread.id]).toBeDefined();
+
+    rerender(
+      composerElement({
+        thread: secondGuiThread,
+        onSubmitInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveTextContent("second thread only");
+    });
+    expect(useComposerInputInbox.getState().itemsByComposer[secondGuiThread.id]).toBeUndefined();
+  });
+
+  it("drains a worktree-scoped note only when a matching thread opens", async () => {
+    const worktreeThread = {
+      ...guiThread,
+      id: "thread-worktree",
+      worktreePath: "C:\\repo\\review",
+    };
+    const inboxKey = worktreeComposerInboxKey(
+      worktreeThread.projectId,
+      worktreeThread.worktreePath,
+    );
+    useComposerInputInbox
+      .getState()
+      .enqueue(inboxKey, [{ kind: "text", content: "worktree note" }]);
+
+    renderComposer({ thread: worktreeThread });
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveTextContent("worktree note");
+    });
+    expect(useComposerInputInbox.getState().itemsByComposer[inboxKey]).toBeUndefined();
+  });
+
+  it("keeps queued input until an in-flight submit finishes", async () => {
+    let finishSubmit!: () => void;
+    const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSubmit = resolve;
+        }),
+    );
+    renderComposer({ onSubmitInput });
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("send this"));
+    fireEvent.input(input);
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalled();
+    });
+
+    act(() => {
+      useComposerInputInbox
+        .getState()
+        .enqueue(guiThread.id, [{ kind: "text", content: "next prompt note" }]);
+    });
+
+    expect(useComposerInputInbox.getState().itemsByComposer[guiThread.id]).toBeDefined();
+    expect(input).not.toHaveTextContent("next prompt note");
+
+    await act(async () => finishSubmit());
+    await waitFor(() => {
+      expect(input).toHaveTextContent("next prompt note");
+    });
+    expect(useComposerInputInbox.getState().itemsByComposer[guiThread.id]).toBeUndefined();
   });
 
   it("switches drafts without remounting the primary GUI composer shell", async () => {

@@ -1180,15 +1180,8 @@ if (!hasSingleInstanceLock) {
       scheduleService.start();
       prWatchService.start();
       gitStateService.start();
-      gitStateService.setInterests(
-        "desktop-renderer",
-        dbGetThreads().map((thread) => ({
-          kind: "target",
-          projectId: thread.projectId,
-          ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-          includePrDetails: true,
-        })),
-      );
+      // The remote controller performs one bounded warm-up when enabled.
+      // Recurring Git refreshes remain demand-driven by connected clients.
 
       void controller.startIfEnabled();
 

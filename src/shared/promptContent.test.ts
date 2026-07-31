@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPromptContentBlocks,
+  formatDiffCommentPrompt,
   isPdfPath,
   resolveLocalFileUrlPath,
   toFileUrl,
@@ -68,6 +69,22 @@ describe("buildPromptContentBlocks", () => {
         invocation: "Use the review-code skill.",
       },
     ]);
+  });
+
+  it("preserves diff comments for badge rendering and formats provider text", () => {
+    const comment = {
+      kind: "diff_comment" as const,
+      path: "src/app.ts",
+      lineNumber: 42,
+      side: "new" as const,
+      staged: false,
+      body: "Handle the empty state.",
+    };
+
+    expect(buildPromptContentBlocks("", [comment])).toEqual([comment]);
+    expect(formatDiffCommentPrompt(comment)).toBe(
+      "Review comment on src/app.ts:+42 (unstaged):\nHandle the empty state.",
+    );
   });
 
   it("preserves MCP mention segments as mcp blocks for badge rendering", () => {
