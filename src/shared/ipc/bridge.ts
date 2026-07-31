@@ -15,6 +15,7 @@ import {
 import type {
   BrowserEvent,
   PrWatchMergedEvent,
+  PrWatchStatusEvent,
   ProjectStateChangedEvent,
   SupervisorEvent,
   ThreadOpenRequestedEvent,
@@ -66,6 +67,8 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onProjectStateChanged(listener: (event: ProjectStateChangedEvent) => void): () => void;
   onGitStateChanged(listener: (patch: GitStatePatch) => void): () => void;
   onPrWatchMerged(listener: (event: PrWatchMergedEvent) => void): () => void;
+  /** Live PR state observed by the PR-watch loop, so watched PRs stay fresh. */
+  onPrWatchStatus(listener: (event: PrWatchStatusEvent) => void): () => void;
   onThreadOpenRequested(listener: (event: ThreadOpenRequestedEvent) => void): () => void;
   submitQuickComposer(submission: QuickComposerSubmission): Promise<void>;
   dismissQuickComposer(): Promise<void>;
@@ -131,6 +134,7 @@ export const IPC_EVENT_CHANNELS = {
   projectStateChanged: createChannel("projectStateChanged"),
   gitStateChanged: createChannel("gitStateChanged"),
   prWatchMerged: createChannel("prWatchMerged"),
+  prWatchStatus: createChannel("prWatchStatus"),
   threadOpenRequested: createChannel("threadOpenRequested"),
   quickComposerSubmit: createChannel("quickComposerSubmit"),
   quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),

@@ -33,6 +33,12 @@ export interface PrWatchServiceOptions {
   getMergeMethod(): PrMergeMethod;
   mergePr(project: Project, prNumber: number, method: PrMergeMethod): Promise<void>;
   onPrMerged?(watch: PrWatch): void;
+  /**
+   * Live PR state seen on a poll. Every tick already refetches the PR and its
+   * details, so handing them out lets the UI's cached snapshot follow a watched
+   * PR — including the merge this service performs itself — for free.
+   */
+  onPrObserved?(watch: PrWatch, pr: PrData, details: PrDetails): void;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
   isThreadActive(threadId: string): boolean;
   worktreeExists(path: string): boolean;
@@ -162,6 +168,10 @@ export class PrWatchService {
       ]);
       const current = this.options.store.get(watch.projectId, watch.prNumber);
       if (!current) return;
+      // Publish before the terminal-state bail-out below: a PR merged or closed
+      // outside Poracode drops its watch here, and that observation is the only
+      // notice the UI gets that its cached "open" snapshot went stale.
+      if (pr) this.options.onPrObserved?.(current, pr, details);
       if (!pr || pr.state === "merged" || pr.state === "closed") {
         this.options.store.delete(current.projectId, current.prNumber);
         return;
@@ -218,6 +228,11 @@ export class PrWatchService {
       if (current.autoMerge && isReadyForAutoMerge(pr, details.checks)) {
         try {
           await this.options.mergePr(project, current.prNumber, this.options.getMergeMethod());
+          // The watch is about to be dropped, so this is the last chance to tell
+          // the UI the PR is no longer open. `pr` was fetched moments ago and the
+          // merge just succeeded, so patching its state avoids a refetch whose
+          // head branch may already be deleted.
+          this.options.onPrObserved?.(current, { ...pr, state: "merged" }, details);
           this.options.onPrMerged?.(current);
           this.options.store.delete(current.projectId, current.prNumber);
         } catch (error) {

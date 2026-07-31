@@ -77,6 +77,7 @@ import {
   IPC_WINDOW_CHANNELS,
   isAgentStatusSupervisorEvent,
   quickComposerSubmissionSchema,
+  type PrWatchStatusEvent,
   type QuickComposerSubmission,
   type SupervisorEvent,
   type UpdateStatus,
@@ -874,6 +875,20 @@ if (!hasSingleInstanceLock) {
             prNumber: mergedWatch.prNumber,
             ...(mergedWatch.worktreePath ? { worktreePath: mergedWatch.worktreePath } : {}),
           }),
+        onPrObserved: (observedWatch, pr, details) => {
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchStatus, {
+            projectId: observedWatch.projectId,
+            prNumber: observedWatch.prNumber,
+            headBranch: observedWatch.headBranch,
+            ...(observedWatch.worktreePath ? { worktreePath: observedWatch.worktreePath } : {}),
+            pr,
+            details,
+          } satisfies PrWatchStatusEvent);
+          // Paired remote clients read PR state from the git-state snapshot, not
+          // this IPC channel, so hand the same observation to the service that
+          // publishes their patches.
+          gitStateService?.applyObservedPullRequest(observedWatch, pr, details);
+        },
         createThread: sharedAppControlsDeps.createThread,
         isThreadActive: (threadId) => {
           const status = dbGetThread(threadId)?.status;

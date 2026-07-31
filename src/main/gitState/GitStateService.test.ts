@@ -310,4 +310,67 @@ describe("GitStateService", () => {
       vi.mocked(fakeExecutor.gitGetWorktreeSourceBranch).mock.invocationCallOrder[0]!,
     );
   });
+
+  it("publishes an externally observed PR without spawning gh", async () => {
+    const { service, executor: fakeExecutor, patches } = createService();
+    const worktree = "/repo/.poracode/worktrees/a";
+    await service.refreshTarget({
+      projectId: project.id,
+      worktreePath: worktree,
+      branch: "feature/unified",
+    });
+    patches.mockClear();
+    vi.mocked(fakeExecutor.ghGetPrForBranch).mockClear();
+
+    const merged = pr({ state: "merged", checksStatus: "SUCCESS" });
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      merged,
+      details("SUCCESS"),
+    );
+
+    const prKey = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    const snapshot = service.getSnapshot();
+    expect(snapshot.pullRequests[prKey]?.data.state).toBe("merged");
+    expect(snapshot.pullRequests[prKey]?.details?.checks[0]?.conclusion).toBe("SUCCESS");
+    expect(
+      snapshot.pullRequestKeyByBranch[
+        pullRequestBranchKey({ hostId: "host-1", projectId: project.id }, "feature/unified")
+      ],
+    ).toBe(prKey);
+    expect(
+      snapshot.targets[
+        gitTargetKey({ hostId: "host-1", projectId: project.id, worktreePath: worktree })
+      ]?.pullRequestKey,
+    ).toBe(prKey);
+    expect(patches).toHaveBeenCalledOnce();
+    expect(fakeExecutor.ghGetPrForBranch).not.toHaveBeenCalled();
+  });
+
+  it("leaves the branch alias pointing at a newer PR for the same branch", async () => {
+    const { service } = createService();
+    await service.refreshTarget({
+      projectId: project.id,
+      worktreePath: "/repo/.poracode/worktrees/a",
+      branch: "feature/unified",
+    });
+    const branchKey = pullRequestBranchKey(
+      { hostId: "host-1", projectId: project.id },
+      "feature/unified",
+    );
+    const newerKey = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      pr({ number: 7, state: "merged" }),
+    );
+
+    const snapshot = service.getSnapshot();
+    expect(snapshot.pullRequestKeyByBranch[branchKey]).toBe(newerKey);
+    expect(
+      snapshot.pullRequests[
+        pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 7 })
+      ]?.data.state,
+    ).toBe("merged");
+  });
 });
