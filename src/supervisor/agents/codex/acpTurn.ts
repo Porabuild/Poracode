@@ -1,4 +1,5 @@
 import type { PromptSegment, ThreadConfig } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import type { CodexClientRequestMap } from "./protocol";
 
 type TurnStartParams = CodexClientRequestMap["turn/start"]["params"];
@@ -70,11 +71,9 @@ export function buildCodexTurnInput(
   const text = hasSkillSegment
     ? (segments ?? [])
         .flatMap((segment) =>
-          segment.kind === "text"
-            ? [segment.content]
-            : segment.kind === "mcp"
-              ? [`@${segment.name}`]
-              : [],
+          segment.kind === "text" || segment.kind === "diff_comment" || segment.kind === "mcp"
+            ? [inlinePromptSegmentText(segment)]
+            : [],
         )
         .join("")
         .trim()

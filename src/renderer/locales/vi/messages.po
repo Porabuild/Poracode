@@ -1789,6 +1789,7 @@ msgstr "Không thể tải danh sách cổng"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -2468,6 +2469,7 @@ msgstr "Không tìm thấy lệnh."
 msgid "Commands"
 msgstr "Lệnh"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Comment"
@@ -5508,6 +5510,7 @@ msgstr "Đang khởi chạy"
 msgid "Launching…"
 msgstr "Đang khởi chạy…"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
 msgstr "Để lại bình luận"
@@ -8826,6 +8829,7 @@ msgstr "Xem xét thay đổi"
 msgid "Review Changes"
 msgstr "Xem lại các thay đổi"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Review comment"
 msgstr "Xem lại nhận xét"
@@ -11404,6 +11408,10 @@ msgstr "Bỏ khỏi staging tất cả"
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FileHeader.tsx
 msgid "unstaged"
 msgstr "chưa đưa vào staging"
+
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
+#~ msgid "Unstaged"
+#~ msgstr "Chưa đưa vào staging"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"

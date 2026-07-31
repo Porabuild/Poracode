@@ -106,6 +106,30 @@ describe("buildOpenCodePromptParts", () => {
       { type: "text", text: "@/repo/artifact.unknown" },
     ]);
   });
+
+  it("serializes diff comments as text instead of file parts", () => {
+    expect(
+      buildOpenCodePromptParts(
+        "",
+        [
+          {
+            kind: "diff_comment",
+            path: "src/app.ts",
+            lineNumber: 42,
+            side: "new",
+            staged: false,
+            body: "Handle the empty state.",
+          },
+        ],
+        posixProject,
+      ),
+    ).toEqual([
+      {
+        type: "text",
+        text: "Review comment on src/app.ts:+42 (unstaged):\nHandle the empty state.",
+      },
+    ]);
+  });
 });
 
 describe("OpenCode prompt file fallback", () => {

@@ -95,6 +95,14 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("file"), path: z.string() }),
   z.object({ kind: z.literal("attachment"), path: z.string(), mimeType: z.string().optional() }),
   z.object({
+    kind: z.literal("diff_comment"),
+    path: z.string().min(1),
+    lineNumber: z.number().int().positive(),
+    side: z.enum(["old", "new"]),
+    staged: z.boolean(),
+    body: z.string().min(1),
+  }),
+  z.object({
     kind: z.literal("skill"),
     name: z.string().min(1),
     path: z.string().min(1),

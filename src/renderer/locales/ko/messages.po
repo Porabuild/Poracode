@@ -1789,6 +1789,7 @@ msgstr "포트를 불러올 수 없습니다"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -2468,6 +2469,7 @@ msgstr "명령을 찾을 수 없습니다."
 msgid "Commands"
 msgstr "명령"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Comment"
@@ -5508,6 +5510,7 @@ msgstr "시작 중"
 msgid "Launching…"
 msgstr "실행 중…"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
 msgstr "댓글 남기기"
@@ -8826,6 +8829,7 @@ msgstr "변경 사항 검토"
 msgid "Review Changes"
 msgstr "변경사항 검토"
 
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Review comment"
 msgstr "리뷰 코멘트"
@@ -11404,6 +11408,10 @@ msgstr "모두 언스테이징"
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FileHeader.tsx
 msgid "unstaged"
 msgstr "스테이징되지 않음"
+
+#: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
+#~ msgid "Unstaged"
+#~ msgstr "스테이징되지 않음"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"

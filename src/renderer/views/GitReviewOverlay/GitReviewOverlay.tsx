@@ -346,6 +346,7 @@ export function GitReviewOverlay(props: {
           diffMode={diffMode}
           diffFilter={diffFilter}
           refreshKey={refreshKey}
+          worktreePath={worktreePath}
         />
       }
     />

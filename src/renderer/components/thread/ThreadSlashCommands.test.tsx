@@ -11,6 +11,7 @@ import type {
 } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDraftComposerArea } from "./ThreadDraftComposerArea";
 import type { ComposerControl } from "./ThreadComposer";
@@ -147,12 +148,14 @@ async function renderDraftComposer(
   config: Thread["config"] = {
     model: selectedAgent.capabilities.models[0]?.id ?? "gemini-2.5-pro",
   },
+  paneId?: string,
 ) {
   await act(async () => {
     render(
       <AppProvider>
         <ThreadDraftComposerArea
           project={draftProject}
+          {...(paneId ? { paneId } : {})}
           selectedAgent={selectedAgent}
           controls={controls}
           config={config}
@@ -197,6 +200,7 @@ describe("ThreadSlashCommands", () => {
     vi.unstubAllGlobals();
     useAppStore.getState().clearDraftContent(draftProject.id);
     useAppStore.setState({ draftContentDiscardRequests: {} });
+    useComposerInputInbox.setState({ itemsByComposer: {} });
     useSharedSettings.setState({ collapseTerminalComposer: false });
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
@@ -977,6 +981,58 @@ describe("ThreadSlashCommands", () => {
     expect(useAppStore.getState().draftContents[draftProject.id]).toMatchObject({
       segments: [{ kind: "text", content: "ordinary draft" }],
     });
+  });
+
+  it("appends queued input after restored draft content", async () => {
+    useAppStore.setState({
+      draftContents: {
+        [draftProject.id]: {
+          segments: [{ kind: "text", content: "existing draft" }],
+          attachments: [],
+        },
+      },
+    });
+    useComposerInputInbox
+      .getState()
+      .enqueue(`draft:${draftProject.id}`, [{ kind: "text", content: "review note" }]);
+
+    const onStart = await renderDraftComposer(makeAgentStatus(), vi.fn(), "gui");
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "existing draft\n\nreview note",
+        segments: [{ kind: "text", content: "existing draft\n\nreview note" }],
+      }),
+    );
+  });
+
+  it("consumes the project fallback inbox from a unique draft pane", async () => {
+    useComposerInputInbox
+      .getState()
+      .enqueue(`draft:${draftProject.id}`, [{ kind: "text", content: "fallback note" }]);
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    await renderDraftComposer(
+      makeAgentStatus(),
+      onStart,
+      "gui",
+      vi.fn(),
+      [],
+      { model: "gemini-2.5-pro" },
+      "unique-draft-pane",
+    );
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "fallback note",
+        segments: [{ kind: "text", content: "fallback note" }],
+      }),
+    );
+    expect(
+      useComposerInputInbox.getState().itemsByComposer[`draft:${draftProject.id}`],
+    ).toBeUndefined();
   });
 
   it("discards draft composer content when project switching requests it", () => {

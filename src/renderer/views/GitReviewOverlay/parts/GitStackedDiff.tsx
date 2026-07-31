@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DiffFile, DiffView, highlighter, setEnableFastDiffTemplate } from "@git-diff-view/react";
+import { DiffFile, highlighter, setEnableFastDiffTemplate } from "@git-diff-view/react";
 import "@git-diff-view/react/styles/diff-view.css";
 import { Button } from "@heroui/react";
 
@@ -30,6 +30,7 @@ import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { useGitReviewRowPadX } from "./GitReviewSidebar/gitReviewPadXContext";
 import { reconcileStagingStatus } from "./GitReviewSidebar/parts/reconcileStagingStatus";
+import { DiffAnnotationView } from "./DiffAnnotationView";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -380,8 +381,12 @@ export function StackedFileCard(props: {
             )}
             {diffFile && (
               <div className={isNewFile ? "diff-new-file" : undefined}>
-                <DiffView
+                <DiffAnnotationView
                   diffFile={diffFile}
+                  filePath={file.path}
+                  projectId={project.id}
+                  staged={file.staged}
+                  worktreePath={worktreePath}
                   diffViewMode={4}
                   diffViewTheme={theme}
                   diffViewFontSize={12}

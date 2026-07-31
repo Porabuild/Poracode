@@ -270,6 +270,89 @@ describe("Enter handling", () => {
 });
 
 describe("structured segment insertion", () => {
+  it("renders and restores multiple diff-comment badges", () => {
+    const ref = createRef<MentionInputHandle>();
+    const comments: PromptSegment[] = [
+      {
+        kind: "diff_comment",
+        path: "src/a.ts",
+        lineNumber: 12,
+        side: "new",
+        staged: false,
+        body: "Keep this guard.",
+      },
+      { kind: "text", content: "\n\n" },
+      {
+        kind: "diff_comment",
+        path: "src/b.ts",
+        lineNumber: 7,
+        side: "old",
+        staged: true,
+        body: "Why was this removed?",
+      },
+    ];
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+
+    act(() => ref.current?.restoreFromSegments(comments));
+
+    expect(screen.getByRole("textbox").querySelectorAll("[data-diff-comment-path]")).toHaveLength(
+      2,
+    );
+    expect(ref.current?.serializeSegments()).toEqual(comments);
+  });
+
+  it("deletes a diff-comment badge with Backspace", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+
+    act(() => {
+      ref.current?.restoreFromSegments([
+        {
+          kind: "diff_comment",
+          path: "src/a.ts",
+          lineNumber: 3,
+          side: "new",
+          staged: false,
+          body: "Need a check",
+        },
+      ]);
+    });
+
+    const editor = screen.getByRole("textbox");
+    const chip = editor.querySelector("[data-diff-comment-path]");
+    expect(chip).not.toBeNull();
+    const selection = window.getSelection();
+    expect(selection).not.toBeNull();
+    const range = document.createRange();
+    const safeSelection = selection!;
+    const safeChip = chip!;
+    range.setStartAfter(safeChip);
+    range.collapse(true);
+    safeSelection.removeAllRanges();
+    safeSelection.addRange(range);
+
+    fireEvent.keyDown(editor, { key: "Backspace" });
+
+    expect(editor.querySelector("[data-diff-comment-path]")).toBeNull();
+    expect(ref.current?.serializeSegments()).toEqual([]);
+  });
+
   it("inserts a seeded skill directly without requiring a caret trigger", () => {
     const ref = createRef<MentionInputHandle>();
     render(
@@ -310,5 +393,32 @@ describe("structured segment insertion", () => {
       },
       { kind: "text", content: " Create a managed skill." },
     ]);
+  });
+
+  it("can append segments without stealing focus", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    outside.focus();
+
+    act(() => {
+      ref.current?.insertSegments([{ kind: "text", content: "review note" }], {
+        atEnd: true,
+        focus: false,
+      });
+    });
+
+    expect(ref.current?.serialize()).toBe("review note");
+    expect(outside).toHaveFocus();
+    outside.remove();
   });
 });
