@@ -18,6 +18,7 @@ export interface GitStateSupervisorCaller {
 
 export function createGitStateExecutor(call: GitStateSupervisorCaller): GitStateExecutor {
   return {
+    gitFetch: (payload) => call("gitFetch", payload),
     gitProjectSnapshot: (payload) => call("gitProjectSnapshot", payload),
     getGitStatus: (payload) => call("getGitStatus", payload),
     gitWorktreeStatusBatch: (payload) => call("gitWorktreeStatusBatch", payload),

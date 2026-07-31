@@ -125,7 +125,7 @@ export function GitReviewPanel(props: {
       if (statusKey && effectiveLocation !== project.location) {
         const prRefresh = refreshWorktreePrData();
         await readBridge()
-          .gitFetch({ projectLocation: effectiveLocation, remote: "origin", prune: false })
+          .gitFetch({ projectLocation: effectiveLocation, remote: "origin", prune: true })
           .catch(() => undefined);
         const status = await readBridge()
           .getGitStatus({ projectLocation: effectiveLocation })

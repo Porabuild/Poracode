@@ -1180,9 +1180,8 @@ if (!hasSingleInstanceLock) {
       scheduleService.start();
       prWatchService.start();
       gitStateService.start();
-      // Remote clients register their visible Git targets when they connect.
-      // Prewarming every persisted desktop thread here turns launch and each
-      // host poll into an unbounded sweep of historical worktrees.
+      // The remote controller performs one bounded warm-up when enabled.
+      // Recurring Git refreshes remain demand-driven by connected clients.
 
       void controller.startIfEnabled();
 

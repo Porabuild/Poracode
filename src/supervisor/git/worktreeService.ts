@@ -148,6 +148,8 @@ export function parseWorktreeListOutput(
 }
 
 export class GitWorktreeService {
+  private readonly inFlightFetches = new Map<string, Promise<void>>();
+
   async listBranches(
     location: ProjectLocation,
     includeRemote: boolean,
@@ -158,6 +160,21 @@ export class GitWorktreeService {
   }
 
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
+    const key = JSON.stringify([location, remote, prune]);
+    const existing = this.inFlightFetches.get(key);
+    if (existing) return existing;
+    const pending = this.performFetch(location, remote, prune).finally(() => {
+      if (this.inFlightFetches.get(key) === pending) this.inFlightFetches.delete(key);
+    });
+    this.inFlightFetches.set(key, pending);
+    return pending;
+  }
+
+  private async performFetch(
+    location: ProjectLocation,
+    remote: string,
+    prune: boolean,
+  ): Promise<void> {
     let remotes: string;
     try {
       remotes = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });

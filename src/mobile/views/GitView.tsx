@@ -175,7 +175,7 @@ export function GitView(props: {
         .gitFetch({
           projectLocation: effectiveLocation,
           remote: "origin",
-          prune: false,
+          prune: true,
         })
         .catch((error: unknown) => {
           toast.danger(friendlyError(error));

@@ -13,6 +13,7 @@ import {
 } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import type { SshConnectionConfig } from "@/shared/ssh";
 import {
@@ -363,17 +364,8 @@ export function useRemoteDesktop() {
   ]);
 
   useEffect(() => {
-    const coordinator = socketCoordinatorRef.current;
-    if (!coordinator || coordinator.desktopId !== activeDesktopId) return;
-    coordinator.coordinator.setGitStateInterests(
-      threads.map((thread) => ({
-        kind: "target" as const,
-        projectId: thread.projectId,
-        ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-        includePrDetails: true,
-      })),
-    );
-  }, [activeDesktopId, threads]);
+    publishRemoteGitStateInterests(selectedThread?.id ?? null, threads);
+  }, [activeDesktopId, selectedThread?.id, threads]);
 
   // Live transcript content is only needed for the thread on screen; every other
   // thread still delivers lifecycle events (status, permission prompts), so
@@ -392,6 +384,18 @@ export function useRemoteDesktop() {
     const coordinator = socketCoordinatorRef.current;
     if (!coordinator || coordinator.desktopId !== activeDesktopIdRef.current) return;
     coordinator.coordinator.setThreadItemInterests(threadId ? [threadId] : []);
+  }
+
+  /** Keeps retained host polling bounded to what this PWA is actively using. */
+  function publishRemoteGitStateInterests(
+    threadId: string | null,
+    sourceThreads: readonly Thread[] = useAppStore.getState().threads,
+  ): void {
+    const coordinator = socketCoordinatorRef.current;
+    if (!coordinator || coordinator.desktopId !== activeDesktopIdRef.current) return;
+    coordinator.coordinator.setGitStateInterests(
+      buildRemoteGitTargetInterests(sourceThreads, { selectedThreadId: threadId }),
+    );
   }
 
   async function reloadDesktops(nextActive?: string) {
@@ -687,6 +691,7 @@ export function useRemoteDesktop() {
     // keeps the window closed: the host learns what we want before we ask what
     // we missed.
     publishSelectedThreadItemInterest(thread.id);
+    publishRemoteGitStateInterests(thread.id);
     setThreadSnapshot((current) => (current?.thread.id === thread.id ? current : null));
     const desktop = activeDesktop;
     if (!desktop) return;

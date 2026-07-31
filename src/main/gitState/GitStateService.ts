@@ -28,8 +28,14 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { buildWorktreeLocation } from "@/shared/worktree";
 
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
+const DEFAULT_REMOTE_FETCH_INTERVAL_MS = 3 * 60_000;
 
 export interface GitStateExecutor {
+  gitFetch(input: {
+    projectLocation: ProjectLocation;
+    remote: string;
+    prune: boolean;
+  }): Promise<void>;
   gitProjectSnapshot(input: {
     projectLocation: ProjectLocation;
     includeGhCheck: boolean;
@@ -76,31 +82,32 @@ export interface GitStateServiceOptions {
   readonly onPatch?: ((patch: GitStatePatch) => void) | undefined;
   readonly now?: (() => Date) | undefined;
   readonly pollIntervalMs?: number | undefined;
+  readonly remoteFetchIntervalMs?: number | undefined;
 }
 
 export class GitStateService {
   private snapshot: GitStateSnapshot = emptyGitStateSnapshot();
   private readonly inFlight = new Map<string, Promise<unknown>>();
   private readonly interestsByOwner = new Map<string, readonly GitStateInterest[]>();
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly lastRemoteFetchAt = new Map<string, number>();
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private started = false;
   private disposed = false;
 
   constructor(private readonly options: GitStateServiceOptions) {}
 
   start(): void {
-    if (this.pollTimer || this.disposed) return;
-    this.pollTimer = setInterval(
-      () => void this.refreshInterests(),
-      this.options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
-    );
-    this.pollTimer.unref?.();
+    if (this.started || this.disposed) return;
+    this.started = true;
+    this.schedulePollIfNeeded();
   }
 
   dispose(): void {
     this.disposed = true;
-    if (this.pollTimer) clearInterval(this.pollTimer);
+    if (this.pollTimer) clearTimeout(this.pollTimer);
     this.pollTimer = null;
     this.interestsByOwner.clear();
+    this.lastRemoteFetchAt.clear();
   }
 
   getSnapshot(): GitStateSnapshot {
@@ -109,15 +116,22 @@ export class GitStateService {
 
   setInterests(ownerId: string, interests: readonly GitStateInterest[]): void {
     if (interests.length === 0) {
-      this.interestsByOwner.delete(ownerId);
+      this.clearInterests(ownerId);
       return;
     }
+    const previous = this.interestsByOwner.get(ownerId);
+    if (previous && this.interestsEqual(previous, interests)) return;
     this.interestsByOwner.set(ownerId, interests);
-    void this.refreshInterests(interests);
+    this.schedulePollIfNeeded();
+    void this.refreshInterests(interests, { fetchRemote: true });
   }
 
   clearInterests(ownerId: string): void {
     this.interestsByOwner.delete(ownerId);
+    if (this.interestsByOwner.size === 0 && this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   observeSupervisorEvent(event: SupervisorEvent): void {
@@ -371,11 +385,17 @@ export class GitStateService {
     });
   }
 
-  async refreshInterests(explicitInterests?: readonly GitStateInterest[]): Promise<void> {
+  async refreshInterests(
+    explicitInterests?: readonly GitStateInterest[],
+    options: { readonly fetchRemote?: boolean } = {},
+  ): Promise<void> {
     if (this.disposed) return;
     const interests =
       explicitInterests ??
       [...this.interestsByOwner.values()].flatMap((ownerInterests) => ownerInterests);
+    if (options.fetchRemote) {
+      await this.refreshRemoteRefs(interests);
+    }
     const tasks = new Map<string, Promise<void>>();
     for (const interest of interests) {
       if (interest.kind === "target") {
@@ -401,6 +421,44 @@ export class GitStateService {
       tasks.set(key, task);
     }
     await Promise.allSettled(tasks.values());
+  }
+
+  private schedulePollIfNeeded(): void {
+    if (!this.started || this.disposed || this.pollTimer || this.interestsByOwner.size === 0) {
+      return;
+    }
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      void this.refreshInterests(undefined, { fetchRemote: true }).finally(() => {
+        this.schedulePollIfNeeded();
+      });
+    }, this.options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
+    this.pollTimer.unref?.();
+  }
+
+  private async refreshRemoteRefs(interests: readonly GitStateInterest[]): Promise<void> {
+    const projectIds = new Set(
+      interests
+        .filter((interest) => interest.kind === "target")
+        .map((interest) => interest.projectId),
+    );
+    const now = (this.options.now?.() ?? new Date()).getTime();
+    const interval = this.options.remoteFetchIntervalMs ?? DEFAULT_REMOTE_FETCH_INTERVAL_MS;
+    await Promise.allSettled(
+      [...projectIds].map(async (projectId) => {
+        const lastFetchedAt = this.lastRemoteFetchAt.get(projectId) ?? 0;
+        if (now - lastFetchedAt < interval) return;
+        this.lastRemoteFetchAt.set(projectId, now);
+        const project = this.requireProject(projectId);
+        await this.dedupe(`remote-fetch:${projectId}`, () =>
+          this.options.executor.gitFetch({
+            projectLocation: project.location,
+            remote: "origin",
+            prune: true,
+          }),
+        );
+      }),
+    );
   }
 
   private async refreshInterestedProject(projectId: string): Promise<void> {
@@ -438,6 +496,16 @@ export class GitStateService {
     const revisioned = { ...patch, revision };
     this.snapshot = applyGitStatePatch(this.snapshot, revisioned);
     this.options.onPatch?.(revisioned);
+  }
+
+  private interestsEqual(
+    left: readonly GitStateInterest[],
+    right: readonly GitStateInterest[],
+  ): boolean {
+    if (left.length !== right.length) return false;
+    return left.every(
+      (interest, index) => JSON.stringify(interest) === JSON.stringify(right[index]),
+    );
   }
 
   private dedupe<T>(key: string, task: () => Promise<T>): Promise<T> {

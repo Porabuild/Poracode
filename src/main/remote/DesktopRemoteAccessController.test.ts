@@ -45,6 +45,7 @@ const h = vi.hoisted(() => ({
   patchSettings: vi.fn<(path: string, patch: Partial<SharedSettings>) => SharedSettings>(),
   getProjects: vi.fn<() => unknown[]>(() => []),
   getThreads: vi.fn<() => unknown[]>(() => []),
+  refreshGitInterests: vi.fn<() => Promise<void>>(async () => undefined),
   defaultInfo: {
     httpBaseUrl: "http://127.0.0.1:38987/",
     localHttpBaseUrl: "http://127.0.0.1:38987",
@@ -238,7 +239,7 @@ function createController(
     reportError,
     scheduleService: {} as never,
     prWatchService: {} as never,
-    gitStateService: {} as never,
+    gitStateService: { refreshInterests: h.refreshGitInterests } as never,
   });
 }
 
@@ -256,6 +257,10 @@ describe("DesktopRemoteAccessController", () => {
     h.forwardingDisposedWaiters.length = 0;
     h.pushCoordinators.length = 0;
     h.settingsPatches.length = 0;
+    h.refreshGitInterests.mockReset();
+    h.refreshGitInterests.mockResolvedValue(undefined);
+    h.getThreads.mockReset();
+    h.getThreads.mockReturnValue([]);
     h.settings = {
       ...defaultSharedSettings,
       remoteAccessEnabled: false,
@@ -637,6 +642,36 @@ describe("DesktopRemoteAccessController", () => {
     await expect(restoring).resolves.toBeUndefined();
     expect(h.settings.remoteAccessEnabled).toBe(true);
     expect(h.settingsPatches).toEqual([]);
+  });
+
+  it("runs one bounded Git warm-up when remote access first starts", async () => {
+    h.getThreads.mockReturnValue([
+      {
+        id: "thread-1",
+        projectId: "project-1",
+        worktreePath: "/repo/worktrees/thread-1",
+        status: "idle",
+        archived: false,
+        updatedAt: "2026-07-30T12:00:00.000Z",
+      },
+    ]);
+    const controller = createController();
+
+    await controller.setEnabled(true);
+    await controller.setEnabled(true);
+
+    expect(h.refreshGitInterests).toHaveBeenCalledTimes(1);
+    expect(h.refreshGitInterests).toHaveBeenCalledWith(
+      [
+        {
+          kind: "target",
+          projectId: "project-1",
+          worktreePath: "/repo/worktrees/thread-1",
+          includePrDetails: true,
+        },
+      ],
+      { fetchRemote: true },
+    );
   });
 
   it("preserves immediate quit teardown and makes final disposal idempotent", async () => {

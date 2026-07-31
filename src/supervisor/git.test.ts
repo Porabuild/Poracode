@@ -1211,6 +1211,49 @@ describe("GitService WSL bridge exec", () => {
     }
   });
 
+  it("coalesces concurrent fetches for the same project and prune mode", async () => {
+    let releaseFetch: (() => void) | undefined;
+    const fetchPending = new Promise<void>((resolve) => {
+      releaseFetch = resolve;
+    });
+    const gitExec = vi.fn<
+      (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
+    >(async (_location, input) => {
+      if (gitSubcommandArgs(input.args)[0] === "remote") {
+        return { ok: true, stdout: "origin\n", stderr: "", exitCode: 0 };
+      }
+      await fetchPending;
+      return { ok: true, stdout: "", stderr: "", exitCode: 0 };
+    });
+    const service = new GitService();
+    service.setWslClient({ gitExec } as unknown as WslBridgeClient);
+    const location: WslLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/home/demo/work/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\repo",
+    };
+
+    try {
+      const first = service.fetch(location, "origin", true);
+      const second = service.fetch({ ...location }, "origin", true);
+      await vi.waitFor(() => expect(gitExec).toHaveBeenCalledTimes(2));
+      releaseFetch?.();
+      await Promise.all([first, second]);
+
+      expect(gitExec).toHaveBeenCalledTimes(2);
+      expect(gitExec).toHaveBeenLastCalledWith(
+        expect.objectContaining({ distro: "Ubuntu" }),
+        expect.objectContaining({
+          args: [...GIT_QUOTEPATH_PREFIX, "fetch", "origin", "--prune"],
+          loginEnv: true,
+        }),
+      );
+    } finally {
+      service.setWslClient(undefined);
+    }
+  });
+
   it("skips Windows fetch when the path is not a Git repository", async () => {
     mockGitCommands((args) => {
       if (args[0] === "remote") {
