@@ -28,6 +28,98 @@ function definitionCacheKey(projectId: string, workflowId: number, ref?: string)
   return `${workflowCacheKey(projectId, workflowId)}\0${ref ?? ""}`;
 }
 
+// Module scope rather than refs: the overlay unmounts on close, so per-instance
+// caches were discarded every time and each reopen sat on an empty sidebar
+// waiting for the gh calls. Kept here, a reopen paints the last known workflows
+// and runs on its first frame while the refetch updates them in place. Bounded
+// by the projects and workflows actually visited, and dropped on reload.
+//
+// Every read is followed by a refetch, so the TTL is not about freshness — it
+// only caps how stale the seed may be before showing nothing beats showing the
+// wrong thing. Runs expire quickly because a run's status moves on its own;
+// the workflow list and a workflow's definition only change when the repo does.
+const RUNS_CACHE_TTL_MS = 60_000;
+const WORKFLOWS_CACHE_TTL_MS = 10 * 60_000;
+const DEFINITION_CACHE_TTL_MS = 10 * 60_000;
+
+interface CacheEntry<T> {
+  value: T;
+  storedAt: number;
+}
+
+const workflowsCache = new Map<string, CacheEntry<GitHubActionsWorkflow[]>>();
+const runsCache = new Map<string, CacheEntry<GitHubActionsRun[]>>();
+const definitionCache = new Map<string, CacheEntry<GitHubActionsWorkflowDefinition>>();
+
+function readCache<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  ttlMs: number,
+): T | undefined {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.storedAt > ttlMs) {
+    cache.delete(key);
+    return undefined;
+  }
+  return entry.value;
+}
+
+function writeCache<T>(cache: Map<string, CacheEntry<T>>, key: string, value: T): void {
+  cache.set(key, { value, storedAt: Date.now() });
+}
+
+// Stable empties so seeding never re-renders with a fresh [] on mount.
+const EMPTY_WORKFLOWS: GitHubActionsWorkflow[] = [];
+const EMPTY_RUNS: GitHubActionsRun[] = [];
+
+/**
+ * Which workflow to show: the current one if it still exists, else the first
+ * pinned one by name, else the first workflow.
+ */
+function resolveSelectedWorkflowId(
+  projectId: string,
+  workflows: GitHubActionsWorkflow[],
+  current: number | null,
+): number | null {
+  if (workflows.some((workflow) => workflow.id === current)) return current;
+  const pinned = new Set(useSidebarUiStore.getState().pinnedGitHubWorkflows[projectId] ?? []);
+  const firstPinnedWorkflowId = workflows
+    .filter((workflow) => pinned.has(workflow.id))
+    .sort((a, b) => a.name.localeCompare(b.name))[0]?.id;
+  return firstPinnedWorkflowId ?? workflows[0]?.id ?? null;
+}
+
+function cachedWorkflowsFor(projectId: string | undefined): GitHubActionsWorkflow[] | undefined {
+  return projectId ? readCache(workflowsCache, projectId, WORKFLOWS_CACHE_TTL_MS) : undefined;
+}
+
+function cachedRunsFor(projectId: string, workflowId: number): GitHubActionsRun[] | undefined {
+  return readCache(runsCache, workflowCacheKey(projectId, workflowId), RUNS_CACHE_TTL_MS);
+}
+
+function cachedDefinitionFor(
+  projectId: string,
+  workflowId: number,
+  ref?: string,
+): GitHubActionsWorkflowDefinition | undefined {
+  return readCache(
+    definitionCache,
+    definitionCacheKey(projectId, workflowId, ref),
+    DEFINITION_CACHE_TTL_MS,
+  );
+}
+
+/**
+ * Drops every cached list. These caches deliberately outlive the component, so
+ * tests need a seam to get a cold start between cases.
+ */
+export function resetGitHubActionsCaches(): void {
+  workflowsCache.clear();
+  runsCache.clear();
+  definitionCache.clear();
+}
+
 export function useGitHubActionsViewModel(props: { projectId?: string; runId?: number }) {
   const { t } = useLingui();
   const activeProjects = useAppStore(
@@ -39,11 +131,18 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   const selectedProject =
     activeProjects.find((project) => project.id === props.projectId) ?? activeProjects[0];
   const selectedProjectId = selectedProject?.id;
-  const runsCache = useRef(new Map<string, GitHubActionsRun[]>());
-  const definitionCache = useRef(new Map<string, GitHubActionsWorkflowDefinition>());
-  const [workflows, setWorkflows] = useState<GitHubActionsWorkflow[]>([]);
-  const [runs, setRuns] = useState<GitHubActionsRun[]>([]);
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
+  // Seeded from the cross-open cache so a reopen renders the last known list on
+  // its first frame instead of an empty sidebar.
+  const seedWorkflows = cachedWorkflowsFor(selectedProjectId);
+  const [workflows, setWorkflows] = useState<GitHubActionsWorkflow[]>(
+    seedWorkflows ?? EMPTY_WORKFLOWS,
+  );
+  const [runs, setRuns] = useState<GitHubActionsRun[]>(EMPTY_RUNS);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(() =>
+    seedWorkflows && selectedProjectId
+      ? resolveSelectedWorkflowId(selectedProjectId, seedWorkflows, null)
+      : null,
+  );
   const [selectedRunId, setSelectedRunId] = useState<number | null>(props.runId ?? null);
   const [selectedRunDetails, setSelectedRunDetails] = useState<GitHubActionsRun | null>(null);
   const [definition, setDefinition] = useState<GitHubActionsWorkflowDefinition | null>(null);
@@ -60,11 +159,25 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   const [dispatching, setDispatching] = useState(false);
   const [pendingRunId, setPendingRunId] = useState<number | null>(null);
   const [deleteRun, setDeleteRun] = useState<GitHubActionsRun | null>(null);
+  // A selection derived from the cache seed is a guess, not a choice: once the
+  // real list lands it must still resolve to the default (first pinned), or a
+  // workflow pinned while the overlay was closed would be ignored. Only an
+  // explicit pick survives the refresh.
+  const userPickedWorkflowRef = useRef(false);
 
+  // Switching project resets the view. Seed from cache rather than clearing, so
+  // this also leaves the mount-time seed above intact (same references in, no
+  // extra render out) instead of blanking it before the first paint.
   useEffect(() => {
-    setWorkflows([]);
-    setRuns([]);
-    setSelectedWorkflowId(null);
+    userPickedWorkflowRef.current = false;
+    const cached = cachedWorkflowsFor(selectedProjectId);
+    setWorkflows(cached ?? EMPTY_WORKFLOWS);
+    setRuns(EMPTY_RUNS);
+    setSelectedWorkflowId(
+      cached && selectedProjectId
+        ? resolveSelectedWorkflowId(selectedProjectId, cached, null)
+        : null,
+    );
     setSelectedRunId(props.runId ?? null);
     setSelectedRunDetails(null);
     setDefinition(null);
@@ -91,23 +204,23 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
           const activeWorkflows = result.workflows.filter(
             (workflow) => workflow.state.toLowerCase() === "active",
           );
-          const pinnedWorkflowIds =
-            useSidebarUiStore.getState().pinnedGitHubWorkflows[selectedProject.id] ?? [];
-          const pinned = new Set(pinnedWorkflowIds);
-          const firstPinnedWorkflowId = activeWorkflows
-            .filter((workflow) => pinned.has(workflow.id))
-            .sort((a, b) => a.name.localeCompare(b.name))[0]?.id;
+          writeCache(workflowsCache, selectedProject.id, activeWorkflows);
           setWorkflows(activeWorkflows);
           setSelectedWorkflowId((current) =>
-            activeWorkflows.some((workflow) => workflow.id === current)
-              ? current
-              : (firstPinnedWorkflowId ?? activeWorkflows[0]?.id ?? null),
+            resolveSelectedWorkflowId(
+              selectedProject.id,
+              activeWorkflows,
+              userPickedWorkflowRef.current ? current : null,
+            ),
           );
           setLoadingWorkflows(false);
         },
         (error: unknown) => {
           if (cancelled) return;
-          setWorkflows([]);
+          // Keep whatever the cache seeded — showing a stale list beside the
+          // error beats blanking the sidebar on a transient gh failure. An
+          // expired entry counts as absent, so this clears once the TTL lapses.
+          if (!cachedWorkflowsFor(selectedProject.id)) setWorkflows(EMPTY_WORKFLOWS);
           setLoadError(friendlyError(error));
           setLoadingWorkflows(false);
         },
@@ -119,14 +232,14 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
 
   useEffect(() => {
     if (!selectedProject || !selectedWorkflowId) {
-      setRuns([]);
+      setRuns(EMPTY_RUNS);
       setLoadingRuns(false);
       return;
     }
     let cancelled = false;
     const cacheKey = workflowCacheKey(selectedProject.id, selectedWorkflowId);
-    const cachedRuns = runsCache.current.get(cacheKey);
-    setRuns(cachedRuns ?? []);
+    const cachedRuns = cachedRunsFor(selectedProject.id, selectedWorkflowId);
+    setRuns(cachedRuns ?? EMPTY_RUNS);
     setLoadingRuns(true);
     setLoadError(null);
     void readBridge()
@@ -137,7 +250,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       .then(
         (result) => {
           if (cancelled) return;
-          runsCache.current.set(cacheKey, result.runs);
+          writeCache(runsCache, cacheKey, result.runs);
           setRuns(result.runs);
           if (
             dispatchRequestedAt !== null &&
@@ -153,7 +266,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
         },
         (error: unknown) => {
           if (cancelled) return;
-          if (!cachedRuns) setRuns([]);
+          if (!cachedRuns) setRuns(EMPTY_RUNS);
           setLoadError(friendlyError(error));
           setLoadingRuns(false);
         },
@@ -171,7 +284,11 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     }
     let cancelled = false;
     const cacheKey = definitionCacheKey(selectedProject.id, selectedWorkflowId, definitionRef);
-    const cachedDefinition = definitionCache.current.get(cacheKey);
+    const cachedDefinition = cachedDefinitionFor(
+      selectedProject.id,
+      selectedWorkflowId,
+      definitionRef,
+    );
     setDefinition(cachedDefinition ?? null);
     setLoadingDefinition(true);
     void readBridge()
@@ -183,7 +300,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       .then(
         (result) => {
           if (cancelled) return;
-          definitionCache.current.set(cacheKey, result.definition);
+          writeCache(definitionCache, cacheKey, result.definition);
           setDefinition(result.definition);
           setLoadingDefinition(false);
         },
@@ -258,21 +375,20 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   }));
 
   function selectWorkflow(workflowId: number) {
+    userPickedWorkflowRef.current = true;
     if (workflowId === selectedWorkflowId) {
       setSelectedRunId(null);
       setSelectedRunDetails(null);
       return;
     }
-    const cachedRuns = selectedProjectId
-      ? runsCache.current.get(workflowCacheKey(selectedProjectId, workflowId))
-      : undefined;
+    const cachedRuns = selectedProjectId ? cachedRunsFor(selectedProjectId, workflowId) : undefined;
     const cachedDefinition = selectedProjectId
-      ? definitionCache.current.get(definitionCacheKey(selectedProjectId, workflowId))
+      ? cachedDefinitionFor(selectedProjectId, workflowId)
       : undefined;
     setSelectedWorkflowId(workflowId);
     setSelectedRunId(null);
     setSelectedRunDetails(null);
-    setRuns(cachedRuns ?? []);
+    setRuns(cachedRuns ?? EMPTY_RUNS);
     setDefinition(cachedDefinition ?? null);
     setDefinitionRef(undefined);
     setLoadingRuns(true);
@@ -289,10 +405,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       return;
     }
     setDefinitionRef(ref);
-    setDefinition(
-      definitionCache.current.get(definitionCacheKey(selectedProjectId, selectedWorkflowId, ref)) ??
-        null,
-    );
+    setDefinition(cachedDefinitionFor(selectedProjectId, selectedWorkflowId, ref) ?? null);
     setLoadingDefinition(true);
   }
 
@@ -357,7 +470,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       setRuns((current) => {
         const nextRuns = current.filter((run) => run.id !== runId);
         if (selectedProjectId && selectedWorkflowId) {
-          runsCache.current.set(workflowCacheKey(selectedProjectId, selectedWorkflowId), nextRuns);
+          writeCache(runsCache, workflowCacheKey(selectedProjectId, selectedWorkflowId), nextRuns);
         }
         return nextRuns;
       });

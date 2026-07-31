@@ -208,8 +208,12 @@ export function AppOverlays() {
           </Suspense>
         )}
       </OverlayShell>
+      {/* No fade-in: this view builds its model and fetches workflows as it
+          mounts, so fading it in over the hidden base app just shows
+          full-screen acrylic until the content lands. */}
       <OverlayShell
         open={githubActionsVisible}
+        instantEnter
         onExited={() => usePanelStore.getState().setGitHubActionsContext(null)}
       >
         {githubActionsContext && (
