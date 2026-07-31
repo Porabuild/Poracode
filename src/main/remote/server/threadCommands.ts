@@ -31,7 +31,7 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
 import {
   assertRemoteGitMutationExperimentSafe,
-  hasPersistedProjectExperiment,
+  discardPersistedProjectExperiments,
 } from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
@@ -83,7 +83,10 @@ export function runProjectCommand(
 ): Promise<RemoteProjectCommandResult> {
   return applyRemoteProjectCommand(command, {
     getProjects: () => dbGetProjects(),
-    hasProjectExperiment: (projectId) => hasPersistedProjectExperiment(projectId),
+    removeProjectExperiments: (project) =>
+      discardPersistedProjectExperiments(project, (payload) =>
+        ctx.options.callSupervisor("removeExperimentWorktrees", payload),
+      ),
     hasRunningProjectThread: (projectId) =>
       dbGetThreads().some(
         (thread) => thread.projectId === projectId && thread.status === "working",

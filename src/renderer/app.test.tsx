@@ -836,6 +836,23 @@ describe("App", () => {
     });
 
     expect(useAppStore.getState().projects).toEqual([project]);
+    act(() => {
+      useExperimentStore.setState({
+        experiments: {
+          "experiment-1": {
+            id: "experiment-1",
+            projectId: project.id,
+          } as never,
+        },
+      });
+    });
+    expect(useExperimentStore.getState().experiments).toHaveProperty("experiment-1");
+
+    act(() => {
+      projectStateChangedListeners.at(-1)?.({ projects: [] });
+    });
+
+    expect(useExperimentStore.getState().experiments).toEqual({});
   });
 
   it("creates and queues the thread submitted by the quick composer", async () => {

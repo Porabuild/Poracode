@@ -3476,13 +3476,25 @@ describe("RemoteAccessServer", () => {
     ws.close();
   });
 
-  it("rejects remote removal of a project with durable experiment ownership", async () => {
+  it("removes durable experiments before remotely removing their project", async () => {
     const project = createTestProject();
-    vi.mocked(dbGetProjects).mockReturnValue([project]);
+    let projects = [project];
+    vi.mocked(dbGetProjects).mockImplementation(() => projects);
+    vi.mocked(dbDeleteProject).mockImplementation((projectId) => {
+      projects = projects.filter((candidate) => candidate.id !== projectId);
+    });
     vi.mocked(dbGetThreads).mockReturnValue([createTestThread()]);
     persistTestExperiment();
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
-      async () => undefined as never,
+      async (name) =>
+        (name === "removeExperimentWorktrees"
+          ? {
+              candidates: [
+                { threadId: "thread-1", branch: "poracode/experiment-one" },
+                { threadId: "thread-2", branch: "poracode/experiment-two" },
+              ],
+            }
+          : undefined) as never,
     );
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
@@ -3503,12 +3515,21 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({ kind: "remove", projectId: project.id }),
     });
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      error: { code: "experiment_owned" },
+      projects: [],
     });
-    expect(callSupervisor).not.toHaveBeenCalled();
-    expect(dbDeleteProject).not.toHaveBeenCalled();
+    expect(callSupervisor).toHaveBeenNthCalledWith(
+      1,
+      "removeExperimentWorktrees",
+      expect.objectContaining({ projectLocation: project.location }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "thread-1" });
+    expect(dbDeleteProject).toHaveBeenCalledWith(project.id);
+    const persisted = JSON.parse(
+      vi.mocked(dbSetState).mock.calls.findLast(([key]) => key === "poracode-experiments-v1")![1],
+    ) as { state: { experiments: Record<string, unknown> } };
+    expect(persisted.state.experiments).toEqual({});
   });
 
   it("serves browser state/commands and streams mirror status to watchers", async () => {

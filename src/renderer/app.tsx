@@ -18,6 +18,7 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { useExperimentStore } from "./state/experimentStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
 import {
   acknowledgeThread,
@@ -429,6 +430,9 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       // before its next dbSyncAll persistence write.
       readBridge().onProjectStateChanged(({ projects }) => {
         useAppStore.setState({ projects });
+        useExperimentStore
+          .getState()
+          .reconcileExperiments(new Set(projects.map((project) => project.id)));
       }),
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);

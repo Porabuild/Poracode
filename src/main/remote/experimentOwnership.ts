@@ -8,6 +8,8 @@ import type {
   GitSwitchBranchPayload,
   Project,
   ProjectLocation,
+  RemoveExperimentWorktreesPayload,
+  RemoveExperimentWorktreesResult,
   RemoteThreadCommand,
 } from "@/shared/contracts";
 import {
@@ -17,7 +19,7 @@ import {
 } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import { buildWorktreeLocation } from "@/shared/worktree";
-import { dbGetProjects, dbGetState, dbGetThreads } from "../db";
+import { dbGetProjects, dbGetState, dbGetThreads, dbSetState } from "../db";
 import { RemoteHttpError } from "./auth";
 
 function unavailable(): never {
@@ -67,8 +69,45 @@ export function readPersistedExperiments(): Experiment[] {
   }
 }
 
-export function hasPersistedProjectExperiment(projectId: string): boolean {
-  return readPersistedExperiments().some((experiment) => experiment.projectId === projectId);
+export async function discardPersistedProjectExperiments(
+  project: Project,
+  removeWorktrees: (
+    payload: RemoveExperimentWorktreesPayload,
+  ) => Promise<RemoveExperimentWorktreesResult>,
+): Promise<void> {
+  const projectExperiments = readPersistedExperiments().filter(
+    (experiment) => experiment.projectId === project.id,
+  );
+  for (const experiment of projectExperiments) {
+    const candidates = experiment.candidates.filter(
+      (candidate) => candidate.worktreeState !== "removed",
+    );
+    if (candidates.length === 0) continue;
+    const result = await removeWorktrees({
+      projectLocation: project.location,
+      candidates: candidates.map((candidate) => ({
+        threadId: candidate.threadId,
+        branch: candidate.worktreeBranch,
+        ownerToken: candidate.worktreeOwnerToken,
+        ...(candidate.worktreePath ? { worktreePath: candidate.worktreePath } : {}),
+      })),
+    });
+    const failure = result.candidates.find((candidate) => candidate.error);
+    if (failure?.error) throw new Error(failure.error);
+  }
+
+  const experiments = Object.fromEntries(
+    readPersistedExperiments()
+      .filter((experiment) => experiment.projectId !== project.id)
+      .map((experiment) => [experiment.id, experiment]),
+  );
+  dbSetState(
+    EXPERIMENT_STORE_KEY,
+    JSON.stringify({
+      state: { experiments },
+      version: EXPERIMENT_STORE_VERSION,
+    }),
+  );
 }
 
 export function assertRemoteThreadCommandExperimentSafe(command: RemoteThreadCommand): void {

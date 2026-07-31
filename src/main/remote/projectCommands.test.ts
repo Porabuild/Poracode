@@ -19,7 +19,9 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
   });
   const deps: RemoteProjectCommandDeps = {
     getProjects: () => [...projects],
-    hasProjectExperiment: () => false,
+    removeProjectExperiments: vi.fn<RemoteProjectCommandDeps["removeProjectExperiments"]>(
+      async () => {},
+    ),
     hasRunningProjectThread: () => false,
     listProjectThreadIds: () => [],
     upsertProject,
@@ -228,11 +230,47 @@ describe("applyRemoteProjectCommand", () => {
     ).rejects.toMatchObject({ status: 404, code: "project_not_found" });
   });
 
-  it("rejects removing a project that owns an experiment before closing threads", async () => {
+  it("removes a project's experiments before closing threads and deleting the project", async () => {
+    const calls: string[] = [];
+    const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {
+      calls.push("close-thread");
+    });
+    const removeProjectExperiments = vi.fn<RemoteProjectCommandDeps["removeProjectExperiments"]>(
+      async () => {
+        calls.push("remove-experiments");
+      },
+    );
+    const { deps, projects, deleteProject } = makeDeps({
+      closeThread,
+      removeProjectExperiments,
+      listProjectThreadIds: () => ["t1"],
+    });
+    deleteProject.mockImplementation((id) => {
+      calls.push("delete-project");
+      const index = projects.findIndex((project) => project.id === id);
+      if (index !== -1) projects.splice(index, 1);
+    });
+    projects.push({
+      id: "p1",
+      name: "x",
+      location: { kind: "posix", path: "/x" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    await expect(
+      applyRemoteProjectCommand({ kind: "remove", projectId: "p1" }, deps),
+    ).resolves.toMatchObject({ projects: [] });
+    expect(removeProjectExperiments).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }));
+    expect(calls).toEqual(["remove-experiments", "close-thread", "delete-project"]);
+  });
+
+  it("keeps the project when experiment cleanup fails", async () => {
     const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {});
     const { deps, projects, deleteProject } = makeDeps({
       closeThread,
-      hasProjectExperiment: (projectId) => projectId === "p1",
+      removeProjectExperiments: async () => {
+        throw new Error("cleanup failed");
+      },
       listProjectThreadIds: () => ["t1"],
     });
     projects.push({
@@ -244,7 +282,7 @@ describe("applyRemoteProjectCommand", () => {
 
     await expect(
       applyRemoteProjectCommand({ kind: "remove", projectId: "p1" }, deps),
-    ).rejects.toMatchObject({ status: 409, code: "experiment_owned" });
+    ).rejects.toThrow("cleanup failed");
     expect(closeThread).not.toHaveBeenCalled();
     expect(deleteProject).not.toHaveBeenCalled();
     expect(projects).toHaveLength(1);
