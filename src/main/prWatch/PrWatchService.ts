@@ -32,6 +32,7 @@ export interface PrWatchServiceOptions {
   getPrReviewThreads(project: Project, prNumber: number): Promise<PrReviewThread[]>;
   getMergeMethod(): PrMergeMethod;
   mergePr(project: Project, prNumber: number, method: PrMergeMethod): Promise<void>;
+  onPrMerged?(watch: PrWatch): void;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
   isThreadActive(threadId: string): boolean;
   worktreeExists(path: string): boolean;
@@ -217,6 +218,7 @@ export class PrWatchService {
       if (current.autoMerge && isReadyForAutoMerge(pr, details.checks)) {
         try {
           await this.options.mergePr(project, current.prNumber, this.options.getMergeMethod());
+          this.options.onPrMerged?.(current);
           this.options.store.delete(current.projectId, current.prNumber);
         } catch (error) {
           this.saveError(observed, error);

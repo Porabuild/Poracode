@@ -201,6 +201,7 @@ const {
         return () => undefined;
       }),
       onGitStateChanged: vi.fn<() => () => void>(() => () => undefined),
+      onPrWatchMerged: vi.fn<() => () => void>(() => () => undefined),
       onThreadOpenRequested: vi.fn<
         (listener: (event: ThreadOpenRequestedEvent) => void) => () => void
       >((listener) => {

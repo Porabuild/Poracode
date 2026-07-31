@@ -12,6 +12,7 @@ import {
   type BrowserEvent,
   type PoracodeBridge,
   type PoracodeWindowKind,
+  type PrWatchMergedEvent,
   type ProjectStateChangedEvent,
   type QuickComposerSubmission,
   type SupervisorEvent,
@@ -197,6 +198,15 @@ const bridge: PoracodeBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.gitStateChanged, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.gitStateChanged, handler);
+    };
+  },
+  onPrWatchMerged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: PrWatchMergedEvent) => {
+      listener(payload);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.prWatchMerged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.prWatchMerged, handler);
     };
   },
   onThreadOpenRequested(listener) {
