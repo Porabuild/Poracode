@@ -411,7 +411,10 @@ describe("applyThreadSnapshot", () => {
   });
 
   it("keeps a settled GUI thread idle when a trailing runtime event arrives after a server snapshot", () => {
-    useAppStore.setState({ threads: [makeThread("idle")] });
+    useAppStore.setState({
+      threads: [makeThread("idle")],
+      view: { kind: "thread", panes: [THREAD_ID] },
+    });
 
     applyThreadSnapshot(makeSnapshot({ status: "idle", items: [makeItem({ id: "msg-1" })] }));
 

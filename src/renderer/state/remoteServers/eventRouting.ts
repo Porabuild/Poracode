@@ -4,11 +4,10 @@ export function shouldRefreshRemoteServerAfterEvent(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const type = (value as { type?: unknown }).type;
   return (
+    shouldRefreshRemoteAgentStatusesAfterEvent(value) ||
     type === "thread-state" ||
     type === "thread-exited" ||
     type === "thread-reset" ||
-    type === "windows-agent-statuses" ||
-    type === "wsl-agent-statuses" ||
     type === "remote-projects-changed" ||
     type === "remote-threads-changed"
   );
@@ -17,7 +16,11 @@ export function shouldRefreshRemoteServerAfterEvent(value: unknown): boolean {
 export function shouldRefreshRemoteAgentStatusesAfterEvent(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const type = (value as { type?: unknown }).type;
-  return type === "windows-agent-statuses" || type === "wsl-agent-statuses";
+  return (
+    type === "agent-status-updated" ||
+    type === "windows-agent-statuses" ||
+    type === "wsl-agent-statuses"
+  );
 }
 
 export function filterRemoteThreadEvents(value: unknown, threadIds: ReadonlySet<string>): unknown {
@@ -51,6 +54,8 @@ export function filterRemoteThreadEvents(value: unknown, threadIds: ReadonlySet<
     const threadId = (value as { threadId?: unknown }).threadId;
     return typeof threadId === "string" && threadIds.has(threadId) ? value : null;
   }
+
+  if (type === "remote-git-summaries") return value;
 
   return null;
 }

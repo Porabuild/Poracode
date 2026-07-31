@@ -26,8 +26,9 @@ const { hasHydratedThreadRuntimeItems, hydrateThreadRuntimeItems } = vi.hoisted(
   hasHydratedThreadRuntimeItems: vi.fn<(threadId: string) => boolean>().mockReturnValue(false),
   hydrateThreadRuntimeItems: vi.fn<(threadId: string) => Promise<void>>().mockResolvedValue(),
 }));
-const { performWorktreeRemoval } = vi.hoisted(() => ({
-  performWorktreeRemoval: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+const { deleteWorktreeGroup } = vi.hoisted(() => ({
+  deleteWorktreeGroup:
+    vi.fn<(projectId: string, worktreePath: string, threadIds: string[]) => void>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -35,7 +36,7 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 vi.mock("@/renderer/actions/worktreeActions", () => ({
-  performWorktreeRemoval,
+  deleteWorktreeGroup,
 }));
 
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
@@ -49,7 +50,7 @@ describe("threadActions", () => {
     localStorage.clear();
     hasHydratedThreadRuntimeItems.mockReturnValue(false);
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
-    performWorktreeRemoval.mockResolvedValue(undefined);
+    deleteWorktreeGroup.mockReset();
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -381,12 +382,7 @@ describe("threadActions", () => {
     });
   });
 
-  it("waits for the thread to close before removing the worktree", async () => {
-    let resolveClose: () => void = () => undefined;
-    const closePromise = new Promise<void>((resolve) => {
-      resolveClose = resolve;
-    });
-    bridge.closeThread.mockReturnValueOnce(closePromise);
+  it("routes local worktree deletion through the group action", () => {
     localStorage.setItem("poracode-delete-worktree-pref", "thread-and-worktree");
     const worktreePath = "/repo/.worktrees/feature";
     const project = useAppStore.getState().addProject({
@@ -402,20 +398,35 @@ describe("threadActions", () => {
 
     deleteThread(thread.id, worktreePath, project.id);
 
-    expect(useAppStore.getState().threads).toHaveLength(0);
-    expect(bridge.closeThread).toHaveBeenCalledTimes(1);
-    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: thread.id });
-    expect(performWorktreeRemoval).not.toHaveBeenCalled();
+    expect(deleteWorktreeGroup).toHaveBeenCalledWith(project.id, worktreePath, [thread.id]);
+    expect(bridge.closeThread).not.toHaveBeenCalled();
+  });
 
-    resolveClose();
-
-    await waitFor(() => {
-      expect(performWorktreeRemoval).toHaveBeenCalledWith(
-        project,
-        worktreePath,
-        "poracode/feature",
-      );
+  it("routes remote worktree deletion through the remote-aware group action", () => {
+    localStorage.setItem("poracode-delete-worktree-pref", "thread-and-worktree");
+    const worktreePath = "/repo/.worktrees/feature";
+    const localProject = useAppStore.getState().addProject({
+      kind: "posix",
+      path: "/repo",
     });
+    const project = {
+      ...localProject,
+      remoteServerId: "remote-server",
+      remoteId: "remote-project",
+    };
+    const thread = makeThread({
+      projectId: project.id,
+      worktreePath,
+      worktreeBranch: "poracode/feature",
+      remoteServerId: project.remoteServerId,
+      remoteId: "remote-thread",
+    });
+    useAppStore.setState((state) => ({ ...state, projects: [project], threads: [thread] }));
+
+    deleteThread(thread.id, worktreePath, project.id);
+
+    expect(deleteWorktreeGroup).toHaveBeenCalledWith(project.id, worktreePath, [thread.id]);
+    expect(bridge.closeThread).not.toHaveBeenCalled();
   });
 
   it("closes worktree dev terminals when marking a worktree thread done", () => {

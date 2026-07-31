@@ -51,6 +51,7 @@ import {
   shouldRefreshRemoteAgentStatusesAfterEvent,
   shouldRefreshRemoteServerAfterEvent,
 } from "@/renderer/state/remoteServers/eventRouting";
+import { syncRemoteGitSummaries } from "@/renderer/state/remoteServers/gitSummaries";
 import type {
   OpenRemoteThread,
   RemoteClientFactory,
@@ -175,6 +176,22 @@ function syncRemoteAppRows(desktopId: string, projects?: Project[], threads?: Th
       : projected;
   });
   const projectedThreads = threads?.map((thread) => projectRemoteThread(desktopId, thread));
+  if (projectedProjects) {
+    const projectedProjectIds = new Set(projectedProjects.map((project) => project.id));
+    for (const project of useAppStore.getState().projects) {
+      if (project.remoteServerId === desktopId && !projectedProjectIds.has(project.id)) {
+        useAppStore.getState().deleteProject(project.id);
+      }
+    }
+  }
+  if (projectedThreads) {
+    const projectedThreadIds = new Set(projectedThreads.map((thread) => thread.id));
+    for (const thread of useAppStore.getState().threads) {
+      if (thread.remoteServerId === desktopId && !projectedThreadIds.has(thread.id)) {
+        useAppStore.getState().deleteThread(thread.id);
+      }
+    }
+  }
   useAppStore.setState((state) => ({
     ...(projectedProjects
       ? {
@@ -202,27 +219,7 @@ function syncRemoteAppRows(desktopId: string, projects?: Project[], threads?: Th
 }
 
 function removeRemoteAppRows(desktopId: string): void {
-  useAppStore.setState((state) => {
-    const removedProjectIds = new Set(
-      state.projects
-        .filter((project) => project.remoteServerId === desktopId)
-        .map((project) => project.id),
-    );
-    const removedThreadIds = new Set(
-      state.threads
-        .filter((thread) => thread.remoteServerId === desktopId)
-        .map((thread) => thread.id),
-    );
-    const viewContainsRemovedRow =
-      (state.view.kind === "draft" && removedProjectIds.has(state.view.projectId)) ||
-      (state.view.kind === "thread" &&
-        state.view.panes.some((paneId) => removedThreadIds.has(paneId)));
-    return {
-      projects: state.projects.filter((project) => project.remoteServerId !== desktopId),
-      threads: state.threads.filter((thread) => thread.remoteServerId !== desktopId),
-      ...(viewContainsRemovedRow ? { view: { kind: "home" as const } } : {}),
-    };
-  });
+  syncRemoteAppRows(desktopId, [], []);
 }
 
 function remoteServerEventSocketReconnectDelay(attempt: number): number {
@@ -478,6 +475,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   if (forward !== null) {
                     dispatchRemoteSupervisorEvent(
                       projectRemoteThreadEvent(server.desktopId, forward),
+                      {
+                        onGitSummaries: (summaries) =>
+                          syncRemoteGitSummaries(server.desktopId, summaries),
+                      },
                     );
                   }
                   if (shouldRefreshRemoteServerAfterEvent(message.event)) {
@@ -579,6 +580,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           },
         }));
         syncRemoteAppRows(record.desktopId, snapshot.projects, snapshot.threads);
+        if (snapshot.gitSummariesByThread) {
+          syncRemoteGitSummaries(record.desktopId, snapshot.gitSummariesByThread);
+        }
         remoteServerSnapshotSeqByDesktopId.set(record.desktopId, snapshot.snapshotSeq);
         startRemoteServerEventStream(record);
         return record;
@@ -911,6 +915,17 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 projectsChanged ? projects : undefined,
                 threadsChanged ? threads : undefined,
               );
+            }
+            if (snapshot.gitSummariesByThread) {
+              syncRemoteGitSummaries(desktopId, snapshot.gitSummariesByThread);
+            }
+            const openThread = get().openThread;
+            if (
+              threadsChanged &&
+              openThread?.desktopId === desktopId &&
+              !threads.some((thread) => thread.id === openThread.threadId)
+            ) {
+              set({ openThread: null });
             }
           } catch (error) {
             if (!isLatest()) return;

@@ -16,12 +16,11 @@ import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { discardExperiment } from "@/renderer/actions/experimentActions";
-import { archiveThread, markThreadDone } from "@/renderer/actions/threadActions";
+import { archiveThread, deleteThread, markThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
-import { closeThreads } from "@/renderer/utils/shellUtils";
 import { ExperimentGroupHeader } from "./ExperimentGroupHeader";
 import { InlineRenameInput } from "./InlineRenameInput";
 import type { ThreadListEntry } from "./groupThreads";
@@ -62,11 +61,9 @@ export function SidebarThreadGroup(props: {
       }
     }
     if (threadRemoveAction === "delete") {
-      const deleteThread = useAppStore.getState().deleteThread;
       for (const threadId of threadIds) {
         deleteThread(threadId);
       }
-      void closeThreads(threadIds);
     }
     clearThreadGroup(groupKey);
   };

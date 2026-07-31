@@ -26,8 +26,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
-import { closeThreads } from "@/renderer/utils/shellUtils";
-import { performWorktreeRemoval } from "@/renderer/actions/worktreeActions";
+import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 
 import { readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common/Button";
@@ -150,21 +149,15 @@ export function AppOverlays() {
                           onMergeAndRemove: () => {
                             const allThreads = useAppStore.getState().threads;
                             const wtPath = gitReviewContext!.worktreePath;
-                            const wtBranch = wtPath
-                              ? resolveWorktreeBranch(gitReviewContext!.projectId, wtPath)
-                              : undefined;
                             usePanelStore.getState().setGitOverlayOpen(false);
                             usePanelStore.getState().setGitReviewContext(null);
                             if (wtPath) {
                               const siblings = allThreads.filter((t) => t.worktreePath === wtPath);
-                              const deleteThreadStoreAction = useAppStore.getState().deleteThread;
-                              for (const sib of siblings) {
-                                deleteThreadStoreAction(sib.id);
-                              }
-                              void (async () => {
-                                await closeThreads(siblings.map((sib) => sib.id));
-                                await performWorktreeRemoval(gitReviewProject, wtPath, wtBranch);
-                              })();
+                              deleteWorktreeGroup(
+                                gitReviewProject.id,
+                                wtPath,
+                                siblings.map((sibling) => sibling.id),
+                              );
                             }
                           },
                         }),

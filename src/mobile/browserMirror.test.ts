@@ -55,4 +55,16 @@ describe("browserMirror watch lifecycle", () => {
     setBrowserSocketSender(b.fn);
     expect(b.messages).toEqual([{ type: "browser-watch" }]);
   });
+
+  it("drops a stale frame when the authoritative state removes its tab", () => {
+    useBrowserMirrorStore.getState().setFrame({
+      tabId: "tab-1",
+      dataUrl: "data:image/jpeg;base64,frame",
+      metadata: {} as never,
+    });
+
+    useBrowserMirrorStore.getState().setState({ tabs: [], activeTabId: null });
+
+    expect(useBrowserMirrorStore.getState().frame).toBeNull();
+  });
 });
