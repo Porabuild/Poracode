@@ -1690,7 +1690,8 @@ describe("ThreadView", () => {
       expect(headerMenu?.querySelector('[aria-label="Notes"]')).not.toBeNull();
 
       fireEvent.pointerEnter(headerMenu as HTMLElement);
-      expect(toolMenu).toHaveClass("visible");
+      expect(toolMenu).toHaveClass("pointer-events-auto", "visible", "opacity-100");
+      expect(toolMenu).not.toHaveClass("pointer-events-none", "invisible", "opacity-0");
 
       fireEvent.pointerLeave(headerMenu as HTMLElement);
       expect(toolMenu).toHaveClass("visible");

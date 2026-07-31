@@ -316,8 +316,10 @@ export function ThreadToolRail(props: {
           </button>
           <div
             data-poracode-thread-tool-menu=""
-            className={`pointer-events-none invisible absolute left-1/2 top-full z-30 w-9 -translate-x-1/2 opacity-0 transition-opacity duration-150 ${
-              headerMenuOpen ? "pointer-events-auto visible opacity-100" : ""
+            className={`absolute left-1/2 top-full z-30 w-9 -translate-x-1/2 transition-opacity duration-150 ${
+              headerMenuOpen
+                ? "pointer-events-auto visible opacity-100"
+                : "pointer-events-none invisible opacity-0"
             }`}
           >
             <div className="pt-1">
