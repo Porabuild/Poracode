@@ -907,6 +907,7 @@ export function ThreadDraftComposerArea(props: {
               <>
                 <ThreadAgentUpdateDock
                   agentStatus={props.selectedAgent}
+                  project={props.project}
                   onUpdatingChange={setAgentUpdating}
                 />
                 <HookInstallProposal
