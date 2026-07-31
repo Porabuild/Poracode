@@ -31,6 +31,13 @@ export const THREAD_STATUS_LABELS: Record<ThreadStatus, MessageDescriptor> = {
   error: msg`Error`,
 };
 
+/** "Poracode on host" → "host"; the brand prefix is noise inside the app.
+ *  Legacy "Lightcode on …" labels (paired pre-rebrand) are stripped too. */
+export function desktopTitle(label: string): string {
+  const stripped = label.replace(/^(?:Poracode|Lightcode)\s+on\s+/i, "");
+  return stripped || label;
+}
+
 export function sortThreadsByRecency(threads: readonly Thread[]): Thread[] {
   return threads
     .filter((thread) => !thread.archived)

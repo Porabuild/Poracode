@@ -791,10 +791,8 @@ html[data-theme="dark"][data-theme-preset="default"] .m-shell:not(.m-shell--wide
   font-size: 0.875rem;
 }
 
-/* Icon-only connection/sync affordance. The state word and pill border are
-   gone — color alone carries the state — so it stays small and leaves the
-   thread title room. The glyph is small but the button keeps a full tap
-   target via width/height (transparent, no border). */
+/* Compact connection/sync affordance. The narrow header uses the icon alone;
+   the wide sidebar includes the remote name. */
 .m-connection {
   display: inline-flex;
   flex: none;
@@ -808,6 +806,24 @@ html[data-theme="dark"][data-theme-preset="default"] .m-shell:not(.m-shell--wide
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+}
+
+.m-connection[data-labeled="true"] {
+  min-width: 0;
+  max-width: min(8rem, 35%);
+  gap: 0.25rem;
+  width: auto;
+  margin-right: 0;
+  padding-inline: 0.125rem;
+}
+
+.m-connection__label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .m-connection svg {

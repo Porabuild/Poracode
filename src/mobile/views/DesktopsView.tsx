@@ -22,6 +22,7 @@ import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts
 import { Fab, EmptyState, FullScreenDrawer, SheetMenu, useSheet } from "../components";
 import { QrScanner } from "../QrScanner";
 import { parsePairingUrl } from "../pairing";
+import { desktopTitle } from "../presentation";
 import { isNativeApp, isStandaloneDisplay, promptInstall, useCanInstall } from "../pwaInstall";
 import type { StoredDesktop } from "../storage";
 
@@ -79,13 +80,6 @@ export interface MobileSshPairRequest {
   readonly port: number;
   readonly fingerprint: string;
   readonly authentication: SshBridgeAuthentication;
-}
-
-/** "Poracode on host" → "host"; the brand prefix is noise inside the app.
- *  Legacy "Lightcode on …" labels (paired pre-rebrand) are stripped too. */
-function desktopTitle(label: string): string {
-  const stripped = label.replace(/^(?:Poracode|Lightcode)\s+on\s+/i, "");
-  return stripped || label;
 }
 
 /** "http://172.16.21.25:49152/" → "172.16.21.25:49152". */

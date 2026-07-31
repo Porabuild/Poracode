@@ -12,10 +12,12 @@ import { DESKTOP_POINTER_QUERY, useMediaQuery } from "./useMediaQuery";
 
 export function ConnectionPill(props: {
   readonly state: ConnectionState;
+  readonly label?: string;
   /** Tapping the pill re-syncs with the desktop (replaces a refresh button). */
   readonly onPress?: () => void;
 }) {
   const { t } = useLingui();
+  const stateLabel = t(CONNECTION_LABELS[props.state]);
   const icon =
     props.state === "online" ? (
       <Wifi className="size-3.5" />
@@ -28,15 +30,14 @@ export function ConnectionPill(props: {
     <button
       className="m-connection"
       data-state={props.state}
+      data-labeled={props.label ? true : undefined}
       type="button"
-      // Icon-only now: the state word is dropped from the header (color carries
-      // the state), but it stays the accessible name so AT still announces
-      // "Live" / "Reconnecting" / "Offline" / "Pair again".
-      aria-label={t(CONNECTION_LABELS[props.state])}
+      aria-label={props.label ? `${props.label}: ${stateLabel}` : stateLabel}
       title={t`Sync with desktop`}
       onClick={props.onPress}
     >
       {icon}
+      {props.label ? <span className="m-connection__label">{props.label}</span> : null}
     </button>
   );
 }

@@ -14,6 +14,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { ConnectionBanner } from "./components";
 import { Brand, ConnectionControl } from "./NarrowShell";
 import { openWorktreeDraft, threadIdFromPath } from "./navHelpers";
+import { desktopTitle } from "./presentation";
 import { MobileSetupEmptyState } from "./setupEmptyState";
 import type { RemoteDesktopSession } from "./useRemoteDesktop";
 import { ThreadsView } from "./views/ThreadsView";
@@ -196,7 +197,11 @@ export function WideShell(props: {
       <aside className="m-sidebar">
         <header className="m-sidebar__head">
           <Brand onPress={() => void navigate({ to: "/threads" })} />
-          <ConnectionControl remote={remote} onPair={() => void navigate({ to: "/desktops" })} />
+          <ConnectionControl
+            remote={remote}
+            showDesktopName
+            onPair={() => void navigate({ to: "/desktops" })}
+          />
           <Button
             size="sm"
             variant="ghost"
@@ -317,7 +322,11 @@ export function WideShell(props: {
           >
             <Server className="size-4" />
             <span>
-              <strong>{remote.activeDesktop?.label ?? t`No connection paired`}</strong>
+              <strong>
+                {remote.activeDesktop
+                  ? desktopTitle(remote.activeDesktop.label)
+                  : t`No connection paired`}
+              </strong>
               <span>
                 <Plural
                   value={remote.desktops.length}
