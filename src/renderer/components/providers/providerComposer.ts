@@ -1,5 +1,12 @@
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
-import type { AgentCapability, ThreadConfig, ThreadPresentationMode } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  AgentStatus,
+  NpmPackageVersionQuery,
+  Project,
+  ThreadConfig,
+  ThreadPresentationMode,
+} from "@/shared/contracts";
 import { lookupProviderRegistration } from "./providerRegistry";
 
 export interface ComposerControlsInput {
@@ -64,4 +71,30 @@ export function registerConfigNormalizer(kind: string, normalizer: ConfigNormali
 
 export function getConfigNormalizer(kind: string): ConfigNormalizer | undefined {
   return lookupProviderRegistration(configNormalizerRegistry, kind);
+}
+
+export interface ComposerRuntimeUpdate {
+  label: string;
+  installed: boolean;
+  installedVersion?: string;
+  npmPackage?: NpmPackageVersionQuery;
+  command?: string;
+}
+
+type ComposerRuntimeUpdateResolver = (input: {
+  agentStatus: AgentStatus;
+  project: Project;
+}) => ComposerRuntimeUpdate | undefined;
+
+const composerRuntimeUpdateRegistry = new Map<string, ComposerRuntimeUpdateResolver>();
+
+export function registerComposerRuntimeUpdate(
+  kind: string,
+  resolver: ComposerRuntimeUpdateResolver,
+) {
+  composerRuntimeUpdateRegistry.set(kind, resolver);
+}
+
+export function getComposerRuntimeUpdate(kind: string): ComposerRuntimeUpdateResolver | undefined {
+  return lookupProviderRegistration(composerRuntimeUpdateRegistry, kind);
 }
