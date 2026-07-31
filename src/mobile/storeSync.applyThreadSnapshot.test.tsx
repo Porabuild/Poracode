@@ -374,6 +374,109 @@ describe("applyThreadSnapshot", () => {
     expect(assistantStreamText("tail-a")).toBe("updated");
   });
 
+  it("splices a missed initial user_message ahead of a fresher live transcript", () => {
+    // Launch race: the thread's first events broadcast before this client's
+    // mirrored thread list contained the id, so the live filter dropped the
+    // user_message; everything after applied normally.
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "msg-1", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: THREAD_ID,
+        itemId: "msg-1",
+        stream: "assistant_text",
+        delta: "streamed live text",
+      },
+      { type: "item.started", threadId: THREAD_ID, itemId: "cmd-1", itemType: "command_execution" },
+    ]);
+
+    // History fetched mid-turn: knows the missed user_message but is behind on
+    // the streaming tail (same length as local → active snapshot is rejected).
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [
+          {
+            id: "user-1",
+            type: "user_message",
+            state: "completed",
+            payload: { content: [{ type: "text", text: "the prompt" }] },
+            streams: {},
+          },
+          makeItem({ id: "msg-1", assistantText: "streamed" }),
+        ],
+      }),
+    );
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual([
+      "user-1",
+      "msg-1",
+      "cmd-1",
+    ]);
+    // The fresher live tail is untouched.
+    expect(assistantStreamText("msg-1")).toBe("streamed live text");
+  });
+
+  it("does not splice a missed prefix from a cached (non-server) snapshot", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "msg-1", itemType: "assistant_message" },
+      { type: "item.started", threadId: THREAD_ID, itemId: "msg-2", itemType: "assistant_message" },
+    ]);
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [
+          {
+            id: "user-1",
+            type: "user_message",
+            state: "completed",
+            payload: {},
+            streams: {},
+          },
+          makeItem({ id: "msg-1" }),
+        ],
+      }),
+      { fromServer: false },
+    );
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["msg-1", "msg-2"]);
+  });
+
+  it("does not splice when the local head is absent from the snapshot window", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "msg-9", itemType: "assistant_message" },
+      {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "msg-10",
+        itemType: "assistant_message",
+      },
+    ]);
+
+    // Stale snapshot from before msg-9 existed: no safe alignment point.
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [
+          {
+            id: "user-1",
+            type: "user_message",
+            state: "completed",
+            payload: {},
+            streams: {},
+          },
+          makeItem({ id: "msg-8" }),
+        ],
+      }),
+    );
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["msg-9", "msg-10"]);
+  });
+
   it("does not let an empty fresh server snapshot erase a streamed transcript", () => {
     const store = useAppStore.getState();
     store.applyRuntimeEvents(THREAD_ID, [

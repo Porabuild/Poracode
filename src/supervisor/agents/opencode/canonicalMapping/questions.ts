@@ -2,7 +2,7 @@
  * OpenCode question request → canonical user-input form mapping.
  */
 
-import type { QuestionRequest } from "@opencode-ai/sdk/v2";
+import type { QuestionRequest } from "../legacySdk";
 
 export function questionRequestPayload(req: QuestionRequest): {
   summary: string;

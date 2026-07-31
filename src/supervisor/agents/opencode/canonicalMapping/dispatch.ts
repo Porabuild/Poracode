@@ -1,7 +1,7 @@
 /**
  * OpenCode SDK event dispatch → canonical RuntimeEvent[].
  *
- * Translates events emitted by `client.event.subscribe` (`@opencode-ai/sdk/v2`)
+ * Translates events emitted by the legacy client's `event.subscribe`
  * into Poracode's canonical chat events.
  *
  * Reconciliation note: OpenCode interleaves `message.part.delta` (incremental)
@@ -10,7 +10,7 @@
  * `suffixPrefixOverlap` to detect what's new in a snapshot.
  */
 
-import type { EventSubscribeResponse, Part } from "@opencode-ai/sdk/v2";
+import type { EventSubscribeResponse, Part } from "../legacySdk";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { newItemId } from "../../contextUsage";
 import {

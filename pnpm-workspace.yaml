@@ -65,6 +65,8 @@ packageExtensions:
 nodeLinker: isolated
 
 minimumReleaseAgeExclude:
+  # The OpenCode connector tracks the current SDK used by Desktop's compatibility path.
+  - "@opencode-ai/sdk@1.18.10"
   # Claude steering relies on the current official SDK lifecycle controls.
   - "@anthropic-ai/claude-agent-sdk@0.3.219"
   - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.219"

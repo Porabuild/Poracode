@@ -98,7 +98,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@monaco-editor/react": "^4.7.0",
     "@number-flow/react": "^0.6.2",
-    "@opencode-ai/sdk": "^1.18.3",
+    "@opencode-ai/sdk": "^1.18.10",
     "@poracode/activity-bridge": "file:native/activity-bridge",
     "@poracode/agents-usage": "workspace:*",
     "@poracode/codex-protocol": "workspace:*",

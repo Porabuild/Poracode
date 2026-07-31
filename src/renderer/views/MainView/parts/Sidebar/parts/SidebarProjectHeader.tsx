@@ -227,13 +227,20 @@ export function SidebarProjectHeader(props: {
         label={
           <span className="flex items-center gap-1.5">
             <span className="truncate text-xs font-semibold text-foreground">{project.name}</span>
-            {isRemote ? <Server className="size-3 shrink-0 text-muted/60" /> : null}
+            {isRemote || remoteServerName ? (
+              <span className="relative flex shrink-0">
+                <Server className="size-3 text-muted/60" />
+                {remoteServerName ? (
+                  <RemoteServerStatusDot
+                    status={remoteStatus ?? "offline"}
+                    className="absolute -right-0.5 -bottom-0.5"
+                  />
+                ) : null}
+              </span>
+            ) : null}
             {remoteServerName ? (
-              <span className="flex min-w-0 items-center gap-1">
-                <RemoteServerStatusDot status={remoteStatus ?? "offline"} />
-                <span className="max-w-24 truncate text-[10px] font-normal text-muted/60">
-                  {remoteServerName}
-                </span>
+              <span className="max-w-24 truncate text-[10px] font-normal text-muted/60">
+                {remoteServerName}
               </span>
             ) : null}
             {project.location.kind === "wsl" && (

@@ -13,12 +13,14 @@ export function useRemoteServerStatusLabel(status: RemoteServerStatus): string {
 }
 
 /** Connection light for a paired desktop — same palette in Settings and the sidebar. */
-export function RemoteServerStatusDot(props: { status: RemoteServerStatus }) {
+export function RemoteServerStatusDot(props: { status: RemoteServerStatus; className?: string }) {
   const label = useRemoteServerStatusLabel(props.status);
   return (
     <span
       title={label}
-      className={`size-1.5 shrink-0 rounded-full ${remoteServerStatusDotClass(props.status)}`}
+      className={`size-1.5 shrink-0 rounded-full ${remoteServerStatusDotClass(props.status)}${
+        props.className ? ` ${props.className}` : ""
+      }`}
     />
   );
 }

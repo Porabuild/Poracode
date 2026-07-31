@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { resolve as resolvePosixPath } from "node:path/posix";
 import { resolve as resolveWindowsPath } from "node:path/win32";
-import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveWslHomeDirectoryAsync, type AgentEnvContext } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
@@ -9,6 +8,7 @@ import { buildOpenCodeServerCommand } from "./argv";
 import { buildOpenCodeMcp } from "../userMcp";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
 import { installOpenCodePlugin } from "./plugin/install";
+import type { LegacyOpenCodeClient } from "./legacySdk";
 import {
   disposeSpawnedOpenCodeServerHandles,
   spawnOpenCodeServer,
@@ -39,10 +39,10 @@ function poolKey(location: ProjectLocation): string {
 }
 
 export interface AcquiredOpenCodeServer {
-  /** Directory-scoped SDK client for this acquisition's project. */
-  client: OpencodeClient;
-  /** Shared directoryless SDK client for the runtime-wide global event stream. */
-  eventClient: OpencodeClient;
+  /** Directory-scoped legacy SDK client for this acquisition's project. */
+  client: LegacyOpenCodeClient;
+  /** Shared directoryless legacy SDK client for the runtime-wide global event stream. */
+  eventClient: LegacyOpenCodeClient;
   baseUrl: string;
   handle: OpenCodeServerHandle;
   onServerExit?(callback: () => void): () => void;
@@ -51,7 +51,7 @@ export interface AcquiredOpenCodeServer {
 }
 
 interface ServerSnapshot {
-  eventClient: OpencodeClient;
+  eventClient: LegacyOpenCodeClient;
   baseUrl: string;
   handle: OpenCodeServerHandle;
   authorization: string;
@@ -95,7 +95,7 @@ async function installSharedServerPlugin(projectLocation: ProjectLocation): Prom
 // One app-lifetime server per execution runtime: one native process for the
 // host platform, plus one process per WSL distro. OpenCode routes each SDK
 // request to a lazily-created directory instance via x-opencode-directory,
-// matching the v2 desktop app.
+// matching the official Desktop app's shared-server compatibility path.
 const pool = new Map<string, PoolEntry>();
 
 // Total budget for confirming the server is reachable once it has announced
@@ -145,11 +145,11 @@ async function waitForOpenCodeReachable(baseUrl: string, authorization: string):
   }
 }
 
-async function createSdkClient(
+async function createLegacySdkClient(
   baseUrl: string,
   authorization: string,
   directory?: string,
-): Promise<OpencodeClient> {
+): Promise<LegacyOpenCodeClient> {
   const { createOpencodeClient } = await import("@opencode-ai/sdk/v2/client");
   return createOpencodeClient({
     baseUrl,
@@ -183,7 +183,7 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
       await waitForOpenCodeReachable(baseUrl, authorization);
     }
 
-    const eventClient = await createSdkClient(baseUrl, authorization);
+    const eventClient = await createLegacySdkClient(baseUrl, authorization);
     return { eventClient, baseUrl, handle, authorization };
   } catch (err) {
     await handle.dispose();
@@ -207,7 +207,7 @@ export interface AcquireOpenCodeServerInput {
 async function addMcpServers(
   directory: string,
   servers: ReturnType<typeof buildOpenCodeMcp>,
-  client: OpencodeClient,
+  client: LegacyOpenCodeClient,
 ): Promise<void> {
   await Promise.all(
     Object.entries(servers).map(([name, config]) => client.mcp.add({ directory, name, config })),
@@ -218,7 +218,7 @@ async function syncDirectoryMcpServers(
   entry: PoolEntry,
   directory: string,
   servers: ReturnType<typeof buildOpenCodeMcp>,
-  client: OpencodeClient,
+  client: LegacyOpenCodeClient,
 ): Promise<void> {
   const existing = entry.directoryMcp.get(directory);
   const state = existing ?? { sync: Promise.resolve() };
@@ -244,7 +244,7 @@ async function syncDirectoryMcpServers(
           ),
         );
 
-        // The v2 SDK has no dynamic mcp.remove endpoint. Dispose only this
+        // The legacy SDK surface has no dynamic mcp.remove endpoint. Dispose only this
         // directory instance to clear removed runtime config, then rebuild
         // the current set. Other project instances and the server stay live.
         await client.instance.dispose({ directory });
@@ -307,7 +307,7 @@ async function acquireOpenCodeServerInner(
   const snapshot = await acquiringEntry.ready;
 
   const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
-  const client = await createSdkClient(snapshot.baseUrl, snapshot.authorization, directory);
+  const client = await createLegacySdkClient(snapshot.baseUrl, snapshot.authorization, directory);
   try {
     // Omitted MCP config means this caller (notably one-shot generation) does
     // not own provider settings and must leave the directory instance alone.

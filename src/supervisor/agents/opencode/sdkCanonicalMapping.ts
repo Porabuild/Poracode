@@ -1,7 +1,7 @@
 /**
  * OpenCode SDK → canonical RuntimeEvent mapper (public barrel).
  *
- * Translates events emitted by `client.event.subscribe` (`@opencode-ai/sdk/v2`)
+ * Translates events emitted by the legacy client's `event.subscribe`
  * into Poracode's canonical chat events. Mirrors the role of
  * `acp/canonicalMapping.ts` for the ACP protocol.
  *

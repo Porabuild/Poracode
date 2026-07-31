@@ -1,5 +1,4 @@
-import type { Event } from "@opencode-ai/sdk/v2";
-import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
+import type { Event, LegacyOpenCodeClient } from "./legacySdk";
 
 interface OpenCodeEventSubscriber {
   directory: string;
@@ -12,10 +11,10 @@ interface QueuedOpenCodeEvent {
 }
 
 interface SubscribeOpenCodeServerEventsInput extends OpenCodeEventSubscriber {
-  eventClient: OpencodeClient;
+  eventClient: LegacyOpenCodeClient;
 }
 
-const hubs = new WeakMap<OpencodeClient, OpenCodeEventHub>();
+const hubs = new WeakMap<LegacyOpenCodeClient, OpenCodeEventHub>();
 
 const FLUSH_FRAME_MS = 16;
 const STREAM_YIELD_MS = 8;
@@ -99,7 +98,7 @@ function unwrapGlobalOpenCodeEvent(raw: unknown): QueuedOpenCodeEvent | undefine
 }
 
 class OpenCodeEventHub {
-  private readonly eventClient: OpencodeClient;
+  private readonly eventClient: LegacyOpenCodeClient;
   private readonly subscribersByDirectory = new Map<string, Set<OpenCodeEventSubscriber>>();
   private queue: QueuedOpenCodeEvent[] = [];
   private flushTimer: NodeJS.Timeout | undefined;
@@ -110,7 +109,7 @@ class OpenCodeEventHub {
   private lastFlushAt = 0;
   private streamErrorLogged = false;
 
-  constructor(eventClient: OpencodeClient) {
+  constructor(eventClient: LegacyOpenCodeClient) {
     this.eventClient = eventClient;
   }
 

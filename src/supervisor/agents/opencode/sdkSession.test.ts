@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Event } from "@opencode-ai/sdk/v2";
+import type { Event } from "./legacySdk";
 import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
 import { subscribeOpenCodeServerEvents } from "./sdkEventHub";
@@ -962,7 +962,7 @@ describe("OpencodeSdkSession", () => {
     );
   });
 
-  it("steers through OpenCode's server-owned queue without aborting the active turn", async () => {
+  it("uses interrupt-and-drain steering instead of OpenCode's deferred prompt queue", async () => {
     const abort = vi.fn<() => Promise<{ data: boolean }>>().mockResolvedValue({ data: true });
     const promptAsync = vi
       .fn<(input: unknown) => Promise<{ data: unknown }>>()
@@ -1001,80 +1001,14 @@ describe("OpencodeSdkSession", () => {
     await session.activate();
     await session.openThread({ ...config, approvalPolicy: "yolo" });
     await session.startTurn("first", { ...config, approvalPolicy: "yolo" });
-    await session.steerTurn!(
-      "steer ",
-      {
-        model: "opencode-go/kimi-k3",
-        mode: "plan",
-        effort: "high",
-        approvalPolicy: "yolo",
-      },
-      [
-        { kind: "text", content: "steer " },
-        { kind: "attachment", path: "reference.png", mimeType: "image/png" },
-      ],
-      { inlineInstructions: "follow the reference" },
-    );
+    expect("steerTurn" in session).toBe(false);
+    await session.interruptTurn();
 
-    expect(abort).not.toHaveBeenCalled();
-    expect(promptAsync).toHaveBeenCalledTimes(2);
-    expect(promptAsync).toHaveBeenLastCalledWith({
+    expect(abort).toHaveBeenCalledExactlyOnceWith({
       directory: "/repo",
       sessionID: "ses_steer",
-      model: { modelID: "kimi-k3", providerID: "opencode-go" },
-      agent: "plan",
-      variant: "high",
-      parts: [
-        { type: "text", text: "steer " },
-        {
-          type: "file",
-          mime: "image/png",
-          filename: "reference.png",
-          url: "file:///repo/reference.png",
-        },
-        { type: "text", text: "follow the reference" },
-      ],
     });
-
-    await session.dispose();
-  });
-
-  it("uses the current OpenCode config when an in-flight steer does not change it", async () => {
-    const promptAsync = vi
-      .fn<(input: unknown) => Promise<{ data: unknown }>>()
-      .mockResolvedValue({ data: {} });
-
-    mocks.acquireOpenCodeServer.mockResolvedValue({
-      client: {
-        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
-        session: {
-          create: vi
-            .fn<(input: unknown) => Promise<{ data: { id: string } }>>()
-            .mockResolvedValue({ data: { id: "ses_steer" } }),
-          promptAsync,
-        },
-      },
-      baseUrl: "http://127.0.0.1:0",
-      handle: {},
-      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    });
-
-    const session = await OpencodeSdkSession.create({
-      threadId: "thread-opencode-steer-unchanged",
-      projectLocation,
-      config,
-      presentationMode: "terminal",
-    });
-    await session.activate();
-    await session.openThread(config);
-    await session.steerTurn!("keep going", config);
-
-    expect(promptAsync).toHaveBeenCalledWith({
-      directory: "/repo",
-      sessionID: "ses_steer",
-      model: { modelID: "big-pickle", providerID: "opencode" },
-      parts: [{ type: "text", text: "keep going" }],
-    });
+    expect(promptAsync).toHaveBeenCalledOnce();
 
     await session.dispose();
   });

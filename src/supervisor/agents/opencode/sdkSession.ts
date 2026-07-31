@@ -1,5 +1,5 @@
 /**
- * OpenCode SDK structured session.
+ * OpenCode legacy SDK structured session.
  *
  * One class powers two flows:
  *  - **Terminal mode** (default): the runtime calls `activate` → `openThread`
@@ -14,7 +14,7 @@
  *    `session.promptAsync`; `interruptTurn` calls `session.abort`.
  */
 
-import type { Event, PermissionRule } from "@opencode-ai/sdk/v2";
+import type { Event, PermissionRule } from "./legacySdk";
 import type {
   AgentSlashCommand,
   PromptSegment,
@@ -345,22 +345,6 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         cause,
       });
     }
-  }
-
-  /**
-   * Enqueue follow-up input through OpenCode's existing async prompt surface.
-   * OpenCode admits a second `promptAsync` while the session is busy, keeps the
-   * active provider request alive, and processes the message at its next loop
-   * boundary. Aborting first is both lossy and rejected intermittently by
-   * providers such as Console Go.
-   */
-  async steerTurn(
-    prompt: string,
-    config: ThreadConfig,
-    segments?: PromptSegment[],
-    options?: StartTurnOptions,
-  ): Promise<void> {
-    await this.startTurn(prompt, config, segments, options);
   }
 
   async interruptTurn(): Promise<void> {

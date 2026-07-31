@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AssistantMessage, Event, Session, ToolPart, UserMessage } from "@opencode-ai/sdk/v2";
+import type { AssistantMessage, Event, Session, ToolPart, UserMessage } from "./legacySdk";
 import {
   closeOpenItems,
   createOpenCodeMapperState,

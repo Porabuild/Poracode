@@ -121,6 +121,8 @@ export function applyThreadSnapshot(
       },
     }));
     state.reconcileStaleSubAgents(threadId);
+  } else if (options.fromServer) {
+    mergeMissedOlderSnapshotItems(threadId, snapshotItems);
   }
 
   const turns = toCompletedTurnRecords(snapshot.completedTurns);
@@ -136,6 +138,55 @@ export function applyThreadSnapshot(
   }
 
   syncRuntimeRequestsFromSnapshot(snapshot);
+}
+
+/**
+ * Live-first path: streamed items win over a same-or-shorter active snapshot,
+ * but a fresh server history can still know about items emitted BEFORE this
+ * client learned the thread existed. The launch race is the canonical case: a
+ * remote thread's initial user_message broadcasts while its id is still absent
+ * from the client's mirrored thread list, so the live event filter drops it;
+ * every later event applies, and once the streamed transcript catches up in
+ * length the snapshot is rejected wholesale — the prompt would stay missing
+ * for the entire first turn. Splice the snapshot's missed prefix (items
+ * ordered before the first locally-known item) in front of the live
+ * transcript without touching the fresher streamed tail.
+ */
+function mergeMissedOlderSnapshotItems(
+  threadId: string,
+  snapshotItems: readonly RuntimeChatItem[],
+): void {
+  useAppStore.setState((current) => {
+    const existingIds = current.runtimeItemIdsByThread[threadId] ?? [];
+    const firstExistingId = existingIds[0];
+    if (firstExistingId === undefined) return {};
+    // Anchor on the earliest locally-known item; without it in the snapshot
+    // (stale or paged-out window) there is no safe alignment, so do nothing.
+    const overlapIndex = snapshotItems.findIndex((item) => item.id === firstExistingId);
+    if (overlapIndex <= 0) return {};
+    const existingItems = current.runtimeItemsByIdByThread[threadId];
+    const missedPrefix = snapshotItems
+      .slice(0, overlapIndex)
+      .filter((item) => existingItems?.[item.id] === undefined);
+    if (missedPrefix.length === 0) return {};
+    return {
+      runtimeItemIdsByThread: {
+        ...current.runtimeItemIdsByThread,
+        [threadId]: [...missedPrefix.map((item) => item.id), ...existingIds],
+      },
+      runtimeItemsByIdByThread: {
+        ...current.runtimeItemsByIdByThread,
+        [threadId]: {
+          ...Object.fromEntries(missedPrefix.map((item) => [item.id, item])),
+          ...existingItems,
+        },
+      },
+      runtimeStructuralVersionByThread: {
+        ...current.runtimeStructuralVersionByThread,
+        [threadId]: (current.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+      },
+    };
+  });
 }
 
 const RUNTIME_ITEM_STATE_RANK: Record<RuntimeChatItem["state"], number> = {
