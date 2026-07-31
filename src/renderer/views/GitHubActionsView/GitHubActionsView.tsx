@@ -46,9 +46,9 @@ export function GitHubActionsView(props: {
     refreshRun,
     refreshRuns,
     rerunWorkflow,
+    selectDefinitionRef,
     selectRun,
     selectWorkflow,
-    setDefinitionRef,
     setDeleteRun,
   } = useGitHubActionsViewModel(props);
   const pinnedByProject = useSidebarUiStore((state) => state.pinnedGitHubWorkflows);
@@ -56,11 +56,10 @@ export function GitHubActionsView(props: {
   const pinnedWorkflowIds = selectedProject
     ? (pinnedByProject[selectedProject.id] ?? EMPTY_PINNED_WORKFLOWS)
     : EMPTY_PINNED_WORKFLOWS;
-  const [dispatchOpen, setDispatchOpen] = useState(false);
-  const [requestedDispatchWorkflowId, setRequestedDispatchWorkflowId] = useState<number | null>(
-    null,
-  );
+  const [dispatchWorkflowId, setDispatchWorkflowId] = useState<number | null>(null);
   const [displayedRun, setDisplayedRun] = useState(selectedRun);
+  const selectedDefinition = definition?.workflowId === selectedWorkflowId ? definition : null;
+  const dispatchOpen = dispatchWorkflowId !== null && dispatchWorkflowId === selectedWorkflowId;
 
   useEffect(() => {
     if (selectedRun) {
@@ -72,35 +71,31 @@ export function GitHubActionsView(props: {
   }, [selectedRun]);
 
   useEffect(() => {
-    setDispatchOpen(false);
-  }, [selectedWorkflowId]);
+    setDispatchWorkflowId(null);
+  }, [selectedProject?.id]);
 
   useEffect(() => {
-    if (
-      requestedDispatchWorkflowId === null ||
-      requestedDispatchWorkflowId !== selectedWorkflowId ||
-      loadingDefinition ||
-      !definition ||
-      definition.workflowId !== requestedDispatchWorkflowId
-    ) {
+    if (dispatchWorkflowId === null) return;
+    if (dispatchWorkflowId !== selectedWorkflowId) {
+      setDispatchWorkflowId(null);
       return;
     }
-    if (definition.dispatchable) setDispatchOpen(true);
-    setRequestedDispatchWorkflowId(null);
-  }, [definition, loadingDefinition, requestedDispatchWorkflowId, selectedWorkflowId]);
+    if (!loadingDefinition && selectedDefinition && !selectedDefinition.dispatchable) {
+      setDispatchWorkflowId(null);
+    }
+  }, [dispatchWorkflowId, loadingDefinition, selectedDefinition, selectedWorkflowId]);
 
   function selectWorkflowPage(workflowId: number) {
-    setRequestedDispatchWorkflowId(null);
-    setDispatchOpen(false);
+    setDispatchWorkflowId(null);
     selectWorkflow(workflowId);
   }
 
   function requestWorkflowDispatch(workflowId: number) {
-    if (workflowId === selectedWorkflowId && !loadingDefinition && definition?.dispatchable) {
-      setDispatchOpen(true);
+    if (workflowId === selectedWorkflowId && !loadingDefinition && selectedDefinition) {
+      if (selectedDefinition.dispatchable) setDispatchWorkflowId(workflowId);
       return;
     }
-    setRequestedDispatchWorkflowId(workflowId);
+    setDispatchWorkflowId(workflowId);
     if (workflowId !== selectedWorkflowId) selectWorkflow(workflowId);
   }
 
@@ -144,7 +139,7 @@ export function GitHubActionsView(props: {
         </div>
       ) : selectedWorkflow ? (
         <>
-          <header className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[var(--hairline)] px-5 py-4">
+          <header className="flex min-h-[76px] shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[var(--hairline)] px-5 py-4">
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold text-foreground">
                 {selectedWorkflow.name}
@@ -158,20 +153,21 @@ export function GitHubActionsView(props: {
                 ) : null}
               </p>
             </div>
-            {definition?.dispatchable && selectedProject ? (
+            {selectedProject && (selectedDefinition?.dispatchable || dispatchOpen) ? (
               <GitHubActionsDispatchPopover
                 workflow={selectedWorkflow}
-                definition={definition}
+                definition={selectedDefinition}
                 projectId={selectedProject.id}
-                currentBranch={definition.defaultBranch}
                 isOpen={dispatchOpen}
-                isDefinitionLoading={loadingDefinition}
+                isDefinitionLoading={
+                  !selectedDefinition || (loadingDefinition && !selectedDefinition.dispatchable)
+                }
                 isPending={dispatching}
-                onOpenChange={setDispatchOpen}
-                onRefChange={setDefinitionRef}
+                onOpenChange={(isOpen) => setDispatchWorkflowId(isOpen ? selectedWorkflowId : null)}
+                onRefChange={selectDefinitionRef}
                 onRun={dispatchWorkflow}
               />
-            ) : loadingDefinition ? (
+            ) : loadingDefinition || !selectedDefinition ? (
               <Button variant="primary" isDisabled>
                 <Play className="size-4" />
                 <Trans>Run workflow</Trans>
@@ -183,7 +179,7 @@ export function GitHubActionsView(props: {
             )}
           </header>
 
-          <section className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4 [scrollbar-gutter:stable]">
+          <section className="@container min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4 [scrollbar-gutter:stable]">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">
@@ -202,7 +198,9 @@ export function GitHubActionsView(props: {
                 aria-label={t`Refresh workflow runs`}
                 onPress={refreshRuns}
               >
-                <RefreshCw className={`size-3.5 ${loadingRuns ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`size-3.5 ${loadingRuns && runs.length > 0 ? "animate-spin" : ""}`}
+                />
               </Button>
             </div>
             <GitHubActionsRunList
