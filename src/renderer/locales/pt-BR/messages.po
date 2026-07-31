@@ -2431,6 +2431,7 @@ msgstr "Fechar fluxos de trabalho"
 msgid "Close workflows panel"
 msgstr "Fechar o painel de fluxos de trabalho"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"

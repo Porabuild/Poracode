@@ -132,7 +132,14 @@ export function PrSection(props: {
 
   const stateBadge = state === "draft" ? t`(Draft)` : "";
   const fallbackTitle =
-    title || (state === "merged" ? t`Merged` : state === "draft" ? "" : t`Open`);
+    title ||
+    (state === "merged"
+      ? t`Merged`
+      : state === "closed"
+        ? t`Closed`
+        : state === "draft"
+          ? ""
+          : t`Open`);
 
   const canReview = number !== undefined && state !== "merged" && state !== "closed";
   // Offer refresh for live PRs only — a merged/closed PR's head branch is often
@@ -309,7 +316,7 @@ export function PrSection(props: {
           </Dropdown>
         </ButtonGroup>
       )}
-      {state !== "merged" && state !== "draft" && (
+      {state === "open" && (
         <>
           {isBlocked && (
             <div className="flex flex-col gap-1 text-xs">

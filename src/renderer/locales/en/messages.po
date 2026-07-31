@@ -2431,6 +2431,7 @@ msgstr "Close workflows"
 msgid "Close workflows panel"
 msgstr "Close workflows panel"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"

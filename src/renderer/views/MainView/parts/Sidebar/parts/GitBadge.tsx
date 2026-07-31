@@ -14,6 +14,7 @@ import {
   aggregatePrChecksStatus,
   combineChecksStatus,
   getPrStatusTone,
+  isPrActive,
   PR_TONE_TEXT_CLASS,
 } from "@/renderer/utils/prStatus";
 import type { DragSourceData } from "@/renderer/dnd";
@@ -83,7 +84,7 @@ export function GitBadge(props: {
       const details = pr?.number ? s.prDetails[`${props.projectId}#${pr.number}`] : undefined;
       const detailsStatus = aggregatePrChecksStatus(details?.checks);
       const isWorktree = props.worktreePath !== undefined;
-      const hasPr = pr !== undefined && pr !== null && pr.state !== "closed";
+      const hasActivePr = isPrActive(pr?.state);
       return {
         hasStatus: gitStatus !== undefined,
         isRepo: gitStatus?.isRepo ?? false,
@@ -97,7 +98,7 @@ export function GitBadge(props: {
         canCreatePr:
           isWorktree &&
           (s.ghAvailable[props.projectId] ?? false) &&
-          !hasPr &&
+          !hasActivePr &&
           Boolean(gitStatus?.tracking) &&
           (gitStatus?.ahead ?? 0) === 0,
       };
@@ -169,7 +170,7 @@ export function GitBadge(props: {
     );
   }
   const hasVisiblePr =
-    prState !== undefined && prState !== "closed" && (prState !== "merged" || isWorktree);
+    prState !== undefined && (isWorktree || (prState !== "merged" && prState !== "closed"));
   const showPrIcon = hasVisiblePr || canCreatePr;
   const showWorktreeFork = (props.fallbackToWorktreeIcon ?? false) && isWorktree && !showPrIcon;
   if (!isRepo || (!hasChanges && !showPrIcon && !showWorktreeFork)) {
@@ -205,9 +206,10 @@ export function GitBadge(props: {
       </Tooltip>
     );
   }
-  const prIconColor = canCreatePr
-    ? "text-[color:var(--git-branch-tone)]"
-    : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
+  const prIconColor =
+    prState === undefined
+      ? "text-[color:var(--git-branch-tone)]"
+      : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
   return (
     <div
       ref={elementRef}

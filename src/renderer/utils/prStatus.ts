@@ -77,6 +77,10 @@ export function isPrCheckActive(check: PrCheck): boolean {
   return status === "running" || status === "pending";
 }
 
+export function isPrActive(state: PrState | null | undefined): boolean {
+  return state === "open" || state === "draft";
+}
+
 export function formatPrCheckDuration(check: PrCheck, now = Date.now()): string | undefined {
   if (!check.startedAt) return undefined;
   const startedAt = Date.parse(check.startedAt);
