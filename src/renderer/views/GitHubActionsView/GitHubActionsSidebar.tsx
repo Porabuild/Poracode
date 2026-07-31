@@ -1,6 +1,15 @@
-import { Button, Tooltip } from "@heroui/react";
+import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ArrowLeft, PanelLeft, PanelLeftClose, Pin, Play, RefreshCw, Workflow } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  PanelLeft,
+  PanelLeftClose,
+  Pin,
+  Play,
+  RefreshCw,
+  Workflow,
+} from "lucide-react";
 import type { GitHubActionsWorkflow } from "@/shared/contracts";
 import { SidebarButton } from "@/renderer/components/common";
 import {
@@ -13,11 +22,14 @@ import {
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 
 export function GitHubActionsSidebar(props: {
+  projects: { id: string; label: string }[];
+  selectedProjectId: string | null;
   workflows: GitHubActionsWorkflow[];
   selectedWorkflowId: number | null;
   pinnedWorkflowIds: number[];
   loading: boolean;
   onClose: () => void;
+  onSelectProject: (projectId: string) => void;
   onRefresh: () => void;
   onSelect: (workflowId: number) => void;
   onRun: (workflowId: number) => void;
@@ -26,6 +38,7 @@ export function GitHubActionsSidebar(props: {
   const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
   const pinned = new Set(props.pinnedWorkflowIds);
+  const selectedProject = props.projects.find((project) => project.id === props.selectedProjectId);
   const workflows = [...props.workflows].sort((a, b) => {
     const aPinned = pinned.has(a.id);
     const bPinned = pinned.has(b.id);
@@ -68,6 +81,37 @@ export function GitHubActionsSidebar(props: {
         }`}
       >
         <div className={sidebarBodyScrollClass()}>
+          {selectedProject ? (
+            <div className="px-2 pb-2 pt-1">
+              <Dropdown>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-full min-w-0 justify-between rounded-3xl px-2 font-mono text-xs text-muted"
+                  aria-label={t`Project`}
+                >
+                  <span className="min-w-0 truncate">{selectedProject.label}</span>
+                  <ChevronDown className="size-3 shrink-0" />
+                </Button>
+                <Dropdown.Popover placement="bottom start">
+                  <Dropdown.Menu
+                    aria-label={t`Project`}
+                    selectionMode="single"
+                    selectedKeys={[selectedProject.id]}
+                    onAction={(key) => props.onSelectProject(String(key))}
+                  >
+                    {props.projects.map((project) => (
+                      <Dropdown.Item key={project.id} id={project.id} textValue={project.label}>
+                        <Dropdown.ItemIndicator />
+                        <Label>{project.label}</Label>
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            </div>
+          ) : null}
+
           <div className="flex items-center justify-between px-2 py-1">
             <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">
               <Trans>Workflows</Trans>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button, Dropdown, Label } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChevronDown, Play, RefreshCw, Workflow } from "lucide-react";
+import { Play, RefreshCw, Workflow } from "lucide-react";
 import { ConfirmDialog } from "@/renderer/components/common";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -104,11 +104,14 @@ export function GitHubActionsView(props: {
 
   const sidebar = (
     <GitHubActionsSidebar
+      projects={projectOptions}
+      selectedProjectId={selectedProject?.id ?? null}
       workflows={workflows}
       selectedWorkflowId={selectedWorkflowId}
       pinnedWorkflowIds={pinnedWorkflowIds}
       loading={loadingWorkflows}
       onClose={props.onClose}
+      onSelectProject={openGitHubActions}
       onRefresh={refresh}
       onSelect={selectWorkflowPage}
       onRun={requestWorkflowDispatch}
@@ -229,41 +232,6 @@ export function GitHubActionsView(props: {
     <>
       <PageLayout
         title={t`GitHub Actions`}
-        contentHeaderChildren={
-          <>
-            {activeProjects.length > 0 ? (
-              <div className="poracode-overlay-header__controls flex min-w-0 items-center pl-1.5">
-                <Dropdown>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 min-w-0 max-w-[min(220px,32vw)] px-1.5 font-mono text-[13px] font-medium tracking-tight text-muted"
-                    aria-label={t`Project`}
-                  >
-                    <span className="min-w-0 truncate">{selectedProject?.name}</span>
-                    <ChevronDown className="size-3 shrink-0" />
-                  </Button>
-                  <Dropdown.Popover placement="bottom start">
-                    <Dropdown.Menu
-                      aria-label={t`Project`}
-                      selectionMode="single"
-                      selectedKeys={selectedProject ? [selectedProject.id] : []}
-                      onAction={(key) => openGitHubActions(String(key))}
-                    >
-                      {projectOptions.map((project) => (
-                        <Dropdown.Item key={project.id} id={project.id} textValue={project.label}>
-                          <Dropdown.ItemIndicator />
-                          <Label>{project.label}</Label>
-                        </Dropdown.Item>
-                      ))}
-                    </Dropdown.Menu>
-                  </Dropdown.Popover>
-                </Dropdown>
-              </div>
-            ) : null}
-            <div className="flex-1" />
-          </>
-        }
         sidebar={sidebar}
         content={content}
         rightPanel={
