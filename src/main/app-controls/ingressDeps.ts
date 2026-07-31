@@ -17,7 +17,7 @@ import {
   dbUpsertProject,
   dbUpsertThread,
 } from "@/main/db";
-import { hasPersistedProjectExperiment } from "@/main/remote/experimentOwnership";
+import { discardPersistedProjectExperiments } from "@/main/remote/experimentOwnership";
 import { applyRemoteProjectCommand } from "@/main/remote/projectCommands";
 import { sortOrderForThread } from "@/main/remote/server/snapshots";
 import { ensureHomeProjectRow } from "@/main/schedules";
@@ -73,7 +73,10 @@ export function buildSharedAppControlsIngressDeps(
     applyProjectCommand: async (command) => {
       const result = await applyRemoteProjectCommand(command, {
         getProjects: dbGetProjects,
-        hasProjectExperiment: (projectId) => hasPersistedProjectExperiment(projectId),
+        removeProjectExperiments: (project) =>
+          discardPersistedProjectExperiments(project, (payload) =>
+            call("removeExperimentWorktrees", payload),
+          ),
         hasRunningProjectThread: (projectId) =>
           dbGetThreads().some(
             (thread) => thread.projectId === projectId && thread.status === "working",

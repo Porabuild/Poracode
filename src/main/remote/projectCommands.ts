@@ -17,7 +17,7 @@ import { RemoteHttpError } from "./auth";
  */
 export interface RemoteProjectCommandDeps {
   getProjects(): Project[];
-  hasProjectExperiment(projectId: string): boolean;
+  removeProjectExperiments(project: Project): Promise<void>;
   hasRunningProjectThread(projectId: string): boolean;
   /** Thread ids belonging to a project, closed best-effort before removal. */
   listProjectThreadIds(projectId: string): readonly string[];
@@ -246,13 +246,11 @@ export async function applyRemoteProjectCommand(
       };
     }
     case "remove": {
-      const exists = deps.getProjects().some((project) => project.id === command.projectId);
-      if (!exists) {
+      const project = deps.getProjects().find((candidate) => candidate.id === command.projectId);
+      if (!project) {
         throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
       }
-      if (deps.hasProjectExperiment(command.projectId)) {
-        throw new RemoteHttpError("experiment_owned", msg("remote.project.experimentsOwned"), 409);
-      }
+      await deps.removeProjectExperiments(project);
       // Tear down running sessions before the cascade drops their rows.
       for (const threadId of deps.listProjectThreadIds(command.projectId)) {
         await deps.closeThread(threadId).catch(() => undefined);
