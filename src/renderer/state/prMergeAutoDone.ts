@@ -1,5 +1,7 @@
 import { isThreadTurnActive, type PrData, type Thread } from "@/shared/contracts";
+import type { PrWatchMergedEvent } from "@/shared/ipc";
 import { markThreadDone } from "@/renderer/actions/threadActions";
+import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
 import { useSharedSettings } from "./sharedSettingsStore";
@@ -61,6 +63,18 @@ function settleWorktreeThreads(prKeys: ReadonlySet<string>): void {
   }
 }
 
+function settlePrWatchThreads(merged: PrWatchMergedEvent): void {
+  for (const thread of useAppStore.getState().threads) {
+    if (
+      thread.worktreePath &&
+      (thread.worktreePath === merged.worktreePath ||
+        (thread.projectId === merged.projectId && thread.prNumber === merged.prNumber))
+    ) {
+      settleThread(thread);
+    }
+  }
+}
+
 function flushPendingThreads(): void {
   const threads = useAppStore.getState().threads;
   for (const threadId of [...pendingThreadIds]) {
@@ -75,6 +89,11 @@ function flushPendingThreads(): void {
 
 /** Starts the watcher. Runtime-owner only, so a remote session never duplicates it. */
 export function startPrMergeAutoDone(): () => void {
+  const unsubscribePrWatchMerged = readBridge().onPrWatchMerged((merged) => {
+    if (!useSharedSettings.getState().autoMarkDoneOnPrMerge) return;
+    settlePrWatchThreads(merged);
+  });
+
   const unsubscribeGit = useGitStore.subscribe((state, prev) => {
     if (state.prData === prev.prData) return;
     if (!useSharedSettings.getState().autoMarkDoneOnPrMerge) return;
@@ -92,6 +111,7 @@ export function startPrMergeAutoDone(): () => void {
   });
 
   return () => {
+    unsubscribePrWatchMerged();
     unsubscribeGit();
     unsubscribeThreads();
     pendingThreadIds.clear();

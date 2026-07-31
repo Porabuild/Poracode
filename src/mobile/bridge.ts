@@ -364,6 +364,7 @@ const remoteBridge = {
   // Event subscriptions: remote events arrive over the WebSocket instead.
   onSupervisorEvent: () => () => undefined,
   onGitStateChanged: () => () => undefined,
+  onPrWatchMerged: () => () => undefined,
   onUpdateStatus: () => () => undefined,
   onBrowserEvent: () => () => undefined,
   onRemoteThreadCommand: () => () => undefined,

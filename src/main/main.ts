@@ -868,6 +868,12 @@ if (!hasSingleInstanceLock) {
             method,
             admin: false,
           }),
+        onPrMerged: (mergedWatch) =>
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchMerged, {
+            projectId: mergedWatch.projectId,
+            prNumber: mergedWatch.prNumber,
+            ...(mergedWatch.worktreePath ? { worktreePath: mergedWatch.worktreePath } : {}),
+          }),
         createThread: sharedAppControlsDeps.createThread,
         isThreadActive: (threadId) => {
           const status = dbGetThread(threadId)?.status;

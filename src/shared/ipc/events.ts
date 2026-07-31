@@ -175,6 +175,13 @@ export type ProjectStateChangedEvent = {
   projects: Project[];
 };
 
+/** Successful desktop PR automation merge; consumed once by the runtime-owner renderer. */
+export type PrWatchMergedEvent = {
+  projectId: string;
+  prNumber: number;
+  worktreePath?: string;
+};
+
 export type UpdateStatus =
   | { type: "checking" }
   | { type: "update-available"; version: string }

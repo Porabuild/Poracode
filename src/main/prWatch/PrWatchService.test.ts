@@ -378,14 +378,18 @@ describe("PrWatchService", () => {
   });
 
   it("auto-merges with the selected method and removes a green watch", async () => {
+    const onPrMerged = vi.fn<NonNullable<PrWatchServiceOptions["onPrMerged"]>>();
     const { service, store, mergePr, createThread } = setup(
       withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
-      { getMergeMethod: () => "merge" },
+      { getMergeMethod: () => "merge", onPrMerged },
     );
 
     await service.tick();
 
     expect(mergePr).toHaveBeenCalledWith(project, pr.number, "merge");
+    expect(onPrMerged).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: project.id, prNumber: pr.number }),
+    );
     expect(createThread).not.toHaveBeenCalled();
     expect(store.get(project.id, pr.number)).toBeNull();
   });
