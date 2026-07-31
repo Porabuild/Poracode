@@ -203,9 +203,13 @@ export const codexDefaultCapabilities: AgentCapability = {
   defaultApprovalsReviewer: "auto_review",
   defaultSandboxMode: "workspace-write",
   bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
-  // MCP config rides the `-c` launch argv in both presentations — baked in at
-  // spawn, read-only once the session is running.
+  // Terminal MCP config rides the `-c` launch argv. GUI sessions apply the
+  // same shape as a per-thread app-server config override.
   mcpScope: { terminal: "launch", gui: "launch" },
+  // Codex attaches its provider thread id to MCP tools/call `_meta.threadId`.
+  // Crossagents resolves that id through the supervisor session registry, so
+  // pooled GUI threads can share one credential without losing parent routing.
+  crossagentMcpRouting: "provider-session",
   settingDefs: [],
   slashCommands: CODEX_BUILT_IN_SLASH_COMMANDS,
   // Codex delivers its enabled skills through the ACP session (`skills/list`),

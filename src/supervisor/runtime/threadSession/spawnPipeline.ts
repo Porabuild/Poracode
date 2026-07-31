@@ -149,6 +149,25 @@ export function applyAgentSettingsMcpFlags(
   );
 }
 
+export function usesProviderSessionCrossagentRouting(
+  adapter:
+    | {
+        capabilities: {
+          presentationMode: ThreadPresentationMode;
+          crossagentMcpRouting?: AgentAdapter["capabilities"]["crossagentMcpRouting"];
+        };
+      }
+    | undefined,
+  presentationMode: ThreadPresentationMode | undefined,
+  crossagentThreadId: string | undefined,
+): boolean {
+  return (
+    adapter?.capabilities.crossagentMcpRouting === "provider-session" &&
+    (presentationMode ?? adapter.capabilities.presentationMode) !== "terminal" &&
+    crossagentThreadId !== undefined
+  );
+}
+
 export function composeResolvedMcpServers(
   snapshot: McpLaunchSnapshot,
   browserMcp: BrowserMcpHttpConfig | undefined,
@@ -337,6 +356,7 @@ export class SpawnPipeline {
       identity: mcpIdentity,
       crossagentThreadId: payload.threadId,
       adapter,
+      presentationMode: requestedPresentation,
     });
     const structuredSession = await this.createStructuredSession(
       adapter,
@@ -625,6 +645,7 @@ export class SpawnPipeline {
       identity: mcpIdentity,
       crossagentThreadId: session.threadId,
       adapter: session.adapter,
+      ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
     });
     const structuredSession = await this.createStructuredSession(
       session.adapter,
@@ -913,6 +934,7 @@ export class SpawnPipeline {
     identity,
     crossagentThreadId,
     adapter,
+    presentationMode,
   }: {
     location: ProjectLocation;
     config: ThreadConfig;
@@ -920,10 +942,13 @@ export class SpawnPipeline {
     identity?: McpThreadIdentity;
     crossagentThreadId?: string;
     adapter?: AgentAdapter;
+    presentationMode?: ThreadPresentationMode;
   }): Promise<ResolvedMcpServer[]> {
-    const providerSessionCrossagents =
-      adapter?.capabilities.crossagentMcpRouting === "provider-session" &&
-      crossagentThreadId !== undefined;
+    const providerSessionCrossagents = usesProviderSessionCrossagentRouting(
+      adapter,
+      presentationMode,
+      crossagentThreadId,
+    );
     if (adapter?.capabilities.mcpConfigSource === "agentSettings") {
       // Provider-level MCP: flags come from the provider's settings page. Drop
       // the thread identity so a shared provider runtime never retains

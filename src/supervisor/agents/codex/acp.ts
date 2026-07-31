@@ -1,4 +1,3 @@
-import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -6,6 +5,8 @@ import {
   areAgentSlashCommandsEqual,
   type AgentSlashCommand,
   type PromptSegment,
+  type ProjectLocation,
+  type ResolvedMcpServer,
   type RuntimeEvent,
   type SessionRef,
   type ThreadConfig,
@@ -13,13 +14,10 @@ import {
   type ThreadServerRequestId,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { terminateChildProcessTree } from "@/shared/processTree";
 import { toWslUncPath } from "@/shared/wsl";
-import { resolveNodeForDistro } from "../../wsl/runtime";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
-  type CommandSpec,
   type CreateStructuredSessionInput,
   type StartTurnOptions,
   type StructuredSessionHandle,
@@ -27,7 +25,6 @@ import {
   type StructuredSessionUpdate,
   type ThreadHistory,
 } from "../base";
-import { buildCodexAppServerCommand } from "./argv";
 import {
   createCodexMapperState,
   CodexUsageScopeTracker,
@@ -51,7 +48,7 @@ import {
 } from "./acpTurn";
 import { CodexAppServerRpc, isUnsupportedCodexRequestError } from "./appServerRpc";
 import type { CodexClientRequestMap } from "./protocol";
-import { CodexStdioTransport } from "./stdioTransport";
+import { acquireCodexAppServer } from "./serverPool";
 import { buildCodexThreadOverrides } from "./threadOverrides";
 import {
   mapCodexSkillsToSlashCommands,
@@ -82,6 +79,7 @@ function sleep(ms: number): Promise<void> {
 const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
 const CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS = 500;
 const CODEX_FORK_NOTIFICATION_BUFFER_LIMIT = 100;
+const CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS = 2_000;
 const CODEX_EVENT_DEBUG_ENV = "PORACODE_DEBUG_CODEX_EVENTS";
 
 type CodexEventDebugDirection =
@@ -102,20 +100,6 @@ function stringifyCodexEventDebugPayload(payload: unknown): string {
   } catch {
     return String(payload);
   }
-}
-
-function spawnAppServer(command: CommandSpec): ChildProcess {
-  return spawn(command.command, command.args, {
-    cwd: command.cwd ?? process.cwd(),
-    env: {
-      ...process.env,
-      ...command.env,
-      TERM: "xterm-256color",
-    },
-    stdio: ["pipe", "pipe", "pipe"],
-    shell: false,
-    windowsHide: true,
-  });
 }
 
 function toSessionRef(threadId: string): SessionRef {
@@ -157,13 +141,13 @@ function readNotificationThreadId(
 // ── Structured Session ──────────────────────────────────────────
 //
 // Lifecycle for a new thread:
-//   1. create()       → spawn app-server and attach stdio JSON-RPC
+//   1. create()       → acquire the shared app-server and attach a JSON-RPC channel
 //   2. activate()     → initialize handshake with the server
 //   3. openThread()   → thread/start on the server, get Codex thread ID
 //   4. startTurn()    → fire turns through the structured server
 //
 // Lifecycle for resuming a saved thread:
-//   1. create()       → spawn app-server and attach stdio JSON-RPC
+//   1. create()       → acquire the shared app-server and attach a JSON-RPC channel
 //   2. activate()     → initialize handshake
 //   3. openThread()   → thread/resume with saved session ID
 
@@ -171,9 +155,11 @@ function readNotificationThreadId(
 export class CodexStructuredSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
 
-  private readonly appServer: ChildProcess;
   private readonly rpc: CodexAppServerRpc;
   private readonly threadId: string;
+  private readonly projectLocation: ProjectLocation;
+  private readonly mcpServers: readonly ResolvedMcpServer[];
+  private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
   private activated = false;
@@ -228,14 +214,18 @@ export class CodexStructuredSession implements StructuredSessionHandle {
    */
   private bufferedRuntimeEvents: RuntimeEvent[] = [];
   private constructor(
-    appServer: ChildProcess,
     rpc: CodexAppServerRpc,
     threadId: string,
+    projectLocation: ProjectLocation,
+    mcpServers: readonly ResolvedMcpServer[],
+    releaseAppServer: () => void,
     wslDistro?: string,
   ) {
-    this.appServer = appServer;
     this.rpc = rpc;
     this.threadId = threadId;
+    this.projectLocation = projectLocation;
+    this.mcpServers = mcpServers;
+    this.releaseAppServer = releaseAppServer;
     this.wslDistro = wslDistro;
     this.launchOptions = {
       suppressResumeConfigOverrides: true,
@@ -407,7 +397,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private async refreshSkillSlashCommands(forceReload: boolean): Promise<void> {
-    const result = await this.rpc.request("skills/list", { forceReload });
+    const projectCwd = this.projectLocation
+      ? this.projectLocation.kind === "wsl"
+        ? this.projectLocation.linuxPath
+        : this.projectLocation.path
+      : undefined;
+    const result = await this.rpc.request("skills/list", {
+      ...(projectCwd ? { cwds: [projectCwd] } : {}),
+      forceReload,
+    });
     this.currentSkillSlashCommands = mapCodexSkillsToSlashCommands(result);
     this.rebuildSlashCommands();
   }
@@ -416,34 +414,18 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     input: CreateStructuredSessionInput,
     wslExecPath?: string,
   ): Promise<CodexStructuredSession> {
-    const wslNodePath =
-      input.projectLocation.kind === "wsl"
-        ? (await resolveNodeForDistro(input.projectLocation.distro)).nodePath
-        : undefined;
-    const appServer = spawnAppServer(
-      buildCodexAppServerCommand(input.projectLocation, {
-        ...(wslExecPath !== undefined ? { wslExecPath } : {}),
-        ...(wslNodePath !== undefined ? { wslNodePath } : {}),
-        ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
-      }),
-    );
-    const transport = new CodexStdioTransport(appServer);
-
-    const spawnError = await new Promise<Error | undefined>((resolve) => {
-      appServer.once("error", (error) => resolve(error));
-      setImmediate(() => resolve(undefined));
-    });
-    if (spawnError) {
-      throw new Error(`Codex app-server failed to spawn: ${spawnError.message}`);
-    }
-    if (appServer.exitCode !== null) {
-      throw new Error(`Codex app-server exited early.${transport.formatOutput()}`);
-    }
-
+    const acquired = await acquireCodexAppServer(input, wslExecPath);
     const wslDistro =
       input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
-    const rpc = new CodexAppServerRpc(transport, input.threadId);
-    const session = new CodexStructuredSession(appServer, rpc, input.threadId, wslDistro);
+    const rpc = new CodexAppServerRpc(acquired.connection, input.threadId);
+    const session = new CodexStructuredSession(
+      rpc,
+      input.threadId,
+      input.projectLocation,
+      input.mcpServers ?? [],
+      acquired.dispose,
+      wslDistro,
+    );
     session.attachRpcHandlers();
 
     return session;
@@ -498,7 +480,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     // `mode` does not exist on `thread/start` or `thread/resume`; plan mode is
     // a per-turn override sent via `collaborationMode` on `turn/start`.
     this.currentConfig = config;
-    const threadOverrides = buildCodexThreadOverrides(config);
+    const threadOverrides = buildCodexThreadOverrides(config, {
+      projectLocation: this.projectLocation,
+      mcpServers: this.mcpServers,
+    });
 
     let threadId: string;
     // `fresh` marks a brand-new provider thread (usage ledger baseline 0). A
@@ -544,6 +529,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
 
     this.remoteThreadId = threadId;
+    this.rpc.claimThread(threadId);
     this.ensureMapperState().usageScope = new CodexUsageScopeTracker(threadId, createdNewThread);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
     if (!createdNewThread) {
@@ -834,7 +820,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       throw new Error("Cannot roll back a Codex thread before its configuration is initialized.");
     }
     this.currentConfig = rollbackConfig;
-    const threadOverrides = buildCodexThreadOverrides(rollbackConfig);
+    const threadOverrides = buildCodexThreadOverrides(rollbackConfig, {
+      projectLocation: this.projectLocation,
+      mcpServers: this.mcpServers,
+    });
     this.forkNotificationBuffer = [];
     try {
       forkResult = await this.rpc.request("thread/fork", {
@@ -858,6 +847,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
 
     this.remoteThreadId = newThreadId;
+    this.rpc.claimThread(newThreadId);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: newThreadId };
     // The fork created a NEW provider thread carrying inherited history: bump
     // the usage scope epoch so the first sample on it is a baseline, and do it
@@ -865,9 +855,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     // scope.
     this.mapperState?.usageScope?.replaceScope(newThreadId);
     this.replayForkNotifications(newThreadId);
-    void this.rpc.request("thread/unsubscribe", { threadId }).catch((error) => {
-      console.log("[codex] failed to unsubscribe old thread after fork:", error);
-    });
+    await this.rpc
+      .request("thread/unsubscribe", { threadId }, CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS)
+      .catch((error) => {
+        console.log("[codex] failed to unsubscribe old thread after fork:", error);
+      });
     this.pendingTurnInterrupt = false;
     this.activeTurnId = undefined;
     await this.syncRemoteThreadState(newThreadId, toSessionRef(newThreadId));
@@ -881,6 +873,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.rpc.resolveServerRequest(requestId, response);
   }
 
+  ownsProviderSession(providerSessionId: string): boolean {
+    return this.rpc.ownsThread(providerSessionId);
+  }
+
   async dispose(): Promise<void> {
     if (this.isDisposed) {
       return;
@@ -888,11 +884,29 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.isDisposed = true;
 
     this.clearPendingSystemErrorFallback();
-    this.rpc.dispose(new Error("Codex app-server session disposed."));
-
-    if (!this.appServer.killed) {
-      terminateChildProcessTree(this.appServer);
+    if (this.remoteThreadId) {
+      if (this.activeTurnId) {
+        await this.rpc
+          .request(
+            "turn/interrupt",
+            {
+              threadId: this.remoteThreadId,
+              turnId: this.activeTurnId,
+            },
+            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+          )
+          .catch(() => undefined);
+      }
+      await this.rpc
+        .request(
+          "thread/unsubscribe",
+          { threadId: this.remoteThreadId },
+          CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+        )
+        .catch(() => undefined);
     }
+    this.rpc.dispose(new Error("Codex app-server session disposed."));
+    this.releaseAppServer();
   }
 
   private attachRpcHandlers(): void {
@@ -940,6 +954,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     );
     if (childEvents !== undefined) {
       if (childEvents.length > 0) this.emitRuntimeEvents(childEvents);
+      return;
+    }
+    if (
+      notificationThreadId &&
+      this.remoteThreadId !== undefined &&
+      notificationThreadId !== this.remoteThreadId
+    ) {
       return;
     }
 

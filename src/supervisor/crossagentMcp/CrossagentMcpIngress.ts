@@ -198,8 +198,11 @@ export class CrossagentMcpIngress {
     return null;
   }
 
-  private resolveProviderSessionThreadId(args: Record<string, unknown>): string | undefined {
-    const sessionId = args[CROSSAGENT_PROVIDER_SESSION_ID_ARG];
+  private resolveProviderSessionThreadId(
+    args: Record<string, unknown>,
+    meta?: Record<string, unknown>,
+  ): string | undefined {
+    const sessionId = args[CROSSAGENT_PROVIDER_SESSION_ID_ARG] ?? meta?.threadId;
     delete args[CROSSAGENT_PROVIDER_SESSION_ID_ARG];
     if (typeof sessionId !== "string" || sessionId.length === 0) return undefined;
     const threadId = this.deps.resolveProviderSessionThreadId?.(sessionId);
@@ -354,13 +357,19 @@ export class CrossagentMcpIngress {
         };
       }
       if (method === "tools/call") {
-        const p = (params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
+        const p = (params ?? {}) as {
+          name?: string;
+          arguments?: Record<string, unknown>;
+          _meta?: Record<string, unknown>;
+        };
         const name = String(p.name ?? "");
         const rawArgs = p.arguments;
         const args =
           rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs) ? { ...rawArgs } : {};
         const threadId =
-          auth.mode === "thread" ? auth.threadId : this.resolveProviderSessionThreadId(args);
+          auth.mode === "thread"
+            ? auth.threadId
+            : this.resolveProviderSessionThreadId(args, p._meta);
         if (!threadId) {
           return {
             jsonrpc: "2.0",

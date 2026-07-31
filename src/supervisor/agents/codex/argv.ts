@@ -165,19 +165,21 @@ export function buildCodexAppServerCommand(
     wslExecPath?: string;
     wslNodePath?: string;
     mcpServers?: readonly ResolvedMcpServer[];
+    includeMcpConfig?: boolean;
   },
 ): CommandSpec {
   const wslExecPath = options?.wslExecPath;
   const wslNodePath = options?.wslNodePath;
   const mcpServers = options?.mcpServers ?? [];
   const mcp = buildCodexMcp(mcpServers);
+  const includeMcpConfig = options?.includeMcpConfig ?? true;
   const mcpSkillConflictArgs = buildCodexMcpSkillConflictArgs(location, mcpServers);
   const mcpEnv = mcp.env;
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const args = [
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
     ...mcpSkillConflictArgs,
-    ...mcp.args,
+    ...(includeMcpConfig ? mcp.args : []),
     "app-server",
   ];
   if (location.kind === "wsl") {

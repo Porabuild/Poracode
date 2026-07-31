@@ -353,31 +353,42 @@ function bearerToken(headers: Record<string, string>): string | undefined {
 export interface CodexMcp {
   args: string[];
   env: Record<string, string>;
+  config: Record<string, unknown>;
 }
 
 export function buildCodexMcp(servers: readonly ResolvedMcpServer[]): CodexMcp {
   const args: string[] = [];
   const env: Record<string, string> = {};
+  const config: Record<string, unknown> = {};
   let remoteClientEnabled = false;
 
   for (const server of servers) {
     const transport = server.transport;
     const key = `mcp_servers.${tomlKeySegment(server.name)}`;
+    const serverConfig: Record<string, unknown> = {};
     if (transport.type === "stdio") {
       args.push("-c", `${key}.command=${tomlString(transport.command)}`);
+      serverConfig.command = transport.command;
       if (transport.args.length > 0) {
         args.push("-c", `${key}.args=${tomlStringArray(transport.args)}`);
+        serverConfig.args = transport.args;
       }
       if (Object.keys(transport.env).length > 0) {
         args.push("-c", `${key}.env=${tomlInlineTable(transport.env)}`);
+        serverConfig.env = transport.env;
       }
-      if (transport.cwd) args.push("-c", `${key}.cwd=${tomlString(transport.cwd)}`);
+      if (transport.cwd) {
+        args.push("-c", `${key}.cwd=${tomlString(transport.cwd)}`);
+        serverConfig.cwd = transport.cwd;
+      }
     } else {
       if (!remoteClientEnabled) {
         args.push("-c", "experimental_use_rmcp_client=true");
+        config.experimental_use_rmcp_client = true;
         remoteClientEnabled = true;
       }
       args.push("-c", `${key}.url=${tomlString(transport.url)}`);
+      serverConfig.url = transport.url;
       const token = bearerToken(transport.headers);
       const envHeaders: Record<string, string> = {};
       for (const [headerName, headerValue] of Object.entries(transport.headers)) {
@@ -388,18 +399,23 @@ export function buildCodexMcp(servers: readonly ResolvedMcpServer[]): CodexMcp {
       }
       if (Object.keys(envHeaders).length > 0) {
         args.push("-c", `${key}.env_http_headers=${tomlInlineTable(envHeaders)}`);
+        serverConfig.env_http_headers = envHeaders;
       }
       if (token) {
         const envVar = codexMcpTokenEnvVar(server);
         args.push("-c", `${key}.bearer_token_env_var=${tomlString(envVar)}`);
+        serverConfig.bearer_token_env_var = envVar;
         env[envVar] = token;
       }
     }
     args.push("-c", `${key}.tool_timeout_sec=${Math.ceil(server.timeoutMs / 1000)}`);
+    serverConfig.tool_timeout_sec = Math.ceil(server.timeoutMs / 1000);
     if (server.approvalMode) {
       args.push("-c", `${key}.default_tools_approval_mode=${tomlString(server.approvalMode)}`);
+      serverConfig.default_tools_approval_mode = server.approvalMode;
     }
+    config[key] = serverConfig;
   }
 
-  return { args, env };
+  return { args, env, config };
 }

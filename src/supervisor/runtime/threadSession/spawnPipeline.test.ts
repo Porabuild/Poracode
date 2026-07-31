@@ -4,6 +4,7 @@ import {
   applyAgentSettingsMcpFlags,
   composeResolvedMcpServers,
   effectiveLaunchConfig,
+  usesProviderSessionCrossagentRouting,
 } from "./spawnPipeline";
 
 const baseConfig: ThreadConfig = {
@@ -82,6 +83,35 @@ describe("applyAgentSettingsMcpFlags", () => {
       computerUse: false,
       crossagentMcp: false,
     });
+  });
+});
+
+describe("usesProviderSessionCrossagentRouting", () => {
+  const adapter = {
+    capabilities: {
+      presentationMode: "terminal",
+      crossagentMcpRouting: "provider-session",
+    },
+  } as const;
+
+  it("uses provider-session routing for a GUI thread", () => {
+    expect(usesProviderSessionCrossagentRouting(adapter, "gui", "thread-1")).toBe(true);
+  });
+
+  it("keeps terminal threads on direct routing", () => {
+    expect(usesProviderSessionCrossagentRouting(adapter, "terminal", "thread-1")).toBe(false);
+    expect(usesProviderSessionCrossagentRouting(adapter, undefined, "thread-1")).toBe(false);
+  });
+
+  it("requires a thread id and provider support", () => {
+    expect(usesProviderSessionCrossagentRouting(adapter, "gui", undefined)).toBe(false);
+    expect(
+      usesProviderSessionCrossagentRouting(
+        { capabilities: { presentationMode: "gui" } },
+        "gui",
+        "thread-1",
+      ),
+    ).toBe(false);
   });
 });
 
