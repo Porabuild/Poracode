@@ -32,7 +32,11 @@ import {
   type InlineImageClassification,
 } from "@/shared/inlineImagePayload";
 import { readImageDimensions } from "@/shared/imageDimensions";
-import { findDisplayableImageRef, type RemoteImageRefValue } from "@/shared/remote";
+import {
+  findDisplayableImageRef,
+  readRemoteImageRef,
+  type RemoteImageRefValue,
+} from "@/shared/remote";
 import { resolveRemoteImageRefUrl } from "@/shared/imageRefDisplay";
 
 export interface ImageViewSource {
@@ -93,9 +97,12 @@ export function imageViewRendersInline(payload: unknown): boolean {
 }
 
 /** Full resolution: returns the `<img>`-ready source, or `null` when there's no image. */
-export function resolveImageViewSource(payload: unknown): ImageViewSource | null {
+export function resolveImageViewSource(
+  payload: unknown,
+  remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
+): ImageViewSource | null {
   const ref = readStatus(payload) === "error" ? null : findDisplayableImageRef(payload);
-  if (ref) return imageViewSourceFromRef(ref, payload);
+  if (ref) return imageViewSourceFromRef(ref, payload, remoteImageRefUrl);
   const found = findRenderableInlineImageCandidate(payload);
   if (!found) return null;
   const { value, classification } = found;
@@ -128,8 +135,9 @@ export function resolveImageViewSource(payload: unknown): ImageViewSource | null
 function imageViewSourceFromRef(
   ref: RemoteImageRefValue,
   payload: unknown,
+  remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
 ): ImageViewSource | null {
-  const src = resolveRemoteImageRefUrl(ref);
+  const src = remoteImageRefUrl?.(ref) || resolveRemoteImageRefUrl(ref);
   if (!src) return null;
   const extension = EXTENSION_BY_MIME[ref.mime] ?? "png";
   const promptText = readPromptText(payload);
@@ -151,11 +159,35 @@ function imageViewSourceFromRef(
  * content block (`{ kind: "image", dataUrl, mimeType?, name? }`). Returns null
  * when the data URL isn't a recognizable inline image.
  */
-export function imageViewSourceFromImageBlock(block: {
-  dataUrl?: unknown;
-  mimeType?: unknown;
-  name?: unknown;
-}): ImageViewSource | null {
+export function imageViewSourceFromImageBlock(
+  block: {
+    dataUrl?: unknown;
+    mimeType?: unknown;
+    name?: unknown;
+  },
+  remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
+): ImageViewSource | null {
+  const ref = readRemoteImageRef(block.dataUrl);
+  if (ref) {
+    const src = remoteImageRefUrl?.(ref) || resolveRemoteImageRefUrl(ref);
+    if (!src) return null;
+    const extension = EXTENSION_BY_MIME[ref.mime] ?? "png";
+    const name =
+      typeof block.name === "string" && block.name.trim().length > 0
+        ? block.name.trim()
+        : undefined;
+    return {
+      src,
+      mime: ref.mime,
+      extension,
+      fileName: buildFileName(name ?? "", extension),
+      alt: name ?? i18n._(msg`Generated image`),
+      ...(ref.width !== undefined && ref.height !== undefined
+        ? { width: ref.width, height: ref.height }
+        : {}),
+      ...(ref.preview ? { preview: ref.preview } : {}),
+    };
+  }
   if (typeof block.dataUrl !== "string" || block.dataUrl.length === 0) return null;
   const classification = classifyInlineImageCandidate(block.dataUrl);
   if (!classification) return null;

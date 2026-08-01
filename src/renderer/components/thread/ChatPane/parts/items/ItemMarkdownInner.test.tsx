@@ -176,6 +176,27 @@ describe("ItemMarkdownInner", () => {
     );
   });
 
+  it("renders remote markdown image paths through the host image endpoint", () => {
+    const remoteLocalImageUrl = vi.fn<(url: string) => string>(
+      () => "https://remote.test/api/files/image?path=screenshot.png",
+    );
+    const actions = makeActions({ remoteLocalImageUrl });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"![Screenshot](/tmp/screenshot.png)"} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    expect(remoteLocalImageUrl).toHaveBeenCalledWith("poracode-local://local/tmp/screenshot.png");
+    expect(screen.getByAltText("Screenshot")).toHaveAttribute(
+      "src",
+      "https://remote.test/api/files/image?path=screenshot.png",
+    );
+  });
+
   it("renders Windows backslash markdown image paths without CommonMark escape corruption", () => {
     // Paths with `\.` (dot-folders) are mangled by CommonMark unless rewritten
     // to poracode-local:// before parse.

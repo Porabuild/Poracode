@@ -9,6 +9,7 @@ import {
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
+import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { CopyTextButton } from "./CopyTextButton";
 import { ImageCard } from "./ImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
@@ -26,6 +27,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   isTurnActive,
 }: AssistantMessageProps) {
   const { t } = useLingui();
+  const actions = useChatPaneActions();
   // The copy action only appears under a turn's *final* answer: the message
   // must be the last top-level item of its turn — any trailing item (another
   // message, a tool call, an error from a failed turn) means the text was an
@@ -65,9 +67,9 @@ export const AssistantMessage = memo(function AssistantMessage({
     () =>
       (payload?.content ?? [])
         .filter((b) => b.kind === "image")
-        .map((b) => imageViewSourceFromImageBlock(b))
+        .map((b) => imageViewSourceFromImageBlock(b, actions?.remoteImageRefUrl))
         .filter((s): s is NonNullable<typeof s> => s !== null),
-    [payload?.content],
+    [actions?.remoteImageRefUrl, payload?.content],
   );
   const showCopyButton = finalAnswerStatus === "confirmed" && !isStreaming && rawText.length > 0;
   // The tail answer's copy action becomes available only once its turn

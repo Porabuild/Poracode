@@ -196,6 +196,27 @@ describe("host-minted image references", () => {
     expect(source?.fileName).toBe("a-cat.jpg");
   });
 
+  it("resolves a reference through the current remote pane", () => {
+    const source = resolveImageViewSource(
+      { status: "success", images: [ref] },
+      (value) => `https://remote.test/img/${value.itemId}`,
+    );
+    expect(source?.src).toBe("https://remote.test/img/i1");
+  });
+
+  it("resolves a referenced assistant image block through the current remote pane", () => {
+    const source = imageViewSourceFromImageBlock(
+      { dataUrl: ref, name: "result" },
+      (value) => `https://remote.test/img/${value.itemId}`,
+    );
+    expect(source).toMatchObject({
+      src: "https://remote.test/img/i1",
+      alt: "result",
+      width: 800,
+      height: 600,
+    });
+  });
+
   it("groups as an inline image so the timeline does not demote the row", () => {
     setRemoteImageRefResolver(() => "https://desktop.test/img/i1");
     expect(imageViewRendersInline({ status: "success", images: [ref] })).toBe(true);
