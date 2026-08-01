@@ -28,6 +28,7 @@ export function useSourceBranchData(params: {
   const projectLocationPath = getProjectPosixPath(project.location);
   const projectLocationDistro = project.location.kind === "wsl" ? project.location.distro : null;
   const projectLocationUncPath = project.location.kind === "wsl" ? project.location.uncPath : null;
+  const projectRemoteServerId = project.location.remoteServerId;
 
   const [sourceBranchLoading, setSourceBranchLoading] = useState(false);
 
@@ -44,10 +45,19 @@ export function useSourceBranchData(params: {
             distro: projectLocationDistro!,
             linuxPath: projectLocationPath,
             uncPath: projectLocationUncPath!,
+            ...(projectRemoteServerId ? { remoteServerId: projectRemoteServerId } : {}),
           }
         : projectLocationKind === "posix"
-          ? { kind: "posix", path: projectLocationPath }
-          : { kind: "windows", path: projectLocationPath };
+          ? {
+              kind: "posix",
+              path: projectLocationPath,
+              ...(projectRemoteServerId ? { remoteServerId: projectRemoteServerId } : {}),
+            }
+          : {
+              kind: "windows",
+              path: projectLocationPath,
+              ...(projectRemoteServerId ? { remoteServerId: projectRemoteServerId } : {}),
+            };
     setSourceBranchLoading(true);
     readBridge()
       .gitGetWorktreeSourceBranch({
@@ -86,6 +96,7 @@ export function useSourceBranchData(params: {
     projectLocationDistro,
     projectLocationKind,
     projectLocationPath,
+    projectRemoteServerId,
     projectLocationUncPath,
     refreshKey,
   ]);
