@@ -2761,11 +2761,13 @@ msgstr "Conectando al navegador del escritorio…"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Conectando…"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
 msgstr "Error de conexión"
 
@@ -11030,6 +11032,7 @@ msgid "this project"
 msgstr "este proyecto"
 
 #: src/renderer/actions/threadLaunchActions.ts
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "El servidor remoto de este proyecto está sin conexión. Vuelve a conectarlo para iniciar un hilo."
 

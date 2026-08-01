@@ -2761,11 +2761,13 @@ msgstr "Підключення до браузера на десктопі…"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Підключення…"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
 msgstr "Помилка підключення"
 
@@ -11030,6 +11032,7 @@ msgid "this project"
 msgstr "цей проєкт"
 
 #: src/renderer/actions/threadLaunchActions.ts
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Віддалений сервер цього проєкту офлайн. Перепідключіть його, щоб почати тред."
 

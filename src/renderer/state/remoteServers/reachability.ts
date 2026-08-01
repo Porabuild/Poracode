@@ -1,5 +1,13 @@
 import type { Project } from "@/shared/contracts";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteServerStatus } from "./types";
+
+export function isRemoteProjectStatusUnreachable(
+  project: Pick<Project, "remoteServerId">,
+  status: RemoteServerStatus | undefined,
+): boolean {
+  return !!project.remoteServerId && status !== "online";
+}
 
 /**
  * True when a project lives on a paired server this client can't reach right
@@ -13,5 +21,8 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 export function isRemoteProjectUnreachable(project: Pick<Project, "remoteServerId">): boolean {
   const { remoteServerId } = project;
   if (!remoteServerId) return false;
-  return useRemoteServersStore.getState().runtime[remoteServerId]?.status !== "online";
+  return isRemoteProjectStatusUnreachable(
+    project,
+    useRemoteServersStore.getState().runtime[remoteServerId]?.status,
+  );
 }

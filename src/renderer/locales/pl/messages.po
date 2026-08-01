@@ -2761,11 +2761,13 @@ msgstr "Łączenie z przeglądarką desktopa…"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Łączenie…"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
 msgstr "Błąd połączenia"
 
@@ -11030,6 +11032,7 @@ msgid "this project"
 msgstr "ten projekt"
 
 #: src/renderer/actions/threadLaunchActions.ts
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Serwer zdalny tego projektu jest offline. Połącz ponownie, aby rozpocząć wątek."
 

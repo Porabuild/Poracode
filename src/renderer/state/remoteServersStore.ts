@@ -541,6 +541,23 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         void connect();
       };
 
+      const setServersConnecting = (servers: readonly RemoteServerRecord[]) => {
+        if (servers.length === 0) return;
+        set((state) => {
+          const runtime = { ...state.runtime };
+          for (const server of servers) {
+            const current = state.runtime[server.desktopId];
+            runtime[server.desktopId] = {
+              status: "connecting",
+              projects: current?.projects ?? [],
+              threads: current?.threads ?? [],
+              ...(current?.agentStatuses ? { agentStatuses: current.agentStatuses } : {}),
+            };
+          }
+          return { runtime };
+        });
+      };
+
       /** Restore a server's transport (SSH tunnel) when needed, then snapshot
        * it and (re)attach its event stream. Shared by connectAll and
        * reconnectServer so transport handling lives in one place. */
@@ -1007,7 +1024,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // Coalesce concurrent callers (the sidebar and the settings panel both
           // connect on mount) so servers aren't snapshotted twice on startup.
           if (connectAllInFlight) return connectAllInFlight;
-          connectAllInFlight = Promise.all(get().servers.map(connectServer))
+          const servers = get().servers;
+          setServersConnecting(servers);
+          connectAllInFlight = Promise.all(servers.map(connectServer))
             .then(() => undefined)
             .finally(() => {
               connectAllInFlight = null;
@@ -1018,6 +1037,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         reconnectServer: async (desktopId) => {
           const server = get().servers.find((entry) => entry.desktopId === desktopId);
           if (!server) return;
+          setServersConnecting([server]);
           await connectServer(server);
         },
 

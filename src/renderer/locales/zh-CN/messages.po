@@ -2761,11 +2761,13 @@ msgstr "正在连接桌面浏览器…"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "正在连接…"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
 msgstr "连接错误"
 
@@ -11029,6 +11031,7 @@ msgid "this project"
 msgstr "此项目"
 
 #: src/renderer/actions/threadLaunchActions.ts
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "该项目的远程服务器处于离线状态。请重新连接后再开始线程。"
 

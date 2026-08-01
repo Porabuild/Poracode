@@ -24,6 +24,7 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
 import {
   appendProviderComposerControls,
@@ -197,6 +198,12 @@ export function ThreadDraftView(props: {
   );
   const isHomeScope = isHomeProjectId(project.id);
   const scopeLabel = isHomeScope ? HOME_PROJECT_NAME : undefined;
+  const remoteConnection = useRemoteServersStore((state) => {
+    const { remoteServerId } = project;
+    if (!remoteServerId) return "local";
+    if (!state.servers.some((server) => server.desktopId === remoteServerId)) return "missing";
+    return state.runtime[remoteServerId]?.status ?? "connecting";
+  });
 
   // Debugging showed config-only edits were rebuilding the provider/model
   // payload. Keep the installed-agent list stable unless the source inputs
@@ -860,6 +867,29 @@ export function ThreadDraftView(props: {
     blockRef: anchorBlockRef,
     spacerRef: anchorSpacerRef,
   });
+
+  if (remoteConnection === "connecting") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+        <PixelLoader size="md" />
+        <p className="text-sm text-muted">
+          <Trans>Connecting…</Trans>
+        </p>
+      </div>
+    );
+  }
+  if (remoteConnection !== "local" && remoteConnection !== "online") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          <Trans>Connection error</Trans>
+        </h1>
+        <p className="text-muted">
+          <Trans>This project's remote server is offline. Reconnect it to start a thread.</Trans>
+        </p>
+      </div>
+    );
+  }
 
   if (!selectedAgent) {
     if (props.isDetectingAgents) {

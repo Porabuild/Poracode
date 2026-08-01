@@ -13,7 +13,7 @@ import {
   Smartphone,
   Workflow,
 } from "lucide-react";
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useLayoutEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
@@ -305,7 +305,7 @@ export function Sidebar() {
 
   // Reconnect any persisted remote servers once on mount so their projects show
   // in the sidebar without opening Settings → Remote Servers.
-  useEffect(() => {
+  useLayoutEffect(() => {
     void useRemoteServersStore.getState().connectAll();
   }, []);
 

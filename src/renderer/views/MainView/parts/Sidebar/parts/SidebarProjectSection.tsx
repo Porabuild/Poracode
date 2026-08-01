@@ -2,6 +2,8 @@ import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingProject, type DragSourceData } from "@/renderer/dnd";
 import { useProject } from "@/renderer/state/useThread";
 import { useIsProjectCollapsed } from "@/renderer/state/sidebarUiStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { type ThreadSortMode } from "./sortMode";
 import { SidebarProjectHeader } from "./SidebarProjectHeader";
 import { SidebarProjectThreadList } from "./SidebarProjectThreadList";
@@ -13,6 +15,9 @@ export function SidebarProjectSection(props: {
 }) {
   const project = useProject(props.projectId);
   const isProjectCollapsed = useIsProjectCollapsed(props.projectId);
+  const remoteStatus = useRemoteServersStore((state) =>
+    project?.remoteServerId ? state.runtime[project.remoteServerId]?.status : undefined,
+  );
   const { ref } = useSortable({
     id: `project:${props.projectId}`,
     index: props.projectIndex,
@@ -26,7 +31,9 @@ export function SidebarProjectSection(props: {
 
   if (!project) return null;
 
-  const showBody = !isProjectCollapsed && !project.disabled;
+  const isUnreachable = isRemoteProjectStatusUnreachable(project, remoteStatus);
+  const isUnavailable = !!project.disabled || isUnreachable;
+  const showBody = !isProjectCollapsed && !isUnavailable;
 
   return (
     <section ref={ref} className={`relative space-y-0.5 ${isDragging ? "opacity-60" : ""}`}>
@@ -34,6 +41,8 @@ export function SidebarProjectSection(props: {
         project={project}
         isCollapsed={isProjectCollapsed}
         isDragging={isDragging}
+        remoteStatus={remoteStatus}
+        isUnreachable={isUnreachable}
       />
       {showBody ? <SidebarProjectThreadList project={project} sortMode={props.sortMode} /> : null}
     </section>

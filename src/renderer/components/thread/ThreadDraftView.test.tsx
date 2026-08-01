@@ -8,6 +8,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 const { composerSpy } = vi.hoisted(() => ({
   composerSpy: vi.fn<(props: unknown) => void>(),
@@ -44,6 +45,13 @@ const project: Project = {
     path: "C:\\repo",
   },
   createdAt: "2026-03-28T00:00:00.000Z",
+};
+
+const remoteProject: Project = {
+  ...project,
+  id: "remote-project",
+  remoteServerId: "desktop-1",
+  remoteId: "project-1",
 };
 
 const wslProject: Project = {
@@ -421,6 +429,7 @@ describe("ThreadDraftView", () => {
       sharedSettingsHydrated: true,
     });
     useAppStore.setState({ pendingDraftWorktreeSelections: {} });
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
 
   it("adds experiment candidates without a prompt and keeps the composer submit button", () => {
@@ -637,6 +646,29 @@ describe("ThreadDraftView", () => {
     // message so the renderer doesn't flash it before the cache or detection
     // events hydrate the store.
     expect(screen.getByText(/detecting agents/i)).toBeInTheDocument();
+    expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+  });
+
+  it("shows the remote connection error instead of the missing-agent message", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "error", projects: [], threads: [] },
+      },
+    });
+
+    render(<ThreadDraftView project={remoteProject} agentStatuses={[]} onStart={() => {}} />);
+
+    expect(screen.getByText("Connection error")).toBeInTheDocument();
+    expect(screen.getByText(/remote server is offline/i)).toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
   });
 

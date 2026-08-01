@@ -1597,6 +1597,28 @@ describe("useRemoteServersStore", () => {
     expect(statuses).toEqual(["online"]);
   });
 
+  it("marks a cached server as connecting while connectAll checks it", async () => {
+    const statuses: (string | undefined)[] = [];
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => {
+      statuses.push(useRemoteServersStore.getState().runtime.d1?.status);
+      return {
+        snapshotSeq: 2,
+        projects: [proj],
+        threads: [],
+        runtimeSummariesByThread: {},
+        updatedAt: "now",
+      };
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    await pairIsolated(() => makeSocket());
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+
+    await useRemoteServersStore.getState().connectAll();
+
+    expect(statuses).toEqual(["connecting"]);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+  });
+
   it("preserves an unchanged remote runtime snapshot identity", async () => {
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
     await pairIsolated(() => makeSocket());

@@ -2761,11 +2761,13 @@ msgstr "Masaüstü tarayıcısına bağlanılıyor…"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Bağlanıyor…"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
 msgstr "Bağlantı hatası"
 
@@ -11030,6 +11032,7 @@ msgid "this project"
 msgstr "bu proje"
 
 #: src/renderer/actions/threadLaunchActions.ts
+#: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Bu projenin uzak sunucusu çevrimdışı. Bir iş parçacığı başlatmak için yeniden bağlanın."
 

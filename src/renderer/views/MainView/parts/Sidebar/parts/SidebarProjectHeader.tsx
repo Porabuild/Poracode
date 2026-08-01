@@ -55,13 +55,16 @@ import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteServerStatus } from "@/renderer/state/remoteServers/types";
 
 export function SidebarProjectHeader(props: {
   project: Project;
   isCollapsed: boolean;
   isDragging: boolean;
+  remoteStatus: RemoteServerStatus | undefined;
+  isUnreachable: boolean;
 }) {
-  const { project, isCollapsed, isDragging } = props;
+  const { project, isCollapsed, isDragging, remoteStatus, isUnreachable } = props;
   const { t } = useLingui();
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
   const workspaces = useSharedSettings((s) => s.workspaces);
@@ -77,9 +80,6 @@ export function SidebarProjectHeader(props: {
       ? state.servers.find((server) => server.desktopId === project.remoteServerId)
       : undefined,
   );
-  const remoteStatus = useRemoteServersStore((state) =>
-    project.remoteServerId ? state.runtime[project.remoteServerId]?.status : undefined,
-  );
   const setRemoteProjectSynced = useRemoteServersStore((state) => state.setRemoteProjectSynced);
   const remoteServerName = remoteServer ? desktopTitle(remoteServer.label) : undefined;
   const remoteStatusLabel = useRemoteServerStatusLabel(remoteStatus ?? "offline");
@@ -87,8 +87,8 @@ export function SidebarProjectHeader(props: {
   // Git, run-scripts and removal all execute on the project's host, so they are
   // unavailable while a mirrored project's server is unreachable. The row
   // tooltip carries the status, so the greyed-out items read as explained.
-  const isUnreachable = project.remoteServerId !== undefined && remoteStatus !== "online";
-  const showBody = !isCollapsed && !isDisabled;
+  const isUnavailable = isDisabled || isUnreachable;
+  const showBody = !isCollapsed && !isUnavailable;
 
   return (
     <ContextMenu
@@ -256,15 +256,15 @@ export function SidebarProjectHeader(props: {
               : projectLocation
         }
         className={`poracode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${
-          isDisabled ? " opacity-50" : ""
+          isUnavailable ? " opacity-50" : ""
         }`}
         onPress={() => {
-          if (isDisabled) return;
+          if (isUnavailable) return;
           toggleProjectCollapsed(project.id);
         }}
         isDragging={isDragging}
         suffix={
-          isDisabled ? null : (
+          isUnavailable ? null : (
             <>
               <SidebarPanelDragButton
                 panel="files"
