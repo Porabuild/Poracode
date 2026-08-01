@@ -203,6 +203,30 @@ describe("PrSection", () => {
     expect(indicator).not.toHaveClass("bg-success");
   });
 
+  it("shows pending checks instead of a danger status when GitHub blocks a running check", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          ...pr,
+          checksStatus: "PENDING",
+          mergeStateStatus: "BLOCKED",
+        },
+      },
+    });
+    useGitStore.getState().setPrDetails(`${projectId}#${pr.number}`, details);
+
+    render(<PrSection {...baseProps} />);
+
+    const indicator = screen
+      .getByText("#42 - Improve PR summary")
+      .parentElement?.querySelector(".rounded-full");
+    expect(indicator).toHaveClass("bg-warning");
+    expect(indicator).not.toHaveClass("bg-danger");
+    expect(screen.getByText("Checks pending").parentElement).toHaveClass("text-warning");
+    expect(screen.queryByText("Merging is blocked")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Merge PR: Squash" })).toBeDisabled();
+  });
+
   it.each(["CHANGES_REQUESTED", "REVIEW_REQUIRED"])(
     "shows a danger status for %s when merge-state data is missing",
     (reviewDecision) => {

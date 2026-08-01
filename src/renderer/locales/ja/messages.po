@@ -2028,6 +2028,7 @@ msgstr "チェック失敗"
 msgid "Checks passed"
 msgstr "チェック成功"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "チェック保留中"

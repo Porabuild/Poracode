@@ -41,7 +41,12 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
-import { countPassedPrChecks, getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
+import {
+  countPassedPrChecks,
+  getPrStatusTone,
+  isPrBlockedOnlyByPendingChecks,
+  PR_TONE_BG_CLASS,
+} from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
 import { PrWatchControls } from "./PrWatchControls";
 
@@ -120,6 +125,11 @@ export function PrSection(props: {
   }, [cacheKey, details, isRefreshingPr, onRefreshPr, state]);
 
   const reasonKey = mergeable === "CONFLICTING" ? "DIRTY" : mergeStateStatus;
+  const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(combinedChecksStatus, {
+    reviewDecision,
+    mergeable,
+    mergeStateStatus,
+  });
   const indicatorColor =
     PR_TONE_BG_CLASS[
       getPrStatusTone(state, combinedChecksStatus, {
@@ -328,10 +338,16 @@ export function PrSection(props: {
         <>
           {isBlocked && (
             <div className="flex flex-col gap-1 text-xs">
-              <div className="flex items-center gap-2 text-danger">
+              <div
+                className={`flex items-center gap-2 ${isPendingChecksBlock ? "text-warning" : "text-danger"}`}
+              >
                 <AlertTriangle className="size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate font-medium">
-                  <Trans>Merging is blocked</Trans>
+                  {isPendingChecksBlock ? (
+                    <Trans>Checks pending</Trans>
+                  ) : (
+                    <Trans>Merging is blocked</Trans>
+                  )}
                 </span>
                 {canBypass && (
                   <Tooltip>
@@ -343,7 +359,11 @@ export function PrSection(props: {
                       onChange={setBypass}
                       isDisabled={prLoading}
                       aria-label={t`Bypass branch protection rules`}
-                      className="size-5 shrink-0 text-danger data-[selected=true]:bg-danger data-[selected=true]:text-white"
+                      className={`size-5 shrink-0 ${
+                        isPendingChecksBlock
+                          ? "text-warning data-[selected=true]:bg-warning data-[selected=true]:text-warning-foreground"
+                          : "text-danger data-[selected=true]:bg-danger data-[selected=true]:text-white"
+                      }`}
                     >
                       <ShieldOff className="size-3" />
                     </ToggleButton>
@@ -353,7 +373,9 @@ export function PrSection(props: {
                   </Tooltip>
                 )}
               </div>
-              {blockReason && <span className="text-muted">{blockReason}</span>}
+              {!isPendingChecksBlock && blockReason && (
+                <span className="text-muted">{blockReason}</span>
+              )}
             </div>
           )}
           {mergeStateStatus === "BEHIND" && handleUpdatePrBranch && (

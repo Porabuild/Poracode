@@ -2029,6 +2029,7 @@ msgstr "Prüfungen fehlgeschlagen"
 msgid "Checks passed"
 msgstr "Prüfungen bestanden"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "Prüfungen ausstehend"
