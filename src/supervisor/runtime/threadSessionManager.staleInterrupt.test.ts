@@ -359,13 +359,24 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     ) {
       throw new Error("Expected an optimistic steer user message.");
     }
+    const optimisticItemId = optimisticStart.event.itemId;
+
+    expect(
+      events.filter(
+        (event) =>
+          event.type === "thread-runtime-event" &&
+          event.event.type === "item.started" &&
+          event.event.itemType === "user_message" &&
+          event.event.itemId === optimisticItemId,
+      ),
+    ).toHaveLength(1);
 
     expect(startTurn).toHaveBeenCalledTimes(1);
     expect(startTurn).toHaveBeenCalledWith(
       "redirect with this image\n\n@/tmp/reference.png",
       { model: `${AGENT_KIND}/model` },
       segments,
-      { userMessageItemId: optimisticStart.event.itemId },
+      { userMessageItemId: optimisticItemId },
     );
     expect(session.pendingSteer).toBeUndefined();
     expect(events).toContainEqual({

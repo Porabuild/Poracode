@@ -716,12 +716,13 @@ export class SpawnPipeline {
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
       });
       if (prompt.trim().length > 0 && structuredSession.startTurn) {
-        const optimisticItemId = ctx.emitOptimisticUserMessage(
-          session.threadId,
-          prompt,
-          turn.segments,
-          turn.userMessageItemId,
-        );
+        // Retry/recovery callers preserve the id of a user message that was
+        // already broadcast before the old session stopped. Reuse it without
+        // emitting another turn.started + item pair. A missing id means this
+        // path owns the first canonical paint and must emit it now.
+        const optimisticItemId =
+          turn.userMessageItemId ??
+          ctx.emitOptimisticUserMessage(session.threadId, prompt, turn.segments);
         const startOptions = {
           userMessageItemId: optimisticItemId,
           ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),

@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { resolvePoracodePaths, type PoracodePaths } from "@/shared/poracodePaths";
 import { migrateLegacyDataOnLaunch, type LegacyDataMigrationOptions } from "./legacyDataMigration";
 
+const PERSISTED_STAGING_ATTACHMENT_PREFIXES = ["draft-", "remote-", "handoff-"] as const;
+
 function ensureBaseDirectories(paths: PoracodePaths): void {
   mkdirSync(paths.baseDir, { recursive: true });
   mkdirSync(paths.worktreesDir, { recursive: true });
@@ -52,10 +54,14 @@ export function cleanupOrphanedAttachments(attachmentsDir: string, validThreadId
   }
 
   for (const entry of entries) {
-    // Draft-pane attachments live under directories prefixed with `draft-` and
-    // are referenced by file path from persisted user messages once the draft
-    // is sent. Keep them so re-opened threads can still resolve their images.
-    if (entry.startsWith("draft-")) continue;
+    // Composer attachments may be staged before a durable thread id exists.
+    // Their directory keeps the sanitized staging id (`draft:…`, projected
+    // `remote:…`, or `handoff:…`) even after the resulting user message is
+    // persisted. Keep those directories because the message and provider turn
+    // continue to reference the original absolute file path.
+    if (PERSISTED_STAGING_ATTACHMENT_PREFIXES.some((prefix) => entry.startsWith(prefix))) {
+      continue;
+    }
     if (!validDirNames.has(entry)) {
       rmSync(join(attachmentsDir, entry), { recursive: true, force: true });
     }

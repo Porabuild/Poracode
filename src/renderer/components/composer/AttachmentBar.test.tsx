@@ -57,6 +57,33 @@ describe("AttachmentBar", () => {
     expect(screen.getByAltText("screenshot.png").getAttribute("loading")).toBeNull();
   });
 
+  it("uses the owning remote machine URL for remote attachment previews", () => {
+    const imageUrlForPath = vi.fn<(path: string) => string>(
+      (path: string) => `https://mac.test/api/files/image?path=${encodeURIComponent(path)}`,
+    );
+    render(
+      <AttachmentBar
+        attachments={[
+          {
+            id: "image-1",
+            path: "/Users/host/.poracode/attachments/shot.png",
+            name: "shot.png",
+            mimeType: "image/png",
+            isImage: true,
+          },
+        ]}
+        imagesAsPreview
+        imageUrlForPath={imageUrlForPath}
+      />,
+    );
+
+    expect(screen.getByAltText("shot.png")).toHaveAttribute(
+      "src",
+      "https://mac.test/api/files/image?path=%2FUsers%2Fhost%2F.poracode%2Fattachments%2Fshot.png",
+    );
+    expect(imageUrlForPath).toHaveBeenCalledWith("/Users/host/.poracode/attachments/shot.png");
+  });
+
   it("renders flush attachment bars for inline message attachments", () => {
     const { container } = render(
       <AttachmentBar

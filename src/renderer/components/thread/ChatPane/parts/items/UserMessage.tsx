@@ -20,6 +20,8 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { openUserMessageActions } from "../../userMessageActions";
@@ -36,6 +38,7 @@ import {
 } from "./userMessageOverflow";
 
 interface UserMessageProps {
+  threadId: string;
   item: RuntimeChatItem;
   checkpointRevert: CheckpointRevertRequest | null;
 }
@@ -54,9 +57,19 @@ const lineClampClass =
 const collapsedFadeClass =
   "[mask-image:linear-gradient(to_bottom,black_65%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black_65%,transparent)]";
 
-export const UserMessage = memo(function UserMessage({ item, checkpointRevert }: UserMessageProps) {
+export const UserMessage = memo(function UserMessage({
+  threadId,
+  item,
+  checkpointRevert,
+}: UserMessageProps) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
+  const remoteServerId = useAppStore(
+    (state) => state.threads.find((thread) => thread.id === threadId)?.remoteServerId,
+  );
+  const imageUrlForPath = remoteServerId
+    ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
+    : undefined;
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasVisualOverflow, setHasVisualOverflow] = useState(false);
   // Starts false so the body renders clamped on first paint; flipped true after
@@ -243,10 +256,11 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
               attachments={attachments}
               layout="flush"
               imagesAsPreview
+              {...(imageUrlForPath ? { imageUrlForPath } : {})}
               onPreviewImage={(att) => {
                 const imageAttachments = attachments.filter((a) => a.isImage);
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
+                if (idx >= 0) openAttachmentLightbox(imageAttachments, idx, imageUrlForPath);
               }}
               onPreviewPdf={(att) => openPdfPreview(att.path)}
             />
