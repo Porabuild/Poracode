@@ -49,6 +49,7 @@ import { friendlyError } from "@/shared/messages";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
+import type { SaveClipboardImage } from "../composer/useAttachments";
 import { AgentDiscoveryScreen } from "./AgentDiscoveryScreen";
 import {
   isDiscoveryActiveForLocation,
@@ -163,6 +164,7 @@ export function ThreadDraftView(props: {
   /** Override whether unmodified Enter submits instead of inserting a newline. */
   submitOnEnter?: boolean;
   pickFiles?: () => Promise<string[] | null>;
+  saveClipboardImage?: SaveClipboardImage;
   paneAlign?: "left" | "center" | "right";
   showCloseButton?: boolean;
   isDragging?: boolean;
@@ -1093,6 +1095,7 @@ export function ThreadDraftView(props: {
             {...(props.composerPlaceholder ? { placeholder: props.composerPlaceholder } : {})}
             {...(props.submitOnEnter !== undefined ? { submitOnEnter: props.submitOnEnter } : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
+            {...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {})}
             onConfigChange={onConfigPatch}
             onWorktreeModeChange={setWorktreeMode}
             onSwitchBranch={handleSwitchBranch}

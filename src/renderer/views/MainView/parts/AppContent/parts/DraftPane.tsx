@@ -48,6 +48,9 @@ export function DraftPane(props: {
       agentStatuses={draftEnvironment.agentStatuses}
       isDetectingAgents={draftEnvironment.isDetectingAgents}
       {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
+      {...(draftEnvironment.saveClipboardImage
+        ? { saveClipboardImage: draftEnvironment.saveClipboardImage }
+        : {})}
       compact
       paneAlign={props.paneAlign}
       paneId={props.paneId}

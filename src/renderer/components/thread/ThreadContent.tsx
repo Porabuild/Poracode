@@ -11,6 +11,7 @@ import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { useThreadDockState, type ThreadDockState } from "./useThreadDockState";
+import type { SaveClipboardImage } from "../composer/useAttachments";
 
 export type ThreadContentCommonProps = {
   threadId: string;
@@ -34,6 +35,7 @@ export type ThreadContentCommonProps = {
   checkpointProjectLocation?: ProjectLocation | undefined;
   remoteTerminalTransport?: RemoteTerminalTransport | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
+  saveClipboardImage?: SaveClipboardImage | undefined;
 };
 
 export function GuiThreadContent(

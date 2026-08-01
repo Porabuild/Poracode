@@ -1093,6 +1093,14 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           return requireClient(desktopId).threadRuntimeItemsPage(input);
         },
 
+        saveClipboardImage: (desktopId, input) => {
+          return requireClient(desktopId).uploadAttachment({
+            threadId: input.threadId,
+            fileName: `clipboard-${crypto.randomUUID()}.${input.extension}`,
+            data: input.data,
+          });
+        },
+
         pickAndUploadFiles: async (desktopId, attachmentThreadId) => {
           const client = requireClient(desktopId);
           return pickAndUploadBrowserFiles({

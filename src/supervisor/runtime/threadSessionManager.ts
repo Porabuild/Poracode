@@ -171,8 +171,13 @@ export class ThreadSessionManager {
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
       isCurrentSession: (session) => this.isCurrentSession(session),
       resolveAgentSettings: (adapter) => this.resolveAgentSettings(adapter),
-      emitOptimisticUserMessage: (threadId, prompt, segments) =>
-        this.structuredTurnQueue.emitOptimisticUserMessage(threadId, prompt, segments),
+      emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId) =>
+        this.structuredTurnQueue.emitOptimisticUserMessage(
+          threadId,
+          prompt,
+          segments,
+          requestedItemId,
+        ),
     });
     this.invalidSessionRecovery = new InvalidSessionRecoveryCoordinator({
       spawnPipeline: this.spawnPipeline,
@@ -259,13 +264,12 @@ export class ThreadSessionManager {
     // the same item id so the replacement session cannot duplicate it.
     const pending = session.pendingSteer;
     if (!pending) return;
-    const userMessageItemId =
-      pending.userMessageItemId ??
-      this.structuredTurnQueue.emitOptimisticUserMessage(
-        session.threadId,
-        pending.prompt,
-        pending.segments,
-      );
+    const userMessageItemId = this.structuredTurnQueue.emitOptimisticUserMessage(
+      session.threadId,
+      pending.prompt,
+      pending.segments,
+      pending.userMessageItemId,
+    );
     const turn: QueuedStructuredTurn = { ...pending, userMessageItemId };
     clearPendingSteerSlot(session, this.options.emit);
     void this.spawnPipeline.restartThread(session, turn).catch((error) => {

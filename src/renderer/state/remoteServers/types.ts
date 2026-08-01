@@ -159,6 +159,10 @@ export interface RemoteServersState {
     desktopId: string,
     input: RemoteRuntimeItemsPageRequest,
   ): ReturnType<RemoteDesktopClient["threadRuntimeItemsPage"]>;
+  saveClipboardImage(
+    desktopId: string,
+    input: { readonly threadId: string; readonly data: Uint8Array; readonly extension: string },
+  ): Promise<string>;
   pickAndUploadFiles(desktopId: string, attachmentThreadId: string): Promise<string[] | null>;
   interruptThread(desktopId: string, threadId: string): Promise<void>;
   closeThread(desktopId: string, threadId: string): Promise<void>;
