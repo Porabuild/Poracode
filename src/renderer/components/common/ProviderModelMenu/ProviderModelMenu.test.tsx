@@ -150,6 +150,28 @@ describe("ProviderModelMenu", () => {
     expect(await screen.findByText("Model 500")).toBeInTheDocument();
   });
 
+  it("keeps the desktop popover width fixed while windowing model rows", async () => {
+    render(
+      <ProviderModelMenu
+        providers={[makeProvider(500)]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    const fixedWidthPopover = listbox.closest(".w-96");
+    expect(fixedWidthPopover).not.toBeNull();
+
+    fireEvent.scroll(listbox, { target: { scrollTop: 500 * 28 } });
+
+    expect(await screen.findByText("Model 500")).toBeInTheDocument();
+    expect(listbox.closest(".w-96")).toBe(fixedWidthPopover);
+  });
+
   it("renders normalized model rate descriptions as muted row hints", async () => {
     const provider = makeProvider(1);
     provider.capabilities.models = [
