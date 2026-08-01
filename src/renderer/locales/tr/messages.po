@@ -10330,6 +10330,7 @@ msgstr "başlıyor…"
 msgid "Startup is taking longer than expected"
 msgstr "Başlatma beklenenden uzun sürüyor"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Sakla ve Çek"

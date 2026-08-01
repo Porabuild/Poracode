@@ -10330,6 +10330,7 @@ msgstr "bắt đầu…"
 msgid "Startup is taking longer than expected"
 msgstr "Quá trình khởi động mất nhiều thời gian hơn dự kiến"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Cất & Kéo"

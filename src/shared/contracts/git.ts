@@ -481,6 +481,7 @@ export interface GitSwitchBranchResult {
 export const gitPullPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   remote: z.string().optional().default("origin"),
+  preserveLocalChanges: z.boolean().default(false),
 });
 export type GitPullPayload = z.input<typeof gitPullPayloadSchema>;
 

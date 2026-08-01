@@ -193,12 +193,63 @@ export class GitWorktreeService {
     await execGit(location, ["remote", "add", remote, url], { timeout: GIT_STATUS_TIMEOUT });
   }
 
-  async pull(location: ProjectLocation, remote: string): Promise<void> {
-    await execGit(location, ["pull", "--no-rebase", remote], { timeout: GIT_NETWORK_TIMEOUT });
+  async pull(
+    location: ProjectLocation,
+    remote: string,
+    preserveLocalChanges = false,
+  ): Promise<void> {
+    if (preserveLocalChanges) {
+      await this.pullWithStash(location, remote, false);
+      return;
+    }
+    await this.runPull(location, remote, false);
   }
 
-  async pullRebase(location: ProjectLocation, remote: string): Promise<void> {
-    await execGit(location, ["pull", "--rebase", remote], { timeout: GIT_NETWORK_TIMEOUT });
+  async pullRebase(
+    location: ProjectLocation,
+    remote: string,
+    preserveLocalChanges = false,
+  ): Promise<void> {
+    if (preserveLocalChanges) {
+      await this.pullWithStash(location, remote, true);
+      return;
+    }
+    await this.runPull(location, remote, true);
+  }
+
+  private async runPull(location: ProjectLocation, remote: string, rebase: boolean): Promise<void> {
+    await execGit(location, ["pull", rebase ? "--rebase" : "--no-rebase", remote], {
+      timeout: GIT_NETWORK_TIMEOUT,
+    });
+  }
+
+  private async pullWithStash(
+    location: ProjectLocation,
+    remote: string,
+    rebase: boolean,
+  ): Promise<void> {
+    const stashCommit = await this.pushTransferStash(
+      location,
+      `Poracode: before pull from ${remote}`,
+    );
+
+    try {
+      await this.runPull(location, remote, rebase);
+    } catch (error: unknown) {
+      if (stashCommit) {
+        throw new Error(`${errorDetail(error)}\n${msg("git.pull.stashPreserved")}`, {
+          cause: error,
+        });
+      }
+      throw error;
+    }
+
+    if (!stashCommit) return;
+
+    if (!(await this.applyStashInto(location, stashCommit))) {
+      throw new Error(`${msg("git.pull.reapplyConflicts")}\n${msg("git.pull.stashPreserved")}`);
+    }
+    await this.dropStashBySha(location, stashCommit);
   }
 
   async push(

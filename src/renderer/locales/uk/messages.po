@@ -10330,6 +10330,7 @@ msgstr "запуск…"
 msgid "Startup is taking longer than expected"
 msgstr "Запуск триває довше, ніж очікувалося"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Сховати та отримати (pull)"

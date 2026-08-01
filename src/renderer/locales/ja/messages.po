@@ -10328,6 +10328,7 @@ msgstr "始めています…"
 msgid "Startup is taking longer than expected"
 msgstr "起動に通常より時間がかかっています"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "スタッシュ＆プル"
