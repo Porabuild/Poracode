@@ -1106,7 +1106,7 @@ describe("GitReviewSidebar", () => {
     expect(screen.queryByText("Merge & Remove Worktree")).not.toBeInTheDocument();
   });
 
-  it("shows the latest merged PR and allows creating a follow-up PR", async () => {
+  it("hides Create PR when the branch still points at the latest merged PR commit", async () => {
     const project: Project = {
       id: "project-1",
       name: "Poracode",
@@ -1116,6 +1116,7 @@ describe("GitReviewSidebar", () => {
     const gitStatus: GitStatusResult = {
       isRepo: true,
       branch: "feature/worktree",
+      headSha: "merged-head",
       tracking: "origin/feature/worktree",
       hasRemote: true,
       remoteInfo: {
@@ -1134,6 +1135,7 @@ describe("GitReviewSidebar", () => {
     const mergedPr: PrData = {
       number: 429,
       state: "merged",
+      headSha: "merged-head",
       title: "Add GitHub Actions workflow management view",
       url: "https://github.com/example/poracode/pull/429",
       baseBranch: "master",
@@ -1149,7 +1151,7 @@ describe("GitReviewSidebar", () => {
     bridgeMock.ghGetPrForBranch.mockResolvedValue(mergedPr);
     useGitStore.setState({ ghAvailable: { [project.id]: true } });
 
-    render(
+    const { rerender } = render(
       <GitReviewSidebar
         project={project}
         gitStatus={gitStatus}
@@ -1167,6 +1169,27 @@ describe("GitReviewSidebar", () => {
     expect(
       await screen.findByText("#429 - Add GitHub Actions workflow management view"),
     ).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole("button", { name: "Create PR" })
+        .some((button) => button.classList.contains("flex-1")),
+    ).toBe(false);
+
+    rerender(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={{ ...gitStatus, headSha: "new-pushed-head" }}
+        selectedFile={null}
+        selectedStaged={false}
+        worktreeBranch="feature/worktree"
+        worktreePath="C:\\repo-worktree"
+        refreshKey={1}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
     expect(
       screen
         .getAllByRole("button", { name: "Create PR" })

@@ -184,6 +184,7 @@ function areGitStatusesEqual(a: GitStatusResult | undefined, b: GitStatusResult)
     a.detail === b.detail &&
     a.isRepo === b.isRepo &&
     a.branch === b.branch &&
+    a.headSha === b.headSha &&
     a.tracking === b.tracking &&
     a.hasRemote === b.hasRemote &&
     ((leftRemote === null && rightRemote === null) ||
@@ -283,6 +284,7 @@ function arePrDataEqual(a: PrData | null | undefined, b: PrData | null) {
   return (
     a.number === b.number &&
     a.state === b.state &&
+    a.headSha === b.headSha &&
     a.title === b.title &&
     a.url === b.url &&
     a.baseBranch === b.baseBranch &&

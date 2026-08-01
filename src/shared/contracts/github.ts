@@ -8,6 +8,8 @@ export type PrMergeMethod = z.infer<typeof prMergeMethodSchema>;
 export interface PrData {
   number: number;
   state: PrState;
+  /** Last commit that belonged to this pull request's head branch. */
+  headSha?: string;
   title: string;
   url: string;
   baseBranch: string;

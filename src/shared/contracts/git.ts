@@ -26,6 +26,8 @@ export interface GitStatusResult {
   detail?: GitStatusDetail;
   isRepo: boolean;
   branch: string;
+  /** Commit currently checked out at HEAD. */
+  headSha?: string;
   tracking: string;
   hasRemote: boolean;
   remoteInfo: GitRemoteInfo | null;

@@ -150,6 +150,7 @@ export function mapPrData(raw: Record<string, unknown>, viewerLogin?: string): P
   const result: PrData = {
     number: raw.number as number,
     state: mapPrState({ state: raw.state as string, isDraft: raw.isDraft as boolean }),
+    ...(typeof raw.headRefOid === "string" && raw.headRefOid ? { headSha: raw.headRefOid } : {}),
     title: (raw.title as string) ?? "",
     url: (raw.url as string) ?? "",
     baseBranch: (raw.baseRefName as string) ?? "",
