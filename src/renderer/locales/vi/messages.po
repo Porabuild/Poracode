@@ -2029,6 +2029,7 @@ msgstr "Kiểm tra thất bại"
 msgid "Checks passed"
 msgstr "Kiểm tra thành công"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "Kiểm tra đang chờ"

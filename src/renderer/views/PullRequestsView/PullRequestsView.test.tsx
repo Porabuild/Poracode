@@ -212,6 +212,31 @@ describe("PullRequestsView", () => {
     expect(row.querySelector(".rounded-full")).toHaveClass("bg-danger");
   });
 
+  it("shows pending checks when GitHub blocks a PR while CI is running", async () => {
+    useAppStore.setState({ projects: [windowsProject] });
+    bridge.ghListPullRequests.mockResolvedValue({
+      pullRequests: [
+        {
+          ...summary,
+          pr: {
+            ...summary.pr,
+            checksStatus: "PENDING",
+            mergeable: "MERGEABLE",
+            mergeStateStatus: "BLOCKED",
+          },
+        },
+      ],
+      viewerLogin: "reviewer",
+    });
+
+    render(<PullRequestsView />);
+
+    const row = await screen.findByRole("button", { name: new RegExp(summary.pr.title) });
+    expect(within(row).getByText("Checks pending")).toBeInTheDocument();
+    expect(row.querySelector(".lucide-git-pull-request")).toHaveClass("text-warning");
+    expect(row.querySelector(".rounded-full")).toHaveClass("bg-warning");
+  });
+
   it("refreshes every project on demand", async () => {
     render(<PullRequestsView />);
 

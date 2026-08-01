@@ -16,6 +16,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
   getPrStatusTone,
+  isPrBlockedOnlyByPendingChecks,
   isPrMergeBlocked,
   PR_TONE_BG_CLASS,
   PR_TONE_TEXT_CLASS,
@@ -416,6 +417,10 @@ function PullRequestRows(props: {
       {props.entries.map((entry) => {
         const { project, summary } = entry;
         const tone = getPrStatusTone(summary.pr.state, summary.pr.checksStatus, summary.pr);
+        const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(
+          summary.pr.checksStatus,
+          summary.pr,
+        );
         const statusLabel =
           summary.pr.state === "draft"
             ? t`Draft`
@@ -423,15 +428,17 @@ function PullRequestRows(props: {
               ? t`Merged`
               : summary.pr.state === "closed"
                 ? t`Closed`
-                : isPrMergeBlocked(summary.pr)
-                  ? t`Merging is blocked`
-                  : tone === "danger"
-                    ? t`Checks failed`
-                    : tone === "warning"
-                      ? t`Checks pending`
-                      : summary.pr.checksStatus
-                        ? t`Checks passed`
-                        : t`Open`;
+                : isPendingChecksBlock
+                  ? t`Checks pending`
+                  : isPrMergeBlocked(summary.pr)
+                    ? t`Merging is blocked`
+                    : tone === "danger"
+                      ? t`Checks failed`
+                      : tone === "warning"
+                        ? t`Checks pending`
+                        : summary.pr.checksStatus
+                          ? t`Checks passed`
+                          : t`Open`;
         return (
           <button
             key={`${project.id}:${summary.pr.number}`}

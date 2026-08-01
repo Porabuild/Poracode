@@ -167,11 +167,34 @@ export function getPrStatusTone(
 ): PrStatusTone {
   if (state === "merged") return "merged";
   if (state === "draft") return "draft";
-  if (state === "closed" || isPrMergeBlocked(mergeStatus)) return "danger";
+  if (state === "closed") return "danger";
+  if (isPrBlockedOnlyByPendingChecks(checksStatus, mergeStatus)) return "warning";
+  if (isPrMergeBlocked(mergeStatus)) return "danger";
   if (mergeStatus?.mergeStateStatus === "BEHIND") return "warning";
   const checksTone = getChecksStatusTone(normalizeChecksStatus(checksStatus));
   if (checksTone) return checksTone;
   return "success";
+}
+
+/**
+ * GitHub reports protected PRs as BLOCKED while required checks are running.
+ * Treat that otherwise-ambiguous merge state as pending unless GitHub also
+ * reports a concrete review or conflict blocker.
+ */
+export function isPrBlockedOnlyByPendingChecks(
+  checksStatus: string | undefined,
+  status: PrMergeStatus | null | undefined,
+): boolean {
+  if (normalizeChecksStatus(checksStatus) !== "PENDING" || status?.mergeStateStatus !== "BLOCKED") {
+    return false;
+  }
+
+  const reviewDecision = status.reviewDecision?.toUpperCase();
+  return (
+    reviewDecision !== "CHANGES_REQUESTED" &&
+    reviewDecision !== "REVIEW_REQUIRED" &&
+    status.mergeable !== "CONFLICTING"
+  );
 }
 
 export function isPrMergeBlocked(status: PrMergeStatus | null | undefined): boolean {
