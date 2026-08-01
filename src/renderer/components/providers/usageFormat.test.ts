@@ -39,6 +39,17 @@ describe("usageStatusText", () => {
     expect(usageStatusText(snapshot, "Codex", "codex")).toBe("Credits: 796");
   });
 
+  it("does not show an empty Codex credit balance", () => {
+    const snapshot: UsageSnapshot = {
+      providerId: "codex",
+      status: "ok",
+      windows: [],
+      fetchedAt: 1_700_000_000_000,
+      credits: { balance: 0 },
+    };
+    expect(usageStatusText(snapshot, "Codex", "codex")).toBe("No windows reported");
+  });
+
   it("keeps currency-denominated credit balances as money", () => {
     expect(formatCreditBalance({ balance: 24.5, currency: "USD" })).toBe("$24.50");
   });

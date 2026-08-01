@@ -11,6 +11,7 @@ import {
   formatMoney,
   formatTokens,
   formatWindowValue,
+  hasDisplayableCredits,
   sharedWindowResetLabel,
   usageStatusText,
 } from "@/renderer/components/providers/usageFormat";
@@ -103,9 +104,10 @@ export function UsageProviderCard(props: {
     data: { id },
   });
 
+  const credits = hasDisplayableCredits(snapshot?.credits) ? snapshot?.credits : undefined;
   const hasUsage =
     snapshot?.status === "ok" &&
-    (snapshot.windows.length > 0 || Boolean(snapshot.cost) || Boolean(snapshot.credits));
+    (snapshot.windows.length > 0 || Boolean(snapshot.cost) || Boolean(credits));
   const hasWindows = snapshot?.status === "ok" && snapshot.windows.length > 0;
   const sharedReset = usesSharedWindowReset(id)
     ? sharedWindowResetLabel(snapshot, Date.now())
@@ -195,10 +197,7 @@ export function UsageProviderCard(props: {
       </div>
       {collapsed && hasWindows && snapshot ? (
         <div className="px-2.5 pb-2">
-          <WindowChips
-            windows={snapshot.windows}
-            {...(snapshot.credits ? { credits: snapshot.credits } : {})}
-          />
+          <WindowChips windows={snapshot.windows} {...(credits ? { credits } : {})} />
         </div>
       ) : null}
 
@@ -212,11 +211,8 @@ export function UsageProviderCard(props: {
                   showReset={!usesSharedWindowReset(id)}
                 />
               ) : null}
-              {snapshot.credits ? (
-                <UsageCreditsRow
-                  credits={snapshot.credits}
-                  showSeparator={snapshot.windows.length > 0}
-                />
+              {credits ? (
+                <UsageCreditsRow credits={credits} showSeparator={snapshot.windows.length > 0} />
               ) : null}
               <UsageProviderMeta snapshot={snapshot} />
             </>

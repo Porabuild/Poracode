@@ -40,6 +40,10 @@ export function formatCreditBalance(credits: UsageCredits): string {
   return formatCount(Math.max(0, Math.floor(credits.balance)));
 }
 
+export function hasDisplayableCredits(credits: UsageCredits | undefined): credits is UsageCredits {
+  return Boolean(credits && (credits.unlimited || credits.balance !== 0));
+}
+
 /**
  * Right-hand value label for a usage window: money for dollar-denominated
  * windows (e.g. "Extra usage"), otherwise a percentage.
@@ -156,7 +160,7 @@ export function usageStatusText(
       if (snapshot.credits?.unlimited) {
         return i18n._(msg`Unlimited`);
       }
-      if (snapshot.credits) {
+      if (hasDisplayableCredits(snapshot.credits)) {
         return `${snapshot.credits.label ?? i18n._(msg`Credits`)}: ${formatCreditBalance(
           snapshot.credits,
         )}`;
