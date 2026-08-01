@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { UsageSnapshot } from "@poracode/agents-usage";
-import { formatCreditBalance, usageStatusText } from "./usageFormat";
+import { formatCreditBalance, hasDisplayableCredits, usageStatusText } from "./usageFormat";
 
 function authMissingSnapshot(providerId: string): UsageSnapshot {
   return {
@@ -39,7 +39,7 @@ describe("usageStatusText", () => {
     expect(usageStatusText(snapshot, "Codex", "codex")).toBe("Credits: 796");
   });
 
-  it("does not show an empty Codex credit balance", () => {
+  it("shows an empty Codex credit balance when no subscription windows are reported", () => {
     const snapshot: UsageSnapshot = {
       providerId: "codex",
       status: "ok",
@@ -47,7 +47,18 @@ describe("usageStatusText", () => {
       fetchedAt: 1_700_000_000_000,
       credits: { balance: 0 },
     };
-    expect(usageStatusText(snapshot, "Codex", "codex")).toBe("No windows reported");
+    expect(usageStatusText(snapshot, "Codex", "codex")).toBe("Credits: 0");
+  });
+
+  it("hides empty credits only while subscription capacity remains", () => {
+    const credits = { balance: 0 };
+    expect(
+      hasDisplayableCredits(credits, [{ id: "weekly", label: "Weekly", usedPercent: 84 }]),
+    ).toBe(false);
+    expect(hasDisplayableCredits(credits, [])).toBe(true);
+    expect(
+      hasDisplayableCredits(credits, [{ id: "five-hour", label: "5-hour", usedPercent: 100 }]),
+    ).toBe(true);
   });
 
   it("keeps currency-denominated credit balances as money", () => {

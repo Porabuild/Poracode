@@ -40,8 +40,17 @@ export function formatCreditBalance(credits: UsageCredits): string {
   return formatCount(Math.max(0, Math.floor(credits.balance)));
 }
 
-export function hasDisplayableCredits(credits: UsageCredits | undefined): credits is UsageCredits {
-  return Boolean(credits && (credits.unlimited || credits.balance !== 0));
+export function hasDisplayableCredits(
+  credits: UsageCredits | undefined,
+  windows: readonly UsageWindow[],
+): credits is UsageCredits {
+  return Boolean(
+    credits &&
+    (credits.unlimited ||
+      credits.balance !== 0 ||
+      windows.length === 0 ||
+      windows.some((window) => window.usedPercent >= 100)),
+  );
 }
 
 /**
@@ -160,7 +169,7 @@ export function usageStatusText(
       if (snapshot.credits?.unlimited) {
         return i18n._(msg`Unlimited`);
       }
-      if (hasDisplayableCredits(snapshot.credits)) {
+      if (snapshot.credits) {
         return `${snapshot.credits.label ?? i18n._(msg`Credits`)}: ${formatCreditBalance(
           snapshot.credits,
         )}`;

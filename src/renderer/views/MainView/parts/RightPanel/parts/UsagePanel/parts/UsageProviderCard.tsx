@@ -104,7 +104,9 @@ export function UsageProviderCard(props: {
     data: { id },
   });
 
-  const credits = hasDisplayableCredits(snapshot?.credits) ? snapshot?.credits : undefined;
+  const credits = hasDisplayableCredits(snapshot?.credits, snapshot?.windows ?? [])
+    ? snapshot?.credits
+    : undefined;
   const hasUsage =
     snapshot?.status === "ok" &&
     (snapshot.windows.length > 0 || Boolean(snapshot.cost) || Boolean(credits));
