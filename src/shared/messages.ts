@@ -218,11 +218,24 @@ export function errorDetail(err: unknown): string {
  * message key (+ optional param extractor) to use when it matches.
  * Order matters — first match wins.
  */
+const pullDirtyWorktreePattern =
+  /(?:\bgit\s+pull\b[\s\S]*(?:local changes|unstaged changes|would be overwritten)|cannot pull\b[\s\S]*(?:changes|stash)|local changes[\s\S]*(?:before|during)[\s\S]*(?:merge|pull)|please commit or stash[\s\S]*(?:merge|pull))/i;
+
 const errorPatterns: Array<{
   test: RegExp;
   key: MessageKey;
   params?: (raw: string) => Record<string, string>;
 }> = [
+  {
+    test: pullDirtyWorktreePattern,
+    key: "git.pull.localChanges",
+    params: (raw) => ({
+      branch:
+        raw.match(/Command failed:\s+git\s+pull(?:\s+--[^\s]+)*\s+([^\s]+)/i)?.[1] ??
+        raw.match(/\bgit\s+pull(?:\s+--[^\s]+)*\s+([^\s]+)/i)?.[1] ??
+        "remote",
+    }),
+  },
   {
     test: /local changes.*would be overwritten/i,
     key: "git.switch.dirtyWorktree",
@@ -317,6 +330,12 @@ function splitErrorDetails(raw: string): { summary: string; details: string } {
     summary: raw.slice(0, idx),
     details: raw.slice(idx + DETAILS_SENTINEL.length),
   };
+}
+
+export function isPullDirtyWorktreeError(err: unknown): boolean {
+  const raw = stripIpcPrefix(errorDetail(err));
+  const { summary } = splitErrorDetails(raw);
+  return pullDirtyWorktreePattern.test(summary);
 }
 
 const HOOK_PATH_RX = /\.husky\/([\w.-]+)|\.git\/hooks\/([\w.-]+)/;

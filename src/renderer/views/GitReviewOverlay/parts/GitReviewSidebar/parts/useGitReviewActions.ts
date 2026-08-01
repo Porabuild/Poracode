@@ -429,7 +429,19 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         onRefresh();
       }
     } catch (err) {
-      showGitActionError(err, { logPrefix: "[git] sync/push failed" });
+      showGitActionError(err, {
+        logPrefix: "[git] sync/push failed",
+        ...(!needsPush
+          ? {
+              onStashAndPull: () =>
+                runGitSyncCommand({
+                  command: "pull",
+                  projectLocation: project.location,
+                  preserveLocalChanges: true,
+                }),
+            }
+          : {}),
+      });
     } finally {
       setIsSyncing(false);
     }
@@ -457,7 +469,19 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       }
       onRefresh();
     } catch (err) {
-      showGitActionError(err, { logPrefix: "[git] sync action failed" });
+      showGitActionError(err, {
+        logPrefix: "[git] sync action failed",
+        ...(key === "pull" || key === "pullRebase"
+          ? {
+              onStashAndPull: () =>
+                runGitSyncCommand({
+                  command: key,
+                  projectLocation: project.location,
+                  preserveLocalChanges: true,
+                }),
+            }
+          : {}),
+      });
     } finally {
       setIsSyncing(false);
     }

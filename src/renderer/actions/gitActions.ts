@@ -86,7 +86,18 @@ export function gitPull(projectId: string, worktreePath: string): void {
     command: "pull",
     projectLocation: worktreeLocation,
     remote: "origin",
-  }).catch(captureGitActionError);
+  }).catch((error) =>
+    showGitActionError(error, {
+      capture: true,
+      onStashAndPull: () =>
+        runGitSyncCommand({
+          command: "pull",
+          projectLocation: worktreeLocation,
+          remote: "origin",
+          preserveLocalChanges: true,
+        }),
+    }),
+  );
 }
 
 export function gitPullRebase(projectId: string, worktreePath: string): void {
@@ -97,7 +108,18 @@ export function gitPullRebase(projectId: string, worktreePath: string): void {
     command: "pullRebase",
     projectLocation: worktreeLocation,
     remote: "origin",
-  }).catch(captureGitActionError);
+  }).catch((error) =>
+    showGitActionError(error, {
+      capture: true,
+      onStashAndPull: () =>
+        runGitSyncCommand({
+          command: "pullRebase",
+          projectLocation: worktreeLocation,
+          remote: "origin",
+          preserveLocalChanges: true,
+        }),
+    }),
+  );
 }
 
 export function gitMergeToSource(projectId: string, worktreePath: string): void {

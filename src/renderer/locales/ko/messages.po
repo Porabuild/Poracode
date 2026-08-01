@@ -10376,6 +10376,7 @@ msgstr "시작 중…"
 msgid "Startup is taking longer than expected"
 msgstr "시작하는 데 예상보다 오래 걸리고 있습니다"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "보관 및 끌어오기"
