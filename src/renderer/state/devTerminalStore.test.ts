@@ -15,6 +15,7 @@ describe("devTerminalStore cycleTab", () => {
   beforeEach(() => {
     useDevTerminalStore.setState({
       isOpen: false,
+      explicitlyOpened: false,
       activeProjectId: null,
       activeWorktreePath: null,
       tabs: [],
@@ -108,6 +109,65 @@ describe("devTerminalStore cycleTab", () => {
     useDevTerminalStore.getState().cycleTab("next");
     expect(useDevTerminalStore.getState().activeTabId).toBe("b");
     expect(useDevTerminalStore.getState().focusRequestId).toBe(6);
+  });
+});
+
+describe("devTerminalStore explicit open marker", () => {
+  beforeEach(() => {
+    useDevTerminalStore.setState({
+      isOpen: false,
+      explicitlyOpened: false,
+      activeProjectId: null,
+      activeWorktreePath: null,
+      tabs: [],
+      activeTabId: null,
+      focusRequestId: 0,
+      tabActivity: {},
+      streamingTabs: {},
+    });
+  });
+
+  it("marks explicit opens and clears the marker on close and lock re-scope", () => {
+    useDevTerminalStore.getState().openPanel("p1");
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      explicitlyOpened: true,
+      activeProjectId: "p1",
+    });
+
+    useDevTerminalStore.getState().closePanel();
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: false,
+      explicitlyOpened: false,
+    });
+
+    useDevTerminalStore.getState().openWorktreePanel("p1", "/wt/x");
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      explicitlyOpened: true,
+      activeWorktreePath: "/wt/x",
+    });
+
+    useDevTerminalStore.getState().setPanelScope("p2");
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      explicitlyOpened: false,
+      activeProjectId: "p2",
+    });
+  });
+
+  it("clears the marker on a same-scope re-scope without touching the active tab", () => {
+    useDevTerminalStore.setState({
+      activeProjectId: "p1",
+      tabs: [tab("a", "p1"), tab("b", "p1")],
+      activeTabId: "b",
+    });
+    useDevTerminalStore.getState().openPanel("p1");
+
+    useDevTerminalStore.getState().setPanelScope("p1");
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      explicitlyOpened: false,
+      activeProjectId: "p1",
+      activeTabId: "b",
+    });
   });
 });
 // @vitest-environment node
