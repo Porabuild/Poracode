@@ -121,9 +121,17 @@ function AttachmentChip(props: {
   onPreviewImage?: ((attachment: Attachment) => void) | undefined;
   onPreviewPdf?: ((attachment: Attachment) => void) | undefined;
   hideImageName?: boolean;
+  imageUrlForPath?: ((path: string) => string) | undefined;
 }) {
   const { t } = useLingui();
-  const { attachment: att, onRemove, onPreviewImage, onPreviewPdf, hideImageName } = props;
+  const {
+    attachment: att,
+    onRemove,
+    onPreviewImage,
+    onPreviewPdf,
+    hideImageName,
+    imageUrlForPath,
+  } = props;
   const isPicked = !!att.selector;
   const labelText = isPicked ? att.selector! : att.name;
   const showLabel = isPicked || !att.isImage || !hideImageName;
@@ -141,7 +149,7 @@ function AttachmentChip(props: {
       {att.isImage ? (
         <img
           className="poracode-attachment-chip__thumb"
-          src={resolveLocalImageDisplayUrl(toLocalFileUrl(att.path))}
+          src={imageUrlForPath?.(att.path) ?? resolveLocalImageDisplayUrl(toLocalFileUrl(att.path))}
           alt={att.name}
           decoding="async"
           draggable={false}
@@ -207,12 +215,13 @@ function AttachmentChip(props: {
 function ImagePreview(props: {
   attachment: Attachment;
   onPreviewImage?: ((attachment: Attachment) => void) | undefined;
+  imageUrlForPath?: ((path: string) => string) | undefined;
 }) {
   const { t } = useLingui();
-  const { attachment: att, onPreviewImage } = props;
+  const { attachment: att, onPreviewImage, imageUrlForPath } = props;
   const img = (
     <img
-      src={resolveLocalImageDisplayUrl(toLocalFileUrl(att.path))}
+      src={imageUrlForPath?.(att.path) ?? resolveLocalImageDisplayUrl(toLocalFileUrl(att.path))}
       alt={att.name}
       decoding="async"
       draggable={false}
@@ -249,6 +258,7 @@ export function AttachmentBar(props: {
   layout?: "inset" | "flush";
   hideImageNames?: boolean;
   imagesAsPreview?: boolean;
+  imageUrlForPath?: (path: string) => string;
   leading?: ReactNode;
 }) {
   const {
@@ -259,6 +269,7 @@ export function AttachmentBar(props: {
     layout = "inset",
     hideImageNames,
     imagesAsPreview,
+    imageUrlForPath,
     leading,
   } = props;
   if (attachments.length === 0 && !leading) return null;
@@ -273,7 +284,12 @@ export function AttachmentBar(props: {
       {leading}
       {attachments.map((att) =>
         imagesAsPreview && att.isImage && !att.selector ? (
-          <ImagePreview key={att.id} attachment={att} onPreviewImage={onPreviewImage} />
+          <ImagePreview
+            key={att.id}
+            attachment={att}
+            onPreviewImage={onPreviewImage}
+            imageUrlForPath={imageUrlForPath}
+          />
         ) : (
           <AttachmentChip
             key={att.id}
@@ -281,6 +297,7 @@ export function AttachmentBar(props: {
             onRemove={onRemove}
             onPreviewImage={onPreviewImage}
             onPreviewPdf={onPreviewPdf}
+            imageUrlForPath={imageUrlForPath}
             {...(hideImageNames === undefined ? {} : { hideImageName: hideImageNames })}
           />
         ),

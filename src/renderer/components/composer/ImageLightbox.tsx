@@ -65,10 +65,11 @@ export function openImageLightbox(images: readonly LightboxImage[], initialIndex
 export function openAttachmentLightbox(
   attachments: readonly Attachment[],
   initialIndex: number,
+  imageUrlForPath?: (path: string) => string,
 ): void {
   openImageLightbox(
     attachments.map((img) => ({
-      src: resolveLocalImageDisplayUrl(toLocalFileUrl(img.path)),
+      src: imageUrlForPath?.(img.path) ?? resolveLocalImageDisplayUrl(toLocalFileUrl(img.path)),
       alt: img.name,
     })),
     initialIndex,

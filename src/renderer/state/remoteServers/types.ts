@@ -164,6 +164,7 @@ export interface RemoteServersState {
     input: { readonly threadId: string; readonly data: Uint8Array; readonly extension: string },
   ): Promise<string>;
   pickAndUploadFiles(desktopId: string, attachmentThreadId: string): Promise<string[] | null>;
+  localImageUrl(desktopId: string, path: string): string;
   interruptThread(desktopId: string, threadId: string): Promise<void>;
   closeThread(desktopId: string, threadId: string): Promise<void>;
 }

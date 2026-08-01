@@ -108,7 +108,7 @@ function renderItem(
 ) {
   switch (item.type) {
     case "user_message":
-      return <UserMessage item={item} checkpointRevert={checkpointRevert} />;
+      return <UserMessage threadId={threadId} item={item} checkpointRevert={checkpointRevert} />;
     case "question_answer":
       return <QuestionAnswer item={item} checkpointRevert={checkpointRevert} />;
     case "assistant_message":
