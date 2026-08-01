@@ -386,6 +386,7 @@ export class GitStatusService {
     // insertion/deletion counts; replaceUntrackedEntries fills them in.
     const parsed: ParsedPorcelainStatus = {
       branch: base.branch,
+      headSha: base.headSha ?? "",
       tracking: base.tracking,
       ahead: base.ahead,
       behind: base.behind,

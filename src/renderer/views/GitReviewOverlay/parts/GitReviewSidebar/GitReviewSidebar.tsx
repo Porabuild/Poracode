@@ -29,6 +29,7 @@ import {
   useCommitsAhead,
   useHasPr,
   usePrBaseBranch,
+  usePrHeadSha,
   usePrNumber,
   usePrState,
   useSourceAhead,
@@ -142,6 +143,7 @@ export function GitReviewSidebar(props: {
   const hasPr = useHasPr(effectivePrKey);
   const prNumber = usePrNumber(effectivePrKey);
   const prState = usePrState(effectivePrKey);
+  const prHeadSha = usePrHeadSha(effectivePrKey);
   const prBaseBranch = usePrBaseBranch(effectivePrKey);
   const sourceBranch = useSourceBranch(effectivePrKey) ?? null;
   const commitsAhead = useCommitsAhead(effectivePrKey);
@@ -256,8 +258,15 @@ export function GitReviewSidebar(props: {
     effectiveBranch && sourceBranch && sourceAhead > 0 && !isExperimentWorktree,
   );
   const isPushed = hasTracking && ahead === 0;
-  // Shared PR eligibility: a GitHub repo with a target branch and no active PR.
-  const prEligible = Boolean(showPrSection && ghAvailable && sourceBranch && !isPrActive(prState));
+  // A merged PR only becomes eligible for a follow-up PR after the branch moves
+  // past the commit that was last included in that PR. Comparing commit IDs is
+  // important here: ahead/behind counts are misleading after squash merges.
+  const hasCommitsAfterMergedPr = Boolean(
+    prState !== "merged" || (gitStatus?.headSha && prHeadSha && gitStatus.headSha !== prHeadSha),
+  );
+  const prEligible = Boolean(
+    showPrSection && ghAvailable && sourceBranch && !isPrActive(prState) && hasCommitsAfterMergedPr,
+  );
   const showCreatePrButton = prEligible && isPushed;
   // Whether the one-click "Commit & Create PR" action is offered. Unlike
   // showCreatePrButton this does NOT require an already-pushed branch (it only

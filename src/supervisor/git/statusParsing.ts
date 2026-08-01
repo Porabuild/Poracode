@@ -3,6 +3,7 @@ import { parseRemoteUrl, toForwardSlash } from "./exec";
 
 export interface ParsedPorcelainStatus {
   branch: string;
+  headSha: string;
   tracking: string;
   ahead: number;
   behind: number;
@@ -158,6 +159,7 @@ export const LS_FILES_UNTRACKED_ARGS = ["ls-files", "--others", "--exclude-stand
 
 export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
   let branch = "";
+  let headSha = "";
   let tracking = "";
   let ahead = 0;
   let behind = 0;
@@ -171,7 +173,9 @@ export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
     if (!line) continue;
 
     if (line.startsWith("# ")) {
-      if (line.startsWith("# branch.head ")) {
+      if (line.startsWith("# branch.oid ")) {
+        headSha = line.slice("# branch.oid ".length).trim();
+      } else if (line.startsWith("# branch.head ")) {
         branch = line.slice("# branch.head ".length).trim();
       } else if (line.startsWith("# branch.upstream ")) {
         tracking = line.slice("# branch.upstream ".length).trim();
@@ -240,6 +244,7 @@ export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
 
   return {
     branch,
+    headSha,
     tracking,
     ahead,
     behind,
@@ -353,6 +358,7 @@ export function buildGitStatusResultFromOutputs(args: {
   return {
     isRepo: true,
     branch: parsed.branch,
+    ...(parsed.headSha ? { headSha: parsed.headSha } : {}),
     tracking: parsed.tracking,
     hasRemote,
     remoteInfo,
@@ -403,6 +409,7 @@ export function buildGitStatusSummaryFromOutput(
     detail: "summary",
     isRepo: true,
     branch: parsed.branch,
+    ...(parsed.headSha ? { headSha: parsed.headSha } : {}),
     tracking: parsed.tracking,
     hasRemote: parsed.tracking.length > 0,
     remoteInfo: null,

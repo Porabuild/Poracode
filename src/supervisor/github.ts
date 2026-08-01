@@ -62,11 +62,11 @@ const PR_DIFF_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
-  "number,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
+  "number,url,state,title,baseRefName,headRefOid,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
 // Bulk list: adds `headRefName` (to key per branch) and drops `author` (the icon
 // doesn't need viewerDidAuthor, so we skip the extra `gh api user` lookup).
 const PR_LIST_FIELDS =
-  "number,headRefName,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
+  "number,headRefName,headRefOid,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
 const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests`;
 const PR_CHECK_FIELDS = "name,state,bucket,link,startedAt,completedAt,workflow";
 const PR_CHECK_PENDING_STATES = new Set([

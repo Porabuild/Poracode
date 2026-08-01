@@ -34,6 +34,7 @@ describe("parseStatusPorcelainV2", () => {
 
     const result = parseStatusPorcelainV2(output);
     expect(result.branch).toBe("feature/x");
+    expect(result.headSha).toBe("abc123");
     expect(result.tracking).toBe("origin/feature/x");
     expect(result.ahead).toBe(3);
     expect(result.behind).toBe(1);
@@ -43,6 +44,7 @@ describe("parseStatusPorcelainV2", () => {
   it("returns defaults when no header lines are present", () => {
     expect(parseStatusPorcelainV2("")).toEqual({
       branch: "",
+      headSha: "",
       tracking: "",
       ahead: 0,
       behind: 0,
