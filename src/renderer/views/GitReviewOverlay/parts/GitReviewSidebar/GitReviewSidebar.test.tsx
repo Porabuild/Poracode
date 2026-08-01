@@ -303,6 +303,79 @@ describe("GitReviewSidebar", () => {
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
   });
 
+  it("keeps remote routing when resolving the PR target branch", async () => {
+    const project: Project = {
+      id: "remote:desktop-1:project:project-1",
+      remoteServerId: "desktop-1",
+      remoteId: "project-1",
+      name: "Remote Poracode",
+      createdAt: new Date().toISOString(),
+      location: {
+        kind: "windows",
+        path: "C:\\repo-worktree",
+        remoteServerId: "desktop-1",
+      },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/remote",
+      tracking: "",
+      hasRemote: true,
+      remoteInfo: {
+        url: "https://github.com/example/poracode.git",
+        platform: "github",
+        owner: "example",
+        repo: "poracode",
+      },
+      ahead: 0,
+      behind: 0,
+      staged: [
+        {
+          path: "src/remote-change.ts",
+          status: "M",
+          staged: true,
+          insertions: 1,
+          deletions: 0,
+        },
+      ],
+      unstaged: [],
+      totalInsertions: 1,
+      totalDeletions: 0,
+    };
+
+    bridgeMock.gitGetWorktreeSourceBranch.mockResolvedValue({
+      sourceBranch: "main",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    useGitStore.setState({ ghAvailable: { [project.id]: true } });
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(bridgeMock.gitGetWorktreeSourceBranch).toHaveBeenCalledWith({
+        projectLocation: {
+          kind: "windows",
+          path: "C:\\repo-worktree",
+          remoteServerId: "desktop-1",
+        },
+        branch: "feature/remote",
+      }),
+    );
+    expect(await screen.findByText("Commit & Create PR")).toBeInTheDocument();
+  });
+
   it("virtualizes long staged and unstaged file lists independently", async () => {
     const clientHeightSpy = vi
       .spyOn(HTMLElement.prototype, "clientHeight", "get")
