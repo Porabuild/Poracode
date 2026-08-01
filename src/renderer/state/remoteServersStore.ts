@@ -1117,6 +1117,14 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           }
         },
 
+        imageRefUrl: (desktopId, ref) => {
+          try {
+            return requireClient(desktopId).imageRefUrl(ref);
+          } catch {
+            return "";
+          }
+        },
+
         interruptThread: async (desktopId, threadId) => {
           // Callers use `void interruptThread(...)`; the renderer's global
           // unhandledrejection handler shows the full-app crash screen for any

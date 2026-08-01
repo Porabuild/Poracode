@@ -2,6 +2,7 @@ import { memo, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { ImageCard } from "./ImageCard";
 import { resolveImageViewSource } from "./imageViewSource";
@@ -22,7 +23,11 @@ interface ImageViewProps {
  */
 export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
   const payload = item.payload as ToolCallPayload | undefined;
-  const source = useMemo(() => resolveImageViewSource(payload), [payload]);
+  const actions = useChatPaneActions();
+  const source = useMemo(
+    () => resolveImageViewSource(payload, actions?.remoteImageRefUrl),
+    [actions?.remoteImageRefUrl, payload],
+  );
 
   if (!source || payload?.status === "error") {
     return <ToolCall item={item} />;

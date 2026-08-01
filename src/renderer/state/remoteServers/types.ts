@@ -18,6 +18,7 @@ import type {
   RemoteAccessScope,
   RemoteAgentStatuses,
   RemoteHostMode,
+  RemoteImageRefValue,
   RemoteProjectCommand,
   RemoteRuntimeItemsPageRequest,
   RemoteShellSnapshot,
@@ -165,6 +166,7 @@ export interface RemoteServersState {
   ): Promise<string>;
   pickAndUploadFiles(desktopId: string, attachmentThreadId: string): Promise<string[] | null>;
   localImageUrl(desktopId: string, path: string): string;
+  imageRefUrl(desktopId: string, ref: RemoteImageRefValue): string;
   interruptThread(desktopId: string, threadId: string): Promise<void>;
   closeThread(desktopId: string, threadId: string): Promise<void>;
 }
