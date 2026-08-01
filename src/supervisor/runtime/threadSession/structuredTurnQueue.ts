@@ -30,12 +30,17 @@ export class StructuredTurnQueue {
     // before the structured session's `prompt()` round-trip resolves so the
     // chat doesn't visually stall waiting on the agent. Only meaningful for
     // GUI threads — terminal threads render user input via PTY echo.
-    // Prefer the renderer-supplied id when present (the chat pane has
-    // already painted the message); otherwise emit one from the supervisor.
+    // Reuse the renderer-supplied id when present, but still emit the canonical
+    // events. The originating renderer dedupes them by id, while other paired
+    // renderers need this broadcast to see the submitted user message.
     const optimisticItemId =
       session.presentationMode === "gui" && turn.prompt.length > 0
-        ? (turn.userMessageItemId ??
-          this.emitOptimisticUserMessage(session.threadId, turn.prompt, turn.segments))
+        ? this.emitOptimisticUserMessage(
+            session.threadId,
+            turn.prompt,
+            turn.segments,
+            turn.userMessageItemId,
+          )
         : undefined;
     const startOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
@@ -79,9 +84,14 @@ export class StructuredTurnQueue {
    * renderer's per-id dedupe, and the supervisor still drives the rest of the
    * canonical event stream.
    */
-  emitOptimisticUserMessage(threadId: string, prompt: string, segments?: PromptSegment[]): string {
+  emitOptimisticUserMessage(
+    threadId: string,
+    prompt: string,
+    segments?: PromptSegment[],
+    requestedItemId?: string,
+  ): string {
     const turnId = `turn-${randomUUID()}`;
-    const itemId = `user-${randomUUID()}`;
+    const itemId = requestedItemId ?? `user-${randomUUID()}`;
     this.ctx.emit({
       type: "thread-runtime-event",
       threadId,

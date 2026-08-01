@@ -693,7 +693,8 @@ describe("SupervisorRuntime thread input", () => {
   });
 
   it("drains a steer staged after the turn already errored", async () => {
-    const runtime = makeRuntime(() => undefined);
+    const emitted: Array<Record<string, unknown>> = [];
+    const runtime = makeRuntime((event) => emitted.push(event as Record<string, unknown>));
     const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const interruptTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
@@ -755,6 +756,17 @@ describe("SupervisorRuntime thread input", () => {
     expect(startTurn).toHaveBeenCalledWith("retry this", { model: "gpt-5.4" }, undefined, {
       userMessageItemId: "user-retry",
     });
+    expect(emitted).toContainEqual(
+      expect.objectContaining({
+        type: "thread-runtime-event",
+        threadId: "thread-gui-post-error",
+        event: expect.objectContaining({
+          type: "item.started",
+          itemId: "user-retry",
+          itemType: "user_message",
+        }),
+      }),
+    );
   });
 
   it("does not emit runtime status updates for raw terminal writes", async () => {

@@ -1,4 +1,5 @@
 import { useShallow } from "zustand/shallow";
+import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import { parseDraftProjectId } from "@/shared/paneId";
 import type {
   AgentStatus,
@@ -251,6 +252,7 @@ export function useDraftEnvironment(project: Project | undefined): {
   agentStatuses: AgentStatus[];
   isDetectingAgents: boolean;
   pickFiles?: () => Promise<string[] | null>;
+  saveClipboardImage?: SaveClipboardImage;
 } {
   const localAgentStatuses = useAgentStatusesStore(
     useShallow((state) =>
@@ -285,6 +287,11 @@ export function useDraftEnvironment(project: Project | undefined): {
             useRemoteServersStore
               .getState()
               .pickAndUploadFiles(remoteServerId, `draft-${remoteProjectId}`),
+          saveClipboardImage: (input) =>
+            useRemoteServersStore.getState().saveClipboardImage(remoteServerId, {
+              ...input,
+              threadId: `draft-${remoteProjectId}`,
+            }),
         }
       : {}),
   };

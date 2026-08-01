@@ -33,7 +33,7 @@ import {
   type McpMentionItem,
   type MentionInputHandle,
 } from "../composer/MentionInput";
-import { useAttachments } from "../composer/useAttachments";
+import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
@@ -96,6 +96,7 @@ type ThreadComposerSectionProps = {
    */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
+  saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
   /** Override whether unmodified Enter submits instead of inserting a newline. */
@@ -172,7 +173,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInterrupting, setIsInterrupting] = useState(false);
-  const attachments = useAttachments();
+  const attachments = useAttachments({
+    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+  });
   // Unsent composer content survives leaving this thread. The primary GUI pane
   // keeps this section mounted across thread switches, so the thread-keyed
   // layout effects below save and restore without exposing another thread's

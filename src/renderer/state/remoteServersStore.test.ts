@@ -146,6 +146,7 @@ function makeClient(opts?: {
   websocketTicket?: RemoteDesktopClient["websocketTicket"];
   websocketUrl?: RemoteDesktopClient["websocketUrl"];
   sendThreadInput?: RemoteDesktopClient["sendThreadInput"];
+  uploadAttachment?: RemoteDesktopClient["uploadAttachment"];
   startNewThread?: RemoteDesktopClient["startNewThread"];
   writeTerminal?: RemoteDesktopClient["writeTerminal"];
   resizeTerminal?: RemoteDesktopClient["resizeTerminal"];
@@ -197,6 +198,7 @@ function makeClient(opts?: {
     websocketUrl: opts?.websocketUrl ?? (() => "ws://192.168.1.9:38987/ws?ticket=ticket-1"),
     parseSocketMessage: (value: string) => JSON.parse(value),
     sendThreadInput: opts?.sendThreadInput ?? (async () => {}),
+    uploadAttachment: opts?.uploadAttachment ?? (async () => "/remote/attachment.png"),
     startNewThread: opts?.startNewThread ?? (async () => ({ threadId: crypto.randomUUID() })),
     writeTerminal: opts?.writeTerminal ?? (async () => {}),
     resizeTerminal: opts?.resizeTerminal ?? (async () => {}),
@@ -1328,6 +1330,35 @@ describe("useRemoteServersStore", () => {
       segments: [{ kind: "text", content: "hello remote" }],
       config: { model: "claude-sonnet" },
       userMessageItemId: "user-1",
+    });
+  });
+
+  it("uploads pasted clipboard images to the remote host", async () => {
+    const uploadAttachment = vi.fn<RemoteDesktopClient["uploadAttachment"]>(
+      async () => "C:\\remote\\attachments\\clipboard.png",
+    );
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ uploadAttachment })));
+    useRemoteServersStore.getState().setSocketFactory(() => ({
+      close: vi.fn<() => void>(),
+      onmessage: null,
+      onclose: null,
+    }));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    const data = new Uint8Array([1, 2, 3]);
+    await expect(
+      useRemoteServersStore.getState().saveClipboardImage("d1", {
+        threadId: "rt-1",
+        data,
+        extension: "png",
+      }),
+    ).resolves.toBe("C:\\remote\\attachments\\clipboard.png");
+    expect(uploadAttachment).toHaveBeenCalledWith({
+      threadId: "rt-1",
+      fileName: expect.stringMatching(/^clipboard-[0-9a-f-]+\.png$/),
+      data,
     });
   });
 

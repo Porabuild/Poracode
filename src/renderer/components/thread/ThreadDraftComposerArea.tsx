@@ -41,7 +41,10 @@ import {
   type McpMentionItem,
   type MentionInputHandle,
 } from "@/renderer/components/composer/MentionInput";
-import { useAttachments } from "@/renderer/components/composer/useAttachments";
+import {
+  useAttachments,
+  type SaveClipboardImage,
+} from "@/renderer/components/composer/useAttachments";
 import type { VoiceInputHandle } from "@/renderer/components/composer/VoiceInputButton";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
@@ -273,6 +276,7 @@ export function ThreadDraftComposerArea(props: {
   /** Override whether unmodified Enter submits instead of inserting a newline. */
   submitOnEnter?: boolean;
   pickFiles?: () => Promise<string[] | null>;
+  saveClipboardImage?: SaveClipboardImage;
   onConfigChange: (patch: Partial<ThreadConfig>) => void;
   onWorktreeModeChange: (worktreeMode: boolean) => void;
   onSwitchBranch: (branch: string, createNew: boolean) => void;
@@ -305,7 +309,9 @@ export function ThreadDraftComposerArea(props: {
   const updateProjectMcpServers = useAppStore((s) => s.updateProjectMcpServers);
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
-  const attachments = useAttachments();
+  const attachments = useAttachments({
+    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+  });
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
   const pendingPickedAttachments = useBrowserAttachInbox((s) =>

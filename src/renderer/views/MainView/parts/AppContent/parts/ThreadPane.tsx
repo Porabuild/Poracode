@@ -130,6 +130,19 @@ export function ThreadPane(props: {
     if (!remoteDesktopId || !remoteThreadId) return Promise.resolve(null);
     return useRemoteServersStore.getState().pickAndUploadFiles(remoteDesktopId, remoteThreadId);
   }
+  function saveRemoteClipboardImage(input: {
+    threadId: string;
+    data: Uint8Array;
+    extension: string;
+  }) {
+    if (!remoteDesktopId || !remoteThreadId) {
+      return Promise.reject(new Error());
+    }
+    return useRemoteServersStore.getState().saveClipboardImage(remoteDesktopId, {
+      ...input,
+      threadId: remoteThreadId,
+    });
+  }
 
   if (!thread) return null;
   if (!project) return null;
@@ -193,6 +206,7 @@ export function ThreadPane(props: {
             checkpointActions,
             remoteTerminalTransport,
             pickFiles: pickRemoteFiles,
+            saveClipboardImage: saveRemoteClipboardImage,
           }
         : {})}
       onContinueInProvider={

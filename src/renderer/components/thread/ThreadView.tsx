@@ -19,6 +19,7 @@ import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActio
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
+import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
 import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
@@ -88,7 +89,8 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.onOpenProjectRelativePath === next.onOpenProjectRelativePath &&
     prev.checkpointActions === next.checkpointActions &&
     prev.remoteTerminalTransport === next.remoteTerminalTransport &&
-    prev.pickFiles === next.pickFiles
+    prev.pickFiles === next.pickFiles &&
+    prev.saveClipboardImage === next.saveClipboardImage
   );
 }
 
@@ -144,6 +146,7 @@ export type ThreadViewProps = {
   checkpointActions?: CheckpointRevertActions | undefined;
   remoteTerminalTransport?: RemoteTerminalTransport | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
+  saveClipboardImage?: SaveClipboardImage | undefined;
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
@@ -176,6 +179,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     checkpointActions,
     remoteTerminalTransport,
     pickFiles,
+    saveClipboardImage,
   } = props;
   const { t } = useLingui();
   const terminalPaneRef = useRef<TerminalPaneHandle>(null);
@@ -444,6 +448,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(remoteTerminalTransport ? { remoteTerminalTransport } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
+                {...(saveClipboardImage ? { saveClipboardImage } : {})}
               />
             ) : (
               <GuiThreadContent
@@ -459,6 +464,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {...(checkpointActions ? { checkpointActions } : {})}
                 {...(thread.remoteServerId ? { checkpointProjectLocation: projectLocation } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
+                {...(saveClipboardImage ? { saveClipboardImage } : {})}
               />
             )}
           </div>

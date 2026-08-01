@@ -230,7 +230,12 @@ export interface SpawnPipelineContext {
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   isCurrentSession(session: SessionRuntime): boolean;
   resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string>;
-  emitOptimisticUserMessage(threadId: string, prompt: string, segments?: PromptSegment[]): string;
+  emitOptimisticUserMessage(
+    threadId: string,
+    prompt: string,
+    segments?: PromptSegment[],
+    requestedItemId?: string,
+  ): string;
 }
 
 /**
@@ -308,8 +313,12 @@ export class SpawnPipeline {
     // id end-to-end so the chat pane never sees a duplicate.
     const optimisticUserMessageItemId =
       !usesTerminalPresentation && initialPrompt.length > 0 && !payload.sessionRef
-        ? (payload.userMessageItemId ??
-          ctx.emitOptimisticUserMessage(payload.threadId, initialPrompt, effectiveSegments))
+        ? ctx.emitOptimisticUserMessage(
+            payload.threadId,
+            initialPrompt,
+            effectiveSegments,
+            payload.userMessageItemId,
+          )
         : undefined;
     if (optimisticUserMessageItemId) {
       this.emitOptimisticWorkingState(payload.threadId, payload.config);
@@ -707,9 +716,12 @@ export class SpawnPipeline {
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
       });
       if (prompt.trim().length > 0 && structuredSession.startTurn) {
-        const optimisticItemId =
-          turn.userMessageItemId ??
-          ctx.emitOptimisticUserMessage(session.threadId, prompt, turn.segments);
+        const optimisticItemId = ctx.emitOptimisticUserMessage(
+          session.threadId,
+          prompt,
+          turn.segments,
+          turn.userMessageItemId,
+        );
         const startOptions = {
           userMessageItemId: optimisticItemId,
           ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
