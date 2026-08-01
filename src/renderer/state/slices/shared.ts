@@ -1,6 +1,7 @@
 import type { StateCreator } from "zustand";
 import type { DraftSlice } from "./draftSlice";
 import type { LaunchSlice } from "./launchSlice";
+import type { PaneCacheSlice } from "./paneCacheSlice";
 import type { PendingSteerSlice } from "./pendingSteerSlice";
 import type { ProjectSlice } from "./projectSlice";
 import type { RuntimeEventSlice } from "./runtimeEventSlice";
@@ -13,6 +14,7 @@ export type AppStoreState = ProjectSlice &
   LaunchSlice &
   DraftSlice &
   ViewSlice &
+  PaneCacheSlice &
   RuntimeEventSlice &
   PendingSteerSlice &
   SubAgentOverlaySlice;

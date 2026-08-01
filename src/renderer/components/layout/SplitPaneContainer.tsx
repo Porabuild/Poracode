@@ -276,8 +276,15 @@ const RootInsertZone = React.memo(function RootInsertZone(props: {
 
 export function SplitPaneContainer(props: {
   layout: PaneLayout;
-  renderPane: (paneId: string, rect: Rect) => React.ReactNode;
+  renderPane: (paneId: string, rect: Rect, hidden?: boolean) => React.ReactNode;
   getPaneDomKey?: (paneId: string) => string;
+  /**
+   * Hidden panes to keep mounted (invisible). Rendered in an absolutely
+   * positioned, `invisible` layer so their xterm buffers / alt-screen state
+   * survive across switches without affecting layout. Each must have been
+   * rendered visible at least once (the caller owns that lifecycle).
+   */
+  hiddenPaneIds?: readonly string[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -543,6 +550,20 @@ export function SplitPaneContainer(props: {
   const rootSplit = props.layout.kind === "split" ? props.layout : null;
   const rightIndex = rootSplit && rootSplit.axis === "vertical" ? rootSplit.children.length : 1;
   const bottomIndex = rootSplit && rootSplit.axis === "horizontal" ? rootSplit.children.length : 1;
+  const renderedPanes = [
+    ...computed.panes.map((pane) => ({
+      paneId: pane.paneId,
+      domKey: props.getPaneDomKey?.(pane.paneId) ?? pane.paneId,
+      rect: pane.rect,
+      hidden: false as const,
+    })),
+    ...(props.hiddenPaneIds ?? []).map((paneId) => ({
+      paneId,
+      domKey: props.getPaneDomKey?.(paneId) ?? paneId,
+      rect: { left: 0, top: 0, width: 0, height: 0 },
+      hidden: true as const,
+    })),
+  ].sort((a, b) => a.domKey.localeCompare(b.domKey));
 
   return (
     <div ref={containerRef} className="relative h-full min-h-0 w-full overflow-hidden">
@@ -559,30 +580,35 @@ export function SplitPaneContainer(props: {
         {/* Sort by DOM key so React keeps the same DOM slot per pane across
             layout swaps; reparenting an absolutely-positioned pane resets
             `scrollTop` on the nested chat scroller. */}
-        {computed.panes
-          .map((pane) => ({
-            pane,
-            domKey: props.getPaneDomKey?.(pane.paneId) ?? pane.paneId,
-          }))
-          .sort((a, b) => a.domKey.localeCompare(b.domKey))
-          .map(({ pane, domKey }) => (
+        {renderedPanes.map(({ paneId, domKey, rect, hidden }) =>
+          hidden ? (
+            <div
+              key={domKey}
+              aria-hidden="true"
+              className="invisible absolute inset-0 overflow-hidden"
+              style={{ pointerEvents: "none" }}
+            >
+              {props.renderPane(paneId, rect, true)}
+            </div>
+          ) : (
             <div
               key={domKey}
               ref={(element) => {
-                if (element) paneElementRefs.current.set(pane.paneId, element);
-                else paneElementRefs.current.delete(pane.paneId);
+                if (element) paneElementRefs.current.set(paneId, element);
+                else paneElementRefs.current.delete(paneId);
               }}
               className="absolute overflow-hidden"
               style={{
-                left: pane.rect.left,
-                top: pane.rect.top,
-                width: pane.rect.width,
-                height: pane.rect.height,
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
               }}
             >
-              {props.renderPane(pane.paneId, pane.rect)}
+              {props.renderPane(paneId, rect)}
             </div>
-          ))}
+          ),
+        )}
         {computed.dividers.map((divider) => (
           <Divider
             key={divider.zoneId}

@@ -16,8 +16,26 @@ export function usePanelVisibility() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const rightPanelFollowsThread = usePanelStore((s) => s.rightPanelFollowsThread);
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const currentThreadId = useFocusedThreadId();
+  const currentThreadScope = useAppStore((state) => {
+    if (currentThreadId === null) return null;
+    const thread = state.threads.find((item) => item.id === currentThreadId);
+    return thread ? `${thread.projectId}\0${thread.worktreePath ?? ""}` : null;
+  });
+  const activeTerminalScopeHasTabs = useDevTerminalStore((state) => {
+    if (currentThreadScope === null) return false;
+    const activeScope = `${state.activeProjectId ?? ""}\0${state.activeWorktreePath ?? ""}`;
+    return (
+      activeScope === currentThreadScope &&
+      state.tabs.some(
+        (tab) =>
+          tab.projectId === state.activeProjectId &&
+          (tab.worktreePath ?? null) === state.activeWorktreePath,
+      )
+    );
+  });
   const todoDockPlacement = useThreadTodoDockStore((state) =>
     currentThreadId
       ? (state.byThreadId[currentThreadId]?.placement ?? state.defaultPlacement)
@@ -52,6 +70,9 @@ export function usePanelVisibility() {
     todoDockPlacement === "right" &&
     todoDockState !== null &&
     todoDockState.sourceItemId !== retiredTodoSourceItemId;
+  const bottomTerminalOpen =
+    devTerminalOpen &&
+    (!rightPanelFollowsThread || (currentThreadId !== null && activeTerminalScopeHasTabs));
 
   const rightPanelOpen = isTerminalRight
     ? devTerminalOpen ||
@@ -62,7 +83,7 @@ export function usePanelVisibility() {
       browserPanelOpen ||
       usagePanelOpen ||
       notesPanelOpen
-    : devTerminalOpen;
+    : bottomTerminalOpen;
   const sideGitPanelOpen =
     !isTerminalRight &&
     (gitPanelOpen ||

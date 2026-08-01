@@ -146,7 +146,7 @@ describe("useAppHydration experiments", () => {
     expect(mocks.hydrateThreadRuntimeItems).toHaveBeenCalledWith("candidate-2");
   });
 
-  it("keeps the UI loading until live runtime snapshots are reconciled", async () => {
+  it("shows persisted threads while live runtime snapshots reconcile in the background", async () => {
     let resolveSnapshots!: (snapshots: ThreadRuntimeSnapshot[]) => void;
     mocks.bridge.getThreadSnapshots.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -157,10 +157,16 @@ describe("useAppHydration experiments", () => {
     const { result } = renderHook(() => useAppHydration());
 
     await waitFor(() => expect(mocks.hydrateThreadRuntimeItems).toHaveBeenCalled());
-    expect(result.current.initialLoading).toBe(true);
+    await waitFor(() => expect(result.current.initialLoading).toBe(false));
+    expect(result.current.runtimeSnapshotsReady).toBe(false);
 
     resolveSnapshots([snapshot("candidate-1"), snapshot("candidate-2")]);
-    await waitFor(() => expect(result.current.initialLoading).toBe(false));
+    await waitFor(() => {
+      expect(result.current.runtimeSnapshotsReady).toBe(true);
+      expect(useAppStore.getState().threads.find((item) => item.id === "candidate-1")?.status).toBe(
+        "working",
+      );
+    });
   });
 
   it("recovers candidate worktree paths from their durable branches before showing the UI", async () => {

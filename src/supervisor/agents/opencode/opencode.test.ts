@@ -5,6 +5,7 @@ import { createOpenCodeAdapter } from ".";
 import { buildOpenCodeArgs } from "./argv";
 import {
   attachOpenCodeProviderIds,
+  buildOpenCodeStatusFromSdkInventory,
   humanizeOpenCodeModelId,
   mapOpenCodeSlashCommands,
   parseOpenCodeProvidersList,
@@ -190,6 +191,35 @@ describe("attachOpenCodeProviderIds", () => {
 
   it("returns a fresh array for an empty provider list", () => {
     expect(attachOpenCodeProviderIds([], ["opencode"])).toEqual([]);
+  });
+});
+
+describe("buildOpenCodeStatusFromSdkInventory", () => {
+  it("derives connected-provider status without launching a second OpenCode process", () => {
+    expect(
+      buildOpenCodeStatusFromSdkInventory({
+        providers: [
+          { id: "opencode", name: "OpenCode Zen", models: [] },
+          { id: "github-copilot", name: "", models: [] },
+        ],
+        connected: ["opencode", "github-copilot"],
+        agents: [],
+      }),
+    ).toEqual({
+      authState: "authenticated",
+      providerMetadata: {
+        connectedProviders: [
+          { id: "opencode", label: "OpenCode Zen" },
+          { id: "github-copilot", label: "Copilot" },
+        ],
+      },
+    });
+  });
+
+  it("reports missing auth when the SDK has no connected providers", () => {
+    expect(
+      buildOpenCodeStatusFromSdkInventory({ providers: [], connected: [], agents: [] }),
+    ).toEqual({ authState: "missing" });
   });
 });
 
@@ -380,6 +410,7 @@ describe("createOpenCodeAdapter", () => {
     expect(adapter.pluginId).toBe("poracode-status@opencode");
     expect(adapter.minProtocolVersion).toBe(1);
     expect(adapter.capabilities.crossagentMcpRouting).toBe("provider-session");
+    expect(adapter.capabilities.agentSettingsDefaults?.crossagentMcp).toBe(true);
   });
 
   it("returns no extra args/env from pluginLaunchExtras (in-process plugin)", async () => {

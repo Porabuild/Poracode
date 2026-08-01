@@ -47,6 +47,7 @@ import { detectWindowsShell, type WindowsShellPreference } from "./shellPreferen
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
+import { setWslCredentialProjectScope } from "./runtime/wslCredentials";
 import { AgentRegistryService } from "./runtime/agentRegistryService";
 import { GenerationService } from "./runtime/generationService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
@@ -117,6 +118,7 @@ export class SupervisorRuntime {
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
   private readonly routingOverridePersistence: RoutingOverridePersistence;
+  private readonly disposeWslCredentialProjectScope: () => void;
   private wslHookBridge: WslBridgeServer | undefined;
 
   readonly sessions: Map<string, SessionRuntime>;
@@ -436,6 +438,13 @@ export class SupervisorRuntime {
     this.sessions = this.threadSessionManager.sessions;
     this.shellSessions = this.threadSessionManager.shellSessions;
 
+    // The usage credential WSL fallback boots every installed distro (and
+    // keeps its VM alive via the resident bridge) just to look for tokens.
+    // Restrict it to when the user actually uses WSL — a watched WSL project
+    // or a live WSL session — so a Windows-only setup never spins up VmmemWSL.
+    this.disposeWslCredentialProjectScope = setWslCredentialProjectScope(() =>
+      this.hasActiveWslContext(),
+    );
     this.usageService = new UsageService({
       emit,
       cachePath: join(paths.cacheDir, "provider-usage.json"),
@@ -484,6 +493,19 @@ export class SupervisorRuntime {
       if (session.projectLocation.kind === "wsl") distros.add(session.projectLocation.distro);
     }
     return [...distros];
+  }
+
+  /**
+   * True when the user actively uses WSL: a watched (non-disabled) project
+   * lives in a distro, or a live session does. Gates the usage credential
+   * WSL fallback so it never boots a distro on its own.
+   */
+  private hasActiveWslContext(): boolean {
+    if (this._projectWatcher?.hasWslProjects()) return true;
+    for (const session of this.sessions.values()) {
+      if (!session.ptyExited && session.projectLocation.kind === "wsl") return true;
+    }
+    return false;
   }
 
   async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {
@@ -793,6 +815,7 @@ export class SupervisorRuntime {
   }
 
   async disposeAsync(): Promise<void> {
+    this.disposeWslCredentialProjectScope();
     this.routingOverridePersistence.dispose();
     this.usageService.stop();
     this.mcpProbeService.dispose();

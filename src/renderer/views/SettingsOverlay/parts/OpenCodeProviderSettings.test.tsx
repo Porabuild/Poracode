@@ -1,7 +1,7 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus } from "@/shared/contracts";
+import type { AgentStatus, McpServer } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const toastMock = vi.hoisted(() => ({
@@ -26,6 +26,13 @@ vi.mock("@heroui/react", () => ({
       {props.children}
     </button>
   ),
+  Disclosure: Object.assign((props: { children?: ReactNode }) => <div>{props.children}</div>, {
+    Heading: (props: { children?: ReactNode }) => <div>{props.children}</div>,
+    Trigger: (props: { children?: ReactNode }) => <button type="button">{props.children}</button>,
+    Indicator: () => null,
+    Content: (props: { children?: ReactNode }) => <div>{props.children}</div>,
+    Body: (props: { children?: ReactNode }) => <div>{props.children}</div>,
+  }),
   toast: toastMock,
 }));
 
@@ -53,6 +60,7 @@ const flushSharedSettingsMock = vi.hoisted(() => vi.fn<() => Promise<void>>());
 const setAgentSettingMock = vi.hoisted(() =>
   vi.fn<(agentKind: string, key: string, value: boolean | string) => void>(),
 );
+const setMcpServersMock = vi.hoisted(() => vi.fn<(servers: McpServer[]) => void>());
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridgeMock,
@@ -115,11 +123,14 @@ beforeEach(() => {
   setAgentSettingMock.mockReset();
   toastMock.danger.mockReset();
   toastMock.success.mockReset();
+  setMcpServersMock.mockReset();
   useSharedSettings.setState({
     agentSettings: {
       opencode: { browserMcp: false, chromeMcp: false, computerUse: false },
     },
     setAgentSetting: setAgentSettingMock,
+    mcpServers: [],
+    setMcpServers: setMcpServersMock,
   });
 });
 
@@ -208,7 +219,18 @@ describe("OpenCodeProviderSettings", () => {
     expect(saveButton).toBeEnabled();
   });
 
-  it("saves the shared Crossagents setting for OpenCode", async () => {
+  it("enables Crossagents by default for OpenCode", () => {
+    render(
+      <OpenCodeProviderSettings agentKind="opencode" statuses={[makeStatus()]} wslDistros={[]} />,
+    );
+
+    expect(screen.getByRole("switch", { name: "Crossagents" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  it("saves a Crossagents opt-out for OpenCode", async () => {
     render(
       <OpenCodeProviderSettings agentKind="opencode" statuses={[makeStatus()]} wslDistros={[]} />,
     );
@@ -217,7 +239,31 @@ describe("OpenCodeProviderSettings", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save MCP servers" }));
 
     await vi.waitFor(() => {
-      expect(setAgentSettingMock).toHaveBeenCalledWith("opencode", "crossagentMcp", true);
+      expect(setAgentSettingMock).toHaveBeenCalledWith("opencode", "crossagentMcp", false);
+    });
+  });
+
+  it("lists and saves custom MCP server enablement", async () => {
+    const customServer: McpServer = {
+      id: "memory-id",
+      name: "memory",
+      description: "Memory tools",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "stdio", command: "npx", args: ["-y", "server-memory"], env: {} },
+    };
+    useSharedSettings.setState({ mcpServers: [customServer] });
+
+    render(
+      <OpenCodeProviderSettings agentKind="opencode" statuses={[makeStatus()]} wslDistros={[]} />,
+    );
+
+    expect(screen.getByText("memory")).toBeTruthy();
+    fireEvent.click(screen.getByRole("switch", { name: "Disable memory" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save MCP servers" }));
+
+    await vi.waitFor(() => {
+      expect(setMcpServersMock).toHaveBeenCalledWith([{ ...customServer, enabled: false }]);
     });
   });
 

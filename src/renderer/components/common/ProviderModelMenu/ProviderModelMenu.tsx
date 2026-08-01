@@ -858,9 +858,9 @@ function WindowedProviderModelList(props: {
               );
             })()}
             {item.showProviderIcon || item.subProviderLabel ? (
-              <span className="ml-auto flex min-w-0 shrink-0 items-center gap-1 text-muted/70">
+              <span className="ml-auto flex min-w-0 max-w-[45%] items-center gap-1 text-muted/70">
                 {item.subProviderLabel ? (
-                  <span className="truncate text-[10px]">{item.subProviderLabel}</span>
+                  <span className="min-w-0 truncate text-[10px]">{item.subProviderLabel}</span>
                 ) : null}
                 {item.showProviderIcon ? (
                   <ProviderIcon

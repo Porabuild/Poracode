@@ -491,18 +491,19 @@ async function createHarness(): Promise<{
   const workerPath = configuredWorkerPath ?? join(directory, "cursor-sdk-worker.mjs");
   if (!configuredWorkerPath) {
     const workerSource = resolve(dirname(fileURLToPath(import.meta.url)), "sdkWorker.ts");
+    const esbuildArgs = [
+      "exec",
+      "esbuild",
+      workerSource,
+      "--bundle",
+      "--platform=node",
+      "--format=esm",
+      "--target=node24",
+      `--outfile=${workerPath}`,
+    ];
     execFileSync(
-      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-      [
-        "exec",
-        "esbuild",
-        workerSource,
-        "--bundle",
-        "--platform=node",
-        "--format=esm",
-        "--target=node24",
-        `--outfile=${workerPath}`,
-      ],
+      process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "pnpm",
+      process.platform === "win32" ? ["/d", "/s", "/c", "pnpm.cmd", ...esbuildArgs] : esbuildArgs,
       { stdio: "pipe" },
     );
   }

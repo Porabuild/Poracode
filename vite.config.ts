@@ -13,6 +13,11 @@ const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 const MATERIAL_ICON_DIR = resolve(__dirname, "node_modules/material-icon-theme/icons");
 const MATERIAL_ICON_ASSET_PREFIX = "/assets/material-icons/";
 const MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(__dirname, ".poracode/worktrees"))}/**`;
+const LEGACY_MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(__dirname, ".lightcode/worktrees"))}/**`;
+const ELECTRON_OUTPUT_GLOB = `${normalizePath(resolve(__dirname, "dist/main"))}/**`;
+const TEMP_OUTPUT_GLOBS = ["tmp", ".tmp"].map(
+  (directory) => `${normalizePath(resolve(__dirname, directory))}/**`,
+);
 const CLIENT_OPTIMIZED_DEPS = [
   "@chenglou/pretext",
   "@dnd-kit/dom",
@@ -467,6 +472,9 @@ export default defineConfig(({ mode }) => ({
     watch: {
       ignored: [
         MANAGED_WORKTREES_GLOB,
+        LEGACY_MANAGED_WORKTREES_GLOB,
+        ELECTRON_OUTPUT_GLOB,
+        ...TEMP_OUTPUT_GLOBS,
         "**/ios/App/App/public/**",
         "**/ios/DerivedData/**",
         "**/ios/capacitor-cordova-ios-plugins/**",

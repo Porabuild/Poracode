@@ -4,7 +4,8 @@ import { showFilesPanel, showGitReviewPanel } from "@/renderer/actions/panelActi
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { selectFocusedThreadId, useFocusedThreadId } from "./uiSelectors";
 
 function selectFocusedThread(state: ReturnType<typeof useAppStore.getState>) {
@@ -12,16 +13,32 @@ function selectFocusedThread(state: ReturnType<typeof useAppStore.getState>) {
   return paneId === null ? undefined : state.threads.find((item) => item.id === paneId);
 }
 
+/** Apply a deferred linked-panel scope immediately before revealing that tab. */
+export function syncRightPanelTabToFocusedThread(tab: RightPanelTab): void {
+  const panel = usePanelStore.getState();
+  if (!panel.rightPanelFollowsThread) return;
+
+  const app = useAppStore.getState();
+  const thread = selectFocusedThread(app);
+  if (!thread || isHomeProjectId(thread.projectId)) return;
+  const worktreePath = thread.worktreePath ?? undefined;
+
+  if (tab === "git" && panel.gitReviewContext !== null && panel.gitReviewAsPanel) {
+    showGitReviewPanel(thread.projectId, worktreePath);
+  } else if (tab === "files" && panel.filesPanelContext !== null && !hasDirtyEditorBuffers()) {
+    showFilesPanel(thread.projectId, worktreePath);
+  } else if (tab === "terminal" && useDevTerminalStore.getState().isOpen) {
+    useDevTerminalStore.getState().setPanelScope(thread.projectId, worktreePath);
+  }
+}
+
 /**
- * Keeps the right panel pinned to the focused thread while
- * `rightPanelFollowsThread` is on: whichever scope-bearing tools are already
- * open (git, files, terminal) re-target that thread's project + worktree on
- * every thread switch. Panels the user has closed stay closed — the lock
- * re-scopes, it does not open anything or spawn a new shell.
+ * Keeps the independently docked bottom terminal pinned to the focused thread
+ * while `rightPanelFollowsThread` is on. Unified right/side-panel tabs sync in
+ * `ProjectAuxiliaryPanel`, where actual tab visibility is known.
  *
- * The terminal follows the lock in both dock positions. `setPanelScope` only
- * selects an existing shell for the new scope; when the thread has none, the
- * panel shows its "Open a terminal" empty state instead of spawning one.
+ * `setPanelScope` never spawns a shell. A bottom panel with no matching shell
+ * hides while preserving the last mounted scope and its xterm buffer.
  *
  * The lock fires on thread switches only. Opening a terminal or panel for
  * another project is an explicit user choice and must win: surface state
@@ -44,36 +61,26 @@ export function useRightPanelThreadLock(): void {
       appliedScopeRef.current = null;
       return;
     }
-    if (projectId === null || isHomeProjectId(projectId)) return;
+    if (projectId === null || isHomeProjectId(projectId)) {
+      appliedScopeRef.current = null;
+      return;
+    }
     const scopeKey = JSON.stringify([threadId, projectId, worktreePath]);
     if (appliedScopeRef.current === scopeKey) return;
     appliedScopeRef.current = scopeKey;
     const scopedWorktree = worktreePath ?? undefined;
 
-    const panel = usePanelStore.getState();
-    const gitPanelOpen = panel.gitReviewContext !== null && panel.gitReviewAsPanel;
-    const filesPanelOpen = panel.filesPanelContext !== null;
+    if (useSharedSettings.getState().terminalPosition !== "bottom") return;
     const terminal = useDevTerminalStore.getState();
-    if (!gitPanelOpen && !filesPanelOpen && !terminal.isOpen) return;
+    if (!terminal.isOpen) return;
+    const targetHasTab = terminal.tabs.some(
+      (tab) => tab.projectId === projectId && (tab.worktreePath ?? undefined) === scopedWorktree,
+    );
+    if (!targetHasTab) return;
 
-    // Both `show*Panel` helpers force their own tab; remember what the user was
-    // actually looking at and restore it after re-scoping.
-    const activeTab = panel.rightPanelTab;
-    if (gitPanelOpen) {
-      showGitReviewPanel(projectId, scopedWorktree);
-    }
-    if (filesPanelOpen) {
-      // `showFilesPanel` prompts before discarding dirty editor buffers — never
-      // surface that prompt as a side effect of plain thread navigation.
-      if (!hasDirtyEditorBuffers()) {
-        showFilesPanel(projectId, scopedWorktree);
-      }
-    }
-    if (terminal.isOpen) {
-      terminal.setPanelScope(projectId, scopedWorktree);
-    }
-    if (usePanelStore.getState().rightPanelTab !== activeTab) {
-      panel.setRightPanelTab(activeTab);
-    }
+    const frame = requestAnimationFrame(() => {
+      useDevTerminalStore.getState().setPanelScope(projectId, scopedWorktree);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [enabled, projectId, threadId, worktreePath]);
 }

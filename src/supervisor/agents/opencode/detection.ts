@@ -9,7 +9,12 @@ import {
   type AgentConnectedProvider,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { configFileAuthProbe, readAgentCommandOutput, type DetectionSpec } from "../base";
+import {
+  configFileAuthProbe,
+  readAgentCommandOutput,
+  type DetectionSpec,
+  type StatusProbeResult,
+} from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { getAgentProbeCwd } from "../probeCwd";
 import { probeOpenCodeInventoryViaSdk, type OpenCodeSdkInventory } from "./sdkProbe";
@@ -66,6 +71,7 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   // per-thread MCP credentials.
   mcpScope: { terminal: "none", gui: "none" },
   mcpConfigSource: "agentSettings",
+  agentSettingsDefaults: { crossagentMcp: true },
   // The installed OpenCode plugin injects the trusted provider session id
   // into Crossagents calls, allowing every directory/session in the pooled
   // server to share one MCP credential without losing parent-thread routing.
@@ -357,7 +363,9 @@ export function attachOpenCodeProviderIds(
   });
 }
 
-async function probeOpenCodeStatus(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
+async function probeOpenCodeStatusViaCli(
+  ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
+): Promise<StatusProbeResult | undefined> {
   if (!ctx.executablePath) return undefined;
   const result = await readAgentCommandOutput(
     ctx.location,
@@ -388,6 +396,90 @@ async function probeOpenCodeStatus(ctx: Parameters<NonNullable<DetectionSpec["st
   };
 }
 
+export function buildOpenCodeStatusFromSdkInventory(
+  inventory: OpenCodeSdkInventory,
+): StatusProbeResult {
+  const providersById = new Map(inventory.providers.map((provider) => [provider.id, provider]));
+  const connectedProviders = inventory.connected.map((id) => {
+    const label = providersById.get(id)?.name.trim();
+    return { id, label: label || humanizeOpenCodeSubProviderId(id) };
+  });
+  const providerMetadata = compactAgentProviderMetadata({
+    ...(connectedProviders.length > 0 ? { connectedProviders } : {}),
+  });
+  return {
+    authState: connectedProviders.length > 0 ? "authenticated" : "missing",
+    ...(providerMetadata ? { providerMetadata } : {}),
+  };
+}
+
+interface OpenCodeDetectionProbeResult {
+  capabilities?: Partial<AgentCapability>;
+  status?: StatusProbeResult;
+}
+
+type OpenCodeDetectionProbeContext = Parameters<NonNullable<DetectionSpec["capabilitiesProbe"]>>[0];
+
+const pendingOpenCodeDetectionProbes = new Map<string, Promise<OpenCodeDetectionProbeResult>>();
+
+function openCodeDetectionProbeKey(ctx: OpenCodeDetectionProbeContext): string {
+  return JSON.stringify([ctx.location, ctx.executablePath, ctx.version, ctx.probeEnv]);
+}
+
+async function runOpenCodeDetectionProbe(
+  ctx: OpenCodeDetectionProbeContext,
+): Promise<OpenCodeDetectionProbeResult> {
+  if (!ctx.executablePath) return {};
+
+  if (ctx.version && compareOpencodeSemver(ctx.version, OPENCODE_MIN_VERSION) < 0) {
+    const status = await probeOpenCodeStatusViaCli(ctx);
+    return status ? { status } : {};
+  }
+
+  const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location).catch((cause) => {
+    console.warn(
+      `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
+        cause instanceof Error ? cause.message : String(cause)
+      }`,
+    );
+    return undefined;
+  });
+  if (sdkInventory) {
+    return {
+      capabilities: buildCapabilityPartialFromSdkInventory(sdkInventory),
+      status: buildOpenCodeStatusFromSdkInventory(sdkInventory),
+    };
+  }
+
+  // OpenCode's CLI and server share a SQLite database. Keep the two fallback
+  // commands serial so startup never races `models --verbose` against
+  // `providers list` and surfaces a spurious "database is locked" failure.
+  const probedModels = await probeOpenCodeModels(ctx.location, ctx.executablePath);
+  const status = await probeOpenCodeStatusViaCli(ctx);
+  return {
+    ...(probedModels ? { capabilities: buildCapabilityPartialFromProbedModels(probedModels) } : {}),
+    ...(status ? { status } : {}),
+  };
+}
+
+function probeOpenCodeDetection(
+  ctx: OpenCodeDetectionProbeContext,
+): Promise<OpenCodeDetectionProbeResult> {
+  const key = openCodeDetectionProbeKey(ctx);
+  const existing = pendingOpenCodeDetectionProbes.get(key);
+  if (existing) return existing;
+
+  const pending = runOpenCodeDetectionProbe(ctx);
+  pendingOpenCodeDetectionProbes.set(key, pending);
+  const clearPending = () => {
+    if (pendingOpenCodeDetectionProbes.get(key) === pending) {
+      pendingOpenCodeDetectionProbes.delete(key);
+    }
+  };
+  void pending.then(clearPending, clearPending);
+  return pending;
+}
+
 export function humanizeOpenCodeModelId(id: string): string {
   return titleizeOpenCodeName(openCodeModelNamePart(id));
 }
@@ -407,7 +499,7 @@ export const opencodeDetectionSpec: DetectionSpec = {
     builtIn: { binary: "opencode", args: ["upgrade"] },
     npm: "opencode-ai",
   },
-  statusProbe: probeOpenCodeStatus,
+  statusProbe: async (ctx) => (await probeOpenCodeDetection(ctx)).status,
   authProbes: [
     // Auth file lives on the host; for WSL projects we report "unknown"
     // (`undefined` skips the probe) because the WSL distro has its own
@@ -428,26 +520,7 @@ export const opencodeDetectionSpec: DetectionSpec = {
       return undefined;
     }
 
-    // Prefer SDK-driven inventory (richer model/agent data straight from
-    // `opencode serve`). If the server fails to come up — corporate firewall,
-    // sandboxed binary, missing libc — fall back to the CLI `models --verbose`
-    // parser so the user still sees a usable model list.
-    const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location).catch((cause) => {
-      console.warn(
-        `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
-          cause instanceof Error ? cause.message : String(cause)
-        }`,
-      );
-      return undefined;
-    });
-
-    if (sdkInventory) {
-      return buildCapabilityPartialFromSdkInventory(sdkInventory);
-    }
-
-    const probed = await probeOpenCodeModels(ctx.location, ctx.executablePath);
-    if (!probed) return undefined;
-    return buildCapabilityPartialFromProbedModels(probed);
+    return (await probeOpenCodeDetection(ctx)).capabilities;
   },
 };
 

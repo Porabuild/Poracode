@@ -25,6 +25,7 @@ import {
   type TurnCloseUpdate,
 } from "./threadTurnHelpers";
 import { recordThreadStarted } from "../usageRecorder";
+import { removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 
 export interface ThreadSlice {
@@ -246,6 +247,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       const { [threadId]: _droppedMcpLaunch, ...mcpLaunchCustomServerNamesByThreadId } =
         state.mcpLaunchCustomServerNamesByThreadId;
       const { [threadId]: _droppedThreadDraft, ...threadDraftContents } = state.threadDraftContents;
+      // The thread is gone — drop it from the keep-alive cache so its terminal
+      // disposes and doesn't leak.
+      const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
       return {
         threads: nextThreads,
         threadDraftContents,
@@ -264,6 +268,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         runtimeCompletedTurnsByThread,
         lastRuntimeConfigByThreadId,
         lastViewedAtByThreadId,
+        keepAlivePaneIds,
         view: nextView,
       };
     }),
@@ -434,7 +439,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         nextView = removePaneFromView(state.view, threadId);
       }
 
-      return { threads, view: nextView };
+      // Archived threads leave the cache so their terminal disposes.
+      const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
+      return { threads, view: nextView, keepAlivePaneIds };
     }),
   unarchiveThread: (threadId) =>
     set((state) => {
@@ -462,7 +469,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         nextView = removePaneFromView(state.view, threadId);
       }
 
-      return { threads, view: nextView };
+      // A done thread leaves the pane (and soon the view), so its terminal
+      // disposes; keep-alive would only retain a dead buffer.
+      const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
+      return { threads, view: nextView, keepAlivePaneIds };
     }),
   unmarkThreadDone: (threadId) =>
     set((state) => {

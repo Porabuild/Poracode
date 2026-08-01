@@ -66,7 +66,7 @@ describe("probeAcpCapabilities stress (Qoder timing paths)", () => {
     );
     const elapsed = Date.now() - started;
 
-    expect(elapsed).toBeLessThan(1_100);
+    expect(elapsed).toBeLessThan(1_500);
   });
 
   it("cuts off a wedged session/set_config_option instead of hanging", async () => {

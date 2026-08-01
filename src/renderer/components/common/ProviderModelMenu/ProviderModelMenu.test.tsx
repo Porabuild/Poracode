@@ -493,6 +493,62 @@ describe("ProviderModelMenu", () => {
     await assertShortcutRailOrder("OpenAI Model 1", "OpenAI");
   });
 
+  it("lets a long sub-provider label truncate before the model name", async () => {
+    const baseProvider = makeSubProviderBackedProvider();
+    const longSubProvider = {
+      ...baseProvider,
+      capabilities: {
+        ...baseProvider.capabilities,
+        subProviders: [
+          { id: "github-copilot", label: "An Extremely Long Sub-Provider Display Name" },
+          { id: "openai", label: "OpenAI" },
+        ],
+      },
+    };
+    useSharedSettings.setState({
+      favoriteModels: [
+        { agentKind: "opencode", modelId: "github-copilot/model-1", presentationMode: "gui" },
+      ],
+    });
+
+    render(
+      <ProviderModelMenu
+        providers={[longSubProvider, makeNamedProvider("claude", "Claude", 3)]}
+        currentAgentKind="opencode"
+        currentModel="github-copilot/model-2"
+        presentationMode="gui"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    let row: Element | null | undefined;
+    await waitFor(() => {
+      row = screen
+        .getAllByText("Copilot Model 1")
+        .map((element) => element.closest('[role="option"]'))
+        .find((option) => option?.textContent?.includes("An Extremely Long Sub-Provider"));
+      expect(row).not.toBeUndefined();
+    });
+    expect(row).not.toBeNull();
+
+    const modelName = within(row as HTMLElement).getByText("Copilot Model 1");
+    const subProviderLabel = within(row as HTMLElement).getByText(
+      "An Extremely Long Sub-Provider Display Name",
+    );
+    const subProviderRail = subProviderLabel.parentElement as HTMLElement;
+
+    // The model name owns the flexible space, so it only truncates once the
+    // sub-provider rail has fully shrunk. The rail is additionally width-capped
+    // so the model always keeps the majority of the row.
+    expect(modelName.parentElement?.className).toContain("flex-1");
+    expect(subProviderRail.className).toContain("max-w-[45%]");
+    expect(subProviderRail.className).not.toContain("shrink-0");
+    expect(subProviderLabel.className).toContain("min-w-0");
+    expect(subProviderLabel.className).toContain("truncate");
+  });
+
   it("keeps shortcut favorites and recents scoped to the current presentation mode", async () => {
     useSharedSettings.setState({
       favoriteModels: [

@@ -195,13 +195,16 @@ function syncRemoteAppRows(
   const projectedProjects = projects?.map((project) => {
     const projected = projectRemoteProject(desktopId, project);
     const current = currentProjects?.get(project.id);
-    return current
-      ? {
-          ...projected,
-          ...(current.workspaceId ? { workspaceId: current.workspaceId } : {}),
-          ...(current.mcpServers ? { mcpServers: current.mcpServers } : {}),
-        }
-      : projected;
+    const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
+    const workspaceId =
+      remoteState.projectWorkspaceIds[desktopId]?.[project.id] ??
+      (current?.workspaceId !== remoteWorkspaceId ? current?.workspaceId : undefined);
+    return {
+      ...projectWithoutWorkspace,
+      name: remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name,
+      ...(workspaceId ? { workspaceId } : {}),
+      ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
+    };
   });
   const projectedThreads = threads?.map((thread) => projectRemoteThread(desktopId, thread));
   if (projectedProjects) {
@@ -585,6 +588,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         const record: RemoteServerRecord = {
           desktopId: environment.desktopId,
           label: environment.label,
+          remoteLabel: environment.label,
           endpoint: normalized,
           accessToken: tokenResult.accessToken,
           scopes: filterKnownRemoteAccessScopes(tokenResult.scopes),
@@ -616,6 +620,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         servers: [],
         runtime: {},
         excludedProjectIds: {},
+        projectWorkspaceIds: {},
+        projectNameOverrides: {},
         openThread: null,
         clientFactory: defaultClientFactory,
         socketFactory: defaultSocketFactory,
@@ -834,6 +840,20 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           }
         },
 
+        renameServer: (desktopId, label) => {
+          set((state) => {
+            const server = state.servers.find((candidate) => candidate.desktopId === desktopId);
+            if (!server || server.label === label) return {};
+            return {
+              servers: state.servers.map((candidate) =>
+                candidate.desktopId === desktopId
+                  ? { ...candidate, label, remoteLabel: candidate.remoteLabel ?? candidate.label }
+                  : candidate,
+              ),
+            };
+          });
+        },
+
         removeServer: (desktopId) => {
           const removed = get().servers.find((server) => server.desktopId === desktopId);
           closeRemoteServerEventSocket(desktopId);
@@ -1001,6 +1021,18 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           await connectServer(server);
         },
 
+        setProjectNameOverride: (desktopId, remoteId, name) => {
+          set((state) => ({
+            projectNameOverrides: {
+              ...state.projectNameOverrides,
+              [desktopId]: {
+                ...state.projectNameOverrides[desktopId],
+                [remoteId]: name,
+              },
+            },
+          }));
+        },
+
         setRemoteProjectSynced: (desktopId, remoteId, synced) => {
           const current = get().excludedProjectIds;
           const next = withRemoteProjectSync(current, desktopId, remoteId, synced);
@@ -1086,10 +1118,63 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       partialize: (state) => ({
         servers: state.servers,
         excludedProjectIds: state.excludedProjectIds,
+        projectWorkspaceIds: state.projectWorkspaceIds,
+        projectNameOverrides: state.projectNameOverrides,
       }),
     },
   ),
 );
+
+/**
+ * Mirror local project workspace assignments back into the remote state so the
+ * sync layer keeps a stable record across reloads and server reconnects.
+ *
+ * Installed from `app.tsx` (like `installRemoteGitSummaryPublisher`): the
+ * module-scope equivalent would touch `useAppStore` during its own
+ * initialization, which hits the `appStore` ⇄ `remoteServersStore` import
+ * cycle's TDZ before `useAppStore` is defined.
+ */
+export function installRemoteProjectWorkspaceSync(): () => void {
+  return useAppStore.subscribe((state, previousState) => {
+    if (state.projects === previousState.projects) return;
+    const previousProjects = new Map(
+      previousState.projects.map((project) => [project.id, project]),
+    );
+    const changes: Array<{
+      desktopId: string;
+      remoteId: string;
+      workspaceId: string | undefined;
+    }> = [];
+    for (const project of state.projects) {
+      if (!project.remoteServerId || !project.remoteId) continue;
+      const previous = previousProjects.get(project.id);
+      if (!previous || previous.workspaceId === project.workspaceId) continue;
+      changes.push({
+        desktopId: project.remoteServerId,
+        remoteId: project.remoteId,
+        workspaceId: project.workspaceId,
+      });
+    }
+    if (changes.length === 0) return;
+
+    useRemoteServersStore.setState((remoteState) => {
+      let projectWorkspaceIds = remoteState.projectWorkspaceIds;
+      for (const change of changes) {
+        const currentForServer = projectWorkspaceIds[change.desktopId] ?? {};
+        const currentWorkspaceId = currentForServer[change.remoteId];
+        if (currentWorkspaceId === change.workspaceId) continue;
+        const nextForServer = { ...currentForServer };
+        if (change.workspaceId) nextForServer[change.remoteId] = change.workspaceId;
+        else delete nextForServer[change.remoteId];
+        projectWorkspaceIds = {
+          ...projectWorkspaceIds,
+          [change.desktopId]: nextForServer,
+        };
+      }
+      return projectWorkspaceIds === remoteState.projectWorkspaceIds ? {} : { projectWorkspaceIds };
+    });
+  });
+}
 
 registerRemoteProcedureHost({
   resolveThreadOwner: (threadId) => {

@@ -11,7 +11,9 @@ import {
   deleteThread,
   openNewThread,
   openThread,
+  reopenPaneThreadsIfInactive,
   reopenStoredThread,
+  setThreadRuntimeReopenEnabled,
   switchToAdjacentThread,
   toggleMarkThreadDone,
 } from "./threadActions";
@@ -47,6 +49,7 @@ vi.mock("@/renderer/state/chatRuntimePersister", () => ({
 describe("threadActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setThreadRuntimeReopenEnabled(true);
     localStorage.clear();
     hasHydratedThreadRuntimeItems.mockReturnValue(false);
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
@@ -79,6 +82,23 @@ describe("threadActions", () => {
       workspaces: [],
     });
     useWorkspaceStore.setState({ activeWorkspaceId: null });
+  });
+
+  it("does not restart an inactive thread before startup snapshots reconcile", async () => {
+    const thread = makeThread({ status: "inactive" });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+    setThreadRuntimeReopenEnabled(false);
+
+    openThread(thread.id);
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+    });
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+
+    setThreadRuntimeReopenEnabled(true);
+    reopenPaneThreadsIfInactive();
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
   });
 
   it("discards the replaced draft when starting a sidebar draft for another project", () => {

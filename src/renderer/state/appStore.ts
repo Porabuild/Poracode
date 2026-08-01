@@ -5,6 +5,7 @@ import { createDbStorage } from "./dbStorage";
 import { createDraftSlice } from "./slices/draftSlice";
 import { normalizeStoredThreadStatus } from "./slices/helpers";
 import { createLaunchSlice } from "./slices/launchSlice";
+import { createPaneCacheSlice } from "./slices/paneCacheSlice";
 import { createPendingSteerSlice } from "./slices/pendingSteerSlice";
 import { createProjectSlice } from "./slices/projectSlice";
 import { createRuntimeEventSlice } from "./slices/runtimeEventSlice";
@@ -26,6 +27,7 @@ export const useAppStore = create<AppStoreState>()(
         ...createLaunchSlice(...a),
         ...createDraftSlice(...a),
         ...createViewSlice(...a),
+        ...createPaneCacheSlice(...a),
         ...createRuntimeEventSlice(...a),
         ...createPendingSteerSlice(...a),
         ...createSubAgentOverlaySlice(...a),

@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
+import type { Experiment, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import type {
   QuickComposerSubmission,
   SupervisorEvent,
@@ -844,7 +844,15 @@ describe("App", () => {
           "experiment-1": {
             id: "experiment-1",
             projectId: project.id,
-          } as never,
+            title: "Experiment",
+            prompt: "Test project reconciliation",
+            baseBranch: "main",
+            baseCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            candidates: [],
+            status: "running",
+            createdAt: "2026-07-21T00:00:00.000Z",
+            updatedAt: "2026-07-21T00:00:00.000Z",
+          } satisfies Experiment,
         },
       });
     });

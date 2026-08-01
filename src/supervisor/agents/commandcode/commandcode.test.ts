@@ -144,7 +144,7 @@ describe("createCommandCodeAdapter", () => {
     ]);
     expect(adapter.capabilities.defaultApprovalPolicy).toBe("yolo");
     expect(adapter.capabilities.defaultEffort).toBe("high");
-    expect(adapter.capabilities.models).toHaveLength(48);
+    expect(adapter.capabilities.models).toHaveLength(50);
     expect(defaultCommandCodeCapabilities.presentationModes).toEqual(["terminal"]);
     expect(adapter.defaultOneShotModel).toBe(COMMANDCODE_DEFAULT_MODEL_ID);
   });

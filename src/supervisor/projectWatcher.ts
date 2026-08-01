@@ -147,6 +147,14 @@ export class ProjectWatcher {
     this.wslClient = client;
   }
 
+  /** True when at least one watched project lives inside a WSL distro. */
+  hasWslProjects(): boolean {
+    for (const entry of this.watchers.values()) {
+      if (entry.location.kind === "wsl") return true;
+    }
+    return false;
+  }
+
   /**
    * Start watching a project. Idempotent — calling with the same projectId
    * replaces the previous watcher.

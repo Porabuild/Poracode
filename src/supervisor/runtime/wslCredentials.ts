@@ -14,7 +14,28 @@ const execFileAsync = promisify(execFile);
  * win32-only and best-effort: reads run through a login shell (so `gh` is on
  * PATH) and only when native resolution already failed. Secrets are never
  * logged. Commands avoid quotes so the login-shell wrapper doesn't mis-escape.
+ *
+ * The sweep only runs when the user actively uses WSL (a watched WSL project
+ * or a live WSL session — see `setWslCredentialProjectScope`): every read goes
+ * through the per-distro bridge, which boots the distro's VM and leaves a
+ * resident helper process inside it, so probing without any WSL usage would
+ * keep `VmmemWSL` alive for no benefit.
  */
+
+let hasActiveWslContext: (() => boolean) | undefined;
+
+/**
+ * Late-bound by the supervisor at boot. When the predicate reports no WSL
+ * activity, all `read*FromWsl` helpers short-circuit to `undefined` without
+ * touching any distro. Unset means unconstrained (tests, non-supervisor
+ * consumers).
+ */
+export function setWslCredentialProjectScope(predicate: (() => boolean) | undefined): () => void {
+  hasActiveWslContext = predicate;
+  return () => {
+    if (hasActiveWslContext === predicate) hasActiveWslContext = undefined;
+  };
+}
 
 async function listWslDistros(): Promise<string[]> {
   if (process.platform !== "win32") return [];
@@ -32,6 +53,7 @@ async function listWslDistros(): Promise<string[]> {
 
 /** Run a read command in each distro; return the first non-empty stdout. */
 async function readFromAnyWslDistro(command: string): Promise<string | undefined> {
+  if (hasActiveWslContext && !hasActiveWslContext()) return undefined;
   for (const distro of await listWslDistros()) {
     try {
       const [result] = await batchWslCommandsAsync(distro, [command]);

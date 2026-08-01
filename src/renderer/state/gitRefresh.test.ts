@@ -17,6 +17,8 @@ import {
   cleanupGitRefreshProjects,
   getProjectActiveWorktreePaths,
   getWatcherRefreshMode,
+  prefetchBranchPrData,
+  prefetchVisibleGitPanelPrData,
   PR_PENDING_REFRESH_INTERVAL_MS,
   PR_POST_PUSH_STATUS_POLL_MS,
   refreshGitProject,
@@ -38,6 +40,10 @@ const ghGetPrDetailsMock =
   >();
 const checkPrWatchMock =
   vi.fn<(payload: { projectId: string; prNumber: number }) => Promise<void>>();
+const ghListPrsMock =
+  vi.fn<
+    (payload: { projectLocation: ProjectLocation }) => Promise<{ prs: Record<string, PrData> }>
+  >();
 
 const location: ProjectLocation = { kind: "posix", path: "/repo" };
 const wslLocation: ProjectLocation = {
@@ -136,6 +142,7 @@ describe("pending PR refresh", () => {
     ghGetPrForBranchMock.mockReset();
     ghGetPrDetailsMock.mockReset();
     checkPrWatchMock.mockReset();
+    ghListPrsMock.mockReset();
     checkPrWatchMock.mockResolvedValue(undefined);
     Object.defineProperty(window, "poracode", {
       configurable: true,
@@ -147,6 +154,7 @@ describe("pending PR refresh", () => {
         ghGetPrForBranch: ghGetPrForBranchMock,
         ghGetPrDetails: ghGetPrDetailsMock,
         checkPrWatch: checkPrWatchMock,
+        ghListPrs: ghListPrsMock,
       },
     });
     useGitStore.setState({
@@ -180,6 +188,106 @@ describe("pending PR refresh", () => {
   afterEach(() => {
     stopPendingPrRefresh();
     vi.useRealTimers();
+  });
+
+  it("maps one bulk PR query to all thread worktrees and reapplies its cache", async () => {
+    const bulkProject = { ...project, id: "bulk-p1" };
+    const visibleThread = {
+      ...worktreeThread,
+      id: "bulk-visible",
+      projectId: bulkProject.id,
+      worktreePath: "/repo-visible",
+      worktreeBranch: "feature/visible",
+    };
+    const hiddenThread = {
+      ...worktreeThread,
+      id: "bulk-hidden",
+      projectId: bulkProject.id,
+      worktreePath: "/repo-hidden",
+      worktreeBranch: "feature/hidden",
+    };
+    const visiblePr = { ...basePr, number: 101, checksStatus: "SUCCESS" as const };
+    const hiddenPr = { ...basePr, number: 102, state: "merged" as const };
+    const mainPr = { ...basePr, number: 103, checksStatus: "FAILURE" as const };
+
+    useAppStore.setState({ projects: [bulkProject], threads: [visibleThread] });
+    useGitStore.setState({
+      statuses: { [bulkProject.id]: { ...status, branch: "feature/main" } },
+      ghAvailable: { [bulkProject.id]: true },
+      prData: {
+        "/repo-visible": {
+          ...basePr,
+          number: 101,
+          viewerDidAuthor: true,
+          updatedAt: "2026-04-03T00:00:00.000Z",
+        },
+      },
+    });
+    ghListPrsMock.mockResolvedValue({
+      prs: {
+        "feature/visible": visiblePr,
+        "feature/hidden": hiddenPr,
+        "feature/main": mainPr,
+      },
+    });
+
+    await prefetchBranchPrData(bulkProject);
+
+    expect(ghListPrsMock).toHaveBeenCalledOnce();
+    expect(useGitStore.getState().prData["/repo-visible"]).toEqual({
+      ...visiblePr,
+      viewerDidAuthor: true,
+    });
+    expect(useGitStore.getState().prData[buildBranchPrKey(bulkProject.id)]).toEqual(mainPr);
+
+    useGitStore.getState().setPrData("/repo-visible", {
+      ...visiblePr,
+      state: "merged",
+      updatedAt: "2026-04-05T00:00:00.000Z",
+      viewerDidAuthor: true,
+    });
+    useAppStore.setState({ threads: [visibleThread, hiddenThread] });
+    await prefetchBranchPrData(bulkProject);
+
+    expect(ghListPrsMock).toHaveBeenCalledOnce();
+    expect(useGitStore.getState().prData["/repo-hidden"]).toEqual(hiddenPr);
+    expect(useGitStore.getState().prData["/repo-visible"]?.state).toBe("merged");
+  });
+
+  it("prefetches for a matching visible Git panel only when gh and GitHub are available", async () => {
+    const visibleProject = { ...project, id: "visible-git-project" };
+    useAppStore.setState({ projects: [visibleProject] });
+    usePanelStore.setState({
+      gitReviewContext: { projectId: visibleProject.id, worktreePath: "/repo-visible" },
+      gitReviewAsPanel: true,
+    });
+    ghListPrsMock.mockResolvedValue({ prs: {} });
+
+    await prefetchVisibleGitPanelPrData(visibleProject.id, "/another-worktree");
+    expect(ghListPrsMock).not.toHaveBeenCalled();
+
+    useGitStore.setState({
+      ghAvailable: { [visibleProject.id]: false },
+      statuses: { [visibleProject.id]: status },
+    });
+    await prefetchVisibleGitPanelPrData(visibleProject.id, "/repo-visible");
+    expect(ghListPrsMock).not.toHaveBeenCalled();
+
+    useGitStore.setState({
+      ghAvailable: { [visibleProject.id]: true },
+      statuses: {
+        [visibleProject.id]: {
+          ...status,
+          remoteInfo: { ...status.remoteInfo!, platform: "gitlab" },
+        },
+      },
+    });
+    await prefetchVisibleGitPanelPrData(visibleProject.id, "/repo-visible");
+    expect(ghListPrsMock).not.toHaveBeenCalled();
+
+    useGitStore.setState({ statuses: { [visibleProject.id]: status } });
+    await prefetchVisibleGitPanelPrData(visibleProject.id, "/repo-visible");
+    expect(ghListPrsMock).toHaveBeenCalledOnce();
   });
 
   it("keeps running experiment worktrees active when the project and group are collapsed", () => {

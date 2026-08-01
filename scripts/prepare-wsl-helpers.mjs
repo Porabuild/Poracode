@@ -15,9 +15,9 @@
  *      imports a Cursor SDK installed inside the target distro.
  *
  * Idempotency: presence + non-zero size on `watcher.node` skips the
- * `npm pack` download. `bridge.mjs` is always copied — the copy is <1ms
- * and avoids the stale-resources trap where a preserved-size edit would
- * otherwise be silently skipped.
+ * `npm pack` download. Other helpers are compared byte-for-byte before copy,
+ * avoiding redundant writes without the stale-resource risk of size/mtime
+ * heuristics.
  */
 
 import { execSync } from "node:child_process";
@@ -90,12 +90,7 @@ function stageHookBridge() {
     throw new Error(`hook bridge source missing: ${src}`);
   }
   const dest = join(destDir, "bridge.mjs");
-  // Always copy. The previous size+mtime heuristic wrongly reported "up to
-  // date" after partial restages or after edits that preserved file size,
-  // leaving a stale bridge in `resources/` that then deploys into distros.
-  // File copy is <1ms and idempotent — the simpler rule is correct.
-  copyFileSync(src, dest);
-  console.log(`[prepare-wsl-helpers] bridge.mjs -> ${dest}`);
+  copyIfChanged(src, dest, "bridge.mjs");
 }
 
 function stageMcpProbe() {
@@ -105,8 +100,7 @@ function stageMcpProbe() {
   }
   assertSelfContainedWorker(src);
   const dest = join(destDir, "mcp-probe.mjs");
-  copyFileSync(src, dest);
-  console.log(`[prepare-wsl-helpers] mcpProbeWorker.mjs -> ${dest}`);
+  copyIfChanged(src, dest, "mcpProbeWorker.mjs");
 }
 
 function stageMcpFilter() {
@@ -116,8 +110,7 @@ function stageMcpFilter() {
   }
   assertSelfContainedWorker(src);
   const dest = join(destDir, "mcp-filter.mjs");
-  copyFileSync(src, dest);
-  console.log(`[prepare-wsl-helpers] mcpToolFilterWorker.mjs -> ${dest}`);
+  copyIfChanged(src, dest, "mcpToolFilterWorker.mjs");
 }
 
 function stageCursorSdkWorker() {
@@ -127,8 +120,16 @@ function stageCursorSdkWorker() {
   }
   assertSelfContainedWorker(src, "Cursor SDK worker");
   const dest = join(destDir, "cursor-sdk-worker.mjs");
+  copyIfChanged(src, dest, "cursorSdkWorker.mjs");
+}
+
+function copyIfChanged(src, dest, label) {
+  if (existsSync(dest) && readFileSync(src).equals(readFileSync(dest))) {
+    console.log(`[prepare-wsl-helpers] ${label} already current, skipping`);
+    return;
+  }
   copyFileSync(src, dest);
-  console.log(`[prepare-wsl-helpers] cursorSdkWorker.mjs -> ${dest}`);
+  console.log(`[prepare-wsl-helpers] ${label} -> ${dest}`);
 }
 
 function assertSelfContainedWorker(path, label = "MCP probe worker") {

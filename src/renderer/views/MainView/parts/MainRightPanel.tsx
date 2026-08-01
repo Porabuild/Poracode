@@ -19,6 +19,8 @@ export function MainRightPanel() {
 
   const isTerminalRight = terminalPosition === "right";
 
+  if (isTerminalRight && !rightPanelOpen) return null;
+
   return (
     <Suspense>
       {!isTerminalRight ? (

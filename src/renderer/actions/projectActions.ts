@@ -47,7 +47,11 @@ export function renameProject(projectId: string, name: string): void {
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
   store.renameProject(projectId, name);
-  persistRemoteProjectPatch(project, { name });
+  if (project.remoteServerId && project.remoteId) {
+    useRemoteServersStore
+      .getState()
+      .setProjectNameOverride(project.remoteServerId, project.remoteId, name);
+  }
 }
 
 export function updateProjectScripts(projectId: string, scripts: ProjectScripts): void {

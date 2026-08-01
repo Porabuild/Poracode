@@ -295,11 +295,14 @@ async function acquireOpenCodeServerInner(
     // If the server crashes after wiring, evict so subsequent acquires get a
     // fresh process. Live acquirers will see I/O errors on next request and
     // surface them through the SDK.
-    void ready.then((snapshot) => {
-      snapshot.handle.child.once("exit", () => {
-        if (pool.get(key) === entry) pool.delete(key);
-      });
-    });
+    void ready.then(
+      (snapshot) => {
+        snapshot.handle.child.once("exit", () => {
+          if (pool.get(key) === entry) pool.delete(key);
+        });
+      },
+      () => undefined,
+    );
   }
 
   const acquiringEntry = entry;

@@ -30,6 +30,8 @@ export type RemoteServerStatus = "connecting" | "online" | "offline" | "error";
 export interface RemoteServerRecord {
   readonly desktopId: string;
   readonly label: string;
+  /** Host-reported label retained when `label` is overridden locally. */
+  readonly remoteLabel?: string;
   readonly endpoint: string;
   readonly accessToken: string;
   readonly scopes: RemoteAccessScope[];
@@ -79,6 +81,11 @@ export interface RemoteServersState {
    * to — the sidebar while its server is offline. See `projectSync.ts`.
    */
   excludedProjectIds: Record<string, readonly string[]>;
+  /** Local workspace assignments for mirrored projects, keyed by desktop and remote project id. */
+  projectWorkspaceIds: Record<string, Readonly<Record<string, string>>>;
+  /** Local display-name overrides for mirrored projects, keyed by desktop and remote project id. */
+  projectNameOverrides: Record<string, Readonly<Record<string, string>>>;
+  setProjectNameOverride(desktopId: string, remoteProjectId: string, name: string): void;
   setRemoteProjectSynced(desktopId: string, remoteProjectId: string, synced: boolean): void;
   clientFactory: RemoteClientFactory;
   socketFactory: RemoteSocketFactory;
@@ -132,6 +139,7 @@ export interface RemoteServersState {
   }): Promise<WriteProjectFileResult>;
   pairServer(input: { endpoint: string; token: string }): Promise<RemoteServerRecord>;
   pairSshServer(connection: SshConnectionConfig): Promise<RemoteServerRecord>;
+  renameServer(desktopId: string, label: string): void;
   removeServer(desktopId: string): void;
   refreshServer(
     desktopId: string,

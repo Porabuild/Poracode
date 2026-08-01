@@ -302,6 +302,8 @@ export const agentCapabilitySchema = z.object({
   bypassPermissions: bypassPermissionsSchema.optional(),
   /** Composer MCP toggle gating for every server. */
   mcpScope: composerMcpScopesSchema.optional(),
+  /** Provider-owned defaults for values stored in shared agent settings. */
+  agentSettingsDefaults: z.record(z.string(), z.union([z.boolean(), z.string()])).optional(),
   /**
    * Where the provider's MCP launch flags come from:
    *

@@ -2691,6 +2691,7 @@ msgid "Configure the server Poracode will add when supported agents start."
 msgstr "Skonfiguruj serwer, który Poracode doda podczas uruchamiania obsługiwanych agentów."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Configured MCP servers"
 msgstr "Skonfigurowane serwery MCP"
 
@@ -3681,8 +3682,10 @@ msgstr "Urządzenia mogą się parować, gdy ten komputer jest osiągalny."
 #~ msgid "Direct connection required"
 #~ msgstr "Wymagane jest bezpośrednie połączenie"
 
+#. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Disable {0}"
 msgstr "Wyłącz {0}"
 
@@ -4002,8 +4005,10 @@ msgstr "Poziomy rozumowania dla modelu {modelName}"
 msgid "Electron"
 msgstr "Electron"
 
+#. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Enable {0}"
 msgstr "Włącz {0}"
 
@@ -6485,6 +6490,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
 msgstr "Nazwa"
 
@@ -6815,6 +6821,7 @@ msgid "No commits found."
 msgstr "Nie znaleziono żadnych zatwierdzeń."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "No configured MCP servers yet"
 msgstr "Nie skonfigurowano jeszcze żadnych serwerów MCP"
 
@@ -8753,6 +8760,7 @@ msgstr "Usunąć drzewo robocze?"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "Zmień nazwę"
 
@@ -9268,6 +9276,7 @@ msgstr "Opcje środowiska wykonawczego"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "Zapisz"

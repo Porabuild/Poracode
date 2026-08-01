@@ -1,9 +1,10 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
+import { PiRpcClient } from "./rpcClient";
 import { PiRpcSession } from "./rpcSession";
 
 // A minimal stand-in for `pi --mode rpc` so the session's protocol handling is
@@ -117,9 +118,13 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     projectDir = mkdtempSync(join(tmpdir(), "poracode-pi-rpc-mock-"));
     mockBinary = join(projectDir, "mock-pi.mjs");
     writeFileSync(mockBinary, MOCK_PI_SOURCE, "utf8");
-    chmodSync(mockBinary, 0o755);
+    const spawn = PiRpcClient.spawn;
+    vi.spyOn(PiRpcClient, "spawn").mockImplementation((spec) =>
+      spawn({ ...spec, command: process.execPath, args: [mockBinary, ...spec.args] }),
+    );
   });
   afterAll(() => {
+    vi.restoreAllMocks();
     rmSync(projectDir, { recursive: true, force: true });
   });
 
@@ -153,6 +158,19 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     return { session, events, updates };
   }
 
+  async function disposeSettledSession(
+    session: PiRpcSession,
+    events: RuntimeEvent[],
+    updates: StructuredSessionUpdate[],
+  ): Promise<void> {
+    await waitFor(events, (event) => event.type === "context.updated");
+    await waitFor(
+      events,
+      () => updates.filter((update) => update.slashCommands !== undefined).length >= 2,
+    );
+    await session.dispose();
+  }
+
   it("streams a turn into canonical events and publishes session ref + context", async () => {
     const { session, events, updates } = await createSession();
     await session.startTurn?.("hello", { model: "mock/model", effort: "off" });
@@ -183,11 +201,11 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     );
     expect(updates.every((update) => update.sessionRef?.providerSessionId !== "")).toBe(true);
     expect(updates.at(-1)?.sessionRef?.providerSessionId).toBe("mock-session-1");
-    await session.dispose();
+    await disposeSettledSession(session, events, updates);
   });
 
   it("publishes cumulative usage.spent from get_session_stats tokens.total", async () => {
-    const { session, events } = await createSession();
+    const { session, events, updates } = await createSession();
     await session.startTurn?.("hello", { model: "mock/model", effort: "off" });
 
     // Spend publishes after the turn settles, off the same stats response as
@@ -206,11 +224,11 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
         model: "mock/model",
       },
     });
-    await session.dispose();
+    await disposeSettledSession(session, events, updates);
   });
 
   it("surfaces a provider error as a failed turn", async () => {
-    const { session, events } = await createSession();
+    const { session, events, updates } = await createSession();
     await session.startTurn?.("FAIL please", { model: "mock/model", effort: "off" });
     expect(events).toEqual(
       expect.arrayContaining([
@@ -218,11 +236,11 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
         expect.objectContaining({ type: "turn.completed", state: "failed" }),
       ]),
     );
-    await session.dispose();
+    await disposeSettledSession(session, events, updates);
   });
 
   it("maps persisted pi-goal lifecycle entries into a canonical goal item", async () => {
-    const { session, events } = await createSession();
+    const { session, events, updates } = await createSession();
     await session.startTurn?.("GOAL_PLUGIN", { model: "mock/model", effort: "off" });
 
     const goalEvents = events.filter(
@@ -259,11 +277,11 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
           (event.payload as { action?: string }).action === "cleared",
       ),
     ).toBe(false);
-    await session.dispose();
+    await disposeSettledSession(session, events, updates);
   });
 
   it("maps pi-codex-goal session entries into the native goal lifecycle", async () => {
-    const { session, events } = await createSession();
+    const { session, events, updates } = await createSession();
     await session.startTurn?.("CODEX_GOAL_PLUGIN", { model: "mock/model", effort: "off" });
 
     const goalEvents = events.filter(
@@ -298,11 +316,11 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
           (event.payload as { action?: string }).action === "cleared",
       ),
     ).toBe(false);
-    await session.dispose();
+    await disposeSettledSession(session, events, updates);
   });
 
   it("preserves unknown Pi plugin status and custom entries as generic activity", async () => {
-    const { session, events } = await createSession();
+    const { session, events, updates } = await createSession();
     await session.startTurn?.("GENERIC_PLUGIN", { model: "mock/model", effort: "off" });
 
     const activities = events.filter(
@@ -322,11 +340,11 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
         }),
       ]),
     );
-    await session.dispose();
+    await disposeSettledSession(session, events, updates);
   });
 
   it("maps an extension UI dialog to a server request and resolves it", async () => {
-    const { session, events } = await createSession();
+    const { session, events, updates } = await createSession();
     const turn = session.startTurn?.("DIALOG", { model: "mock/model", effort: "off" });
     const request = (await waitFor(events, (e) => e.type === "request.opened")) as Extract<
       RuntimeEvent,
@@ -348,6 +366,6 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
         expect.objectContaining({ type: "request.resolved", outcome: "answered" }),
       ]),
     );
-    await session.dispose();
+    await disposeSettledSession(session, events, updates);
   });
 });

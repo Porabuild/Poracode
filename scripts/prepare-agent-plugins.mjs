@@ -23,11 +23,11 @@
  * of truth for the manifest read / postWithRetry / envelope plumbing across
  * all forwarder providers.
  *
- * The script is idempotent: every small asset is refreshed on each run, so a
- * partial restage or same-size edit cannot leave stale packaged content.
+ * The script is idempotent: each asset is compared byte-for-byte before it is
+ * copied, so repeated dev starts avoid writes without leaving stale content.
  */
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -106,19 +106,23 @@ function stagePlugin({ kind, assets, srcDir }, destinationBase) {
     }
     const dest = join(destDir, asset);
 
-    // Always copy — size+mtime heuristics can falsely skip after partial
-    // restages or same-size edits (matches the bug we fixed for bridge.mjs).
-    // Plugin assets are small; the copy is <1ms.
-    copyFileSync(src, dest);
-    console.log(`[prepare-agent-plugins] ${kind}/${asset} -> ${dest}`);
+    copyIfChanged(src, dest, `${kind}/${asset}`);
   }
 }
 
 function stageSharedRuntime(sharedRuntime, destinationBase) {
   const dest = join(destinationBase, sharedRuntime.destRel);
   mkdirSync(dirname(dest), { recursive: true });
-  copyFileSync(sharedRuntime.src, dest);
-  console.log(`[prepare-agent-plugins] _runtime -> ${dest}`);
+  copyIfChanged(sharedRuntime.src, dest, "_runtime");
+}
+
+function copyIfChanged(src, dest, label) {
+  if (existsSync(dest) && readFileSync(src).equals(readFileSync(dest))) {
+    console.log(`[prepare-agent-plugins] ${label} already current, skipping`);
+    return;
+  }
+  copyFileSync(src, dest);
+  console.log(`[prepare-agent-plugins] ${label} -> ${dest}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

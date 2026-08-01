@@ -2921,4 +2921,32 @@ describe("mapCodexModels", () => {
     ]);
     expect(result.fastModels).toEqual(["gpt-5.5"]);
   });
+
+  it("treats 'priority' in additionalSpeedTiers as fast-capable (renamed tier id)", () => {
+    const result = mapCodexModels([
+      {
+        id: "gpt-5.6-sol",
+        model: "gpt-5.6-sol",
+        displayName: "gpt-5.6-sol",
+        hidden: false,
+        isDefault: true,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        additionalSpeedTiers: ["priority"],
+        serviceTiers: [{ id: "priority" }],
+      },
+      {
+        id: "gpt-5.4-mini",
+        model: "gpt-5.4-mini",
+        displayName: "gpt-5.4-mini",
+        hidden: false,
+        isDefault: false,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        additionalSpeedTiers: ["fast"],
+        serviceTiers: [{ id: "fast" }],
+      },
+    ]);
+    expect(result.fastModels).toEqual(["gpt-5.6-sol", "gpt-5.4-mini"]);
+  });
 });

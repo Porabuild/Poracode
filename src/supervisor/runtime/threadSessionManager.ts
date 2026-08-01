@@ -1129,6 +1129,9 @@ export class ThreadSessionManager {
 
   private resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string> {
     const settings = readSupervisorSharedSettings(this.options.settingsPath);
-    return settings.agentSettings[adapter.kind] ?? {};
+    return {
+      ...(adapter.capabilities.agentSettingsDefaults ?? {}),
+      ...(settings.agentSettings[adapter.kind] ?? {}),
+    };
   }
 }

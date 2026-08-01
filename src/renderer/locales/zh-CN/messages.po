@@ -2691,6 +2691,7 @@ msgid "Configure the server Poracode will add when supported agents start."
 msgstr "配置 Poracode 在受支持的代理启动时添加的服务器。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Configured MCP servers"
 msgstr "已配置的 MCP 服务器"
 
@@ -3681,8 +3682,10 @@ msgstr "当此桌面可访问时，设备可以配对。"
 #~ msgid "Direct connection required"
 #~ msgstr "需要直接连接"
 
+#. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Disable {0}"
 msgstr "禁用 {0}"
 
@@ -4002,8 +4005,10 @@ msgstr "{modelName} 的思考级别"
 msgid "Electron"
 msgstr "Electron"
 
+#. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Enable {0}"
 msgstr "启用 {0}"
 
@@ -6484,6 +6489,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
 msgstr "名称"
 
@@ -6814,6 +6820,7 @@ msgid "No commits found."
 msgstr "没有找到提交。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "No configured MCP servers yet"
 msgstr "尚未配置 MCP 服务器"
 
@@ -8752,6 +8759,7 @@ msgstr "删除工作树？"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "重命名"
 
@@ -9267,6 +9275,7 @@ msgstr "运行时选项"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "保存"

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ProjectLocation } from "@/shared/contracts";
 import {
   spawnCursorSdkWorker,
   terminateCursorSdkWorkerTree,
@@ -13,10 +14,13 @@ import {
 const tempDirectories: string[] = [];
 const children: ChildProcess[] = [];
 
+const nativeProjectLocation = (path: string): ProjectLocation =>
+  process.platform === "win32" ? { kind: "windows", path } : { kind: "posix", path };
+
 afterEach(() => {
   for (const child of children.splice(0)) child.kill();
   for (const directory of tempDirectories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   }
 });
 
@@ -24,7 +28,7 @@ describe("spawnCursorSdkWorker", () => {
   it("boots a native helper, ignores shell banners, and dispatches events safely", async () => {
     const fixture = makeProtocolFixture();
     const client = await spawnCursorSdkWorker({
-      projectLocation: { kind: "posix", path: fixture.directory },
+      projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
       configuredPath: "/opt/cursor-sdk",
     });
@@ -154,7 +158,7 @@ describe("spawnCursorSdkWorker", () => {
     const incompatible = makeProtocolFixture(99);
     await expect(
       spawnCursorSdkWorker({
-        projectLocation: { kind: "posix", path: incompatible.directory },
+        projectLocation: nativeProjectLocation(incompatible.directory),
         workerPath: incompatible.path,
         bootTimeoutMs: 2_000,
       }),
@@ -164,7 +168,7 @@ describe("spawnCursorSdkWorker", () => {
   it("rejects pending requests when the worker exits", async () => {
     const fixture = makeProtocolFixture(1, true);
     const client = await spawnCursorSdkWorker({
-      projectLocation: { kind: "posix", path: fixture.directory },
+      projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
     });
     await expect(
@@ -181,7 +185,7 @@ describe("spawnCursorSdkWorker", () => {
   it("reports transport failure when the worker exits after acknowledging a start", async () => {
     const fixture = makeProtocolFixture(1, false, true);
     const client = await spawnCursorSdkWorker({
-      projectLocation: { kind: "posix", path: fixture.directory },
+      projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
     });
     const errors: Error[] = [];
@@ -242,7 +246,7 @@ describe("spawnCursorSdkWorker", () => {
   it("makes a start timeout fatal so a late send cannot orphan a run", async () => {
     const fixture = makeDelayedMethodFixture("start", 250);
     const client = await spawnCursorSdkWorker({
-      projectLocation: { kind: "posix", path: fixture.directory },
+      projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
       requestTimeoutMs: 40,
     });
@@ -269,7 +273,7 @@ describe("spawnCursorSdkWorker", () => {
   it("makes an initialize timeout fatal so a late create cannot orphan an agent", async () => {
     const fixture = makeDelayedMethodFixture("initialize", 250);
     const client = await spawnCursorSdkWorker({
-      projectLocation: { kind: "posix", path: fixture.directory },
+      projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
       requestTimeoutMs: 40,
     });
@@ -292,7 +296,7 @@ describe("spawnCursorSdkWorker", () => {
   it("makes a reload timeout fatal so a late refresh cannot race the next send", async () => {
     const fixture = makeDelayedMethodFixture("reload", 250);
     const client = await spawnCursorSdkWorker({
-      projectLocation: { kind: "posix", path: fixture.directory },
+      projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
       requestTimeoutMs: 40,
     });

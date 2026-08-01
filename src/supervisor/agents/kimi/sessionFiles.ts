@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import type { ProjectLocation, SessionRef } from "@/shared/contracts";
 import {
   batchWslCommandsAsync,
@@ -74,6 +74,10 @@ function cwdOf(location: ProjectLocation): string {
   return location.kind === "wsl" ? location.linuxPath : location.path;
 }
 
+function joinKimiPath(location: ProjectLocation, ...parts: string[]): string {
+  return location.kind === "wsl" ? posix.join(...parts) : join(...parts);
+}
+
 // Per-launch snapshots of the session ids that existed right before we spawned
 // a PTY for a fresh Kimi launch, keyed by the launching thread's cwd. Kimi mints
 // its own opaque session id, so discoverSessionRef identifies the *new* dir as
@@ -131,7 +135,11 @@ async function readKimiSessionCwd(
   location: ProjectLocation,
   sessionDir: string,
 ): Promise<string | undefined> {
-  const raw = await readSessionFileText(location, `${sessionDir}/state.json`, 256_000);
+  const raw = await readSessionFileText(
+    location,
+    joinKimiPath(location, sessionDir, "state.json"),
+    256_000,
+  );
   if (!raw) return undefined;
   let parsed: unknown;
   try {
@@ -187,11 +195,11 @@ export async function discoverKimiSessionRef(
       workDirs
         .filter((workDir) => workDir.type === "directory")
         .map(async (workDir) => {
-          const workDirPath = `${root}/${workDir.name}`;
+          const workDirPath = joinKimiPath(location, root, workDir.name);
           const sessions = await listSessionDir(location, workDirPath);
           return (sessions ?? []).flatMap((session) =>
             session.type === "directory" && !snapshot.has(session.name)
-              ? [{ id: session.name, path: `${workDirPath}/${session.name}` }]
+              ? [{ id: session.name, path: joinKimiPath(location, workDirPath, session.name) }]
               : [],
           );
         }),
@@ -243,10 +251,10 @@ export async function resolveKimiSessionDir(
   if (!workDirs) return undefined;
   for (const workDir of workDirs) {
     if (workDir.type !== "directory") continue;
-    const workDirPath = `${root}/${workDir.name}`;
+    const workDirPath = joinKimiPath(location, root, workDir.name);
     const sessions = await listSessionDir(location, workDirPath);
     if (sessions?.some((session) => session.type === "directory" && session.name === sessionId)) {
-      return `${workDirPath}/${sessionId}`;
+      return joinKimiPath(location, workDirPath, sessionId);
     }
   }
   return undefined;

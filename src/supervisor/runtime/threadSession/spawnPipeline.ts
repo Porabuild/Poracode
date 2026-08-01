@@ -128,14 +128,14 @@ export function effectiveLaunchConfig(
  * the built-in MCP flags come from the provider's saved settings
  * (`sharedSettings.agentSettings[kind]`) instead of the per-thread composer
  * flags. Crossagents remains off unless the provider explicitly supports
- * trusted provider-session routing, which lets a pooled runtime share one MCP
- * credential without losing the calling parent thread.
+ * trusted routing. Pooled GUI runtimes use one provider-session credential;
+ * terminal runtimes use their existing per-thread credential.
  */
 export function applyAgentSettingsMcpFlags(
   config: ThreadConfig,
   agentSettings: Record<string, boolean | string>,
   disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
-  providerSessionCrossagents: boolean,
+  crossagentRoutingAvailable: boolean,
 ): ThreadConfig {
   return effectiveLaunchConfig(
     {
@@ -143,7 +143,7 @@ export function applyAgentSettingsMcpFlags(
       browserMcp: agentSettings.browserMcp === true,
       chromeMcp: agentSettings.chromeMcp === true,
       computerUse: agentSettings.computerUse === true,
-      crossagentMcp: providerSessionCrossagents && agentSettings.crossagentMcp === true,
+      crossagentMcp: crossagentRoutingAvailable && agentSettings.crossagentMcp === true,
     },
     disabledBuiltInMcpServerIds,
   );
@@ -944,6 +944,9 @@ export class SpawnPipeline {
     adapter?: AgentAdapter;
     presentationMode?: ThreadPresentationMode;
   }): Promise<ResolvedMcpServer[]> {
+    const crossagentRoutingAvailable =
+      adapter?.capabilities.crossagentMcpRouting === "provider-session" &&
+      crossagentThreadId !== undefined;
     const providerSessionCrossagents = usesProviderSessionCrossagentRouting(
       adapter,
       presentationMode,
@@ -951,17 +954,18 @@ export class SpawnPipeline {
     );
     if (adapter?.capabilities.mcpConfigSource === "agentSettings") {
       // Provider-level MCP: flags come from the provider's settings page. Drop
-      // the thread identity so a shared provider runtime never retains
-      // per-thread bearer credentials; project-specific config is routed by
-      // the provider's directory-scoped client.
+      // the general MCP identity; GUI provider-session routing uses its own
+      // shared credential, while terminal routing keeps the thread token.
       config = applyAgentSettingsMcpFlags(
         config,
         this.ctx.resolveAgentSettings(adapter),
         mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
-        providerSessionCrossagents,
+        crossagentRoutingAvailable,
       );
       identity = undefined;
-      if (!providerSessionCrossagents) crossagentThreadId = undefined;
+      if (adapter.capabilities.crossagentMcpRouting !== "provider-session") {
+        crossagentThreadId = undefined;
+      }
     }
     const browserMcp = await this.resolveBrowserMcpForLaunch(
       location,

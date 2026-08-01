@@ -2691,6 +2691,7 @@ msgid "Configure the server Poracode will add when supported agents start."
 msgstr "Configurez le serveur que Poracode ajoutera au démarrage des agents compatibles."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Configured MCP servers"
 msgstr "Serveurs MCP configurés"
 
@@ -3681,8 +3682,10 @@ msgstr "Les appareils peuvent s’appairer lorsque ce bureau est joignable."
 #~ msgid "Direct connection required"
 #~ msgstr "Connexion directe requise"
 
+#. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Disable {0}"
 msgstr "Désactiver {0}"
 
@@ -4002,8 +4005,10 @@ msgstr "Niveaux d'effort pour {modelName}"
 msgid "Electron"
 msgstr "Électron"
 
+#. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Enable {0}"
 msgstr "Activer {0}"
 
@@ -6484,6 +6489,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
 msgstr "Nom"
 
@@ -6814,6 +6820,7 @@ msgid "No commits found."
 msgstr "Aucun commit trouvé."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "No configured MCP servers yet"
 msgstr "Aucun serveur MCP configuré pour le moment"
 
@@ -8752,6 +8759,7 @@ msgstr "Supprimer le worktree ?"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "Renommer"
 
@@ -9267,6 +9275,7 @@ msgstr "Options d'exécution"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "Enregistrer"

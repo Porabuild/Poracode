@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
@@ -14,6 +14,7 @@ import { bootstrapWorkspaces } from "@/renderer/state/workspaceStore";
 import { startPrMergeAutoDone } from "@/renderer/state/prMergeAutoDone";
 import { startPrWatchStatusSync } from "@/renderer/state/prWatchStatusSync";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
+import { setThreadRuntimeReopenEnabled } from "@/renderer/actions/threadActions";
 
 interface IdleCallbackHandle {
   cancel: () => void;
@@ -44,6 +45,10 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   );
   const storeHydrated = appStoreHydrated && experimentStoreHydrated;
   const [loadT0] = useState(() => Date.now());
+  const [runtimeSnapshotsReady, setRuntimeSnapshotsReady] = useState(false);
+  const skipSnapshotRefreshForView = useRef<ReturnType<typeof useAppStore.getState>["view"] | null>(
+    null,
+  );
 
   useEffect(() => {
     const unsubscribeHydrate = useAppStore.persist.onHydrate(() => {
@@ -79,6 +84,9 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     }
 
     let isActive = true;
+    setRuntimeSnapshotsReady(false);
+    setThreadRuntimeReopenEnabled(false);
+    skipSnapshotRefreshForView.current = null;
     const appState = useAppStore.getState();
     const experimentStore = useExperimentStore.getState();
     experimentStore.reconcileExperiments(new Set(appState.projects.map((project) => project.id)));
@@ -108,6 +116,8 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
       if (!isActive) return;
       if (!runtimeOwner) {
         setInitialLoading(false);
+        setThreadRuntimeReopenEnabled(true);
+        setRuntimeSnapshotsReady(true);
         return;
       }
 
@@ -126,6 +136,13 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
       }
 
       if (!isActive) return;
+      startTransition(() => {
+        console.log(
+          `[renderer] +${Date.now() - loadT0}ms: initialLoading = false; reconciling runtime snapshots in background`,
+        );
+        setInitialLoading(false);
+      });
+
       try {
         const snapshots = await snapshotsPromise;
         if (!isActive) return;
@@ -150,8 +167,6 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
               ? snapshots.filter((snapshot) => selectedIds.has(snapshot.threadId))
               : [],
           );
-          console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
-          setInitialLoading(false);
         });
       } catch (error) {
         captureRendererException(error, { featureArea: "hydration" });
@@ -168,9 +183,13 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
               });
             }
           }
-          console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
-          setInitialLoading(false);
         });
+      } finally {
+        if (isActive) {
+          skipSnapshotRefreshForView.current = useAppStore.getState().view;
+          setThreadRuntimeReopenEnabled(true);
+          setRuntimeSnapshotsReady(true);
+        }
       }
     })();
 
@@ -195,6 +214,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
     return () => {
       isActive = false;
+      setThreadRuntimeReopenEnabled(false);
       idleHandle.cancel();
       stopPrMergeAutoDone();
       stopPrWatchStatusSync();
@@ -211,7 +231,11 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   ]);
 
   useEffect(() => {
-    if (!runtimeOwner || !storeHydrated || initialLoading) {
+    if (!runtimeOwner || !storeHydrated || initialLoading || !runtimeSnapshotsReady) {
+      return;
+    }
+    if (skipSnapshotRefreshForView.current === view) {
+      skipSnapshotRefreshForView.current = null;
       return;
     }
 
@@ -243,7 +267,14 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     return () => {
       cancelled = true;
     };
-  }, [runtimeOwner, storeHydrated, initialLoading, updateThreadRuntime, view]);
+  }, [
+    runtimeOwner,
+    runtimeSnapshotsReady,
+    storeHydrated,
+    initialLoading,
+    updateThreadRuntime,
+    view,
+  ]);
 
   useEffect(() => {
     if (!storeHydrated || initialLoading) return;
@@ -258,7 +289,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     };
   }, [initialLoading, storeHydrated]);
 
-  return { initialLoading, storeHydrated, loadT0 };
+  return { initialLoading, runtimeSnapshotsReady, storeHydrated, loadT0 };
 }
 
 function collectVisibleGuiThreadIds(): string[] {

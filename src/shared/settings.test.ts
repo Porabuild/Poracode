@@ -8,6 +8,15 @@ describe("shared settings defaults", () => {
     expect(defaultSharedSettings.notificationFilter).toBe("all");
   });
 
+  it("enables Crossagents as the standing MCP default and preserves opt-outs", () => {
+    expect(defaultSharedSettings.enabledMcpServers.crossagents).toBe(true);
+    expect(normalizeSharedSettings({}).enabledMcpServers.crossagents).toBe(true);
+    expect(
+      normalizeSharedSettings({ enabledMcpServers: { crossagents: false } }).enabledMcpServers
+        .crossagents,
+    ).toBe(false);
+  });
+
   it("defaults to squash merging and preserves a valid selected merge method", () => {
     expect(defaultSharedSettings.prMergeMethod).toBe("squash");
     expect(normalizeSharedSettings({ prMergeMethod: "merge" }).prMergeMethod).toBe("merge");

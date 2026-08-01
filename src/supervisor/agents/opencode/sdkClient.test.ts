@@ -105,6 +105,24 @@ describe("acquireOpenCodeServer", () => {
     );
   });
 
+  it("does not leak a rejected server startup as an unhandled rejection", async () => {
+    const handle = {
+      ...makeHandle("http://127.0.0.1:4096"),
+      baseUrl: Promise.reject(new Error("database is locked")),
+    };
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    await expect(
+      acquireOpenCodeServer({
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+      }),
+    ).rejects.toThrow("database is locked");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(handle.dispose).toHaveBeenCalledOnce();
+  });
+
   afterEach(async () => {
     const { shutdownSpawnedOpenCodeServers } = await import("./sdkClient");
     shutdownSpawnedOpenCodeServers();

@@ -19,6 +19,8 @@ const emptyTodoComposerProps = {
 export function TerminalThreadContent(
   props: ThreadContentCommonProps & {
     onTerminalResize: (size: { cols: number; rows: number }) => void;
+    /** Mounted but hidden for keep-alive. */
+    hidden?: boolean;
   },
 ) {
   const thread = useThread(props.threadId) ?? props.fallbackThread;
@@ -33,6 +35,7 @@ export function TerminalThreadContent(
             onTerminalResize={props.onTerminalResize}
             status={thread.status}
             threadId={thread.id}
+            {...(props.hidden ? { hidden: true } : {})}
             {...(props.remoteTerminalTransport
               ? { remoteTransport: props.remoteTerminalTransport }
               : {})}

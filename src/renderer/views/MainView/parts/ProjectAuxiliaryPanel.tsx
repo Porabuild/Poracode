@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -37,6 +37,7 @@ import {
 } from "@/renderer/state/panelStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import {
   closeAllPanels,
   moveThreadTodoDock,
@@ -45,7 +46,8 @@ import {
 } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
-import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
+import { selectFocusedThreadId, useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
+import { syncRightPanelTabToFocusedThread } from "@/renderer/hooks/useRightPanelThreadLock";
 import { buildFileEditorContext } from "@/renderer/utils/gitHelpers";
 import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import { GitReviewPanelContent } from "./RightPanel/parts/GitReviewPanelContent";
@@ -206,6 +208,29 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   }
 
   const activeTab = requestedTabIsAvailable() ? requestedTab : fallbackActiveTab();
+  useEffect(() => {
+    if (!props.visible) return;
+    let refreshTimer: number | undefined;
+    const frame = requestAnimationFrame(() => {
+      syncRightPanelTabToFocusedThread(activeTab);
+      if (activeTab !== "git") return;
+
+      // Let the thread and linked-panel frames paint before paying for PR I/O.
+      // The prefetch itself gates on gh availability + GitHub remote, and also
+      // throttles and deduplicates per project.
+      refreshTimer = window.setTimeout(() => {
+        const app = useAppStore.getState();
+        if (selectFocusedThreadId(app) !== currentThreadId) return;
+        const thread = app.threads.find((item) => item.id === currentThreadId);
+        if (!thread || isHomeProjectId(thread.projectId)) return;
+        void prefetchVisibleGitPanelPrData(thread.projectId, thread.worktreePath);
+      }, 0);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+    };
+  }, [activeTab, currentThreadId, props.visible, rightPanelFollowsThread]);
   useProductViewTracking(productSurfaceView(activeTab, "panel"), "panel", {
     active: props.visible,
     finishWhenInactive: true,

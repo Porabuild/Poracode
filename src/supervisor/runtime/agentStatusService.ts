@@ -250,31 +250,55 @@ export function parseWslRegistryDistributionNames(stdout: string): string[] {
   return names;
 }
 
+const WSL_DISTRO_CACHE_TTL_MS = 30_000;
+
 export class AgentStatusService {
   private pendingDetection: Promise<DetectionResults> | undefined;
   private startupDetectionLaunched = false;
   private startupDetectionWslDistros = new Set<string>();
+  private pendingWslDistroList: Promise<string[]> | undefined;
+  private wslDistroCache: { value: string[]; expiresAt: number } | undefined;
 
   constructor(private readonly options: AgentStatusServiceOptions) {}
 
   async listWslDistros(): Promise<string[]> {
-    const startedAt = Date.now();
     if (process.platform !== "win32") return [];
+    const now = Date.now();
+    if (this.wslDistroCache && this.wslDistroCache.expiresAt > now) {
+      return [...this.wslDistroCache.value];
+    }
+    if (this.pendingWslDistroList) {
+      return [...(await this.pendingWslDistroList)];
+    }
+
+    const startedAt = now;
+    const pending = (async () => {
+      try {
+        const { stdout } = await execFileAsync(
+          getWindowsSystemCommand("reg.exe"),
+          ["query", WSL_LXSS_REGISTRY_KEY, "/s", "/v", "DistributionName"],
+          {
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 5_000,
+          },
+        );
+        console.log(`[supervisor] listWslDistros: ${Date.now() - startedAt}ms`);
+        return parseWslRegistryDistributionNames(stdout ?? "");
+      } catch {
+        console.log(`[supervisor] listWslDistros: failed (${Date.now() - startedAt}ms)`);
+        return [];
+      }
+    })();
+    this.pendingWslDistroList = pending;
     try {
-      const { stdout } = await execFileAsync(
-        getWindowsSystemCommand("reg.exe"),
-        ["query", WSL_LXSS_REGISTRY_KEY, "/s", "/v", "DistributionName"],
-        {
-          encoding: "utf8",
-          windowsHide: true,
-          timeout: 5_000,
-        },
-      );
-      console.log(`[supervisor] listWslDistros: ${Date.now() - startedAt}ms`);
-      return parseWslRegistryDistributionNames(stdout ?? "");
-    } catch {
-      console.log(`[supervisor] listWslDistros: failed (${Date.now() - startedAt}ms)`);
-      return [];
+      const value = await pending;
+      this.wslDistroCache = { value, expiresAt: Date.now() + WSL_DISTRO_CACHE_TTL_MS };
+      return [...value];
+    } finally {
+      if (this.pendingWslDistroList === pending) {
+        this.pendingWslDistroList = undefined;
+      }
     }
   }
 

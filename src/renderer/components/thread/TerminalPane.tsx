@@ -23,9 +23,11 @@ export const TerminalPane = forwardRef<
     status: ThreadStatus;
     onTerminalResize?: (size: TerminalSize) => void;
     remoteTransport?: RemoteTerminalTransport;
+    /** True when this pane is mounted but hidden for keep-alive. */
+    hidden?: boolean;
   }
 >(function TerminalPane(props, ref) {
-  const { threadId, status, onTerminalResize, remoteTransport } = props;
+  const { threadId, status, onTerminalResize, remoteTransport, hidden = false } = props;
   const xtermRef = useRef<XTermSurfaceHandle>(null);
   const prevStatusRef = useRef(status);
   const fontSize = useSharedSettings((state) => state.agentTerminalFontSize);
@@ -59,6 +61,7 @@ export const TerminalPane = forwardRef<
         terminalId={threadId}
         enabled={isTerminalActive}
         baseFontSize={fontSize}
+        visible={!hidden}
         {...(remoteTransport
           ? {
               initialScrollback: remoteTransport.initialScrollback,

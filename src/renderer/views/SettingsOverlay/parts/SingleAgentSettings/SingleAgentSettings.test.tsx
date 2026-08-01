@@ -118,8 +118,17 @@ vi.mock("@heroui/react", () => {
   Tooltip.Trigger = Wrapper;
   Tooltip.Content = Wrapper;
 
+  const Disclosure = Object.assign(Wrapper, {
+    Heading: Wrapper,
+    Trigger: Wrapper,
+    Indicator: () => null,
+    Content: Wrapper,
+    Body: Wrapper,
+  });
+
   return {
     Button,
+    Disclosure,
     Label: (props: { children?: ReactNode }) => <span>{props.children}</span>,
     ListBox,
     ListLayout: () => null,

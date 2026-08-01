@@ -5,21 +5,15 @@ export class TranscriptBuffer {
   constructor(private readonly maxLength: number) {}
 
   append(chunk: string): void {
-    if (!chunk) {
-      return;
-    }
+    if (!chunk) return;
     this.chunks.push(chunk);
     this.totalLength += chunk.length;
     this.trim();
   }
 
   readTail(limit: number): string {
-    if (limit <= 0 || this.totalLength === 0) {
-      return "";
-    }
-    if (limit >= this.totalLength) {
-      return this.chunks.join("");
-    }
+    if (limit <= 0 || this.totalLength === 0) return "";
+    if (limit >= this.totalLength) return this.chunks.join("");
 
     let remaining = limit;
     const selected: string[] = [];
@@ -28,10 +22,10 @@ export class TranscriptBuffer {
       if (chunk.length <= remaining) {
         selected.push(chunk);
         remaining -= chunk.length;
-        continue;
+      } else {
+        selected.push(chunk.slice(chunk.length - remaining));
+        remaining = 0;
       }
-      selected.push(chunk.slice(chunk.length - remaining));
-      remaining = 0;
     }
     return selected.reverse().join("");
   }
@@ -43,10 +37,10 @@ export class TranscriptBuffer {
       if (first.length <= overflow) {
         this.chunks.shift();
         this.totalLength -= first.length;
-        continue;
+      } else {
+        this.chunks[0] = first.slice(overflow);
+        this.totalLength -= overflow;
       }
-      this.chunks[0] = first.slice(overflow);
-      this.totalLength -= overflow;
     }
   }
 }

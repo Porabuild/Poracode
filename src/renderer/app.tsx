@@ -31,11 +31,13 @@ import {
 } from "./actions/threadActions";
 import { deleteWorktreeGroup } from "./actions/worktreeActions";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
+import { installRemoteProjectWorkspaceSync } from "./state/remoteServersStore";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
+import { useThreadOutputStore } from "./state/threadOutputStore";
 import { applyAgentStatusSupervisorEvent, useAgentStatusesStore } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
@@ -183,6 +185,16 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
     return;
   }
 
+  // Feed every agent thread's PTY bytes into the renderer-side scrollback
+  // accumulator. It runs regardless of which pane is mounted, so a hidden
+  // thread keeps its history (the xterm buffer dies with the unmounted pane).
+  // `thread-reset` (a fresh spawn) clears the thread's accumulated bytes.
+  if (event.type === "thread-output") {
+    useThreadOutputStore.getState().appendOutput(event.threadId, event.data);
+  } else if (event.type === "thread-reset") {
+    useThreadOutputStore.getState().clearOutput(event.threadId);
+  }
+
   if (event.type === "thread-runtime-event") {
     appendRuntimeEvents(event.threadId, [event.event]);
     schedulePendingRuntimeEvents();
@@ -253,6 +265,15 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
   if (event.type === "provider-usage-all") {
     useProviderUsageStore.getState().setSnapshots(event.snapshots);
   }
+}
+
+function installThreadOutputPruning(): () => void {
+  return useAppStore.subscribe((state, previousState) => {
+    if (state.threads === previousState.threads) return;
+    useThreadOutputStore
+      .getState()
+      .retainOutputs(new Set(state.threads.map((thread) => thread.id)));
+  });
 }
 
 function handleUpdateStatus(status: UpdateStatus): void {
@@ -457,6 +478,8 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
         })().catch(() => undefined);
       }),
       installRemoteGitSummaryPublisher(),
+      installRemoteProjectWorkspaceSync(),
+      installThreadOutputPruning(),
     ]
   : [];
 let uninstallProductAnalytics: (() => void) | null = null;
@@ -524,7 +547,7 @@ function QuickComposerApp() {
 }
 
 function MainApp() {
-  const { initialLoading, storeHydrated, loadT0 } = useAppHydration();
+  const { initialLoading, runtimeSnapshotsReady, storeHydrated, loadT0 } = useAppHydration();
   const [showStartupRecovery, setShowStartupRecovery] = useState(false);
   const [startupRecoveryCycle, setStartupRecoveryCycle] = useState(0);
 
@@ -554,12 +577,6 @@ function MainApp() {
       productAnalyticsStarted = true;
       captureAppStarted();
     }
-    // Refresh the ACP registry once on app start so installed-version
-    // metadata (and any pending auto-updates) are in sync without waiting
-    // for the user to open the registry settings panel.
-    void readBridge()
-      .listAcpRegistry()
-      .catch(() => undefined);
     return () => {
       threadStateNotificationsArmed = false;
       void flushProductAnalytics();
@@ -595,7 +612,11 @@ function MainApp() {
 
   return (
     <AppProvider contentReady>
-      <MainView storeHydrated={storeHydrated} loadT0={loadT0} />
+      <MainView
+        storeHydrated={storeHydrated}
+        runtimeSnapshotsReady={runtimeSnapshotsReady}
+        loadT0={loadT0}
+      />
       <DeferredCommandPalette />
       <ImageLightboxHost />
     </AppProvider>

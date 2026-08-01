@@ -35,8 +35,12 @@ function findMissingWslDistro(distros: readonly string[], statuses: readonly Age
   return distros.find((distro) => !cachedDistros.has(distro));
 }
 
-export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
-  const { storeHydrated, loadT0 } = props;
+export function MainView(props: {
+  storeHydrated: boolean;
+  runtimeSnapshotsReady: boolean;
+  loadT0: number;
+}) {
+  const { storeHydrated, runtimeSnapshotsReady, loadT0 } = props;
   const view = useAppStore((state) => state.view);
   const openHome = useAppStore((state) => state.openHome);
   const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
@@ -44,7 +48,7 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
   const sharedSettingsHydrated = useSharedSettings((state) => state.sharedSettingsHydrated);
   const backgroundWorkReleased = useWelcomeGateStore((state) => state.backgroundWorkReleased);
 
-  useThreadLifecycle(storeHydrated);
+  useThreadLifecycle(storeHydrated && runtimeSnapshotsReady);
   useKeyboardShortcuts();
   useGitRefresh(storeHydrated);
   useRightPanelThreadLock();

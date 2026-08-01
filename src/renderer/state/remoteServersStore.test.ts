@@ -3,7 +3,11 @@ import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import type { RemoteGitSummaries } from "@/shared/remote";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
-import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "./remoteServersStore";
+import {
+  __resetRemoteServersStoreForTest,
+  installRemoteProjectWorkspaceSync,
+  useRemoteServersStore,
+} from "./remoteServersStore";
 import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
 import type {
   RemoteClientFactory,
@@ -15,6 +19,7 @@ import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
 import { watchRemoteTerminal } from "./remoteTerminalFeed";
 import { remoteProjectId, remoteThreadId } from "./remoteProjection";
+import { renameProject } from "../actions/projectActions";
 import { routeRemoteProcedure } from "../remoteProcedureRouter";
 
 const bridge = vi.hoisted(() => ({
@@ -217,6 +222,8 @@ async function pairIsolated(socketFactory: RemoteSocketFactory): Promise<void> {
 }
 
 describe("useRemoteServersStore", () => {
+  let uninstallWorkspaceSync: (() => void) | null = null;
+
   beforeEach(() => {
     localStorage.clear();
     // Pairing now opens a per-server event socket; fully reset process-local
@@ -227,6 +234,8 @@ describe("useRemoteServersStore", () => {
       servers: [],
       runtime: {},
       excludedProjectIds: {},
+      projectWorkspaceIds: {},
+      projectNameOverrides: {},
       openThread: null,
     });
     useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
@@ -235,9 +244,13 @@ describe("useRemoteServersStore", () => {
     toastDanger.mockClear();
     bridge.sshConnect.mockReset();
     bridge.sshDisconnect.mockClear();
+    // Mirrors the app-level wiring (app.tsx installs this at mount).
+    uninstallWorkspaceSync = installRemoteProjectWorkspaceSync();
   });
 
   afterEach(() => {
+    uninstallWorkspaceSync?.();
+    uninstallWorkspaceSync = null;
     vi.useRealTimers();
   });
 
@@ -262,6 +275,64 @@ describe("useRemoteServersStore", () => {
         remoteId: "p1",
       }),
     );
+  });
+
+  it("persists a local name for a remote connection", async () => {
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    useRemoteServersStore.getState().renameServer("d1", "Mac Studio");
+
+    expect(useRemoteServersStore.getState().servers[0]?.label).toBe("Mac Studio");
+    expect(useRemoteServersStore.getState().servers[0]?.remoteLabel).toBe("Server One");
+    expect(
+      JSON.parse(localStorage.getItem("poracode-remote-servers")!).state.servers[0].label,
+    ).toBe("Mac Studio");
+  });
+
+  it("keeps mirrored project metadata local across reconnects", async () => {
+    const remoteWorkspaceProject = { ...proj, workspaceId: "remote-workspace" };
+    const projectCommand = vi.fn<RemoteDesktopClient["projectCommand"]>(async () => ({
+      projects: [remoteWorkspaceProject],
+    }));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(
+        factoryFor(makeClient({ snapshotProjects: [remoteWorkspaceProject], projectCommand })),
+      );
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    const projectedId = remoteProjectId("d1", "p1");
+    expect(
+      useAppStore.getState().projects.find((project) => project.id === projectedId)?.workspaceId,
+    ).toBeUndefined();
+
+    useAppStore.getState().setProjectWorkspace(projectedId, "local-workspace");
+    renameProject(projectedId, "Local Project");
+    expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("local-workspace");
+    expect(useRemoteServersStore.getState().projectNameOverrides.d1?.p1).toBe("Local Project");
+    expect(projectCommand).not.toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem("poracode-remote-servers")!).state).toEqual(
+      expect.objectContaining({
+        projectWorkspaceIds: { d1: { p1: "local-workspace" } },
+        projectNameOverrides: { d1: { p1: "Local Project" } },
+      }),
+    );
+
+    __resetRemoteServersStoreForTest();
+    useRemoteServersStore.setState({ runtime: {} });
+    await useRemoteServersStore.getState().refreshServer("d1");
+
+    expect(
+      useAppStore.getState().projects.find((project) => project.id === projectedId)?.workspaceId,
+    ).toBe("local-workspace");
+    expect(
+      useAppStore.getState().projects.find((project) => project.id === projectedId)?.name,
+    ).toBe("Local Project");
   });
 
   it("bootstraps and persists an SSH-backed server through the shared protocol", async () => {

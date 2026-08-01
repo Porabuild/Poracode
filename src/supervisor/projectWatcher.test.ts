@@ -287,3 +287,27 @@ describe("ProjectWatcher WSL worktrees", () => {
     await watcher.dispose();
   });
 });
+
+describe("ProjectWatcher.hasWslProjects", () => {
+  it("tracks whether any watched project lives in a WSL distro", async () => {
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onTreeChanged: vi.fn<(projectId: string) => void>(),
+    });
+    expect(watcher.hasWslProjects()).toBe(false);
+
+    // Native projects don't count. The path doesn't exist — both fs.watch
+    // calls fail into their try/catch, but the entry still registers.
+    watcher.watch("native", { kind: "windows", path: "C:\\poracode-test-does-not-exist" });
+    expect(watcher.hasWslProjects()).toBe(false);
+
+    // No wslClient is wired, so the WSL subscription itself is a no-op while
+    // the watcher entry registers synchronously.
+    watcher.watch("wsl", makeLocation("/home/u/repo"));
+    expect(watcher.hasWslProjects()).toBe(true);
+
+    await watcher.unwatch("wsl");
+    expect(watcher.hasWslProjects()).toBe(false);
+    await watcher.dispose();
+  });
+});

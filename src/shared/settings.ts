@@ -493,7 +493,7 @@ export const sharedSettingsSchema = z.object({
    * server off unless the draft explicitly `@`-mentions it, which stages a
    * removable chip for that one thread. Toggled by the composer "+" menu.
    */
-  enabledMcpServers: z.record(z.string(), z.boolean()).default({}),
+  enabledMcpServers: z.record(z.string(), z.boolean()).default({ crossagents: true }),
   /** Custom MCP servers applied to every new thread unless overridden by its project. */
   mcpServers: mcpServerListSchema,
   /** Built-in MCP servers hard-disabled for all new launches. */
@@ -632,7 +632,7 @@ export const defaultSharedSettings: SharedSettings = {
   disableCliHookPlugin: false,
   dismissedHookInstallProposals: {},
   agentHookSupport: {},
-  enabledMcpServers: {},
+  enabledMcpServers: { crossagents: true },
   mcpServers: [],
   disabledBuiltInMcpServers: {},
   disabledBuiltInMcpTools: {},
@@ -707,13 +707,16 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
     : undefined;
-
   return {
     ...normalized,
     prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
     usage: {
       ...normalized.usage,
       disabledProviders: disabledProviders?.success ? disabledProviders.data : [],
+    },
+    enabledMcpServers: {
+      ...defaultSharedSettings.enabledMcpServers,
+      ...normalized.enabledMcpServers,
     },
   };
 }

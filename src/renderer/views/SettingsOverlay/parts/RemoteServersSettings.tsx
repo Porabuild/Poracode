@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
-import { Button } from "@heroui/react";
+import { type Ref, useEffect, useRef, useState } from "react";
+import { Button, Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  Check,
   ChevronRight,
   FolderOpen,
   FolderPlus,
   GitBranch,
   Link2,
   Loader2,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -45,10 +47,12 @@ function CompactInput(props: {
   readonly ariaLabel: string;
   readonly onChange: (value: string) => void;
   readonly inputMode?: "url" | "text";
+  readonly inputRef?: Ref<HTMLInputElement>;
   readonly onEnter?: () => void;
+  readonly onEscape?: () => void;
 }) {
   return (
-    <input
+    <Input
       className={INPUT_CLASS}
       value={props.value}
       aria-label={props.ariaLabel}
@@ -57,11 +61,15 @@ function CompactInput(props: {
       spellCheck={false}
       autoCapitalize="off"
       autoCorrect="off"
+      ref={props.inputRef}
       onChange={(event) => props.onChange(event.currentTarget.value)}
       onKeyDown={(event) => {
         if (event.key === "Enter" && props.onEnter) {
           event.preventDefault();
           props.onEnter();
+        } else if (event.key === "Escape" && props.onEscape) {
+          event.preventDefault();
+          props.onEscape();
         }
       }}
     />
@@ -215,14 +223,30 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
   const { t } = useLingui();
   const runtime = useRemoteServersStore((s) => s.runtime[server.desktopId]);
   const reconnectServer = useRemoteServersStore((s) => s.reconnectServer);
+  const renameServer = useRemoteServersStore((s) => s.renameServer);
   const removeServer = useRemoteServersStore((s) => s.removeServer);
   const { busy, run } = useAsyncOperation();
   const [expanded, setExpanded] = useState(false);
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const isRenaming = nameDraft !== null;
+
+  useEffect(() => {
+    if (!isRenaming) return;
+    nameInputRef.current?.focus();
+    nameInputRef.current?.select();
+  }, [isRenaming]);
 
   const status = runtime?.status ?? "offline";
   const statusLabel = useRemoteServerStatusLabel(status);
   const canManage = server.scopes.includes("projects:manage");
   const projects = runtime?.projects ?? [];
+  const saveName = () => {
+    const name = nameDraft?.trim();
+    if (!name) return;
+    renameServer(server.desktopId, name);
+    setNameDraft(null);
+  };
 
   return (
     <div className="border-b border-[var(--hairline)] last:border-b-0">
@@ -240,12 +264,24 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
           {status !== "online" ? (
             <span className="shrink-0 text-xs text-muted">{statusLabel}</span>
           ) : null}
+          {server.remoteLabel && server.remoteLabel !== server.label ? (
+            <span className="truncate text-xs text-muted/70">{server.remoteLabel}</span>
+          ) : null}
           <span className="truncate text-xs text-muted/70">
             {server.transport?.kind === "ssh"
               ? server.transport.connection.target
               : endpointHost(server.endpoint)}
           </span>
         </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          isIconOnly
+          aria-label={`${t`Rename`} ${server.label}`}
+          onPress={() => setNameDraft(server.label)}
+        >
+          <Pencil className="size-3.5" />
+        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -266,6 +302,39 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
           <Trash2 className="size-3.5 text-danger" />
         </Button>
       </div>
+
+      {nameDraft !== null ? (
+        <div className="flex items-center gap-1.5 px-3 pb-2 pl-8">
+          <CompactInput
+            value={nameDraft}
+            ariaLabel={t`Name`}
+            placeholder={server.label}
+            inputRef={nameInputRef}
+            onChange={setNameDraft}
+            onEnter={saveName}
+            onEscape={() => setNameDraft(null)}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            isIconOnly
+            aria-label={t`Save`}
+            isDisabled={!nameDraft.trim()}
+            onPress={saveName}
+          >
+            <Check className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            isIconOnly
+            aria-label={t`Cancel`}
+            onPress={() => setNameDraft(null)}
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      ) : null}
 
       {expanded ? (
         <div className="space-y-0.5 pb-2 pl-3 pr-2">

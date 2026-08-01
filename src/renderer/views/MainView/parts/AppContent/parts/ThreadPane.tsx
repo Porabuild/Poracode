@@ -30,6 +30,8 @@ export function ThreadPane(props: {
   paneCount: number;
   paneAlign: "left" | "center" | "right";
   headerNeedsTrafficLightPad?: boolean;
+  /** Mounted but hidden for keep-alive. */
+  hidden?: boolean;
   onClose: () => void;
   onContinueInProvider?: (
     sourceThread: Thread,
@@ -165,6 +167,7 @@ export function ThreadPane(props: {
           }
         : {})}
       projectLocation={projectLocation}
+      {...(props.hidden ? { hidden: true } : {})}
       onLaunchConsumed={() => consumeThreadLaunch(thread.id)}
       onLaunchFailed={(message) => {
         startTransition(() => {

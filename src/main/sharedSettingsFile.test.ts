@@ -300,7 +300,7 @@ describe("sharedSettingsFile", () => {
       crossagentSelectionUsage: [],
       crossagentRoutingOverrides: [],
       agentHookSupport: {},
-      enabledMcpServers: {},
+      enabledMcpServers: { crossagents: true },
       mcpServers: [],
       disabledBuiltInMcpServers: {},
       disabledBuiltInMcpTools: {},

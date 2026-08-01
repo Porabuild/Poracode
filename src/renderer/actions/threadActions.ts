@@ -24,6 +24,11 @@ import { getCurrentProjectId } from "./currentProject";
 import { deleteWorktreeGroup } from "./worktreeActions";
 
 let openThreadRequestId = 0;
+let threadRuntimeReopenEnabled = true;
+
+export function setThreadRuntimeReopenEnabled(enabled: boolean): void {
+  threadRuntimeReopenEnabled = enabled;
+}
 
 function discardReplacedDraftContents(targetProjectId: string): void {
   const store = useAppStore.getState();
@@ -177,7 +182,7 @@ export function openThread(
       }
     });
 
-    if (thread?.status === "inactive") {
+    if (threadRuntimeReopenEnabled && thread?.status === "inactive") {
       reopenStoredThread(threadId);
     }
   };
@@ -557,6 +562,7 @@ export function continueInProvider(threadId: string): void {
 }
 
 export function reopenPaneThreadsIfInactive(): void {
+  if (!threadRuntimeReopenEnabled) return;
   const store = useAppStore.getState();
   if (store.view.kind !== "thread") return;
   for (const paneId of store.view.panes) {
