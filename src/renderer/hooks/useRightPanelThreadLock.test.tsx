@@ -81,6 +81,7 @@ describe("useRightPanelThreadLock", () => {
     });
     useDevTerminalStore.setState({
       isOpen: false,
+      explicitlyOpened: false,
       activeProjectId: null,
       activeWorktreePath: null,
       tabs: [],
@@ -292,6 +293,34 @@ describe("useRightPanelThreadLock", () => {
       tabs: [terminalTabA],
     });
     expect(result.current.rightPanelOpen).toBe(false);
+  });
+
+  it("shows a bottom terminal explicitly opened for another scope", () => {
+    usePanelStore.setState({ gitReviewContext: null, gitReviewAsPanel: false });
+    useDevTerminalStore.setState({ tabs: [terminalTabA] });
+    const { result, rerender } = renderHook(() => {
+      useRightPanelThreadLock();
+      return usePanelVisibility();
+    });
+
+    // Focused on thread-a (project-a); the user clicks the terminal icon for
+    // project-b's worktree. The scope does not match the focused thread, but
+    // the explicit open must reveal the bottom panel immediately.
+    useDevTerminalStore.getState().openWorktreePanel("project-b", threadBWorktreePath);
+    rerender();
+
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      activeProjectId: "project-b",
+      activeWorktreePath: threadBWorktreePath,
+    });
+    expect(result.current.rightPanelOpen).toBe(true);
+
+    // The follow lock cannot re-scope (no tab for thread-b's scope), so the
+    // user's explicit terminal stays visible instead of vanishing.
+    focusThread("thread-b");
+    rerender();
+    expect(result.current.rightPanelOpen).toBe(true);
   });
 
   it("hides the bottom terminal on the new-thread page", () => {
