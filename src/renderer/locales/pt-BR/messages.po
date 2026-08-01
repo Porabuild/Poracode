@@ -1978,6 +1978,10 @@ msgstr "Verificar {serverName} novamente"
 msgid "Check again"
 msgstr "Verificar novamente"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Check for update"
+msgstr "Verificar atualização"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2011,6 +2015,7 @@ msgstr "Verificando o Tailscale…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "Verificando…"
 
@@ -3885,6 +3890,11 @@ msgstr "Baixando modelo de voz {0}%"
 msgid "Downloading voice model..."
 msgstr "Baixando modelo de voz..."
 
+#. placeholder {0}: Math.round(updateStatus.percent)
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Downloading… {0}%"
+msgstr "Baixando… {0}%"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
@@ -5159,6 +5169,18 @@ msgstr "Pasta inicial"
 msgid "Home scope"
 msgstr "Escopo inicial"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host is up to date."
+msgstr "O host está atualizado."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host update failed."
+msgstr "Falha ao atualizar o host."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host version: {currentVersion}"
+msgstr "Versão do host: {currentVersion}"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com, alias ou usuário@host.com"
@@ -5399,6 +5421,10 @@ msgstr "Instalar ACP + SDK em {environment}"
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "Instale o ACP, o SDK ou ambos e escolha qual ambiente de execução inicia novos chats da interface do Cursor. Os chats existentes permanecem vinculados ao ambiente que os criou."
 
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Install and restart"
+msgstr "Instalar e reiniciar"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "Instale ganchos CLI"
@@ -5463,6 +5489,11 @@ msgstr "Instale o pacote para adicionar sua chave de API."
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "Instalar atualização"
+
+#. placeholder {0}: updateStatus.version
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Install v{0}"
+msgstr "Instalar v{0}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Install v{updateVersion}"
@@ -8613,6 +8644,21 @@ msgstr "A porta de acesso remoto {occupiedPort} já está em uso. Pare o outro s
 msgid "Remote Environments"
 msgstr "Ambientes remotos"
 
+#. placeholder {0}: Math.round(status.percent)
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update is downloading… {0}%"
+msgstr "Baixando a atualização do host remoto… {0}%"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is downloading…"
+msgstr "Baixando a atualização v{0} do host remoto…"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is ready."
+msgstr "A atualização v{0} do host remoto está pronta."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "Nome remoto"
@@ -10809,6 +10855,11 @@ msgstr "O prompt do experimento é longo demais."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "o escopo WSL global de {0}"
+
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "The host is restarting to install the update."
+msgstr "O host está reiniciando para instalar a atualização."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"

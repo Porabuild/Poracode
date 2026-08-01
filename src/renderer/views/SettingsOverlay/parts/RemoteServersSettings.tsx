@@ -26,6 +26,7 @@ import {
 import { RemoteServerProjectList } from "./RemoteServerProjectList";
 import { SettingsPage } from "./SettingsForm";
 import { RemoteHostFolderPicker } from "./RemoteHostFolderPicker";
+import { RemoteHostUpdateControl } from "./RemoteHostUpdateControl";
 import { SshConnectionForm } from "./SshConnectionForm";
 
 const INPUT_CLASS =
@@ -340,6 +341,9 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
         <div className="space-y-0.5 pb-2 pl-3 pr-2">
           {runtime?.status === "error" && runtime.message ? (
             <p className="pl-5 text-xs text-danger">{runtime.message}</p>
+          ) : null}
+          {server.hostMode !== "helper" && canManage ? (
+            <RemoteHostUpdateControl server={server} isOnline={status === "online"} />
           ) : null}
           <RemoteServerProjectList desktopId={server.desktopId} projects={projects} />
           {canManage ? (

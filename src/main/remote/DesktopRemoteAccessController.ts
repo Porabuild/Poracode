@@ -81,6 +81,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
+  readonly updates: NonNullable<RemoteAccessServerOptions["updates"]>;
 }
 
 export interface DesktopRemoteAccessController {
@@ -411,6 +412,7 @@ export function createDesktopRemoteAccessController(
             return pickRemoteSettings(next);
           },
         },
+        updates: options.updates,
         attachments: {
           save: (input) =>
             saveUploadedAttachmentFile(resolvePoracodePaths(options.paths.baseDir), input),

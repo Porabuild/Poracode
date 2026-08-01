@@ -429,7 +429,7 @@ describe("ThreadDraftView", () => {
       sharedSettingsHydrated: true,
     });
     useAppStore.setState({ pendingDraftWorktreeSelections: {} });
-    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useRemoteServersStore.setState({ servers: [], runtime: {}, hostUpdates: {} });
   });
 
   it("adds experiment candidates without a prompt and keeps the composer submit button", () => {
@@ -740,6 +740,37 @@ describe("ThreadDraftView", () => {
     const remoteTypes = collectElementTypeNames(remoteProps.fixedContent);
     expect(remoteTypes).not.toContain("ThreadAgentUpdateDock");
     expect(remoteTypes).not.toContain("HookInstallProposal");
+  });
+
+  it("adds the remote host update line to a remote new-thread composer", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: ["projects:manage"],
+          hostMode: "desktop",
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "online", projects: [], threads: [] },
+      },
+      hostUpdates: {
+        "desktop-1": {
+          currentVersion: "1.0.0",
+          status: { type: "downloaded", version: "1.1.0" },
+        },
+      },
+    });
+
+    render(
+      <ThreadDraftView project={remoteProject} agentStatuses={[codexStatus]} onStart={() => {}} />,
+    );
+
+    const composer = composerSpy.mock.lastCall?.[0] as { fixedContent?: ReactNode };
+    expect(collectElementTypeNames(composer.fixedContent)).toContain("RemoteHostUpdateDock");
   });
 
   it("submits codex defaults on first launch", async () => {

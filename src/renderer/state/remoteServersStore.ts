@@ -340,6 +340,19 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         return get().clientFactory(server.endpoint, server.accessToken);
       };
 
+      const checkHostUpdateInBackground = (server: RemoteServerRecord): void => {
+        if (server.hostMode === "helper" || !server.scopes.includes("projects:manage")) return;
+        void get()
+          .clientFactory(server.endpoint, server.accessToken)
+          .checkHostUpdate()
+          .then((update) => {
+            set((state) => ({
+              hostUpdates: { ...state.hostUpdates, [server.desktopId]: update },
+            }));
+          })
+          .catch(() => undefined);
+      };
+
       const activateRemoteTerminalFeed = (desktopId: string, socket: RemoteSocketLike) => {
         setRemoteTerminalSocketSender(desktopId, (message) => {
           if (remoteServerEventSockets.get(desktopId)?.socket !== socket || !socket.send) {
@@ -580,8 +593,31 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             return;
           }
         }
+        try {
+          const environment = await get()
+            .clientFactory(server.endpoint, server.accessToken)
+            .environment();
+          const keepsLocalAlias =
+            server.remoteLabel !== undefined && server.label !== server.remoteLabel;
+          server = {
+            ...server,
+            label: keepsLocalAlias ? server.label : environment.label,
+            remoteLabel: environment.label,
+            appVersion: environment.appVersion,
+            ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
+          };
+          const updated = server;
+          set((state) => ({
+            servers: state.servers.map((candidate) =>
+              candidate.desktopId === updated.desktopId ? updated : candidate,
+            ),
+          }));
+        } catch {
+          // refreshServer below owns the visible connection error.
+        }
         await get().refreshServer(server.desktopId);
         startRemoteServerEventStream(server);
+        checkHostUpdateInBackground(server);
       };
 
       const pairAtEndpoint = async (input: {
@@ -609,6 +645,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           endpoint: normalized,
           accessToken: tokenResult.accessToken,
           scopes: filterKnownRemoteAccessScopes(tokenResult.scopes),
+          appVersion: environment.appVersion,
           ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
           transport: input.transport,
         };
@@ -630,12 +667,14 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         }
         remoteServerSnapshotSeqByDesktopId.set(record.desktopId, snapshot.snapshotSeq);
         startRemoteServerEventStream(record);
+        checkHostUpdateInBackground(record);
         return record;
       };
 
       return {
         servers: [],
         runtime: {},
+        hostUpdates: {},
         excludedProjectIds: {},
         projectWorkspaceIds: {},
         projectNameOverrides: {},
@@ -881,9 +920,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           }
           set((state) => {
             const { [desktopId]: _removed, ...runtime } = state.runtime;
+            const { [desktopId]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
             return {
               servers: state.servers.filter((server) => server.desktopId !== desktopId),
               runtime,
+              hostUpdates,
             };
           });
           releaseRemoteTerminalsForServer(desktopId);
@@ -1040,6 +1081,20 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           setServersConnecting([server]);
           await connectServer(server);
         },
+
+        getHostUpdateState: async (desktopId) => {
+          const update = await requireClient(desktopId).hostUpdateState();
+          set((state) => ({ hostUpdates: { ...state.hostUpdates, [desktopId]: update } }));
+          return update;
+        },
+
+        checkHostUpdate: async (desktopId) => {
+          const update = await requireClient(desktopId).checkHostUpdate();
+          set((state) => ({ hostUpdates: { ...state.hostUpdates, [desktopId]: update } }));
+          return update;
+        },
+
+        installHostUpdate: (desktopId) => requireClient(desktopId).installHostUpdate(),
 
         setProjectNameOverride: (desktopId, remoteId, name) => {
           set((state) => ({
@@ -1261,5 +1316,5 @@ export function __resetRemoteServersStoreForTest(): void {
     projects: state.projects.filter((project) => !project.remoteServerId),
     threads: state.threads.filter((thread) => !thread.remoteServerId),
   }));
-  useRemoteServersStore.setState({ openThread: null });
+  useRemoteServersStore.setState({ openThread: null, hostUpdates: {} });
 }

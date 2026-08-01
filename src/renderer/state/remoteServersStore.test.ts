@@ -153,6 +153,7 @@ function makeClient(opts?: {
   startShell?: RemoteDesktopClient["startShell"];
   closeShell?: RemoteDesktopClient["closeShell"];
   gitCall?: RemoteDesktopClient["gitCall"];
+  checkHostUpdate?: RemoteDesktopClient["checkHostUpdate"];
 }): RemoteDesktopClient {
   return {
     exchangePairingCredential: async () => ({
@@ -205,6 +206,9 @@ function makeClient(opts?: {
     startShell: opts?.startShell ?? (async () => {}),
     closeShell: opts?.closeShell ?? (async () => {}),
     gitCall: opts?.gitCall ?? (async () => ({})),
+    checkHostUpdate:
+      opts?.checkHostUpdate ??
+      (async () => ({ currentVersion: "1.0", status: { type: "update-not-available" } })),
   } as unknown as RemoteDesktopClient;
 }
 
@@ -235,6 +239,7 @@ describe("useRemoteServersStore", () => {
     useRemoteServersStore.setState({
       servers: [],
       runtime: {},
+      hostUpdates: {},
       excludedProjectIds: {},
       projectWorkspaceIds: {},
       projectNameOverrides: {},
@@ -254,6 +259,39 @@ describe("useRemoteServersStore", () => {
     uninstallWorkspaceSync?.();
     uninstallWorkspaceSync = null;
     vi.useRealTimers();
+  });
+
+  it("automatically checks for updates when a desktop host is paired", async () => {
+    const checkHostUpdate = vi.fn<RemoteDesktopClient["checkHostUpdate"]>(async () => ({
+      currentVersion: "1.0",
+      status: { type: "update-not-available" },
+    }));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ hostMode: "desktop", checkHostUpdate })));
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    expect(checkHostUpdate).toHaveBeenCalledOnce();
+    expect(useRemoteServersStore.getState().hostUpdates.d1).toEqual({
+      currentVersion: "1.0",
+      status: { type: "update-not-available" },
+    });
+  });
+
+  it("does not run desktop update checks against an SSH helper", async () => {
+    const checkHostUpdate = vi.fn<RemoteDesktopClient["checkHostUpdate"]>();
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ hostMode: "helper", checkHostUpdate })));
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    expect(checkHostUpdate).not.toHaveBeenCalled();
   });
 
   it("pairs a server and stores its snapshot online", async () => {

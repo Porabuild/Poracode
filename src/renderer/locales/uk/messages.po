@@ -1978,6 +1978,10 @@ msgstr "Перевірити {serverName} ще раз"
 msgid "Check again"
 msgstr "Перевірити ще раз"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Check for update"
+msgstr "Перевірити оновлення"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2011,6 +2015,7 @@ msgstr "Перевірка Tailscale…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "Перевірка…"
 
@@ -3885,6 +3890,11 @@ msgstr "Завантаження голосової моделі {0}%"
 msgid "Downloading voice model..."
 msgstr "Завантаження голосової моделі..."
 
+#. placeholder {0}: Math.round(updateStatus.percent)
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Downloading… {0}%"
+msgstr "Завантаження… {0}%"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
@@ -5159,6 +5169,18 @@ msgstr "Домашня папка"
 msgid "Home scope"
 msgstr "Домашня область"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host is up to date."
+msgstr "Хост оновлено до останньої версії."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host update failed."
+msgstr "Не вдалося оновити хост."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host version: {currentVersion}"
+msgstr "Версія хоста: {currentVersion}"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com, псевдонім або користувач@host.com"
@@ -5399,6 +5421,10 @@ msgstr "Установити ACP + SDK у {environment}"
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "Установіть ACP, SDK або обидва варіанти, а потім виберіть середовище виконання для нових чатів Cursor із графічним інтерфейсом. Наявні чати залишаться прив’язаними до середовища, яке їх створило."
 
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Install and restart"
+msgstr "Установити й перезапустити"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "Встановити хуки CLI"
@@ -5463,6 +5489,11 @@ msgstr "Встановіть пакет, щоб додати його API-клю
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "Встановити оновлення"
+
+#. placeholder {0}: updateStatus.version
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Install v{0}"
+msgstr "Установити v{0}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Install v{updateVersion}"
@@ -8613,6 +8644,21 @@ msgstr "Порт віддаленого доступу {occupiedPort} уже в�
 msgid "Remote Environments"
 msgstr "Віддалені середовища"
 
+#. placeholder {0}: Math.round(status.percent)
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update is downloading… {0}%"
+msgstr "Завантаження оновлення віддаленого хоста… {0}%"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is downloading…"
+msgstr "Завантаження оновлення віддаленого хоста v{0}…"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is ready."
+msgstr "Оновлення віддаленого хоста v{0} готове."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "Назва віддаленого репозиторію"
@@ -10809,6 +10855,11 @@ msgstr "Промпт експерименту задовгий."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "глобальну область WSL {0}"
+
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "The host is restarting to install the update."
+msgstr "Хост перезапускається для встановлення оновлення."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"

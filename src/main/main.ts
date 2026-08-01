@@ -1070,6 +1070,12 @@ if (!hasSingleInstanceLock) {
         scheduleService,
         prWatchService,
         gitStateService,
+        updates: {
+          currentVersion: () => app.getVersion(),
+          status: () => lastUpdateStatus,
+          check: () => autoUpdaterController.checkForUpdate(),
+          install: () => autoUpdaterController.installUpdate(),
+        },
       });
       remoteAccessController = controller;
 

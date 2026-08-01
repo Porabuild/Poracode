@@ -70,6 +70,7 @@ import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import { useSkillSlashCommandState } from "@/renderer/components/skills/useSkills";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
+import { RemoteHostUpdateDock } from "./RemoteHostUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
@@ -906,6 +907,9 @@ export function ThreadDraftComposerArea(props: {
         toolbarLayoutKey={toolbarLayoutKey}
         fixedContent={
           <>
+            {props.project.remoteServerId ? (
+              <RemoteHostUpdateDock desktopId={props.project.remoteServerId} />
+            ) : null}
             {authRequired ? (
               <ThreadAuthRequiredDock agentStatus={props.selectedAgent} project={props.project} />
             ) : null}
