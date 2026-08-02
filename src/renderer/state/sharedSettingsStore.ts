@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { readBridge } from "../bridge";
 import {
   defaultSharedSettings,
+  normalizeSidebarShortcutOrder,
   normalizeSharedSettings,
   type CliPickerTarget,
   type SidebarShortcutId,
@@ -80,6 +81,7 @@ interface SharedSettingsState extends SharedSettings {
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
   setPreventSleepWhileWorking: (value: boolean) => void;
+  setRemoteAccessPreventSleep: (value: boolean) => void;
   setLaunchAtStartup: (value: boolean) => void;
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
@@ -88,6 +90,7 @@ interface SharedSettingsState extends SharedSettings {
   setNewThreadMode: (value: NewThreadMode) => void;
   setHomeScopeEnabled: (value: boolean) => void;
   setSidebarShortcutVisible: (id: SidebarShortcutId, visible: boolean) => void;
+  setSidebarShortcutOrder: (order: SidebarShortcutId[]) => void;
   setSidebarTranslucency: (value: boolean) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
@@ -438,6 +441,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ preventSleepWhileWorking });
     persistSettings(selectSharedSettings(get()));
   },
+  setRemoteAccessPreventSleep: (remoteAccessPreventSleep) => {
+    set({ remoteAccessPreventSleep });
+    persistSettings(selectSharedSettings(get()));
+  },
   setLaunchAtStartup: (launchAtStartup) => {
     if (get().launchAtStartup === launchAtStartup) return;
     set({ launchAtStartup });
@@ -480,6 +487,13 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
         ? current.filter((shortcutId) => shortcutId !== id)
         : [...current, id],
     });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setSidebarShortcutOrder: (order) => {
+    const next = normalizeSidebarShortcutOrder(order);
+    const current = get().sidebarShortcutOrder;
+    if (current.length === next.length && current.every((id, index) => id === next[index])) return;
+    set({ sidebarShortcutOrder: next });
     persistSettings(selectSharedSettings(get()));
   },
   setSidebarTranslucency: (sidebarTranslucency) => {
@@ -874,6 +888,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
     preventSleepWhileWorking: state.preventSleepWhileWorking,
+    remoteAccessPreventSleep: state.remoteAccessPreventSleep,
     launchAtStartup: state.launchAtStartup,
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,
@@ -885,6 +900,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,
     sidebarHiddenShortcuts: state.sidebarHiddenShortcuts,
+    sidebarShortcutOrder: state.sidebarShortcutOrder,
     sidebarTranslucency: state.sidebarTranslucency,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,

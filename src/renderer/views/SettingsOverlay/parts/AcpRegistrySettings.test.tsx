@@ -559,9 +559,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const grokCard = screen
-      .getByText(/First-class Grok Build CLI integration/u)
-      .closest(".rounded-lg");
+    const grokCard = (await screen.findByText(/First-class Grok Build CLI integration/u)).closest(
+      ".rounded-lg",
+    );
     expect(grokCard).toBeTruthy();
     expect(within(grokCard as HTMLElement).queryByText(/Windows is not supported/u)).toBeNull();
 

@@ -1,11 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { defaultSharedSettings, normalizeSharedSettings } from "./settings";
+import {
+  defaultSharedSettings,
+  normalizeSharedSettings,
+  normalizeSidebarShortcutOrder,
+} from "./settings";
 
 describe("shared settings defaults", () => {
+  it("normalizes sidebar shortcut order without duplicates or omissions", () => {
+    expect(normalizeSidebarShortcutOrder(["schedules", "schedules"])).toEqual([
+      "schedules",
+      "pullRequests",
+      "githubActions",
+    ]);
+  });
+
   it("enables notifications and displays them for visible threads by default", () => {
     expect(defaultSharedSettings.notificationsEnabled).toBe(true);
     expect(defaultSharedSettings.remotePushEnabled).toBe(true);
     expect(defaultSharedSettings.notificationFilter).toBe("all");
+  });
+
+  it("prevents sleep during remote access by default and preserves opt-outs", () => {
+    expect(defaultSharedSettings.remoteAccessPreventSleep).toBe(true);
+    expect(normalizeSharedSettings({}).remoteAccessPreventSleep).toBe(true);
+    expect(
+      normalizeSharedSettings({ remoteAccessPreventSleep: false }).remoteAccessPreventSleep,
+    ).toBe(false);
   });
 
   it("enables Crossagents as the standing MCP default and preserves opt-outs", () => {
