@@ -54,6 +54,11 @@ import {
 } from "@/renderer/state/remoteServers/eventRouting";
 import { syncRemoteGitSummaries } from "@/renderer/state/remoteServers/gitSummaries";
 import {
+  clearRemoteGitState,
+  syncRemoteGitStatePatch,
+  syncRemoteGitStateSnapshot,
+} from "@/renderer/state/remoteServers/gitState";
+import {
   filterSyncedRemoteProjects,
   withRemoteProjectSync,
 } from "@/renderer/state/remoteServers/projectSync";
@@ -518,6 +523,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                       {
                         onGitSummaries: (summaries) =>
                           syncRemoteGitSummaries(server.desktopId, summaries),
+                        onGitState: (patch) => syncRemoteGitStatePatch(server.desktopId, patch),
                       },
                     );
                   }
@@ -665,6 +671,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         if (snapshot.gitSummariesByThread) {
           syncRemoteGitSummaries(record.desktopId, snapshot.gitSummariesByThread);
         }
+        if (snapshot.gitState) syncRemoteGitStateSnapshot(record.desktopId, snapshot.gitState);
         remoteServerSnapshotSeqByDesktopId.set(record.desktopId, snapshot.snapshotSeq);
         startRemoteServerEventStream(record);
         checkHostUpdateInBackground(record);
@@ -928,6 +935,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             };
           });
           releaseRemoteTerminalsForServer(desktopId);
+          clearRemoteGitState(desktopId);
           removeRemoteAppRows(desktopId);
           if (removed?.transport?.kind === "ssh") {
             void readBridge()
@@ -1022,6 +1030,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             if (snapshot.gitSummariesByThread) {
               syncRemoteGitSummaries(desktopId, snapshot.gitSummariesByThread);
             }
+            if (snapshot.gitState) syncRemoteGitStateSnapshot(desktopId, snapshot.gitState);
             const openThread = get().openThread;
             if (
               threadsChanged &&
@@ -1316,6 +1325,7 @@ export function __resetRemoteServersStoreForTest(): void {
   remoteServerSnapshotSeqByDesktopId.clear();
   remoteServerRefreshSeqByDesktopId.clear();
   remoteServerAgentStatusRefreshes.clear();
+  clearRemoteGitState();
   resetRemoteProcedureRouterForTest();
   connectAllInFlight = null;
   openRemoteThreadRequestSeq = 0;

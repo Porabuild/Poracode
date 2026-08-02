@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
+import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import type { RemoteGitSummaries } from "@/shared/remote";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
@@ -44,7 +45,10 @@ vi.mock("@/renderer/state/remote", async (importOriginal) => {
     applyThreadSnapshot: (snapshot: unknown) => sync.applyThreadSnapshot(snapshot),
     dispatchRemoteSupervisorEvent: (
       value: unknown,
-      hooks?: { onGitSummaries?: (summaries: RemoteGitSummaries) => void },
+      hooks?: {
+        onGitSummaries?: (summaries: RemoteGitSummaries) => void;
+        onGitState?: (patch: GitStatePatch) => void;
+      },
     ) => {
       sync.dispatchRemoteSupervisorEvent(value);
       if (
@@ -53,6 +57,13 @@ vi.mock("@/renderer/state/remote", async (importOriginal) => {
         (value as { type?: unknown }).type === "remote-git-summaries"
       ) {
         hooks?.onGitSummaries?.((value as { summaries: RemoteGitSummaries }).summaries);
+      }
+      if (
+        value &&
+        typeof value === "object" &&
+        (value as { type?: unknown }).type === "remote-git-state"
+      ) {
+        hooks?.onGitState?.((value as { patch: GitStatePatch }).patch);
       }
     },
   };
@@ -101,6 +112,23 @@ function gitStatus(behind: number): GitStatusResult {
     unstaged: [],
     totalInsertions: 0,
     totalDeletions: 0,
+  };
+}
+
+function gitState(behind: number, revision = 1): GitStateSnapshot {
+  return {
+    revision,
+    projects: {
+      p1: {
+        ref: { hostId: "d1", projectId: "p1" },
+        status: gitStatus(behind),
+        refreshedAt: "now",
+      },
+    },
+    targets: {},
+    pullRequests: {},
+    pullRequestKeyByBranch: {},
+    projectPullRequestLists: {},
   };
 }
 
@@ -1156,6 +1184,31 @@ describe("useRemoteServersStore", () => {
     expect(useGitStore.getState().statuses[projectedProjectId]?.behind).toBe(0);
   });
 
+  it("reconciles a remote project row from the host Git state snapshot", async () => {
+    const projectedProjectId = remoteProjectId("d1", "p1");
+    useGitStore.setState({ statuses: { [projectedProjectId]: gitStatus(7) } });
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshot: async () => ({
+            snapshotSeq: 1,
+            projects: [proj],
+            threads: [],
+            runtimeSummariesByThread: {},
+            gitState: gitState(0),
+            updatedAt: "now",
+          }),
+        }),
+      ),
+    );
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    expect(useGitStore.getState().statuses[projectedProjectId]?.behind).toBe(0);
+  });
+
   it("updates cached Git counts when the remote desktop publishes a pull result", async () => {
     const socket = makeSocket();
     useRemoteServersStore.getState().setClientFactory(
@@ -1194,6 +1247,45 @@ describe("useRemoteServersStore", () => {
               behind: 0,
               pr: null,
             },
+          },
+        },
+      }),
+    });
+
+    expect(useGitStore.getState().statuses[projectedProjectId]?.behind).toBe(0);
+  });
+
+  it("updates a remote project row from a live host Git state patch", async () => {
+    const socket = makeSocket();
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshot: async () => ({
+            snapshotSeq: 1,
+            projects: [proj],
+            threads: [],
+            runtimeSummariesByThread: {},
+            gitState: gitState(7),
+            updatedAt: "now",
+          }),
+        }),
+      ),
+    );
+    useRemoteServersStore.getState().setSocketFactory(() => socket);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    const projectedProjectId = remoteProjectId("d1", "p1");
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "event",
+        seq: 2,
+        event: {
+          type: "remote-git-state",
+          patch: {
+            revision: 2,
+            projects: gitState(0, 2).projects,
           },
         },
       }),
@@ -1478,7 +1570,7 @@ describe("useRemoteServersStore", () => {
 
   // ── Finding #1: desktop-as-client event filtering ──────────────────
   describe("filterRemoteThreadEvent", () => {
-    it("drops unrelated desktop-global events but keeps Git summaries", () => {
+    it("drops unrelated desktop-global events but keeps Git state events", () => {
       expect(
         filterRemoteThreadEvent({ type: "windows-agent-statuses", statuses: [] }, "rt-1"),
       ).toBeNull();
@@ -1490,6 +1582,8 @@ describe("useRemoteServersStore", () => {
       ).toBeNull();
       const gitSummaries = { type: "remote-git-summaries", summaries: {} };
       expect(filterRemoteThreadEvent(gitSummaries, "rt-1")).toBe(gitSummaries);
+      const gitStateEvent = { type: "remote-git-state", patch: { revision: 1 } };
+      expect(filterRemoteThreadEvent(gitStateEvent, "rt-1")).toBe(gitStateEvent);
       expect(
         filterRemoteThreadEvent({ type: "remote-projects-changed", projects: [] }, "rt-1"),
       ).toBeNull();

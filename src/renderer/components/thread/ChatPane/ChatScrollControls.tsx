@@ -30,6 +30,7 @@ import {
 
 const USER_SCROLL_INTENT_MS = 750;
 const VIRTUALIZER_LAYOUT_SETTLE_MS = 250;
+const INITIAL_SCROLL_REVEAL_WATCHDOG_MS = 1_000;
 /** Minimum at-bottom cache when no coalesce window is active. */
 const AT_BOTTOM_CACHE_MS = 16;
 const TOUCH_FIRST_POINTER_QUERY = "(hover: none) and (pointer: coarse)";
@@ -322,13 +323,13 @@ export const ChatScrollControls = forwardRef<
     writeBottomPin(el);
   }
 
-  const syncLayoutNow = useEffectEvent(() => {
+  function syncLayoutNow() {
     if (stickToBottomRef.current) {
       scrollToBottom();
       return;
     }
     syncBottomStateFromLayout();
-  });
+  }
 
   function cancelScheduledLayoutSync() {
     if (layoutSyncRafRef.current !== null) {
@@ -345,7 +346,7 @@ export const ChatScrollControls = forwardRef<
     return layoutSyncRafRef.current !== null || layoutSyncSecondRafRef.current !== null;
   }
 
-  const syncLayoutNowAndAfterPaint = useEffectEvent(() => {
+  function syncLayoutNowAndAfterPaint() {
     const el = scrollRef.current;
     const layoutHeightChanged =
       !!el &&
@@ -394,7 +395,7 @@ export const ChatScrollControls = forwardRef<
         syncLayoutNow();
       });
     });
-  });
+  }
 
   function cancelScheduledInitialSettle() {
     if (initialSettleRafRef.current !== null) {
@@ -517,6 +518,15 @@ export const ChatScrollControls = forwardRef<
     });
   });
 
+  const forceInitialScrollReveal = useEffectEvent(() => {
+    if (initialScrollSettled) return;
+    cancelScheduledInitialSettle();
+    userScrollIntentUntilRef.current = 0;
+    pinHoldoffUntilRef.current = 0;
+    scrollToBottom({ reconcileVirtualizer: true });
+    onInitialScrollSettled();
+  });
+
   useImperativeHandle(ref, () => ({
     beginVirtualizerLayoutChange,
     beginLiveVirtualizerLayoutChange,
@@ -540,6 +550,12 @@ export const ChatScrollControls = forwardRef<
     scheduleInitialScrollSettle();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scroll reset is keyed to thread changes; the helper reads refs/state setters only.
   }, [threadId]);
+
+  useEffect(() => {
+    if (initialScrollSettled) return;
+    const watchdog = window.setTimeout(forceInitialScrollReveal, INITIAL_SCROLL_REVEAL_WATCHDOG_MS);
+    return () => window.clearTimeout(watchdog);
+  }, [initialScrollSettled, threadId]);
 
   // Preserve the bottom pin when the surrounding thread layout changes, but
   // keep the user's place if they already scrolled up. Run synchronously —
@@ -749,6 +765,7 @@ export const ChatScrollControls = forwardRef<
         cancelScheduledLayoutSync();
         syncLayoutNowAndAfterPaint();
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- subscribe once; the callback reads mutable layout refs and stable store actions.
     [],
   );
 
