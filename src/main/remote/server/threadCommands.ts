@@ -1,8 +1,8 @@
 import { mkdirSync } from "node:fs";
 import type { IncomingMessage } from "node:http";
 import {
-  GIT_REMOTE_PROCEDURE_SCOPES,
-  isGitRemoteProcedure,
+  REMOTE_PROCEDURE_SPECS,
+  isRemoteProcedure,
   remoteGitCallPayloadSchema,
   remoteProjectCommandResultSchema,
   type RemoteProjectCommand,
@@ -45,7 +45,10 @@ import { sortOrderForThread } from "./snapshots";
  * procedures are accepted, each gated by its required scope and validated
  * against its own payload schema before reaching the supervisor.
  */
-export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage): Promise<unknown> {
+export async function runRemoteProcedure(
+  ctx: RemoteServerContext,
+  req: IncomingMessage,
+): Promise<unknown> {
   // Reject unauthenticated callers BEFORE reading/parsing the body or revealing
   // whether a procedure is allowlisted. Otherwise an unauthenticated request can
   // distinguish a known-but-invalid procedure (403) from a known one (401) — a
@@ -54,14 +57,14 @@ export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage)
   // the per-procedure scope is still enforced below once the procedure is known.
   ctx.security.requireBearer(req, []);
   const { procedure, payload } = remoteGitCallPayloadSchema.parse(await readJsonBody(req));
-  if (!isGitRemoteProcedure(procedure)) {
+  if (!isRemoteProcedure(procedure)) {
     throw new RemoteHttpError(
       "git_procedure_not_allowed",
-      `Git procedure "${procedure}" is not available to remote clients.`,
+      `Procedure "${procedure}" is not available to remote clients.`,
       403,
     );
   }
-  ctx.security.requireBearer(req, [GIT_REMOTE_PROCEDURE_SCOPES[procedure]]);
+  ctx.security.requireBearer(req, [REMOTE_PROCEDURE_SPECS[procedure].scope]);
   const name = procedure as SupervisorProcedureName;
   const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
     typeof name

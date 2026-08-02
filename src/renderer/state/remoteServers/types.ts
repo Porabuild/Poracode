@@ -2,16 +2,13 @@ import type {
   BrowseHostDirectoryResult,
   ControlThreadGoalPayload,
   ProjectLocation,
-  ReadProjectFileResult,
   RemoteThreadCommand,
   SendThreadInputPayload,
   SetPendingSteerPayload,
-  StartShellPayload,
   Thread,
   ThreadConfig,
   ThreadServerRequestId,
   TerminalSize,
-  WriteProjectFileResult,
 } from "@/shared/contracts";
 import type { RemoteDesktopClient, StartRemoteNewThreadInput } from "@/shared/remote/client";
 import type {
@@ -21,10 +18,8 @@ import type {
   RemoteHostMode,
   RemoteImageRefValue,
   RemoteProjectCommand,
-  RemoteRuntimeItemsPageRequest,
   RemoteShellSnapshot,
 } from "@/shared/remote";
-import type { GitRemoteProcedureName } from "@/shared/remote/gitProcedures";
 import type { SshConnectionConfig } from "@/shared/ssh";
 
 export type RemoteServerStatus = "connecting" | "online" | "offline" | "error";
@@ -109,8 +104,6 @@ export interface RemoteServersState {
   controlThreadGoal(desktopId: string, input: ControlThreadGoalPayload): Promise<void>;
   writeThreadTerminal(desktopId: string, threadId: string, data: string): Promise<void>;
   resizeThreadTerminal(desktopId: string, threadId: string, size: TerminalSize): Promise<void>;
-  startRemoteShell(desktopId: string, input: StartShellPayload): Promise<void>;
-  closeRemoteTerminal(desktopId: string, threadId: string): Promise<void>;
   resolveThreadRequest(input: {
     readonly desktopId: string;
     readonly threadId: string;
@@ -130,18 +123,6 @@ export interface RemoteServersState {
     readonly checkpointItemId: string;
     readonly projectLocation: ProjectLocation;
   }): Promise<void>;
-  readProjectFile(input: {
-    readonly desktopId: string;
-    readonly projectLocation: ProjectLocation;
-    readonly path: string;
-  }): Promise<ReadProjectFileResult>;
-  writeProjectFile(input: {
-    readonly desktopId: string;
-    readonly projectLocation: ProjectLocation;
-    readonly path: string;
-    readonly content: string;
-    readonly baseModifiedAtMs: number;
-  }): Promise<WriteProjectFileResult>;
   pairServer(input: { endpoint: string; token: string }): Promise<RemoteServerRecord>;
   pairSshServer(connection: SshConnectionConfig): Promise<RemoteServerRecord>;
   renameServer(desktopId: string, label: string): void;
@@ -162,11 +143,10 @@ export interface RemoteServersState {
   runProjectCommand(desktopId: string, command: RemoteProjectCommand): Promise<void>;
   loadProjectSettings(desktopId: string, projectId: string): Promise<void>;
   browseHostDirectory(desktopId: string, path: string): Promise<BrowseHostDirectoryResult>;
-  gitCall(desktopId: string, procedure: GitRemoteProcedureName, payload: unknown): Promise<unknown>;
-  loadThreadRuntimeItemsPage(
+  withClient<Result>(
     desktopId: string,
-    input: RemoteRuntimeItemsPageRequest,
-  ): ReturnType<RemoteDesktopClient["threadRuntimeItemsPage"]>;
+    invoke: (client: RemoteDesktopClient) => Promise<Result>,
+  ): Promise<Result>;
   saveClipboardImage(
     desktopId: string,
     input: { readonly threadId: string; readonly data: Uint8Array; readonly extension: string },

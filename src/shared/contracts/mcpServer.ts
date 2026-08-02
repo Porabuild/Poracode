@@ -335,7 +335,9 @@ export const mcpServerListSchema = z.array(mcpServerSchema).default([]);
  * the loopback redirect listener and the sealed token store; the renderer only
  * ever sees the authorization URL and status flags — never tokens.
  */
-export const mcpOauthBeginPayloadSchema = z.object({ server: mcpServerSchema });
+const mcpOauthOwnerSchema = z.object({ projectLocation: projectLocationSchema.optional() });
+
+export const mcpOauthBeginPayloadSchema = mcpOauthOwnerSchema.extend({ server: mcpServerSchema });
 export type McpOauthBeginPayload = z.infer<typeof mcpOauthBeginPayloadSchema>;
 
 export const mcpOauthBeginResultSchema = z.discriminatedUnion("status", [
@@ -349,7 +351,7 @@ export const mcpOauthBeginResultSchema = z.discriminatedUnion("status", [
 ]);
 export type McpOauthBeginResult = z.infer<typeof mcpOauthBeginResultSchema>;
 
-export const mcpOauthWaitPayloadSchema = z.object({ flowId: z.string().min(1) });
+export const mcpOauthWaitPayloadSchema = mcpOauthOwnerSchema.extend({ flowId: z.string().min(1) });
 export type McpOauthWaitPayload = z.infer<typeof mcpOauthWaitPayloadSchema>;
 
 export const mcpOauthWaitResultSchema = z.discriminatedUnion("status", [
@@ -358,8 +360,11 @@ export const mcpOauthWaitResultSchema = z.discriminatedUnion("status", [
 ]);
 export type McpOauthWaitResult = z.infer<typeof mcpOauthWaitResultSchema>;
 
-export const mcpOauthClearPayloadSchema = z.object({ url: z.string().min(1) });
+export const mcpOauthClearPayloadSchema = mcpOauthOwnerSchema.extend({ url: z.string().min(1) });
 export type McpOauthClearPayload = z.infer<typeof mcpOauthClearPayloadSchema>;
+
+export const mcpOauthStatusPayloadSchema = mcpOauthOwnerSchema;
+export type McpOauthStatusPayload = z.infer<typeof mcpOauthStatusPayloadSchema>;
 
 export const mcpOauthStatusResultSchema = z.object({
   authenticatedUrls: z.array(z.string()),

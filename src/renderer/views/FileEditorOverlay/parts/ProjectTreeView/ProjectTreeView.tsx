@@ -76,11 +76,15 @@ export function ProjectTreeView(props: {
   return (
     <ContextMenu
       items={[
-        {
-          id: "reveal-root",
-          label: t`Reveal in File Explorer`,
-          icon: <FolderOpen className="size-3.5" />,
-        },
+        ...(props.rootContext.remoteServerId
+          ? []
+          : [
+              {
+                id: "reveal-root",
+                label: t`Reveal in File Explorer`,
+                icon: <FolderOpen className="size-3.5" />,
+              },
+            ]),
         { id: "new-file", label: t`New File`, icon: <FilePlus className="size-3.5" /> },
         { id: "new-folder", label: t`New Folder`, icon: <FolderPlus className="size-3.5" /> },
         {
@@ -219,6 +223,7 @@ export function ProjectTreeView(props: {
                       >
                         <ProjectTreeVirtualRow
                           row={row}
+                          canReveal={!props.rootContext.remoteServerId}
                           draft={tree.draft}
                           setDraft={tree.setDraft}
                           onSelectFile={(path) => void tree.handleSelectFile(path)}
@@ -276,6 +281,7 @@ function flattenProjectTreeRows(input: {
 
 function ProjectTreeVirtualRow(props: {
   row: ProjectTreeRow;
+  canReveal: boolean;
   draft: TreeDraftState | null;
   setDraft: React.Dispatch<React.SetStateAction<TreeDraftState | null>>;
   onSelectFile: (path: string) => void;
@@ -317,6 +323,7 @@ function ProjectTreeVirtualRow(props: {
   return (
     <TreeEntryRow
       entry={row.entry}
+      canReveal={props.canReveal}
       depth={row.depth}
       draft={props.draft}
       setDraft={props.setDraft}

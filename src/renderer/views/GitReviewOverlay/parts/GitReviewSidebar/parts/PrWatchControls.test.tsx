@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { toast } from "@heroui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, PrWatch, Project } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -87,6 +88,8 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => {
 });
 
 import { PrWatchControls } from "./PrWatchControls";
+
+const toastDanger = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
 
 describe("PrWatchControls", () => {
   beforeEach(() => {
@@ -198,6 +201,25 @@ describe("PrWatchControls", () => {
         agentKind: "codex",
         config: { model: "gpt-5.7", effort: "high" },
       }),
+    );
+  });
+
+  it("shows the remote connection error when an automation action fails", async () => {
+    bridge.upsertPrWatch.mockRejectedValue(
+      new Error("Can't reach the remote server. Check that it is online, then reconnect it."),
+    );
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
+
+    fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    fireEvent.keyDown(slider, { key: "End" });
+    fireEvent.keyUp(slider, { key: "End" });
+
+    await waitFor(() =>
+      expect(toastDanger).toHaveBeenCalledWith(
+        "Can't reach the remote server. Check that it is online, then reconnect it.",
+      ),
     );
   });
 

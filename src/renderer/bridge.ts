@@ -1,5 +1,6 @@
-import type { PoracodeBridge } from "@/shared/ipc";
-import { isRemoteRoutableProcedure, routeRemoteProcedure } from "@/renderer/remoteProcedureRouter";
+import { parseIpcProcedureArgs, type PoracodeBridge } from "@/shared/ipc";
+import { routeRemoteProcedure } from "@/renderer/remoteProcedureRouter";
+import { isRemoteRoutableProcedure } from "@/renderer/remoteProcedureRoutes";
 
 let cachedBridge: PoracodeBridge | undefined;
 let cachedSource: PoracodeBridge | undefined;
@@ -16,10 +17,15 @@ export function readBridge(): PoracodeBridge {
       if (typeof value !== "function") return value;
       const cached = functionCache.get(property);
       if (cached?.value === value) return cached.wrapper;
-      const shouldRoute = typeof property === "string" && isRemoteRoutableProcedure(property);
+      const routableProcedure =
+        typeof property === "string" && isRemoteRoutableProcedure(property) ? property : undefined;
       const wrapper = (...args: unknown[]) => {
-        const routed = shouldRoute ? routeRemoteProcedure(property as string, args[0]) : undefined;
-        return routed ?? Reflect.apply(value, source, args);
+        if (routableProcedure) {
+          const payload = parseIpcProcedureArgs(routableProcedure, args);
+          const decision = routeRemoteProcedure(routableProcedure, payload);
+          if (decision.kind === "remote") return decision.result;
+        }
+        return Reflect.apply(value, source, args);
       };
       functionCache.set(property, { value, wrapper });
       return wrapper;

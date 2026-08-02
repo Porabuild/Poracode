@@ -1,0 +1,96 @@
+import type { IpcProcedureName } from "@/shared/ipc";
+import {
+  REMOTE_NOOP_PROCEDURES,
+  REMOTE_PROCEDURE_SPECS,
+  type RemoteNoopProcedureName,
+  type RemoteProcedureName,
+  type RemoteProcedureOwner,
+} from "@/shared/remote/procedures";
+
+export type RemoteRouteHandler =
+  | "passthrough"
+  | "noop"
+  | "project-notes-read"
+  | "project-notes-write"
+  | "pr-watch-read"
+  | "pr-watch-check"
+  | "pr-watch-upsert"
+  | "pr-watch-delete"
+  | "runtime-items-page"
+  | "shell-start"
+  | "shell-close"
+  | "terminal-write"
+  | "terminal-resize";
+
+export interface RemoteProcedureRouteSpec {
+  readonly owner: RemoteProcedureOwner;
+  readonly handler: RemoteRouteHandler;
+}
+
+const passthroughRoutes = Object.fromEntries(
+  Object.entries(REMOTE_PROCEDURE_SPECS).map(([procedure, spec]) => [
+    procedure,
+    { owner: spec.owner, handler: "passthrough" },
+  ]),
+) as Record<RemoteProcedureName, RemoteProcedureRouteSpec>;
+
+const noopRoutes = Object.fromEntries(
+  Object.entries(REMOTE_NOOP_PROCEDURES).map(([procedure, owner]) => [
+    procedure,
+    { owner, handler: "noop" },
+  ]),
+) as Record<RemoteNoopProcedureName, RemoteProcedureRouteSpec>;
+
+/** Single policy table for choosing the host and transport for project-aware IPC. */
+export const REMOTE_PROCEDURE_ROUTES = {
+  ...passthroughRoutes,
+  ...noopRoutes,
+  dbGetProjectNotes: { owner: "project", handler: "project-notes-read" },
+  dbSetProjectNotes: { owner: "project", handler: "project-notes-write" },
+  getPrWatch: { owner: "project", handler: "pr-watch-read" },
+  checkPrWatch: { owner: "project", handler: "pr-watch-check" },
+  upsertPrWatch: { owner: "project", handler: "pr-watch-upsert" },
+  deletePrWatch: { owner: "project", handler: "pr-watch-delete" },
+  dbGetThreadRuntimeItemsPage: { owner: "thread", handler: "runtime-items-page" },
+  dbTruncateThreadRuntimeAfter: { owner: "thread", handler: "noop" },
+  startShell: { owner: "projectLocation", handler: "shell-start" },
+  closeThread: { owner: "terminal", handler: "shell-close" },
+  writeTerminal: { owner: "terminal", handler: "terminal-write" },
+  resizeTerminal: { owner: "terminal", handler: "terminal-resize" },
+} as const satisfies Partial<Record<IpcProcedureName, RemoteProcedureRouteSpec>>;
+
+/** Project-aware procedures intentionally dispatched or disabled outside the bridge router. */
+export const NON_ROUTER_PROJECT_PROCEDURES = {
+  startThread: "explicit-remote-thread-launch",
+  relocateProject: "explicit-remote-project-command",
+  extractContext: "remote-control-hidden",
+  cancelExtractContext: "remote-control-hidden",
+  createExperimentWorktrees: "remote-control-hidden",
+  removeExperimentWorktrees: "remote-control-hidden",
+  captureExperimentSnapshot: "remote-control-hidden",
+  judgeExperimentSnapshot: "remote-control-hidden",
+  getExperimentCandidateStats: "remote-control-hidden",
+  cancelJudgeExperiment: "remote-control-hidden",
+  lspStart: "remote-control-disabled",
+  lspStop: "remote-control-disabled",
+  lspSendMessage: "remote-control-disabled",
+  getSchedules: "device-owned-control",
+  createSchedule: "remote-projects-excluded",
+  updateSchedule: "remote-projects-excluded",
+  deleteSchedule: "remote-projects-excluded",
+  runScheduleNow: "remote-projects-excluded",
+  getScheduleRuns: "remote-projects-excluded",
+  dbUpsertProject: "remote-mirrors-not-persisted",
+  dbDeleteProject: "remote-mirrors-not-persisted",
+  dbUpsertThread: "remote-mirrors-not-persisted",
+  dbDeleteThread: "remote-mirrors-not-persisted",
+  dbSyncAll: "remote-mirrors-not-persisted",
+} as const satisfies Partial<Record<IpcProcedureName, string>>;
+
+export type RemoteRoutableProcedureName = keyof typeof REMOTE_PROCEDURE_ROUTES;
+
+export function isRemoteRoutableProcedure(
+  procedure: string,
+): procedure is RemoteRoutableProcedureName {
+  return Object.hasOwn(REMOTE_PROCEDURE_ROUTES, procedure);
+}

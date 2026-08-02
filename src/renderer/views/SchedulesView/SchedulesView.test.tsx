@@ -60,7 +60,7 @@ const appState = vi.hoisted(() => ({
     projectId: string;
     config: { model: string; effort?: string };
   }[],
-  projects: [] as { id: string; name: string }[],
+  projects: [] as { id: string; name: string; remoteServerId?: string }[],
 }));
 
 const agentState = vi.hoisted(() => ({
@@ -284,6 +284,22 @@ describe("SchedulesView", () => {
         projectId: null,
       }),
     );
+  });
+
+  it("does not offer remote projects to device-owned schedules", async () => {
+    appState.projects = [
+      { id: "local-project", name: "Local project" },
+      { id: "remote-project", name: "Remote project", remoteServerId: "d1" },
+    ];
+    bridge.getSchedules.mockResolvedValueOnce([]);
+    render(<SchedulesView />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "More schedule options" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create schedule" }));
+    fireEvent.click(screen.getByLabelText("Project"));
+
+    expect((await screen.findAllByText("Local project")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Remote project")).not.toBeInTheDocument();
   });
 
   it("creates a preset with one click", async () => {

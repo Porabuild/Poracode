@@ -22,8 +22,8 @@ import type {
 } from "@/shared/contracts";
 import type { BrowserState, BrowserTabInfo, PoracodeBridge } from "@/shared/ipc";
 import {
-  isGitRemoteNoopProcedure,
-  isGitRemoteProcedure,
+  isRemoteNoopProcedure,
+  isRemoteProcedure,
   type RemoteBrowserCommand,
   type RemoteRuntimeItemsPageRequest,
 } from "@/shared/remote";
@@ -290,7 +290,10 @@ const remoteBridge = {
     return Promise.resolve(null);
   },
   searchProjectFiles: (payload: SearchProjectFilesPayload) =>
-    requireClient().gitCall("searchProjectFiles", payload) as Promise<SearchProjectFilesResult>,
+    requireClient().callRemoteProcedure(
+      "searchProjectFiles",
+      payload,
+    ) as Promise<SearchProjectFilesResult>,
   getAgentHookPluginStatuses: () => Promise.resolve([]),
 
   // Runtime history hydration is fed by the remote sync layer instead of the
@@ -385,12 +388,12 @@ export function installRemoteBridge(): void {
       // expose the missing value as the generic unavailable-method fallback.
       if (prop === "homeDir") return undefined;
       // Reused/mobile desktop-backed surfaces call bridge methods directly;
-      // forward allowlisted git/gh/project-tree calls to the paired desktop.
-      if (isGitRemoteProcedure(prop)) {
-        return (payload: unknown) => requireClient().gitCall(prop, payload);
+      // forward allowlisted project-aware calls to the paired desktop.
+      if (isRemoteProcedure(prop)) {
+        return (payload: unknown) => requireClient().callRemoteProcedure(prop, payload);
       }
       // Watchers are desktop-only; resolve so manual-refresh paths don't reject.
-      if (isGitRemoteNoopProcedure(prop)) {
+      if (isRemoteNoopProcedure(prop)) {
         return () => Promise.resolve();
       }
       return () => Promise.reject(new Error(`"${prop}" is not available in a remote session.`));

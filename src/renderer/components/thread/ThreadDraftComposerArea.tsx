@@ -59,6 +59,7 @@ import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveModelLabel } from "@/renderer/components/providers/modelDisplay";
 import { launchExperiment } from "@/renderer/actions/experimentActions";
+import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import {
   ExperimentDraftTargets,
   type ExperimentDraftCandidate,
@@ -307,7 +308,6 @@ export function ThreadDraftComposerArea(props: {
   const setMcpServerEnabled = useSharedSettings((s) => s.setMcpServerEnabled);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
   const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
-  const updateProjectMcpServers = useAppStore((s) => s.updateProjectMcpServers);
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments({

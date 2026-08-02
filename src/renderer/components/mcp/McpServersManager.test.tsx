@@ -7,8 +7,11 @@ import type {
   McpProbePayload,
   McpProbeResult,
   McpServer,
+  McpOauthBeginPayload,
+  McpOauthBeginResult,
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import type { PoracodeBridge } from "@/shared/ipc";
 import { McpServersManager, type McpImportProjectTarget } from "./McpServersManager";
 
 const bridge = vi.hoisted(() => ({
@@ -19,6 +22,15 @@ const bridge = vi.hoisted(() => ({
       (payload: DiscoverExternalMcpServersPayload) => Promise<DiscoverExternalMcpServersResult>
     >(),
   probeMcpServer: vi.fn<(payload: McpProbePayload) => Promise<McpProbeResult>>(),
+  getMcpOauthStatus: vi.fn<PoracodeBridge["getMcpOauthStatus"]>(async () => ({
+    authenticatedUrls: [],
+  })),
+  beginMcpServerOauth: vi.fn<(payload: McpOauthBeginPayload) => Promise<McpOauthBeginResult>>(),
+  openExternalNative: vi.fn<PoracodeBridge["openExternalNative"]>(async () => undefined),
+  waitMcpServerOauth: vi.fn<PoracodeBridge["waitMcpServerOauth"]>(async () => ({
+    status: "authorized",
+  })),
+  clearMcpServerOauth: vi.fn<PoracodeBridge["clearMcpServerOauth"]>(async () => undefined),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -122,6 +134,11 @@ describe("McpServersManager", () => {
     bridge.discoverExternalMcpServers.mockResolvedValue({ groups: [] });
     bridge.probeMcpServer.mockReset();
     bridge.probeMcpServer.mockReturnValue(new Promise(() => undefined));
+    bridge.getMcpOauthStatus.mockReset().mockResolvedValue({ authenticatedUrls: [] });
+    bridge.beginMcpServerOauth.mockReset().mockResolvedValue({ status: "authorized" });
+    bridge.openExternalNative.mockClear();
+    bridge.waitMcpServerOauth.mockClear();
+    bridge.clearMcpServerOauth.mockClear();
   });
 
   it("renders immutable built-ins separately from editable configured servers", () => {
@@ -278,6 +295,42 @@ describe("McpServersManager", () => {
 
     expect(await screen.findByText("1 tool")).toBeInTheDocument();
     expect(bridge.probeMcpServer).toHaveBeenCalledTimes(2);
+  });
+
+  it("scopes workspace OAuth to the remote project's host", async () => {
+    const projectLocation = {
+      kind: "posix" as const,
+      path: "/remote/project",
+      remoteServerId: "d1",
+    };
+    const remoteServer: McpServer = {
+      ...server,
+      transport: { type: "http", url: "https://mcp.example.test", headers: {} },
+    };
+    bridge.probeMcpServer.mockResolvedValue({
+      status: "auth-required",
+      toolCount: 0,
+      latencyMs: 8,
+      environment: { runtime: "host", projectScoped: true },
+      error: { code: "auth-required", message: "Authentication required", authScheme: "oauth" },
+    });
+
+    render(
+      managerElement({
+        workspaceServers: [remoteServer],
+        defaultScope: "workspace",
+        projectLocation,
+      }),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Authenticate" }));
+    await waitFor(() =>
+      expect(bridge.beginMcpServerOauth).toHaveBeenCalledWith({
+        server: remoteServer,
+        projectLocation,
+      }),
+    );
+    expect(bridge.getMcpOauthStatus).toHaveBeenCalledWith({ projectLocation });
   });
 
   it("shows a localized unavailable error without a fake zero tool count", async () => {

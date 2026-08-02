@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
+import type { IpcProcedureName, IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import type { RemoteGitSummaries } from "@/shared/remote";
@@ -22,6 +23,14 @@ import { watchRemoteTerminal } from "./remoteTerminalFeed";
 import { remoteProjectId, remoteThreadId } from "./remoteProjection";
 import { renameProject } from "../actions/projectActions";
 import { routeRemoteProcedure } from "../remoteProcedureRouter";
+
+async function invokeRemoteRoute<Name extends IpcProcedureName>(
+  procedure: Name,
+  payload: IpcProcedurePayload<Name>,
+): Promise<IpcProcedureResult<Name> | undefined> {
+  const decision = routeRemoteProcedure(procedure, payload);
+  return decision.kind === "remote" ? decision.result : undefined;
+}
 
 const bridge = vi.hoisted(() => ({
   sshConnect: vi.fn<() => Promise<unknown>>(),
@@ -180,7 +189,7 @@ function makeClient(opts?: {
   resizeTerminal?: RemoteDesktopClient["resizeTerminal"];
   startShell?: RemoteDesktopClient["startShell"];
   closeShell?: RemoteDesktopClient["closeShell"];
-  gitCall?: RemoteDesktopClient["gitCall"];
+  callRemoteProcedure?: RemoteDesktopClient["callRemoteProcedure"];
   checkHostUpdate?: RemoteDesktopClient["checkHostUpdate"];
 }): RemoteDesktopClient {
   return {
@@ -233,7 +242,7 @@ function makeClient(opts?: {
     resizeTerminal: opts?.resizeTerminal ?? (async () => {}),
     startShell: opts?.startShell ?? (async () => {}),
     closeShell: opts?.closeShell ?? (async () => {}),
-    gitCall: opts?.gitCall ?? (async () => ({})),
+    callRemoteProcedure: opts?.callRemoteProcedure ?? (async () => ({})),
     checkHostUpdate:
       opts?.checkHostUpdate ??
       (async () => ({ currentVersion: "1.0", status: { type: "update-not-available" } })),
@@ -345,6 +354,61 @@ describe("useRemoteServersStore", () => {
     );
   });
 
+  it("rejects remote actions before dispatch when the server is offline", async () => {
+    const gitCall = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(async () => ({}));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ callRemoteProcedure: gitCall })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    useRemoteServersStore.setState((state) => ({
+      runtime: {
+        ...state.runtime,
+        d1: { ...state.runtime.d1!, status: "offline" },
+      },
+    }));
+
+    await expect(
+      useRemoteServersStore.getState().withClient("d1", (client) =>
+        client.callRemoteProcedure("ghMergePr", {
+          projectLocation: { kind: "posix", path: "/r/app" },
+          prNumber: 42,
+          method: "squash",
+          admin: false,
+        }),
+      ),
+    ).rejects.toThrow("Can't reach the remote server");
+    expect(gitCall).not.toHaveBeenCalled();
+  });
+
+  it("marks an online server unreachable when an action discovers a transport failure", async () => {
+    const gitCall = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(async () => {
+      throw new TypeError("fetch failed");
+    });
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ callRemoteProcedure: gitCall })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    await expect(
+      useRemoteServersStore.getState().withClient("d1", (client) =>
+        client.callRemoteProcedure("ghMergePr", {
+          projectLocation: { kind: "posix", path: "/r/app" },
+          prNumber: 42,
+          method: "squash",
+          admin: false,
+        }),
+      ),
+    ).rejects.toThrow("Can't reach the remote server");
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+      status: "error",
+      message: "Can't reach the remote server. Check that it is online, then reconnect it.",
+    });
+  });
+
   it("persists a local name for a remote connection", async () => {
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
     await useRemoteServersStore
@@ -413,7 +477,7 @@ describe("useRemoteServersStore", () => {
       entries: [{ name: "app", path: "/srv/app", type: "directory" as const }],
       truncated: false,
     };
-    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => listing);
+    const gitCall = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(async () => listing);
     bridge.sshConnect.mockResolvedValue({
       connectionId: id,
       endpoint: "http://127.0.0.1:39001/",
@@ -422,7 +486,9 @@ describe("useRemoteServersStore", () => {
     });
     useRemoteServersStore
       .getState()
-      .setClientFactory(factoryFor(makeClient({ gitCall, hostMode: "helper" })));
+      .setClientFactory(
+        factoryFor(makeClient({ callRemoteProcedure: gitCall, hostMode: "helper" })),
+      );
 
     const record = await useRemoteServersStore.getState().pairSshServer(connection);
     const folders = await useRemoteServersStore
@@ -776,8 +842,10 @@ describe("useRemoteServersStore", () => {
       entries: [{ name: "app", path: "/srv/app", type: "directory" as const }],
       truncated: false,
     };
-    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => listing);
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ gitCall })));
+    const gitCall = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(async () => listing);
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ callRemoteProcedure: gitCall })));
     await useRemoteServersStore
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
@@ -789,11 +857,13 @@ describe("useRemoteServersStore", () => {
   });
 
   it("routes project-scoped renderer procedures by explicit remote ownership", async () => {
-    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => ({
+    const gitCall = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(async () => ({
       skills: [],
       effectiveSkillIds: [],
     }));
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ gitCall })));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ callRemoteProcedure: gitCall })));
     await useRemoteServersStore
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
@@ -804,7 +874,7 @@ describe("useRemoteServersStore", () => {
     expect(projectedProject?.location.remoteServerId).toBe("d1");
 
     await expect(
-      routeRemoteProcedure("scanSkills", {
+      invokeRemoteRoute("scanSkills", {
         projectLocation: projectedProject?.location,
         agentKind: "claude",
       }),
@@ -819,7 +889,7 @@ describe("useRemoteServersStore", () => {
         projectLocation: { kind: "posix", path: "/r/app" },
         agentKind: "claude",
       }),
-    ).toBeUndefined();
+    ).toEqual({ kind: "local" });
   });
 
   it("pages older runtime history through the thread's remote server", async () => {
@@ -846,7 +916,7 @@ describe("useRemoteServersStore", () => {
     }));
 
     await expect(
-      routeRemoteProcedure("dbGetThreadRuntimeItemsPage", {
+      invokeRemoteRoute("dbGetThreadRuntimeItemsPage", {
         threadId: remoteThreadId("d1", "rt-1"),
         beforePosition: 77,
         limit: 500,
@@ -878,21 +948,22 @@ describe("useRemoteServersStore", () => {
       .getState()
       .projects.find((project) => project.remoteServerId === "d1")?.location;
 
-    await routeRemoteProcedure("startShell", {
+    expect(location).toBeDefined();
+    await invokeRemoteRoute("startShell", {
       shellId: "shell:remote",
-      projectLocation: location,
+      projectLocation: location!,
       initialSize: { cols: 90, rows: 25 },
     });
-    await routeRemoteProcedure("writeTerminal", {
+    await invokeRemoteRoute("writeTerminal", {
       threadId: "shell:remote",
       data: "pwd\r",
     });
-    await routeRemoteProcedure("resizeTerminal", {
+    await invokeRemoteRoute("resizeTerminal", {
       threadId: "shell:remote",
       cols: 100,
       rows: 30,
     });
-    await routeRemoteProcedure("closeThread", { threadId: "shell:remote" });
+    await invokeRemoteRoute("closeThread", { threadId: "shell:remote" });
 
     expect(startShell).toHaveBeenCalledWith({
       shellId: "shell:remote",
@@ -935,8 +1006,10 @@ describe("useRemoteServersStore", () => {
   });
 
   it("routes checkpoint rollback and file restore through the remote git bridge", async () => {
-    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => ({}));
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ gitCall })));
+    const gitCall = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(async () => ({}));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ callRemoteProcedure: gitCall })));
     await useRemoteServersStore
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
@@ -971,44 +1044,6 @@ describe("useRemoteServersStore", () => {
       threadId: "thread-7",
       checkpointItemId: "user-1",
       projectLocation: { kind: "posix", path: "/r/app" },
-    });
-  });
-
-  it("routes remote file editor reads and writes through the remote git bridge", async () => {
-    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async (procedure) =>
-      procedure === "readProjectFile"
-        ? { path: "README.md", status: "ready", modifiedAtMs: 1, content: "hello" }
-        : { modifiedAtMs: 2 },
-    );
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ gitCall })));
-    await useRemoteServersStore
-      .getState()
-      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
-
-    const read = await useRemoteServersStore.getState().readProjectFile({
-      desktopId: "d1",
-      projectLocation: { kind: "posix", path: "/r/app" },
-      path: "README.md",
-    });
-    const write = await useRemoteServersStore.getState().writeProjectFile({
-      desktopId: "d1",
-      projectLocation: { kind: "posix", path: "/r/app" },
-      path: "README.md",
-      content: "updated",
-      baseModifiedAtMs: 1,
-    });
-
-    expect(read).toMatchObject({ path: "README.md", content: "hello" });
-    expect(write).toEqual({ modifiedAtMs: 2 });
-    expect(gitCall).toHaveBeenCalledWith("readProjectFile", {
-      projectLocation: { kind: "posix", path: "/r/app" },
-      path: "README.md",
-    });
-    expect(gitCall).toHaveBeenCalledWith("writeProjectFile", {
-      projectLocation: { kind: "posix", path: "/r/app" },
-      path: "README.md",
-      content: "updated",
-      baseModifiedAtMs: 1,
     });
   });
 

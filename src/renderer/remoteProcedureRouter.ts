@@ -1,22 +1,20 @@
-import type { ProjectLocation, StartShellPayload, TerminalSize } from "@/shared/contracts";
-import type { RemoteRuntimeItemsPageRequest } from "@/shared/remote";
+import type {
+  ProjectLocation,
+  ProjectNotes,
+  PrWatchInput,
+  PrWatchKey,
+  StartShellPayload,
+} from "@/shared/contracts";
+import type { IpcProcedureName, IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
+import { msg } from "@/shared/messages";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
+import type { RemoteProcedureOwner } from "@/shared/remote/procedures";
 import {
-  isGitRemoteNoopProcedure,
-  isGitRemoteProcedure,
-  type GitRemoteNoopProcedureName,
-  type GitRemoteProcedureName,
-} from "@/shared/remote/gitProcedures";
-
-type RemoteOwnerStrategy =
-  | "none"
-  | "projectLocation"
-  | "worktreeLocation"
-  | "location"
-  | "optionalProjectLocation"
-  | "skillLocations"
-  | "thread"
-  | "project"
-  | "terminal";
+  isRemoteRoutableProcedure,
+  REMOTE_PROCEDURE_ROUTES,
+  type RemoteProcedureRouteSpec,
+  type RemoteRoutableProcedureName,
+} from "./remoteProcedureRoutes";
 
 interface ResolvedRemoteRoute {
   readonly desktopId: string;
@@ -31,19 +29,25 @@ export interface RemoteProcedureHost {
   resolveProjectOwner(
     projectId: string,
   ): { readonly desktopId: string; readonly remoteId: string } | undefined;
-  gitCall(desktopId: string, procedure: GitRemoteProcedureName, payload: unknown): Promise<unknown>;
-  loadThreadRuntimeItemsPage(
+  withClient<Result>(
     desktopId: string,
-    input: RemoteRuntimeItemsPageRequest,
-  ): Promise<unknown>;
-  startRemoteShell(desktopId: string, input: StartShellPayload): Promise<void>;
-  closeRemoteTerminal(desktopId: string, terminalId: string): Promise<void>;
-  writeThreadTerminal(desktopId: string, terminalId: string, data: string): Promise<void>;
-  resizeThreadTerminal(desktopId: string, terminalId: string, size: TerminalSize): Promise<void>;
+    invoke: (client: RemoteDesktopClient) => Promise<Result>,
+  ): Promise<Result>;
 }
+
+export type RemoteRouteDecision<Result = unknown> =
+  | { readonly kind: "local" }
+  | { readonly kind: "remote"; readonly result: Promise<Result> };
 
 let host: RemoteProcedureHost | undefined;
 const remoteTerminalOwners = new Map<string, string>();
+const REMOTE_LOCATION_KEYS = [
+  "projectLocation",
+  "worktreeLocation",
+  "sourceProjectLocation",
+  "newLocation",
+  "location",
+] as const;
 
 export function registerRemoteProcedureHost(next: RemoteProcedureHost | undefined): void {
   host = next;
@@ -76,13 +80,7 @@ export function unprojectRemotePayload(payload: unknown): unknown {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
   const input = payload as Record<string, unknown>;
   const output = { ...input };
-  for (const key of [
-    "projectLocation",
-    "worktreeLocation",
-    "sourceProjectLocation",
-    "newLocation",
-    "location",
-  ] as const) {
+  for (const key of REMOTE_LOCATION_KEYS) {
     const location = projectLocation(input[key]);
     if (location) output[key] = unprojectProjectLocation(location);
   }
@@ -92,209 +90,103 @@ export function unprojectRemotePayload(payload: unknown): unknown {
   return output;
 }
 
-const REMOTE_GIT_ROUTE_TABLE = {
-  rollbackThreadConversation: "thread",
-  createFileCheckpoint: "thread",
-  finalizeFileCheckpoint: "thread",
-  listFileCheckpoints: "thread",
-  restoreFileCheckpoint: "thread",
-  subagentSubscribe: "thread",
-  subagentUnsubscribe: "thread",
-  workflowGetRun: "location",
-  workflowAgentChat: "location",
-  scanSkills: "optionalProjectLocation",
-  listSkillMarketplace: "none",
-  setSkillEnabled: "optionalProjectLocation",
-  deleteSkill: "optionalProjectLocation",
-  importSkills: "skillLocations",
-  installMarketplaceSkill: "optionalProjectLocation",
-  discoverExternalMcpServers: "optionalProjectLocation",
-  probeMcpServer: "optionalProjectLocation",
-  searchProjectFiles: "projectLocation",
-  listProjectTree: "projectLocation",
-  browseHostDirectory: "none",
-  searchProjectTree: "projectLocation",
-  readProjectFile: "projectLocation",
-  readAbsoluteFile: "projectLocation",
-  writeProjectFile: "projectLocation",
-  createProjectEntry: "projectLocation",
-  renameProjectEntry: "projectLocation",
-  moveProjectEntry: "projectLocation",
-  deleteProjectEntry: "projectLocation",
-  getGitStatus: "projectLocation",
-  getGitDiff: "projectLocation",
-  getGitDiffBatch: "projectLocation",
-  getGitFileContent: "projectLocation",
-  gitListBranches: "projectLocation",
-  gitListWorktrees: "projectLocation",
-  gitProjectSnapshot: "projectLocation",
-  gitWorktreeStatusBatch: "projectLocation",
-  gitGetWorktreeSourceBranch: "projectLocation",
-  ghCheckAvailable: "projectLocation",
-  ghGetPrForBranch: "projectLocation",
-  ghListPrs: "projectLocation",
-  ghListPullRequests: "projectLocation",
-  ghGetPrChecks: "projectLocation",
-  ghGetPrFiles: "projectLocation",
-  ghGetPrDiff: "projectLocation",
-  ghGetPrDetails: "projectLocation",
-  ghListWorkflows: "projectLocation",
-  ghListWorkflowRuns: "projectLocation",
-  ghGetWorkflowRun: "projectLocation",
-  ghGetWorkflowDefinition: "projectLocation",
-  gitStage: "projectLocation",
-  gitUnstage: "projectLocation",
-  gitRevert: "projectLocation",
-  gitStageAll: "projectLocation",
-  gitUnstageAll: "projectLocation",
-  gitRevertAll: "projectLocation",
-  gitCommit: "projectLocation",
-  gitInit: "projectLocation",
-  gitAddRemote: "projectLocation",
-  generateCommitMessage: "projectLocation",
-  generateTitle: "projectLocation",
-  generatePrSummary: "projectLocation",
-  gitFetch: "projectLocation",
-  gitPull: "projectLocation",
-  gitPullRebase: "projectLocation",
-  gitPush: "projectLocation",
-  gitSync: "projectLocation",
-  gitSyncRebase: "projectLocation",
-  gitSwitchBranch: "projectLocation",
-  gitDeleteBranch: "projectLocation",
-  gitAddWorktree: "projectLocation",
-  gitRemoveWorktree: "projectLocation",
-  gitPruneWorktrees: "projectLocation",
-  gitMergeToSource: "projectLocation",
-  gitPullFromSource: "worktreeLocation",
-  gitAbortMerge: "worktreeLocation",
-  gitFinishMerge: "worktreeLocation",
-  ghCreatePr: "projectLocation",
-  ghMergePr: "projectLocation",
-  ghClosePr: "projectLocation",
-  ghReopenPr: "projectLocation",
-  ghMarkPrReady: "projectLocation",
-  ghSubmitPrReview: "projectLocation",
-  ghUpdatePrBranch: "projectLocation",
-  ghPostPrComment: "projectLocation",
-  ghDispatchWorkflow: "projectLocation",
-  ghRerunWorkflowRun: "projectLocation",
-  ghCancelWorkflowRun: "projectLocation",
-  ghDeleteWorkflowRun: "projectLocation",
-} as const satisfies Record<GitRemoteProcedureName, RemoteOwnerStrategy>;
-
-const REMOTE_NOOP_ROUTE_TABLE = {
-  gitWatchProject: "projectLocation",
-  gitWatchWorktrees: "project",
-  gitUnwatchProject: "project",
-} as const satisfies Record<GitRemoteNoopProcedureName, RemoteOwnerStrategy>;
-
-type SpecialProcedureName =
-  | "dbGetThreadRuntimeItemsPage"
-  | "dbTruncateThreadRuntimeAfter"
-  | "startShell"
-  | "closeThread"
-  | "writeTerminal"
-  | "resizeTerminal";
-
-interface SpecialRouteSpec {
-  readonly owner: RemoteOwnerStrategy;
-  invoke(remoteHost: RemoteProcedureHost, route: ResolvedRemoteRoute): Promise<unknown>;
+export function routeRemoteProcedure<Name extends IpcProcedureName>(
+  procedure: Name,
+  payload: IpcProcedurePayload<Name>,
+): RemoteRouteDecision<IpcProcedureResult<Name>> {
+  if (!isRemoteRoutableProcedure(procedure)) return { kind: "local" };
+  const spec = REMOTE_PROCEDURE_ROUTES[procedure] as RemoteProcedureRouteSpec;
+  let route: ResolvedRemoteRoute | undefined;
+  try {
+    route = resolveRemoteRoute(spec.owner, payload, host);
+  } catch (error) {
+    return {
+      kind: "remote",
+      result: Promise.reject(error) as Promise<IpcProcedureResult<Name>>,
+    };
+  }
+  if (!route) return { kind: "local" };
+  const remoteHost = host;
+  if (!remoteHost) {
+    return {
+      kind: "remote",
+      result: Promise.reject(new Error(msg("remote.server.unreachable"))),
+    };
+  }
+  return {
+    kind: "remote",
+    result: remoteHost.withClient(route.desktopId, (client) =>
+      invokeRemoteProcedure(procedure, spec, client, route),
+    ) as Promise<IpcProcedureResult<Name>>,
+  };
 }
 
-const SPECIAL_ROUTE_TABLE = {
-  dbGetThreadRuntimeItemsPage: {
-    owner: "thread",
-    invoke: (remoteHost, route) =>
-      remoteHost.loadThreadRuntimeItemsPage(
-        route.desktopId,
-        route.payload as unknown as RemoteRuntimeItemsPageRequest,
-      ),
-  },
-  dbTruncateThreadRuntimeAfter: {
-    owner: "thread",
-    invoke: async () => undefined,
-  },
-  startShell: {
-    owner: "projectLocation",
-    invoke: async (remoteHost, route) => {
+async function invokeRemoteProcedure(
+  procedure: RemoteRoutableProcedureName,
+  spec: RemoteProcedureRouteSpec,
+  client: RemoteDesktopClient,
+  route: ResolvedRemoteRoute,
+): Promise<unknown> {
+  switch (spec.handler) {
+    case "passthrough":
+      return client.callRemoteProcedure(procedure, route.payload);
+    case "noop":
+      return undefined;
+    case "project-notes-read":
+      return client.projectNotes(String(route.payload.projectId));
+    case "project-notes-write":
+      return client.setProjectNotes(route.payload as unknown as ProjectNotes);
+    case "pr-watch-read":
+      return client.getPrWatch(route.payload as unknown as PrWatchKey);
+    case "pr-watch-check":
+      return client.checkPrWatch(route.payload as unknown as PrWatchKey);
+    case "pr-watch-upsert":
+      return client.upsertPrWatch(route.payload as unknown as PrWatchInput);
+    case "pr-watch-delete":
+      return client.deletePrWatch(route.payload as unknown as PrWatchKey);
+    case "runtime-items-page":
+      return client.threadRuntimeItemsPage(
+        route.payload as unknown as Parameters<RemoteDesktopClient["threadRuntimeItemsPage"]>[0],
+      );
+    case "shell-start": {
       const input = route.payload as unknown as StartShellPayload;
       remoteTerminalOwners.set(input.shellId, route.desktopId);
       try {
-        await remoteHost.startRemoteShell(route.desktopId, input);
+        return await client.startShell(input);
       } catch (error) {
         remoteTerminalOwners.delete(input.shellId);
         throw error;
       }
-    },
-  },
-  closeThread: {
-    owner: "terminal",
-    invoke: async (remoteHost, route) => {
-      if (!route.terminalId) return;
+    }
+    case "shell-close":
+      if (!route.terminalId) return undefined;
       try {
-        await remoteHost.closeRemoteTerminal(route.desktopId, route.terminalId);
+        return await client.closeShell({ threadId: route.terminalId });
       } finally {
         remoteTerminalOwners.delete(route.terminalId);
       }
-    },
-  },
-  writeTerminal: {
-    owner: "terminal",
-    invoke: (remoteHost, route) =>
-      route.terminalId
-        ? remoteHost.writeThreadTerminal(
-            route.desktopId,
-            route.terminalId,
-            String(route.payload.data ?? ""),
-          )
-        : Promise.resolve(),
-  },
-  resizeTerminal: {
-    owner: "terminal",
-    invoke: (remoteHost, route) =>
-      route.terminalId
-        ? remoteHost.resizeThreadTerminal(route.desktopId, route.terminalId, {
+    case "terminal-write":
+      return route.terminalId
+        ? client.writeTerminal({
+            threadId: route.terminalId,
+            data: String(route.payload.data ?? ""),
+          })
+        : undefined;
+    case "terminal-resize":
+      return route.terminalId
+        ? client.resizeTerminal({
+            threadId: route.terminalId,
             cols: Number(route.payload.cols),
             rows: Number(route.payload.rows),
           })
-        : Promise.resolve(),
-  },
-} as const satisfies Record<SpecialProcedureName, SpecialRouteSpec>;
-
-export function isRemoteRoutableProcedure(procedure: string): boolean {
-  return (
-    isGitRemoteProcedure(procedure) ||
-    isGitRemoteNoopProcedure(procedure) ||
-    Object.hasOwn(SPECIAL_ROUTE_TABLE, procedure)
-  );
-}
-
-export function routeRemoteProcedure(
-  procedure: string,
-  payload: unknown,
-): Promise<unknown> | undefined {
-  const remoteHost = host;
-  if (!remoteHost) return undefined;
-  if (isGitRemoteProcedure(procedure)) {
-    const route = resolveRemoteRoute(REMOTE_GIT_ROUTE_TABLE[procedure], payload, remoteHost);
-    return route ? remoteHost.gitCall(route.desktopId, procedure, route.payload) : undefined;
+        : undefined;
   }
-  if (isGitRemoteNoopProcedure(procedure)) {
-    const route = resolveRemoteRoute(REMOTE_NOOP_ROUTE_TABLE[procedure], payload, remoteHost);
-    return route ? Promise.resolve(undefined) : undefined;
-  }
-  if (!Object.hasOwn(SPECIAL_ROUTE_TABLE, procedure)) return undefined;
-  const name = procedure as SpecialProcedureName;
-  const spec = SPECIAL_ROUTE_TABLE[name];
-  const route = resolveRemoteRoute(spec.owner, payload, remoteHost);
-  return route ? spec.invoke(remoteHost, route) : undefined;
 }
 
 function resolveRemoteRoute(
-  strategy: RemoteOwnerStrategy,
+  strategy: RemoteProcedureOwner,
   payload: unknown,
-  remoteHost: RemoteProcedureHost,
+  remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
   const input = payload as Record<string, unknown>;
@@ -308,7 +200,12 @@ function resolveRemoteRoute(
       ? "projectLocation"
       : strategy;
   const location = projectLocation(input[key]);
-  if (!location?.remoteServerId) return undefined;
+  const owners = remoteLocationOwners(input);
+  if (!location?.remoteServerId) {
+    if (owners.size > 0) throw new Error(msg("remote.server.unreachable"));
+    return undefined;
+  }
+  assertSingleOwner(input, owners, location.remoteServerId);
   return {
     desktopId: location.remoteServerId,
     payload: unprojectRemotePayload(input) as Record<string, unknown>,
@@ -317,11 +214,12 @@ function resolveRemoteRoute(
 
 function resolveThreadRoute(
   input: Record<string, unknown>,
-  remoteHost: RemoteProcedureHost,
+  remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
-  if (typeof input.threadId !== "string") return undefined;
+  if (typeof input.threadId !== "string" || !remoteHost) return undefined;
   const owner = remoteHost.resolveThreadOwner(input.threadId);
   if (!owner) return undefined;
+  assertSingleOwner(input, remoteLocationOwners(input), owner.desktopId);
   return {
     desktopId: owner.desktopId,
     payload: {
@@ -333,11 +231,12 @@ function resolveThreadRoute(
 
 function resolveProjectRoute(
   input: Record<string, unknown>,
-  remoteHost: RemoteProcedureHost,
+  remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
-  if (typeof input.projectId !== "string") return undefined;
+  if (typeof input.projectId !== "string" || !remoteHost) return undefined;
   const owner = remoteHost.resolveProjectOwner(input.projectId);
   if (!owner) return undefined;
+  assertSingleOwner(input, remoteLocationOwners(input), owner.desktopId);
   return {
     desktopId: owner.desktopId,
     payload: {
@@ -349,7 +248,7 @@ function resolveProjectRoute(
 
 function resolveTerminalRoute(
   input: Record<string, unknown>,
-  remoteHost: RemoteProcedureHost,
+  remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
   const terminalId =
     typeof input.shellId === "string"
@@ -366,6 +265,7 @@ function resolveTerminalRoute(
       payload: unprojectRemotePayload(input) as Record<string, unknown>,
     };
   }
+  if (!remoteHost) return undefined;
   const owner = remoteHost.resolveThreadOwner(terminalId);
   if (!owner) return undefined;
   return {
@@ -382,20 +282,73 @@ function resolveSkillLocationsOwner(
   input: Record<string, unknown>,
 ): ResolvedRemoteRoute | undefined {
   if (!Array.isArray(input.skills)) return undefined;
-  const owners = new Set<string>();
-  for (const skill of input.skills) {
-    if (!skill || typeof skill !== "object") continue;
-    const record = skill as Record<string, unknown>;
-    for (const key of ["projectLocation", "sourceProjectLocation"] as const) {
-      const owner = projectLocation(record[key])?.remoteServerId;
-      if (owner) owners.add(owner);
-    }
+  const owners = remoteLocationOwners(input);
+  if (owners.size === 0) return undefined;
+  assertSingleOwner(input, owners);
+  const desktopId = [...owners][0]!;
+  if (!skillLocationsBelongToHost(input, desktopId)) {
+    throw new Error(msg("remote.server.unreachable"));
   }
-  if (owners.size !== 1) return undefined;
   return {
-    desktopId: [...owners][0]!,
+    desktopId,
     payload: unprojectRemotePayload(input) as Record<string, unknown>,
   };
+}
+
+function skillLocationsBelongToHost(input: Record<string, unknown>, desktopId: string): boolean {
+  if (!Array.isArray(input.skills)) return false;
+  return input.skills.every((skill) => {
+    if (!skill || typeof skill !== "object" || Array.isArray(skill)) return false;
+    const record = skill as Record<string, unknown>;
+    return (
+      projectLocation(record.projectLocation)?.remoteServerId === desktopId &&
+      projectLocation(record.sourceProjectLocation)?.remoteServerId === desktopId
+    );
+  });
+}
+
+function remoteLocationOwners(input: Record<string, unknown>): Set<string> {
+  const owners = new Set<string>();
+  for (const key of REMOTE_LOCATION_KEYS) {
+    const owner = projectLocation(input[key])?.remoteServerId;
+    if (owner) owners.add(owner);
+  }
+  if (Array.isArray(input.skills)) {
+    for (const skill of input.skills) {
+      if (!skill || typeof skill !== "object" || Array.isArray(skill)) continue;
+      for (const owner of remoteLocationOwners(skill as Record<string, unknown>)) owners.add(owner);
+    }
+  }
+  return owners;
+}
+
+function assertSingleOwner(
+  input: Record<string, unknown>,
+  owners: Set<string>,
+  expected?: string,
+): void {
+  if (
+    hasLocalLocation(input) ||
+    owners.size > 1 ||
+    (expected && owners.size === 1 && !owners.has(expected))
+  ) {
+    throw new Error(msg("remote.server.unreachable"));
+  }
+}
+
+function hasLocalLocation(input: Record<string, unknown>): boolean {
+  for (const key of REMOTE_LOCATION_KEYS) {
+    const location = projectLocation(input[key]);
+    if (location && !location.remoteServerId) return true;
+  }
+  if (!Array.isArray(input.skills)) return false;
+  return input.skills.some(
+    (skill) =>
+      skill !== null &&
+      typeof skill === "object" &&
+      !Array.isArray(skill) &&
+      hasLocalLocation(skill as Record<string, unknown>),
+  );
 }
 
 function projectLocation(value: unknown): ProjectLocation | undefined {

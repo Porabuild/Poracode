@@ -94,7 +94,7 @@ import {
   buildThreadRuntimeItemsPage,
   descriptor,
 } from "./snapshots";
-import { applyRemoteThreadCommand, runGitCall, runProjectCommand } from "./threadCommands";
+import { applyRemoteThreadCommand, runProjectCommand, runRemoteProcedure } from "./threadCommands";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
 
 export function threadIdFromPath(pathname: string, suffix: string): string | null {
@@ -716,7 +716,7 @@ export async function handleHttp(
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/git/call") {
-      writeJson(res, 200, { result: await runGitCall(ctx, req) });
+      writeJson(res, 200, { result: await runRemoteProcedure(ctx, req) });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/projects/command") {

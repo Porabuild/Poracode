@@ -2,6 +2,7 @@ import { toast } from "@heroui/react";
 import type { Project } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
+import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -136,7 +137,7 @@ export function autoDetectSetupScript(project: Project) {
     .detectSetupScript({ projectLocation: project.location })
     .then((result) => {
       if (result.setupScript) {
-        useAppStore.getState().updateProjectScripts(project.id, {
+        updateProjectScripts(project.id, {
           setupScript: result.setupScript,
           actions: [],
         });

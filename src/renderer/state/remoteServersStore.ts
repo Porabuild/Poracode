@@ -3,17 +3,9 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import { arrayBufferToBase64 } from "@/shared/base64";
-import type {
-  BrowseHostDirectoryResult,
-  Project,
-  ReadProjectFileResult,
-  StartShellPayload,
-  Thread,
-  TerminalSize,
-  WriteProjectFileResult,
-} from "@/shared/contracts";
-import { friendlyError } from "@/shared/messages";
-import { RemoteDesktopClient, type RemoteFetch } from "@/shared/remote/client";
+import type { BrowseHostDirectoryResult, Project, Thread, TerminalSize } from "@/shared/contracts";
+import { friendlyError, msg as sharedMsg } from "@/shared/messages";
+import { RemoteClientError, RemoteDesktopClient, type RemoteFetch } from "@/shared/remote/client";
 import { reconnectBackoffDelay } from "@/shared/remote/backoff";
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import { filterKnownRemoteAccessScopes, REMOTE_STANDARD_SCOPES } from "@/shared/remote";
@@ -367,9 +359,41 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       /** Resolve the paired server and build a client for it, or throw the
        * shared "not found" error the action callers already surface. */
       const requireClient = (desktopId: string): RemoteDesktopClient => {
-        const server = get().servers.find((entry) => entry.desktopId === desktopId);
+        const state = get();
+        const server = state.servers.find((entry) => entry.desktopId === desktopId);
         if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-        return get().clientFactory(server.endpoint, server.accessToken);
+        if (state.runtime[desktopId]?.status !== "online") {
+          throw new Error(sharedMsg("remote.server.unreachable"));
+        }
+        return state.clientFactory(server.endpoint, server.accessToken);
+      };
+
+      const withClient = async <Result>(
+        desktopId: string,
+        invoke: (client: RemoteDesktopClient) => Promise<Result>,
+      ): Promise<Result> => {
+        try {
+          return await invoke(requireClient(desktopId));
+        } catch (error) {
+          const transportFailed =
+            (error instanceof TypeError && /fetch|network|load failed/i.test(error.message)) ||
+            (error instanceof RemoteClientError && error.status === 0);
+          if (!transportFailed) {
+            throw error;
+          }
+          const message = sharedMsg("remote.server.unreachable");
+          set((state) => {
+            const current = state.runtime[desktopId];
+            if (!current) return {};
+            return {
+              runtime: {
+                ...state.runtime,
+                [desktopId]: { ...current, status: "error", message },
+              },
+            };
+          });
+          throw new Error(message, { cause: error });
+        }
       };
 
       const checkHostUpdateInBackground = (server: RemoteServerRecord): void => {
@@ -850,12 +874,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             );
             return;
           }
-          const client = get().clientFactory(server.endpoint, server.accessToken);
           // Hydrate the thread's history into the shared, threadId-keyed runtime
           // store so the desktop ChatPane renders it (coexists with local threads).
           // A failed history fetch (server asleep/unreachable) must not reject.
           let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
           try {
+            const client = requireClient(desktopId);
             snapshot = await client.threadHistory(threadId);
           } catch (error) {
             if (requestSeq !== openRemoteThreadRequestSeq) return;
@@ -935,20 +959,6 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           await requireClient(desktopId).resizeTerminal({ threadId, ...size });
         },
 
-        startRemoteShell: async (desktopId, input) => {
-          await requireClient(desktopId).startShell(
-            unprojectRemotePayload(input) as StartShellPayload,
-          );
-        },
-
-        closeRemoteTerminal: async (desktopId, threadId) => {
-          try {
-            await requireClient(desktopId).closeShell({ threadId });
-          } finally {
-            releaseRemoteTerminal(threadId);
-          }
-        },
-
         resolveThreadRequest: async (input) => {
           await requireClient(input.desktopId).resolveRequest({
             threadId: input.threadId,
@@ -959,7 +969,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         rollbackThreadConversation: async (input) => {
-          await requireClient(input.desktopId).gitCall("rollbackThreadConversation", {
+          await requireClient(input.desktopId).callRemoteProcedure("rollbackThreadConversation", {
             threadId: input.threadId,
             numTurns: input.numTurns,
             ...(input.config ? { config: input.config } : {}),
@@ -967,27 +977,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         restoreFileCheckpoint: async (input) => {
-          await requireClient(input.desktopId).gitCall("restoreFileCheckpoint", {
+          await requireClient(input.desktopId).callRemoteProcedure("restoreFileCheckpoint", {
             threadId: input.threadId,
             checkpointItemId: input.checkpointItemId,
             projectLocation: unprojectRemotePayload(input.projectLocation),
           });
-        },
-
-        readProjectFile: async (input) => {
-          return (await requireClient(input.desktopId).gitCall("readProjectFile", {
-            projectLocation: unprojectRemotePayload(input.projectLocation),
-            path: input.path,
-          })) as ReadProjectFileResult;
-        },
-
-        writeProjectFile: async (input) => {
-          return (await requireClient(input.desktopId).gitCall("writeProjectFile", {
-            projectLocation: unprojectRemotePayload(input.projectLocation),
-            path: input.path,
-            content: input.content,
-            baseModifiedAtMs: input.baseModifiedAtMs,
-          })) as WriteProjectFileResult;
         },
 
         pairServer: ({ endpoint, token }) =>
@@ -1255,18 +1249,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         browseHostDirectory: async (desktopId, path) => {
-          return (await requireClient(desktopId).gitCall("browseHostDirectory", {
+          return (await requireClient(desktopId).callRemoteProcedure("browseHostDirectory", {
             path,
           })) as BrowseHostDirectoryResult;
         },
 
-        gitCall: async (desktopId, procedure, payload) => {
-          return requireClient(desktopId).gitCall(procedure, unprojectRemotePayload(payload));
-        },
-
-        loadThreadRuntimeItemsPage: (desktopId, input) => {
-          return requireClient(desktopId).threadRuntimeItemsPage(input);
-        },
+        withClient,
 
         saveClipboardImage: (desktopId, input) => {
           return requireClient(desktopId).uploadAttachment({
@@ -1408,18 +1396,7 @@ registerRemoteProcedureHost({
       ? { desktopId: project.remoteServerId, remoteId: project.remoteId }
       : undefined;
   },
-  gitCall: (desktopId, procedure, payload) =>
-    useRemoteServersStore.getState().gitCall(desktopId, procedure, payload),
-  loadThreadRuntimeItemsPage: (desktopId, input) =>
-    useRemoteServersStore.getState().loadThreadRuntimeItemsPage(desktopId, input),
-  startRemoteShell: (desktopId, input) =>
-    useRemoteServersStore.getState().startRemoteShell(desktopId, input),
-  closeRemoteTerminal: (desktopId, terminalId) =>
-    useRemoteServersStore.getState().closeRemoteTerminal(desktopId, terminalId),
-  writeThreadTerminal: (desktopId, terminalId, data) =>
-    useRemoteServersStore.getState().writeThreadTerminal(desktopId, terminalId, data),
-  resizeThreadTerminal: (desktopId, terminalId, size) =>
-    useRemoteServersStore.getState().resizeThreadTerminal(desktopId, terminalId, size),
+  withClient: (desktopId, invoke) => useRemoteServersStore.getState().withClient(desktopId, invoke),
 });
 
 /**

@@ -1,4 +1,4 @@
 export * from "./protocol";
-export * from "./gitProcedures";
+export * from "./procedures";
 export * from "./omittedPayload";
 export * from "./imageRef";

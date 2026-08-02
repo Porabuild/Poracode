@@ -219,7 +219,7 @@ const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
 /**
  * Git-call procedures that mutate remote state and can run long (network I/O
  * against a remote or GitHub). These use {@link LONG_REMOTE_REQUEST_TIMEOUT_MS}.
- * Kept in sync loosely with GIT_REMOTE_PROCEDURE_SCOPES' `session:operate`
+ * Kept in sync loosely with REMOTE_PROCEDURE_SPECS' `session:operate`
  * network operations — the point is to avoid false timeouts on slow ops, so
  * over-inclusion here is harmless.
  */
@@ -767,12 +767,12 @@ export class RemoteDesktopClient {
 
   /**
    * Generic supervisor passthrough to the paired desktop. The reused desktop
-   * git-review components and the mobile file tree call bridge methods, which
+   * project controls call bridge methods, which
    * the remote bridge shim forwards here (see bridge.ts). `procedure` is one of
-   * the allowlisted names in GIT_REMOTE_PROCEDURE_SCOPES; the server validates
+   * the allowlisted names in REMOTE_PROCEDURE_SPECS; the server validates
    * it.
    */
-  async gitCall(procedure: string, payload: unknown): Promise<unknown> {
+  async callRemoteProcedure(procedure: string, payload: unknown): Promise<unknown> {
     const result = (await this.requestJson("/api/git/call", {
       method: "POST",
       body: { procedure, payload },

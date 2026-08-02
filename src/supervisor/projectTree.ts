@@ -214,7 +214,7 @@ export class ProjectTreeService {
    * List an arbitrary absolute directory on the host for the folder picker
    * (add-existing / clone parent). Not confined to a project root — this is the
    * one entry point that browses the wider filesystem, so it's gated behind the
-   * `projects:manage` remote scope (see gitProcedures.ts), the same capability
+   * `projects:manage` remote scope (see remote/procedures.ts), the same capability
    * that can already register any path as a project.
    *
    * Native FS only: paths are the host's own filesystem (POSIX or Windows).

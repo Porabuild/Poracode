@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PoracodeBridge } from "@/shared/ipc";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import {
   useFileEditorStore,
@@ -437,7 +438,9 @@ describe("fileEditorStore remote roots", () => {
         gitStage,
       },
     });
-    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => ({ modifiedAtMs: 2 }));
+    const callRemoteProcedure = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(async () => ({
+      modifiedAtMs: 2,
+    }));
     useRemoteServersStore.setState({
       servers: [
         {
@@ -448,7 +451,8 @@ describe("fileEditorStore remote roots", () => {
           scopes: ["session:read", "session:operate"],
         },
       ],
-      clientFactory: () => ({ gitCall }) as unknown as RemoteDesktopClient,
+      runtime: { d1: { status: "online", projects: [], threads: [] } },
+      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
     });
     useGitStore.setState({
       statuses: {
@@ -477,14 +481,14 @@ describe("fileEditorStore remote roots", () => {
         },
       },
     });
+    useFileEditorStore.getState().setRootContext({
+      projectId: "p1",
+      projectName: "Remote Project",
+      projectLocation: { kind: "posix", path: "/remote/project" },
+      rootLabel: "Remote Project",
+      remoteServerId: "d1",
+    });
     useFileEditorStore.setState({
-      rootContext: {
-        projectId: "p1",
-        projectName: "Remote Project",
-        projectLocation: { kind: "posix", path: "/remote/project" },
-        rootLabel: "Remote Project",
-        remoteServerId: "d1",
-      },
       tabs: ["README.md"],
       activePath: "README.md",
       buffers: {
@@ -499,7 +503,7 @@ describe("fileEditorStore remote roots", () => {
 
     await useFileEditorStore.getState().saveFile("README.md");
 
-    expect(gitCall).toHaveBeenCalledWith("writeProjectFile", {
+    expect(callRemoteProcedure).toHaveBeenCalledWith("writeProjectFile", {
       projectLocation: { kind: "posix", path: "/remote/project" },
       path: "README.md",
       content: "updated",
@@ -514,6 +518,66 @@ describe("fileEditorStore remote roots", () => {
     });
   });
 
+  it("reads and writes remote files outside the project through the owning host", async () => {
+    const localRead = vi.fn<PoracodeBridge["readExternalFile"]>();
+    const localWrite = vi.fn<PoracodeBridge["writeExternalFile"]>();
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: { readExternalFile: localRead, writeExternalFile: localWrite },
+    });
+    const callRemoteProcedure = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(
+      async (procedure) =>
+        procedure === "readExternalFile"
+          ? {
+              path: "/remote/plan.md",
+              status: "ready",
+              modifiedAtMs: 1,
+              content: "remote plan",
+              lineEnding: "lf",
+              hasBom: false,
+            }
+          : { modifiedAtMs: 2 },
+    );
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Remote Desktop",
+          endpoint: "https://remote.example.test/",
+          accessToken: "token",
+          scopes: ["session:read", "session:operate", "projects:manage"],
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [], threads: [] } },
+      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
+    });
+    useFileEditorStore.getState().setRootContext({
+      projectId: "p1",
+      projectName: "Remote Project",
+      projectLocation: { kind: "posix", path: "/remote/project" },
+      rootLabel: "Remote Project",
+      remoteServerId: "d1",
+    });
+
+    await useFileEditorStore.getState().openFile("/remote/plan.md");
+    useFileEditorStore.getState().updateBuffer("/remote/plan.md", "updated plan");
+    await useFileEditorStore.getState().saveFile("/remote/plan.md");
+
+    expect(callRemoteProcedure).toHaveBeenNthCalledWith(1, "readExternalFile", {
+      projectLocation: { kind: "posix", path: "/remote/project" },
+      absolutePath: "/remote/plan.md",
+    });
+    expect(callRemoteProcedure).toHaveBeenNthCalledWith(2, "writeExternalFile", {
+      projectLocation: { kind: "posix", path: "/remote/project" },
+      absolutePath: "/remote/plan.md",
+      content: "updated plan",
+      baseModifiedAtMs: 1,
+    });
+    expect(localRead).not.toHaveBeenCalled();
+    expect(localWrite).not.toHaveBeenCalled();
+  });
+
   it("does not apply a file read that resolves after the root session clears", async () => {
     let resolveRead:
       | ((value: {
@@ -525,12 +589,17 @@ describe("fileEditorStore remote roots", () => {
           hasBom: false;
         }) => void)
       | undefined;
-    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(
+    const callRemoteProcedure = vi.fn<RemoteDesktopClient["callRemoteProcedure"]>(
       () =>
         new Promise((resolve) => {
           resolveRead = resolve as typeof resolveRead;
         }),
     );
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: { readProjectFile: vi.fn<PoracodeBridge["readProjectFile"]>() },
+    });
     useRemoteServersStore.setState({
       servers: [
         {
@@ -541,7 +610,8 @@ describe("fileEditorStore remote roots", () => {
           scopes: ["session:read", "session:operate"],
         },
       ],
-      clientFactory: () => ({ gitCall }) as unknown as RemoteDesktopClient,
+      runtime: { d1: { status: "online", projects: [], threads: [] } },
+      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
     });
     useFileEditorStore.getState().setRootContext({
       projectId: "p1",

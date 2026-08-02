@@ -569,7 +569,7 @@ describe("RemoteDesktopClient", () => {
     );
 
     const push = client
-      .gitCall("gitPush", { projectLocation: { kind: "posix", path: "/tmp/x" } })
+      .callRemoteProcedure("gitPush", { projectLocation: { kind: "posix", path: "/tmp/x" } })
       .then(
         () => "resolved",
         (error: unknown) => error,

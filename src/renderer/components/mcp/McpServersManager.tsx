@@ -102,7 +102,15 @@ export function McpServersManager(props: {
   const [importOpen, setImportOpen] = useState(false);
   const [builtInSettingsId, setBuiltInSettingsId] = useState<BuiltInMcpServerId>();
   const [toolList, setToolList] = useState<McpToolList>();
-  const oauth = useMcpServerOauth();
+  const userOauth = useMcpServerOauth();
+  const remoteWorkspaceLocation = props.sources.workspace?.projectLocation?.remoteServerId
+    ? props.sources.workspace.projectLocation
+    : undefined;
+  const remoteWorkspaceOauth = useMcpServerOauth(
+    remoteWorkspaceLocation,
+    remoteWorkspaceLocation !== undefined,
+  );
+  const workspaceOauth = remoteWorkspaceLocation ? remoteWorkspaceOauth : userOauth;
   const userProbes = useMcpServerProbes(props.sources.user.servers);
   const workspaceProbes = useMcpServerProbes(
     props.sources.workspace?.servers ?? EMPTY_MCP_SERVERS,
@@ -446,6 +454,7 @@ export function McpServersManager(props: {
           <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
             {visibleServers.map(({ scope, source, server }) => {
               const probes = scope === "user" ? userProbes : workspaceProbes;
+              const oauth = scope === "user" ? userOauth : workspaceOauth;
               const destinationId =
                 scope === "user"
                   ? GLOBAL_MCP_DESTINATION_ID

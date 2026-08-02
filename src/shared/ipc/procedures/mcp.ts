@@ -7,6 +7,8 @@ import {
   type McpOauthBeginResult,
   mcpOauthClearPayloadSchema,
   type McpOauthClearPayload,
+  mcpOauthStatusPayloadSchema,
+  type McpOauthStatusPayload,
   mcpOauthWaitPayloadSchema,
   type McpOauthWaitPayload,
   type McpOauthWaitResult,
@@ -18,7 +20,7 @@ import {
   type ReloadAgentMcpServersPayload,
 } from "../../contracts";
 import { z } from "zod";
-import { defineNoArgProcedure, definePayloadProcedure } from "../core";
+import { definePayloadProcedure } from "../core";
 
 export const confirmCrossagentRoutingOverridePayloadSchema = z.object({
   requestId: z.string().uuid(),
@@ -69,8 +71,9 @@ export const mcpProcedures = {
     "supervisor",
     mcpOauthClearPayloadSchema,
   ),
-  getMcpOauthStatus: defineNoArgProcedure<McpOauthStatusResult, "supervisor">(
-    "getMcpOauthStatus",
-    "supervisor",
-  ),
+  getMcpOauthStatus: definePayloadProcedure<
+    McpOauthStatusPayload,
+    McpOauthStatusResult,
+    "supervisor"
+  >("getMcpOauthStatus", "supervisor", mcpOauthStatusPayloadSchema),
 } as const;

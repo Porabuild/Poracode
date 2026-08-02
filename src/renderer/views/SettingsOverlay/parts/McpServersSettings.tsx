@@ -2,6 +2,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { McpServer } from "@/shared/contracts";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
 import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
+import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isHomeProject } from "@/shared/homeScope";
@@ -22,7 +23,6 @@ export function McpServersSettings() {
     return isHomeProject(project) ? undefined : project;
   });
   const projects = useAppStore((state) => state.projects);
-  const updateProjectMcpServers = useAppStore((state) => state.updateProjectMcpServers);
   const importProjects = projects
     .filter((project) => !isHomeProject(project))
     .map((project) => ({
