@@ -1869,6 +1869,11 @@ msgstr "Отменить выбор"
 msgid "Cancel removing project"
 msgstr "Отменить удаление проекта"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "Отменить рабочий процесс"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "отменено"
@@ -12368,6 +12373,10 @@ msgstr "Работал {elapsed}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "Рабочий процесс"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "Запрошена отмена рабочего процесса."
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

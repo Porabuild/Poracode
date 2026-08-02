@@ -267,6 +267,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       ),
     ghRerunWorkflowRun: (payload) =>
       github.rerunWorkflowRun(payload.projectLocation, payload.runId, payload.failedOnly),
+    ghCancelWorkflowRun: (payload) =>
+      github.cancelWorkflowRun(payload.projectLocation, payload.runId),
     ghDeleteWorkflowRun: (payload) =>
       github.deleteWorkflowRun(payload.projectLocation, payload.runId),
     ghMergePr: (payload) =>

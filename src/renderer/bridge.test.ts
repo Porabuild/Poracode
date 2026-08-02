@@ -60,6 +60,7 @@ describe("remote-aware renderer bridge", () => {
       ["ghGetWorkflowDefinition", { workflowId: 12, ref: "main" }],
       ["ghDispatchWorkflow", { workflowId: 12, ref: "main", inputs: { release: "true" } }],
       ["ghRerunWorkflowRun", { runId: 34, failedOnly: true }],
+      ["ghCancelWorkflowRun", { runId: 34 }],
       ["ghDeleteWorkflowRun", { runId: 34 }],
     ] as const;
     window.poracode = Object.fromEntries(

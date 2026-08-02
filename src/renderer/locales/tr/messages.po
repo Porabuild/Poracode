@@ -1869,6 +1869,11 @@ msgstr "Seçiciyi iptal et"
 msgid "Cancel removing project"
 msgstr "Projeyi kaldırmayı iptal et"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "İş akışını iptal et"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "iptal edildi"
@@ -12368,6 +12373,10 @@ msgstr "{elapsed} boyunca çalıştı"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "İş akışı"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "İş akışının iptali istendi."
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

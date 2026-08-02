@@ -179,6 +179,7 @@ const REMOTE_GIT_ROUTE_TABLE = {
   ghPostPrComment: "projectLocation",
   ghDispatchWorkflow: "projectLocation",
   ghRerunWorkflowRun: "projectLocation",
+  ghCancelWorkflowRun: "projectLocation",
   ghDeleteWorkflowRun: "projectLocation",
 } as const satisfies Record<GitRemoteProcedureName, RemoteOwnerStrategy>;
 

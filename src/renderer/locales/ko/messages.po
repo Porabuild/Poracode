@@ -1869,6 +1869,11 @@ msgstr "선택기 취소"
 msgid "Cancel removing project"
 msgstr "프로젝트 제거 취소"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "워크플로 취소"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "취소됨"
@@ -12368,6 +12373,10 @@ msgstr "{elapsed} 동안 작업함"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "워크플로"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "워크플로 취소를 요청했습니다."
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

@@ -1868,6 +1868,11 @@ msgstr "ピッカーのキャンセル"
 msgid "Cancel removing project"
 msgstr "プロジェクトの削除をキャンセル"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "ワークフローをキャンセル"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "キャンセルされました"
@@ -12366,6 +12371,10 @@ msgstr "{elapsed}稼働しました"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "ワークフロー"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "ワークフローのキャンセルをリクエストしました。"
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

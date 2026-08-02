@@ -1869,6 +1869,11 @@ msgstr "Cancelar selector"
 msgid "Cancel removing project"
 msgstr "Cancelar eliminación del proyecto"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "Cancelar flujo de trabajo"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "cancelado"
@@ -12368,6 +12373,10 @@ msgstr "Trabajó durante {elapsed}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "Flujo de trabajo"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "Se solicitó la cancelación del flujo de trabajo."
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

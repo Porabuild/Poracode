@@ -458,6 +458,24 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     }
   }
 
+  async function cancelWorkflow(run: GitHubActionsRun) {
+    if (!selectedProject || pendingRunId !== null) return;
+    setPendingRunId(run.id);
+    try {
+      await readBridge().ghCancelWorkflowRun({
+        projectLocation: selectedProject.location,
+        runId: run.id,
+      });
+      setRunsRefreshVersion((current) => current + 1);
+      setRunRefreshVersion((current) => current + 1);
+      toast.success(t`Workflow cancellation requested.`);
+    } catch (error) {
+      toast.danger(friendlyError(error));
+    } finally {
+      setPendingRunId(null);
+    }
+  }
+
   async function confirmDeleteRun() {
     if (!selectedProject || !deleteRun || pendingRunId !== null) return;
     const runId = deleteRun.id;
@@ -507,6 +525,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     selectedWorkflow,
     selectedWorkflowId,
     workflows,
+    cancelWorkflow,
     confirmDeleteRun,
     dispatchWorkflow,
     refresh,

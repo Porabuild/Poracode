@@ -2,6 +2,7 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
+  GhCancelWorkflowRunPayload,
   GhDeleteWorkflowRunPayload,
   GhDispatchWorkflowPayload,
   GhGetWorkflowDefinitionPayload,
@@ -30,6 +31,7 @@ const bridge = vi.hoisted(() => ({
   ghGetWorkflowRun: vi.fn<(payload: GhGetWorkflowRunPayload) => Promise<GhGetWorkflowRunResult>>(),
   ghDispatchWorkflow: vi.fn<(payload: GhDispatchWorkflowPayload) => Promise<void>>(),
   ghRerunWorkflowRun: vi.fn<(payload: GhRerunWorkflowRunPayload) => Promise<void>>(),
+  ghCancelWorkflowRun: vi.fn<(payload: GhCancelWorkflowRunPayload) => Promise<void>>(),
   ghDeleteWorkflowRun: vi.fn<(payload: GhDeleteWorkflowRunPayload) => Promise<void>>(),
   openExternal: vi.fn<() => Promise<void>>(),
 }));
@@ -148,6 +150,7 @@ describe("GitHubActionsView", () => {
     });
     bridge.ghDispatchWorkflow.mockReset().mockResolvedValue(undefined);
     bridge.ghRerunWorkflowRun.mockReset().mockResolvedValue(undefined);
+    bridge.ghCancelWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.ghDeleteWorkflowRun.mockReset().mockResolvedValue(undefined);
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
     useAppStore.setState({ projects: [project] });
@@ -536,6 +539,19 @@ describe("GitHubActionsView", () => {
         projectLocation: project.location,
         runId: run.id,
         failedOnly: true,
+      }),
+    );
+  });
+
+  it("cancels an active workflow run", async () => {
+    render(<GitHubActionsView projectId={project.id} runId={run.id} onClose={() => {}} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel workflow" }));
+
+    await waitFor(() =>
+      expect(bridge.ghCancelWorkflowRun).toHaveBeenCalledWith({
+        projectLocation: project.location,
+        runId: run.id,
       }),
     );
   });

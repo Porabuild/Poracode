@@ -4707,6 +4707,7 @@ describe("RemoteAccessServer", () => {
       ref: "main",
       inputs: { release: "true" },
     };
+    const cancelPayload = { projectLocation, runId: 34 };
     const forwardedCalls = [
       {
         procedure: "ghListWorkflows",
@@ -4715,6 +4716,10 @@ describe("RemoteAccessServer", () => {
       {
         procedure: "ghDispatchWorkflow",
         payload: dispatchPayload,
+      },
+      {
+        procedure: "ghCancelWorkflowRun",
+        payload: cancelPayload,
       },
       {
         procedure: "rollbackThreadConversation",
@@ -4823,6 +4828,17 @@ describe("RemoteAccessServer", () => {
       error: { code: "missing_scope" },
     });
     expect(calls.filter((c) => c.name === "ghDispatchWorkflow")).toHaveLength(1);
+
+    const cancelWithoutOperateResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${readToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ procedure: "ghCancelWorkflowRun", payload: cancelPayload }),
+    });
+    expect(cancelWithoutOperateResponse.status).toBe(403);
+    await expect(cancelWithoutOperateResponse.json()).resolves.toMatchObject({
+      error: { code: "missing_scope" },
+    });
+    expect(calls.filter((c) => c.name === "ghCancelWorkflowRun")).toHaveLength(1);
   });
 
   it("rejects remote Git lifecycle mutations for experiment-owned branches and worktrees", async () => {
