@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { defaultSharedSettings, normalizeSharedSettings } from "./settings";
+import {
+  defaultSharedSettings,
+  normalizeSharedSettings,
+  normalizeSidebarShortcutOrder,
+} from "./settings";
 
 describe("shared settings defaults", () => {
+  it("normalizes sidebar shortcut order without duplicates or omissions", () => {
+    expect(normalizeSidebarShortcutOrder(["schedules", "schedules"])).toEqual([
+      "schedules",
+      "pullRequests",
+      "githubActions",
+    ]);
+  });
+
   it("enables notifications and displays them for visible threads by default", () => {
     expect(defaultSharedSettings.notificationsEnabled).toBe(true);
     expect(defaultSharedSettings.remotePushEnabled).toBe(true);

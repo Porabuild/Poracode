@@ -72,26 +72,11 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "general",
-    anchor: "general.sidebarPullRequests",
-    title: msg`Pull requests shortcut`,
-    description: msg`Show Pull requests in the sidebar footer.`,
-    keywords: "sidebar footer navigation menu pull requests shortcut",
-    desktopOnly: true,
-  },
-  {
-    section: "general",
-    anchor: "general.sidebarGitHubActions",
-    title: msg`GitHub Actions shortcut`,
-    description: msg`Show GitHub Actions in the sidebar footer.`,
-    keywords: "sidebar footer navigation menu github actions shortcut workflow",
-    desktopOnly: true,
-  },
-  {
-    section: "general",
-    anchor: "general.sidebarSchedules",
-    title: msg`Schedules shortcut`,
-    description: msg`Show Schedules in the sidebar footer.`,
-    keywords: "sidebar footer navigation menu schedules shortcut automation",
+    anchor: "general.sidebarShortcuts",
+    title: msg`Sidebar shortcuts`,
+    description: msg`Choose which shortcuts appear in the sidebar footer.`,
+    keywords:
+      "sidebar footer navigation menu pull requests github actions workflow schedules automation shortcut",
     desktopOnly: true,
   },
   {

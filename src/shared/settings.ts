@@ -192,6 +192,16 @@ export const DEFAULT_USAGE_DISABLED_PROVIDER_IDS = allUsageProviderDescriptors()
 export const SIDEBAR_SHORTCUT_IDS = ["pullRequests", "githubActions", "schedules"] as const;
 export type SidebarShortcutId = (typeof SIDEBAR_SHORTCUT_IDS)[number];
 
+export function normalizeSidebarShortcutOrder(
+  order: readonly SidebarShortcutId[],
+): SidebarShortcutId[] {
+  const normalized = [...new Set(order)];
+  for (const id of SIDEBAR_SHORTCUT_IDS) {
+    if (!normalized.includes(id)) normalized.push(id);
+  }
+  return normalized;
+}
+
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
   /**
@@ -336,6 +346,8 @@ export const sharedSettingsSchema = z.object({
   homeScopeEnabled: z.boolean(),
   /** Footer shortcuts hidden from both the expanded and collapsed sidebar. */
   sidebarHiddenShortcuts: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
+  /** Display order for shortcuts in the expanded and collapsed sidebar footer. */
+  sidebarShortcutOrder: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
   /**
    * Translucent ("liquid glass") sidebar. When on, the window uses a
    * native blur material where supported (macOS vibrancy, Windows 11 acrylic)
@@ -602,6 +614,7 @@ export const defaultSharedSettings: SharedSettings = {
   newThreadMode: "page",
   homeScopeEnabled: true,
   sidebarHiddenShortcuts: ["githubActions"],
+  sidebarShortcutOrder: [...SIDEBAR_SHORTCUT_IDS],
   sidebarTranslucency: true,
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
@@ -712,6 +725,7 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
     : undefined;
   return {
     ...normalized,
+    sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
     prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
     usage: {
       ...normalized.usage,

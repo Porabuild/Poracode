@@ -26,6 +26,7 @@ describe("sharedSettingsStore", () => {
       crossagentSelectionUsage: [],
       crossagentRoutingOverrides: [],
       providerOrder: [],
+      sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       lastUsedProjectDirs: {},
     });
   });
@@ -52,6 +53,16 @@ describe("sharedSettingsStore", () => {
 
     useSharedSettings.getState().setSidebarShortcutVisible("schedules", false);
     expect(useSharedSettings.getState().sidebarHiddenShortcuts).toEqual(["schedules"]);
+  });
+
+  it("reorders sidebar shortcuts and keeps every supported shortcut", () => {
+    useSharedSettings.getState().setSidebarShortcutOrder(["schedules", "pullRequests"]);
+
+    expect(useSharedSettings.getState().sidebarShortcutOrder).toEqual([
+      "schedules",
+      "pullRequests",
+      "githubActions",
+    ]);
   });
 
   it("updates audio settings", () => {

@@ -577,9 +577,15 @@ msgid "{usedLabel} tokens"
 msgstr "{usedLabel} токенів"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} із {totalCount} видимих"
+
+#. placeholder {0}: sidebarShortcutSettings.length
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#~ msgid "{visibleSidebarShortcutCount}/{0} selected"
+#~ msgstr "Вибрано {visibleSidebarShortcutCount}/{0}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -2120,6 +2126,11 @@ msgstr "Виберіть, що Poracode робитиме з новими pull re
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "Виберіть, чи посилання з Poracode і спливні вікна браузера залишаються в Poracode, чи відкриваються зовні."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose which shortcuts appear in the sidebar footer."
+msgstr "Виберіть ярлики для відображення в нижній частині бічної панелі."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -4927,13 +4938,14 @@ msgstr "Стан Git для {0}: не репозиторій Git"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "GitHub Actions shortcut"
-msgstr "Ярлик GitHub Actions"
+#~ msgid "GitHub Actions shortcut"
+#~ msgstr "Ярлик GitHub Actions"
 
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
@@ -5098,6 +5110,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "Сховати коло {label} на бічній панелі"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "Сховати все"
@@ -8372,13 +8385,14 @@ msgstr "Параметри pull request"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
 msgstr "Pull request"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Pull requests shortcut"
-msgstr "Ярлик pull request"
+#~ msgid "Pull requests shortcut"
+#~ msgstr "Ярлик pull request"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -8883,7 +8897,9 @@ msgid "Renderer hit an unhandled promise rejection"
 msgstr "Рендерер зіткнувся з необробленим відхиленням проміса"
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: shortcut.label
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Reorder {0}"
 msgstr "Змінити порядок {0}"
 
@@ -9436,13 +9452,14 @@ msgstr "Заплановані завдання на цьому комп’ют�
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "Розклади"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Schedules shortcut"
-msgstr "Ярлик розкладів"
+#~ msgid "Schedules shortcut"
+#~ msgstr "Ярлик розкладів"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -9815,6 +9832,7 @@ msgstr "Показувати домашню область без проєкту
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "Показати все"
@@ -9852,8 +9870,8 @@ msgstr "Показувати орієнтовну вартість"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show GitHub Actions in the sidebar footer."
-msgstr "Показувати GitHub Actions унизу бічної панелі."
+#~ msgid "Show GitHub Actions in the sidebar footer."
+#~ msgstr "Показувати GitHub Actions унизу бічної панелі."
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -9903,8 +9921,8 @@ msgstr "Показати попередній перегляд"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show Pull requests in the sidebar footer."
-msgstr "Показувати pull request унизу бічної панелі."
+#~ msgid "Show Pull requests in the sidebar footer."
+#~ msgstr "Показувати pull request унизу бічної панелі."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
@@ -9912,8 +9930,8 @@ msgstr "Показати панель налагодження середови�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show Schedules in the sidebar footer."
-msgstr "Показувати розклади унизу бічної панелі."
+#~ msgid "Show Schedules in the sidebar footer."
+#~ msgstr "Показувати розклади унизу бічної панелі."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -9970,6 +9988,12 @@ msgstr "Кола на бічній панелі вимкнено глобаль�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "Матовість бічної панелі"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+msgid "Sidebar shortcuts"
+msgstr "Ярлики бічної панелі"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx

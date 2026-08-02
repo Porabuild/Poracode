@@ -229,6 +229,7 @@ export function Sidebar() {
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const sidebarHiddenShortcuts = useSharedSettings((s) => s.sidebarHiddenShortcuts);
+  const sidebarShortcutOrder = useSharedSettings((s) => s.sidebarShortcutOrder);
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
@@ -276,26 +277,41 @@ export function Sidebar() {
       </span>
     </span>
   );
-  const sidebarShortcuts = [
-    {
-      id: "pullRequests" as const,
-      icon: <GitPullRequest className="size-4" />,
-      label: t`Pull requests`,
-      onPress: () => startTransition(() => openPullRequests()),
-    },
-    {
-      id: "githubActions" as const,
-      icon: <Workflow className="size-4" />,
-      label: t`GitHub Actions`,
-      onPress: () => startTransition(() => openGitHubActions(currentProjectId)),
-    },
-    {
-      id: "schedules" as const,
-      icon: <CalendarClock className="size-4" />,
-      label: t`Schedules`,
-      onPress: () => startTransition(() => openSchedules()),
-    },
-  ].filter((shortcut) => !sidebarHiddenShortcuts.includes(shortcut.id));
+  const sidebarShortcutsById = new Map([
+    [
+      "pullRequests" as const,
+      {
+        id: "pullRequests" as const,
+        icon: <GitPullRequest className="size-4" />,
+        label: t`Pull requests`,
+        onPress: () => startTransition(() => openPullRequests()),
+      },
+    ],
+    [
+      "githubActions" as const,
+      {
+        id: "githubActions" as const,
+        icon: <Workflow className="size-4" />,
+        label: t`GitHub Actions`,
+        onPress: () => startTransition(() => openGitHubActions(currentProjectId)),
+      },
+    ],
+    [
+      "schedules" as const,
+      {
+        id: "schedules" as const,
+        icon: <CalendarClock className="size-4" />,
+        label: t`Schedules`,
+        onPress: () => startTransition(() => openSchedules()),
+      },
+    ],
+  ]);
+  const sidebarShortcuts = sidebarShortcutOrder
+    .map((id) => sidebarShortcutsById.get(id))
+    .filter(
+      (shortcut): shortcut is NonNullable<typeof shortcut> =>
+        shortcut !== undefined && !sidebarHiddenShortcuts.includes(shortcut.id),
+    );
 
   useEffect(() => {
     if (currentProjectId) {
