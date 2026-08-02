@@ -8,6 +8,7 @@ import {
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { clearEagerShellStart, wasShellStartedEagerly } from "@/renderer/utils/shellUtils";
@@ -49,6 +50,13 @@ export function DevTerminalPanel(props: {
     return !tab.worktreePath;
   });
   const activeProject = projects.find((p) => p.id === activeProjectId);
+  const remoteServerId = activeProject?.remoteServerId;
+  const watchTerminal =
+    props.watchTerminal ??
+    (remoteServerId
+      ? (terminalId: string, listener: TerminalFeedListener) =>
+          watchRemoteTerminal(remoteServerId, terminalId, listener)
+      : undefined);
   const activeScopeLabel = activeProject
     ? formatProjectScopeLabel(activeProject.name, activeWorktreePath ?? undefined)
     : undefined;
@@ -225,7 +233,7 @@ export function DevTerminalPanel(props: {
         getTabContextItems={getTabContextItems}
         handleTabContextAction={handleTabContextAction}
         onTerminalResize={handleTerminalResize}
-        {...(props.watchTerminal ? { watchTerminal: props.watchTerminal } : {})}
+        {...(watchTerminal ? { watchTerminal } : {})}
       />
     );
   }
@@ -246,7 +254,7 @@ export function DevTerminalPanel(props: {
       handleCloseTab={handleCloseTab}
       handleSelectionChange={handleSelectionChange}
       onTerminalResize={handleTerminalResize}
-      {...(props.watchTerminal ? { watchTerminal: props.watchTerminal } : {})}
+      {...(watchTerminal ? { watchTerminal } : {})}
     />
   );
 }

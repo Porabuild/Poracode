@@ -133,6 +133,9 @@ let openRemoteThreadRequestSeq = 0;
 let connectAllInFlight: Promise<void> | null = null;
 const REMOTE_SOCKET_RECONNECT_BASE_MS = 1000;
 const REMOTE_SOCKET_RECONNECT_MAX_MS = 20_000;
+const REMOTE_SOCKET_HEALTH_PING_INTERVAL_MS = 25_000;
+const REMOTE_SOCKET_HEALTH_PING_TIMEOUT_MS = 5_000;
+const REMOTE_SOCKET_CONNECT_TIMEOUT_MS = 15_000;
 
 interface RemoteServerEventSocketEntry {
   readonly serverKey: string;
@@ -140,6 +143,10 @@ interface RemoteServerEventSocketEntry {
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   reconnectAttempt: number;
   connecting: boolean;
+  connectTimeout: ReturnType<typeof setTimeout> | null;
+  healthPingInterval: ReturnType<typeof setInterval> | null;
+  healthPingTimeout: ReturnType<typeof setTimeout> | null;
+  pendingHealthPingId: string | null;
 }
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();
@@ -265,6 +272,24 @@ function remoteServerEventSocketReconnectDelay(attempt: number): number {
   });
 }
 
+function clearRemoteServerEventSocketHealth(entry: RemoteServerEventSocketEntry): void {
+  if (entry.healthPingInterval) {
+    clearInterval(entry.healthPingInterval);
+    entry.healthPingInterval = null;
+  }
+  if (entry.healthPingTimeout) {
+    clearTimeout(entry.healthPingTimeout);
+    entry.healthPingTimeout = null;
+  }
+  entry.pendingHealthPingId = null;
+}
+
+function clearRemoteServerEventSocketConnectTimeout(entry: RemoteServerEventSocketEntry): void {
+  if (!entry.connectTimeout) return;
+  clearTimeout(entry.connectTimeout);
+  entry.connectTimeout = null;
+}
+
 function closeRemoteServerEventSocket(desktopId: string): void {
   // A pending debounced snapshot refresh for this server is now moot; cancel it
   // so a closed/removed server never fires a late GET (finding #5).
@@ -277,6 +302,8 @@ function closeRemoteServerEventSocket(desktopId: string): void {
     clearTimeout(entry.reconnectTimer);
     entry.reconnectTimer = null;
   }
+  clearRemoteServerEventSocketConnectTimeout(entry);
+  clearRemoteServerEventSocketHealth(entry);
   resetRemoteTerminalFeed(desktopId);
   if (!entry.socket) return;
   try {
@@ -384,6 +411,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           reconnectTimer: null,
           reconnectAttempt: 0,
           connecting: false,
+          connectTimeout: null,
+          healthPingInterval: null,
+          healthPingTimeout: null,
+          pendingHealthPingId: null,
         };
         remoteServerEventSockets.set(server.desktopId, entry);
         let resyncInFlight = false;
@@ -392,8 +423,29 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           remoteServerEventSockets.get(server.desktopId) === entry &&
           get().servers.some((candidate) => candidate.desktopId === server.desktopId);
 
+        const setSocketStatus = (status: "connecting" | "online") => {
+          set((state) => {
+            const current = state.runtime[server.desktopId];
+            if (!current || (current.status === status && current.message === undefined)) return {};
+            return {
+              runtime: {
+                ...state.runtime,
+                [server.desktopId]: {
+                  status,
+                  projects: current.projects,
+                  threads: current.threads,
+                  ...(current.agentStatuses ? { agentStatuses: current.agentStatuses } : {}),
+                },
+              },
+            };
+          });
+        };
+
         const scheduleReconnect = () => {
           if (!isCurrent()) return;
+          if (get().runtime[server.desktopId]?.status === "online") {
+            setSocketStatus("connecting");
+          }
           if (entry.reconnectTimer) clearTimeout(entry.reconnectTimer);
           const delay = remoteServerEventSocketReconnectDelay(entry.reconnectAttempt);
           entry.reconnectAttempt += 1;
@@ -401,6 +453,49 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             entry.reconnectTimer = null;
             void connect();
           }, delay);
+        };
+
+        const disconnectSocket = (socket: RemoteSocketLike) => {
+          if (!isCurrent() || entry.socket !== socket) return;
+          entry.socket = null;
+          clearRemoteServerEventSocketConnectTimeout(entry);
+          clearRemoteServerEventSocketHealth(entry);
+          setRemoteTerminalSocketSender(server.desktopId, null);
+          scheduleReconnect();
+        };
+
+        const forceReconnect = (socket: RemoteSocketLike) => {
+          disconnectSocket(socket);
+          try {
+            socket.close();
+          } catch {
+            // already closed
+          }
+        };
+
+        const startHealthProbe = (socket: RemoteSocketLike) => {
+          clearRemoteServerEventSocketHealth(entry);
+          const sendHealthPing = () => {
+            if (!isCurrent() || entry.socket !== socket || !socket.send) return;
+            if (socket.readyState !== undefined && socket.readyState !== 1) return;
+            if (entry.pendingHealthPingId !== null) return;
+            const id = crypto.randomUUID();
+            entry.pendingHealthPingId = id;
+            try {
+              socket.send(JSON.stringify({ type: "ping", id, sentAt: Date.now() }));
+            } catch {
+              forceReconnect(socket);
+              return;
+            }
+            entry.healthPingTimeout = setTimeout(() => {
+              if (entry.pendingHealthPingId !== id) return;
+              forceReconnect(socket);
+            }, REMOTE_SOCKET_HEALTH_PING_TIMEOUT_MS);
+          };
+          entry.healthPingInterval = setInterval(
+            sendHealthPing,
+            REMOTE_SOCKET_HEALTH_PING_INTERVAL_MS,
+          );
         };
 
         const connect = async () => {
@@ -421,14 +516,20 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               return;
             }
             entry.socket = socket;
-            entry.reconnectAttempt = 0;
-            const activateTerminalFeed = () => {
+            entry.connectTimeout = setTimeout(() => {
+              forceReconnect(socket);
+            }, REMOTE_SOCKET_CONNECT_TIMEOUT_MS);
+            const activateSocket = () => {
               if (!isCurrent() || entry.socket !== socket) return;
+              clearRemoteServerEventSocketConnectTimeout(entry);
+              entry.reconnectAttempt = 0;
               activateRemoteTerminalFeed(server.desktopId, socket);
+              startHealthProbe(socket);
+              setSocketStatus("online");
             };
-            socket.onopen = activateTerminalFeed;
+            socket.onopen = activateSocket;
             if (socket.readyState === undefined || socket.readyState === 1) {
-              activateTerminalFeed();
+              activateSocket();
             }
             const resyncOpenThread = async () => {
               if (resyncInFlight) return;
@@ -471,6 +572,19 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             socket.onmessage = (event) => {
               try {
                 const message = client.parseSocketMessage(String(event.data));
+                if (message.type === "pong") {
+                  if (
+                    entry.pendingHealthPingId !== null &&
+                    message.id === entry.pendingHealthPingId
+                  ) {
+                    entry.pendingHealthPingId = null;
+                    if (entry.healthPingTimeout) {
+                      clearTimeout(entry.healthPingTimeout);
+                      entry.healthPingTimeout = null;
+                    }
+                  }
+                  return;
+                }
                 if (handleRemoteTerminalServerMessage(server.desktopId, message)) {
                   return;
                 }
@@ -545,10 +659,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               }
             };
             socket.onclose = () => {
-              if (!isCurrent() || entry.socket !== socket) return;
-              entry.socket = null;
-              setRemoteTerminalSocketSender(server.desktopId, null);
-              scheduleReconnect();
+              disconnectSocket(socket);
             };
           } catch {
             scheduleReconnect();

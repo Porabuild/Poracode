@@ -154,8 +154,8 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function makeSocket(): RemoteSocketLike {
-  return { close: vi.fn<() => void>(), onmessage: null, onclose: null };
+function makeSocket(overrides: Partial<RemoteSocketLike> = {}): RemoteSocketLike {
+  return { close: vi.fn<() => void>(), onmessage: null, onclose: null, ...overrides };
 }
 
 function makeClient(opts?: {
@@ -640,6 +640,85 @@ describe("useRemoteServersStore", () => {
 
     expect(socketFactory).toHaveBeenCalledTimes(2);
     expect(websocketUrl).toHaveBeenNthCalledWith(2, "ticket-2", 7);
+  });
+
+  it("times out and reconnects a server event stream whose handshake never opens", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket({ readyState: 0, onopen: null });
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(sockets[0]?.close).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets[0]?.close).toHaveBeenCalledTimes(1);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    await Promise.resolve();
+    expect(socketFactory).toHaveBeenCalledTimes(2);
+  });
+
+  it("reconnects a half-open server event stream when its health pong never arrives", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket({
+        send: vi.fn<(data: string) => void>(),
+        readyState: 1,
+      });
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(sockets[0]?.send).toHaveBeenCalledWith(expect.stringContaining('"type":"ping"'));
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sockets[0]?.close).toHaveBeenCalledTimes(1);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    await Promise.resolve();
+    expect(socketFactory).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the server event stream online after its correlated health pong", async () => {
+    vi.useFakeTimers();
+    const send = vi.fn<(data: string) => void>();
+    const socket = makeSocket({ send, readyState: 1 });
+    useRemoteServersStore.getState().setSocketFactory(() => socket);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(25_000);
+
+    const ping = JSON.parse(String(send.mock.calls[0]?.[0])) as { id: string };
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "pong", id: ping.id, receivedAt: Date.now() }),
+    });
+    await vi.advanceTimersByTimeAsync(5_001);
+
+    expect(socket.close).not.toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
   });
 
   it("runs a remote project command then refreshes the snapshot", async () => {
