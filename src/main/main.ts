@@ -32,6 +32,7 @@ import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeD
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { createSleepInhibitor } from "./sleepInhibitor";
+import { shouldPreventSystemSleep } from "./sleepPolicy";
 import {
   installLocalFileProtocolHandler,
   registerLocalFileProtocolScheme,
@@ -611,10 +612,12 @@ function requirePoracodePaths(): PoracodePaths {
 }
 
 function updatePowerSaveBlocker(): void {
-  const enabled = poracodePaths
-    ? readSharedSettingsFile(poracodePaths.settingsPath).preventSleepWhileWorking
-    : true;
-  sleepInhibitor.setActive(enabled && workingThreads.size > 0);
+  if (!poracodePaths) {
+    sleepInhibitor.setActive(workingThreads.size > 0);
+    return;
+  }
+  const settings = readSharedSettingsFile(poracodePaths.settingsPath);
+  sleepInhibitor.setActive(shouldPreventSystemSleep(settings, workingThreads.size));
 }
 
 function handleSupervisorEventForSleep(event: SupervisorEvent): void {
@@ -1058,6 +1061,7 @@ if (!hasSingleInstanceLock) {
         },
         getBrowserPanelManager: () => browserPanelManager,
         notifySharedSettingsChanged: (settings) => {
+          updatePowerSaveBlocker();
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, settings);
         },
         notifyRemoteAccessPairingChanged: (info) => {
@@ -1211,6 +1215,7 @@ if (!hasSingleInstanceLock) {
       // The remote controller performs one bounded warm-up when enabled.
       // Recurring Git refreshes remain demand-driven by connected clients.
 
+      updatePowerSaveBlocker();
       void controller.startIfEnabled();
 
       initialMainWindow.once("ready-to-show", () => {

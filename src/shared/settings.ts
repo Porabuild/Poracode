@@ -294,6 +294,8 @@ export const sharedSettingsSchema = z.object({
   terminalPanelFontSize: z.number().int().min(8).max(20),
   /** Prevent OS sleep while any thread is actively working. */
   preventSleepWhileWorking: z.boolean(),
+  /** Prevent OS sleep while the desktop remote access server is enabled. */
+  remoteAccessPreventSleep: z.boolean(),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -588,6 +590,7 @@ export const defaultSharedSettings: SharedSettings = {
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
   preventSleepWhileWorking: true,
+  remoteAccessPreventSleep: true,
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,

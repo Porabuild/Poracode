@@ -5601,6 +5601,11 @@ msgstr "시작 시 Poracode를 시스템 트레이에 둡니다."
 msgid "Keep the system awake while any thread is actively working."
 msgstr "스레드가 활발하게 작동하는 동안 시스템을 활성 상태로 유지합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "원격 액세스가 활성화된 동안 시스템이 절전 모드로 전환되지 않도록 합니다."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
 msgstr "계속 기다리기"
@@ -8089,6 +8094,11 @@ msgstr "프리셋"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "단축키를 누르세요…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "원격 액세스 중 절전 모드 방지"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
