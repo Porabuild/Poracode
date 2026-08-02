@@ -577,9 +577,15 @@ msgid "{usedLabel} tokens"
 msgstr "{usedLabel} tokenów"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "Widoczne {visibleCount} z {totalCount}"
+
+#. placeholder {0}: sidebarShortcutSettings.length
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#~ msgid "{visibleSidebarShortcutCount}/{0} selected"
+#~ msgstr "Wybrano {visibleSidebarShortcutCount}/{0}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -2110,6 +2116,11 @@ msgstr "Wybierz, co Poracode ma robić z nowymi pull requestami: nic, naprawiać
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "Wybierz, czy linki z Poracode i wyskakujących okienek przeglądarki mają pozostać w Poracode, czy otwierać się na zewnątrz."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose which shortcuts appear in the sidebar footer."
+msgstr "Wybierz skróty wyświetlane w stopce paska bocznego."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -4912,13 +4923,14 @@ msgstr "Status Git dla {0}: to nie jest repozytorium Git"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "GitHub Actions shortcut"
-msgstr "Skrót GitHub Actions"
+#~ msgid "GitHub Actions shortcut"
+#~ msgstr "Skrót GitHub Actions"
 
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
@@ -5083,6 +5095,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "Ukryj krąg {label} na pasku bocznym"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "Ukryj wszystko"
@@ -8326,13 +8339,14 @@ msgstr "Opcje żądania ściągnięcia"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
 msgstr "Żądania ściągnięcia"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Pull requests shortcut"
-msgstr "Skrót żądań ściągnięcia"
+#~ msgid "Pull requests shortcut"
+#~ msgstr "Skrót żądań ściągnięcia"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -8822,7 +8836,9 @@ msgid "Renderer hit an unhandled promise rejection"
 msgstr "Moduł renderujący napotkał nieobsłużone odrzucenie obietnicy"
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: shortcut.label
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Reorder {0}"
 msgstr "Zmień kolejność {0}"
 
@@ -9375,13 +9391,14 @@ msgstr "Zaplanowane zadania na tym komputerze"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "Harmonogramy"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Schedules shortcut"
-msgstr "Skrót harmonogramów"
+#~ msgid "Schedules shortcut"
+#~ msgstr "Skrót harmonogramów"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -9754,6 +9771,7 @@ msgstr "Wyświetl bezprojektowy zakres główny dla sesji agenta na poziomie sys
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "Pokaż wszystko"
@@ -9791,8 +9809,8 @@ msgstr "Pokaż szacunkowy koszt"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show GitHub Actions in the sidebar footer."
-msgstr "Pokaż GitHub Actions w stopce paska bocznego."
+#~ msgid "Show GitHub Actions in the sidebar footer."
+#~ msgstr "Pokaż GitHub Actions w stopce paska bocznego."
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -9842,8 +9860,8 @@ msgstr "Pokaż podgląd"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show Pull requests in the sidebar footer."
-msgstr "Pokaż żądania ściągnięcia w stopce paska bocznego."
+#~ msgid "Show Pull requests in the sidebar footer."
+#~ msgstr "Pokaż żądania ściągnięcia w stopce paska bocznego."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
@@ -9851,8 +9869,8 @@ msgstr "Pokaż panel debugowania środowiska wykonawczego"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show Schedules in the sidebar footer."
-msgstr "Pokaż harmonogramy w stopce paska bocznego."
+#~ msgid "Show Schedules in the sidebar footer."
+#~ msgstr "Pokaż harmonogramy w stopce paska bocznego."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -9909,6 +9927,12 @@ msgstr "Kręgi na pasku bocznym są wyłączone globalnie powyżej"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "Zmatowienie paska bocznego"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+msgid "Sidebar shortcuts"
+msgstr "Skróty paska bocznego"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx

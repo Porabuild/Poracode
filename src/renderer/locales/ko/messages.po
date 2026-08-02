@@ -577,9 +577,15 @@ msgid "{usedLabel} tokens"
 msgstr "{usedLabel} 토큰"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount}개 중 {visibleCount}개 표시"
+
+#. placeholder {0}: sidebarShortcutSettings.length
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#~ msgid "{visibleSidebarShortcutCount}/{0} selected"
+#~ msgstr "{visibleSidebarShortcutCount}/{0}개 선택됨"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -2110,6 +2116,11 @@ msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "Poracode 및 브라우저 팝업의 링크를 Poracode에 유지할지 아니면 외부에서 열지 선택합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose which shortcuts appear in the sidebar footer."
+msgstr "사이드바 바닥글에 표시할 바로가기를 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -4912,13 +4923,14 @@ msgstr "{0}에 대한 Git 상태: Git 저장소가 아닙니다."
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "GitHub Actions shortcut"
-msgstr "GitHub Actions 바로가기"
+#~ msgid "GitHub Actions shortcut"
+#~ msgstr "GitHub Actions 바로가기"
 
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
@@ -5083,6 +5095,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "사이드바에서 {label} 원 숨기기"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "모두 숨기기"
@@ -8326,13 +8339,14 @@ msgstr "풀 요청 옵션"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
 msgstr "풀 리퀘스트"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Pull requests shortcut"
-msgstr "풀 리퀘스트 바로가기"
+#~ msgid "Pull requests shortcut"
+#~ msgstr "풀 리퀘스트 바로가기"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -8822,7 +8836,9 @@ msgid "Renderer hit an unhandled promise rejection"
 msgstr "렌더러에서 처리되지 않은 프로미스 거부가 발생했습니다."
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: shortcut.label
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Reorder {0}"
 msgstr "{0} 재정렬"
 
@@ -9375,13 +9391,14 @@ msgstr "이 데스크톱의 예약 작업"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "일정"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Schedules shortcut"
-msgstr "일정 바로가기"
+#~ msgid "Schedules shortcut"
+#~ msgstr "일정 바로가기"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -9754,6 +9771,7 @@ msgstr "OS 수준 에이전트 세션에 대해 프로젝트 없는 홈 범위�
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "모두 표시"
@@ -9791,8 +9809,8 @@ msgstr "예상 비용 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show GitHub Actions in the sidebar footer."
-msgstr "사이드바 바닥글에 GitHub Actions를 표시합니다."
+#~ msgid "Show GitHub Actions in the sidebar footer."
+#~ msgstr "사이드바 바닥글에 GitHub Actions를 표시합니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -9842,8 +9860,8 @@ msgstr "미리보기 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show Pull requests in the sidebar footer."
-msgstr "사이드바 바닥글에 풀 리퀘스트를 표시합니다."
+#~ msgid "Show Pull requests in the sidebar footer."
+#~ msgstr "사이드바 바닥글에 풀 리퀘스트를 표시합니다."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
@@ -9851,8 +9869,8 @@ msgstr "런타임 디버그 패널 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show Schedules in the sidebar footer."
-msgstr "사이드바 바닥글에 일정을 표시합니다."
+#~ msgid "Show Schedules in the sidebar footer."
+#~ msgstr "사이드바 바닥글에 일정을 표시합니다."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -9909,6 +9927,12 @@ msgstr "위에서 사이드바 원이 전체적으로 꺼져 있습니다"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "사이드바 프로스트"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+msgid "Sidebar shortcuts"
+msgstr "사이드바 바로가기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx

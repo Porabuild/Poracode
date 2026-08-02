@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { readBridge } from "../bridge";
 import {
   defaultSharedSettings,
+  normalizeSidebarShortcutOrder,
   normalizeSharedSettings,
   type CliPickerTarget,
   type SidebarShortcutId,
@@ -88,6 +89,7 @@ interface SharedSettingsState extends SharedSettings {
   setNewThreadMode: (value: NewThreadMode) => void;
   setHomeScopeEnabled: (value: boolean) => void;
   setSidebarShortcutVisible: (id: SidebarShortcutId, visible: boolean) => void;
+  setSidebarShortcutOrder: (order: SidebarShortcutId[]) => void;
   setSidebarTranslucency: (value: boolean) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
@@ -480,6 +482,13 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
         ? current.filter((shortcutId) => shortcutId !== id)
         : [...current, id],
     });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setSidebarShortcutOrder: (order) => {
+    const next = normalizeSidebarShortcutOrder(order);
+    const current = get().sidebarShortcutOrder;
+    if (current.length === next.length && current.every((id, index) => id === next[index])) return;
+    set({ sidebarShortcutOrder: next });
     persistSettings(selectSharedSettings(get()));
   },
   setSidebarTranslucency: (sidebarTranslucency) => {
@@ -885,6 +894,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,
     sidebarHiddenShortcuts: state.sidebarHiddenShortcuts,
+    sidebarShortcutOrder: state.sidebarShortcutOrder,
     sidebarTranslucency: state.sidebarTranslucency,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,

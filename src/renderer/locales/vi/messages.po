@@ -577,9 +577,15 @@ msgid "{usedLabel} tokens"
 msgstr "{usedLabel} mã thông báo"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} trong số {totalCount} hiển thị"
+
+#. placeholder {0}: sidebarShortcutSettings.length
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#~ msgid "{visibleSidebarShortcutCount}/{0} selected"
+#~ msgstr "Đã chọn {visibleSidebarShortcutCount}/{0}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -2110,6 +2116,11 @@ msgstr "Chọn việc Poracode sẽ làm với pull request mới: không làm g
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "Chọn xem các liên kết từ Poracode và cửa sổ bật lên của trình duyệt vẫn ở trong Poracode hay mở bên ngoài."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose which shortcuts appear in the sidebar footer."
+msgstr "Chọn các lối tắt xuất hiện ở chân thanh bên."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -4912,13 +4923,14 @@ msgstr "Trạng thái Git cho {0}: không phải kho lưu trữ Git"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "GitHub Actions shortcut"
-msgstr "Lối tắt GitHub Actions"
+#~ msgid "GitHub Actions shortcut"
+#~ msgstr "Lối tắt GitHub Actions"
 
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
@@ -5083,6 +5095,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "Ẩn vòng tròn {label} ở thanh bên"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "Ẩn tất cả"
@@ -8326,13 +8339,14 @@ msgstr "Tùy chọn pull request"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
 msgstr "Pull request"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Pull requests shortcut"
-msgstr "Lối tắt pull request"
+#~ msgid "Pull requests shortcut"
+#~ msgstr "Lối tắt pull request"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -8822,7 +8836,9 @@ msgid "Renderer hit an unhandled promise rejection"
 msgstr "Trình kết xuất gặp một promise rejection chưa được xử lý"
 
 #. placeholder {0}: agent.label
+#. placeholder {0}: shortcut.label
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Reorder {0}"
 msgstr "Sắp xếp lại {0}"
 
@@ -9375,13 +9391,14 @@ msgstr "Tác vụ đã lên lịch trên máy tính này"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "Lịch biểu"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Schedules shortcut"
-msgstr "Lối tắt lịch biểu"
+#~ msgid "Schedules shortcut"
+#~ msgstr "Lối tắt lịch biểu"
 
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
@@ -9754,6 +9771,7 @@ msgstr "Hiển thị phạm vi Trang chủ không có dự án cho các phiên t
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "Hiển thị tất cả"
@@ -9791,8 +9809,8 @@ msgstr "Hiển thị chi phí ước tính"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show GitHub Actions in the sidebar footer."
-msgstr "Hiển thị GitHub Actions ở chân thanh bên."
+#~ msgid "Show GitHub Actions in the sidebar footer."
+#~ msgstr "Hiển thị GitHub Actions ở chân thanh bên."
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -9842,8 +9860,8 @@ msgstr "Hiển thị bản xem trước"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show Pull requests in the sidebar footer."
-msgstr "Hiển thị pull request ở chân thanh bên."
+#~ msgid "Show Pull requests in the sidebar footer."
+#~ msgstr "Hiển thị pull request ở chân thanh bên."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Show runtime debug panel"
@@ -9851,8 +9869,8 @@ msgstr "Hiển thị bảng gỡ lỗi thời gian chạy"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Show Schedules in the sidebar footer."
-msgstr "Hiển thị lịch biểu ở chân thanh bên."
+#~ msgid "Show Schedules in the sidebar footer."
+#~ msgstr "Hiển thị lịch biểu ở chân thanh bên."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -9909,6 +9927,12 @@ msgstr "Vòng tròn thanh bên đã bị tắt toàn cục ở trên"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "Độ mờ thanh bên"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+msgid "Sidebar shortcuts"
+msgstr "Lối tắt thanh bên"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
