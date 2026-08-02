@@ -5601,6 +5601,11 @@ msgstr "Po uruchomieniu przy starcie pozostaw Poracode w zasobniku systemowym."
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Utrzymuj system w stanie czuwania, gdy dowolny wątek aktywnie działa."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "Utrzymuj system w stanie aktywnym, gdy dostęp zdalny jest włączony."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
 msgstr "Czekaj dalej"
@@ -8089,6 +8094,11 @@ msgstr "Ustawienia predefiniowane"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Naciśnij skrót…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "Zapobiegaj uśpieniu podczas dostępu zdalnego"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

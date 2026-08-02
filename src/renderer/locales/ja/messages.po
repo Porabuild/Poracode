@@ -5600,6 +5600,11 @@ msgstr "スタートアップ時は Poracode をシステムトレイに格納�
 msgid "Keep the system awake while any thread is actively working."
 msgstr "スレッドがアクティブに動作している間は、システムを起動したままにします。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "リモートアクセスが有効な間、システムをスリープさせません。"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
 msgstr "待機を続ける"
@@ -8087,6 +8092,11 @@ msgstr "プリセット"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "ショートカットを押してください…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "リモートアクセス中のスリープを防止"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

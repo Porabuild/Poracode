@@ -110,7 +110,12 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       focusRequestId: state.focusRequestId + 1,
     })),
   closePanel: () =>
-    set({ isOpen: false, explicitlyOpened: false, activeProjectId: null, activeWorktreePath: null }),
+    set({
+      isOpen: false,
+      explicitlyOpened: false,
+      activeProjectId: null,
+      activeWorktreePath: null,
+    }),
 
   setActiveProject: (projectId) => {
     const tabs = get().tabs.filter((t) => t.projectId === projectId);

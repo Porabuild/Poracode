@@ -137,6 +137,16 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     desktopOnly: true,
   },
 
+  // Remote Access
+  {
+    section: "remoteAccess",
+    anchor: "remoteAccess.preventSleep",
+    title: msg`Prevent sleep during remote access`,
+    description: msg`Keep the system awake while remote access is enabled.`,
+    keywords: "sleep awake wake idle power server connection",
+    desktopOnly: true,
+  },
+
   // Audio
   {
     section: "audio",

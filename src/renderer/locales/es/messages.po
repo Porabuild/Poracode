@@ -5601,6 +5601,11 @@ msgstr "Mantener Poracode en la bandeja del sistema cuando se inicie automática
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Mantener el sistema activo mientras cualquier hilo esté trabajando."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "Mantén el sistema activo mientras el acceso remoto esté habilitado."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
 msgstr "Seguir esperando"
@@ -8089,6 +8094,11 @@ msgstr "Preajustes"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Pulsa el atajo…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "Impedir la suspensión durante el acceso remoto"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

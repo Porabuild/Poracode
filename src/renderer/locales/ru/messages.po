@@ -5601,6 +5601,11 @@ msgstr "При запуске вместе с системой оставлят�
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Не давать системе засыпать, пока хотя бы один тред активно работает."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "Не переводить систему в спящий режим, пока включён удалённый доступ."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
 msgstr "Продолжить ожидание"
@@ -8089,6 +8094,11 @@ msgstr "Пресеты"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Нажмите сочетание клавиш…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "Запрещать спящий режим при удалённом доступе"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

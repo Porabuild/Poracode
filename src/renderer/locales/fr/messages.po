@@ -5601,6 +5601,11 @@ msgstr "Garder Poracode dans la zone de notification lors de son lancement au d�
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Gardez le système éveillé pendant qu'un thread fonctionne activement."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "Garder le système éveillé tant que l’accès à distance est activé."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
 msgstr "Continuer à attendre"
@@ -8088,6 +8093,11 @@ msgstr "Préréglages"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Appuyez sur le raccourci…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "Empêcher la mise en veille pendant l’accès à distance"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

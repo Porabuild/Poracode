@@ -5601,6 +5601,11 @@ msgstr "开机启动时将 Poracode 保持在系统托盘中。"
 msgid "Keep the system awake while any thread is actively working."
 msgstr "当任何线程正在工作时保持系统唤醒状态（不休眠）。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "启用远程访问时保持系统唤醒。"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
 msgstr "继续等待"
@@ -8088,6 +8093,11 @@ msgstr "预设"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "请按快捷键…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "防止远程访问期间休眠"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
