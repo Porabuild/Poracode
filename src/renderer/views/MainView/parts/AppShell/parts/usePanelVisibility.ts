@@ -8,6 +8,7 @@ import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 export function usePanelVisibility() {
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
+  const devTerminalExplicitlyOpened = useDevTerminalStore((s) => s.explicitlyOpened);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
   const filesPanelContext = usePanelStore((s) => s.filesPanelContext);
@@ -70,9 +71,14 @@ export function usePanelVisibility() {
     todoDockPlacement === "right" &&
     todoDockState !== null &&
     todoDockState.sourceItemId !== retiredTodoSourceItemId;
+  // An explicitly opened terminal shows regardless of the focused thread — the
+  // user asked for it. Once the follow lock re-scopes it (setPanelScope clears
+  // the marker), visibility depends on matching the focused thread's scope.
   const bottomTerminalOpen =
     devTerminalOpen &&
-    (!rightPanelFollowsThread || (currentThreadId !== null && activeTerminalScopeHasTabs));
+    (!rightPanelFollowsThread ||
+      devTerminalExplicitlyOpened ||
+      (currentThreadId !== null && activeTerminalScopeHasTabs));
 
   const rightPanelOpen = isTerminalRight
     ? devTerminalOpen ||

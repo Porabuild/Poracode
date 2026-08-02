@@ -17,7 +17,9 @@ import type { RemoteDesktopClient, StartRemoteNewThreadInput } from "@/shared/re
 import type {
   RemoteAccessScope,
   RemoteAgentStatuses,
+  RemoteHostUpdateState,
   RemoteHostMode,
+  RemoteImageRefValue,
   RemoteProjectCommand,
   RemoteRuntimeItemsPageRequest,
   RemoteShellSnapshot,
@@ -35,6 +37,8 @@ export interface RemoteServerRecord {
   readonly endpoint: string;
   readonly accessToken: string;
   readonly scopes: RemoteAccessScope[];
+  /** Last version reported by the host environment descriptor. */
+  readonly appVersion?: string;
   /** Absent on records paired before standalone helpers advertised their host mode. */
   readonly hostMode?: RemoteHostMode;
   /** Absent on records persisted before transport metadata existed. */
@@ -75,6 +79,7 @@ export type RemoteSocketFactory = (url: string) => RemoteSocketLike;
 export interface RemoteServersState {
   servers: RemoteServerRecord[];
   runtime: Record<string, RemoteServerRuntime>;
+  hostUpdates: Record<string, RemoteHostUpdateState>;
   /**
    * Remote (server-side) project ids the user excluded from sync, keyed by
    * desktopId. Local-only state, so a project can be dropped from — or restored
@@ -151,6 +156,9 @@ export interface RemoteServersState {
   ): void;
   connectAll(): Promise<void>;
   reconnectServer(desktopId: string): Promise<void>;
+  getHostUpdateState(desktopId: string): ReturnType<RemoteDesktopClient["hostUpdateState"]>;
+  checkHostUpdate(desktopId: string): ReturnType<RemoteDesktopClient["checkHostUpdate"]>;
+  installHostUpdate(desktopId: string): Promise<void>;
   runProjectCommand(desktopId: string, command: RemoteProjectCommand): Promise<void>;
   loadProjectSettings(desktopId: string, projectId: string): Promise<void>;
   browseHostDirectory(desktopId: string, path: string): Promise<BrowseHostDirectoryResult>;
@@ -165,6 +173,7 @@ export interface RemoteServersState {
   ): Promise<string>;
   pickAndUploadFiles(desktopId: string, attachmentThreadId: string): Promise<string[] | null>;
   localImageUrl(desktopId: string, path: string): string;
+  imageRefUrl(desktopId: string, ref: RemoteImageRefValue): string;
   interruptThread(desktopId: string, threadId: string): Promise<void>;
   closeThread(desktopId: string, threadId: string): Promise<void>;
 }

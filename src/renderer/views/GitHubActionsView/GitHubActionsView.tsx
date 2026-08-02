@@ -40,6 +40,7 @@ export function GitHubActionsView(props: {
     selectedWorkflow,
     selectedWorkflowId,
     workflows,
+    cancelWorkflow,
     confirmDeleteRun,
     dispatchWorkflow,
     refresh,
@@ -210,6 +211,7 @@ export function GitHubActionsView(props: {
               pendingRunId={pendingRunId}
               onSelectRun={selectRun}
               onRerun={(run, failedOnly) => void rerunWorkflow(run, failedOnly)}
+              onCancel={(run) => void cancelWorkflow(run)}
               onDelete={setDeleteRun}
             />
           </section>
@@ -264,6 +266,7 @@ export function GitHubActionsView(props: {
               onClose={() => selectRun(null)}
               onRefresh={refreshRun}
               onRerun={(failedOnly) => void rerunWorkflow(displayedRun, failedOnly)}
+              onCancel={() => void cancelWorkflow(displayedRun)}
               onDelete={() => setDeleteRun(displayedRun)}
             />
           ) : null

@@ -1874,6 +1874,11 @@ msgstr "ピッカーのキャンセル"
 msgid "Cancel removing project"
 msgstr "プロジェクトの削除をキャンセル"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "ワークフローをキャンセル"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "キャンセルされました"
@@ -1983,6 +1988,10 @@ msgstr "{serverName} を再確認"
 msgid "Check again"
 msgstr "再確認"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Check for update"
+msgstr "アップデートを確認"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2016,6 +2025,7 @@ msgstr "Tailscaleを確認中…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "確認中…"
 
@@ -3895,6 +3905,11 @@ msgstr "音声モデルをダウンロード中{0}%"
 msgid "Downloading voice model..."
 msgstr "音声モデルをダウンロードしています..."
 
+#. placeholder {0}: Math.round(updateStatus.percent)
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Downloading… {0}%"
+msgstr "ダウンロード中… {0}%"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
@@ -5171,6 +5186,18 @@ msgstr "ホームフォルダー"
 msgid "Home scope"
 msgstr "ホームスコープ"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host is up to date."
+msgstr "ホストは最新です。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host update failed."
+msgstr "ホストのアップデートに失敗しました。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host version: {currentVersion}"
+msgstr "ホストのバージョン: {currentVersion}"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com、エイリアス、または user@host.com"
@@ -5411,6 +5438,10 @@ msgstr "{environment} に ACP + SDK をインストール"
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "ACP、SDK、または両方をインストールし、新しい Cursor GUI チャットを開始するランタイムを選択します。既存のチャットは作成元のランタイムに固定されます。"
 
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Install and restart"
+msgstr "インストールして再起動"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "CLIフックをインストールする"
@@ -5475,6 +5506,11 @@ msgstr "パッケージをインストールしてAPIキーを追加してくだ
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "アップデートをインストールする"
+
+#. placeholder {0}: updateStatus.version
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Install v{0}"
+msgstr "v{0}をインストール"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Install v{updateVersion}"
@@ -5576,6 +5612,11 @@ msgstr "スタートアップ時は Poracode をシステムトレイに格納�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "スレッドがアクティブに動作している間は、システムを起動したままにします。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "リモートアクセスが有効な間、システムをスリープさせません。"
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8065,6 +8106,11 @@ msgstr "プリセット"
 msgid "Press shortcut…"
 msgstr "ショートカットを押してください…"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "リモートアクセス中のスリープを防止"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
@@ -8624,6 +8670,21 @@ msgstr "リモートアクセス用ポート {occupiedPort} はすでに使用�
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Environments"
 msgstr "リモート環境"
+
+#. placeholder {0}: Math.round(status.percent)
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update is downloading… {0}%"
+msgstr "リモートホストのアップデートをダウンロード中… {0}%"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is downloading…"
+msgstr "リモートホストのアップデート v{0} をダウンロード中…"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is ready."
+msgstr "リモートホストのアップデート v{0} の準備ができました。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
@@ -10352,6 +10413,7 @@ msgstr "始めています…"
 msgid "Startup is taking longer than expected"
 msgstr "起動に通常より時間がかかっています"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "スタッシュ＆プル"
@@ -10831,6 +10893,11 @@ msgstr "実験のプロンプトが長すぎます。"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "{0} のグローバル WSL スコープ"
+
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "The host is restarting to install the update."
+msgstr "アップデートをインストールするためにホストを再起動しています。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -12338,6 +12405,10 @@ msgstr "{elapsed}稼働しました"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "ワークフロー"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "ワークフローのキャンセルをリクエストしました。"
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

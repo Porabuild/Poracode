@@ -30,6 +30,19 @@ export function syncRemoteGitSummaries(desktopId: string, summaries: RemoteGitSu
       if (project) projectsToRefresh.set(project.id, project);
       continue;
     }
+    const files = [...current.staged, ...current.unstaged];
+    const detailedInsertions = files.reduce((total, file) => total + file.insertions, 0);
+    const detailedDeletions = files.reduce((total, file) => total + file.deletions, 0);
+    if (
+      current.isRepo !== summary.isRepo ||
+      current.branch !== summary.branch ||
+      detailedInsertions !== summary.totalInsertions ||
+      detailedDeletions !== summary.totalDeletions
+    ) {
+      const project = projectsById.get(thread.projectId);
+      if (project) projectsToRefresh.set(project.id, project);
+      continue;
+    }
     const status = {
       ...current,
       isRepo: summary.isRepo,

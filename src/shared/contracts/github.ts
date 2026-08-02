@@ -306,6 +306,12 @@ export const ghRerunWorkflowRunPayloadSchema = z.object({
 });
 export type GhRerunWorkflowRunPayload = z.infer<typeof ghRerunWorkflowRunPayloadSchema>;
 
+export const ghCancelWorkflowRunPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  runId: z.number().int().min(1),
+});
+export type GhCancelWorkflowRunPayload = z.infer<typeof ghCancelWorkflowRunPayloadSchema>;
+
 export const ghDeleteWorkflowRunPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   runId: z.number().int().min(1),

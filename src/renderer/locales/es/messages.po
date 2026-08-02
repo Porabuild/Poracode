@@ -1875,6 +1875,11 @@ msgstr "Cancelar selector"
 msgid "Cancel removing project"
 msgstr "Cancelar eliminación del proyecto"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "Cancelar flujo de trabajo"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "cancelado"
@@ -1984,6 +1989,10 @@ msgstr "Volver a comprobar {serverName}"
 msgid "Check again"
 msgstr "Volver a comprobar"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Check for update"
+msgstr "Buscar una actualización"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2017,6 +2026,7 @@ msgstr "Comprobando Tailscale…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "Comprobando…"
 
@@ -3896,6 +3906,11 @@ msgstr "Descargando modelo de voz {0}%"
 msgid "Downloading voice model..."
 msgstr "Descargando modelo de voz..."
 
+#. placeholder {0}: Math.round(updateStatus.percent)
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Downloading… {0}%"
+msgstr "Descargando… {0} %"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
@@ -5172,6 +5187,18 @@ msgstr "Carpeta de inicio"
 msgid "Home scope"
 msgstr "Ámbito de inicio"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host is up to date."
+msgstr "El host está actualizado."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host update failed."
+msgstr "No se pudo actualizar el host."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host version: {currentVersion}"
+msgstr "Versión del host: {currentVersion}"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com, alias o usuario@host.com"
@@ -5412,6 +5439,10 @@ msgstr "Instalar ACP + SDK en {environment}"
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "Instala ACP, SDK o ambos y luego elige qué entorno de ejecución inicia los nuevos chats de la interfaz de Cursor. Los chats existentes permanecen vinculados al entorno que los creó."
 
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Install and restart"
+msgstr "Instalar y reiniciar"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "Instalar hooks de CLI"
@@ -5476,6 +5507,11 @@ msgstr "Instala el paquete para añadir su clave API."
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "Instalar actualización"
+
+#. placeholder {0}: updateStatus.version
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Install v{0}"
+msgstr "Instalar v{0}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Install v{updateVersion}"
@@ -5577,6 +5613,11 @@ msgstr "Mantener Poracode en la bandeja del sistema cuando se inicie automática
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Mantener el sistema activo mientras cualquier hilo esté trabajando."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "Mantén el sistema activo mientras el acceso remoto esté habilitado."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8067,6 +8108,11 @@ msgstr "Preajustes"
 msgid "Press shortcut…"
 msgstr "Pulsa el atajo…"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "Impedir la suspensión durante el acceso remoto"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
@@ -8626,6 +8672,21 @@ msgstr "El puerto de acceso remoto {occupiedPort} ya está en uso. Detén el otr
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Environments"
 msgstr "Entornos remotos"
+
+#. placeholder {0}: Math.round(status.percent)
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update is downloading… {0}%"
+msgstr "La actualización del host remoto se está descargando… {0} %"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is downloading…"
+msgstr "La actualización v{0} del host remoto se está descargando…"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is ready."
+msgstr "La actualización v{0} del host remoto está lista."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
@@ -10354,6 +10415,7 @@ msgstr "iniciando…"
 msgid "Startup is taking longer than expected"
 msgstr "El inicio está tardando más de lo esperado"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Guardar en stash y extraer"
@@ -10833,6 +10895,11 @@ msgstr "El prompt del experimento es demasiado largo."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "el ámbito WSL global de {0}"
+
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "The host is restarting to install the update."
+msgstr "El host se está reiniciando para instalar la actualización."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -12340,6 +12407,10 @@ msgstr "Trabajó durante {elapsed}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "Flujo de trabajo"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "Se solicitó la cancelación del flujo de trabajo."
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

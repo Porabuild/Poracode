@@ -2,6 +2,7 @@ import { Button, Dropdown, Label, Link } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   CheckCircle2,
+  CircleStop,
   CircleDot,
   Clock3,
   ExternalLink,
@@ -102,6 +103,7 @@ export function GitHubActionsRunList(props: {
   pendingRunId: number | null;
   onSelectRun: (runId: number | null) => void;
   onRerun: (run: GitHubActionsRun, failedOnly: boolean) => void;
+  onCancel: (run: GitHubActionsRun) => void;
   onDelete: (run: GitHubActionsRun) => void;
 }) {
   const { t } = useLingui();
@@ -199,9 +201,20 @@ export function GitHubActionsRunList(props: {
                   onAction={(key) => {
                     if (key === "rerun") props.onRerun(run, false);
                     if (key === "rerun-failed") props.onRerun(run, true);
+                    if (key === "cancel") props.onCancel(run);
                     if (key === "delete") props.onDelete(run);
                   }}
                 >
+                  <Dropdown.Item
+                    id="cancel"
+                    textValue={t`Cancel workflow`}
+                    isDisabled={run.status.toLowerCase() === "completed"}
+                  >
+                    <CircleStop className="size-3.5" />
+                    <Label>
+                      <Trans>Cancel workflow</Trans>
+                    </Label>
+                  </Dropdown.Item>
                   <Dropdown.Item
                     id="rerun"
                     textValue={t`Re-run all jobs`}

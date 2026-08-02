@@ -26,6 +26,7 @@ import {
   isRemoteOmittedField,
   pickRemoteSettings,
   readRemoteImageRef,
+  type RemoteHostUpdateStatus,
   type RemoteSettings,
 } from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
@@ -509,6 +510,50 @@ function extractForwardCookieValue(setCookieHeader: string): string {
 }
 
 describe("RemoteAccessServer", () => {
+  it("checks and installs a downloaded host update for manage-scoped clients", async () => {
+    let updateStatus: RemoteHostUpdateStatus | null = null;
+    const check = vi.fn<() => Promise<void>>(async () => {
+      updateStatus = { type: "downloaded", version: "1.1.0" };
+    });
+    const install = vi.fn<() => void>();
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      updates: {
+        currentVersion: () => "1.0.0",
+        status: () => updateStatus,
+        check,
+        install,
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "projects:manage"]);
+    const headers = { authorization: `Bearer ${token}` };
+
+    const checkResponse = await fetch(new URL("/api/host-update/check", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+    });
+    expect(checkResponse.status).toBe(200);
+    await expect(checkResponse.json()).resolves.toEqual({
+      currentVersion: "1.0.0",
+      status: { type: "downloaded", version: "1.1.0" },
+    });
+    expect(check).toHaveBeenCalledOnce();
+
+    const installResponse = await fetch(new URL("/api/host-update/install", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+    });
+    expect(installResponse.status).toBe(202);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(install).toHaveBeenCalledOnce();
+  });
+
   it("retries the assigned port without falling back to a different endpoint", async () => {
     const blocker = createNetServer();
     await new Promise<void>((resolve, reject) => {
@@ -4662,6 +4707,7 @@ describe("RemoteAccessServer", () => {
       ref: "main",
       inputs: { release: "true" },
     };
+    const cancelPayload = { projectLocation, runId: 34 };
     const forwardedCalls = [
       {
         procedure: "ghListWorkflows",
@@ -4670,6 +4716,10 @@ describe("RemoteAccessServer", () => {
       {
         procedure: "ghDispatchWorkflow",
         payload: dispatchPayload,
+      },
+      {
+        procedure: "ghCancelWorkflowRun",
+        payload: cancelPayload,
       },
       {
         procedure: "rollbackThreadConversation",
@@ -4778,6 +4828,17 @@ describe("RemoteAccessServer", () => {
       error: { code: "missing_scope" },
     });
     expect(calls.filter((c) => c.name === "ghDispatchWorkflow")).toHaveLength(1);
+
+    const cancelWithoutOperateResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${readToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ procedure: "ghCancelWorkflowRun", payload: cancelPayload }),
+    });
+    expect(cancelWithoutOperateResponse.status).toBe(403);
+    await expect(cancelWithoutOperateResponse.json()).resolves.toMatchObject({
+      error: { code: "missing_scope" },
+    });
+    expect(calls.filter((c) => c.name === "ghCancelWorkflowRun")).toHaveLength(1);
   });
 
   it("rejects remote Git lifecycle mutations for experiment-owned branches and worktrees", async () => {

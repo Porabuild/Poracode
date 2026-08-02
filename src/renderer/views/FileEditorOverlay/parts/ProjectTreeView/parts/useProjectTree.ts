@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "@heroui/react";
 import type { ProjectTreeEntry } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
@@ -39,7 +39,7 @@ export function useProjectTree(props: {
 
   const rootKey = `${props.rootContext.projectId}:${props.rootContext.worktreePath ?? ""}`;
 
-  const reloadPaths = useEffectEvent(async (paths: string[]) => {
+  async function reloadPaths(paths: string[]) {
     const uniquePaths = [...new Set(paths.flatMap((path) => [getParentPath(path), path]))];
     const treeStore = useProjectTreeStore.getState();
     const generation = treeStore.generation;
@@ -76,7 +76,7 @@ export function useProjectTree(props: {
         );
     }
     useProjectTreeStore.getState().clearLoadingFor(uniquePaths);
-  });
+  }
 
   useEffect(() => {
     useProjectTreeStore.getState().resetForRoot(rootKey);
@@ -84,6 +84,7 @@ export function useProjectTree(props: {
     setSearchQuery("");
     setSearchResults([]);
     void reloadPaths([""]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- root changes must reset and load exactly once; reloadPaths reads the matching render's root context.
   }, [rootKey]);
 
   useEffect(() => {

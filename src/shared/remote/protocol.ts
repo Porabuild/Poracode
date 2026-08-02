@@ -66,6 +66,32 @@ export const advertisedRemoteAccessScopesSchema = z.array(z.string().min(1));
 export const remoteHostModeSchema = z.enum(["desktop", "helper"]);
 export type RemoteHostMode = z.infer<typeof remoteHostModeSchema>;
 
+export const remoteHostUpdateStatusSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("checking") }),
+  z.object({ type: z.literal("update-available"), version: z.string().min(1) }),
+  z.object({ type: z.literal("update-not-available") }),
+  z.object({
+    type: z.literal("downloading"),
+    percent: z.number(),
+    bytesPerSecond: z.number(),
+    transferred: z.number(),
+    total: z.number(),
+  }),
+  z.object({ type: z.literal("downloaded"), version: z.string().min(1) }),
+  z.object({
+    type: z.literal("error"),
+    message: z.string().optional(),
+    messageKey: z.string().optional(),
+  }),
+]);
+export type RemoteHostUpdateStatus = z.infer<typeof remoteHostUpdateStatusSchema>;
+
+export const remoteHostUpdateStateSchema = z.object({
+  currentVersion: z.string().min(1),
+  status: remoteHostUpdateStatusSchema.nullable(),
+});
+export type RemoteHostUpdateState = z.infer<typeof remoteHostUpdateStateSchema>;
+
 /** Derive the WebSocket base URL for a remote desktop's HTTP endpoint. */
 export function toWebSocketUrl(httpUrl: string | URL): URL {
   const url = new URL(httpUrl);

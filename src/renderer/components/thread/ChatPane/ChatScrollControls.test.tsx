@@ -175,6 +175,49 @@ describe("ChatScrollControls", () => {
     expect(virtualScrollToBottom).toHaveBeenCalledTimes(reconcilesBeforeReveal);
   });
 
+  it("reveals the initial transcript if startup animation frames never run", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+    let scrollTop = 0;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+    });
+    const onInitialScrollSettled = vi.fn<() => void>();
+    const virtualScrollToBottom = vi.fn<() => void>();
+
+    renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={createRef<ChatScrollControlsHandle>()}
+        virtualScrollToBottom={virtualScrollToBottom}
+        initialScrollSettled={false}
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(virtualScrollToBottom).toHaveBeenCalled();
+    expect(scrollTop).toBe(1000);
+    expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+  });
+
   it("waits for an opt-in delay after virtualizer settle before revealing", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let now = 1_000;

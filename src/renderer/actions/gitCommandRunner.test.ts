@@ -21,7 +21,7 @@ const setWorktreeStatusMock = vi.hoisted(() =>
 );
 
 const toastMock = vi.hoisted(() => ({
-  danger: vi.fn<(message: string) => void>(),
+  danger: vi.fn<(message: string, options?: Record<string, unknown>) => void>(),
 }));
 
 const captureRendererExceptionMock = vi.hoisted(() => vi.fn<() => void>());
@@ -92,6 +92,27 @@ describe("gitCommandRunner", () => {
     expect(captureRendererExceptionMock).toHaveBeenCalledWith(error, {
       featureArea: "git",
     });
+  });
+
+  it("offers stash and pull for dirty remote pull errors", async () => {
+    const onStashAndPull = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const error = new Error(
+      "Git pull failed: Command failed: git pull --no-rebase origin\nYour local changes would be overwritten by merge",
+    );
+
+    showGitActionError(error, { onStashAndPull });
+
+    const [, options] = toastMock.danger.mock.calls[0]!;
+    expect(options).toMatchObject({
+      actionProps: {
+        children: "Stash & Pull",
+        onPress: expect.any(Function),
+      },
+      timeout: 0,
+    });
+    const actionProps = options?.actionProps as { onPress: () => void };
+    actionProps.onPress();
+    await vi.waitFor(() => expect(onStashAndPull).toHaveBeenCalledOnce());
   });
 
   it("refreshes the cached worktree status after a remote git mutation", async () => {

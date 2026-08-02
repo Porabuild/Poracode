@@ -97,6 +97,36 @@ describe("RemoteDesktopClient", () => {
     expect(authorization).toBe("Bearer lc_access_test");
   });
 
+  it("checks and installs updates on the remote host", async () => {
+    const requests: Array<{ url: string; method: string }> = [];
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({ url: String(url), method: init?.method ?? "GET" });
+        const isInstall = String(url).endsWith("/install");
+        return new Response(
+          JSON.stringify(
+            isInstall
+              ? {}
+              : { currentVersion: "1.0.0", status: { type: "downloaded", version: "1.1.0" } },
+          ),
+          { status: isInstall ? 202 : 200, headers: { "content-type": "application/json" } },
+        );
+      },
+    );
+
+    await expect(client.checkHostUpdate()).resolves.toEqual({
+      currentVersion: "1.0.0",
+      status: { type: "downloaded", version: "1.1.0" },
+    });
+    await expect(client.installHostUpdate()).resolves.toBeUndefined();
+    expect(requests).toEqual([
+      { url: "https://relay.example.test/s/server-1/api/host-update/check", method: "POST" },
+      { url: "https://relay.example.test/s/server-1/api/host-update/install", method: "POST" },
+    ]);
+  });
+
   it("reads and writes encoded project notes paths", async () => {
     const requests: Array<{ url: string; method: string; body: unknown }> = [];
     const notes = {

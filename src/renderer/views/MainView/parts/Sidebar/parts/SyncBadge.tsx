@@ -48,14 +48,26 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
   async function handlePress() {
     if (isSyncing) return;
     setIsSyncing(true);
+    const project = useAppStore.getState().projects.find((p) => p.id === props.projectId);
+    if (!project) {
+      setIsSyncing(false);
+      return;
+    }
+
+    const location = props.worktreePath
+      ? buildWorktreeLocation(project.location, props.worktreePath)
+      : project.location;
+
+    const refreshStatus = async () => {
+      const newStatus = await readBridge().getGitStatus({ projectLocation: location });
+      if (props.worktreePath) {
+        useGitStore.getState().setWorktreeStatus(props.worktreePath, newStatus);
+      } else {
+        useGitStore.getState().setProjectSnapshot(props.projectId, { status: newStatus });
+      }
+    };
+
     try {
-      const project = useAppStore.getState().projects.find((p) => p.id === props.projectId);
-      if (!project) return;
-
-      const location = props.worktreePath
-        ? buildWorktreeLocation(project.location, props.worktreePath)
-        : project.location;
-
       if (syncAction === "push") {
         if (props.worktreePath) {
           const thread = useAppStore
@@ -87,14 +99,23 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
       // Eagerly refresh git status so the badge updates immediately.
       // The file watcher is disabled for WSL projects, so without this
       // the badge would stay stale until the next periodic fetch.
-      const newStatus = await readBridge().getGitStatus({ projectLocation: location });
-      if (props.worktreePath) {
-        useGitStore.getState().setWorktreeStatus(props.worktreePath, newStatus);
-      } else {
-        useGitStore.getState().setProjectSnapshot(props.projectId, { status: newStatus });
-      }
+      await refreshStatus();
     } catch (error) {
-      showGitActionError(error, { logPrefix: "[git] sidebar sync failed" });
+      showGitActionError(error, {
+        logPrefix: "[git] sidebar sync failed",
+        ...(syncAction === "pull"
+          ? {
+              onStashAndPull: async () => {
+                await runGitSyncCommand({
+                  command: "pull",
+                  projectLocation: location,
+                  preserveLocalChanges: true,
+                });
+                await refreshStatus();
+              },
+            }
+          : {}),
+      });
     } finally {
       setIsSyncing(false);
     }

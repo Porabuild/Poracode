@@ -1875,6 +1875,11 @@ msgstr "Seçiciyi iptal et"
 msgid "Cancel removing project"
 msgstr "Projeyi kaldırmayı iptal et"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "İş akışını iptal et"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "iptal edildi"
@@ -1984,6 +1989,10 @@ msgstr "{serverName} sunucusunu tekrar kontrol et"
 msgid "Check again"
 msgstr "Tekrar kontrol et"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Check for update"
+msgstr "Güncellemeyi denetle"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2017,6 +2026,7 @@ msgstr "Tailscale kontrol ediliyor…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "Kontrol ediliyor…"
 
@@ -3896,6 +3906,11 @@ msgstr "Ses modeli indiriliyor {0}%"
 msgid "Downloading voice model..."
 msgstr "Ses modeli indiriliyor..."
 
+#. placeholder {0}: Math.round(updateStatus.percent)
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Downloading… {0}%"
+msgstr "İndiriliyor… %{0}"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
@@ -5172,6 +5187,18 @@ msgstr "Ana klasör"
 msgid "Home scope"
 msgstr "Ana kapsam"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host is up to date."
+msgstr "Ana bilgisayar güncel."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host update failed."
+msgstr "Ana bilgisayar güncellenemedi."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host version: {currentVersion}"
+msgstr "Ana bilgisayar sürümü: {currentVersion}"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com, takma ad veya kullanıcı@host.com"
@@ -5412,6 +5439,10 @@ msgstr "ACP + SDK'yı {environment} ortamına yükle"
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "ACP'yi, SDK'yı veya her ikisini yükleyin, ardından yeni Cursor GUI sohbetlerini hangi çalışma zamanının başlatacağını seçin. Mevcut sohbetler, onları oluşturan çalışma zamanına bağlı kalır."
 
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Install and restart"
+msgstr "Yükle ve yeniden başlat"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "CLI kancalarını yükle"
@@ -5476,6 +5507,11 @@ msgstr "API anahtarını eklemek için paketi yükleyin."
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "Güncellemeyi yükle"
+
+#. placeholder {0}: updateStatus.version
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Install v{0}"
+msgstr "v{0} sürümünü yükle"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Install v{updateVersion}"
@@ -5577,6 +5613,11 @@ msgstr "Başlangıçta açıldığında Poracode'u sistem tepsisinde tutun."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Herhangi bir konu aktif olarak çalışırken sistemi uyanık tutun."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "Uzaktan erişim etkinken sistemi uyanık tutun."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8067,6 +8108,11 @@ msgstr "Hazır ayarlar"
 msgid "Press shortcut…"
 msgstr "Kısayola basın…"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "Uzaktan erişim sırasında uyku modunu engelle"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
@@ -8626,6 +8672,21 @@ msgstr "Uzaktan erişim bağlantı noktası {occupiedPort} zaten kullanılıyor.
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Environments"
 msgstr "Uzak Ortamlar"
+
+#. placeholder {0}: Math.round(status.percent)
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update is downloading… {0}%"
+msgstr "Uzak ana bilgisayar güncellemesi indiriliyor… %{0}"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is downloading…"
+msgstr "Uzak ana bilgisayar güncellemesi v{0} indiriliyor…"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is ready."
+msgstr "Uzak ana bilgisayar güncellemesi v{0} hazır."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
@@ -10354,6 +10415,7 @@ msgstr "başlıyor…"
 msgid "Startup is taking longer than expected"
 msgstr "Başlatma beklenenden uzun sürüyor"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Sakla ve Çek"
@@ -10833,6 +10895,11 @@ msgstr "Deney istemi çok uzun."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "genel {0} WSL kapsamı"
+
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "The host is restarting to install the update."
+msgstr "Güncellemeyi yüklemek için ana bilgisayar yeniden başlatılıyor."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -12340,6 +12407,10 @@ msgstr "{elapsed} boyunca çalıştı"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "İş akışı"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "İş akışının iptali istendi."
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

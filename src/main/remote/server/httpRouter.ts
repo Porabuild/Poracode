@@ -395,6 +395,62 @@ export async function handleHttp(
       await writeNegotiatedJsonResponse(req, res, 200, await buildAgentStatuses(ctx));
       return;
     }
+    if (req.method === "GET" && url.pathname === "/api/host-update") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const updates = ctx.options.updates;
+      if (!updates) {
+        throw new RemoteHttpError(
+          "host_update_unavailable",
+          "This host cannot update itself remotely.",
+          503,
+        );
+      }
+      writeJson(res, 200, {
+        currentVersion: updates.currentVersion(),
+        status: updates.status(),
+      });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/host-update/check") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const updates = ctx.options.updates;
+      if (!updates) {
+        throw new RemoteHttpError(
+          "host_update_unavailable",
+          "This host cannot update itself remotely.",
+          503,
+        );
+      }
+      if (updates.status()?.type !== "downloaded") {
+        await updates.check();
+      }
+      writeJson(res, 200, {
+        currentVersion: updates.currentVersion(),
+        status: updates.status(),
+      });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/host-update/install") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const updates = ctx.options.updates;
+      if (!updates) {
+        throw new RemoteHttpError(
+          "host_update_unavailable",
+          "This host cannot update itself remotely.",
+          503,
+        );
+      }
+      if (updates.status()?.type !== "downloaded") {
+        throw new RemoteHttpError(
+          "host_update_not_ready",
+          "No host update is ready to install.",
+          409,
+        );
+      }
+      writeJson(res, 202, {});
+      setImmediate(() => updates.install());
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/provider-usage") {
       ctx.security.requireBearer(req, ["session:read"]);
       writeJson(res, 200, await ctx.options.callSupervisor("getProviderUsage", {}));

@@ -470,12 +470,20 @@ export class GitService {
     return this.worktreeService.addRemote(location, remote, url);
   }
 
-  async pull(location: ProjectLocation, remote: string): Promise<void> {
-    return this.worktreeService.pull(location, remote);
+  async pull(
+    location: ProjectLocation,
+    remote: string,
+    preserveLocalChanges = false,
+  ): Promise<void> {
+    return this.worktreeService.pull(location, remote, preserveLocalChanges);
   }
 
-  async pullRebase(location: ProjectLocation, remote: string): Promise<void> {
-    return this.worktreeService.pullRebase(location, remote);
+  async pullRebase(
+    location: ProjectLocation,
+    remote: string,
+    preserveLocalChanges = false,
+  ): Promise<void> {
+    return this.worktreeService.pullRebase(location, remote, preserveLocalChanges);
   }
 
   async push(

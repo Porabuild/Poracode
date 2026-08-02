@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
+import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import type { RemoteGitSummaries } from "@/shared/remote";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
@@ -44,7 +45,10 @@ vi.mock("@/renderer/state/remote", async (importOriginal) => {
     applyThreadSnapshot: (snapshot: unknown) => sync.applyThreadSnapshot(snapshot),
     dispatchRemoteSupervisorEvent: (
       value: unknown,
-      hooks?: { onGitSummaries?: (summaries: RemoteGitSummaries) => void },
+      hooks?: {
+        onGitSummaries?: (summaries: RemoteGitSummaries) => void;
+        onGitState?: (patch: GitStatePatch) => void;
+      },
     ) => {
       sync.dispatchRemoteSupervisorEvent(value);
       if (
@@ -53,6 +57,13 @@ vi.mock("@/renderer/state/remote", async (importOriginal) => {
         (value as { type?: unknown }).type === "remote-git-summaries"
       ) {
         hooks?.onGitSummaries?.((value as { summaries: RemoteGitSummaries }).summaries);
+      }
+      if (
+        value &&
+        typeof value === "object" &&
+        (value as { type?: unknown }).type === "remote-git-state"
+      ) {
+        hooks?.onGitState?.((value as { patch: GitStatePatch }).patch);
       }
     },
   };
@@ -104,6 +115,23 @@ function gitStatus(behind: number): GitStatusResult {
   };
 }
 
+function gitState(behind: number, revision = 1): GitStateSnapshot {
+  return {
+    revision,
+    projects: {
+      p1: {
+        ref: { hostId: "d1", projectId: "p1" },
+        status: gitStatus(behind),
+        refreshedAt: "now",
+      },
+    },
+    targets: {},
+    pullRequests: {},
+    pullRequestKeyByBranch: {},
+    projectPullRequestLists: {},
+  };
+}
+
 type RemoteThreadHistorySnapshot = Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
 type RemoteShellSnapshot = Awaited<ReturnType<RemoteDesktopClient["snapshot"]>>;
 
@@ -126,8 +154,8 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function makeSocket(): RemoteSocketLike {
-  return { close: vi.fn<() => void>(), onmessage: null, onclose: null };
+function makeSocket(overrides: Partial<RemoteSocketLike> = {}): RemoteSocketLike {
+  return { close: vi.fn<() => void>(), onmessage: null, onclose: null, ...overrides };
 }
 
 function makeClient(opts?: {
@@ -153,6 +181,7 @@ function makeClient(opts?: {
   startShell?: RemoteDesktopClient["startShell"];
   closeShell?: RemoteDesktopClient["closeShell"];
   gitCall?: RemoteDesktopClient["gitCall"];
+  checkHostUpdate?: RemoteDesktopClient["checkHostUpdate"];
 }): RemoteDesktopClient {
   return {
     exchangePairingCredential: async () => ({
@@ -205,6 +234,9 @@ function makeClient(opts?: {
     startShell: opts?.startShell ?? (async () => {}),
     closeShell: opts?.closeShell ?? (async () => {}),
     gitCall: opts?.gitCall ?? (async () => ({})),
+    checkHostUpdate:
+      opts?.checkHostUpdate ??
+      (async () => ({ currentVersion: "1.0", status: { type: "update-not-available" } })),
   } as unknown as RemoteDesktopClient;
 }
 
@@ -235,6 +267,7 @@ describe("useRemoteServersStore", () => {
     useRemoteServersStore.setState({
       servers: [],
       runtime: {},
+      hostUpdates: {},
       excludedProjectIds: {},
       projectWorkspaceIds: {},
       projectNameOverrides: {},
@@ -254,6 +287,39 @@ describe("useRemoteServersStore", () => {
     uninstallWorkspaceSync?.();
     uninstallWorkspaceSync = null;
     vi.useRealTimers();
+  });
+
+  it("automatically checks for updates when a desktop host is paired", async () => {
+    const checkHostUpdate = vi.fn<RemoteDesktopClient["checkHostUpdate"]>(async () => ({
+      currentVersion: "1.0",
+      status: { type: "update-not-available" },
+    }));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ hostMode: "desktop", checkHostUpdate })));
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    expect(checkHostUpdate).toHaveBeenCalledOnce();
+    expect(useRemoteServersStore.getState().hostUpdates.d1).toEqual({
+      currentVersion: "1.0",
+      status: { type: "update-not-available" },
+    });
+  });
+
+  it("does not run desktop update checks against an SSH helper", async () => {
+    const checkHostUpdate = vi.fn<RemoteDesktopClient["checkHostUpdate"]>();
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ hostMode: "helper", checkHostUpdate })));
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    expect(checkHostUpdate).not.toHaveBeenCalled();
   });
 
   it("pairs a server and stores its snapshot online", async () => {
@@ -574,6 +640,85 @@ describe("useRemoteServersStore", () => {
 
     expect(socketFactory).toHaveBeenCalledTimes(2);
     expect(websocketUrl).toHaveBeenNthCalledWith(2, "ticket-2", 7);
+  });
+
+  it("times out and reconnects a server event stream whose handshake never opens", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket({ readyState: 0, onopen: null });
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(sockets[0]?.close).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets[0]?.close).toHaveBeenCalledTimes(1);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    await Promise.resolve();
+    expect(socketFactory).toHaveBeenCalledTimes(2);
+  });
+
+  it("reconnects a half-open server event stream when its health pong never arrives", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket({
+        send: vi.fn<(data: string) => void>(),
+        readyState: 1,
+      });
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(sockets[0]?.send).toHaveBeenCalledWith(expect.stringContaining('"type":"ping"'));
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sockets[0]?.close).toHaveBeenCalledTimes(1);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    await Promise.resolve();
+    expect(socketFactory).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the server event stream online after its correlated health pong", async () => {
+    vi.useFakeTimers();
+    const send = vi.fn<(data: string) => void>();
+    const socket = makeSocket({ send, readyState: 1 });
+    useRemoteServersStore.getState().setSocketFactory(() => socket);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(25_000);
+
+    const ping = JSON.parse(String(send.mock.calls[0]?.[0])) as { id: string };
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "pong", id: ping.id, receivedAt: Date.now() }),
+    });
+    await vi.advanceTimersByTimeAsync(5_001);
+
+    expect(socket.close).not.toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
   });
 
   it("runs a remote project command then refreshes the snapshot", async () => {
@@ -1118,6 +1263,31 @@ describe("useRemoteServersStore", () => {
     expect(useGitStore.getState().statuses[projectedProjectId]?.behind).toBe(0);
   });
 
+  it("reconciles a remote project row from the host Git state snapshot", async () => {
+    const projectedProjectId = remoteProjectId("d1", "p1");
+    useGitStore.setState({ statuses: { [projectedProjectId]: gitStatus(7) } });
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshot: async () => ({
+            snapshotSeq: 1,
+            projects: [proj],
+            threads: [],
+            runtimeSummariesByThread: {},
+            gitState: gitState(0),
+            updatedAt: "now",
+          }),
+        }),
+      ),
+    );
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    expect(useGitStore.getState().statuses[projectedProjectId]?.behind).toBe(0);
+  });
+
   it("updates cached Git counts when the remote desktop publishes a pull result", async () => {
     const socket = makeSocket();
     useRemoteServersStore.getState().setClientFactory(
@@ -1156,6 +1326,45 @@ describe("useRemoteServersStore", () => {
               behind: 0,
               pr: null,
             },
+          },
+        },
+      }),
+    });
+
+    expect(useGitStore.getState().statuses[projectedProjectId]?.behind).toBe(0);
+  });
+
+  it("updates a remote project row from a live host Git state patch", async () => {
+    const socket = makeSocket();
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshot: async () => ({
+            snapshotSeq: 1,
+            projects: [proj],
+            threads: [],
+            runtimeSummariesByThread: {},
+            gitState: gitState(7),
+            updatedAt: "now",
+          }),
+        }),
+      ),
+    );
+    useRemoteServersStore.getState().setSocketFactory(() => socket);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    const projectedProjectId = remoteProjectId("d1", "p1");
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "event",
+        seq: 2,
+        event: {
+          type: "remote-git-state",
+          patch: {
+            revision: 2,
+            projects: gitState(0, 2).projects,
           },
         },
       }),
@@ -1440,7 +1649,7 @@ describe("useRemoteServersStore", () => {
 
   // ── Finding #1: desktop-as-client event filtering ──────────────────
   describe("filterRemoteThreadEvent", () => {
-    it("drops unrelated desktop-global events but keeps Git summaries", () => {
+    it("drops unrelated desktop-global events but keeps Git state events", () => {
       expect(
         filterRemoteThreadEvent({ type: "windows-agent-statuses", statuses: [] }, "rt-1"),
       ).toBeNull();
@@ -1452,6 +1661,8 @@ describe("useRemoteServersStore", () => {
       ).toBeNull();
       const gitSummaries = { type: "remote-git-summaries", summaries: {} };
       expect(filterRemoteThreadEvent(gitSummaries, "rt-1")).toBe(gitSummaries);
+      const gitStateEvent = { type: "remote-git-state", patch: { revision: 1 } };
+      expect(filterRemoteThreadEvent(gitStateEvent, "rt-1")).toBe(gitStateEvent);
       expect(
         filterRemoteThreadEvent({ type: "remote-projects-changed", projects: [] }, "rt-1"),
       ).toBeNull();

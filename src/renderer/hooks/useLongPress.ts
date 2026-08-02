@@ -1,4 +1,4 @@
-import { useEffectEvent, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 
 const LONG_PRESS_MS = 450;
@@ -34,12 +34,17 @@ export function useLongPress(onLongPress: (() => void) | null): Partial<LongPres
   const timerRef = useRef<number | null>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
   const firedRef = useRef(false);
+  const onLongPressRef = useRef(onLongPress);
 
-  const fire = useEffectEvent(() => {
+  useLayoutEffect(() => {
+    onLongPressRef.current = onLongPress;
+  }, [onLongPress]);
+
+  const fire = () => {
     timerRef.current = null;
     firedRef.current = true;
-    onLongPress?.();
-  });
+    onLongPressRef.current?.();
+  };
 
   useLayoutEffect(
     () => () => {

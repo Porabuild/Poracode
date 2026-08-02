@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
+import type { RemoteImageRefValue } from "@/shared/remote";
 
 export type ChatPaneActions = {
   openProjectRelativePath: (path: string, lineNumber?: number) => Promise<void>;
@@ -32,6 +33,10 @@ export type ChatPaneActions = {
    * dir so `images/1.jpg` from image_gen resolves under ~/.grok/sessions/…).
    */
   markdownImageRoots?: readonly string[] | undefined;
+  /** Resolve an image held on a remote project's host. */
+  remoteLocalImageUrl?: ((url: string) => string) | undefined;
+  /** Resolve an inline-image reference held in a remote host's transcript. */
+  remoteImageRefUrl?: ((ref: RemoteImageRefValue) => string) | undefined;
 };
 
 export const ChatPaneActionsContext = createContext<ChatPaneActions | null>(null);

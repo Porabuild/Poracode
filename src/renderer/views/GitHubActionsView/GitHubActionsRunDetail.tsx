@@ -2,6 +2,7 @@ import { Button, ButtonGroup, Dropdown, Label } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ChevronDown,
+  CircleStop,
   ExternalLink,
   GitBranch,
   GitCommitHorizontal,
@@ -32,6 +33,7 @@ export function GitHubActionsRunDetail(props: {
   onClose: () => void;
   onRefresh: () => void;
   onRerun: (failedOnly: boolean) => void;
+  onCancel: () => void;
   onDelete: () => void;
 }) {
   const { t } = useLingui();
@@ -57,6 +59,15 @@ export function GitHubActionsRunDetail(props: {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <Button
+            size="sm"
+            variant="secondary"
+            isDisabled={completed || props.isPending}
+            onPress={props.onCancel}
+          >
+            <CircleStop className="size-3.5" />
+            <Trans>Cancel workflow</Trans>
+          </Button>
           <ButtonGroup size="sm" variant="secondary">
             <Button isDisabled={!completed || props.isPending} onPress={() => props.onRerun(false)}>
               <RotateCcw className="size-3.5" />

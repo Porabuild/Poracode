@@ -9,6 +9,7 @@ import {
   type RemoteAccessTokenResult,
   type RemoteClientMetadata,
   type RemoteHostMode,
+  type RemoteHostUpdateStatus,
   type RemotePushRegistration,
   type RemoteSettings,
   type RemoteSettingsPatch,
@@ -172,6 +173,13 @@ export interface RemoteAccessServerOptions {
   readonly settings?: {
     read(): RemoteSettings;
     update(patch: RemoteSettingsPatch): RemoteSettings;
+  };
+  /** Desktop app updater exposed to authenticated desktop clients. */
+  readonly updates?: {
+    currentVersion(): string;
+    status(): RemoteHostUpdateStatus | null;
+    check(): Promise<void>;
+    install(): void;
   };
   /** Persists an attachment uploaded by an authenticated remote composer. */
   readonly attachments?: {

@@ -240,6 +240,12 @@ function createController(
     scheduleService: {} as never,
     prWatchService: {} as never,
     gitStateService: { refreshInterests: h.refreshGitInterests } as never,
+    updates: {
+      currentVersion: () => "9.9.9-test",
+      status: () => null,
+      check: vi.fn<() => Promise<void>>(async () => {}),
+      install: vi.fn<() => void>(),
+    },
   });
 }
 

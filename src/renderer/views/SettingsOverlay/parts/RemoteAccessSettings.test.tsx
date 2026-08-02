@@ -18,6 +18,8 @@ const { bridgeMock, pairingChangedState, sharedSettingsState, toDataURLMock } = 
     listener: null as ((info: RemoteAccessPairingInfo) => void) | null,
   },
   sharedSettingsState: {
+    remoteAccessPreventSleep: true,
+    setRemoteAccessPreventSleep: vi.fn<(enabled: boolean) => void>(),
     remoteAccessTailscaleHttps: true,
     remoteAccessAdvertisedUrl: "",
     remotePushEnabled: true,
@@ -84,6 +86,16 @@ describe("RemoteAccessSettings", () => {
       httpsUrl: "https://desktop.tailnet.ts.net",
     });
     toDataURLMock.mockResolvedValue("data:image/png;base64,test");
+  });
+
+  it("allows preventing sleep during remote access independently", () => {
+    render(<RemoteAccessSettings />);
+
+    const toggle = screen.getByRole("switch", { name: "Prevent sleep during remote access" });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+
+    expect(sharedSettingsState.setRemoteAccessPreventSleep).toHaveBeenCalledWith(false);
   });
 
   it("switches the displayed endpoint and QR code from Tailscale to local", async () => {

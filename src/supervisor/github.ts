@@ -1174,6 +1174,14 @@ export class GitHubService {
     }
   }
 
+  async cancelWorkflowRun(location: ProjectLocation, runId: number): Promise<void> {
+    try {
+      await this.runGh(location, ["run", "cancel", String(runId)]);
+    } catch (err) {
+      throw classifyError(err, "run cancel");
+    }
+  }
+
   async deleteWorkflowRun(location: ProjectLocation, runId: number): Promise<void> {
     try {
       await this.runGh(location, ["run", "delete", String(runId)]);

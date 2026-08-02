@@ -50,6 +50,56 @@ describe("GitWorktreeService pull", () => {
       timeout: GIT_NETWORK_TIMEOUT,
     });
   });
+
+  it("stashes local changes before pulling and reapplies them afterward", async () => {
+    let stashPushed = false;
+    const commands: string[] = [];
+    mocks.execGit.mockImplementation(async (_location, args) => {
+      commands.push(args.join(" "));
+      if (args[0] === "stash" && args[1] === "push") {
+        stashPushed = true;
+        return "";
+      }
+      if (args[0] === "rev-parse") return stashPushed ? "stash-sha\n" : "";
+      if (args[0] === "stash" && args[1] === "list") {
+        return "stash-sha stash@{0}\n";
+      }
+      return "";
+    });
+
+    await new GitWorktreeService().pull(location, "origin", true);
+
+    expect(commands).toEqual([
+      "rev-parse --verify --quiet stash@{0}",
+      "stash push -u -m Poracode: before pull from origin",
+      "rev-parse --verify --quiet stash@{0}",
+      "pull --no-rebase origin",
+      "stash apply --index stash-sha",
+      "stash list --format=%H %gd",
+      "stash drop stash@{0}",
+    ]);
+  });
+
+  it("keeps the pull stash preserved when the pull fails", async () => {
+    let stashPushed = false;
+    const commands: string[] = [];
+    mocks.execGit.mockImplementation(async (_location, args) => {
+      commands.push(args.join(" "));
+      if (args[0] === "stash" && args[1] === "push") {
+        stashPushed = true;
+        return "";
+      }
+      if (args[0] === "rev-parse") return stashPushed ? "stash-sha\n" : "";
+      if (args[0] === "pull") throw new Error("network failed");
+      return "";
+    });
+
+    await expect(new GitWorktreeService().pull(location, "origin", true)).rejects.toThrow(
+      "Pull did not complete. Your local changes remain in a Poracode stash.",
+    );
+    expect(commands).not.toContain("stash apply --index stash-sha");
+    expect(commands).not.toContain("stash drop stash@{0}");
+  });
 });
 
 describe("GitWorktreeService branch validation", () => {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { attachErrorDetails, friendlyError, friendlyErrorWithDetail } from "./messages";
+import {
+  attachErrorDetails,
+  friendlyError,
+  friendlyErrorWithDetail,
+  isPullDirtyWorktreeError,
+} from "./messages";
 
 describe("friendlyErrorWithDetail", () => {
   it("returns the raw message and no details for plain errors", () => {
@@ -85,5 +90,27 @@ describe("friendlyErrorWithDetail", () => {
     ).toBe(
       "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
     );
+  });
+
+  it("maps dirty remote pulls to the pull-specific stash message", () => {
+    const error = new Error(
+      "Git pull failed: Command failed: git pull --no-rebase origin\nYour local changes would be overwritten by merge",
+    );
+
+    expect(friendlyError(error)).toBe(
+      "Local changes need to be stashed before pulling from origin",
+    );
+    expect(isPullDirtyWorktreeError(error)).toBe(true);
+  });
+
+  it("keeps branch-switch errors on the branch-switch message", () => {
+    const error = new Error(
+      "Git switch failed: Your local changes would be overwritten by checkout",
+    );
+
+    expect(friendlyError(error)).toBe(
+      "Cannot switch branches — commit or stash your changes first",
+    );
+    expect(isPullDirtyWorktreeError(error)).toBe(false);
   });
 });

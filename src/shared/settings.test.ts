@@ -20,6 +20,14 @@ describe("shared settings defaults", () => {
     expect(defaultSharedSettings.notificationFilter).toBe("all");
   });
 
+  it("prevents sleep during remote access by default and preserves opt-outs", () => {
+    expect(defaultSharedSettings.remoteAccessPreventSleep).toBe(true);
+    expect(normalizeSharedSettings({}).remoteAccessPreventSleep).toBe(true);
+    expect(
+      normalizeSharedSettings({ remoteAccessPreventSleep: false }).remoteAccessPreventSleep,
+    ).toBe(false);
+  });
+
   it("enables Crossagents as the standing MCP default and preserves opt-outs", () => {
     expect(defaultSharedSettings.enabledMcpServers.crossagents).toBe(true);
     expect(normalizeSharedSettings({}).enabledMcpServers.crossagents).toBe(true);

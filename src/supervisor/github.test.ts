@@ -1528,17 +1528,19 @@ on:
       ]);
     });
 
-    it("reruns all or only failed jobs and deletes runs", async () => {
+    it("reruns, cancels, and deletes workflow runs", async () => {
       execFileAsyncMock.mockResolvedValue({ stdout: "" });
       const service = new GitHubService();
 
       await service.rerunWorkflowRun(location, 501, false);
       await service.rerunWorkflowRun(location, 501, true);
+      await service.cancelWorkflowRun(location, 501);
       await service.deleteWorkflowRun(location, 501);
 
       expect(execFileAsyncMock.mock.calls[0]![1]).toEqual(["run", "rerun", "501"]);
       expect(execFileAsyncMock.mock.calls[1]![1]).toEqual(["run", "rerun", "501", "--failed"]);
-      expect(execFileAsyncMock.mock.calls[2]![1]).toEqual(["run", "delete", "501"]);
+      expect(execFileAsyncMock.mock.calls[2]![1]).toEqual(["run", "cancel", "501"]);
+      expect(execFileAsyncMock.mock.calls[3]![1]).toEqual(["run", "delete", "501"]);
     });
   });
 

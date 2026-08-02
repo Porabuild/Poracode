@@ -10,6 +10,7 @@ import {
   remoteBrowserStateSchema,
   remoteEnvironmentDescriptorSchema,
   remoteHttpErrorSchema,
+  remoteHostUpdateStateSchema,
   remotePortEnterResultSchema,
   remotePortForwardResultSchema,
   remotePortUnforwardResultSchema,
@@ -33,6 +34,7 @@ import {
   type RemoteBrowserState,
   type RemoteClientMetadata,
   type RemoteEnvironmentDescriptor,
+  type RemoteHostUpdateState,
   type RemotePortEnterResult,
   type RemotePortForwardResult,
   type RemotePortsState,
@@ -345,6 +347,26 @@ export class RemoteDesktopClient {
       await this.requestJson("/api/agent-statuses"),
       "agent statuses",
     );
+  }
+
+  async hostUpdateState(): Promise<RemoteHostUpdateState> {
+    return parseResponse(
+      remoteHostUpdateStateSchema,
+      await this.requestJson("/api/host-update"),
+      "host update",
+    );
+  }
+
+  async checkHostUpdate(): Promise<RemoteHostUpdateState> {
+    return parseResponse(
+      remoteHostUpdateStateSchema,
+      await this.requestJson("/api/host-update/check", { method: "POST", body: {} }),
+      "host update",
+    );
+  }
+
+  async installHostUpdate(): Promise<void> {
+    await this.requestJson("/api/host-update/install", { method: "POST", body: {} });
   }
 
   /** Provider usage snapshots; the response shape is a typed contract with no

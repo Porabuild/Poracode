@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { resolveGrokSessionDir } from "@/shared/grokSessionMedia";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import { readBridge } from "@/renderer/bridge";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
@@ -21,6 +22,7 @@ import {
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import {
   buildFileEditorContext,
   openFileInEditor,
@@ -197,6 +199,18 @@ export function ChatPane(props: ChatPaneProps) {
       projectLocation: targetContext.projectLocation,
       projectRootNames,
       ...(markdownImageRoots ? { markdownImageRoots } : {}),
+      ...(thread.remoteServerId
+        ? {
+            remoteLocalImageUrl: (url: string) => {
+              const platform = targetContext.projectLocation.kind === "windows" ? "win32" : "linux";
+              return useRemoteServersStore
+                .getState()
+                .localImageUrl(thread.remoteServerId!, resolveLocalFileUrlPath(url, platform));
+            },
+            remoteImageRefUrl: (ref) =>
+              useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref),
+          }
+        : {}),
     };
   }, [
     project,
@@ -209,6 +223,7 @@ export function ChatPane(props: ChatPaneProps) {
     onOpenProjectRelativePath,
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
+    thread.remoteServerId,
   ]);
 
   useEffect(() => {

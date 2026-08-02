@@ -53,11 +53,15 @@ type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugin
 // (e.g. `https://sent`) routinely trip it, producing a "[blocked]" flash on
 // otherwise valid URLs. We control external opens through `MdAnchor` and gate
 // file/folder hrefs there too, so harden is redundant here.
-const REHYPE_PLUGINS: RehypePlugins = Object.entries(defaultRehypePlugins)
-  .filter(([key]) => key !== "harden")
-  .flatMap(([key, plugin]) =>
-    key === "sanitize" ? [rehypeLocalImageUrls, allowLocalImageProtocol(plugin)] : [plugin],
-  );
+function buildRehypePlugins(remoteLocalImageUrl?: (url: string) => string): RehypePlugins {
+  return Object.entries(defaultRehypePlugins)
+    .filter(([key]) => key !== "harden")
+    .flatMap(([key, plugin]) =>
+      key === "sanitize"
+        ? [[rehypeLocalImageUrls, { remoteLocalImageUrl }], allowLocalImageProtocol(plugin)]
+        : [plugin],
+    ) as RehypePlugins;
+}
 
 interface ItemMarkdownInnerProps {
   text: string;
@@ -72,6 +76,10 @@ interface ItemMarkdownInnerProps {
 export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
   const actions = useChatPaneActions();
   const rootNames = actions?.projectRootNames;
+  const rehypePlugins = useMemo(
+    () => buildRehypePlugins(actions?.remoteLocalImageUrl),
+    [actions?.remoteLocalImageUrl],
+  );
   // Escape the React Compiler: the plugin tuple captures `rootNames`, which
   // the compiler conservatively re-creates each render. Streaming chats
   // re-render on every chunk, so anchor the array to `rootNames` identity.
@@ -114,7 +122,7 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     <div className="lc-chat-markdown prose max-w-none text-[length:var(--lc-chat-font-size)] leading-snug text-foreground prose-headings:text-[length:var(--lc-chat-font-size)] prose-p:text-[length:var(--lc-chat-font-size)] prose-p:whitespace-pre-wrap prose-li:text-[length:var(--lc-chat-font-size)] prose-pre:my-2 prose-pre:rounded prose-pre:border-0 prose-pre:bg-foreground/10 prose-pre:px-[0.5em] prose-pre:py-[0.25em] prose-pre:font-mono prose-pre:text-[0.875em] prose-pre:leading-snug prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:overflow-x-hidden prose-code:before:content-none prose-code:after:content-none prose-a:text-foreground prose-a:no-underline prose-a:text-[length:inherit] hover:prose-a:underline hover:prose-a:decoration-1 prose-a:underline-offset-2">
       <Streamdown
         remarkPlugins={remarkPlugins}
-        rehypePlugins={REHYPE_PLUGINS}
+        rehypePlugins={rehypePlugins}
         components={MD_COMPONENTS}
         urlTransform={transformMarkdownUrl}
         parseIncompleteMarkdown
@@ -229,13 +237,16 @@ interface MarkdownHastNode {
   children?: MarkdownHastNode[];
 }
 
-function rehypeLocalImageUrls() {
+function rehypeLocalImageUrls(options?: { remoteLocalImageUrl?: (url: string) => string }) {
   return (tree: MarkdownHastNode) => {
-    rewriteLocalImageUrls(tree);
+    rewriteLocalImageUrls(tree, options?.remoteLocalImageUrl);
   };
 }
 
-function rewriteLocalImageUrls(node: MarkdownHastNode): void {
+function rewriteLocalImageUrls(
+  node: MarkdownHastNode,
+  remoteLocalImageUrl?: (url: string) => string,
+): void {
   const src = node.properties?.src;
   // Fallback for absolute paths that skip the pre-parse rewrite (e.g. HTML
   // <img>). Relative project paths need projectRoot and are handled only there.
@@ -245,9 +256,13 @@ function rewriteLocalImageUrls(node: MarkdownHastNode): void {
     // Remote PWA: swap poracode-local sources for the desktop's authenticated
     // HTTP image endpoint. A no-op inside the desktop Electron app, which
     // never installs a resolver (see shared/localImageDisplay.ts).
-    node.properties!.src = resolveLocalImageDisplayUrl(node.properties!.src as string);
+    const localUrl = node.properties!.src as string;
+    node.properties!.src =
+      localUrl.startsWith("poracode-local://") && remoteLocalImageUrl
+        ? remoteLocalImageUrl(localUrl) || localUrl
+        : resolveLocalImageDisplayUrl(localUrl);
   }
-  node.children?.forEach(rewriteLocalImageUrls);
+  node.children?.forEach((child) => rewriteLocalImageUrls(child, remoteLocalImageUrl));
 }
 
 function allowLocalImageProtocol(plugin: RehypePlugins[number]): RehypePlugins[number] {

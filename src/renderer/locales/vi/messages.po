@@ -1875,6 +1875,11 @@ msgstr "Hủy bộ chọn"
 msgid "Cancel removing project"
 msgstr "Hủy xóa dự án"
 
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+msgid "Cancel workflow"
+msgstr "Hủy quy trình làm việc"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "đã hủy"
@@ -1984,6 +1989,10 @@ msgstr "Kiểm tra lại {serverName}"
 msgid "Check again"
 msgstr "Kiểm tra lại"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Check for update"
+msgstr "Kiểm tra bản cập nhật"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2017,6 +2026,7 @@ msgstr "Đang kiểm tra Tailscale…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "Đang kiểm tra…"
 
@@ -3896,6 +3906,11 @@ msgstr "Đang tải xuống mẫu giọng nói {0}%"
 msgid "Downloading voice model..."
 msgstr "Đang tải xuống mẫu giọng nói..."
 
+#. placeholder {0}: Math.round(updateStatus.percent)
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Downloading… {0}%"
+msgstr "Đang tải xuống… {0}%"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
@@ -5172,6 +5187,18 @@ msgstr "Thư mục chính"
 msgid "Home scope"
 msgstr "phạm vi thư mục chính"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host is up to date."
+msgstr "Máy chủ đã được cập nhật."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host update failed."
+msgstr "Không thể cập nhật máy chủ."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Host version: {currentVersion}"
+msgstr "Phiên bản máy chủ: {currentVersion}"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com, bí danh hoặc người_dùng@host.com"
@@ -5412,6 +5439,10 @@ msgstr "Cài đặt ACP + SDK trong {environment}"
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "Cài đặt ACP, SDK hoặc cả hai, sau đó chọn môi trường chạy để bắt đầu các cuộc trò chuyện Cursor GUI mới. Các cuộc trò chuyện hiện có vẫn gắn với môi trường đã tạo ra chúng."
 
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Install and restart"
+msgstr "Cài đặt và khởi động lại"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "Cài đặt móc CLI"
@@ -5476,6 +5507,11 @@ msgstr "Cài đặt gói để thêm khóa API của nó."
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "Cài đặt bản cập nhật"
+
+#. placeholder {0}: updateStatus.version
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "Install v{0}"
+msgstr "Cài đặt v{0}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Install v{updateVersion}"
@@ -5577,6 +5613,11 @@ msgstr "Giữ Poracode trong khay hệ thống khi ứng dụng khởi chạy c�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Giữ cho hệ thống luôn hoạt động trong khi bất kỳ luồng nào đang hoạt động tích cực."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while remote access is enabled."
+msgstr "Giữ hệ thống luôn hoạt động khi truy cập từ xa được bật."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8067,6 +8108,11 @@ msgstr "Cấu hình sẵn"
 msgid "Press shortcut…"
 msgstr "Nhấn phím tắt…"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep during remote access"
+msgstr "Ngăn chế độ ngủ khi truy cập từ xa"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
@@ -8626,6 +8672,21 @@ msgstr "Cổng truy cập từ xa {occupiedPort} đang được sử dụng. Hã
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Environments"
 msgstr "Môi trường từ xa"
+
+#. placeholder {0}: Math.round(status.percent)
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update is downloading… {0}%"
+msgstr "Đang tải bản cập nhật máy chủ từ xa… {0}%"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is downloading…"
+msgstr "Đang tải bản cập nhật v{0} của máy chủ từ xa…"
+
+#. placeholder {0}: status.version
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+msgid "Remote host update v{0} is ready."
+msgstr "Bản cập nhật v{0} của máy chủ từ xa đã sẵn sàng."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
@@ -10354,6 +10415,7 @@ msgstr "bắt đầu…"
 msgid "Startup is taking longer than expected"
 msgstr "Quá trình khởi động mất nhiều thời gian hơn dự kiến"
 
+#: src/renderer/actions/gitCommandRunner.ts
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Cất & Kéo"
@@ -10833,6 +10895,11 @@ msgstr "Lời nhắc thử nghiệm quá dài."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "phạm vi WSL toàn cục {0}"
+
+#: src/renderer/components/thread/RemoteHostUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
+msgid "The host is restarting to install the update."
+msgstr "Máy chủ đang khởi động lại để cài đặt bản cập nhật."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -12340,6 +12407,10 @@ msgstr "Đã làm việc trong {elapsed}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow"
 msgstr "Quy trình làm việc"
+
+#: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
+msgid "Workflow cancellation requested."
+msgstr "Đã yêu cầu hủy quy trình làm việc."
 
 #: src/renderer/views/GitHubActionsView/useGitHubActionsViewModel.ts
 msgid "Workflow dispatch requested."

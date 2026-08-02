@@ -13,6 +13,15 @@ export interface DevTerminalTab {
 
 interface DevTerminalState {
   isOpen: boolean;
+  /**
+   * True while the panel was opened by an explicit user action (icon click,
+   * auto-show) and the follow-the-thread lock has not re-scoped it since. The
+   * bottom-panel visibility gate uses it so an explicit open shows immediately
+   * even when the terminal's scope does not match the focused thread's scope.
+   * Cleared on close and whenever the lock re-scopes via `setPanelScope`.
+   * Ephemeral — never persisted.
+   */
+  explicitlyOpened: boolean;
   activeProjectId: string | null;
   /** When set, the panel shows worktree tabs for this path; when null, project tabs. */
   activeWorktreePath: string | null;
@@ -75,6 +84,7 @@ function clearStreaming(ids: string[]): void {
 
 export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>()((set, get) => ({
   isOpen: false,
+  explicitlyOpened: false,
   activeProjectId: null,
   activeWorktreePath: null,
   tabs: [],
@@ -86,6 +96,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
   openPanel: (projectId) =>
     set((state) => ({
       isOpen: true,
+      explicitlyOpened: true,
       activeProjectId: projectId,
       activeWorktreePath: null,
       focusRequestId: state.focusRequestId + 1,
@@ -93,11 +104,18 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
   openWorktreePanel: (projectId, worktreePath) =>
     set((state) => ({
       isOpen: true,
+      explicitlyOpened: true,
       activeProjectId: projectId,
       activeWorktreePath: worktreePath,
       focusRequestId: state.focusRequestId + 1,
     })),
-  closePanel: () => set({ isOpen: false, activeProjectId: null, activeWorktreePath: null }),
+  closePanel: () =>
+    set({
+      isOpen: false,
+      explicitlyOpened: false,
+      activeProjectId: null,
+      activeWorktreePath: null,
+    }),
 
   setActiveProject: (projectId) => {
     const tabs = get().tabs.filter((t) => t.projectId === projectId);
@@ -109,19 +127,22 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
 
   setPanelScope: (projectId, worktreePath) =>
     set((state) => {
-      if (
+      // The follow lock re-scoping the panel takes over from any explicit
+      // open, so the visibility gate falls back to scope matching.
+      const sameScope =
         state.activeProjectId === projectId &&
-        (state.activeWorktreePath ?? undefined) === worktreePath
-      ) {
+        (state.activeWorktreePath ?? undefined) === worktreePath;
+      if (sameScope && !state.explicitlyOpened) {
         return {};
       }
       const scopedTab = state.tabs.find(
         (tab) => tab.projectId === projectId && (tab.worktreePath ?? undefined) === worktreePath,
       );
       return {
+        explicitlyOpened: false,
         activeProjectId: projectId,
         activeWorktreePath: worktreePath ?? null,
-        activeTabId: scopedTab?.id ?? null,
+        ...(sameScope ? {} : { activeTabId: scopedTab?.id ?? null }),
       };
     }),
 
@@ -336,6 +357,7 @@ export function resetDevTerminalStore(): void {
   clearStreaming([...streamingTimers.keys()]);
   useDevTerminalStore.setState({
     isOpen: false,
+    explicitlyOpened: false,
     activeProjectId: null,
     activeWorktreePath: null,
     tabs: [],

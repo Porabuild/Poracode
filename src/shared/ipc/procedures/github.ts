@@ -1,6 +1,7 @@
 import {
   cloneRepoPayloadSchema,
   getGitStatusPayloadSchema,
+  ghCancelWorkflowRunPayloadSchema,
   ghClosePrPayloadSchema,
   ghCreatePrPayloadSchema,
   ghDeleteWorkflowRunPayloadSchema,
@@ -31,6 +32,7 @@ import type {
   CloneRepoResult,
   GetGitStatusPayload,
   GhCheckAvailableResult,
+  GhCancelWorkflowRunPayload,
   GhClosePrPayload,
   GhCreatePrPayload,
   GhDeleteWorkflowRunPayload,
@@ -128,6 +130,11 @@ export const githubProcedures = {
     "ghRerunWorkflowRun",
     "supervisor",
     ghRerunWorkflowRunPayloadSchema,
+  ),
+  ghCancelWorkflowRun: definePayloadProcedure<GhCancelWorkflowRunPayload, void, "supervisor">(
+    "ghCancelWorkflowRun",
+    "supervisor",
+    ghCancelWorkflowRunPayloadSchema,
   ),
   ghDeleteWorkflowRun: definePayloadProcedure<GhDeleteWorkflowRunPayload, void, "supervisor">(
     "ghDeleteWorkflowRun",

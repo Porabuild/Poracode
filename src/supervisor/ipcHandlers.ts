@@ -162,8 +162,14 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
           ),
     gitSwitchBranch: (payload) =>
       git.switchBranch(payload.projectLocation, payload.branch, payload.createNew),
-    gitPull: (payload) => git.pull(payload.projectLocation, payload.remote ?? "origin"),
-    gitPullRebase: (payload) => git.pullRebase(payload.projectLocation, payload.remote ?? "origin"),
+    gitPull: (payload) =>
+      git.pull(payload.projectLocation, payload.remote ?? "origin", payload.preserveLocalChanges),
+    gitPullRebase: (payload) =>
+      git.pullRebase(
+        payload.projectLocation,
+        payload.remote ?? "origin",
+        payload.preserveLocalChanges,
+      ),
     gitPush: (payload) =>
       git.push(
         payload.projectLocation,
@@ -261,6 +267,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       ),
     ghRerunWorkflowRun: (payload) =>
       github.rerunWorkflowRun(payload.projectLocation, payload.runId, payload.failedOnly),
+    ghCancelWorkflowRun: (payload) =>
+      github.cancelWorkflowRun(payload.projectLocation, payload.runId),
     ghDeleteWorkflowRun: (payload) =>
       github.deleteWorkflowRun(payload.projectLocation, payload.runId),
     ghMergePr: (payload) =>

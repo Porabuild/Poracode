@@ -120,6 +120,7 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   ghPostPrComment: "session:operate",
   ghDispatchWorkflow: "session:operate",
   ghRerunWorkflowRun: "session:operate",
+  ghCancelWorkflowRun: "session:operate",
   ghDeleteWorkflowRun: "session:operate",
 } as const satisfies Record<string, RemoteAccessScope>;
 
