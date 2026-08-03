@@ -24,6 +24,8 @@ import type {
   RelocateProjectResult,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
+import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { msg } from "@/shared/messages";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
@@ -60,7 +62,11 @@ import {
   visibleCrossagentCapabilitiesForAdapter,
   type CrossagentVisibilitySettings,
 } from "./crossagentMcp/availability";
-import { buildSpawnableAgents, crossagentRoutingSnapshot } from "./crossagentMcp/toolRegistry";
+import { buildSpawnableAgents } from "./crossagentMcp/toolRegistry";
+import {
+  crossagentRoutingSnapshot,
+  listCrossagentEligibleProviders,
+} from "./crossagentMcp/routingSnapshot";
 import { dispatchAgentEvent } from "./runtime/agentEventDispatcher";
 import { hookDebugEnvelope, isPoracodeHookDebug } from "./runtime/hookDebug";
 import { SupervisorSharedSettingsCache } from "./runtime/supervisorSharedSettings";
@@ -476,8 +482,16 @@ export class SupervisorRuntime {
     return buildSpawnableAgents(this.adapters, windows, settings, contextTags);
   }
 
-  async getCrossagentRoutingSnapshot() {
-    return crossagentRoutingSnapshot(await this.getCrossagentSpawnableAgents());
+  async getCrossagentRoutingSnapshot(): Promise<CrossagentRoutingState> {
+    const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
+    const settings = this.sharedSettingsCache.read();
+    return {
+      ranked: crossagentRoutingSnapshot(
+        buildSpawnableAgents(this.adapters, windows, settings),
+        crossagentRankingPreferences(settings),
+      ),
+      providers: listCrossagentEligibleProviders(this.adapters, windows, settings),
+    };
   }
 
   confirmCrossagentRoutingOverride(payload: ConfirmCrossagentRoutingOverridePayload): void {

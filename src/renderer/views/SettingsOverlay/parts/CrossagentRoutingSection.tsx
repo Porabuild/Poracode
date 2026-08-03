@@ -1,26 +1,36 @@
 import { useEffect, useState } from "react";
-import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { toast } from "@heroui/react";
 import { Trash2 } from "lucide-react";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { Button, TextArea } from "@/renderer/components/common";
+import { distinctSubProviderLabel } from "@/renderer/components/common/ProviderModelMenu";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import type { CrossagentRoutingSnapshotEntry } from "@/shared/crossagentRanking";
+import type {
+  CrossagentRoutingSnapshotEntry,
+  CrossagentRoutingState,
+} from "@/shared/crossagentRanking";
+import { presentedCrossagentCapabilities } from "@/shared/crossagentVisibility";
 import { formatReasoningLabel } from "@/shared/modelLabels";
+import { CrossagentMemorySection } from "./crossagent/CrossagentMemorySection";
+import { CrossagentProviderModelFilter } from "./crossagent/CrossagentProviderModelFilter";
+import { CrossagentRankedRow } from "./crossagent/CrossagentRankedRow";
 
 /**
- * Free-text routing guidance for cross-provider subagents. The text is appended
- * to the Crossagents MCP server `instructions` so an agent that spawns subagents
- * knows which connected agent/model to prefer for a given kind of task. Stored
- * globally on `sharedSettings.crossagentRoutingGuide`; committed on blur (matching
- * the other free-text settings) to avoid a disk write per keystroke.
+ * Crossagents routing settings: the live globally ranked (provider, model)
+ * order with one global provider/model checklist (unchecked providers and
+ * models are skipped by Crossagents), the editable learned routing memory,
+ * user-pinned task routes, and the free-text routing guide appended to the
+ * Crossagents MCP instructions.
  */
 export function CrossagentRoutingSection() {
   const { t } = useLingui();
   const crossagentRoutingGuide = useSharedSettings((s) => s.crossagentRoutingGuide);
   const crossagentSelectionUsage = useSharedSettings((s) => s.crossagentSelectionUsage);
   const crossagentRoutingOverrides = useSharedSettings((s) => s.crossagentRoutingOverrides);
+  const crossagentPausedProviders = useSharedSettings((s) => s.crossagentPausedProviders);
+  const crossagentHiddenModels = useSharedSettings((s) => s.crossagentHiddenModels);
   const agentSelectionUsage = useSharedSettings((s) => s.agentSelectionUsage);
   const favoriteModels = useSharedSettings((s) => s.favoriteModels);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
@@ -28,22 +38,44 @@ export function CrossagentRoutingSection() {
   const statuses = useAgentStatusesStore((s) => s.agentStatuses);
   const setCrossagentRoutingGuide = useSharedSettings((s) => s.setCrossagentRoutingGuide);
   const [draft, setDraft] = useState(crossagentRoutingGuide);
-  const [ranked, setRanked] = useState<CrossagentRoutingSnapshotEntry[]>([]);
+  const [routing, setRouting] = useState<CrossagentRoutingState>({ ranked: [], providers: [] });
   const [removingRoute, setRemovingRoute] = useState<string | null>(null);
-  const preferenceSourceLabels = {
-    "manual-override": t`Manual override`,
-    "tag-affinity": t`Task match`,
-    "crossagent-usage": t`Crossagents usage`,
-    favorite: t`Favorite`,
-    "agent-usage": t`Agent usage`,
-    "built-in": t`Built-in order`,
-  } as const;
+  // Eligible providers missing from the ranked order were excluded by the
+  // user's checklist (paused, or every model unchecked) — keep them glanceable
+  // while the popover is closed.
+  const rankedProviderKinds = new Set(routing.ranked.map((entry) => entry.provider));
+  const skippedProviderNames = routing.providers
+    .filter((provider) => !rankedProviderKinds.has(provider.kind))
+    .map((provider) => provider.label);
+
+  // Ranked rows are per-model, so resolve each provider's presented capability
+  // once instead of rebuilding it for every row.
+  const capabilitiesByKind = new Map(
+    routing.providers.flatMap((provider) => {
+      const status = statuses.find((candidate) => candidate.kind === provider.kind);
+      if (!status) return [];
+      return [
+        [
+          provider.kind,
+          presentedCrossagentCapabilities(provider.execution, status.capabilities),
+        ] as const,
+      ];
+    }),
+  );
+
+  // Aggregator providers (OpenCode, Command Code, …) expose same-label models
+  // from different sub-providers; surface the sub-provider to tell them apart.
+  function subProviderLabelFor(entry: CrossagentRoutingSnapshotEntry): string | undefined {
+    const capabilities = capabilitiesByKind.get(entry.provider);
+    if (!capabilities) return undefined;
+    return distinctSubProviderLabel(entry.model.id, capabilities, entry.label);
+  }
   useEffect(() => {
     let active = true;
     void readBridge()
       .getCrossagentRouting()
-      .then((entries) => {
-        if (active) setRanked(entries);
+      .then((state) => {
+        if (active) setRouting(state);
       })
       .catch(() => {});
     return () => {
@@ -53,6 +85,8 @@ export function CrossagentRoutingSection() {
     statuses,
     disabledAgents,
     hiddenModels,
+    crossagentPausedProviders,
+    crossagentHiddenModels,
     crossagentSelectionUsage,
     crossagentRoutingOverrides,
     agentSelectionUsage,
@@ -60,7 +94,7 @@ export function CrossagentRoutingSection() {
   ]);
 
   async function removePinnedRoute(tags: string[]) {
-    const key = tags.join("\u0000");
+    const key = tags.join(" ");
     setRemovingRoute(key);
     try {
       const nextOverrides = await readBridge().removeCrossagentRoutingOverride({
@@ -77,59 +111,42 @@ export function CrossagentRoutingSection() {
   return (
     <div className="space-y-5">
       <section className="space-y-2">
-        <p className="text-sm font-medium text-foreground">
-          <Trans>Preferred routing order</Trans>
-        </p>
-        <p className="text-xs text-muted">
-          <Trans>
-            Agents classify delegated work with task tags. Manual task routes rank first, followed
-            by matching learned routes, global Crossagents usage, favorites, normal agent usage, and
-            built-in order.
-          </Trans>
-        </p>
-        <div className="overflow-hidden rounded-lg border border-border">
-          {ranked.map((entry) => {
-            const detail = [
-              entry.model.label,
-              ...(entry.reasoning ? [formatReasoningLabel(entry.reasoning)] : []),
-              ...(entry.fast ? [t`Fast`] : []),
-            ].join(" · ");
-            return (
-              <div
-                key={entry.provider}
-                className="flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0"
-              >
-                <span className="w-7 shrink-0 text-xs font-medium tabular-nums text-muted">
-                  #{entry.rank}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-foreground">{entry.label}</p>
-                  <p className="truncate text-xs text-muted">{detail}</p>
-                  {entry.learnedTags.length > 0 ? (
-                    <p className="truncate text-xs text-muted">
-                      {entry.learnedTags
-                        .slice(0, 5)
-                        .map(({ tag, count }) => `#${tag} (${count})`)
-                        .join(" · ")}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="shrink-0 text-right text-xs text-muted">
-                  <p>{preferenceSourceLabels[entry.source]}</p>
-                  {entry.usageCount > 0 ? (
-                    <p>
-                      <Plural value={entry.usageCount} one="# use" other="# uses" />
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium text-foreground">
+            <Trans>Current routing order</Trans>
+          </p>
+          <CrossagentProviderModelFilter providers={routing.providers} />
         </div>
         <p className="text-xs text-muted">
           <Trans>
-            Unavailable providers, models, reasoning levels, and Fast modes are skipped
-            automatically.
+            Agents classify delegated work with task tags. Manual task routes rank first, followed
+            by matching learned routes, global Crossagents usage, normal agent usage and favorites,
+            and built-in order.
+          </Trans>
+        </p>
+        {routing.ranked.length > 0 ? (
+          <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
+            {routing.ranked.map((entry) => {
+              const subProviderLabel = subProviderLabelFor(entry);
+              return (
+                <CrossagentRankedRow
+                  key={`${entry.provider}:${entry.model.id}`}
+                  entry={entry}
+                  {...(subProviderLabel ? { subProviderLabel } : {})}
+                />
+              );
+            })}
+          </div>
+        ) : null}
+        {skippedProviderNames.length > 0 ? (
+          <p className="text-xs text-muted">
+            {t`Skipped by Crossagents: ${skippedProviderNames.join(", ")}`}
+          </p>
+        ) : null}
+        <p className="text-xs text-muted">
+          <Trans>
+            Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is
+            skipped automatically. Unchecked providers and models are skipped until re-checked.
           </Trans>
         </p>
         {crossagentRoutingOverrides.length > 0 ? (
@@ -146,7 +163,7 @@ export function CrossagentRoutingSection() {
             </div>
             <div className="overflow-hidden rounded-lg border border-border">
               {crossagentRoutingOverrides.map((override) => {
-                const key = override.tags.join("\u0000");
+                const key = override.tags.join(" ");
                 const routeDetail = [
                   override.agentKind,
                   override.modelId,
@@ -155,9 +172,7 @@ export function CrossagentRoutingSection() {
                 ]
                   .filter(Boolean)
                   .join(" · ");
-                const providerAvailable = ranked.some(
-                  (entry) => entry.provider === override.agentKind,
-                );
+                const providerAvailable = rankedProviderKinds.has(override.agentKind);
                 const tagLabel = override.tags.map((tag) => `#${tag}`).join(" + ");
                 return (
                   <div
@@ -190,6 +205,7 @@ export function CrossagentRoutingSection() {
           </div>
         ) : null}
       </section>
+      <CrossagentMemorySection />
       <section className="space-y-2">
         <p className="text-sm font-medium text-foreground">
           <Trans>Crossagent routing guide</Trans>

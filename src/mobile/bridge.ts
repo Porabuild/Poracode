@@ -219,6 +219,10 @@ const remoteBridgeOverrides = {
   },
   removeCrossagentRoutingOverride: () =>
     Promise.reject(new Error("Manual routing preferences can only be changed on desktop.")),
+  removeCrossagentMemoryEntry: () =>
+    Promise.reject(new Error("Learned routing memory can only be changed on desktop.")),
+  updateCrossagentMemoryEntryTags: () =>
+    Promise.reject(new Error("Learned routing memory can only be changed on desktop.")),
 
   // Shell conveniences with browser-native equivalents.
   openExternal: (url: string) => {

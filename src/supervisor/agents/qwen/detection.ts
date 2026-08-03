@@ -165,6 +165,7 @@ export function buildQwenProbeCapabilities(
     ...(probe?.efforts?.length ? { efforts: probe.efforts } : {}),
     ...(probe?.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
     ...(probe?.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
+    ...(probe?.modelDefaultEfforts ? { modelDefaultEfforts: probe.modelDefaultEfforts } : {}),
     modes: [...new Set([...qwenDefaultCapabilities.modes, ...(probe?.modes ?? [])])],
     ...(probe?.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),

@@ -71,6 +71,8 @@ interface SharedSettingsState extends SharedSettings {
   setModelHidden: (agentKind: string, modelId: string, hidden: boolean) => void;
   setHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setAgentDisabled: (agentKind: string, disabled: boolean) => void;
+  setCrossagentProviderPaused: (agentKind: string, paused: boolean) => void;
+  setCrossagentHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setProviderOrder: (order: string[]) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
   setCliPickerTarget: (value: CliPickerTarget) => void;
@@ -396,6 +398,19 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       ? [...new Set([...current, agentKind])]
       : current.filter((k) => k !== agentKind);
     set({ disabledAgents: next });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCrossagentProviderPaused: (agentKind, paused) => {
+    const current = get().crossagentPausedProviders;
+    const next = paused
+      ? [...new Set([...current, agentKind])]
+      : current.filter((k) => k !== agentKind);
+    set({ crossagentPausedProviders: next });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCrossagentHiddenModels: (agentKind, hiddenIds) => {
+    const current = get().crossagentHiddenModels;
+    set({ crossagentHiddenModels: { ...current, [agentKind]: hiddenIds } });
     persistSettings(selectSharedSettings(get()));
   },
   setProviderOrder: (order) => {
@@ -935,6 +950,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
     agentSelectionUsage: state.agentSelectionUsage,
+    crossagentPausedProviders: state.crossagentPausedProviders,
+    crossagentHiddenModels: state.crossagentHiddenModels,
     browser: state.browser,
     audio: state.audio,
     usage: state.usage,

@@ -110,8 +110,10 @@ msgstr "{0, plural, one {# 个工具} other {# 个工具}}"
 #~ msgid "{0, plural, one {# turn} other {# turns}}"
 #~ msgstr "{0, plural, other {# 轮}}"
 
+#. placeholder {0}: entry.count
 #. placeholder {0}: entry.usageCount
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "{0, plural, one {# use} other {# uses}}"
 msgstr "{0, plural, other {使用 # 次}}"
 
@@ -576,9 +578,13 @@ msgstr "{usedLabel}/{maxLabel} 令牌"
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} 令牌"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "{visibleCount} of {totalCount} usable"
+msgstr "{visibleCount}/{totalCount} 可用"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount} 中的 {visibleCount} 个可见"
 
@@ -948,6 +954,14 @@ msgstr "添加技能"
 msgid "Add skill destination"
 msgstr "新技能目标位置"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag"
+msgstr "添加标签"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag..."
+msgstr "添加标签..."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "添加到编写器"
@@ -1022,7 +1036,7 @@ msgstr "代理终端字体大小"
 msgid "Agent update available"
 msgstr "代理更新可用"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "智能体使用情况"
 
@@ -1046,8 +1060,12 @@ msgid "Agents · General"
 msgstr "代理·一般"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
-msgstr "代理使用任务标签对委派的工作进行分类。手动任务路由优先，其次是匹配的已学习路由、Crossagents 全局使用情况、收藏项、常规代理使用情况和内置顺序。"
+#~ msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
+#~ msgstr "代理使用任务标签对委派的工作进行分类。手动任务路由优先，其次是匹配的已学习路由、Crossagents 全局使用情况、收藏项、常规代理使用情况和内置顺序。"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, normal agent usage and favorites, and built-in order."
+msgstr "代理使用任务标签对委派的工作进行分类。手动任务路由排在首位，其次是匹配的已学习路由、全局 Crossagents 使用情况、常规代理使用情况和收藏，最后是内置顺序。"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
@@ -1218,6 +1236,10 @@ msgstr "此实验的另一个操作仍在运行。"
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
+msgstr "当前不可用的任何内容 — 提供商、模型、推理级别或 Fast 模式 — 都会被自动跳过。未选中的提供商和模型将被跳过，直到重新选中。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
@@ -1775,7 +1797,7 @@ msgstr "内置"
 msgid "Built-in MCP servers"
 msgstr "内置 MCP 服务器"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "内置顺序"
 
@@ -2010,6 +2032,10 @@ msgstr "检查我最近的进展，并针对下一步给出一条明确建议。
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "检查所选设备的实时输入电平。"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Checked"
+msgstr "已选中"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Checking"
@@ -3239,9 +3265,18 @@ msgstr "Crossagent"
 msgid "Crossagent ({subagent}): {description}"
 msgstr "Crossagent（{subagent}）：{description}"
 
+#. placeholder {0}: props.provider.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#~ msgid "Crossagent models for {0}"
+#~ msgstr "{0} 的 Crossagent 模型"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #~ msgid "Crossagent not found."
 #~ msgstr "未找到 Crossagent。"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagent providers and models"
+msgstr "Crossagent 提供商和模型"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3280,7 +3315,7 @@ msgstr "Crossagents"
 msgid "Crossagents enabled for this thread"
 msgstr "已为此线程启用 Crossagents"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Crossagents usage"
 msgstr "Crossagents 使用情况"
 
@@ -3309,6 +3344,10 @@ msgstr "最近"
 #: src/renderer/components/skills/SkillImportModal.tsx
 #~ msgid "Current project"
 #~ msgstr "当前项目"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Current routing order"
+msgstr "当前路由顺序"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
@@ -3990,6 +4029,10 @@ msgstr "编辑计划"
 #~ msgid "Edit scheduled task"
 #~ msgstr "编辑计划任务"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Edit tags for {label}"
+msgstr "编辑 {label} 的标签"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Edit task"
 #~ msgstr "编辑任务"
@@ -4389,6 +4432,10 @@ msgstr "实验评审的获胜者编号必须介于 1 和 {candidateCount} 之间
 msgid "Experiment prompt must not be blank"
 msgstr "实验提示词不能为空"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
+msgstr "从过去的委派中记录的明确选择 — 它们构成上方的路由顺序。编辑标签或删除条目以调整路由。"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "导出 MCP 服务器"
@@ -4486,6 +4533,8 @@ msgstr "记录已标记所有者的分支元数据失败：{detail}。回滚后�
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "快"
@@ -4504,7 +4553,7 @@ msgstr "最快（Whisper tiny）"
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "“最快”使用 Whisper tiny；“更好”使用 Whisper base。"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Favorite"
 msgstr "收藏"
 
@@ -5113,9 +5162,9 @@ msgstr "隐藏"
 msgid "Hide {label} circle in sidebar"
 msgstr "在侧边栏中隐藏 {label} 圆环"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "全部隐藏"
 
@@ -5698,6 +5747,14 @@ msgstr "正在启动"
 msgid "Launching…"
 msgstr "正在启动…"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "Learned routing memory"
+#~ msgstr "已学习的路由记忆"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Learned selections"
+msgstr "已学习的选择"
+
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
@@ -6030,7 +6087,7 @@ msgstr "由提供商托管"
 msgid "Manual order"
 msgstr "手动排序"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Manual override"
 msgstr "手动覆盖"
 
@@ -6972,6 +7029,14 @@ msgstr "暂无历史记录"
 msgid "No jobs reported for this run."
 msgstr "此次运行未报告任何作业。"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "No learned routing memory yet."
+#~ msgstr "暂无已学习的路由记忆。"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No learned selections yet."
+msgstr "尚无已学习的选择。"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
 msgstr "未找到 Lightcode 数据。"
@@ -7034,8 +7099,8 @@ msgid "No microphone found."
 msgstr "找不到麦克风。"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "No models found"
 msgstr "未找到模型"
 
@@ -7160,6 +7225,10 @@ msgstr "没有暂存的更改"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "未检测到支持的代理"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No tags — the entry stops influencing tag affinity."
+msgstr "无标签 - 此条目不再影响标签亲和性。"
 
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/ThreadView.tsx
@@ -7805,6 +7874,10 @@ msgstr "服务器上的父文件夹"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "父文件夹，例如 /home/me/projects"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Partially checked"
+msgstr "部分选中"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
 msgstr "已通过"
@@ -7853,6 +7926,11 @@ msgstr "请粘贴 SSH 私钥。"
 msgid "Pause"
 msgstr "暂停"
 
+#. placeholder {0}: entry.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
+#~ msgid "Pause {0}"
+#~ msgstr "暂停 {0}"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "暂停目标"
@@ -7861,6 +7939,14 @@ msgstr "暂停目标"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "已暂停"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Paused providers"
+#~ msgstr "已暂停的提供商"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Paused providers are skipped by Crossagents until resumed."
+#~ msgstr "Crossagents 会跳过已暂停的提供商，直到其恢复。"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
@@ -8098,8 +8184,8 @@ msgid "Pre-commit hook failed"
 msgstr "预提交挂钩失败"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Preferred routing order"
-msgstr "首选路由顺序"
+#~ msgid "Preferred routing order"
+#~ msgstr "首选路由顺序"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -8309,6 +8395,10 @@ msgstr "提供商"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "提供商"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Providers & models"
+msgstr "提供商和模型"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -8809,6 +8899,11 @@ msgstr "从组中删除"
 msgid "Remove from panel"
 msgstr "从面板上移除"
 
+#. placeholder {0}: providerLabel(entry.agentKind)
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove memory entry for {0}"
+msgstr "移除 {0} 的记忆条目"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "移除模型"
@@ -8828,6 +8923,10 @@ msgstr "删除项目"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "移除快捷键"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove tag {tag}"
+msgstr "移除标签 {tag}"
 
 #. placeholder {0}: pendingDelete.name
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -9060,6 +9159,10 @@ msgstr "结果"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
 msgstr "继续"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Resume {label}"
+#~ msgstr "继续 {label}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -9565,14 +9668,14 @@ msgstr "搜索 MCP 服务器"
 msgid "Search MCP servers..."
 msgstr "搜索 MCP 服务器..."
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models"
 msgstr "搜索模型"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models..."
 msgstr "搜索模型..."
 
@@ -9844,9 +9947,9 @@ msgstr "为操作系统级别的代理会话显示一个无项目的主页范围
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "显示全部"
 
@@ -10151,6 +10254,11 @@ msgstr "Skills.sh"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "已跳过"
+
+#. placeholder {0}: skippedProviderNames.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Skipped by Crossagents: {0}"
+msgstr "被 Crossagents 跳过：{0}"
 
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
@@ -10605,8 +10713,8 @@ msgid "Support:"
 msgstr "支持："
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Supports Fast mode"
 msgstr "支持快速模式"
 
@@ -10762,13 +10870,17 @@ msgstr "目标提供商"
 msgid "Task"
 msgstr "任务"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "任务匹配"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "任务输出"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Task tags"
+msgstr "任务标签"
 
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -11602,6 +11714,10 @@ msgstr "无法刷新 Claude 配置文件。"
 msgid "Unable to remove {0} credentials."
 msgstr "无法删除{0}凭据。"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to remove memory entry."
+msgstr "无法移除记忆条目。"
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Unable to remove pinned route."
 msgstr "无法移除固定路由。"
@@ -11698,6 +11814,10 @@ msgstr "无法更新{0}：{detailText}"
 msgid "Unable to update {0}."
 msgstr "无法更新{0}。"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to update learned tags."
+msgstr "无法更新已学习的标签。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "无法更新远程访问。"
@@ -11731,8 +11851,24 @@ msgid "Unavailable provider"
 msgstr "提供商不可用"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
-msgstr "不可用的提供商、模型、推理级别和 Fast 模式会被自动跳过。"
+#~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
+#~ msgstr "不可用的提供商、模型、推理级别和 Fast 模式会被自动跳过。"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
+#~ msgstr "不可用的提供商、模型、推理级别和 Fast 模式会被自动跳过。未选中的提供商和模型将被跳过，直到重新选中。"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Unchecked"
+msgstr "未选中"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#~ msgid "Unchecked models are skipped by Crossagents only."
+#~ msgstr "未选中的模型仅由 Crossagents 跳过。"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Unchecked providers and models are skipped by Crossagents only."
+msgstr "未选中的提供商和模型仅由 Crossagents 跳过。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -12308,6 +12444,10 @@ msgstr "每周"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekly review"
 msgstr "每周回顾"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
+#~ msgstr "Crossagents 从显式选择中学习到的内容。编辑标签或删除条目以重塑路由。"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"

@@ -110,8 +110,10 @@ msgstr "{0, plural, one {# 個のツール} other {# 個のツール}}"
 #~ msgid "{0, plural, one {# turn} other {# turns}}"
 #~ msgstr "{0, plural, other {# ターン}}"
 
+#. placeholder {0}: entry.count
 #. placeholder {0}: entry.usageCount
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "{0, plural, one {# use} other {# uses}}"
 msgstr "{0, plural, other {# 回}}"
 
@@ -575,9 +577,13 @@ msgstr "{usedLabel}/{maxLabel}トークン"
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel}トークン"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "{visibleCount} of {totalCount} usable"
+msgstr "{visibleCount}/{totalCount}が使用可能"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount}/{totalCount}が表示されます"
 
@@ -947,6 +953,14 @@ msgstr "スキルを追加"
 msgid "Add skill destination"
 msgstr "新しいスキルの保存先"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag"
+msgstr "タグを追加"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag..."
+msgstr "タグを追加..."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "コンポーザーに追加"
@@ -1021,7 +1035,7 @@ msgstr "エージェント端末のフォントサイズ"
 msgid "Agent update available"
 msgstr "エージェントのアップデートが利用可能"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "エージェントの使用"
 
@@ -1045,8 +1059,12 @@ msgid "Agents · General"
 msgstr "エージェント · 一般"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
-msgstr "エージェントは委任された作業をタスクタグで分類します。手動のタスクルートが最優先され、次に一致する学習済みルート、Crossagents 全体での使用状況、お気に入り、通常のエージェント使用状況、組み込み順序が続きます。"
+#~ msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
+#~ msgstr "エージェントは委任された作業をタスクタグで分類します。手動のタスクルートが最優先され、次に一致する学習済みルート、Crossagents 全体での使用状況、お気に入り、通常のエージェント使用状況、組み込み順序が続きます。"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, normal agent usage and favorites, and built-in order."
+msgstr "エージェントはタスクタグで委任された作業を分類します。手動のタスクルートが最優先され、次に一致する学習済みルート、Crossagents全体の使用状況、通常のエージェント使用状況とお気に入り、組み込みの順序が続きます。"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
@@ -1217,6 +1235,10 @@ msgstr "この実験の別の操作がまだ実行中です。"
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
+msgstr "現在利用できないもの — プロバイダー、モデル、推論レベル、Fast モード — は自動的にスキップされます。チェックを外したプロバイダーとモデルは、再度チェックするまでスキップされます。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
@@ -1774,7 +1796,7 @@ msgstr "組み込み"
 msgid "Built-in MCP servers"
 msgstr "組み込みMCPサーバー"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "組み込み順"
 
@@ -2009,6 +2031,10 @@ msgstr "最近の進捗を確認し、次に何をすべきか具体的な提案
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "選択したデバイスからのライブ入力レベルを確認します。"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Checked"
+msgstr "チェック済み"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Checking"
@@ -3238,9 +3264,18 @@ msgstr "Crossagent"
 msgid "Crossagent ({subagent}): {description}"
 msgstr "Crossagent（{subagent}）：{description}"
 
+#. placeholder {0}: props.provider.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#~ msgid "Crossagent models for {0}"
+#~ msgstr "{0}のCrossagentモデル"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #~ msgid "Crossagent not found."
 #~ msgstr "Crossagentが見つかりません。"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagent providers and models"
+msgstr "Crossagentのプロバイダーとモデル"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3279,7 +3314,7 @@ msgstr "Crossagents"
 msgid "Crossagents enabled for this thread"
 msgstr "このスレッドに対して Crossagents が有効になっています"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Crossagents usage"
 msgstr "Crossagents の使用"
 
@@ -3308,6 +3343,10 @@ msgstr "最近"
 #: src/renderer/components/skills/SkillImportModal.tsx
 #~ msgid "Current project"
 #~ msgstr "現在のプロジェクト"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Current routing order"
+msgstr "現在のルーティング順"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
@@ -3989,6 +4028,10 @@ msgstr "スケジュールを編集"
 #~ msgid "Edit scheduled task"
 #~ msgstr "スケジュールタスクを編集"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Edit tags for {label}"
+msgstr "{label}のタグを編集"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Edit task"
 #~ msgstr "タスクを編集"
@@ -4388,6 +4431,10 @@ msgstr "実験の勝者は 1 から {candidateCount} の範囲である必要が
 msgid "Experiment prompt must not be blank"
 msgstr "実験のプロンプトを空にすることはできません"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
+msgstr "過去の委任から記録された明示的な選択です。上のルーティング順に反映されます。タグを編集するか、エントリを削除して調整してください。"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCPサーバーをエクスポート"
@@ -4485,6 +4532,8 @@ msgstr "所有権付きブランチのメタデータを記録できませんで
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "速い"
@@ -4503,7 +4552,7 @@ msgstr "最速（Whisper tiny）"
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "最速は Whisper tiny を使用し、高精度は Whisper base を使用します。"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Favorite"
 msgstr "お気に入り"
 
@@ -5112,9 +5161,9 @@ msgstr "隠す"
 msgid "Hide {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを非表示にする"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "すべて隠す"
 
@@ -5697,6 +5746,14 @@ msgstr "起動中"
 msgid "Launching…"
 msgstr "起動中…"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "Learned routing memory"
+#~ msgstr "学習済みルーティングメモリ"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Learned selections"
+msgstr "学習済みの選択"
+
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
@@ -6029,7 +6086,7 @@ msgstr "プロバイダーが管理"
 msgid "Manual order"
 msgstr "手動並び替え"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Manual override"
 msgstr "手動オーバーライド"
 
@@ -6971,6 +7028,14 @@ msgstr "履歴はまだありません"
 msgid "No jobs reported for this run."
 msgstr "この実行ではジョブが報告されていません。"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "No learned routing memory yet."
+#~ msgstr "学習済みルーティングメモリはまだありません。"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No learned selections yet."
+msgstr "学習済みの選択はまだありません。"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
 msgstr "Lightcode データが見つかりませんでした。"
@@ -7033,8 +7098,8 @@ msgid "No microphone found."
 msgstr "マイクが見つかりません。"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "No models found"
 msgstr "モデルが見つかりません"
 
@@ -7159,6 +7224,10 @@ msgstr "ステージされた変更はありません"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "サポートされているエージェントが検出されませんでした"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No tags — the entry stops influencing tag affinity."
+msgstr "タグなし — このエントリーはタグ親和性に影響しなくなります。"
 
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/ThreadView.tsx
@@ -7804,6 +7873,10 @@ msgstr "サーバー上の親フォルダー"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "親フォルダー（例: /home/me/projects）"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Partially checked"
+msgstr "一部チェック済み"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
 msgstr "成功"
@@ -7852,6 +7925,11 @@ msgstr "SSH 秘密鍵を貼り付けてください。"
 msgid "Pause"
 msgstr "一時停止"
 
+#. placeholder {0}: entry.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
+#~ msgid "Pause {0}"
+#~ msgstr "{0}を一時停止"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "目標を一時停止"
@@ -7860,6 +7938,14 @@ msgstr "目標を一時停止"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "一時停止中"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Paused providers"
+#~ msgstr "一時停止中のプロバイダー"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Paused providers are skipped by Crossagents until resumed."
+#~ msgstr "一時停止中のプロバイダーは、再開されるまでCrossagentsにスキップされます。"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
@@ -8097,8 +8183,8 @@ msgid "Pre-commit hook failed"
 msgstr "コミット前のフックが失敗しました"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Preferred routing order"
-msgstr "優先ルーティング順"
+#~ msgid "Preferred routing order"
+#~ msgstr "優先ルーティング順"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -8308,6 +8394,10 @@ msgstr "プロバイダー"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "プロバイダー"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Providers & models"
+msgstr "プロバイダーとモデル"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -8808,6 +8898,11 @@ msgstr "グループから削除"
 msgid "Remove from panel"
 msgstr "パネルから削除"
 
+#. placeholder {0}: providerLabel(entry.agentKind)
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove memory entry for {0}"
+msgstr "{0}のメモリエントリーを削除"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "モデルを削除"
@@ -8827,6 +8922,10 @@ msgstr "プロジェクトの削除"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "ショートカットを削除"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove tag {tag}"
+msgstr "タグ{tag}を削除"
 
 #. placeholder {0}: pendingDelete.name
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -9059,6 +9158,10 @@ msgstr "結果"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
 msgstr "再開"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Resume {label}"
+#~ msgstr "{label}を再開"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -9564,14 +9667,14 @@ msgstr "MCPサーバーを検索"
 msgid "Search MCP servers..."
 msgstr "MCPサーバーを検索..."
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models"
 msgstr "モデルを検索する"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models..."
 msgstr "モデルを検索..."
 
@@ -9843,9 +9946,9 @@ msgstr "OS レベルのエージェント セッション用に、プロジェ�
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "すべて表示"
 
@@ -10150,6 +10253,11 @@ msgstr "Skills.sh"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "スキップ済み"
+
+#. placeholder {0}: skippedProviderNames.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Skipped by Crossagents: {0}"
+msgstr "Crossagentsがスキップ: {0}"
 
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
@@ -10604,8 +10712,8 @@ msgid "Support:"
 msgstr "サポート:"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Supports Fast mode"
 msgstr "高速モードに対応"
 
@@ -10761,13 +10869,17 @@ msgstr "対象プロバイダー"
 msgid "Task"
 msgstr "タスク"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "タスク一致"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "タスクの出力"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Task tags"
+msgstr "タスクタグ"
 
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -11601,6 +11713,10 @@ msgstr "Claude プロファイルを更新できません。"
 msgid "Unable to remove {0} credentials."
 msgstr "{0}資格情報を削除できません。"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to remove memory entry."
+msgstr "メモリエントリーを削除できません。"
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Unable to remove pinned route."
 msgstr "固定ルートを削除できませんでした。"
@@ -11697,6 +11813,10 @@ msgstr "{0}を更新できません:{detailText}"
 msgid "Unable to update {0}."
 msgstr "{0}を更新できません。"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to update learned tags."
+msgstr "学習済みタグを更新できません。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "リモートアクセスを更新できません。"
@@ -11730,8 +11850,24 @@ msgid "Unavailable provider"
 msgstr "利用できないプロバイダー"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
-msgstr "利用できないプロバイダー、モデル、推論レベル、Fast モードは自動的にスキップされます。"
+#~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
+#~ msgstr "利用できないプロバイダー、モデル、推論レベル、Fast モードは自動的にスキップされます。"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
+#~ msgstr "利用できないプロバイダー、モデル、推論レベル、Fast モードは自動的にスキップされます。チェックを外したプロバイダーとモデルは、再度チェックするまでスキップされます。"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Unchecked"
+msgstr "チェック解除"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#~ msgid "Unchecked models are skipped by Crossagents only."
+#~ msgstr "チェックを外したモデルはCrossagentsでのみスキップされます。"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Unchecked providers and models are skipped by Crossagents only."
+msgstr "チェックを外したプロバイダーとモデルはCrossagentsでのみスキップされます。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -12307,6 +12443,10 @@ msgstr "毎週"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekly review"
 msgstr "週次レビュー"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
+#~ msgstr "Crossagents が明示的な選択から学習した内容です。タグを編集するかエントリを削除して、ルーティングを再形成します。"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"

@@ -110,8 +110,10 @@ msgstr "{0, plural, one {# інструмент} few {# інструменти} 
 #~ msgid "{0, plural, one {# turn} other {# turns}}"
 #~ msgstr "{0, plural, one {# хід} few {# ходи} many {# ходів} other {# ходу}}"
 
+#. placeholder {0}: entry.count
 #. placeholder {0}: entry.usageCount
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "{0, plural, one {# use} other {# uses}}"
 msgstr "{0, plural, one {# використання} few {# використання} many {# використань} other {# використання}}"
 
@@ -576,9 +578,13 @@ msgstr "{usedLabel} / {maxLabel} токенів"
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} токенів"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "{visibleCount} of {totalCount} usable"
+msgstr "{visibleCount} із {totalCount} доступних"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} із {totalCount} видимих"
 
@@ -948,6 +954,14 @@ msgstr "Додати навичку"
 msgid "Add skill destination"
 msgstr "Призначення нової навички"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag"
+msgstr "Додати тег"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag..."
+msgstr "Додати тег..."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Додати до Composer"
@@ -1022,7 +1036,7 @@ msgstr "Розмір шрифту термінала агента"
 msgid "Agent update available"
 msgstr "Доступне оновлення агента"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "Використання агентів"
 
@@ -1046,8 +1060,12 @@ msgid "Agents · General"
 msgstr "Агенти · Загальні"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
-msgstr "Агенти класифікують делеговану роботу за допомогою тегів завдань. Спочатку застосовуються ручні маршрути завдань, потім відповідні вивчені маршрути, глобальна статистика використання Crossagents, вибране, звичайна статистика використання агентів і вбудований порядок."
+#~ msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
+#~ msgstr "Агенти класифікують делеговану роботу за допомогою тегів завдань. Спочатку застосовуються ручні маршрути завдань, потім відповідні вивчені маршрути, глобальна статистика використання Crossagents, вибране, звичайна статистика використання агентів і вбудований порядок."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, normal agent usage and favorites, and built-in order."
+msgstr "Агенти класифікують делеговану роботу за тегами завдань. Ручні маршрути завдань мають найвищий пріоритет, далі йдуть відповідні вивчені маршрути, глобальне використання Crossagents, звичайне використання агента та обране, а також вбудований порядок."
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
@@ -1218,6 +1236,10 @@ msgstr "Інша операція для цього експерименту щ�
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
+msgstr "Усе, що зараз недоступне — провайдер, модель, рівень міркування чи режим Fast — автоматично пропускається. Непозначені провайдери та моделі пропускаються, доки їх знову не позначать."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
@@ -1775,7 +1797,7 @@ msgstr "Вбудований"
 msgid "Built-in MCP servers"
 msgstr "Вбудовані сервери MCP"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "Вбудований порядок"
 
@@ -2010,6 +2032,10 @@ msgstr "Перевір мій нещодавній прогрес і дай од
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "Перевірте поточний рівень вхідного сигналу з обраного пристрою."
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Checked"
+msgstr "Позначено"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Checking"
@@ -3239,9 +3265,18 @@ msgstr "Crossagent"
 msgid "Crossagent ({subagent}): {description}"
 msgstr "Crossagent ({subagent}): {description}"
 
+#. placeholder {0}: props.provider.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#~ msgid "Crossagent models for {0}"
+#~ msgstr "Моделі Crossagent для {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #~ msgid "Crossagent not found."
 #~ msgstr "Crossagent не знайдено."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagent providers and models"
+msgstr "Провайдери та моделі Crossagent"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3280,7 +3315,7 @@ msgstr "Crossagents"
 msgid "Crossagents enabled for this thread"
 msgstr "Crossagents увімкнено для цього треду"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Crossagents usage"
 msgstr "Використання Crossagents"
 
@@ -3309,6 +3344,10 @@ msgstr "Поточні"
 #: src/renderer/components/skills/SkillImportModal.tsx
 #~ msgid "Current project"
 #~ msgstr "Поточний проєкт"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Current routing order"
+msgstr "Поточний порядок маршрутизації"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
@@ -3990,6 +4029,10 @@ msgstr "Редагувати розклад"
 #~ msgid "Edit scheduled task"
 #~ msgstr "Редагувати заплановане завдання"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Edit tags for {label}"
+msgstr "Редагувати теги для {label}"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Edit task"
 #~ msgstr "Редагувати завдання"
@@ -4389,6 +4432,10 @@ msgstr "Номер переможця експерименту має бути �
 msgid "Experiment prompt must not be blank"
 msgstr "Промпт експерименту не може бути порожнім"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
+msgstr "Явні вибори, записані з попередніх делегувань, — вони формують порядок маршрутизації вище. Відредагуйте теги або видаліть записи, щоб змінити його."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "Експортувати сервери MCP"
@@ -4486,6 +4533,8 @@ msgstr "Не вдалося записати метадані гілки, що �
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "Швидкий"
@@ -4504,7 +4553,7 @@ msgstr "Найшвидше (Whisper tiny)"
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "Найшвидше використовує Whisper tiny; Краще використовує Whisper base."
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Favorite"
 msgstr "Обране"
 
@@ -5113,9 +5162,9 @@ msgstr "Сховати"
 msgid "Hide {label} circle in sidebar"
 msgstr "Сховати коло {label} на бічній панелі"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "Сховати все"
 
@@ -5698,6 +5747,14 @@ msgstr "Запуск"
 msgid "Launching…"
 msgstr "Запуск…"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "Learned routing memory"
+#~ msgstr "Вивчена пам'ять маршрутизації"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Learned selections"
+msgstr "Вивчені вибори"
+
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
@@ -6030,7 +6087,7 @@ msgstr "Керується провайдером"
 msgid "Manual order"
 msgstr "Ручний порядок"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Manual override"
 msgstr "Ручне перевизначення"
 
@@ -6973,6 +7030,14 @@ msgstr "Історії ще немає"
 msgid "No jobs reported for this run."
 msgstr "Для цього запуску немає даних про завдання."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "No learned routing memory yet."
+#~ msgstr "Вивченої пам'яті маршрутизації ще немає."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No learned selections yet."
+msgstr "Вивчених виборів поки немає."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
 msgstr "Дані Lightcode не знайдено."
@@ -7035,8 +7100,8 @@ msgid "No microphone found."
 msgstr "Мікрофон не знайдено."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "No models found"
 msgstr "Моделі не знайдено"
 
@@ -7161,6 +7226,10 @@ msgstr "Немає підготовлених змін"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Підтримуваних агентів не виявлено"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No tags — the entry stops influencing tag affinity."
+msgstr "Немає тегів — запис перестає впливати на спорідненість тегів."
 
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/ThreadView.tsx
@@ -7806,6 +7875,10 @@ msgstr "Батьківська папка на сервері"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "Батьківська папка, напр. /home/me/projects"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Partially checked"
+msgstr "Частково позначено"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
 msgstr "Пройдено"
@@ -7854,6 +7927,11 @@ msgstr "Вставте закритий ключ SSH."
 msgid "Pause"
 msgstr "Призупинити"
 
+#. placeholder {0}: entry.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
+#~ msgid "Pause {0}"
+#~ msgstr "Призупинити {0}"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "Призупинити мету"
@@ -7862,6 +7940,14 @@ msgstr "Призупинити мету"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "Призупинено"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Paused providers"
+#~ msgstr "Призупинені провайдери"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Paused providers are skipped by Crossagents until resumed."
+#~ msgstr "Crossagents пропускає призупинених провайдерів, доки їх не відновлено."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
@@ -8099,8 +8185,8 @@ msgid "Pre-commit hook failed"
 msgstr "Збій хука pre-commit"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Preferred routing order"
-msgstr "Бажаний порядок маршрутизації"
+#~ msgid "Preferred routing order"
+#~ msgstr "Бажаний порядок маршрутизації"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -8310,6 +8396,10 @@ msgstr "провайдери"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Постачальники"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Providers & models"
+msgstr "Провайдери та моделі"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -8810,6 +8900,11 @@ msgstr "Видалити з групи"
 msgid "Remove from panel"
 msgstr "Видалити з панелі"
 
+#. placeholder {0}: providerLabel(entry.agentKind)
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove memory entry for {0}"
+msgstr "Видалити запис пам'яті для {0}"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "Видалити модель"
@@ -8829,6 +8924,10 @@ msgstr "Видалити проєкт"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Видалити комбінацію клавіш"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove tag {tag}"
+msgstr "Видалити тег {tag}"
 
 #. placeholder {0}: pendingDelete.name
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -9061,6 +9160,10 @@ msgstr "Результати"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
 msgstr "Продовжити"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Resume {label}"
+#~ msgstr "Відновити {label}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -9566,14 +9669,14 @@ msgstr "Пошук серверів MCP"
 msgid "Search MCP servers..."
 msgstr "Пошук серверів MCP..."
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models"
 msgstr "Пошук моделей"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models..."
 msgstr "Пошук моделей..."
 
@@ -9845,9 +9948,9 @@ msgstr "Показувати домашню область без проєкту
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "Показати все"
 
@@ -10152,6 +10255,11 @@ msgstr "Skills.sh"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "Пропущено"
+
+#. placeholder {0}: skippedProviderNames.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Skipped by Crossagents: {0}"
+msgstr "Пропускаються Crossagents: {0}"
 
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
@@ -10606,8 +10714,8 @@ msgid "Support:"
 msgstr "Підтримка:"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Supports Fast mode"
 msgstr "Підтримує швидкий режим"
 
@@ -10763,13 +10871,17 @@ msgstr "Цільовий провайдер"
 msgid "Task"
 msgstr "Завдання"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "Відповідність завданню"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "Вивід завдання"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Task tags"
+msgstr "Теги завдань"
 
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -11603,6 +11715,10 @@ msgstr "Не вдалося оновити профілі Claude."
 msgid "Unable to remove {0} credentials."
 msgstr "Не вдалося видалити облікові дані {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to remove memory entry."
+msgstr "Не вдалося видалити запис пам'яті."
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Unable to remove pinned route."
 msgstr "Не вдалося видалити закріплений маршрут."
@@ -11699,6 +11815,10 @@ msgstr "Не вдалося оновити {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Не вдалося оновити {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to update learned tags."
+msgstr "Не вдалося оновити вивчені теги."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Не вдалося оновити віддалений доступ."
@@ -11732,8 +11852,24 @@ msgid "Unavailable provider"
 msgstr "Недоступний провайдер"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
-msgstr "Недоступні провайдери, моделі, рівні міркування та режими Fast автоматично пропускаються."
+#~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
+#~ msgstr "Недоступні провайдери, моделі, рівні міркування та режими Fast автоматично пропускаються."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
+#~ msgstr "Недоступні провайдери, моделі, рівні міркування та режими Fast автоматично пропускаються. Непозначені провайдери та моделі пропускаються, доки їх знову не позначать."
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Unchecked"
+msgstr "Не позначено"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#~ msgid "Unchecked models are skipped by Crossagents only."
+#~ msgstr "Непозначені моделі пропускаються лише Crossagents."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Unchecked providers and models are skipped by Crossagents only."
+msgstr "Непозначені провайдери та моделі пропускаються лише Crossagents."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -12309,6 +12445,10 @@ msgstr "Щотижня"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekly review"
 msgstr "Щотижневий огляд"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
+#~ msgstr "Чого Crossagents навчилися з явних виборів. Редагуйте теги або видаляйте записи, щоб змінити маршрутизацію."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"

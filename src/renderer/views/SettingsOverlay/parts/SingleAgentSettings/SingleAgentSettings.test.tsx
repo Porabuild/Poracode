@@ -96,6 +96,22 @@ vi.mock("@heroui/react", () => {
     return <div>{props.children}</div>;
   }
 
+  function Input(props: {
+    "aria-label"?: string;
+    placeholder?: string;
+    value?: string;
+    onChange?: (event: { target: { value: string } }) => void;
+  }) {
+    return (
+      <input
+        aria-label={props["aria-label"]}
+        placeholder={props.placeholder}
+        value={props.value}
+        onChange={props.onChange}
+      />
+    );
+  }
+
   function ListBox(props: { children?: ReactNode }) {
     return <div>{props.children}</div>;
   }
@@ -129,6 +145,7 @@ vi.mock("@heroui/react", () => {
   return {
     Button,
     Disclosure,
+    Input,
     Label: (props: { children?: ReactNode }) => <span>{props.children}</span>,
     ListBox,
     ListLayout: () => null,

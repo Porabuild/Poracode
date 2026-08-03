@@ -73,6 +73,8 @@ export interface AcpProbeResult {
   efforts?: string[];
   defaultEffort?: string;
   modelEfforts?: Record<string, string[]>;
+  /** Per-model default thought level, read while the sweep has that model active. */
+  modelDefaultEfforts?: Record<string, string>;
   modes?: ThreadMode[];
   approvalPolicies?: Array<{ id: string; label: string }>;
   slashCommands?: AgentSlashCommand[];
@@ -317,8 +319,16 @@ function rememberModelThoughtLevels(
   configOptions: unknown,
   fallbackEfforts: string[],
   modelEfforts: Record<string, string[]>,
+  modelDefaultEfforts: Record<string, string>,
 ): void {
   const thoughtLevels = mapAcpThoughtLevels(configOptions);
+  // The selector's currentValue while this model is active is its default —
+  // record it even when the effort list matches the provider baseline, since
+  // models sharing one list can still default to different levels (Kimi's
+  // highspeed defaults to low while K3 defaults higher).
+  if (thoughtLevels.defaultEffort) {
+    modelDefaultEfforts[modelId] = thoughtLevels.defaultEffort;
+  }
   if (
     thoughtLevels.efforts.length === 0 ||
     sameStringList(thoughtLevels.efforts, fallbackEfforts)
@@ -605,12 +615,14 @@ export async function probeAcpCapabilities(
         const currentModel =
           typeof modelConfig?.currentValue === "string" ? modelConfig.currentValue : undefined;
         const modelEfforts: Record<string, string[]> = {};
+        const modelDefaultEfforts: Record<string, string> = {};
         if (currentModel) {
           rememberModelThoughtLevels(
             currentModel,
             result.configOptions,
             probeResult.efforts ?? [],
             modelEfforts,
+            modelDefaultEfforts,
           );
         }
         const modelIds = probeResult.models
@@ -670,10 +682,14 @@ export async function probeAcpCapabilities(
             configOptions,
             probeResult.efforts ?? [],
             modelEfforts,
+            modelDefaultEfforts,
           );
         }
         if (Object.keys(modelEfforts).length > 0) {
           probeResult.modelEfforts = modelEfforts;
+        }
+        if (Object.keys(modelDefaultEfforts).length > 0) {
+          probeResult.modelDefaultEfforts = modelDefaultEfforts;
         }
       }
     }

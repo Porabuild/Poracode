@@ -71,6 +71,7 @@ export function capabilitiesForPresentation(
 
   const {
     defaultEffort: _defaultEffort,
+    modelDefaultEfforts: _modelDefaultEfforts,
     defaultHiddenModels: _defaultHiddenModels,
     contextSizes: _contextSizes,
     modelContextSizes: _modelContextSizes,
@@ -199,9 +200,12 @@ export function modelSelectionFor(
   model: string,
 ): AgentModelSelection {
   const reasoningValues = capabilities.modelEfforts?.[model] ?? capabilities.efforts ?? [];
-  const defaultReasoning = reasoningValues.includes(capabilities.defaultEffort ?? "")
-    ? capabilities.defaultEffort
-    : reasoningValues[0];
+  const modelDefault = capabilities.modelDefaultEfforts?.[model];
+  const defaultReasoning = reasoningValues.includes(modelDefault ?? "")
+    ? modelDefault
+    : reasoningValues.includes(capabilities.defaultEffort ?? "")
+      ? capabilities.defaultEffort
+      : reasoningValues[0];
   const fastSupported = capabilities.fastModels?.includes(model) === true;
   return {
     reasoning: {

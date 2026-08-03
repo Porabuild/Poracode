@@ -74,6 +74,8 @@ interface BuiltInSettings {
   title: string;
   actionLabel: string;
   content: ReactNode;
+  /** Overrides the default `sm:max-w-lg` dialog width for content-heavy settings. */
+  dialogClassName?: string;
 }
 
 interface McpToolList {
@@ -326,7 +328,7 @@ export function McpServersManager(props: {
       {activeBuiltInSettings ? (
         <Modal.Backdrop isOpen onOpenChange={(open) => !open && setBuiltInSettingsId(undefined)}>
           <Modal.Container placement="center" size="md">
-            <Modal.Dialog className="sm:max-w-lg">
+            <Modal.Dialog className={activeBuiltInSettings.dialogClassName ?? "sm:max-w-lg"}>
               <Modal.CloseTrigger />
               <Modal.Header>
                 <Modal.Heading>{activeBuiltInSettings.title}</Modal.Heading>
