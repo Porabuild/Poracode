@@ -113,9 +113,6 @@ interface MessageListProps {
   ) => void;
 }
 
-// Keep enough content mounted around the viewport that fast trackpad movement
-// cannot outrun the next virtual range.
-const CHAT_TRANSCRIPT_DRAW_DISTANCE_PX = 1_000;
 const DEFAULT_ROW_ESTIMATE_PX = 59;
 const INLINE_IMAGE_ROW_CHROME_PX = 27;
 const INLINE_IMAGE_MAX_HEIGHT_REM = 18;
@@ -423,7 +420,6 @@ export function MessageList({
         ref={setListRef}
         data={entries}
         dataKey={threadId}
-        drawDistance={CHAT_TRANSCRIPT_DRAW_DISTANCE_PX}
         estimatedItemSize={DEFAULT_ROW_ESTIMATE_PX}
         extraData={`${lastLiveIndex}:${isTurnActive}:${markTailAsLive}:${suppressInlineTurnAnchorId ?? ""}:${canRevertCheckpoints}`}
         getFixedItemSize={(entry) =>
