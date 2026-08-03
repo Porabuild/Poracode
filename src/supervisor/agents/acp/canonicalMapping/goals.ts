@@ -4,7 +4,11 @@
  * shape before the shared canonical mapper sees it.
  */
 
-import type { GoalItemPayload, RuntimeEvent } from "@/shared/contracts";
+import {
+  goalControlActionSchema,
+  type GoalItemPayload,
+  type RuntimeEvent,
+} from "@/shared/contracts";
 import { startGoalItemEvents, updateGoalItemEvents } from "../../goalRuntime";
 import type { AcpMapperState } from "./state";
 import { newItemId } from "./state";
@@ -48,6 +52,8 @@ function readAcpCanonicalGoalUpdate(update: unknown): AcpCanonicalGoalUpdate | u
     "cancelled",
   ] as const);
   const objective = readString(raw.objective);
+  const availableActionsResult = goalControlActionSchema.array().safeParse(raw.availableActions);
+  const availableActions = availableActionsResult.success ? availableActionsResult.data : undefined;
   if (!action && !status && !objective) return undefined;
 
   return {
@@ -70,6 +76,7 @@ function readAcpCanonicalGoalUpdate(update: unknown): AcpCanonicalGoalUpdate | u
     ...(readString(raw.providerThreadId)
       ? { providerThreadId: readString(raw.providerThreadId)! }
       : {}),
+    ...(availableActions ? { availableActions } : {}),
     ...(readFiniteNumber(raw.updatedAt) !== undefined
       ? { updatedAt: readFiniteNumber(raw.updatedAt)! }
       : {}),

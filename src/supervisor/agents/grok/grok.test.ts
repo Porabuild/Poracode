@@ -95,6 +95,22 @@ describe("createGrokAdapter skill roots", () => {
   });
 });
 
+describe("createGrokAdapter goal controls", () => {
+  const adapter = createGrokAdapter();
+
+  it("maps Grok-supported goal actions to native slash commands", () => {
+    expect(adapter.buildGoalControlPrompt?.({ action: "pause" })).toBe("/goal pause");
+    expect(adapter.buildGoalControlPrompt?.({ action: "resume" })).toBe("/goal resume");
+    expect(adapter.buildGoalControlPrompt?.({ action: "clear" })).toBe("/goal clear");
+  });
+
+  it("does not advertise an in-place edit command that Grok lacks", () => {
+    expect(
+      adapter.buildGoalControlPrompt?.({ action: "edit", objective: "Replacement goal" }),
+    ).toBeUndefined();
+  });
+});
+
 describe("grokDetectionSpec", () => {
   it("uses device auth for WSL login to avoid localhost callback nonce mismatches", () => {
     expect(typeof grokDetectionSpec.loginCommand).toBe("function");
