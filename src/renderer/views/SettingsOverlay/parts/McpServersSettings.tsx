@@ -68,6 +68,7 @@ export function McpServersSettings() {
               title: t`Crossagents`,
               actionLabel: t`Crossagent routing and ranking`,
               content: <CrossagentRoutingSection />,
+              dialogClassName: "sm:max-w-2xl",
             },
           }}
         />

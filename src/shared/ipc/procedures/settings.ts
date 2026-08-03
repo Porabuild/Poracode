@@ -3,6 +3,9 @@ import type { AgentInstanceConfig, SetClaudeProfileEnvironmentPayload } from "..
 import { setClaudeProfileEnvironmentPayloadSchema } from "../../contracts";
 import {
   type CrossagentRoutingOverride,
+  type CrossagentSelectionUsageEntry,
+  type CrossagentSelectionUsageEntryKey,
+  crossagentSelectionUsageEntryKeySchema,
   type SharedSettings,
   type SharedSettingsInput,
 } from "../../settings";
@@ -45,6 +48,30 @@ export const settingsProcedures = {
     "main-local",
     z.object({
       tags: z.array(z.string().min(1).max(32)).min(1).max(5),
+    }),
+  ),
+  // Learned-memory edits from the Crossagents settings UI. `crossagentSelectionUsage`
+  // is supervisor-managed (renderer persists can't write it), so removals and tag
+  // edits round-trip through main like `removeCrossagentRoutingOverride`.
+  removeCrossagentMemoryEntry: definePayloadProcedure<
+    { entry: CrossagentSelectionUsageEntryKey },
+    CrossagentSelectionUsageEntry[],
+    "main-local"
+  >(
+    "removeCrossagentMemoryEntry",
+    "main-local",
+    z.object({ entry: crossagentSelectionUsageEntryKeySchema }),
+  ),
+  updateCrossagentMemoryEntryTags: definePayloadProcedure<
+    { entry: CrossagentSelectionUsageEntryKey; tags: string[] },
+    CrossagentSelectionUsageEntry[],
+    "main-local"
+  >(
+    "updateCrossagentMemoryEntryTags",
+    "main-local",
+    z.object({
+      entry: crossagentSelectionUsageEntryKeySchema,
+      tags: z.array(z.string().min(1).max(32)).max(5),
     }),
   ),
   // Seals sensitive vars in main before writing settings.json, so a profile's

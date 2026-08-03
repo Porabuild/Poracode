@@ -40,6 +40,9 @@ export const agentSelectionUsageEntrySchema = z.object({
 });
 export type AgentSelectionUsageEntry = z.infer<typeof agentSelectionUsageEntrySchema>;
 
+export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
+export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
+
 export const crossagentSelectionUsageEntrySchema = agentSelectionUsageEntrySchema.extend({
   /** Normalized task classifications supplied by the calling agent. */
   tags: z.array(z.string().min(1).max(32)).max(5).optional(),
@@ -58,8 +61,23 @@ export const crossagentSelectionUsageEntrySchema = agentSelectionUsageEntrySchem
 });
 export type CrossagentSelectionUsageEntry = z.infer<typeof crossagentSelectionUsageEntrySchema>;
 
-export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
-export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
+export const crossagentSelectionUsageEntryKeySchema = crossagentSelectionUsageEntrySchema
+  .pick({
+    agentKind: true,
+    modelId: true,
+    effort: true,
+    fast: true,
+    tags: true,
+    explicitFields: true,
+  })
+  .extend({
+    agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+    modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+    fast: z.boolean(),
+  });
+export type CrossagentSelectionUsageEntryKey = z.infer<
+  typeof crossagentSelectionUsageEntryKeySchema
+>;
 
 export const crossagentRoutingOverrideSchema = z.object({
   tags: z.array(z.string().min(1).max(32)).min(1).max(5),
@@ -489,6 +507,20 @@ export const sharedSettingsSchema = z.object({
     .max(MAX_CROSSAGENT_ROUTING_OVERRIDES)
     .default([]),
   /**
+   * Agent kinds temporarily excluded from the Crossagents routing rotation.
+   * Unlike `disabledAgents` (which hides a provider everywhere), pausing only
+   * affects Crossagents delegation — e.g. park a provider until its quota
+   * resets while keeping it in the normal composer picker.
+   */
+  crossagentPausedProviders: z.array(z.string()).default([]),
+  /**
+   * Extra hidden model ids keyed by agent kind, applied on top of the global
+   * `hiddenModels` visibility filter but only for Crossagents routing. The
+   * Crossagents settings model dropdown lists already-globally-visible models
+   * and lets the user narrow them further here.
+   */
+  crossagentHiddenModels: z.record(z.string(), z.array(z.string())).default({}),
+  /**
    * Dev-only: force agents off the CLI hook plugin path (L1) so they fall back
    * to L2 terminal parsing. The UI toggle is only visible in the dev build;
    * the field is always present so the supervisor can read it unconditionally.
@@ -645,6 +677,8 @@ export const defaultSharedSettings: SharedSettings = {
   agentSelectionUsage: [],
   crossagentSelectionUsage: [],
   crossagentRoutingOverrides: [],
+  crossagentPausedProviders: [],
+  crossagentHiddenModels: {},
   disableCliHookPlugin: false,
   dismissedHookInstallProposals: {},
   agentHookSupport: {},

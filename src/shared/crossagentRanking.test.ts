@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  crossagentSelectionUsageEntryKey,
   incrementAgentSelectionUsage,
   incrementCrossagentSelectionUsage,
   normalizeCrossagentTags,
   rankCrossagentCandidates,
+  rankCrossagentModels,
   removeCrossagentRoutingOverride,
+  removeCrossagentSelectionUsageEntry,
+  retagCrossagentSelectionUsageEntry,
   upsertCrossagentRoutingOverride,
   type CrossagentRankingCandidate,
 } from "./crossagentRanking";
@@ -144,10 +148,12 @@ describe("rankCrossagentCandidates", () => {
       ],
     });
 
+    // Favorites share the composer-usage tier: codex's real usage outranks
+    // claude's zero-use favorite.
     expect(ranked.map((entry) => [entry.provider, entry.source])).toEqual([
       ["kimi", "crossagent-usage"],
-      ["claude", "favorite"],
       ["codex", "agent-usage"],
+      ["claude", "favorite"],
     ]);
     expect(ranked[0]?.preferredSelection).toEqual({
       model: "k3",
@@ -483,6 +489,105 @@ describe("rankCrossagentCandidates", () => {
   });
 });
 
+describe("rankCrossagentModels", () => {
+  const cursorAndClaude: CrossagentRankingCandidate[] = [
+    {
+      provider: "cursor",
+      defaultModel: "fable",
+      models: [
+        { id: "fable", efforts: ["high"], defaultEffort: "high", fastAvailable: false },
+        { id: "grok", efforts: ["high"], defaultEffort: "high", fastAvailable: false },
+        { id: "k3", efforts: ["high"], defaultEffort: "high", fastAvailable: false },
+      ],
+    },
+    {
+      provider: "claude",
+      defaultModel: "opus",
+      models: [
+        { id: "opus", efforts: ["high", "max"], defaultEffort: "high", fastAvailable: true },
+      ],
+    },
+  ];
+
+  it("interleaves models across providers by their own usage", () => {
+    const ranked = rankCrossagentModels(cursorAndClaude, {
+      crossagentSelectionUsage: [
+        { agentKind: "cursor", modelId: "fable", fast: false, count: 9, lastUsedAt: 30 },
+        { agentKind: "claude", modelId: "opus", fast: false, count: 5, lastUsedAt: 20 },
+        { agentKind: "cursor", modelId: "grok", fast: false, count: 3, lastUsedAt: 10 },
+      ],
+      favoriteModels: [],
+      agentSelectionUsage: [],
+    });
+
+    expect(ranked.map((entry) => [entry.provider, entry.model, entry.rank])).toEqual([
+      ["cursor", "fable", 1],
+      ["claude", "opus", 2],
+      ["cursor", "grok", 3],
+      ["cursor", "k3", 4],
+    ]);
+    expect(ranked[0]).toMatchObject({ preferred: true, source: "crossagent-usage" });
+    expect(ranked[2]).toMatchObject({
+      preferred: false,
+      source: "crossagent-usage",
+      usageCount: 3,
+    });
+    expect(ranked[3]).toMatchObject({ preferred: false, source: "built-in" });
+  });
+
+  it("keeps the global #1 aligned with the top provider's preferred selection", () => {
+    const providerRanked = rankCrossagentCandidates(candidates, {
+      crossagentSelectionUsage: [
+        { agentKind: "kimi", modelId: "k3", effort: "max", fast: false, count: 7, lastUsedAt: 20 },
+      ],
+      favoriteModels: [],
+      agentSelectionUsage: [],
+    });
+    const modelRanked = rankCrossagentModels(candidates, {
+      crossagentSelectionUsage: [
+        { agentKind: "kimi", modelId: "k3", effort: "max", fast: false, count: 7, lastUsedAt: 20 },
+      ],
+      favoriteModels: [],
+      agentSelectionUsage: [],
+    });
+
+    expect(modelRanked[0]).toMatchObject({
+      provider: providerRanked[0]?.provider,
+      model: providerRanked[0]?.preferredSelection.model,
+      effort: providerRanked[0]?.preferredSelection.effort,
+      preferred: true,
+    });
+  });
+
+  it("ranks favorites and per-model learned tags on non-preferred models", () => {
+    const ranked = rankCrossagentModels(cursorAndClaude, {
+      crossagentSelectionUsage: [
+        {
+          agentKind: "cursor",
+          modelId: "grok",
+          fast: false,
+          tags: ["implementation"],
+          count: 2,
+          lastUsedAt: 10,
+        },
+      ],
+      favoriteModels: [{ agentKind: "cursor", modelId: "k3", presentationMode: "gui" }],
+      agentSelectionUsage: [],
+    });
+
+    // grok carries cursor's provider votes (preferred), k3 is a favorite,
+    // then built-in order.
+    expect(ranked.map((entry) => [entry.provider, entry.model])).toEqual([
+      ["cursor", "grok"],
+      ["cursor", "k3"],
+      ["claude", "opus"],
+      ["cursor", "fable"],
+    ]);
+    expect(ranked[0]?.learnedTags).toEqual([{ tag: "implementation", count: 2 }]);
+    expect(ranked[1]?.source).toBe("favorite");
+  });
+});
+
 describe("manual Crossagents routing overrides", () => {
   it("reclassifies an exact normalized tag set and removes it by aliases", () => {
     const initial = [
@@ -686,5 +791,133 @@ describe("normalizeCrossagentTags", () => {
         "extra",
       ]),
     ).toEqual(["backend", "frontend", "review", "simulator", "ui"]);
+  });
+});
+
+describe("learned memory edits", () => {
+  const entry = {
+    agentKind: "kimi",
+    modelId: "k3",
+    effort: "max",
+    fast: false,
+    count: 4,
+    lastUsedAt: 10,
+    tags: ["mobile", "simulator"],
+  };
+  const other = {
+    agentKind: "claude",
+    modelId: "sonnet",
+    fast: false,
+    count: 2,
+    lastUsedAt: 5,
+    tags: ["frontend"],
+  };
+
+  it("removes one entry and keeps the rest", () => {
+    const next = removeCrossagentSelectionUsageEntry([entry, other], {
+      agentKind: "kimi",
+      modelId: "k3",
+      effort: "max",
+      fast: false,
+      tags: ["mobile", "simulator"],
+    });
+    expect(next).toEqual([other]);
+  });
+
+  it("retags an entry with normalized tags", () => {
+    const next = retagCrossagentSelectionUsageEntry(
+      [entry, other],
+      {
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        tags: ["mobile", "simulator"],
+      },
+      ["Mobile Sim", "testing"],
+    );
+    expect(next[0]).toMatchObject({ agentKind: "kimi", count: 4, tags: ["simulator", "testing"] });
+    expect(next).toHaveLength(2);
+  });
+
+  it("merges counts when a retag collides with an existing entry", () => {
+    const duplicate = { ...entry, count: 3, lastUsedAt: 50, tags: ["frontend"] };
+    const next = retagCrossagentSelectionUsageEntry(
+      [entry, duplicate],
+      {
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        tags: ["mobile", "simulator"],
+      },
+      ["frontend"],
+    );
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({
+      agentKind: "kimi",
+      count: 7,
+      lastUsedAt: 50,
+      tags: ["frontend"],
+    });
+  });
+
+  it("drops the tags field when the last tag is removed", () => {
+    const next = retagCrossagentSelectionUsageEntry(
+      [entry],
+      {
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        tags: ["mobile", "simulator"],
+      },
+      [],
+    );
+    expect(next[0]).not.toHaveProperty("tags");
+  });
+
+  it("removes only the entry with matching explicit fields", () => {
+    const explicit = {
+      provider: true,
+      model: true,
+      effort: true,
+      fast: true,
+    };
+    const implicitProvider = {
+      ...entry,
+      explicitFields: { ...explicit, provider: false },
+    };
+    const selected = { ...entry, explicitFields: explicit };
+
+    expect(
+      removeCrossagentSelectionUsageEntry(
+        [selected, implicitProvider],
+        crossagentSelectionUsageEntryKey(selected),
+      ),
+    ).toEqual([implicitProvider]);
+  });
+
+  it("retags only the entry with matching explicit fields", () => {
+    const explicit = {
+      provider: true,
+      model: true,
+      effort: true,
+      fast: true,
+    };
+    const implicitProvider = {
+      ...entry,
+      explicitFields: { ...explicit, provider: false },
+    };
+    const selected = { ...entry, explicitFields: explicit };
+    const next = retagCrossagentSelectionUsageEntry(
+      [selected, implicitProvider],
+      crossagentSelectionUsageEntryKey(selected),
+      ["frontend"],
+    );
+
+    expect(next).toHaveLength(2);
+    expect(next[0]).toMatchObject({ tags: ["frontend"], explicitFields: explicit });
+    expect(next[1]).toEqual(implicitProvider);
   });
 });

@@ -108,6 +108,8 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "setSharedSettings",
   "setAgentSecretSetting",
   "removeCrossagentRoutingOverride",
+  "removeCrossagentMemoryEntry",
+  "updateCrossagentMemoryEntryTags",
   "setClaudeProfileEnvironment",
   "setWindowChrome",
   "dbGetProjects",
