@@ -1,12 +1,10 @@
 import type { SessionNotification } from "@agentclientprotocol/sdk";
+import { PORACODE_ACP_GOAL_META_KEY, type AcpCanonicalGoalUpdate } from "../acp/canonicalMapping";
 import {
-  PORACODE_ACP_GOAL_META_KEY,
-  PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
-  type AcpCanonicalGoalUpdate,
-} from "../acp/canonicalMapping";
-import {
+  buildCanonicalAcpSubagentInput,
   createAcpSubagentCoordinator,
   normalizeAcpSubagentToolCall,
+  type AcpSubagentDescriptor,
   withAcpSubagentParent,
   withAcpTopLevelToolCall,
 } from "../acp/subagentCoordinator";
@@ -22,7 +20,6 @@ export function createGrokAcpSessionUpdateTransform(): AcpSessionUpdateTransform
   const ignoredChildSessions = new Set<string>();
   const seenGoalIds = new Set<string>();
   let parentSessionId: string | undefined;
-  let contentOwnerSessionId: string | undefined;
 
   return (notification) => {
     const update = plainRecord(notification.update);
@@ -43,19 +40,50 @@ export function createGrokAcpSessionUpdateTransform(): AcpSessionUpdateTransform
         readString(update, "description"),
         readString(update, "subagent_type"),
       );
-      if (childSessionId && toolCallId) {
-        const taskId = readString(update, "subagent_id") ?? childSessionId;
-        childSessionByToolCallId.set(toolCallId, childSessionId);
-        toolCallIdByChildSession.set(childSessionId, toolCallId);
-        subagents.registerBackgroundLaunch({
-          sessionId: parentSessionId,
-          toolCallId,
-          taskId,
+      if (!childSessionId) return asNoop(notification);
+
+      const resolvedToolCallId = toolCallId ?? `grok-subagent-${childSessionId}`;
+      const taskId = readString(update, "subagent_id") ?? childSessionId;
+      let syntheticRawInput: Record<string, unknown> | undefined;
+      let syntheticDescription: string | undefined;
+      if (!toolCallId) {
+        const subagentType = readString(update, "subagent_type");
+        syntheticDescription = readString(update, "description");
+        const model = readString(update, "model");
+        const descriptor = subagents.updateCall(resolvedToolCallId, {
+          rawInput: {
+            ...(subagentType ? { subagent_type: subagentType } : {}),
+            ...(syntheticDescription ? { description: syntheticDescription } : {}),
+            ...(model ? { model } : {}),
+            background: true,
+          },
         });
-      } else if (childSessionId) {
-        ignoredChildSessions.add(childSessionId);
+        syntheticRawInput = buildCanonicalGrokSubagentInput(descriptor);
       }
-      return asNoop(notification);
+      childSessionByToolCallId.set(resolvedToolCallId, childSessionId);
+      toolCallIdByChildSession.set(childSessionId, resolvedToolCallId);
+      subagents.registerBackgroundLaunch({
+        sessionId: parentSessionId,
+        toolCallId: resolvedToolCallId,
+        taskId,
+      });
+      if (!syntheticRawInput) return asNoop(notification);
+
+      const syntheticLaunch = withUpdate(notification, {
+        sessionUpdate: "tool_call",
+        toolCallId: resolvedToolCallId,
+        title: syntheticDescription ?? GROK_SPAWN_SUBAGENT_TOOL,
+        kind: "other",
+        status: "in_progress",
+        rawInput: syntheticRawInput,
+      });
+      return withAcpTopLevelToolCall(
+        normalizeAcpSubagentToolCall(syntheticLaunch, {
+          rawInput: syntheticRawInput,
+          detached: true,
+          keepOpen: true,
+        }),
+      );
     }
 
     if (sessionUpdate === "subagent_finished") {
@@ -84,9 +112,7 @@ export function createGrokAcpSessionUpdateTransform(): AcpSessionUpdateTransform
 
     const childToolCallId = toolCallIdByChildSession.get(notification.sessionId);
     if (childToolCallId) {
-      const bounded = withContentBoundary(notification, sessionUpdate, contentOwnerSessionId);
-      contentOwnerSessionId = bounded.ownerSessionId;
-      return withAcpSubagentParent(bounded.notification, childToolCallId);
+      return withAcpSubagentParent(notification, childToolCallId);
     }
     if (
       ignoredChildSessions.has(notification.sessionId) ||
@@ -96,22 +122,18 @@ export function createGrokAcpSessionUpdateTransform(): AcpSessionUpdateTransform
     }
     parentSessionId ??= notification.sessionId;
 
-    const bounded = withContentBoundary(notification, sessionUpdate, contentOwnerSessionId);
-    contentOwnerSessionId = bounded.ownerSessionId;
-    const boundedNotification = bounded.notification;
-
     if (sessionUpdate !== "tool_call" && sessionUpdate !== "tool_call_update") {
-      return boundedNotification;
+      return notification;
     }
     const toolCallId = readString(update, "toolCallId");
-    if (!toolCallId) return boundedNotification;
+    if (!toolCallId) return notification;
     if (isMappedTaskOutput(update, subagents)) return asNoop(notification);
     const metaTool = plainRecord(plainRecord(update._meta)["x.ai/tool"]);
     const isSpawn =
       readString(metaTool, "name") === GROK_SPAWN_SUBAGENT_TOOL ||
       readString(update, "title") === GROK_SPAWN_SUBAGENT_TOOL ||
       subagents.getCall(toolCallId) !== undefined;
-    if (!isSpawn) return boundedNotification;
+    if (!isSpawn) return notification;
 
     const descriptor = subagents.updateCall(toolCallId, {
       rawInput: plainRecord(update.rawInput),
@@ -119,8 +141,8 @@ export function createGrokAcpSessionUpdateTransform(): AcpSessionUpdateTransform
     if (!pendingToolCallIds.includes(toolCallId)) pendingToolCallIds.push(toolCallId);
     const terminal = update.status === "completed" || update.status === "failed";
     const backgroundLaunchReceipt = descriptor.background && terminal;
-    const normalized = normalizeAcpSubagentToolCall(boundedNotification, {
-      rawInput: subagents.canonicalInput(toolCallId),
+    const normalized = normalizeAcpSubagentToolCall(notification, {
+      rawInput: buildCanonicalGrokSubagentInput(descriptor),
       detached: descriptor.background,
       keepOpen: backgroundLaunchReceipt,
       ...(backgroundLaunchReceipt ? { omitContent: true, omitRawOutput: true } : {}),
@@ -140,6 +162,14 @@ export function createGrokAcpSessionUpdateTransform(): AcpSessionUpdateTransform
   };
 }
 
+function buildCanonicalGrokSubagentInput(
+  descriptor: AcpSubagentDescriptor,
+): Record<string, unknown> {
+  const input = buildCanonicalAcpSubagentInput(descriptor);
+  if (input.subagent_type === "general-purpose") delete input.subagent_type;
+  return input;
+}
+
 function isMappedTaskOutput(
   update: Record<string, unknown>,
   subagents: ReturnType<typeof createAcpSubagentCoordinator>,
@@ -147,30 +177,6 @@ function isMappedTaskOutput(
   const rawInput = plainRecord(update.rawInput);
   const taskIds = readStringArray(rawInput, "task_ids");
   return taskIds.length === 1 && subagents.resolveBackgroundToolCallId(taskIds[0]!) !== undefined;
-}
-
-function withContentBoundary(
-  notification: SessionNotification,
-  sessionUpdate: string | undefined,
-  ownerSessionId: string | undefined,
-): { notification: SessionNotification; ownerSessionId: string | undefined } {
-  if (sessionUpdate !== "agent_message_chunk" && sessionUpdate !== "agent_thought_chunk") {
-    return { notification, ownerSessionId };
-  }
-  if (!ownerSessionId || ownerSessionId === notification.sessionId) {
-    return { notification, ownerSessionId: notification.sessionId };
-  }
-  const update = plainRecord(notification.update);
-  return {
-    notification: withUpdate(notification, {
-      ...update,
-      _meta: {
-        ...plainRecord(update._meta),
-        [PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY]: true,
-      },
-    }),
-    ownerSessionId: notification.sessionId,
-  };
 }
 
 function readGrokGoalUpdate(

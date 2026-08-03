@@ -140,6 +140,14 @@ describe("createGrokAcpSessionUpdateTransform", () => {
     );
     const parentItemId = parentStart?.type === "item.started" ? parentStart.itemId : undefined;
     expect(parentItemId).toBeDefined();
+    const parentArgs =
+      parentStart?.type === "item.started" &&
+      parentStart.payload &&
+      typeof parentStart.payload === "object" &&
+      !Array.isArray(parentStart.payload)
+        ? (parentStart.payload as Record<string, unknown>).args
+        : undefined;
+    expect(parentArgs).not.toHaveProperty("subagent_type");
 
     const receipt = transform(
       notification(PARENT_SESSION_ID, {
@@ -319,6 +327,7 @@ describe("createGrokAcpSessionUpdateTransform", () => {
       return started?.type === "item.started" ? started.itemId : undefined;
     });
 
+    const reasoningItemIds: string[] = [];
     for (const [index, childSessionId] of childSessions.entries()) {
       const events = mapAcpSessionUpdate(
         transform(
@@ -336,33 +345,105 @@ describe("createGrokAcpSessionUpdateTransform", () => {
           parentItemId: parentItemIds[index],
         }),
       );
+      const started = events.find(
+        (event) => event.type === "item.started" && event.itemType === "reasoning",
+      );
+      if (started?.type === "item.started") reasoningItemIds[index] = started.itemId;
+    }
+
+    for (const [index, childSessionId] of childSessions.entries()) {
+      const events = mapAcpSessionUpdate(
+        transform(
+          notification(childSessionId, {
+            sessionUpdate: "agent_thought_chunk",
+            content: { type: "text", text: ` continued ${childSessionId}` },
+          }),
+        ),
+        state,
+      );
+      expect(events).not.toContainEqual(expect.objectContaining({ type: "item.started" }));
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "content.delta",
+          itemId: reasoningItemIds[index],
+          delta: ` continued ${childSessionId}`,
+        }),
+      );
     }
   });
 
-  it("suppresses internal Grok goal subagents that have no parent tool card", () => {
+  it("surfaces internal Grok goal subagents that keep the parent thread working", () => {
     const transform = createGrokAcpSessionUpdateTransform();
     const state = createAcpMapperState("thread-1");
 
-    transform(
-      notification(PARENT_SESSION_ID, {
-        sessionUpdate: "subagent_spawned",
-        subagent_id: CHILD_SESSION_ID,
-        child_session_id: CHILD_SESSION_ID,
-        parent_session_id: PARENT_SESSION_ID,
-        subagent_type: "general-purpose",
-        description: "goal plan writer",
-      }),
-    );
-
-    const events = mapAcpSessionUpdate(
+    const launchEvents = mapAcpSessionUpdate(
       transform(
-        notification(CHILD_SESSION_ID, {
-          sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: "internal goal planning" },
+        notification(PARENT_SESSION_ID, {
+          sessionUpdate: "subagent_spawned",
+          subagent_id: CHILD_SESSION_ID,
+          child_session_id: CHILD_SESSION_ID,
+          parent_session_id: PARENT_SESSION_ID,
+          subagent_type: "general-purpose",
+          description: "goal achievement skeptic",
         }),
       ),
       state,
     );
-    expect(events).toEqual([]);
+    const parentStart = launchEvents.find(
+      (event) =>
+        event.type === "item.started" &&
+        (event.payload as Record<string, unknown> | undefined)?.isSubAgent === true,
+    );
+    const parentItemId = parentStart?.type === "item.started" ? parentStart.itemId : undefined;
+    expect(parentStart).toMatchObject({
+      type: "item.started",
+      payload: expect.objectContaining({
+        status: "running",
+        args: expect.objectContaining({
+          description: "goal achievement skeptic",
+          background: true,
+        }),
+      }),
+    });
+    const parentArgs =
+      parentStart?.type === "item.started" &&
+      parentStart.payload &&
+      typeof parentStart.payload === "object" &&
+      !Array.isArray(parentStart.payload)
+        ? (parentStart.payload as Record<string, unknown>).args
+        : undefined;
+    expect(parentArgs).not.toHaveProperty("subagent_type");
+
+    const childEvents = mapAcpSessionUpdate(
+      transform(
+        notification(CHILD_SESSION_ID, {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "Checking whether the goal is complete" },
+        }),
+      ),
+      state,
+    );
+    expect(childEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "assistant_message",
+        parentItemId,
+      }),
+    );
+
+    const finished = mapAcpSessionUpdate(
+      transform(
+        notification(PARENT_SESSION_ID, {
+          sessionUpdate: "subagent_finished",
+          subagent_id: CHILD_SESSION_ID,
+          child_session_id: CHILD_SESSION_ID,
+          status: "completed",
+        }),
+      ),
+      state,
+    );
+    expect(finished).toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: parentItemId }),
+    );
   });
 });

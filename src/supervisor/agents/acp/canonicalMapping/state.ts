@@ -30,6 +30,12 @@ export interface ActiveAcpSubAgent {
   hasChildActivity: boolean;
 }
 
+export interface AcpContentItemState {
+  openAssistantItemId?: string;
+  openReasoningItemId?: string;
+  openUserItemId?: string;
+}
+
 /** Per-session state — tracks open items so deltas land on the right item id. */
 export interface AcpMapperState {
   threadId: string;
@@ -39,6 +45,8 @@ export interface AcpMapperState {
   openReasoningItemId?: string;
   /** Item id of the currently-streaming user message, if any. */
   openUserItemId?: string;
+  /** Open streamed content keyed by its owning subagent tool call. */
+  subAgentContentItems: Map<string, AcpContentItemState>;
   /** Map ACP `toolCallId` → our internal item id + canonical item type + payload. */
   toolCallItems: Map<string, AcpToolCallItemState>;
   /**
@@ -91,6 +99,7 @@ export function createAcpMapperState(threadId: string): AcpMapperState {
     threadId,
     toolCallItems: new Map(),
     activeSubAgents: [],
+    subAgentContentItems: new Map(),
     suppressedToolCallIds: new Set(),
     suppressedTodoWriteIds: new Set(),
   };
@@ -105,13 +114,43 @@ const OPEN_CONTENT_ITEM_KEYS = [
 ] as const;
 
 /** Close any open assistant/user/reasoning items as a turn boundary. */
-export function closeOpenContentItems(state: AcpMapperState): RuntimeEvent[] {
+export function getContentItemState(
+  state: AcpMapperState,
+  parentToolCallId?: string,
+): AcpContentItemState {
+  if (!parentToolCallId) return state;
+  const existing = state.subAgentContentItems.get(parentToolCallId);
+  if (existing) return existing;
+  const created: AcpContentItemState = {};
+  state.subAgentContentItems.set(parentToolCallId, created);
+  return created;
+}
+
+export function hasOpenContentItems(state: AcpMapperState, parentToolCallId?: string): boolean {
+  const contentState = parentToolCallId ? state.subAgentContentItems.get(parentToolCallId) : state;
+  return OPEN_CONTENT_ITEM_KEYS.some((key) => contentState?.[key] !== undefined);
+}
+
+export function closeAllOpenContentItems(state: AcpMapperState): RuntimeEvent[] {
+  const events = closeOpenContentItems(state);
+  for (const toolCallId of state.subAgentContentItems.keys()) {
+    events.push(...closeOpenContentItems(state, toolCallId));
+  }
+  return events;
+}
+
+export function closeOpenContentItems(
+  state: AcpMapperState,
+  parentToolCallId?: string,
+): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
+  const contentState = parentToolCallId ? state.subAgentContentItems.get(parentToolCallId) : state;
+  if (!contentState) return events;
   for (const key of OPEN_CONTENT_ITEM_KEYS) {
-    const itemId = state[key];
+    const itemId = contentState[key];
     if (itemId) {
       events.push({ type: "item.completed", threadId: state.threadId, itemId });
-      delete state[key];
+      delete contentState[key];
     }
   }
   return events;
@@ -129,6 +168,9 @@ export function resetMapperForTurnEnd(state: AcpMapperState): void {
   state.activeSubAgents = state.activeSubAgents.filter((active) =>
     state.toolCallItems.has(active.toolCallId),
   );
+  for (const toolCallId of state.subAgentContentItems.keys()) {
+    if (!state.toolCallItems.has(toolCallId)) state.subAgentContentItems.delete(toolCallId);
+  }
   state.suppressedToolCallIds.clear();
   state.suppressedTodoWriteIds.clear();
   delete state.openPlanItemId;

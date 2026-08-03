@@ -280,8 +280,9 @@ export function applyTerminalToolCallName(
 /** Close any open assistant/user/reasoning/tool-call/plan items as a turn boundary. */
 export function closeOpenTurnItems(state: AcpMapperState): RuntimeEvent[] {
   const events = closeOpenContentItems(state);
-  for (const item of state.toolCallItems.values()) {
+  for (const [toolCallId, item] of state.toolCallItems) {
     if (item.detached) continue;
+    events.push(...closeOpenContentItems(state, toolCallId));
     events.push({
       type: "item.completed",
       threadId: state.threadId,
