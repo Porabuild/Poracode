@@ -1573,6 +1573,46 @@ describe("CodexStructuredSession", () => {
     expect(updates).not.toContainEqual({ status: "idle", attention: "none" });
   });
 
+  it("clears an existing goal before /goal replaces it", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "thread/goal/updated",
+      params: {
+        threadId: "provider-thread",
+        turnId: null,
+        goal: {
+          threadId: "provider-thread",
+          objective: "previous goal",
+          status: "active",
+          tokenBudget: null,
+          tokensUsed: 7_900_000,
+          timeUsedSeconds: 29_580,
+          createdAt: 1778570000,
+          updatedAt: 1778599580,
+        },
+      },
+    });
+
+    await structuredSession.startTurn("/goal start fresh", { model: "gpt-5.4" });
+
+    expect(requests).toEqual([
+      {
+        method: "thread/goal/clear",
+        params: { threadId: "provider-thread" },
+      },
+      {
+        method: "thread/goal/set",
+        params: {
+          threadId: "provider-thread",
+          objective: "start fresh",
+          status: "active",
+        },
+      },
+    ]);
+  });
+
   it("settles /goal <objective> when Codex does not start a model turn", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);

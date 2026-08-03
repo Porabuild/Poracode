@@ -344,6 +344,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   ): Promise<void> {
     switch (command.kind) {
       case "set":
+        if (this.ensureMapperState().goalItemId) {
+          await this.rpc.request("thread/goal/clear", { threadId });
+        }
         await this.rpc.request("thread/goal/set", {
           threadId,
           objective: command.objective,
@@ -369,12 +372,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
   async controlGoal(control: ThreadGoalControl): Promise<void> {
     const threadId = await this.waitForRemoteThreadId();
-    await this.dispatchCodexGoalCommand(
-      threadId,
-      control.action === "edit"
-        ? { kind: "set", objective: control.objective }
-        : { kind: control.action },
-    );
+    if (control.action === "edit") {
+      await this.rpc.request("thread/goal/set", {
+        threadId,
+        objective: control.objective,
+        status: "active",
+      });
+      return;
+    }
+    await this.dispatchCodexGoalCommand(threadId, { kind: control.action });
   }
 
   private updateSlashCommands(commands: AgentSlashCommand[]): void {
