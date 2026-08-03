@@ -1,12 +1,41 @@
 import type { Project, Thread } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 
+interface RemotelyProjectedEntity {
+  readonly remoteServerId?: string | undefined;
+  readonly remoteId?: string | undefined;
+}
+
+export interface RemoteOwner {
+  readonly desktopId: string;
+  readonly remoteId: string;
+}
+
+/** Resolve the host identity shared by projected projects and threads. */
+export function remoteOwner(
+  entity: RemotelyProjectedEntity | null | undefined,
+): RemoteOwner | undefined {
+  return entity?.remoteServerId && entity.remoteId
+    ? { desktopId: entity.remoteServerId, remoteId: entity.remoteId }
+    : undefined;
+}
+
 export function remoteProjectId(remoteServerId: string, remoteId: string): string {
   return `remote:${remoteServerId}:project:${remoteId}`;
 }
 
 export function remoteThreadId(remoteServerId: string, remoteId: string): string {
   return `remote:${remoteServerId}:thread:${remoteId}`;
+}
+
+export function isProjectedRemoteEntityId(value: string, kind: "project" | "thread"): boolean {
+  const marker = `:${kind}:`;
+  const markerIndex = value.indexOf(marker, "remote:".length);
+  return (
+    value.startsWith("remote:") &&
+    markerIndex > "remote:".length &&
+    markerIndex + marker.length < value.length
+  );
 }
 
 export function projectRemoteProject(remoteServerId: string, project: Project): Project {

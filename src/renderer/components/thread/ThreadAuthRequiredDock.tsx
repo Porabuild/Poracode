@@ -15,7 +15,7 @@ import {
   scopeEnvForStatus,
   shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
-import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
+import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 
 async function refreshAgentStatus(status: AgentStatus): Promise<void> {
   await readBridge().refreshAgentStatuses(currentWslDistros(), {
@@ -159,19 +159,15 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
                 <Trans>Settings</Trans>
               </Button>
             ) : null}
-            <Button
-              isIconOnly
-              aria-label={t`Refresh ${agentStatus.label} authentication`}
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 min-w-0 text-muted"
+            <ThreadDockIconButton
+              label={t`Refresh ${agentStatus.label} authentication`}
               isDisabled={pendingAction !== undefined}
               isPending={pendingAction === "refresh"}
               onMouseDown={preventFocusSteal}
               onPress={() => void handleRefresh()}
             >
               <RefreshCw className="size-3.5" />
-            </Button>
+            </ThreadDockIconButton>
           </div>
         }
       >

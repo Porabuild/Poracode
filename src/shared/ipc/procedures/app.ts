@@ -85,7 +85,7 @@ export interface LegacyDataMigrationRequestResult {
  */
 export const remoteHttpRequestPayloadSchema = z.object({
   url: z.string().url(),
-  method: z.enum(["GET", "POST"]).optional(),
+  method: z.enum(["GET", "POST", "DELETE"]).optional(),
   headers: z.record(z.string(), z.string()).optional(),
   body: z.string().optional(),
   bodyBase64: z.string().optional(),

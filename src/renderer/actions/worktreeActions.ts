@@ -11,11 +11,20 @@ import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads, runShellScriptToCompletion } from "@/renderer/utils/shellUtils";
+import { showGitActionError } from "./gitCommandRunner";
 import { cancelQueuedWorktreeSetup } from "./worktreeLaunchActions";
+
+function refreshProjectBranches(project: Project): void {
+  void readBridge()
+    .gitListBranches({ projectLocation: project.location, includeRemote: true })
+    .then((branches) => useGitStore.getState().setBranches(project.id, branches))
+    .catch(() => undefined);
+}
 
 export async function performWorktreeRemoval(
   project: Project,
@@ -78,11 +87,27 @@ export async function performWorktreeRemoval(
       }
     }
 
-    void readBridge()
-      .gitListBranches({ projectLocation: project.location, includeRemote: true })
-      .then((branches) => useGitStore.getState().setBranches(project.id, branches))
-      .catch(() => undefined);
+    refreshProjectBranches(project);
   }
+  return true;
+}
+
+export async function forceDeleteBranch(projectId: string, branch: string): Promise<boolean> {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  if (!project) return false;
+
+  try {
+    await readBridge().gitDeleteBranch({
+      projectLocation: project.location,
+      branch,
+      force: true,
+    });
+  } catch (error) {
+    showGitActionError(error);
+    return false;
+  }
+
+  refreshProjectBranches(project);
   return true;
 }
 
@@ -138,24 +163,27 @@ export function deleteWorktreeGroup(
   const sampleThread = groupThreads.find((thread) => thread.worktreeBranch);
 
   const deleteThread = app.deleteThread;
-  if (project.remoteServerId && project.remoteId) {
+  const owner = remoteOwner(project);
+  if (owner) {
     const remoteThreadIds = groupThreads
-      .filter((thread) => thread.remoteServerId === project.remoteServerId && thread.remoteId)
-      .map((thread) => thread.remoteId!);
+      .map((thread) => remoteOwner(thread))
+      .filter((threadOwner) => threadOwner?.desktopId === owner.desktopId)
+      .map((threadOwner) => threadOwner!.remoteId);
     if (remoteThreadIds.length !== threadIds.length) return;
-    for (const threadId of threadIds) deleteThread(threadId);
     void useRemoteServersStore
       .getState()
-      .sendThreadCommand(project.remoteServerId, {
+      .sendThreadCommand(owner.desktopId, {
         kind: "delete-worktree-group",
         threadId: remoteThreadIds[0]!,
-        projectId: project.remoteId,
+        projectId: owner.remoteId,
         worktreePath,
         threadIds: remoteThreadIds,
       })
+      .then(() => {
+        for (const threadId of threadIds) useAppStore.getState().deleteThread(threadId);
+      })
       .catch((error) => {
         toast.danger(errorDetail(error) || i18n._(msg`Unable to remove worktree.`));
-        void useRemoteServersStore.getState().refreshServer(project.remoteServerId!);
       });
     return;
   }

@@ -1,10 +1,13 @@
 import type { ProjectLocation, Thread } from "@/shared/contracts";
+import { toast } from "@heroui/react";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -134,11 +137,12 @@ export function toggleBrowserPanel(): void {
 
 export function openProjectSettings(projectId: string): void {
   const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
-  if (project?.remoteServerId && project.remoteId) {
+  const owner = remoteOwner(project);
+  if (owner) {
     void useRemoteServersStore
       .getState()
-      .loadProjectSettings(project.remoteServerId, project.remoteId)
-      .catch(() => undefined);
+      .loadProjectSettings(owner.desktopId, owner.remoteId)
+      .catch((error) => toast.danger(friendlyError(error)));
   }
   usePanelStore.getState().openProjectSettings(projectId);
 }

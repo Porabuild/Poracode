@@ -635,7 +635,7 @@ function runTerminalCommand(args: unknown): void {
     },
     title,
   );
-  writeScriptToShell(tab.id, command);
+  writeScriptToShell(tab.id, command, active.project.remoteServerId);
 }
 
 function isTextInputElement(element: Element | null): boolean {

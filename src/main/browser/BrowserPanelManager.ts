@@ -831,9 +831,10 @@ export class BrowserPanelManager {
     };
     const bytes = await tab.capturePng(clip);
 
+    const data = new Uint8Array(bytes);
     const path = saveClipboardImageFile(this.paths, {
       threadId,
-      data: new Uint8Array(bytes),
+      data,
       extension: "png",
     });
     const baseName = path.split(/[\\/]/).pop() ?? "Selection.png";
@@ -842,6 +843,7 @@ export class BrowserPanelManager {
       attachmentPath: path,
       attachmentName: baseName,
       mimeType: "image/png",
+      data,
       selector: pick.selector,
       sourceUrl: pick.url,
       rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },

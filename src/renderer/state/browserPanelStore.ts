@@ -11,6 +11,7 @@ export interface PendingPickerAttachment {
   attachmentPath: string;
   attachmentName: string;
   mimeType: string;
+  data?: Uint8Array;
   selector: string;
   sourceUrl: string;
   anchorX?: number;

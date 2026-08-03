@@ -20,6 +20,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { discardExperiment } from "./experimentActions";
 
@@ -30,16 +31,23 @@ let homeScopeLocationPromise: Promise<ProjectLocation> | null = null;
 
 type RemoteProjectPatch = Extract<RemoteProjectCommand, { kind: "update" }>["patch"];
 
-function persistRemoteProjectPatch(project: Project, patch: RemoteProjectPatch): void {
-  if (!project.remoteServerId || !project.remoteId) return;
+function dispatchRemoteProjectMutation(
+  project: Project,
+  patch: RemoteProjectPatch,
+  apply: () => void,
+): boolean {
+  const owner = remoteOwner(project);
+  if (!owner) return false;
   void useRemoteServersStore
     .getState()
-    .runProjectCommand(project.remoteServerId, {
+    .runProjectCommand(owner.desktopId, {
       kind: "update",
-      projectId: project.remoteId,
+      projectId: owner.remoteId,
       patch,
     })
+    .then(apply)
     .catch((error) => toast.danger(friendlyError(error)));
+  return true;
 }
 
 export function renameProject(projectId: string, name: string): void {
@@ -47,10 +55,9 @@ export function renameProject(projectId: string, name: string): void {
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
   store.renameProject(projectId, name);
-  if (project.remoteServerId && project.remoteId) {
-    useRemoteServersStore
-      .getState()
-      .setProjectNameOverride(project.remoteServerId, project.remoteId, name);
+  const owner = remoteOwner(project);
+  if (owner) {
+    useRemoteServersStore.getState().setProjectNameOverride(owner.desktopId, owner.remoteId, name);
   }
 }
 
@@ -58,8 +65,9 @@ export function updateProjectScripts(projectId: string, scripts: ProjectScripts)
   const store = useAppStore.getState();
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
-  store.updateProjectScripts(projectId, scripts);
-  persistRemoteProjectPatch(project, { scripts });
+  const apply = () => useAppStore.getState().updateProjectScripts(projectId, scripts);
+  if (dispatchRemoteProjectMutation(project, { scripts }, apply)) return;
+  apply();
 }
 
 export function updateProjectSearchSettings(
@@ -69,8 +77,10 @@ export function updateProjectSearchSettings(
   const store = useAppStore.getState();
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
-  store.updateProjectSearchSettings(projectId, searchSettings);
-  persistRemoteProjectPatch(project, { searchSettings: searchSettings ?? null });
+  const apply = () => useAppStore.getState().updateProjectSearchSettings(projectId, searchSettings);
+  if (dispatchRemoteProjectMutation(project, { searchSettings: searchSettings ?? null }, apply))
+    return;
+  apply();
 }
 
 export function updateProjectWorktreeLocation(
@@ -80,16 +90,27 @@ export function updateProjectWorktreeLocation(
   const store = useAppStore.getState();
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
-  store.updateProjectWorktreeLocation(projectId, worktreeLocation);
-  persistRemoteProjectPatch(project, { worktreeLocation: worktreeLocation ?? null });
+  const apply = () =>
+    useAppStore.getState().updateProjectWorktreeLocation(projectId, worktreeLocation);
+  if (dispatchRemoteProjectMutation(project, { worktreeLocation: worktreeLocation ?? null }, apply))
+    return;
+  apply();
 }
 
 export function updateProjectMcpServers(projectId: string, mcpServers: McpServer[]): void {
   const store = useAppStore.getState();
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
-  store.updateProjectMcpServers(projectId, mcpServers);
-  persistRemoteProjectPatch(project, { mcpServers: mcpServers.length > 0 ? mcpServers : null });
+  const apply = () => useAppStore.getState().updateProjectMcpServers(projectId, mcpServers);
+  if (
+    dispatchRemoteProjectMutation(
+      project,
+      { mcpServers: mcpServers.length > 0 ? mcpServers : null },
+      apply,
+    )
+  )
+    return;
+  apply();
 }
 
 export function loadHomeScopeLocation(): Promise<ProjectLocation> {
@@ -115,49 +136,53 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
   if (!project) return;
   if ((project.disabled ?? false) === disabled) return;
 
-  store.setProjectDisabled(projectId, disabled);
-  persistRemoteProjectPatch(project, { disabled });
+  const apply = () => {
+    store.setProjectDisabled(projectId, disabled);
 
-  if (disabled) {
-    const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
-    const releaseWslDistro =
-      wslDistro &&
-      !useAppStore
-        .getState()
-        .projects.some(
-          (candidate) =>
-            !candidate.disabled &&
-            candidate.location.kind === "wsl" &&
-            candidate.location.distro === wslDistro,
-        )
-        ? wslDistro
-        : undefined;
-    if (!project.remoteServerId) {
-      void readBridge()
-        .gitUnwatchProject({
-          projectId,
-          ...(releaseWslDistro ? { releaseWslDistro } : {}),
-        })
-        .catch(() => undefined);
-    }
+    if (disabled) {
+      const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
+      const releaseWslDistro =
+        wslDistro &&
+        !useAppStore
+          .getState()
+          .projects.some(
+            (candidate) =>
+              !candidate.disabled &&
+              candidate.location.kind === "wsl" &&
+              candidate.location.distro === wslDistro,
+          )
+          ? wslDistro
+          : undefined;
+      if (!project.remoteServerId) {
+        void readBridge()
+          .gitUnwatchProject({
+            projectId,
+            ...(releaseWslDistro ? { releaseWslDistro } : {}),
+          })
+          .catch(() => undefined);
+      }
 
-    useGitStore.getState().clearStatus(projectId);
+      useGitStore.getState().clearStatus(projectId);
 
-    const termStore = useDevTerminalStore.getState();
-    if (termStore.isOpen && termStore.activeProjectId === projectId) {
-      termStore.closePanel();
-    }
+      const termStore = useDevTerminalStore.getState();
+      if (termStore.isOpen && termStore.activeProjectId === projectId) {
+        termStore.closePanel();
+      }
 
-    const panelStore = usePanelStore.getState();
-    if (panelStore.gitReviewContext?.projectId === projectId) {
-      panelStore.setGitOverlayOpen(false);
-      panelStore.setGitReviewContext(null);
+      const panelStore = usePanelStore.getState();
+      if (panelStore.gitReviewContext?.projectId === projectId) {
+        panelStore.setGitOverlayOpen(false);
+        panelStore.setGitReviewContext(null);
+      }
+      if (panelStore.filesPanelContext?.projectId === projectId) {
+        panelStore.setFilesPanelContext(null);
+        useFileEditorStore.getState().clearSession();
+      }
     }
-    if (panelStore.filesPanelContext?.projectId === projectId) {
-      panelStore.setFilesPanelContext(null);
-      useFileEditorStore.getState().clearSession();
-    }
-  }
+  };
+
+  if (dispatchRemoteProjectMutation(project, { disabled }, apply)) return;
+  apply();
 }
 
 /**
@@ -207,11 +232,12 @@ export async function relocateProject(projectId: string): Promise<void> {
 
 export async function relocateRemoteProject(projectId: string, path: string): Promise<void> {
   const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
-  if (!project?.remoteServerId || !project.remoteId) return;
+  const owner = remoteOwner(project);
+  if (!owner) return;
   try {
-    await useRemoteServersStore.getState().runProjectCommand(project.remoteServerId, {
+    await useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
       kind: "relocate",
-      projectId: project.remoteId,
+      projectId: owner.remoteId,
       path,
     });
   } catch (error) {
@@ -225,12 +251,13 @@ export function deleteProject(projectId: string): void {
 
 async function deleteProjectAsync(projectId: string): Promise<void> {
   const remoteProject = useAppStore.getState().projects.find((project) => project.id === projectId);
-  if (remoteProject?.remoteServerId && remoteProject.remoteId) {
+  const owner = remoteOwner(remoteProject);
+  if (owner) {
     await useRemoteServersStore
       .getState()
-      .runProjectCommand(remoteProject.remoteServerId, {
+      .runProjectCommand(owner.desktopId, {
         kind: "remove",
-        projectId: remoteProject.remoteId,
+        projectId: owner.remoteId,
       })
       .catch((error) => toast.danger(friendlyError(error)));
     return;

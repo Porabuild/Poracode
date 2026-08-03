@@ -24,6 +24,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { findExperimentByGroupId } from "@/renderer/state/experimentStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -178,7 +179,7 @@ export async function startThreadFromDraft(
         branch: worktreeBranch,
         ...(worktreeBaseBranch ? { startPoint: worktreeBaseBranch } : {}),
         createBranch: worktreeIsNewBranch ?? false,
-        ...(!project.remoteServerId ? worktreePlacementPayload(project) : {}),
+        ...(!remoteOwner(project) ? worktreePlacementPayload(project) : {}),
         copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
         transferUncommitted,
         keepChangesInSource: transferUncommitted,
@@ -225,12 +226,11 @@ export async function startThreadFromDraft(
 }
 
 function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
-  const desktopId = project.remoteServerId;
-  const remoteProjectId = project.remoteId;
-  if (desktopId && remoteProjectId) {
+  const owner = remoteOwner(project);
+  if (owner) {
     const remoteServer = useRemoteServersStore
       .getState()
-      .servers.find((server) => server.desktopId === desktopId);
+      .servers.find((server) => server.desktopId === owner.desktopId);
     const helperHost =
       remoteServer?.hostMode === "helper" ||
       (remoteServer?.hostMode === undefined && remoteServer?.transport?.kind === "ssh");
@@ -238,8 +238,8 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
       setupRunsOnHost: !helperHost,
       startThread: async (launch) => {
         await useRemoteServersStore.getState().launchRemoteThread({
-          desktopId,
-          projectId: remoteProjectId,
+          desktopId: owner.desktopId,
+          projectId: owner.remoteId,
           agentKind: launch.agentKind,
           config: launch.config,
           prompt: launch.prompt,

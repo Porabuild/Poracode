@@ -50,7 +50,6 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useThread } from "@/renderer/state/useThread";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
@@ -442,11 +441,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   function handleInterrupt() {
     if (isInterrupting) return;
     setIsInterrupting(true);
-    const request =
-      thread.remoteServerId && thread.remoteId
-        ? useRemoteServersStore.getState().interruptThread(thread.remoteServerId, thread.remoteId)
-        : readBridge().interruptThread({ threadId: thread.id });
-    void request
+    void readBridge()
+      .interruptThread({ threadId: thread.id })
       .then(() => {
         captureProductEvent("thread.interrupted", threadProductProperties(thread));
       })

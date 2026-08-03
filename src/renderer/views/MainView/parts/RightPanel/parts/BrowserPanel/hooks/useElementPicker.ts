@@ -3,11 +3,14 @@ import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import type { PromptSegment } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildSelectorPlainText, useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { useComposerUiStore } from "@/renderer/state/composerUiStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useBrowserPanelStore,
@@ -124,6 +127,41 @@ function buildSelectionSegments(attachment: PendingPickerAttachment): {
   };
 }
 
+export async function materializePickerAttachment(
+  threadId: string,
+  attachment: PendingPickerAttachment,
+): Promise<PendingPickerAttachment> {
+  const { data, ...materialized } = attachment;
+  if (!data) return materialized;
+  const uploadData = new Uint8Array(data);
+
+  const app = useAppStore.getState();
+  if (isDraftPaneId(threadId)) {
+    const project = app.projects.find(
+      (candidate) => candidate.id === parseDraftProjectId(threadId),
+    );
+    const owner = remoteOwner(project);
+    if (!owner) return materialized;
+    const attachmentPath = await useRemoteServersStore
+      .getState()
+      .saveClipboardImage(owner.desktopId, {
+        threadId: `draft-${owner.remoteId}`,
+        data: uploadData,
+        extension: "png",
+      });
+    return { ...materialized, attachmentPath };
+  }
+
+  const thread = app.threads.find((candidate) => candidate.id === threadId);
+  if (!remoteOwner(thread)) return materialized;
+  const attachmentPath = await readBridge().saveClipboardImage({
+    threadId,
+    data: uploadData,
+    extension: "png",
+  });
+  return { ...materialized, attachmentPath };
+}
+
 export function useElementPicker() {
   const { t } = useLingui();
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
@@ -168,23 +206,32 @@ export function useElementPicker() {
 
   const deliverPick = useCallback(
     async (threadId: string, destination: PickDestination, attachment: PendingPickerAttachment) => {
+      let routedAttachment: PendingPickerAttachment;
+      try {
+        routedAttachment = await materializePickerAttachment(threadId, attachment);
+      } catch (error) {
+        const message = friendlyError(error);
+        toast.danger(message);
+        return message;
+      }
       if (destination === "terminal") {
-        const { prompt, segments } = buildSelectionSegments(attachment);
+        const { prompt, segments } = buildSelectionSegments(routedAttachment);
         try {
           await readBridge().stageThreadInput({ threadId, prompt, segments });
           toast.success(t`Sent selection to terminal.`);
-          return;
+          return null;
         } catch (error) {
           // The PTY may not be ready (still launching, exited). Don't lose the
           // pick — drop it into the composer instead.
           console.error("[picker] failed to stage terminal input", error);
-          enqueueAttach({ threadId, ...attachment });
+          enqueueAttach({ threadId, ...routedAttachment });
           toast.warning(t`Terminal not ready — added selection to composer.`);
-          return;
+          return null;
         }
       }
-      enqueueAttach({ threadId, ...attachment });
+      enqueueAttach({ threadId, ...routedAttachment });
       toast.success(t`Attached browser selection.`);
+      return null;
     },
     [enqueueAttach, t],
   );
@@ -232,6 +279,7 @@ export function useElementPicker() {
         attachmentPath: result.attachmentPath,
         attachmentName: result.attachmentName,
         mimeType: result.mimeType ?? "image/png",
+        ...(result.data ? { data: result.data } : {}),
         selector: result.selector,
         sourceUrl: result.sourceUrl,
         ...(anchor ? { anchorX: anchor.x, anchorY: anchor.y } : {}),
@@ -240,7 +288,8 @@ export function useElementPicker() {
         const threadId = targetIds[0]!;
         const destination = resolvePickDestination(threadId);
         if (destination !== "ask") {
-          await deliverPick(threadId, destination, attachment);
+          const error = await deliverPick(threadId, destination, attachment);
+          if (error) return { ok: false, cancelled: false, error };
           return { ok: true, cancelled: false };
         }
       }

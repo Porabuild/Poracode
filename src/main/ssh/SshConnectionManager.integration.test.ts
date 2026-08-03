@@ -13,6 +13,7 @@ const identityFile = process.env.PORACODE_SSH_E2E_IDENTITY;
 const port = Number(process.env.PORACODE_SSH_E2E_PORT ?? "22");
 const runAgent = process.env.PORACODE_SSH_E2E_AGENT === "1";
 const agentProjectPath = process.env.PORACODE_SSH_E2E_PROJECT;
+const connectionId = process.env.PORACODE_SSH_E2E_CONNECTION_ID;
 const preferredAgentKind = process.env.PORACODE_SSH_E2E_AGENT_KIND;
 const agentPresentationMode =
   process.env.PORACODE_SSH_E2E_PRESENTATION === "gui" ? "gui" : "terminal";
@@ -45,7 +46,7 @@ describe.skipIf(!target || !identityFile)("SshConnectionManager real SSH", () =>
     "installs, launches, tunnels, pairs, and optionally runs a remote agent",
     async () => {
       const connection = {
-        id: crypto.randomUUID(),
+        id: connectionId ?? crypto.randomUUID(),
         label: "Poracode SSH E2E",
         target: target!,
         port,

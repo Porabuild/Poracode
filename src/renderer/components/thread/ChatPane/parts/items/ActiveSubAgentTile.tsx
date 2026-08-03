@@ -1,5 +1,4 @@
 import { Fragment, useEffect, type ReactNode } from "react";
-import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useShallow } from "zustand/shallow";
@@ -23,6 +22,7 @@ import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount"
 import {
   ThreadDockActionRow,
   ThreadDockHeader,
+  ThreadDockIconButton,
   ThreadDockList,
   ThreadDockSection,
 } from "../../../ThreadDockUI";
@@ -163,19 +163,14 @@ function ActiveAgentSection({
         title={title}
         countLabel={<AnimatedFraction value={completedCount} total={ids.length} />}
         actions={
-          <Tooltip delay={0}>
-            <Tooltip.Trigger>
-              <button
-                aria-label={closePanelLabel}
-                className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-                type="button"
-                onClick={() => dismissMany(threadId, ids)}
-              >
-                <X className="size-3.5" />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content>{closeLabel}</Tooltip.Content>
-          </Tooltip>
+          <ThreadDockIconButton
+            label={closePanelLabel}
+            tooltip={closeLabel}
+            danger
+            onPress={() => dismissMany(threadId, ids)}
+          >
+            <X className="size-3.5" />
+          </ThreadDockIconButton>
         }
       />
       <ThreadDockList placement="composer" collapsed={false} gap="1">

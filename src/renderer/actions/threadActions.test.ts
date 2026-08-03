@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
-import type { Thread, Workspace } from "@/shared/contracts";
+import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
+  archiveThread,
   deleteThread,
   openNewThread,
   openThread,
@@ -16,6 +18,8 @@ import {
   setThreadRuntimeReopenEnabled,
   switchToAdjacentThread,
   toggleMarkThreadDone,
+  toggleStarThread,
+  unloadStoredThread,
 } from "./threadActions";
 
 const { bridge } = vi.hoisted(() => ({
@@ -32,6 +36,13 @@ const { deleteWorktreeGroup } = vi.hoisted(() => ({
   deleteWorktreeGroup:
     vi.fn<(projectId: string, worktreePath: string, threadIds: string[]) => void>(),
 }));
+const { refreshServer, sendThreadCommand, toast } = vi.hoisted(() => ({
+  refreshServer: vi.fn<(desktopId: string) => Promise<void>>(),
+  sendThreadCommand: vi.fn<(desktopId: string, command: RemoteThreadCommand) => Promise<void>>(),
+  toast: { danger: vi.fn<(message: string) => void>() },
+}));
+
+vi.mock("@heroui/react", () => ({ toast }));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
@@ -54,6 +65,10 @@ describe("threadActions", () => {
     hasHydratedThreadRuntimeItems.mockReturnValue(false);
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
     deleteWorktreeGroup.mockReset();
+    refreshServer.mockReset().mockResolvedValue(undefined);
+    sendThreadCommand.mockReset().mockResolvedValue(undefined);
+    toast.danger.mockReset();
+    useRemoteServersStore.setState({ refreshServer, sendThreadCommand });
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -358,6 +373,63 @@ describe("threadActions", () => {
     await Promise.resolve();
 
     expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
+  });
+
+  it("applies a remote sidebar mutation only after the host accepts it", async () => {
+    let resolveCommand: () => void = () => undefined;
+    sendThreadCommand.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCommand = resolve;
+        }),
+    );
+    const thread = makeThread({
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    archiveThread(thread.id);
+
+    expect(useAppStore.getState().threads[0]?.archived).toBe(false);
+    expect(sendThreadCommand).toHaveBeenCalledWith("remote-server", {
+      kind: "archive",
+      threadId: "remote-thread",
+    });
+
+    resolveCommand();
+    await waitFor(() => expect(useAppStore.getState().threads[0]?.archived).toBe(true));
+  });
+
+  it("unloads a remote thread through the central bridge before refreshing its host", async () => {
+    const thread = makeThread({
+      status: "working",
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    await unloadStoredThread(thread.id);
+
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: thread.id });
+    expect(refreshServer).toHaveBeenCalledWith("remote-server");
+    expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
+  });
+
+  it("keeps remote sidebar state and surfaces the error when a command fails", async () => {
+    sendThreadCommand.mockRejectedValue(new Error("remote server offline"));
+    const thread = makeThread({
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    toggleStarThread(thread.id);
+    deleteThread(thread.id);
+
+    await waitFor(() => expect(toast.danger).toHaveBeenCalledTimes(2));
+    expect(toast.danger).toHaveBeenCalledWith("remote server offline");
+    expect(useAppStore.getState().threads).toEqual([thread]);
   });
 
   it("deletes a shared-worktree thread without prompting to remove the worktree", () => {

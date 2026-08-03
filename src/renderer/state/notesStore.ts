@@ -1,5 +1,7 @@
 import { create } from "zustand";
+import { toast } from "@heroui/react";
 import type { NotesTodoItem } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 
 export type NotesLoadStatus = "unloaded" | "loading" | "ready";
@@ -31,6 +33,7 @@ interface NotesStore {
 
 const PERSIST_DEBOUNCE_MS = 600;
 const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const persistedEntries = new Map<string, ProjectNotesEntry>();
 let sessionGeneration = 0;
 
 function hasBridge(): boolean {
@@ -46,6 +49,7 @@ function makeTodoId(): string {
 
 function persistNow(projectId: string, entry: ProjectNotesEntry): void {
   if (!hasBridge()) return;
+  const persistGeneration = sessionGeneration;
   void readBridge()
     .dbSetProjectNotes({
       projectId,
@@ -53,8 +57,28 @@ function persistNow(projectId: string, entry: ProjectNotesEntry): void {
       todos: entry.todos,
       updatedAt: new Date().toISOString(),
     })
+    .then(() => {
+      if (persistGeneration === sessionGeneration) {
+        persistedEntries.set(projectId, entry);
+      }
+    })
     .catch((error) => {
       console.error("[notes] failed to persist project notes", error);
+      toast.danger(friendlyError(error));
+      if (persistGeneration !== sessionGeneration) return;
+      useNotesStore.setState((state) => {
+        if (state.byProject[projectId] !== entry) return state;
+        return {
+          byProject: {
+            ...state.byProject,
+            [projectId]: persistedEntries.get(projectId) ?? {
+              status: "ready",
+              doc: null,
+              todos: [],
+            },
+          },
+        };
+      });
     });
 }
 
@@ -100,17 +124,12 @@ export const useNotesStore = create<NotesStore>((set, get) => {
       const entry = get().byProject[projectId];
       if (entry && entry.status !== "unloaded") return;
       const loadGeneration = sessionGeneration;
-      const setReady = (doc: unknown | null, todos: NotesTodoItem[]) =>
-        set((state) =>
-          loadGeneration === sessionGeneration
-            ? {
-                byProject: {
-                  ...state.byProject,
-                  [projectId]: { status: "ready", doc, todos },
-                },
-              }
-            : {},
-        );
+      const setReady = (doc: unknown | null, todos: NotesTodoItem[]) => {
+        if (loadGeneration !== sessionGeneration) return;
+        const ready: ProjectNotesEntry = { status: "ready", doc, todos };
+        persistedEntries.set(projectId, ready);
+        set((state) => ({ byProject: { ...state.byProject, [projectId]: ready } }));
+      };
       set((state) => ({
         byProject: {
           ...state.byProject,
@@ -130,6 +149,7 @@ export const useNotesStore = create<NotesStore>((set, get) => {
         .then((data) => setReady(data?.doc ?? null, data?.todos ?? []))
         .catch((error) => {
           console.error("[notes] failed to load project notes", error);
+          toast.danger(friendlyError(error));
           setReady(null, []);
         });
     },
@@ -204,6 +224,7 @@ export const useNotesStore = create<NotesStore>((set, get) => {
     resetSession: () => {
       get().flushAll();
       sessionGeneration += 1;
+      persistedEntries.clear();
       set({ byProject: {} });
     },
   };

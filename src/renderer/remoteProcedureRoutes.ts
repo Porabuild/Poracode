@@ -17,6 +17,14 @@ export type RemoteRouteHandler =
   | "pr-watch-upsert"
   | "pr-watch-delete"
   | "runtime-items-page"
+  | "thread-input"
+  | "thread-interrupt"
+  | "thread-goal"
+  | "thread-steer-set"
+  | "thread-steer-clear"
+  | "thread-request-resolve"
+  | "thread-clipboard-image"
+  | "thread-handoff-context"
   | "shell-start"
   | "shell-close"
   | "terminal-write"
@@ -53,6 +61,14 @@ export const REMOTE_PROCEDURE_ROUTES = {
   deletePrWatch: { owner: "project", handler: "pr-watch-delete" },
   dbGetThreadRuntimeItemsPage: { owner: "thread", handler: "runtime-items-page" },
   dbTruncateThreadRuntimeAfter: { owner: "thread", handler: "noop" },
+  sendThreadInput: { owner: "thread", handler: "thread-input" },
+  interruptThread: { owner: "thread", handler: "thread-interrupt" },
+  controlThreadGoal: { owner: "thread", handler: "thread-goal" },
+  setPendingSteer: { owner: "thread", handler: "thread-steer-set" },
+  clearPendingSteer: { owner: "thread", handler: "thread-steer-clear" },
+  resolveThreadServerRequest: { owner: "thread", handler: "thread-request-resolve" },
+  saveClipboardImage: { owner: "thread", handler: "thread-clipboard-image" },
+  saveHandoffContext: { owner: "thread", handler: "thread-handoff-context" },
   startShell: { owner: "projectLocation", handler: "shell-start" },
   closeThread: { owner: "terminal", handler: "shell-close" },
   writeTerminal: { owner: "terminal", handler: "terminal-write" },
@@ -62,6 +78,7 @@ export const REMOTE_PROCEDURE_ROUTES = {
 /** Project-aware procedures intentionally dispatched or disabled outside the bridge router. */
 export const NON_ROUTER_PROJECT_PROCEDURES = {
   startThread: "explicit-remote-thread-launch",
+  cloneRepo: "remote-projects-use-project-command",
   relocateProject: "explicit-remote-project-command",
   extractContext: "remote-control-hidden",
   cancelExtractContext: "remote-control-hidden",
@@ -85,6 +102,17 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   dbUpsertThread: "remote-mirrors-not-persisted",
   dbDeleteThread: "remote-mirrors-not-persisted",
   dbSyncAll: "remote-mirrors-not-persisted",
+  dbGetThreadRuntimeItems: "remote-runtime-mirror-local",
+  dbReplaceThreadRuntimeItems: "remote-runtime-mirror-local",
+  dbGetThreadCompletedTurns: "remote-runtime-mirror-local",
+  dbReplaceThreadCompletedTurns: "remote-runtime-mirror-local",
+  dbReplaceThreadRuntimeSnapshot: "remote-runtime-mirror-local",
+  dbGetThreadContextUsage: "remote-runtime-mirror-local",
+  readTerminalScrollback: "remote-thread-snapshot-provided",
+  readTerminalSize: "remote-server-internal",
+  dbPersistExperimentState: "remote-experiments-excluded",
+  browserStartPicker: "device-owned-browser-control",
+  showNotification: "device-owned-notification",
 } as const satisfies Partial<Record<IpcProcedureName, string>>;
 
 export type RemoteRoutableProcedureName = keyof typeof REMOTE_PROCEDURE_ROUTES;

@@ -27,11 +27,18 @@ import {
   buildScriptWithExitOnSuccess,
   clearEagerShellStart,
   closeThreads,
+  runShellScriptToCompletion,
   startShellWithToast,
   wasShellStartedEagerly,
   writeScriptToShell,
   writeScriptToShellThenExitOnSuccess,
 } from "./shellUtils";
+import {
+  emitRemoteTerminalExited,
+  handleRemoteTerminalServerMessage,
+  resetRemoteTerminalFeed,
+  setRemoteTerminalSocketSender,
+} from "@/renderer/state/remoteTerminalFeed";
 
 function emit(event: SupervisorEvent) {
   for (const handler of [...supervisorHandlers]) handler(event);
@@ -349,5 +356,75 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     expect(bridge.onSupervisorEvent).not.toHaveBeenCalled();
     expect(() => detach()).not.toThrow();
     expect(onExit).not.toHaveBeenCalled();
+  });
+});
+
+describe("runShellScriptToCompletion", () => {
+  beforeEach(() => {
+    resetRemoteTerminalFeed();
+    bridge.onSupervisorEvent.mockReset();
+    bridge.startShell.mockReset().mockResolvedValue(undefined);
+    bridge.writeTerminal.mockReset().mockResolvedValue(undefined);
+    bridge.closeThread.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("waits for a remote shell prompt before writing through the terminal feed", async () => {
+    const desktopId = "desktop-1";
+    const shellId = "shell:remote";
+    const sender = vi.fn<() => boolean>(() => true);
+    setRemoteTerminalSocketSender(desktopId, sender);
+
+    const running = runShellScriptToCompletion(
+      shellId,
+      {
+        kind: "posix",
+        path: "/remote/project",
+        remoteServerId: desktopId,
+      },
+      "printf ready",
+    );
+
+    expect(sender).toHaveBeenCalledWith({ type: "terminal-watch", id: shellId });
+    expect(bridge.startShell).toHaveBeenCalledWith({
+      shellId,
+      projectLocation: {
+        kind: "posix",
+        path: "/remote/project",
+        remoteServerId: desktopId,
+      },
+    });
+    handleRemoteTerminalServerMessage(desktopId, {
+      type: "terminal-output",
+      id: shellId,
+      data: "direnv: loading /remote/project\r\n",
+    });
+    handleRemoteTerminalServerMessage(desktopId, {
+      type: "terminal-output",
+      id: shellId,
+      data: "\u001B[0c",
+    });
+    expect(bridge.writeTerminal).not.toHaveBeenCalled();
+    handleRemoteTerminalServerMessage(desktopId, {
+      type: "terminal-output",
+      id: shellId,
+      data: "\u001B]133;B",
+    });
+    expect(bridge.writeTerminal).not.toHaveBeenCalled();
+    handleRemoteTerminalServerMessage(desktopId, {
+      type: "terminal-output",
+      id: shellId,
+      data: "\u001B\\",
+    });
+    await vi.waitFor(() =>
+      expect(bridge.writeTerminal).toHaveBeenCalledWith({
+        threadId: shellId,
+        data: "printf ready\rexit\r",
+      }),
+    );
+    emitRemoteTerminalExited(desktopId, shellId, 0);
+
+    await expect(running).resolves.toBeUndefined();
+    expect(sender).toHaveBeenCalledWith({ type: "terminal-unwatch", id: shellId });
+    expect(bridge.onSupervisorEvent).not.toHaveBeenCalled();
   });
 });

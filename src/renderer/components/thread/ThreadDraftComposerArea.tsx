@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { Tooltip, toast } from "@heroui/react";
+import { toast } from "@heroui/react";
 import { Download, Monitor, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
@@ -73,7 +73,7 @@ import { useSkillSlashCommandState } from "@/renderer/components/skills/useSkill
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 import { RemoteHostUpdateDock } from "./RemoteHostUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
-import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
+import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
@@ -194,21 +194,14 @@ function HookInstallProposal(props: {
               {pending ? <PixelLoader size="xs" /> : <Download className="size-3.5" />}
               <Trans>Install</Trans>
             </Button>
-            <Tooltip delay={0}>
-              <Tooltip.Trigger>
-                <button
-                  aria-label={t`Don't show hook install proposal`}
-                  className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-                  type="button"
-                  onClick={() => dismissHookInstallProposal(proposalKey)}
-                >
-                  <X className="size-3.5" />
-                </button>
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <Trans>Dismiss</Trans>
-              </Tooltip.Content>
-            </Tooltip>
+            <ThreadDockIconButton
+              label={t`Don't show hook install proposal`}
+              tooltip={t`Dismiss`}
+              danger
+              onPress={() => dismissHookInstallProposal(proposalKey)}
+            >
+              <X className="size-3.5" />
+            </ThreadDockIconButton>
           </div>
         }
       >

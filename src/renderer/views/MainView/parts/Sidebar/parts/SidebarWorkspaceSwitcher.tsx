@@ -63,7 +63,7 @@ export function SidebarWorkspaceSwitcher() {
       <span className="flex size-4 shrink-0 items-center justify-center">
         <WorkspaceIcon icon={active.icon} className="size-4 text-muted" />
       </span>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <span className="block truncate text-left">{active.name}</span>
       </div>
       {workspaces.length > 1 ? (

@@ -1,13 +1,8 @@
 import type {
   BrowseHostDirectoryResult,
-  ControlThreadGoalPayload,
-  ProjectLocation,
+  Project,
   RemoteThreadCommand,
-  SendThreadInputPayload,
-  SetPendingSteerPayload,
   Thread,
-  ThreadConfig,
-  ThreadServerRequestId,
   TerminalSize,
 } from "@/shared/contracts";
 import type { RemoteDesktopClient, StartRemoteNewThreadInput } from "@/shared/remote/client";
@@ -22,6 +17,7 @@ import type {
 } from "@/shared/remote";
 import type { SshConnectionConfig } from "@/shared/ssh";
 
+/** Transport reachability is offline; reachable protocol or action failures are errors. */
 export type RemoteServerStatus = "connecting" | "online" | "offline" | "error";
 
 export interface RemoteServerRecord {
@@ -85,6 +81,8 @@ export interface RemoteServersState {
   projectWorkspaceIds: Record<string, Readonly<Record<string, string>>>;
   /** Local display-name overrides for mirrored projects, keyed by desktop and remote project id. */
   projectNameOverrides: Record<string, Readonly<Record<string, string>>>;
+  /** Last discovered host projects, retained so offline servers keep their sidebar rows. */
+  lastKnownProjects: Record<string, Project[]>;
   setProjectNameOverride(desktopId: string, remoteProjectId: string, name: string): void;
   setRemoteProjectSynced(desktopId: string, remoteProjectId: string, synced: boolean): void;
   clientFactory: RemoteClientFactory;
@@ -97,32 +95,7 @@ export interface RemoteServersState {
   ): Promise<void>;
   openRemoteThread(desktopId: string, threadId: string): Promise<void>;
   closeRemoteThread(): void;
-  sendThreadInput(input: SendThreadInputPayload & { readonly desktopId: string }): Promise<void>;
   sendThreadCommand(desktopId: string, command: RemoteThreadCommand): Promise<void>;
-  setPendingSteer(input: SetPendingSteerPayload & { readonly desktopId: string }): Promise<void>;
-  clearPendingSteer(desktopId: string, threadId: string): Promise<void>;
-  controlThreadGoal(desktopId: string, input: ControlThreadGoalPayload): Promise<void>;
-  writeThreadTerminal(desktopId: string, threadId: string, data: string): Promise<void>;
-  resizeThreadTerminal(desktopId: string, threadId: string, size: TerminalSize): Promise<void>;
-  resolveThreadRequest(input: {
-    readonly desktopId: string;
-    readonly threadId: string;
-    readonly requestId: ThreadServerRequestId;
-    readonly method: string;
-    readonly response: unknown;
-  }): Promise<void>;
-  rollbackThreadConversation(input: {
-    readonly desktopId: string;
-    readonly threadId: string;
-    readonly numTurns: number;
-    readonly config?: ThreadConfig;
-  }): Promise<void>;
-  restoreFileCheckpoint(input: {
-    readonly desktopId: string;
-    readonly threadId: string;
-    readonly checkpointItemId: string;
-    readonly projectLocation: ProjectLocation;
-  }): Promise<void>;
   pairServer(input: { endpoint: string; token: string }): Promise<RemoteServerRecord>;
   pairSshServer(connection: SshConnectionConfig): Promise<RemoteServerRecord>;
   renameServer(desktopId: string, label: string): void;
@@ -154,8 +127,6 @@ export interface RemoteServersState {
   pickAndUploadFiles(desktopId: string, attachmentThreadId: string): Promise<string[] | null>;
   localImageUrl(desktopId: string, path: string): string;
   imageRefUrl(desktopId: string, ref: RemoteImageRefValue): string;
-  interruptThread(desktopId: string, threadId: string): Promise<void>;
-  closeThread(desktopId: string, threadId: string): Promise<void>;
 }
 
 export function remoteServerStatusDotClass(status: RemoteServerStatus | undefined): string {

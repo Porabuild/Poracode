@@ -6,6 +6,7 @@ export type RemoteProcedureOwner =
   | "projectLocation"
   | "worktreeLocation"
   | "location"
+  | "runtime"
   | "optionalProjectLocation"
   | "skillLocations"
   | "thread"
@@ -43,6 +44,7 @@ export const REMOTE_PROCEDURE_SPECS = {
   restoreFileCheckpoint: operate("thread"),
   subagentSubscribe: read("thread"),
   subagentUnsubscribe: read("thread"),
+  stageThreadInput: operate("thread"),
   workflowGetRun: read("location"),
   workflowAgentChat: read("location"),
 
@@ -98,6 +100,8 @@ export const REMOTE_PROCEDURE_SPECS = {
   ghGetPrDiff: read("projectLocation"),
   ghGetPrDetails: read("projectLocation"),
   ghGetPrReviewComments: read("projectLocation"),
+  ghListAccounts: read("runtime"),
+  ghListRepos: read("runtime"),
   ghListWorkflows: read("projectLocation"),
   ghListWorkflowRuns: read("projectLocation"),
   ghGetWorkflowRun: read("projectLocation"),

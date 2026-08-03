@@ -1,6 +1,9 @@
 import { parsePairingCredential, parseRemoteLaunchPort } from "./ssh";
 import { msg } from "./messages";
-import { remoteEnvironmentDescriptorSchema } from "./remote/protocol";
+import {
+  remoteEnvironmentDescriptorSchema,
+  type RemoteEnvironmentDescriptor,
+} from "./remote/protocol";
 import {
   INSTALL_REMOTE_RUNTIME_SCRIPT,
   LAUNCH_REMOTE_SERVER_SCRIPT,
@@ -80,7 +83,7 @@ export async function waitForRemoteEndpoint(
   fetchImpl: typeof fetch,
   endpoint: string,
   timeoutMs = SSH_TUNNEL_READY_TIMEOUT_MS,
-): Promise<void> {
+): Promise<RemoteEnvironmentDescriptor> {
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
   while (Date.now() < deadline) {
@@ -90,7 +93,7 @@ export async function waitForRemoteEndpoint(
       });
       if (response.ok) {
         const descriptor = remoteEnvironmentDescriptorSchema.safeParse(await response.json());
-        if (descriptor.success && descriptor.data.hostMode === "helper") return;
+        if (descriptor.success && descriptor.data.hostMode === "helper") return descriptor.data;
         lastError = new Error(
           descriptor.success
             ? msg("remote.helper.wrongHost")

@@ -1,9 +1,8 @@
-import { Tooltip } from "@heroui/react";
 import { Gauge, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { CSSProperties } from "react";
 import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
-import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
+import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
 
 export function ThreadContextDock({
@@ -42,21 +41,9 @@ export function ThreadContextDock({
         title={t`Usage`}
         countLabel={countLabel}
         actions={
-          <Tooltip delay={0}>
-            <Tooltip.Trigger>
-              <button
-                aria-label={t`Close usage details`}
-                className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-                type="button"
-                onClick={onClose}
-              >
-                <X className="size-3.5" />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content>
-              <Trans>Close usage details</Trans>
-            </Tooltip.Content>
-          </Tooltip>
+          <ThreadDockIconButton label={t`Close usage details`} danger onPress={onClose}>
+            <X className="size-3.5" />
+          </ThreadDockIconButton>
         }
       />
       <div className="flex flex-col gap-2 px-3 pb-2">

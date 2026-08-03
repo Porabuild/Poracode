@@ -1,14 +1,19 @@
 import type {
+  ControlThreadGoalPayload,
   ProjectLocation,
   ProjectNotes,
   PrWatchInput,
   PrWatchKey,
+  ResolveThreadServerRequestPayload,
+  SendThreadInputPayload,
+  SetPendingSteerPayload,
   StartShellPayload,
 } from "@/shared/contracts";
 import type { IpcProcedureName, IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 import { msg } from "@/shared/messages";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import type { RemoteProcedureOwner } from "@/shared/remote/procedures";
+import { isProjectedRemoteEntityId } from "@/renderer/state/remoteProjection";
 import {
   isRemoteRoutableProcedure,
   REMOTE_PROCEDURE_ROUTES,
@@ -19,7 +24,9 @@ import {
 interface ResolvedRemoteRoute {
   readonly desktopId: string;
   readonly payload: Record<string, unknown>;
+  readonly projectedProjectId?: string;
   readonly terminalId?: string;
+  readonly terminalKind?: "shell" | "thread";
 }
 
 export interface RemoteProcedureHost {
@@ -47,6 +54,8 @@ const REMOTE_LOCATION_KEYS = [
   "sourceProjectLocation",
   "newLocation",
   "location",
+  "parentLocation",
+  "runtime",
 ] as const;
 
 export function registerRemoteProcedureHost(next: RemoteProcedureHost | undefined): void {
@@ -115,8 +124,11 @@ export function routeRemoteProcedure<Name extends IpcProcedureName>(
   }
   return {
     kind: "remote",
-    result: remoteHost.withClient(route.desktopId, (client) =>
-      invokeRemoteProcedure(procedure, spec, client, route),
+    result: remoteHost.withClient(route.desktopId, async (client) =>
+      projectOwnedResult(
+        await invokeRemoteProcedure(procedure, spec, client, route),
+        route.projectedProjectId,
+      ),
     ) as Promise<IpcProcedureResult<Name>>,
   };
 }
@@ -148,6 +160,34 @@ async function invokeRemoteProcedure(
       return client.threadRuntimeItemsPage(
         route.payload as unknown as Parameters<RemoteDesktopClient["threadRuntimeItemsPage"]>[0],
       );
+    case "thread-input":
+      return client.sendThreadInput(route.payload as unknown as SendThreadInputPayload);
+    case "thread-interrupt":
+      return client.interruptThread(String(route.payload.threadId));
+    case "thread-goal":
+      return client.controlThreadGoal(route.payload as unknown as ControlThreadGoalPayload);
+    case "thread-steer-set":
+      return client.setPendingSteer(route.payload as unknown as SetPendingSteerPayload);
+    case "thread-steer-clear":
+      return client.clearPendingSteer(String(route.payload.threadId));
+    case "thread-request-resolve":
+      return client.resolveRequest(route.payload as unknown as ResolveThreadServerRequestPayload);
+    case "thread-clipboard-image": {
+      const input = route.payload as IpcProcedurePayload<"saveClipboardImage">;
+      return client.uploadAttachment({
+        threadId: input.threadId,
+        fileName: `clipboard-${crypto.randomUUID()}.${input.extension}`,
+        data: input.data,
+      });
+    }
+    case "thread-handoff-context": {
+      const input = route.payload as IpcProcedurePayload<"saveHandoffContext">;
+      return client.uploadAttachment({
+        threadId: input.threadId,
+        fileName: "handoff-context.md",
+        data: new TextEncoder().encode(input.content),
+      });
+    }
     case "shell-start": {
       const input = route.payload as unknown as StartShellPayload;
       remoteTerminalOwners.set(input.shellId, route.desktopId);
@@ -160,6 +200,9 @@ async function invokeRemoteProcedure(
     }
     case "shell-close":
       if (!route.terminalId) return undefined;
+      if (route.terminalKind === "thread") {
+        return client.closeThread(route.terminalId);
+      }
       try {
         return await client.closeShell({ threadId: route.terminalId });
       } finally {
@@ -181,6 +224,16 @@ async function invokeRemoteProcedure(
           })
         : undefined;
   }
+}
+
+function projectOwnedResult(result: unknown, projectedProjectId: string | undefined): unknown {
+  if (!projectedProjectId || !result || typeof result !== "object" || Array.isArray(result)) {
+    return result;
+  }
+  const record = result as Record<string, unknown>;
+  return typeof record.projectId === "string"
+    ? { ...record, projectId: projectedProjectId }
+    : result;
 }
 
 function resolveRemoteRoute(
@@ -216,10 +269,22 @@ function resolveThreadRoute(
   input: Record<string, unknown>,
   remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
-  if (typeof input.threadId !== "string" || !remoteHost) return undefined;
+  if (typeof input.threadId !== "string") return undefined;
+  const owners = remoteLocationOwners(input);
+  if (!remoteHost) {
+    if (isProjectedRemoteEntityId(input.threadId, "thread") || owners.size > 0) {
+      throw new Error(msg("remote.server.unreachable"));
+    }
+    return undefined;
+  }
   const owner = remoteHost.resolveThreadOwner(input.threadId);
-  if (!owner) return undefined;
-  assertSingleOwner(input, remoteLocationOwners(input), owner.desktopId);
+  if (!owner) {
+    if (isProjectedRemoteEntityId(input.threadId, "thread") || owners.size > 0) {
+      throw new Error(msg("remote.server.unreachable"));
+    }
+    return undefined;
+  }
+  assertSingleOwner(input, owners, owner.desktopId);
   return {
     desktopId: owner.desktopId,
     payload: {
@@ -233,12 +298,25 @@ function resolveProjectRoute(
   input: Record<string, unknown>,
   remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
-  if (typeof input.projectId !== "string" || !remoteHost) return undefined;
+  if (typeof input.projectId !== "string") return undefined;
+  const owners = remoteLocationOwners(input);
+  if (!remoteHost) {
+    if (isProjectedRemoteEntityId(input.projectId, "project") || owners.size > 0) {
+      throw new Error(msg("remote.server.unreachable"));
+    }
+    return undefined;
+  }
   const owner = remoteHost.resolveProjectOwner(input.projectId);
-  if (!owner) return undefined;
-  assertSingleOwner(input, remoteLocationOwners(input), owner.desktopId);
+  if (!owner) {
+    if (isProjectedRemoteEntityId(input.projectId, "project") || owners.size > 0) {
+      throw new Error(msg("remote.server.unreachable"));
+    }
+    return undefined;
+  }
+  assertSingleOwner(input, owners, owner.desktopId);
   return {
     desktopId: owner.desktopId,
+    projectedProjectId: input.projectId,
     payload: {
       ...(unprojectRemotePayload(input) as Record<string, unknown>),
       projectId: owner.remoteId,
@@ -262,15 +340,27 @@ function resolveTerminalRoute(
     return {
       desktopId: shellDesktopId,
       terminalId,
+      terminalKind: "shell",
       payload: unprojectRemotePayload(input) as Record<string, unknown>,
     };
   }
-  if (!remoteHost) return undefined;
+  if (!remoteHost) {
+    if (isProjectedRemoteEntityId(terminalId, "thread")) {
+      throw new Error(msg("remote.server.unreachable"));
+    }
+    return undefined;
+  }
   const owner = remoteHost.resolveThreadOwner(terminalId);
-  if (!owner) return undefined;
+  if (!owner) {
+    if (isProjectedRemoteEntityId(terminalId, "thread")) {
+      throw new Error(msg("remote.server.unreachable"));
+    }
+    return undefined;
+  }
   return {
     desktopId: owner.desktopId,
     terminalId: owner.remoteId,
+    terminalKind: "thread",
     payload: {
       ...(unprojectRemotePayload(input) as Record<string, unknown>),
       ...(typeof input.threadId === "string" ? { threadId: owner.remoteId } : {}),

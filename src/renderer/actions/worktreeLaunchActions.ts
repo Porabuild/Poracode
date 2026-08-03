@@ -95,6 +95,7 @@ function startWorktreeSetupScript(
         removeWorktreeSetupTab(tab);
       },
       finish,
+      project.remoteServerId,
     );
     const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
       if (state.tabs === prev.tabs) return;

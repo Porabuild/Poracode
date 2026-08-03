@@ -9,7 +9,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { DevTerminalPanel } from "./DevTerminalPanel";
 
-const { bridge, remote, layouts } = vi.hoisted(() => ({
+const { bridge, remote, layouts, toast } = vi.hoisted(() => ({
   bridge: {
     closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     startShell: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -24,8 +24,16 @@ const { bridge, remote, layouts } = vi.hoisted(() => ({
     bottomWatchTerminal: undefined as
       | ((terminalId: string, listener: TerminalFeedListener) => () => void)
       | undefined,
+    bottomOnTerminalResize: undefined as
+      | ((terminalId: string, size: { cols: number; rows: number }) => void)
+      | undefined,
+  },
+  toast: {
+    danger: vi.fn<(message: string) => void>(),
   },
 }));
+
+vi.mock("@heroui/react", () => ({ toast }));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
@@ -56,8 +64,10 @@ vi.mock("./parts/BottomTerminalLayout", () => ({
     activeScopeLabel: string | undefined;
     handleCloseTab: (tab: DevTerminalTab) => void;
     watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
+    onTerminalResize: (terminalId: string, size: { cols: number; rows: number }) => void;
   }) => {
     layouts.bottomWatchTerminal = props.watchTerminal;
+    layouts.bottomOnTerminalResize = props.onTerminalResize;
     return (
       <>
         <span>{props.activeScopeLabel}</span>
@@ -111,9 +121,11 @@ function resetStores() {
 describe("DevTerminalPanel", () => {
   beforeEach(() => {
     bridge.closeThread.mockClear();
-    bridge.startShell.mockClear();
+    bridge.startShell.mockReset().mockResolvedValue(undefined);
     remote.watchTerminal.mockReset();
     layouts.bottomWatchTerminal = undefined;
+    layouts.bottomOnTerminalResize = undefined;
+    toast.danger.mockReset();
     resetStores();
   });
 
@@ -155,6 +167,21 @@ describe("DevTerminalPanel", () => {
     };
     expect(layouts.bottomWatchTerminal?.(tab.id, listener)).toBe(unsubscribe);
     expect(remote.watchTerminal).toHaveBeenCalledWith("desktop-1", tab.id, listener);
+  });
+
+  it("reports a failed remote shell start and allows the terminal to retry", async () => {
+    bridge.startShell.mockRejectedValueOnce(new Error("remote server offline"));
+    useAppStore.setState({
+      projects: [{ ...project, remoteServerId: "desktop-1", remoteId: "remote-project" }],
+    });
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    render(<DevTerminalPanel hideHeader />);
+
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+    await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("remote server offline"));
+
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(2));
   });
 
   it("shows the project and worktree in the terminal scope label", () => {

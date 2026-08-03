@@ -261,7 +261,9 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
       scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
       searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
       worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),
-      mcpServers: projectSchema.shape.mcpServers.unwrap().nullable().optional(),
+      // Project values default an omitted list to [], but a patch must
+      // distinguish "not supplied" from an explicit empty list.
+      mcpServers: projectSchema.shape.mcpServers.unwrap().removeDefault().nullable().optional(),
       disabled: projectSchema.shape.disabled,
     }),
   }),

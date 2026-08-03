@@ -22,6 +22,7 @@ import {
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
+import { markThreadDone } from "@/renderer/actions/threadActions";
 import {
   resolvePaneDomKey,
   SplitPaneContainer,
@@ -131,9 +132,6 @@ export function AppContent() {
     }
 
     if (closeOriginal) {
-      readBridge()
-        .closeThread({ threadId: sourceThread.id })
-        .catch(() => {});
       const store = useAppStore.getState();
       const sourceVisible =
         store.view.kind === "thread" && store.view.panes.includes(sourceThread.id);
@@ -142,7 +140,7 @@ export function AppContent() {
       } else {
         store.openThread(thread.id);
       }
-      useAppStore.getState().markThreadDone(sourceThread.id);
+      markThreadDone(sourceThread.id);
     } else {
       useAppStore.getState().openThreadSideBySide(thread.id);
     }

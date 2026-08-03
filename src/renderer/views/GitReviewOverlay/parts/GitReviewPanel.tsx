@@ -90,7 +90,6 @@ export function GitReviewPanel(props: {
   }
 
   useEffect(() => {
-    if (gitStatus && gitStatus.detail !== "summary") return;
     void fetchStatus();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- one-shot on mount
 

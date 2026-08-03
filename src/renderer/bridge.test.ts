@@ -165,7 +165,10 @@ describe("remote-aware renderer bridge", () => {
         projectId === "remote-project" ? { desktopId: "d1", remoteId: "project-1" } : undefined,
     });
 
-    await expect(readBridge().dbGetProjectNotes("remote-project")).resolves.toEqual(notes);
+    await expect(readBridge().dbGetProjectNotes("remote-project")).resolves.toEqual({
+      ...notes,
+      projectId: "remote-project",
+    });
     await readBridge().dbSetProjectNotes({ ...notes, projectId: "remote-project" });
 
     expect(projectNotes).toHaveBeenCalledWith("project-1");

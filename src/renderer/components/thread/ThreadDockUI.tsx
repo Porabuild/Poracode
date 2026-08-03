@@ -1,5 +1,7 @@
-import { forwardRef, type ReactNode } from "react";
+import { forwardRef, type MouseEventHandler, type ReactNode } from "react";
+import { Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Button } from "@/renderer/components/common";
 
 export function ThreadDockSection({
   children,
@@ -64,6 +66,51 @@ export function ThreadDockHeader({
       </div>
       {actions}
     </div>
+  );
+}
+
+export function ThreadDockIconButton({
+  label,
+  tooltip = label,
+  danger = false,
+  isDisabled = false,
+  isPending = false,
+  onMouseDown,
+  onPress,
+  children,
+}: {
+  label: string;
+  tooltip?: ReactNode;
+  danger?: boolean;
+  isDisabled?: boolean;
+  isPending?: boolean;
+  onMouseDown?: MouseEventHandler<HTMLButtonElement>;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip delay={0}>
+      <Tooltip.Trigger>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-label={label}
+          className={`h-6 w-6 min-w-0 shrink-0 text-muted/70 ${
+            danger
+              ? "hover:bg-danger-500/10 hover:text-danger-500"
+              : "hover:bg-foreground/5 hover:text-foreground"
+          }`}
+          isDisabled={isDisabled}
+          isPending={isPending}
+          {...(onMouseDown ? { onMouseDown } : {})}
+          onPress={onPress}
+        >
+          {children}
+        </Button>
+      </Tooltip.Trigger>
+      <Tooltip.Content>{tooltip}</Tooltip.Content>
+    </Tooltip>
   );
 }
 

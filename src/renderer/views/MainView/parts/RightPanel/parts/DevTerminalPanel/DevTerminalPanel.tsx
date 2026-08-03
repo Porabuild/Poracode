@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Columns2 } from "lucide-react";
 import {
@@ -14,6 +15,7 @@ import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { clearEagerShellStart, wasShellStartedEagerly } from "@/renderer/utils/shellUtils";
 import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import type { TerminalSize } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { BottomTerminalLayout } from "./parts/BottomTerminalLayout";
@@ -118,7 +120,10 @@ export function DevTerminalPanel(props: {
         ...(owningTab.worktreePath ? { worktreePath: owningTab.worktreePath } : {}),
         initialSize: size,
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        spawnedRef.current.delete(terminalId);
+        toast.danger(friendlyError(error));
+      });
   }
 
   function handleCloseTab(tab: DevTerminalTab) {

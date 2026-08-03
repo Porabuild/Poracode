@@ -55,6 +55,7 @@ import {
   dbSetState,
   dbSetProjectNotes,
   dbTruncateThreadRuntimeAfter,
+  dbUpdateProject,
   dbUpsertProject,
   dbUpsertThread,
 } from "../db";
@@ -3394,6 +3395,10 @@ describe("RemoteAccessServer", () => {
       const parsed = project as Project;
       projects = [parsed, ...projects.filter((entry) => entry.id !== parsed.id)];
     });
+    vi.mocked(dbUpdateProject).mockImplementation((project) => {
+      const parsed = project as Project;
+      projects = projects.map((entry) => (entry.id === parsed.id ? parsed : entry));
+    });
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
@@ -3502,7 +3507,39 @@ describe("RemoteAccessServer", () => {
         },
       ],
     };
-    vi.mocked(dbGetProject).mockReturnValue(projectWithMcp);
+    projects = [projectWithMcp];
+    const updateResponse = await fetch(new URL("/api/projects/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${manageToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        kind: "update",
+        projectId: createdProject.id,
+        patch: { name: "new-app-updated" },
+      }),
+    });
+    expect(updateResponse.status).toBe(200);
+    const updateResult = (await updateResponse.json()) as { project: Project };
+    expect(updateResult.project).not.toHaveProperty("mcpServers");
+    expect(onProjectsChanged).toHaveBeenLastCalledWith([
+      expect.objectContaining({
+        name: "new-app-updated",
+        mcpServers: [expect.objectContaining({ id: "memory-id" })],
+      }),
+    ]);
+    expect(await read()).toMatchObject({
+      type: "event",
+      event: {
+        type: "remote-projects-changed",
+        projects: [expect.not.objectContaining({ mcpServers: expect.anything() })],
+      },
+    });
+
+    vi.mocked(dbGetProject).mockImplementation(
+      (projectId) => projects.find((project) => project.id === projectId) ?? null,
+    );
     const settingsUrl = new URL(
       `/api/projects/${encodeURIComponent(createdProject.id)}/settings`,
       info.httpBaseUrl,
@@ -4740,6 +4777,10 @@ describe("RemoteAccessServer", () => {
       {
         procedure: "restoreFileCheckpoint",
         payload: { threadId: "thread-1", checkpointItemId: "user-2", projectLocation },
+      },
+      {
+        procedure: "stageThreadInput",
+        payload: { threadId: "thread-1", prompt: "selected element" },
       },
     ] as const;
     for (const call of forwardedCalls) {

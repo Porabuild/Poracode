@@ -1,4 +1,6 @@
-import { defineConfig } from "tsdown";
+import { isBuiltin } from "node:module";
+import { defineConfig, type TsdownPlugin } from "tsdown";
+import packageJson from "./package.json" with { type: "json" };
 
 const isProd = process.env.NODE_ENV === "production";
 const sourcemap = isProd ? ("hidden" as const) : true;
@@ -18,6 +20,48 @@ const buildDefines = {
   __BUILD_SENTRY_ENVIRONMENT__: JSON.stringify(readEnvValue("SENTRY_ENVIRONMENT")),
   __PORACODE_CHANNEL__: JSON.stringify(channel),
 };
+
+function packageNameFor(moduleId: string): string | null {
+  if (moduleId.startsWith(".") || moduleId.startsWith("/") || isBuiltin(moduleId)) return null;
+  const parts = moduleId.split("/");
+  const packageName = moduleId.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
+  return packageName && !isBuiltin(packageName) ? packageName : null;
+}
+
+function sshRuntimeManifest(
+  entryName: string,
+  supplementalDependencies: readonly string[] = [],
+): TsdownPlugin {
+  return {
+    name: `poracode:ssh-runtime-manifest:${entryName}`,
+    generateBundle(_options, bundle) {
+      const files = Object.values(bundle)
+        .filter((output) => output.type === "chunk")
+        .map((output) => output.fileName)
+        .sort();
+      const fileSet = new Set(files);
+      const dependencies = new Set(supplementalDependencies);
+      for (const output of Object.values(bundle)) {
+        if (output.type !== "chunk") continue;
+        for (const moduleId of [...output.imports, ...output.dynamicImports]) {
+          if (fileSet.has(moduleId)) continue;
+          const dependency = packageNameFor(moduleId);
+          if (dependency) dependencies.add(dependency);
+        }
+      }
+      for (const dependency of dependencies) {
+        if (!(dependency in packageJson.dependencies)) {
+          throw new Error(`SSH runtime dependency is missing from package.json: ${dependency}`);
+        }
+      }
+      this.emitFile({
+        type: "asset",
+        fileName: `${entryName}.ssh-runtime-manifest.json`,
+        source: `${JSON.stringify({ version: 1, files, dependencies: [...dependencies].sort() })}\n`,
+      });
+    },
+  };
+}
 
 const deps = {
   // @poracode/agents-usage is an internal workspace package consumed from
@@ -76,6 +120,7 @@ export default defineConfig([
   {
     entry: { supervisor: "src/supervisor/index.ts" },
     clean: false,
+    plugins: [sshRuntimeManifest("supervisor", ["@opencode-ai/sdk", "@sentry/node"])],
     ...shared,
   },
   {
@@ -84,6 +129,7 @@ export default defineConfig([
     // See docs/REMOTE_ARCHITECTURE.md.
     entry: { server: "src/server/cli.ts" },
     clean: false,
+    plugins: [sshRuntimeManifest("server")],
     ...cliShared,
   },
   {
@@ -103,6 +149,7 @@ export default defineConfig([
   {
     entry: { claudeSdkProbeWorker: "src/supervisor/agents/claude/sdkProbeWorker.ts" },
     clean: false,
+    plugins: [sshRuntimeManifest("claudeSdkProbeWorker")],
     outDir: "dist/main",
     platform: "node" as const,
     format: "esm" as const,
@@ -118,6 +165,7 @@ export default defineConfig([
     // discovered and dynamically imported at runtime inside this worker.
     entry: { cursorSdkWorker: "src/supervisor/agents/cursor/sdkWorker.ts" },
     clean: false,
+    plugins: [sshRuntimeManifest("cursorSdkWorker")],
     outDir: "dist/main",
     platform: "node" as const,
     format: "esm" as const,

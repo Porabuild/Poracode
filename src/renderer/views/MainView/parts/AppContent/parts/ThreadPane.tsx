@@ -8,13 +8,14 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { resolveProjectLocation } from "@/shared/worktree";
+import { readBridge } from "@/renderer/bridge";
 import { toggleMarkThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
 import type { RemoteTerminalTransport } from "@/renderer/components/thread/TerminalPane";
-import type { CheckpointRevertActions } from "@/renderer/components/thread/ChatPane/parts/MessageList";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
 import {
@@ -23,7 +24,7 @@ import {
   useThreadPendingLaunch,
 } from "@/renderer/hooks/uiSelectors";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
 
 export function ThreadPane(props: {
   threadId: string;
@@ -85,8 +86,9 @@ export function ThreadPane(props: {
 
   const isDragging = useIsDraggingPane(props.threadId);
   const dropIndicator = usePaneDropIndicatorState(props.threadId);
-  const remoteDesktopId = thread?.remoteServerId;
-  const remoteThreadId = thread?.remoteId;
+  const owner = remoteOwner(thread);
+  const remoteDesktopId = owner?.desktopId;
+  const remoteThreadId = owner?.remoteId;
   const remoteTerminalTransport: RemoteTerminalTransport | undefined =
     remoteDesktopId && remoteThreadId
       ? {
@@ -96,54 +98,17 @@ export function ThreadPane(props: {
               ? (openRemoteThread.terminalScrollback ?? "")
               : "",
           outputSource: (listener) =>
-            watchRemoteTerminal(remoteDesktopId, remoteThreadId, listener),
+            watchRoutedTerminal(remoteThreadId, listener, remoteDesktopId),
           writeInput: (data: string) =>
-            useRemoteServersStore
-              .getState()
-              .writeThreadTerminal(remoteDesktopId, remoteThreadId, data),
+            readBridge().writeTerminal({ threadId: props.threadId, data }),
           resizeBackingTerminal: (size) =>
-            useRemoteServersStore
-              .getState()
-              .resizeThreadTerminal(remoteDesktopId, remoteThreadId, size),
-        }
-      : undefined;
-  const checkpointActions: CheckpointRevertActions | undefined =
-    remoteDesktopId && remoteThreadId
-      ? {
-          rollbackThreadConversation: (input) =>
-            useRemoteServersStore.getState().rollbackThreadConversation({
-              desktopId: remoteDesktopId,
-              threadId: remoteThreadId,
-              numTurns: input.numTurns,
-              ...(input.config ? { config: input.config } : {}),
-            }),
-          restoreFileCheckpoint: (input) =>
-            useRemoteServersStore.getState().restoreFileCheckpoint({
-              desktopId: remoteDesktopId,
-              threadId: remoteThreadId,
-              checkpointItemId: input.checkpointItemId,
-              projectLocation: input.projectLocation,
-            }),
+            readBridge().resizeTerminal({ threadId: props.threadId, ...size }),
         }
       : undefined;
   function pickRemoteFiles() {
     if (!remoteDesktopId || !remoteThreadId) return Promise.resolve(null);
     return useRemoteServersStore.getState().pickAndUploadFiles(remoteDesktopId, remoteThreadId);
   }
-  function saveRemoteClipboardImage(input: {
-    threadId: string;
-    data: Uint8Array;
-    extension: string;
-  }) {
-    if (!remoteDesktopId || !remoteThreadId) {
-      return Promise.reject(new Error());
-    }
-    return useRemoteServersStore.getState().saveClipboardImage(remoteDesktopId, {
-      ...input,
-      threadId: remoteThreadId,
-    });
-  }
-
   if (!thread) return null;
   if (!project) return null;
   if (experiment && !thread.worktreePath) {
@@ -203,10 +168,8 @@ export function ThreadPane(props: {
       {...(thread.remoteServerId
         ? {
             canShowProjectEntryInExplorer: false,
-            checkpointActions,
             remoteTerminalTransport,
             pickFiles: pickRemoteFiles,
-            saveClipboardImage: saveRemoteClipboardImage,
           }
         : {})}
       onContinueInProvider={

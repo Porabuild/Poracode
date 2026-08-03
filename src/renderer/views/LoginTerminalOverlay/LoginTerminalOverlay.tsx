@@ -7,6 +7,7 @@ import {
   useLoginTerminalStore,
   type LoginTerminalSession,
 } from "@/renderer/state/loginTerminalStore";
+import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
 
 /**
@@ -157,6 +158,13 @@ export function LoginTerminalOverlay() {
             terminalId={renderedSession.shellId}
             className="h-full"
             openLinksInNativeBrowser
+            outputSource={(listener) =>
+              watchRoutedTerminal(
+                renderedSession.shellId,
+                listener,
+                renderedSession.projectLocation.remoteServerId,
+              )
+            }
           />
         </div>
       </div>

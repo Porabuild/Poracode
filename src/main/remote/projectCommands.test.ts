@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Project } from "@/shared/contracts";
+import { remoteProjectCommandSchema } from "@/shared/remote";
 import { applyRemoteProjectCommand, type RemoteProjectCommandDeps } from "./projectCommands";
 
 const NOW = "2026-06-30T00:00:00.000Z";
@@ -196,6 +197,42 @@ describe("applyRemoteProjectCommand", () => {
     expect(result.project).not.toHaveProperty("scripts");
     expect(result.project).not.toHaveProperty("searchSettings");
     expect(result.project).not.toHaveProperty("mcpServers");
+  });
+
+  it("preserves MCP settings when the parsed patch omits them", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    projects.push({
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      mcpServers: [
+        {
+          id: "memory-id",
+          name: "memory-server",
+          description: "Memory tools",
+          enabled: true,
+          timeoutMs: 30_000,
+          transport: { type: "stdio", command: "node", args: ["server.js"], env: {} },
+        },
+      ],
+      createdAt: NOW,
+    });
+    const command = remoteProjectCommandSchema.parse({
+      kind: "update",
+      projectId: "p1",
+      patch: { name: "Renamed" },
+    });
+    if (command.kind !== "update") throw new Error("Expected an update command.");
+
+    expect(command.patch).not.toHaveProperty("mcpServers");
+    await applyRemoteProjectCommand(command, deps);
+
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Renamed",
+        mcpServers: [expect.objectContaining({ id: "memory-id" })],
+      }),
+    );
   });
 
   it("relocates an idle project and rejects relocation while a thread is running", async () => {

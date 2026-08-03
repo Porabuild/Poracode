@@ -1092,6 +1092,39 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("does not carry a pending interrupt into the next turn after turn/start fails", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    let rejectFirstStart!: (error: Error) => void;
+    let startCount = 0;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method !== "turn/start") return Promise.resolve({});
+        startCount += 1;
+        if (startCount === 1) {
+          return new Promise((_, reject) => {
+            rejectFirstStart = reject;
+          });
+        }
+        return Promise.resolve({ turn: { id: "turn-2", items: [], status: "inProgress" } });
+      },
+    };
+
+    const firstTurn = structuredSession.startTurn("first", { model: "gpt-5.4" });
+    const firstTurnError = firstTurn.catch((error: unknown) => error);
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    await structuredSession.interruptTurn();
+    rejectFirstStart(new Error("turn start failed"));
+    expect(await firstTurnError).toEqual(new Error("turn start failed"));
+
+    await structuredSession.startTurn("second", { model: "gpt-5.4" });
+
+    expect(requests.map((request) => request.method)).toEqual(["turn/start", "turn/start"]);
+  });
+
   it("forks Codex app-server threads with the current rollback config", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
@@ -1574,6 +1607,38 @@ describe("CodexStructuredSession", () => {
         params: { threadId: "provider-thread" },
       },
     ]);
+  });
+
+  it("does not carry a pending interrupt past a goal command without a model turn", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    let resolveGoalClear!: () => void;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/goal/clear") {
+          return new Promise<void>((resolve) => {
+            resolveGoalClear = resolve;
+          });
+        }
+        if (method === "turn/start") {
+          return Promise.resolve({ turn: { id: "turn-2", items: [], status: "inProgress" } });
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    const goalTurn = structuredSession.startTurn("/goal clear", { model: "gpt-5.4" });
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    await structuredSession.interruptTurn();
+    resolveGoalClear();
+    await goalTurn;
+
+    await structuredSession.startTurn("next", { model: "gpt-5.4" });
+
+    expect(requests.map((request) => request.method)).toEqual(["thread/goal/clear", "turn/start"]);
   });
 
   it("maps /goal pause and /goal resume to thread/goal/set status changes", async () => {

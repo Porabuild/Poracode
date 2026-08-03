@@ -11,23 +11,14 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import packageJson from "../../../package.json" with { type: "json" };
 
-const REMOTE_RUNTIME_DEPENDENCIES = [
-  "@agentclientprotocol/sdk",
-  "@anthropic-ai/claude-agent-sdk",
-  "@modelcontextprotocol/sdk",
-  "@opencode-ai/sdk",
-  "@sentry/node",
-  "better-sqlite3",
-  "drizzle-orm",
-  "json5",
-  "micromatch",
-  "node-pty",
-  "smol-toml",
-  "vscode-jsonrpc",
-  "ws",
+const REMOTE_RUNTIME_ENTRIES = [
+  "server",
+  "supervisor",
+  "claudeSdkProbeWorker",
+  "cursorSdkWorker",
 ] as const;
 
 export interface SshRuntimeBundleOptions {
@@ -42,12 +33,54 @@ export interface SshRuntimeBundleOptions {
 export interface SshRuntimeBundle {
   readonly archivePath: string;
   readonly hash: string;
+  readonly version: string;
 }
 
-function runtimePackageJson(): string {
+interface RuntimeBuildManifest {
+  readonly version: 1;
+  readonly files: readonly string[];
+  readonly dependencies: readonly string[];
+}
+
+function readRuntimeBuildManifest(mainBundleDir: string): RuntimeBuildManifest {
+  const files = new Set<string>();
+  const dependencies = new Set<string>();
+  for (const entry of REMOTE_RUNTIME_ENTRIES) {
+    const path = join(mainBundleDir, `${entry}.ssh-runtime-manifest.json`);
+    let value: Partial<RuntimeBuildManifest> | null;
+    try {
+      value = JSON.parse(readFileSync(path, "utf8")) as Partial<RuntimeBuildManifest> | null;
+    } catch (error) {
+      throw new Error(`Poracode SSH runtime manifest is missing or invalid: ${path}`, {
+        cause: error,
+      });
+    }
+    if (
+      value?.version !== 1 ||
+      !Array.isArray(value.files) ||
+      !value.files.every(
+        (file) =>
+          typeof file === "string" &&
+          file.length > 0 &&
+          !isAbsolute(file) &&
+          !file.split(/[\\/]/u).includes(".."),
+      ) ||
+      !Array.isArray(value.dependencies) ||
+      !value.dependencies.every((dependency) => typeof dependency === "string")
+    ) {
+      throw new Error(`Poracode SSH runtime manifest is invalid: ${path}`);
+    }
+    for (const file of value.files) files.add(file);
+    for (const dependency of value.dependencies) dependencies.add(dependency);
+  }
+  return { version: 1, files: [...files].sort(), dependencies: [...dependencies].sort() };
+}
+
+function runtimePackageJson(dependencyNames: readonly string[]): string {
+  const availableDependencies: Readonly<Record<string, string>> = packageJson.dependencies;
   const dependencies = Object.fromEntries(
-    REMOTE_RUNTIME_DEPENDENCIES.map((name) => {
-      const version = packageJson.dependencies[name];
+    dependencyNames.map((name) => {
+      const version = availableDependencies[name];
       if (!version) throw new Error(`Missing remote runtime dependency ${name}.`);
       return [name, version];
     }),
@@ -155,7 +188,11 @@ function assertHeadlessServerBundle(path: string): void {
 // connects — including the first one after an app restart, when connectAll()
 // fans out across persisted SSH servers — skip the multi-MB copy + full-file
 // hashing. Self-heals if the cached archive is later cleaned up on disk.
-let cachedBundle: { readonly key: string; readonly hash: string } | null = null;
+let cachedBundle: {
+  readonly key: string;
+  readonly hash: string;
+  readonly version: string;
+} | null = null;
 
 export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRuntimeBundle {
   const cacheKey = JSON.stringify([
@@ -168,34 +205,35 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   ]);
   if (cachedBundle?.key === cacheKey) {
     const archivePath = join(options.cacheDir, `${cachedBundle.hash}.tar.gz`);
-    if (existsSync(archivePath)) return { archivePath, hash: cachedBundle.hash };
+    if (existsSync(archivePath)) {
+      return { archivePath, hash: cachedBundle.hash, version: cachedBundle.version };
+    }
   }
 
+  const buildManifest = readRuntimeBuildManifest(options.mainBundleDir);
+  const runtimePackage = runtimePackageJson(buildManifest.dependencies);
   const signature = statSignature(
     [
-      options.mainBundleDir,
+      ...REMOTE_RUNTIME_ENTRIES.map((entry) =>
+        join(options.mainBundleDir, `${entry}.ssh-runtime-manifest.json`),
+      ),
+      ...buildManifest.files.map((file) => join(options.mainBundleDir, file)),
       options.agentPluginsDir,
       options.wslHelpersDir,
       ...(options.bundledSkillsDir ? [options.bundledSkillsDir] : []),
     ],
-    runtimePackageJson(),
+    runtimePackage,
   );
   const manifest = readBundleManifest(options.cacheDir);
   if (manifest && manifest.key === cacheKey && manifest.signature === signature) {
     const archivePath = join(options.cacheDir, `${manifest.hash}.tar.gz`);
     if (existsSync(archivePath)) {
-      cachedBundle = { key: cacheKey, hash: manifest.hash };
-      return { archivePath, hash: manifest.hash };
+      cachedBundle = { key: cacheKey, hash: manifest.hash, version: packageJson.version };
+      return { archivePath, hash: manifest.hash, version: packageJson.version };
     }
   }
 
-  const requiredFiles = [
-    "server.cjs",
-    "supervisor.cjs",
-    "claudeSdkProbeWorker.mjs",
-    "cursorSdkWorker.mjs",
-  ];
-  for (const file of requiredFiles) {
+  for (const file of buildManifest.files) {
     const source = join(options.mainBundleDir, file);
     if (!existsSync(source)) {
       throw new Error(`Poracode SSH runtime asset is missing: ${source}`);
@@ -209,14 +247,10 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   mkdirSync(options.cacheDir, { recursive: true });
   const stage = mkdtempSync(join(options.cacheDir, "stage-"));
   try {
-    const runtimeFiles = [
-      ...requiredFiles,
-      ...readdirSync(options.mainBundleDir).filter(
-        (file) => /^transcriptReader-.+\.cjs$/.test(file) && !requiredFiles.includes(file),
-      ),
-    ];
-    for (const file of runtimeFiles) {
-      cpSync(join(options.mainBundleDir, file), join(stage, basename(file)));
+    for (const file of buildManifest.files) {
+      const destination = join(stage, file);
+      mkdirSync(dirname(destination), { recursive: true });
+      cpSync(join(options.mainBundleDir, file), destination);
     }
     cpSync(options.agentPluginsDir, join(stage, "agent-plugins"), { recursive: true });
     if (existsSync(options.wslHelpersDir)) {
@@ -229,7 +263,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     } else {
       mkdirSync(join(stage, "skills"));
     }
-    writeFileSync(join(stage, "package.json"), runtimePackageJson(), "utf8");
+    writeFileSync(join(stage, "package.json"), runtimePackage, "utf8");
 
     const hash = hashDirectory(stage);
     const archivePath = join(options.cacheDir, `${hash}.tar.gz`);
@@ -244,7 +278,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
         { cwd: options.cacheDir },
       );
     }
-    cachedBundle = { key: cacheKey, hash };
+    cachedBundle = { key: cacheKey, hash, version: packageJson.version };
     try {
       writeFileSync(
         manifestPath(options.cacheDir),
@@ -254,7 +288,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     } catch {
       // Best-effort: without the manifest the next app start just rebuilds.
     }
-    return { archivePath, hash };
+    return { archivePath, hash, version: packageJson.version };
   } finally {
     rmSync(stage, { recursive: true, force: true });
   }

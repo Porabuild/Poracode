@@ -1,12 +1,15 @@
 import { startTransition } from "react";
-import { isProjectInWorkspace, type Thread } from "@/shared/contracts";
+import { toast } from "@heroui/react";
+import { isProjectInWorkspace, type RemoteThreadCommand, type Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
+import { friendlyError } from "@/shared/messages";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import {
   hasHydratedThreadRuntimeItems,
@@ -25,6 +28,21 @@ import { deleteWorktreeGroup } from "./worktreeActions";
 
 let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
+
+function dispatchRemoteThreadMutation(
+  thread: Thread,
+  command: (remoteThreadId: string) => RemoteThreadCommand,
+  apply: () => void,
+): boolean {
+  const owner = remoteOwner(thread);
+  if (!owner) return false;
+  void useRemoteServersStore
+    .getState()
+    .sendThreadCommand(owner.desktopId, command(owner.remoteId))
+    .then(apply)
+    .catch((error) => toast.danger(friendlyError(error)));
+  return true;
+}
 
 export function setThreadRuntimeReopenEnabled(enabled: boolean): void {
   threadRuntimeReopenEnabled = enabled;
@@ -124,7 +142,8 @@ export function openThread(
       useWorkspaceStore.getState().setActiveWorkspaceId(targetWorkspaceId);
     }
   }
-  if (thread?.remoteServerId && thread.remoteId) {
+  const owner = remoteOwner(thread);
+  if (owner) {
     store.setPendingActiveThread(threadId);
     startTransition(() => {
       if (options?.standalone) store.openThreadStandalone(threadId);
@@ -132,7 +151,7 @@ export function openThread(
       store.setPendingActiveThread(null);
       if (options?.focusComposer !== false) store.requestComposerFocus(threadId);
     });
-    void useRemoteServersStore.getState().openRemoteThread(thread.remoteServerId, thread.remoteId);
+    void useRemoteServersStore.getState().openRemoteThread(owner.desktopId, owner.remoteId);
     return;
   }
   const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
@@ -302,11 +321,9 @@ export async function unloadStoredThread(
   const view = useAppStore.getState().view;
   const inVisiblePane = view.kind === "thread" && view.panes.includes(threadId);
 
-  if (thread.remoteServerId && thread.remoteId) {
-    await useRemoteServersStore.getState().closeThread(thread.remoteServerId, thread.remoteId);
-  } else {
-    await readBridge().closeThread({ threadId });
-  }
+  const owner = remoteOwner(thread);
+  await readBridge().closeThread({ threadId });
+  if (owner) await useRemoteServersStore.getState().refreshServer(owner.desktopId);
   startTransition(() => {
     useAppStore.getState().markThreadExited(threadId);
     if (inVisiblePane && !options?.keepSidePanels) {
@@ -350,14 +367,18 @@ export function sweepStaleThreads(): void {
 export function archiveThread(threadId: string): void {
   if (findExperimentByThreadId(threadId)) return;
   const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
-  if (thread?.remoteServerId && thread.remoteId) {
-    useAppStore.getState().archiveThread(threadId);
-    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
-      kind: "archive",
-      threadId: thread.remoteId,
-    });
+  if (
+    thread &&
+    dispatchRemoteThreadMutation(
+      thread,
+      (remoteThreadId) => ({
+        kind: "archive",
+        threadId: remoteThreadId,
+      }),
+      () => useAppStore.getState().archiveThread(threadId),
+    )
+  )
     return;
-  }
   void unloadStoredThread(threadId).catch(() => undefined);
   useAppStore.getState().archiveThread(threadId);
 }
@@ -366,17 +387,21 @@ export function unarchiveThread(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId);
   if (!thread) return;
+  if (
+    dispatchRemoteThreadMutation(
+      thread,
+      (remoteThreadId) => ({ kind: "unarchive", threadId: remoteThreadId }),
+      () => useAppStore.getState().unarchiveThread(threadId),
+    )
+  )
+    return;
   store.unarchiveThread(threadId);
-  if (thread.remoteServerId && thread.remoteId) {
-    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
-      kind: "unarchive",
-      threadId: thread.remoteId,
-    });
-  }
 }
 
 export function unloadThread(threadId: string): void {
-  void unloadStoredThread(threadId, { closeThreadPane: true }).catch(() => undefined);
+  void unloadStoredThread(threadId, { closeThreadPane: true }).catch((error) =>
+    toast.danger(friendlyError(error)),
+  );
 }
 
 /**
@@ -390,15 +415,14 @@ export function markThreadDone(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((t) => t.id === threadId);
   if (!thread || thread.done) return;
-  if (thread.remoteServerId && thread.remoteId) {
-    store.markThreadDone(threadId);
-    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
-      kind: "set-done",
-      threadId: thread.remoteId,
-      done: true,
-    });
+  if (
+    dispatchRemoteThreadMutation(
+      thread,
+      (remoteThreadId) => ({ kind: "set-done", threadId: remoteThreadId, done: true }),
+      () => useAppStore.getState().markThreadDone(threadId),
+    )
+  )
     return;
-  }
 
   void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
   const worktreePath = thread.worktreePath;
@@ -423,17 +447,19 @@ export function toggleMarkThreadDone(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((t) => t.id === threadId);
   if (!thread) return;
-  if (thread.remoteServerId && thread.remoteId) {
-    const done = !thread.done;
-    if (done) store.markThreadDone(threadId);
-    else store.unmarkThreadDone(threadId);
-    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
-      kind: "set-done",
-      threadId: thread.remoteId,
-      done,
-    });
+  const done = !thread.done;
+  if (
+    dispatchRemoteThreadMutation(
+      thread,
+      (remoteThreadId) => ({ kind: "set-done", threadId: remoteThreadId, done }),
+      () => {
+        const nextStore = useAppStore.getState();
+        if (done) nextStore.markThreadDone(threadId);
+        else nextStore.unmarkThreadDone(threadId);
+      },
+    )
+  )
     return;
-  }
   if (thread.done) {
     store.unmarkThreadDone(threadId);
   } else {
@@ -445,17 +471,19 @@ export function toggleStarThread(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((t) => t.id === threadId);
   if (!thread) return;
-  if (thread.remoteServerId && thread.remoteId) {
-    const starred = !thread.starred;
-    if (starred) store.starThread(threadId);
-    else store.unstarThread(threadId);
-    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
-      kind: "set-starred",
-      threadId: thread.remoteId,
-      starred,
-    });
+  const starred = !thread.starred;
+  if (
+    dispatchRemoteThreadMutation(
+      thread,
+      (remoteThreadId) => ({ kind: "set-starred", threadId: remoteThreadId, starred }),
+      () => {
+        const nextStore = useAppStore.getState();
+        if (starred) nextStore.starThread(threadId);
+        else nextStore.unstarThread(threadId);
+      },
+    )
+  )
     return;
-  }
   if (thread.starred) {
     store.unstarThread(threadId);
   } else {
@@ -466,47 +494,57 @@ export function toggleStarThread(threadId: string): void {
 export function renameThread(threadId: string, title: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId);
+  if (
+    thread &&
+    dispatchRemoteThreadMutation(
+      thread,
+      (remoteThreadId) => ({ kind: "rename", threadId: remoteThreadId, title }),
+      () => useAppStore.getState().renameThread(threadId, title),
+    )
+  )
+    return;
   store.renameThread(threadId, title);
-  if (thread?.remoteServerId && thread.remoteId) {
-    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
-      kind: "rename",
-      threadId: thread.remoteId,
-      title,
-    });
-  }
 }
 
 /** Clear the unread completion marker without navigating the source desktop. */
 export function acknowledgeThread(threadId: string): void {
   const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
-  useAppStore.setState((state) => {
-    const current = state.threads.find((item) => item.id === threadId);
-    if (current?.status !== "finished") return {};
-    return {
-      threads: state.threads.map((item) =>
-        item.id === threadId ? { ...item, status: "idle" as const } : item,
-      ),
-    };
-  });
-  if (thread?.remoteServerId && thread.remoteId) {
-    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
-      kind: "acknowledge",
-      threadId: thread.remoteId,
+  const apply = () => {
+    useAppStore.setState((state) => {
+      const current = state.threads.find((item) => item.id === threadId);
+      if (current?.status !== "finished") return {};
+      return {
+        threads: state.threads.map((item) =>
+          item.id === threadId ? { ...item, status: "idle" as const } : item,
+        ),
+      };
     });
-  }
+  };
+  if (
+    thread &&
+    dispatchRemoteThreadMutation(
+      thread,
+      (remoteThreadId) => ({ kind: "acknowledge", threadId: remoteThreadId }),
+      apply,
+    )
+  )
+    return;
+  apply();
 }
 
 function deleteThreadOnly(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId);
-  store.deleteThread(threadId);
-  if (thread?.remoteServerId && thread.remoteId) {
-    void useRemoteServersStore.getState().sendThreadCommand(thread.remoteServerId, {
-      kind: "delete",
-      threadId: thread.remoteId,
-    });
+  if (
+    thread &&
+    dispatchRemoteThreadMutation(
+      thread,
+      (remoteThreadId) => ({ kind: "delete", threadId: remoteThreadId }),
+      () => useAppStore.getState().deleteThread(threadId),
+    )
+  )
     return;
-  }
+  store.deleteThread(threadId);
   void readBridge()
     .closeThread({ threadId })
     .catch(() => undefined);

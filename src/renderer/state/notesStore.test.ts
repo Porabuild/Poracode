@@ -5,8 +5,10 @@ const bridge = vi.hoisted(() => ({
   dbGetProjectNotes: vi.fn<(projectId: string) => Promise<unknown>>(),
   dbSetProjectNotes: vi.fn<(notes: unknown) => Promise<void>>(),
 }));
+const toast = vi.hoisted(() => ({ danger: vi.fn<(message: string) => void>() }));
 
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
+vi.mock("@heroui/react", () => ({ toast }));
 
 const PID = "project-1";
 
@@ -14,6 +16,7 @@ beforeEach(() => {
   useNotesStore.getState().resetSession();
   bridge.dbGetProjectNotes.mockReset().mockResolvedValue(null);
   bridge.dbSetProjectNotes.mockReset().mockResolvedValue(undefined);
+  toast.danger.mockReset();
   // hasBridge() in the store checks for dbSetProjectNotes on window.poracode.
   window.poracode = bridge as unknown as typeof window.poracode;
 });
@@ -98,6 +101,19 @@ describe("notesStore persistence", () => {
     vi.advanceTimersByTime(1000);
     expect(bridge.dbSetProjectNotes).toHaveBeenCalledTimes(1); // not double-written
   });
+
+  it("rolls back the optimistic edit and surfaces a failed write", async () => {
+    vi.useFakeTimers();
+    useNotesStore.getState().ensureLoaded(PID);
+    await vi.advanceTimersByTimeAsync(0);
+    bridge.dbSetProjectNotes.mockRejectedValueOnce(new Error("save failed"));
+
+    useNotesStore.getState().addTodo(PID, "task");
+    await vi.advanceTimersByTimeAsync(600);
+
+    expect(useNotesStore.getState().byProject[PID]!.todos).toEqual([]);
+    expect(toast.danger).toHaveBeenCalledWith("save failed");
+  });
 });
 
 describe("notesStore loading", () => {
@@ -143,5 +159,13 @@ describe("notesStore loading", () => {
     await vi.waitFor(() => expect(bridge.dbGetProjectNotes).toHaveBeenCalledOnce());
 
     expect(useNotesStore.getState().byProject).toEqual({});
+  });
+
+  it("surfaces a failed load", async () => {
+    bridge.dbGetProjectNotes.mockRejectedValueOnce(new Error("load failed"));
+
+    useNotesStore.getState().ensureLoaded(PID);
+
+    await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("load failed"));
   });
 });

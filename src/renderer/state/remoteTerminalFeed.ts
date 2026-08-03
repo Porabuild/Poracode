@@ -4,6 +4,8 @@ import {
   type TerminalSocketSender,
 } from "@/shared/remote/terminalFeed";
 import type { RemoteWebSocketServerMessage } from "@/shared/remote";
+import { readBridge } from "@/renderer/bridge";
+import { remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
 
 /**
  * Renderer instance of the shared terminal feed, used by remote thread views.
@@ -35,6 +37,24 @@ export function watchRemoteTerminal(
   listener: RemoteTerminalListener,
 ): () => void {
   return feedFor(desktopId).watch(id, listener);
+}
+
+/** One subscription seam for utilities that can operate on either a local or
+ * remote PTY. An explicit desktop id covers watchers installed before
+ * `startShell`; otherwise the procedure router's terminal ownership map is the
+ * source of truth. */
+export function watchRoutedTerminal(
+  id: string,
+  listener: RemoteTerminalListener,
+  desktopId: string | undefined = remoteTerminalOwner(id),
+): () => void {
+  if (desktopId) return watchRemoteTerminal(desktopId, id, listener);
+  return readBridge().onSupervisorEvent((event) => {
+    if (!("threadId" in event) || event.threadId !== id) return;
+    if (event.type === "thread-output") listener.onOutput(event.data);
+    else if (event.type === "thread-reset") listener.onReset();
+    else if (event.type === "thread-exited") listener.onExited(event.exitCode);
+  });
 }
 
 export function handleRemoteTerminalServerMessage(

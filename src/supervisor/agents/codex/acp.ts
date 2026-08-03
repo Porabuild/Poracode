@@ -674,6 +674,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       try {
         await this.dispatchCodexGoalCommand(threadId, goalCommand);
       } catch (error) {
+        this.pendingTurnInterrupt = false;
         const message = error instanceof Error ? error.message : String(error);
         this.emitRuntimeEvents([
           { type: "error", threadId: this.threadId, message },
@@ -685,6 +686,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       if (expectsModelTurn || (canStartModelTurn && this.activeTurnId)) {
         return;
       }
+      this.pendingTurnInterrupt = false;
       this.emitRuntimeEvents([
         { type: "turn.completed", threadId: this.threadId, turnId, state: "completed" },
       ]);
@@ -738,6 +740,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         });
       }
     } catch (error) {
+      this.pendingTurnInterrupt = false;
       if (this.isDisposed) return;
       const message = error instanceof Error ? error.message : String(error);
       this.errorSticky = true;
