@@ -194,6 +194,7 @@ function resolveWindowsNodeCmdShim(commandPath: string):
       argsPrefix: string[];
     }
   | undefined {
+  if (isWindowsDirectExecutable(commandPath)) return undefined;
   let effectivePath = commandPath;
   if (!/\.cmd$/i.test(commandPath)) {
     // Bare command names like "npx" resolve to "npx.cmd" via PATHEXT.
@@ -467,7 +468,7 @@ async function resolveDetectedBinary(
   return resolveExecutablePathAsync(binary);
 }
 
-function extractSemverFromVersionOutput(raw: string | undefined): string | undefined {
+export function extractSemverFromVersionOutput(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   // Allow a leading `v` ("v24.14.0"): without it, `\b` cannot match between
   // `v` and the first digit, so the regex would skip past the major segment
@@ -644,7 +645,14 @@ export async function detectAgentInstall(
   const executablePath = await resolveDetectedBinary(ctx, spec);
 
   const versionArgs = spec.versionArgs ?? ["--version"];
-  const version = await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
+  const version = spec.versionProbe
+    ? await spec.versionProbe({
+        location,
+        executablePath,
+        ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+        ...(spec.probeEnv ? { probeEnv: spec.probeEnv } : {}),
+      })
+    : await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;

@@ -2,8 +2,6 @@ import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
-  buildAgentCommand,
-  buildAgentLogoutCommand,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
@@ -12,7 +10,6 @@ import {
   type CreateStructuredSessionInput,
   type TerminalStatusHint,
 } from "../base";
-import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { transformCursorAcpSessionUpdate } from "./acpTransform";
 import { handleCursorAcpExtensionNotification } from "./acpExtension";
@@ -32,6 +29,7 @@ import { createCursorChatSync } from "./session";
 import { CURSOR_IDLE_RE, CURSOR_WORKING_RE, detectCursorTerminalStatus } from "./terminal";
 import { applyCursorSdkProbe, probeCursorSdkRuntime } from "./sdkDetection";
 import { CursorSdkSession } from "./sdkSession";
+import { buildCursorAgentCommand, buildCursorArgvSpec } from "./windowsExecutable";
 import {
   configuredCursorStructuredRuntime,
   CURSOR_SDK_SESSION_PREFIX,
@@ -167,14 +165,13 @@ export function createCursorAdapter(): AgentAdapter {
       const chatId = createCursorChatSync(location);
       const args = buildCursorArgs(config, prompt, chatId);
       return {
-        binary: "cursor-agent",
-        args,
+        ...buildCursorArgvSpec(location, args),
         ...(chatId ? { sessionRef: createKnownSessionRef(chatId) } : {}),
       };
     },
     buildResumeArgv(_location, config, prompt, sessionRef) {
       const args = buildCursorArgs(config, prompt, sessionRef.providerSessionId);
-      return { binary: "cursor-agent", args };
+      return buildCursorArgvSpec(_location, args);
     },
     createInitialSessionRef() {
       return undefined;
@@ -186,12 +183,7 @@ export function createCursorAdapter(): AgentAdapter {
           return CursorSdkSession.create(input);
         }
       }
-      const command = buildAgentCommand(
-        input.projectLocation,
-        "cursor-agent",
-        ["acp"],
-        resolveAgentBinaryPath(input.projectLocation, "cursor-agent"),
-      );
+      const command = buildCursorAgentCommand(input.projectLocation, ["acp"]);
       return createAcpStructuredSession(command, {
         ...input,
         loadSessionErrorRewriter: rewriteCursorLoadSessionError,
@@ -201,14 +193,11 @@ export function createCursorAdapter(): AgentAdapter {
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
-      return buildAgentCommand(
-        location,
-        "cursor-agent",
-        ["acp"],
-        resolveAgentBinaryPath(location, "cursor-agent"),
-      );
+      return buildCursorAgentCommand(location, ["acp"]);
     },
-    buildAcpLogoutCommand: buildAgentLogoutCommand("cursor-agent", ["logout"]),
+    async buildAcpLogoutCommand(ctx) {
+      return buildCursorAgentCommand(detectProbeLocation(ctx), ["logout"]);
+    },
     buildDirectInput(prompt, _segments, _config, projectLocation) {
       // Cursor's TUI debounces fast incoming bytes as a paste burst. With
       // less than ~120ms between the text and Enter, the agent submits but
@@ -237,14 +226,18 @@ export function createCursorAdapter(): AgentAdapter {
     },
     shouldApplyTerminalStatusWhileHookActive: cursorHookActiveTerminalFallback,
     defaultOneShotModel: "composer-2.5",
-    buildOneShotCommand(model) {
+    buildOneShotCommand(model, _effort, _prompt, location) {
       const args = ["--print", "--force", "--trust", "--output-format", "json"];
       if (model && model !== "auto") {
         args.push("--model", model);
       }
+      if (location) {
+        const spec = buildCursorArgvSpec(location, args);
+        return { command: spec.binary, args: spec.args, ...(spec.env ? { env: spec.env } : {}) };
+      }
       return { command: "cursor-agent", args };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, location, model) {
       // `sdk:` identifies Cursor's SDK-local Agent store, not a cursor-agent
       // CLI chat. Passing it to `cursor-agent --resume` can open the wrong
       // conversation or fail with an invalid session id.
@@ -260,7 +253,8 @@ export function createCursorAdapter(): AgentAdapter {
       if (model && model !== "auto") {
         args.push("--model", model);
       }
-      return { command: "cursor-agent", args };
+      const spec = buildCursorArgvSpec(location, args);
+      return { command: spec.binary, args: spec.args, ...(spec.env ? { env: spec.env } : {}) };
     },
   };
 }

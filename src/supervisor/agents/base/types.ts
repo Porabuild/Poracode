@@ -299,6 +299,8 @@ export interface DetectionSpec {
    * so they can forward it to their own `readAgentCommandOutput` calls.
    */
   probeEnv?: Record<string, string>;
+  /** Provider-specific version probe for CLIs whose Windows shim cannot be spawned safely. */
+  versionProbe?: (ctx: DetectProbeCtx) => Promise<string | undefined>;
   statusProbe?: StatusProbe;
   authProbes?: AuthProbe[];
   capabilitiesProbe?: (ctx: DetectProbeCtx) => Promise<CapabilitiesProbeResult | undefined>;
