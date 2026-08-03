@@ -7,6 +7,7 @@ import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { openSettings } from "@/renderer/actions/panelActions";
 import { Button } from "@/renderer/components/common/Button";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import {
   agentAuthTarget,
   currentWslDistros,
@@ -17,7 +18,11 @@ import {
 } from "@/renderer/utils/acpRegistryAuth";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 
-async function refreshAgentStatus(status: AgentStatus): Promise<void> {
+async function refreshAgentStatus(status: AgentStatus, project?: Project): Promise<void> {
+  if (project?.remoteServerId) {
+    await useRemoteServersStore.getState().refreshServer(project.remoteServerId);
+    return;
+  }
   await readBridge().refreshAgentStatuses(currentWslDistros(), {
     agentKinds: [status.kind],
     envs: [scopeEnvForStatus(status)],
@@ -69,7 +74,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
           // Unlock the button as soon as the command exits so the user can
           // retry without waiting for the (post-exit) status refresh.
           setPendingAction(undefined);
-          void refreshAgentStatus(agentStatus)
+          void refreshAgentStatus(agentStatus, project)
             .then(() => {
               if (exitCode === 0) toast.success(t`${agentStatus.label} authenticated.`);
             })
@@ -95,7 +100,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
           ...agentAuthTarget(agentStatus),
         });
         void readBridge().focusWindow();
-        await refreshAgentStatus(agentStatus);
+        await refreshAgentStatus(agentStatus, project);
         toast.success(t`${agentStatus.label} authenticated.`);
       } catch (error) {
         toast.danger(
@@ -112,7 +117,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
     if (pendingAction) return;
     setPendingAction("refresh");
     try {
-      await refreshAgentStatus(agentStatus);
+      await refreshAgentStatus(agentStatus, project);
     } catch (error) {
       toast.danger(
         error instanceof Error ? error.message : t`Unable to refresh ${agentStatus.label}.`,
