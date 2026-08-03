@@ -17,7 +17,6 @@ import {
 } from "@/shared/contracts";
 import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
 import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
-import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import {
   ThreadDockActionRow,
@@ -282,6 +281,12 @@ function ActiveSubAgentRow({
   if (registrationOnly || !item || !payload?.name) return null;
 
   const display = deriveToolDisplay(payload);
+  const args =
+    payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
+      ? (payload.args as Record<string, unknown>)
+      : undefined;
+  const description = typeof args?.description === "string" ? args.description.trim() : undefined;
+  const rowTitle = description || display.title;
   const isDone = !isRunning;
   const progress = payload?.progress;
   const stepCount = progress?.stepCount ?? childCount;
@@ -289,25 +294,23 @@ function ActiveSubAgentRow({
 
   return (
     <ThreadDockActionRow
-      title={display.title}
+      title={rowTitle}
       onClick={() => openSubAgent(threadId, item.id)}
       className={`${isDone ? "opacity-60" : ""} ${!isDone ? "bg-accent/10" : ""}`}
       action={<X className="size-3" />}
-      actionLabel={t`Remove ${display.title} from panel`}
+      actionLabel={t`Remove ${rowTitle} from panel`}
       actionTitle={t`Remove from panel`}
       onAction={() => dismiss(threadId, itemId)}
     >
       {isDone ? (
         <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
       ) : (
-        <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
-          <PixelLoader size="xxs" className="text-foreground" />
-        </span>
+        <Bot className="size-3.5 shrink-0 text-foreground-muted" />
       )}
       <span
         className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
       >
-        {display.title}
+        {rowTitle}
       </span>
       {workflow && workflowRun ? (
         <WorkflowDockStats run={workflowRun} />

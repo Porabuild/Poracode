@@ -34,6 +34,7 @@ import {
   isAcpSubAgentToolCall,
   isTaskCompleteSummary,
   isUpdateTopicTool,
+  PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
   PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
   PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
@@ -41,7 +42,13 @@ import {
   selectActiveSubAgentForToolCall,
   tagSubAgentChildStarts,
 } from "./subagents";
-import { closeOpenContentItems, newItemId } from "./state";
+import {
+  closeAllOpenContentItems,
+  closeOpenContentItems,
+  getContentItemState,
+  hasOpenContentItems,
+  newItemId,
+} from "./state";
 import type { ActiveAcpSubAgent, AcpMapperState } from "./state";
 import {
   mapAcpCanonicalGoalUpdate as mapAcpCommandGoalUpdate,
@@ -83,12 +90,14 @@ export function mapAcpSessionUpdate(
 
   switch (update.sessionUpdate) {
     case "agent_message_chunk": {
+      const parentToolCallId = activeSubAgent?.toolCallId;
+      const contentState = getContentItemState(state, parentToolCallId);
       const messageMeta =
         update._meta && typeof update._meta === "object" && !Array.isArray(update._meta)
           ? (update._meta as Record<string, unknown>)
           : undefined;
       if (messageMeta?.[PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY] === true) {
-        events.push(...closeOpenContentItems(state));
+        events.push(...closeAllOpenContentItems(state));
       }
       const content = (update as { content?: ContentBlock }).content;
       // Some ACP agents emit an empty text chunk after every tool call. It is
@@ -103,7 +112,7 @@ export function mapAcpSessionUpdate(
       // chat noise on every turn is just clutter. Drop it before we open an
       // assistant item so the chat stays clean.
       if (
-        !state.openAssistantItemId &&
+        !contentState.openAssistantItemId &&
         content?.type === "text" &&
         /^\[MODE_UPDATE\]/.test(content.text)
       ) {
@@ -112,20 +121,20 @@ export function mapAcpSessionUpdate(
       if (content?.type === "text") {
         const apiError = parseAcpAgentMessageApiError(content.text);
         if (apiError) {
-          events.push(...closeOpenContentItems(state));
+          events.push(...closeOpenContentItems(state, parentToolCallId));
           events.push({ type: "error", threadId, message: apiError });
           break;
         }
       }
       // Open an assistant item on first chunk; emit deltas thereafter.
-      if (!state.openAssistantItemId) {
+      if (!contentState.openAssistantItemId) {
         // Close any prior reasoning/user items — assistant is starting fresh.
-        events.push(...closeOpenContentItems(state));
-        state.openAssistantItemId = newItemId("asst");
+        events.push(...closeOpenContentItems(state, parentToolCallId));
+        contentState.openAssistantItemId = newItemId("asst");
         events.push({
           type: "item.started",
           threadId,
-          itemId: state.openAssistantItemId,
+          itemId: contentState.openAssistantItemId,
           itemType: "assistant_message",
         });
       }
@@ -134,7 +143,7 @@ export function mapAcpSessionUpdate(
           events.push({
             type: "content.delta",
             threadId,
-            itemId: state.openAssistantItemId,
+            itemId: contentState.openAssistantItemId,
             stream: "assistant_text",
             delta: content.text,
           });
@@ -144,7 +153,7 @@ export function mapAcpSessionUpdate(
             events.push({
               type: "item.updated",
               threadId,
-              itemId: state.openAssistantItemId,
+              itemId: contentState.openAssistantItemId,
               payload: { content: [block] },
             });
           }
@@ -154,28 +163,30 @@ export function mapAcpSessionUpdate(
     }
 
     case "agent_thought_chunk": {
+      const parentToolCallId = activeSubAgent?.toolCallId;
+      const contentState = getContentItemState(state, parentToolCallId);
       const thoughtMeta =
         update._meta && typeof update._meta === "object" && !Array.isArray(update._meta)
           ? (update._meta as Record<string, unknown>)
           : undefined;
       if (thoughtMeta?.[PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY] === true) {
-        events.push(...closeOpenContentItems(state));
+        events.push(...closeAllOpenContentItems(state));
       }
-      if (!state.openReasoningItemId) {
+      if (!contentState.openReasoningItemId) {
         // Close any prior assistant — reasoning bracket starts.
-        if (state.openAssistantItemId) {
+        if (contentState.openAssistantItemId) {
           events.push({
             type: "item.completed",
             threadId,
-            itemId: state.openAssistantItemId,
+            itemId: contentState.openAssistantItemId,
           });
-          delete state.openAssistantItemId;
+          delete contentState.openAssistantItemId;
         }
-        state.openReasoningItemId = newItemId("reason");
+        contentState.openReasoningItemId = newItemId("reason");
         events.push({
           type: "item.started",
           threadId,
-          itemId: state.openReasoningItemId,
+          itemId: contentState.openReasoningItemId,
           itemType: "reasoning",
         });
       }
@@ -184,7 +195,7 @@ export function mapAcpSessionUpdate(
         events.push({
           type: "content.delta",
           threadId,
-          itemId: state.openReasoningItemId,
+          itemId: contentState.openReasoningItemId,
           stream: "reasoning_text",
           delta: content.text,
         });
@@ -206,7 +217,7 @@ export function mapAcpSessionUpdate(
 
     case "tool_call": {
       // First seal any open assistant/reasoning so the tool-call surfaces in order.
-      events.push(...closeOpenContentItems(state));
+      events.push(...closeOpenContentItems(state, activeSubAgent?.toolCallId));
       const toolCall = update as {
         toolCallId: string;
         title?: string | null;
@@ -274,7 +285,7 @@ export function mapAcpSessionUpdate(
         state.suppressedTodoWriteIds.add(toolCall.toolCallId);
         const steps = extractAcpTodoWriteSteps(toolCall.rawInput);
         if (steps.length > 0) {
-          events.push(...emitAcpPlanSteps(state, steps));
+          events.push(...emitAcpPlanSteps(state, steps, activeSubAgent?.toolCallId));
         }
         break;
       }
@@ -372,7 +383,7 @@ export function mapAcpSessionUpdate(
         if (state.suppressedTodoWriteIds.has(toolCall.toolCallId)) {
           const steps = extractAcpTodoWriteSteps(toolCall.rawInput);
           if (steps.length > 0) {
-            events.push(...emitAcpPlanSteps(state, steps));
+            events.push(...emitAcpPlanSteps(state, steps, activeSubAgent?.toolCallId));
           }
         }
         if (toolCall.status === "completed" || toolCall.status === "failed") {
@@ -401,6 +412,9 @@ export function mapAcpSessionUpdate(
         item.detached = true;
       }
       const isTerminal = toolCall.status === "completed" || toolCall.status === "failed";
+      const hasTopLevelDetachedReply =
+        updateMeta?.[PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY] === toolCall.toolCallId &&
+        hasOpenContentItems(state);
       const status =
         toolCall.status === "completed"
           ? "success"
@@ -420,7 +434,7 @@ export function mapAcpSessionUpdate(
         item.isSubAgent &&
         isTerminal &&
         updateMeta?.[PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY] !== true &&
-        (state.openAssistantItemId !== undefined || state.openReasoningItemId !== undefined);
+        (hasOpenContentItems(state, activeSubAgent?.toolCallId) || hasTopLevelDetachedReply);
       const subAgentProgress =
         item.isSubAgent && !hasOpenSubAgentContent
           ? buildSubAgentProgress(toolCall, payload, status)
@@ -442,7 +456,8 @@ export function mapAcpSessionUpdate(
         : { merged: mergedRaw, emitted: emittedRaw };
       item.payload = mergedPayload;
       if (isTerminal && item.isSubAgent) {
-        events.push(...closeOpenContentItems(state));
+        if (hasTopLevelDetachedReply) events.push(...closeOpenContentItems(state));
+        events.push(...closeOpenContentItems(state, activeSubAgent?.toolCallId));
       }
       const parentEvent: RuntimeEvent = {
         type: isTerminal ? "item.completed" : "item.updated",
@@ -486,7 +501,7 @@ export function mapAcpSessionUpdate(
       };
       const rawEntries = plan.entries ?? plan.content?.entries ?? [];
       const steps = rawEntries.map((entry) => ({ step: entry.content, status: entry.status }));
-      events.push(...emitAcpPlanSteps(state, steps));
+      events.push(...emitAcpPlanSteps(state, steps, activeSubAgent?.toolCallId));
       break;
     }
 
@@ -514,11 +529,11 @@ export function mapAcpSessionUpdate(
           step: entry.content,
           status: entry.status,
         }));
-        events.push(...emitAcpPlanSteps(state, steps));
+        events.push(...emitAcpPlanSteps(state, steps, activeSubAgent?.toolCallId));
       } else if (content.type === "markdown" && typeof content.content === "string") {
         const steps = parsePlanMarkdownSteps(content.content);
         if (steps.length > 0) {
-          events.push(...emitAcpPlanSteps(state, steps));
+          events.push(...emitAcpPlanSteps(state, steps, activeSubAgent?.toolCallId));
         }
       }
       // `file` variant: the plan lives in a file referenced by URI. The pure
@@ -594,12 +609,13 @@ export function mapAcpSessionUpdate(
 function emitAcpPlanSteps(
   state: AcpMapperState,
   steps: Array<{ step: string; status: "pending" | "in_progress" | "completed" }>,
+  parentToolCallId?: string,
 ): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   const { threadId } = state;
   state.openPlanSteps = steps;
   if (!state.openPlanItemId) {
-    events.push(...closeOpenContentItems(state));
+    events.push(...closeOpenContentItems(state, parentToolCallId));
     state.openPlanItemId = newItemId("plan");
     events.push({
       type: "item.started",

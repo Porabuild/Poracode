@@ -217,6 +217,7 @@ export function removeActiveSubAgent(state: AcpMapperState, toolCallId: string):
     state.activeSubAgents.splice(index, 1);
     break;
   }
+  state.subAgentContentItems.delete(toolCallId);
 }
 
 export function tagSubAgentChildStarts(

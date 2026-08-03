@@ -264,7 +264,7 @@ describe("SubAgentContent", () => {
     expect(within(region).getByText("Working…")).toBeInTheDocument();
   });
 
-  it("keeps the composer loader without a leading dot or duplicate agent description", () => {
+  it("renders a clean composer row without a loader or duplicate agent description", () => {
     const threadId = "thread-1";
     const parentItem: RuntimeChatItem = {
       id: "parent-1",
@@ -303,8 +303,9 @@ describe("SubAgentContent", () => {
       row?.querySelector('[data-poracode-shimmer-text="Agent · protocol specialist"]'),
     ).toBeNull();
     expect(view.container).toHaveTextContent("Subagents");
+    expect(screen.getByText("protocol specialist")).toBeInTheDocument();
     expect(row?.textContent).not.toContain("specialist·GPT");
-    expect(row?.querySelector(".poracode-pixel-loader")).not.toBeNull();
+    expect(row?.querySelector(".poracode-pixel-loader")).toBeNull();
   });
 
   it("renders Subagents and Crossagents in separate dock sections", () => {
