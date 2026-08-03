@@ -49,7 +49,7 @@ import {
   closeClaudeOpenItems,
   completeActiveGoalOnTaskDrainEvents,
   createClaudeMapperState,
-  emitActiveGoalTokenUpdate,
+  emitActiveGoalTick,
   extractResultErrorMessage,
   isApiErrorResult,
   mapClaudePermissionRequest,
@@ -58,7 +58,6 @@ import {
   mapClaudeSdkMessage,
   nonDiagnosticErrors,
   parseClaudeQuestions,
-  readClaudeApiUsageSpendTokens,
   readParentToolUseId,
   startClaudeTurn,
   type ClaudeMapperState,
@@ -1043,17 +1042,17 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       if (this.disposed) return;
       const event = mapClaudeContextUsageResponse(this.input.threadId, usage);
       if (event) this.emitRuntimeEvents([event]);
+      // Goal token spend accumulates from per-call assistant-message usage
+      // (see accumulateActiveGoalAssistantSpend); the `apiUsage` snapshot on
+      // this response is the LAST call's usage, not spend, so it must not feed
+      // the goal total. The tick just rolls the dock's elapsed time forward.
       if (this.mapperState.activeGoalItemId) {
-        const spendTokens = readClaudeApiUsageSpendTokens(usage.apiUsage);
-        const goalUpdate =
-          spendTokens !== undefined
-            ? emitActiveGoalTokenUpdate(this.mapperState, spendTokens)
-            : undefined;
-        if (goalUpdate) this.emitRuntimeEvents([goalUpdate]);
+        const tick = emitActiveGoalTick(this.mapperState);
+        if (tick) this.emitRuntimeEvents([tick]);
       }
     } catch {
       // Older transports can reject this control call. In that case, keep the
-      // existing context and goal-spend state until a result message arrives.
+      // existing context snapshot; assistant messages still update goal spend.
     }
   }
 

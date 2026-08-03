@@ -53,6 +53,19 @@ export function readClaudeAssistantSpendTokens(message: SDKAssistantMessage): nu
   return readClaudeApiUsageSpendTokens(message.message?.usage);
 }
 
+export function readClaudeAssistantUsageSampleId(message: SDKAssistantMessage): string {
+  const apiMessageId = readClaudeAssistantMessageId(message.message);
+  const requestId =
+    typeof message.request_id === "string" && message.request_id.length > 0
+      ? message.request_id
+      : undefined;
+  return apiMessageId
+    ? requestId
+      ? `${apiMessageId}:${requestId}`
+      : apiMessageId
+    : `uuid:${message.uuid}`;
+}
+
 export function createClaudeUsageSpentEvent(
   threadId: string,
   message: SDKAssistantMessage,
@@ -60,18 +73,9 @@ export function createClaudeUsageSpentEvent(
 ): RuntimeEvent | undefined {
   const counter = readClaudeAssistantSpendTokens(message);
   if (counter === undefined) return undefined;
-  const apiMessageId = readClaudeAssistantMessageId(message.message);
-  const requestId =
-    typeof message.request_id === "string" && message.request_id.length > 0
-      ? message.request_id
-      : undefined;
   // Stable per API message (`msg_…:req_…`) so replays dedup exactly once in
   // the ledger; fall back to the envelope uuid when the payload has no id.
-  const sampleId = apiMessageId
-    ? requestId
-      ? `${apiMessageId}:${requestId}`
-      : apiMessageId
-    : `uuid:${message.uuid}`;
+  const sampleId = readClaudeAssistantUsageSampleId(message);
   const model = typeof message.message?.model === "string" ? message.message.model : undefined;
   return {
     type: "usage.spent",

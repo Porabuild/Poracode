@@ -1,6 +1,5 @@
-import type { SDKActiveGoalMessage, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { SDKActiveGoalMessage, SDKAssistantMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, TurnState } from "@/shared/contracts";
-import { readNonNegativeInteger } from "../../contextUsage";
 import {
   goalPayloadFromProviderState,
   startGoalItemEvents,
@@ -9,7 +8,7 @@ import {
 } from "../../goalRuntime";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
 import { newItemId } from "./helpers";
-import { readClaudeResultUsage } from "./result";
+import { readClaudeAssistantSpendTokens, readClaudeAssistantUsageSampleId } from "./usageSpent";
 
 type ActiveGoalState = ClaudeMapperState & {
   activeGoalItemId: string;
@@ -26,9 +25,8 @@ function hasActiveGoal(state: ClaudeMapperState): state is ActiveGoalState {
 }
 
 export function resetActiveGoalTokenAccounting(state: ClaudeMapperState): void {
-  delete state.activeGoalCompletedTurnTokensUsed;
-  delete state.activeGoalLiveApiTokensUsed;
-  delete state.activeGoalTaskTokensByKey;
+  delete state.activeGoalTokensUsed;
+  delete state.activeGoalUsageSampleIds;
 }
 
 export function clearActiveGoal(state: ClaudeMapperState): void {
@@ -75,10 +73,10 @@ export function applyActiveGoalMessage(
 
   const objective = value.condition.trim();
   if (!objective) return [];
-  state.activeGoalIterations = value.iterations;
-  if (typeof value.last_reason === "string" && value.last_reason.trim().length > 0) {
-    state.activeGoalLastReason = value.last_reason.trim();
-  }
+  const lastReason =
+    typeof value.last_reason === "string" && value.last_reason.trim().length > 0
+      ? value.last_reason.trim()
+      : undefined;
 
   if (!hasActiveGoal(state)) {
     // A goal can be armed natively without a local `/goal` turn — most
@@ -89,6 +87,8 @@ export function applyActiveGoalMessage(
     state.activeGoalObjective = objective;
     state.activeGoalStartedAtMs = epochSecondsToMs(value.set_at) ?? Date.now();
     resetActiveGoalTokenAccounting(state);
+    state.activeGoalIterations = value.iterations;
+    if (lastReason) state.activeGoalLastReason = lastReason;
     if (!hasActiveGoal(state)) return []; // unreachable; re-narrows after mutation
     return startGoalItemEvents(
       state.threadId,
@@ -97,8 +97,17 @@ export function applyActiveGoalMessage(
     );
   }
 
-  // A new `/goal` replacing the old one mid-session also lands here.
-  state.activeGoalObjective = objective;
+  // A new `/goal` replacing the old one mid-session also lands here. A changed
+  // condition is a NEW goal: restart its clock and token accounting so the
+  // dock never carries the previous goal's spend into the replacement.
+  if (state.activeGoalObjective !== objective) {
+    state.activeGoalObjective = objective;
+    state.activeGoalStartedAtMs = epochSecondsToMs(value.set_at) ?? Date.now();
+    resetActiveGoalTokenAccounting(state);
+    delete state.activeGoalLastReason;
+  }
+  state.activeGoalIterations = value.iterations;
+  if (lastReason) state.activeGoalLastReason = lastReason;
   return [activeGoalUpdatedEvent(state)];
 }
 
@@ -112,22 +121,22 @@ function completeGoalFromEvaluatorVerdict(state: ClaudeMapperState): RuntimeEven
 
 export function completeActiveGoalEvents(
   state: ClaudeMapperState,
-  message: Extract<SDKMessage, { type: "result" }>,
   turnState: TurnState,
 ): RuntimeEvent[] {
   if (!hasActiveGoal(state)) return [];
 
-  const usage = readClaudeResultUsage(message);
-  if (usage !== undefined) {
-    state.activeGoalCompletedTurnTokensUsed =
-      (state.activeGoalCompletedTurnTokensUsed ?? 0) + usage;
-  }
-
+  // Goal token spend is NOT read from the turn `result`: the CLI reports
+  // `result.usage` as a session-cumulative counter (all models, all
+  // sidechains, since session start), so adding it per turn would count
+  // pre-goal spend and multiply-count later turns. Per-call assistant-message
+  // spend is accumulated live by accumulateActiveGoalAssistantSpend instead;
+  // here we only roll the aggregate/time snapshot forward.
+  //
   // While the native Stop-hook evaluator is live, a turn `result` is not a
   // goal outcome — the evaluator keeps starting turns until the condition is
-  // met and reports that via `active_goal: null`. Only roll the usage/time
-  // counters forward here. Without native goal frames (older CLI), fall back
-  // to treating a clean turn end as completion so the dock never sticks.
+  // met and reports that via `active_goal: null`. Without native goal frames
+  // (older CLI), fall back to treating a clean turn end as completion so the
+  // dock never sticks.
   if (turnState === "interrupted" || state.sawActiveGoalMessage) {
     return [activeGoalUpdatedEvent(state)];
   }
@@ -178,10 +187,13 @@ function hasLiveSubAgentTaskEntries(state: ClaudeMapperState): boolean {
  */
 function activeGoalProviderState(state: ActiveGoalState): ProviderGoalState {
   const nowMs = Date.now();
-  const tokensUsed = activeGoalAggregateTokens(state);
   return {
     objective: state.activeGoalObjective,
-    ...(tokensUsed !== undefined ? { tokensUsed } : {}),
+    // Always carry the counter (0 before the first spend): the renderer merges
+    // goal payloads shallowly, so omitting the field would leave a replaced
+    // goal's total on the dock after resetActiveGoalTokenAccounting. The dock
+    // hides a zero total (it only renders tokensUsed > 0).
+    tokensUsed: state.activeGoalTokensUsed ?? 0,
     timeUsedSeconds: Math.max(0, Math.round((nowMs - state.activeGoalStartedAtMs) / 1000)),
     ...(state.activeGoalIterations !== undefined ? { iterations: state.activeGoalIterations } : {}),
     ...(state.activeGoalLastReason ? { lastReason: state.activeGoalLastReason } : {}),
@@ -201,67 +213,39 @@ function activeGoalUpdatedEvent(state: ActiveGoalState): RuntimeEvent {
   };
 }
 
-export function emitActiveGoalTokenUpdate(
+/**
+ * Fold one assistant API message's per-call spend into the active goal's
+ * running total. Called for every assistant message — main thread and
+ * subagent sidechain alike — at the same point the Profile usage ledger's
+ * `usage.spent` event is created, so the goal dock and the Profile token
+ * stats share one exact spend definition. Emits a dock update on growth.
+ */
+export function accumulateActiveGoalAssistantSpend(
   state: ClaudeMapperState,
-  tokensUsed: number,
+  message: SDKAssistantMessage,
 ): RuntimeEvent | undefined {
   if (!hasActiveGoal(state)) return undefined;
-  state.activeGoalLiveApiTokensUsed = Math.max(state.activeGoalLiveApiTokensUsed ?? 0, tokensUsed);
-  return emitActiveGoalAggregateTokenUpdate(state);
-}
-
-function emitActiveGoalAggregateTokenUpdate(state: ClaudeMapperState): RuntimeEvent | undefined {
-  if (!hasActiveGoal(state)) return undefined;
-  if (activeGoalAggregateTokens(state) === undefined) return undefined;
+  const spend = readClaudeAssistantSpendTokens(message);
+  if (spend === undefined || spend <= 0) return undefined;
+  const sampleId = readClaudeAssistantUsageSampleId(message);
+  const sampleIds = (state.activeGoalUsageSampleIds ??= new Set<string>());
+  if (sampleIds.has(sampleId)) return undefined;
+  sampleIds.add(sampleId);
+  state.activeGoalTokensUsed = (state.activeGoalTokensUsed ?? 0) + spend;
   return activeGoalUpdatedEvent(state);
 }
 
-function activeGoalAggregateTokens(state: ClaudeMapperState): number | undefined {
-  const baseTokens = Math.max(
-    state.activeGoalCompletedTurnTokensUsed ?? 0,
-    state.activeGoalLiveApiTokensUsed ?? 0,
-  );
-  const taskTokens = sumActiveGoalTaskTokens(state);
-  const totalTokens = baseTokens + taskTokens;
-  return totalTokens > 0 ? totalTokens : undefined;
-}
-
-function sumActiveGoalTaskTokens(state: ClaudeMapperState): number {
-  let total = 0;
-  for (const tokens of state.activeGoalTaskTokensByKey?.values() ?? []) total += tokens;
-  return total;
+/**
+ * 15s goal-tracking poll tick: re-emit the current totals so the dock's
+ * elapsed-time display rolls forward even while no assistant message lands.
+ */
+export function emitActiveGoalTick(state: ClaudeMapperState): RuntimeEvent | undefined {
+  if (!hasActiveGoal(state)) return undefined;
+  return activeGoalUpdatedEvent(state);
 }
 
 function epochSecondsToMs(value: unknown): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return undefined;
   // Guard against the field ever arriving in milliseconds.
   return value > 1_000_000_000_000 ? value : value * 1000;
-}
-
-export function emitActiveGoalTaskUsageUpdate(
-  state: ClaudeMapperState,
-  message: { task_id?: unknown; tool_use_id?: unknown },
-  usage: { total_tokens?: number; tool_uses?: number; duration_ms?: number } | undefined,
-): RuntimeEvent | undefined {
-  if (!hasActiveGoal(state)) return undefined;
-  const totalTokens = readNonNegativeInteger(usage?.total_tokens);
-  if (totalTokens === undefined || totalTokens <= 0) return undefined;
-
-  const key = activeGoalTaskUsageKey(message);
-  if (!key) return undefined;
-
-  const taskTokens = (state.activeGoalTaskTokensByKey ??= new Map<string, number>());
-  const previous = taskTokens.get(key) ?? 0;
-  if (totalTokens <= previous) return undefined;
-  taskTokens.set(key, totalTokens);
-  return emitActiveGoalAggregateTokenUpdate(state);
-}
-
-function activeGoalTaskUsageKey(message: {
-  task_id?: unknown;
-  tool_use_id?: unknown;
-}): string | undefined {
-  const taskId = typeof message.task_id === "string" ? message.task_id : undefined;
-  const toolUseId = typeof message.tool_use_id === "string" ? message.tool_use_id : undefined;
-  return taskId ?? toolUseId;
 }

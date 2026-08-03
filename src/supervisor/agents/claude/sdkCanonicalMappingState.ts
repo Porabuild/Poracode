@@ -93,9 +93,18 @@ export interface ClaudeMapperState {
    * starts first.
    */
   pendingGoalCompletionOnTaskDrain?: boolean;
-  activeGoalCompletedTurnTokensUsed?: number;
-  activeGoalLiveApiTokensUsed?: number;
-  activeGoalTaskTokensByKey?: Map<string, number>;
+  /**
+   * Exact token spend accumulated while the goal is active: input + output +
+   * cache creation + cache read of every assistant API message (main thread
+   * and subagent sidechains alike) observed since the goal was armed. This is
+   * the same per-call definition the Profile token ledger sums from
+   * `usage.spent` events — never derived from the turn `result.usage` (which
+   * the CLI reports as a session-cumulative counter, including pre-goal and
+   * sidechain spend).
+   */
+  activeGoalTokensUsed?: number;
+  /** Per-call sample ids already folded into {@link activeGoalTokensUsed}. */
+  activeGoalUsageSampleIds?: Set<string>;
   planAggregator?: PlanAggregatorState;
   /**
    * Live background subagent tasks, keyed by the SDK `task_id`, mapping to the
