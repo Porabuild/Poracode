@@ -1,4 +1,4 @@
-import { AnimatedNumber, AnimatedNumberGroup } from "./AnimatedNumber";
+import { AnimatedNumber } from "./AnimatedNumber";
 
 /**
  * The `+N -N` insertion/deletion pair, shared by the composer changes bubble,
@@ -11,8 +11,10 @@ import { AnimatedNumber, AnimatedNumberGroup } from "./AnimatedNumber";
  * per-file rows: those mount with their value and a large diff would otherwise
  * fire hundreds of simultaneous animations on every refresh.
  *
- * Because a zero side is unmounted, a 0 → N transition mounts rather than
- * animates; N → M — the case that actually happens as an agent edits — rolls.
+ * Each side animates in isolation so changes to one value cannot translate the
+ * other across the row. Because a zero side is unmounted, a 0 → N transition
+ * mounts rather than animates; N → M — the case that actually happens as an
+ * agent edits — rolls.
  */
 export function DiffStat({
   insertions,
@@ -37,15 +39,13 @@ export function DiffStat({
   }
 
   return (
-    <AnimatedNumberGroup>
-      <span className={className}>
-        {insertions > 0 ? (
-          <AnimatedNumber className="text-success" value={insertions} prefix="+" />
-        ) : null}
-        {deletions > 0 ? (
-          <AnimatedNumber className="text-danger" value={deletions} prefix="-" />
-        ) : null}
-      </span>
-    </AnimatedNumberGroup>
+    <span className={className}>
+      {insertions > 0 ? (
+        <AnimatedNumber className="text-success" value={insertions} prefix="+" />
+      ) : null}
+      {deletions > 0 ? (
+        <AnimatedNumber className="text-danger" value={deletions} prefix="-" />
+      ) : null}
+    </span>
   );
 }

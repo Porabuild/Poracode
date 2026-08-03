@@ -4,8 +4,17 @@ import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import type { BrowseHostDirectoryResult, Project, Thread, TerminalSize } from "@/shared/contracts";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
-import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
-import { reconnectBackoffDelay } from "@/shared/remote/backoff";
+import {
+  isRemoteTransportFailure,
+  RemoteClientError,
+  RemoteDesktopClient,
+} from "@/shared/remote/client";
+import {
+  isUnauthorizedRemoteSocketClose,
+  REMOTE_SOCKET_POLICY,
+  RemoteSocketHealthMonitor,
+  RemoteSocketReconnectPolicy,
+} from "@/shared/remote/socketPolicy";
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import { filterKnownRemoteAccessScopes, REMOTE_STANDARD_SCOPES } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
@@ -91,14 +100,6 @@ function reuseRemoteRows<T extends { readonly id: string }>(current: T[], incomi
   return changed ? next : current;
 }
 
-function isRemoteTransportFailure(error: unknown): boolean {
-  if (error instanceof TypeError && /fetch|network|load failed/i.test(error.message)) return true;
-  if (error instanceof RemoteClientError && error.status === 0) return true;
-  return error instanceof Error && error.cause !== undefined
-    ? isRemoteTransportFailure(error.cause)
-    : false;
-}
-
 const defaultClientFactory: RemoteClientFactory = (endpoint, accessToken) =>
   new RemoteDesktopClient(endpoint, accessToken, mainProcessFetch);
 
@@ -109,22 +110,15 @@ let openRemoteThreadRequestSeq = 0;
 
 /** In-flight connectAll(), so concurrent callers coalesce onto one pass. */
 let connectAllInFlight: Promise<void> | null = null;
-const REMOTE_SOCKET_RECONNECT_BASE_MS = 1000;
-const REMOTE_SOCKET_RECONNECT_MAX_MS = 20_000;
-const REMOTE_SOCKET_HEALTH_PING_INTERVAL_MS = 25_000;
-const REMOTE_SOCKET_HEALTH_PING_TIMEOUT_MS = 5_000;
-const REMOTE_SOCKET_CONNECT_TIMEOUT_MS = 15_000;
-
 interface RemoteServerEventSocketEntry {
   readonly serverKey: string;
   socket: RemoteSocketLike | null;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
-  reconnectAttempt: number;
+  readonly reconnectPolicy: RemoteSocketReconnectPolicy;
   connecting: boolean;
   connectTimeout: ReturnType<typeof setTimeout> | null;
   healthPingInterval: ReturnType<typeof setInterval> | null;
-  healthPingTimeout: ReturnType<typeof setTimeout> | null;
-  pendingHealthPingId: string | null;
+  health: RemoteSocketHealthMonitor<RemoteSocketLike> | null;
 }
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();
@@ -244,23 +238,12 @@ function removeRemoteAppRows(desktopId: string): void {
   syncRemoteAppRows(desktopId, [], []);
 }
 
-function remoteServerEventSocketReconnectDelay(attempt: number): number {
-  return reconnectBackoffDelay(attempt, {
-    baseMs: REMOTE_SOCKET_RECONNECT_BASE_MS,
-    maxMs: REMOTE_SOCKET_RECONNECT_MAX_MS,
-  });
-}
-
 function clearRemoteServerEventSocketHealth(entry: RemoteServerEventSocketEntry): void {
   if (entry.healthPingInterval) {
     clearInterval(entry.healthPingInterval);
     entry.healthPingInterval = null;
   }
-  if (entry.healthPingTimeout) {
-    clearTimeout(entry.healthPingTimeout);
-    entry.healthPingTimeout = null;
-  }
-  entry.pendingHealthPingId = null;
+  entry.health?.reset();
 }
 
 function clearRemoteServerEventSocketConnectTimeout(entry: RemoteServerEventSocketEntry): void {
@@ -442,12 +425,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           serverKey,
           socket: null,
           reconnectTimer: null,
-          reconnectAttempt: 0,
+          reconnectPolicy: new RemoteSocketReconnectPolicy(),
           connecting: false,
           connectTimeout: null,
           healthPingInterval: null,
-          healthPingTimeout: null,
-          pendingHealthPingId: null,
+          health: null,
         };
         remoteServerEventSockets.set(server.desktopId, entry);
         let resyncInFlight = false;
@@ -480,8 +462,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             setSocketStatus("connecting");
           }
           if (entry.reconnectTimer) clearTimeout(entry.reconnectTimer);
-          const delay = remoteServerEventSocketReconnectDelay(entry.reconnectAttempt);
-          entry.reconnectAttempt += 1;
+          const delay = entry.reconnectPolicy.nextDelay();
           entry.reconnectTimer = setTimeout(() => {
             entry.reconnectTimer = null;
             void connect();
@@ -506,28 +487,23 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           }
         };
 
+        entry.health = new RemoteSocketHealthMonitor({
+          isCurrent: (socket) => isCurrent() && entry.socket === socket,
+          isOpen: (socket) =>
+            typeof socket.send === "function" &&
+            (socket.readyState === undefined || socket.readyState === 1),
+          send: (socket, payload) => socket.send?.(payload),
+          onDead: forceReconnect,
+        });
+
         const startHealthProbe = (socket: RemoteSocketLike) => {
           clearRemoteServerEventSocketHealth(entry);
           const sendHealthPing = () => {
-            if (!isCurrent() || entry.socket !== socket || !socket.send) return;
-            if (socket.readyState !== undefined && socket.readyState !== 1) return;
-            if (entry.pendingHealthPingId !== null) return;
-            const id = crypto.randomUUID();
-            entry.pendingHealthPingId = id;
-            try {
-              socket.send(JSON.stringify({ type: "ping", id, sentAt: Date.now() }));
-            } catch {
-              forceReconnect(socket);
-              return;
-            }
-            entry.healthPingTimeout = setTimeout(() => {
-              if (entry.pendingHealthPingId !== id) return;
-              forceReconnect(socket);
-            }, REMOTE_SOCKET_HEALTH_PING_TIMEOUT_MS);
+            entry.health?.probe(socket);
           };
           entry.healthPingInterval = setInterval(
             sendHealthPing,
-            REMOTE_SOCKET_HEALTH_PING_INTERVAL_MS,
+            REMOTE_SOCKET_POLICY.healthPingIntervalMs,
           );
         };
 
@@ -551,11 +527,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             entry.socket = socket;
             entry.connectTimeout = setTimeout(() => {
               forceReconnect(socket);
-            }, REMOTE_SOCKET_CONNECT_TIMEOUT_MS);
+            }, REMOTE_SOCKET_POLICY.connectTimeoutMs);
             const activateSocket = () => {
               if (!isCurrent() || entry.socket !== socket) return;
               clearRemoteServerEventSocketConnectTimeout(entry);
-              entry.reconnectAttempt = 0;
+              entry.reconnectPolicy.reset();
               activateRemoteTerminalFeed(server.desktopId, socket);
               startHealthProbe(socket);
               setSocketStatus("online");
@@ -606,16 +582,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               try {
                 const message = client.parseSocketMessage(String(event.data));
                 if (message.type === "pong") {
-                  if (
-                    entry.pendingHealthPingId !== null &&
-                    message.id === entry.pendingHealthPingId
-                  ) {
-                    entry.pendingHealthPingId = null;
-                    if (entry.healthPingTimeout) {
-                      clearTimeout(entry.healthPingTimeout);
-                      entry.healthPingTimeout = null;
-                    }
-                  }
+                  entry.health?.acceptPong(message.id);
                   return;
                 }
                 if (handleRemoteTerminalServerMessage(server.desktopId, message)) {
@@ -684,6 +651,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   }
                 }
                 if (message.type === "resync-required") {
+                  // The server's in-memory event sequence restarts with the
+                  // process. Accept its lower cursor before the authoritative
+                  // snapshots advance it again, or every reconnect will ask
+                  // for an impossible pre-restart sequence forever.
+                  remoteServerSnapshotSeqByDesktopId.set(server.desktopId, message.seq);
                   get().scheduleServerRefresh(server.desktopId);
                   void resyncOpenThread();
                 }
@@ -691,7 +663,23 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 // HTTP snapshots remain authoritative; ignore malformed frames.
               }
             };
-            socket.onclose = () => {
+            socket.onclose = (event) => {
+              if (
+                isUnauthorizedRemoteSocketClose(event?.code ?? 0, event?.reason ?? "") &&
+                isCurrent() &&
+                entry.socket === socket
+              ) {
+                entry.socket = null;
+                clearRemoteServerEventSocketConnectTimeout(entry);
+                clearRemoteServerEventSocketHealth(entry);
+                setRemoteTerminalSocketSender(server.desktopId, null);
+                setRemoteServerFailure(
+                  server.desktopId,
+                  "error",
+                  sharedMsg("remote.session.expired"),
+                );
+                return;
+              }
               disconnectSocket(socket);
             };
           } catch (error) {

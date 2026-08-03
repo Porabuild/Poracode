@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RemoteShellSnapshot } from "@/shared/remote";
+import { RemoteClientError } from "@/shared/remote/client";
 import type { StoredDesktop } from "./storage";
 
 /** The RemoteDesktopClient surface the hook touches, each method a spy. */
@@ -23,20 +24,16 @@ type ClientMock = {
   sendThreadInput: Mock<(...a: unknown[]) => Promise<void>>;
 };
 
+type ClientLifecycleOptions = {
+  readonly onRequestSuccess?: () => void;
+  readonly onRequestError?: (error: unknown) => void;
+};
+
 // ── Hoisted mock state ──────────────────────────────────────────────
 // A single shared client instance per endpoint so the test can assert against
 // the same spies the hook calls.
 const h = vi.hoisted(() => {
-  class RemoteClientError extends Error {
-    constructor(
-      message: string,
-      readonly status: number,
-    ) {
-      super(message);
-    }
-  }
   return {
-    RemoteClientError,
     // Per-desktop client behavior, keyed by desktopId (via endpoint).
     clients: new Map<string, ClientMock>(),
     // storage.ts state
@@ -78,10 +75,12 @@ const h = vi.hoisted(() => {
         );
       },
     ),
+    updateDesktopPlatform: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
     gitAddWorktree: vi.fn<(...a: unknown[]) => Promise<{ path: string }>>(async () => ({
       path: "/repo/.poracode/worktrees/mobile-fix",
     })),
     captureFileCheckpoint: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+    setRemoteBridgeClient: vi.fn<(...a: unknown[]) => void>(),
   };
 });
 
@@ -179,29 +178,37 @@ function endpointToId(endpoint: string): string {
   return endpoint.replace("http://", "").replace(".local", "");
 }
 
-vi.mock("./remoteClient", () => ({
-  RemoteClientError: h.RemoteClientError,
-  RemoteDesktopClient: class {
-    constructor(readonly endpoint: string) {}
-    #c() {
-      return clientFor(endpointToId(this.endpoint));
-    }
-    snapshot = (...a: unknown[]) => this.#c().snapshot(...a);
-    agentStatuses = (...a: unknown[]) => this.#c().agentStatuses(...a);
-    providerUsage = (...a: unknown[]) => this.#c().providerUsage(...a);
-    settings = (...a: unknown[]) => this.#c().settings(...a);
-    threadHistory = (...a: unknown[]) => this.#c().threadHistory(...a);
-    environment = (...a: unknown[]) => this.#c().environment(...a);
-    exchangePairingCredential = (...a: unknown[]) => this.#c().exchangePairingCredential(...a);
-    websocketTicket = (...a: unknown[]) => this.#c().websocketTicket(...a);
-    websocketUrl = (...a: unknown[]) => this.#c().websocketUrl(...a);
-    parseSocketMessage = (raw: string) => this.#c().parseSocketMessage(raw);
-    startThread = (...a: unknown[]) => this.#c().startThread(...a);
-    startNewThread = (...a: unknown[]) => this.#c().startNewThread(...a);
-    sendThreadCommand = (...a: unknown[]) => this.#c().sendThreadCommand(...a);
-    sendThreadInput = (...a: unknown[]) => this.#c().sendThreadInput(...a);
-  },
-}));
+vi.mock("@/shared/remote/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/shared/remote/client")>();
+  return {
+    ...actual,
+    RemoteDesktopClient: class {
+      constructor(
+        readonly endpoint: string,
+        _accessToken?: string,
+        _fetchImpl?: unknown,
+        readonly options: ClientLifecycleOptions = {},
+      ) {}
+      #c() {
+        return clientFor(endpointToId(this.endpoint));
+      }
+      snapshot = (...a: unknown[]) => this.#c().snapshot(...a);
+      agentStatuses = (...a: unknown[]) => this.#c().agentStatuses(...a);
+      providerUsage = (...a: unknown[]) => this.#c().providerUsage(...a);
+      settings = (...a: unknown[]) => this.#c().settings(...a);
+      threadHistory = (...a: unknown[]) => this.#c().threadHistory(...a);
+      environment = (...a: unknown[]) => this.#c().environment(...a);
+      exchangePairingCredential = (...a: unknown[]) => this.#c().exchangePairingCredential(...a);
+      websocketTicket = (...a: unknown[]) => this.#c().websocketTicket(...a);
+      websocketUrl = (...a: unknown[]) => this.#c().websocketUrl(...a);
+      parseSocketMessage = (raw: string) => this.#c().parseSocketMessage(raw);
+      startThread = (...a: unknown[]) => this.#c().startThread(...a);
+      startNewThread = (...a: unknown[]) => this.#c().startNewThread(...a);
+      sendThreadCommand = (...a: unknown[]) => this.#c().sendThreadCommand(...a);
+      sendThreadInput = (...a: unknown[]) => this.#c().sendThreadInput(...a);
+    },
+  };
+});
 
 vi.mock("./storage", () => ({
   listStoredDesktops: vi.fn<() => Promise<StoredDesktop[]>>(async () => [...h.storedDesktops]),
@@ -225,11 +232,12 @@ vi.mock("./storage", () => ({
     return desktop;
   }),
   renameDesktop: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
-  updateDesktopPlatform: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+  updateDesktopPlatform: (...a: unknown[]) => h.updateDesktopPlatform(...a),
   updateDesktopEndpoint: (...a: [string, string]) => h.updateDesktopEndpoint(...a),
   forgetDesktop: (...a: [string]) => h.forgetDesktop(...a),
   getStoredShellSnapshotKey: vi.fn<(...a: unknown[]) => unknown>(),
   getOrCreateDeviceId: vi.fn<() => Promise<string>>(async () => h.deviceId),
+  shouldPersistThreadSnapshot: vi.fn<() => boolean>(() => true),
 }));
 
 vi.mock("./storeSync", () => ({
@@ -255,7 +263,9 @@ vi.mock("./settingsSync", () => ({
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({ gitAddWorktree: h.gitAddWorktree }),
 }));
-vi.mock("./bridge", () => ({ setRemoteBridgeClient: vi.fn<(...a: unknown[]) => void>() }));
+vi.mock("./bridge", () => ({
+  setRemoteBridgeClient: (...a: unknown[]) => h.setRemoteBridgeClient(...a),
+}));
 vi.mock("./browserMirror", () => ({
   handleBrowserServerMessage: vi.fn<(...a: unknown[]) => boolean>(() => false),
   resetBrowserMirror: vi.fn<(...a: unknown[]) => void>(),
@@ -287,6 +297,10 @@ vi.mock("./pwaInstall", () => ({
 vi.mock("./mobileSsh", () => ({
   connectMobileSsh: (...a: unknown[]) => h.connectMobileSsh(...a),
   disconnectMobileSsh: (...a: unknown[]) => h.disconnectMobileSsh(...a),
+  isMobileSshAuthenticationError: (error: unknown) =>
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: string }).code === "SSH_AUTHENTICATION_FAILED",
   probeMobileSshHost: vi.fn<() => Promise<unknown>>(),
 }));
 vi.mock("./sshVault", () => ({
@@ -372,8 +386,10 @@ describe("useRemoteDesktop", () => {
       h.getSshCredential,
       h.deleteSshCredential,
       h.updateDesktopEndpoint,
+      h.updateDesktopPlatform,
       h.gitAddWorktree,
       h.captureFileCheckpoint,
+      h.setRemoteBridgeClient,
     ]) {
       fn.mockClear();
     }
@@ -405,7 +421,9 @@ describe("useRemoteDesktop", () => {
 
     expect(view.result.current.connection).toBe("reconnecting");
     await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
-    expect(client.websocketUrl).toHaveBeenLastCalledWith("ticket", 8);
+    expect(client.websocketUrl).toHaveBeenLastCalledWith("ticket", 8, {
+      threadItemInterests: [],
+    });
   });
 
   it("[#1] ignores a late refresh that resolves after the user switched desktops", async () => {
@@ -438,6 +456,64 @@ describe("useRemoteDesktop", () => {
     expect(h.applyShellSnapshot).not.toHaveBeenCalled();
     // Active desktop stays B (refresh no longer forces the active desktop).
     expect(view.result.current.activeDesktopId).toBe("B");
+  });
+
+  it("does not reactivate a stale desktop after platform backfill", async () => {
+    const dA = makeDesktop("A");
+    const dB = makeDesktop("B");
+    const view = await mountWith([dA, dB], "A");
+    clientFor("A").environment.mockResolvedValue({
+      desktopId: "A",
+      label: "A",
+      appVersion: "1.0.0",
+      platform: "linux",
+    });
+    let releasePlatformWrite: () => void = () => {};
+    h.updateDesktopPlatform.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (releasePlatformWrite = resolve)),
+    );
+
+    let refreshA: Promise<unknown> = Promise.resolve();
+    act(() => {
+      refreshA = view.result.current.refresh(dA);
+    });
+    await waitFor(() => expect(h.updateDesktopPlatform).toHaveBeenCalledWith("A", "linux"));
+    await act(async () => {
+      await view.result.current.switchDesktop(dB);
+    });
+    expect(view.result.current.activeDesktopId).toBe("B");
+
+    await act(async () => {
+      releasePlatformWrite();
+      await refreshA;
+    });
+
+    expect(view.result.current.activeDesktopId).toBe("B");
+  });
+
+  it("coalesces equivalent same-desktop refreshes", async () => {
+    const desktop = makeDesktop("A");
+    const client = clientFor("A");
+    const view = await mountWith([desktop], "A");
+    client.snapshot.mockClear();
+    let release: (snapshot: unknown) => void = () => {};
+    client.snapshot.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+    h.applyShellSnapshot.mockClear();
+
+    let firstRefresh: Promise<unknown> = Promise.resolve();
+    let secondRefresh: Promise<unknown> = Promise.resolve();
+    act(() => {
+      firstRefresh = view.result.current.refresh(desktop, { includeAuxiliary: false });
+      secondRefresh = view.result.current.refresh(desktop, { includeAuxiliary: false });
+    });
+    expect(client.snapshot).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      release(snapshotFor("A", ["thread-1"]));
+      await Promise.all([firstRefresh, secondRefresh]);
+    });
+
+    expect(h.applyShellSnapshot).toHaveBeenCalledExactlyOnceWith(snapshotFor("A", ["thread-1"]));
   });
 
   it("[#2] restores connection state when pairing fails so the UI re-enables", async () => {
@@ -725,6 +801,56 @@ describe("useRemoteDesktop", () => {
 
     expect(view.result.current.connection).toBe("error");
     expect(view.result.current.message).toContain("SSH credentials are missing");
+    expect(clientFor("d1").snapshot).not.toHaveBeenCalled();
+  });
+
+  it("reports an unreachable SSH host as offline while keeping cached state", async () => {
+    const desktop = {
+      ...makeDesktop("d1"),
+      transport: {
+        kind: "ssh" as const,
+        connection: {
+          id: "a5fe6f57-e779-4efe-aad8-6cd9ec0c38fb",
+          label: "Build host",
+          target: "dev@example.com",
+          authentication: "password" as const,
+          hostKeyFingerprint: "SHA256:abc123",
+        },
+      },
+    };
+    h.getSshCredential.mockResolvedValue({ kind: "password", password: "secret" });
+    h.connectMobileSsh.mockRejectedValue(new Error("Connection refused"));
+
+    const view = await mountWith([desktop], "d1");
+
+    expect(view.result.current.connection).toBe("offline");
+    expect(view.result.current.message).toContain("Connection refused");
+    expect(clientFor("d1").snapshot).not.toHaveBeenCalled();
+  });
+
+  it("reports rejected SSH credentials as unauthorized instead of offline", async () => {
+    const desktop = {
+      ...makeDesktop("d1"),
+      transport: {
+        kind: "ssh" as const,
+        connection: {
+          id: "a5fe6f57-e779-4efe-aad8-6cd9ec0c38fb",
+          label: "Build host",
+          target: "dev@example.com",
+          authentication: "password" as const,
+          hostKeyFingerprint: "SHA256:abc123",
+        },
+      },
+    };
+    h.getSshCredential.mockResolvedValue({ kind: "password", password: "wrong" });
+    h.connectMobileSsh.mockRejectedValue(
+      Object.assign(new Error("Permission denied"), { code: "SSH_AUTHENTICATION_FAILED" }),
+    );
+
+    const view = await mountWith([desktop], "d1");
+
+    expect(view.result.current.connection).toBe("unauthorized");
+    expect(view.result.current.message).toContain("Permission denied");
     expect(clientFor("d1").snapshot).not.toHaveBeenCalled();
   });
 
@@ -1125,6 +1251,42 @@ describe("useRemoteDesktop", () => {
     });
   });
 
+  it("coalesces identical refreshes while a shell-cache write is pending", async () => {
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    const view = await mountWith([d], "d1");
+    await act(async () => {
+      await view.result.current.refresh(d, { includeAuxiliary: false });
+    });
+    h.saveShellSnapshot.mockClear();
+    let releaseOlderWrite: () => void = () => {};
+    h.saveShellSnapshot.mockImplementation(async (_desktopId, snapshot) => {
+      const seq = (snapshot as RemoteShellSnapshot).snapshotSeq;
+      if (seq === 2) await new Promise<void>((resolve) => (releaseOlderWrite = resolve));
+    });
+    client.snapshot.mockResolvedValueOnce({ ...snapshotFor("d1"), snapshotSeq: 2 });
+
+    let olderRefresh: Promise<unknown> = Promise.resolve();
+    act(() => {
+      olderRefresh = view.result.current.refresh(d, { includeAuxiliary: false });
+    });
+    await waitFor(() =>
+      expect(h.saveShellSnapshot).toHaveBeenCalledWith(
+        "d1",
+        expect.objectContaining({ snapshotSeq: 2 }),
+      ),
+    );
+    const newerRefresh = view.result.current.refresh(d, { includeAuxiliary: false });
+    expect(newerRefresh).toBe(olderRefresh);
+    expect(client.snapshot).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      releaseOlderWrite();
+      await Promise.all([olderRefresh, newerRefresh]);
+    });
+    expect(h.saveShellSnapshot).toHaveBeenCalledTimes(1);
+  });
+
   it("[#7] a failed refresh does not knock a live socket offline", async () => {
     const d = makeDesktop("d1");
     const client = clientFor("d1");
@@ -1147,6 +1309,163 @@ describe("useRemoteDesktop", () => {
     });
     expect(view.result.current.connection).toBe("online");
     expect(view.result.current.message).toBe("http blip");
+  });
+
+  it("keeps a reachable server online after an application error", async () => {
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    const view = await mountWith([d], "d1");
+    client.snapshot.mockRejectedValueOnce(
+      new RemoteClientError("constraint failed", 409, "constraint_failed"),
+    );
+
+    await act(async () => {
+      await view.result.current.refresh(d);
+    });
+
+    expect(view.result.current.connection).toBe("online");
+    expect(view.result.current.message).toBe("constraint failed");
+  });
+
+  it("routes bridge actions through the connection lifecycle client", async () => {
+    const d = makeDesktop("d1");
+    const view = await mountWith([d], "d1");
+    const bridgeClient = h.setRemoteBridgeClient.mock.calls
+      .toReversed()
+      .find(([client]) => client !== null)?.[0] as { options: ClientLifecycleOptions };
+
+    expect(bridgeClient.options.onRequestError).toBeTypeOf("function");
+    expect(bridgeClient.options.onRequestSuccess).toBeTypeOf("function");
+
+    act(() => {
+      bridgeClient.options.onRequestError?.(
+        new RemoteClientError("bridge offline", 0, "transport_failed"),
+      );
+    });
+    expect(view.result.current.connection).toBe("offline");
+    expect(view.result.current.message).toBe("bridge offline");
+
+    act(() => {
+      bridgeClient.options.onRequestSuccess?.();
+    });
+    expect(view.result.current.connection).toBe("online");
+    expect(view.result.current.message).toBe("");
+
+    act(() => {
+      bridgeClient.options.onRequestError?.(
+        new RemoteClientError("constraint failed", 409, "constraint_failed"),
+      );
+    });
+    expect(view.result.current.connection).toBe("online");
+    expect(view.result.current.message).toBe("");
+  });
+
+  it("ignores old bridge lifecycle callbacks while pairing a new desktop", async () => {
+    const d = makeDesktop("d1");
+    const view = await mountWith([d], "d1");
+    const bridgeClient = h.setRemoteBridgeClient.mock.calls
+      .toReversed()
+      .find(([installedClient]) => installedClient !== null)?.[0] as {
+      options: ClientLifecycleOptions;
+    };
+    let rejectPairing: (error: unknown) => void = () => {};
+    clientFor("new").environment.mockImplementationOnce(
+      () => new Promise((_, reject) => (rejectPairing = reject)),
+    );
+
+    let pairing: Promise<void> = Promise.resolve();
+    act(() => {
+      pairing = view.result.current.pairDesktop("http://new.local", "credential").catch(() => {});
+    });
+    await waitFor(() => expect(view.result.current.connection).toBe("pairing"));
+    act(() => {
+      bridgeClient.options.onRequestSuccess?.();
+      bridgeClient.options.onRequestError?.(
+        new RemoteClientError("old desktop offline", 0, "transport_failed"),
+      );
+    });
+    expect(view.result.current.connection).toBe("pairing");
+
+    await act(async () => {
+      rejectPairing(new Error("pairing stopped"));
+      await pairing;
+    });
+    expect(view.result.current.connection).toBe("online");
+  });
+
+  it("does not clear an operation error after an unrelated bridge request succeeds", async () => {
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    const view = await mountWith([d], "d1");
+    client.snapshot.mockResolvedValue({ ...snapshotFor("d1"), snapshotSeq: 2 });
+    h.saveShellSnapshot.mockRejectedValueOnce(new Error("cache failed"));
+
+    await act(async () => {
+      await view.result.current.refresh(d, { includeAuxiliary: false });
+    });
+    expect(view.result.current.message).toBe("cache failed");
+
+    const bridgeClient = h.setRemoteBridgeClient.mock.calls
+      .toReversed()
+      .find(([installedClient]) => installedClient !== null)?.[0] as {
+      options: ClientLifecycleOptions;
+    };
+    act(() => {
+      bridgeClient.options.onRequestSuccess?.();
+    });
+
+    expect(view.result.current.connection).toBe("online");
+    expect(view.result.current.message).toBe("cache failed");
+  });
+
+  it("clears a desktop's operation error when switching desktops", async () => {
+    const d1 = makeDesktop("d1");
+    const d2 = makeDesktop("d2");
+    const client = clientFor("d1");
+    const view = await mountWith([d1, d2], "d1");
+    client.snapshot.mockResolvedValue({ ...snapshotFor("d1"), snapshotSeq: 2 });
+    h.saveShellSnapshot.mockRejectedValueOnce(new Error("cache failed"));
+    await act(async () => {
+      await view.result.current.refresh(d1, { includeAuxiliary: false });
+    });
+    expect(view.result.current.message).toBe("cache failed");
+
+    await act(async () => {
+      await view.result.current.switchDesktop(d2);
+    });
+
+    expect(view.result.current.activeDesktopId).toBe("d2");
+    expect(view.result.current.message).toBe("");
+  });
+
+  it("marks a server offline after a transport error without a live socket", async () => {
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    const view = await mountWith([d], "d1");
+    client.snapshot.mockRejectedValueOnce(new RemoteClientError("timed out", 0, "timeout"));
+
+    await act(async () => {
+      await view.result.current.refresh(d);
+    });
+
+    expect(view.result.current.connection).toBe("offline");
+    expect(view.result.current.message).toBe("timed out");
+  });
+
+  it("marks a relayed server offline when the gateway reports the host unavailable", async () => {
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    const view = await mountWith([d], "d1");
+    client.snapshot.mockRejectedValueOnce(
+      new RemoteClientError("server offline", 502, "bad_gateway"),
+    );
+
+    await act(async () => {
+      await view.result.current.refresh(d);
+    });
+
+    expect(view.result.current.connection).toBe("offline");
+    expect(view.result.current.message).toBe("server offline");
   });
 
   it("[#7b] declares the new thread's content interest before asking for its history", async () => {

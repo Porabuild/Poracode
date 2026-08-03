@@ -14,7 +14,12 @@ const bridge = vi.hoisted(() => ({
 
 vi.mock("@poracode/ssh-bridge", () => ({ SshBridge: bridge }));
 
-import { __resetMobileSshRuntimeForTests, connectMobileSsh, probeMobileSshHost } from "./mobileSsh";
+import {
+  __resetMobileSshRuntimeForTests,
+  connectMobileSsh,
+  isMobileSshAuthenticationError,
+  probeMobileSshHost,
+} from "./mobileSsh";
 
 const connection: SshConnectionConfig = {
   id: "a5fe6f57-e779-4efe-aad8-6cd9ec0c38fb",
@@ -71,6 +76,18 @@ describe("mobile SSH bootstrap", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("recognizes the native authentication error code without matching its message", () => {
+    const authenticationError = Object.assign(new Error("server-specific wording"), {
+      code: "SSH_AUTHENTICATION_FAILED",
+    });
+    expect(isMobileSshAuthenticationError(authenticationError)).toBe(true);
+    expect(
+      isMobileSshAuthenticationError(
+        Object.assign(new Error("Permission denied"), { code: "SSH_CONNECT_FAILED" }),
+      ),
+    ).toBe(false);
   });
 
   it("probes a host key without sending credentials", async () => {

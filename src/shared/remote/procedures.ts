@@ -16,6 +16,7 @@ export type RemoteProcedureOwner =
 interface RemoteProcedureSpec {
   readonly scope: RemoteAccessScope;
   readonly owner: RemoteProcedureOwner;
+  readonly timeout?: "long";
 }
 
 function read<const Owner extends RemoteProcedureOwner>(owner: Owner) {
@@ -28,6 +29,10 @@ function operate<const Owner extends RemoteProcedureOwner>(owner: Owner) {
 
 function manageProjects<const Owner extends RemoteProcedureOwner>(owner: Owner) {
   return { scope: "projects:manage" as const, owner };
+}
+
+function longRunning<const Spec extends RemoteProcedureSpec>(spec: Spec) {
+  return { ...spec, timeout: "long" as const };
 }
 
 /**
@@ -59,7 +64,7 @@ export const REMOTE_PROCEDURE_SPECS = {
   probeMcpServer: operate("optionalProjectLocation"),
   getMcpOauthStatus: read("optionalProjectLocation"),
   beginMcpServerOauth: operate("optionalProjectLocation"),
-  waitMcpServerOauth: operate("optionalProjectLocation"),
+  waitMcpServerOauth: longRunning(operate("optionalProjectLocation")),
   clearMcpServerOauth: operate("optionalProjectLocation"),
 
   // Project files
@@ -114,38 +119,38 @@ export const REMOTE_PROCEDURE_SPECS = {
   gitStageAll: operate("projectLocation"),
   gitUnstageAll: operate("projectLocation"),
   gitRevertAll: operate("projectLocation"),
-  gitCommit: operate("projectLocation"),
+  gitCommit: longRunning(operate("projectLocation")),
   gitInit: operate("projectLocation"),
   gitAddRemote: operate("projectLocation"),
-  generateCommitMessage: operate("projectLocation"),
-  generateTitle: operate("projectLocation"),
-  generatePrSummary: operate("projectLocation"),
+  generateCommitMessage: longRunning(operate("projectLocation")),
+  generateTitle: longRunning(operate("projectLocation")),
+  generatePrSummary: longRunning(operate("projectLocation")),
 
   // Sync / branches / worktrees
-  gitFetch: operate("projectLocation"),
-  gitPull: operate("projectLocation"),
-  gitPullRebase: operate("projectLocation"),
-  gitPush: operate("projectLocation"),
-  gitSync: operate("projectLocation"),
-  gitSyncRebase: operate("projectLocation"),
+  gitFetch: longRunning(operate("projectLocation")),
+  gitPull: longRunning(operate("projectLocation")),
+  gitPullRebase: longRunning(operate("projectLocation")),
+  gitPush: longRunning(operate("projectLocation")),
+  gitSync: longRunning(operate("projectLocation")),
+  gitSyncRebase: longRunning(operate("projectLocation")),
   gitSwitchBranch: operate("projectLocation"),
   gitDeleteBranch: operate("projectLocation"),
   gitAddWorktree: operate("projectLocation"),
   gitRemoveWorktree: operate("projectLocation"),
   gitPruneWorktrees: operate("projectLocation"),
-  gitMergeToSource: operate("projectLocation"),
-  gitPullFromSource: operate("worktreeLocation"),
+  gitMergeToSource: longRunning(operate("projectLocation")),
+  gitPullFromSource: longRunning(operate("worktreeLocation")),
   gitAbortMerge: operate("worktreeLocation"),
-  gitFinishMerge: operate("worktreeLocation"),
+  gitFinishMerge: longRunning(operate("worktreeLocation")),
 
   // Pull-request mutations
-  ghCreatePr: operate("projectLocation"),
-  ghMergePr: operate("projectLocation"),
+  ghCreatePr: longRunning(operate("projectLocation")),
+  ghMergePr: longRunning(operate("projectLocation")),
   ghClosePr: operate("projectLocation"),
   ghReopenPr: operate("projectLocation"),
   ghMarkPrReady: operate("projectLocation"),
-  ghSubmitPrReview: operate("projectLocation"),
-  ghUpdatePrBranch: operate("projectLocation"),
+  ghSubmitPrReview: longRunning(operate("projectLocation")),
+  ghUpdatePrBranch: longRunning(operate("projectLocation")),
   ghPostPrComment: operate("projectLocation"),
   ghDispatchWorkflow: operate("projectLocation"),
   ghRerunWorkflowRun: operate("projectLocation"),

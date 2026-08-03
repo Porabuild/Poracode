@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemoteSettings, RemoteSettingsPatch } from "@/shared/remote";
 import type { SharedSettingsInput } from "@/shared/settings";
-import type { RemoteDesktopClient } from "./remoteClient";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 
 // applyDesktopSettings mirrors into the shared store; stub it so these tests
 // exercise only the push-ordering state machine.

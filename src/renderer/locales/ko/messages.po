@@ -612,8 +612,12 @@ msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. 모든 권리 보유."
 
 #: src/renderer/components/find/FindBar.tsx
-msgid "<0/> of <1/>"
-msgstr "<0/> / <1/>"
+msgid "<0/> of {matchCount}"
+msgstr "<0/> / {matchCount}"
+
+#: src/renderer/components/find/FindBar.tsx
+#~ msgid "<0/> of <1/>"
+#~ msgstr "<0/> / <1/>"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
@@ -1310,8 +1314,8 @@ msgid "Archived Threads"
 msgstr "보관된 스레드"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
-msgstr "보관된 스레드는 데스크톱 앱에서 관리됩니다. 이 기기에서 복원하거나 삭제하는 기능은 아직 사용할 수 없습니다."
+#~ msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
+#~ msgstr "보관된 스레드는 데스크톱 앱에서 관리됩니다. 이 기기에서 복원하거나 삭제하는 기능은 아직 사용할 수 없습니다."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -4204,7 +4208,7 @@ msgstr "오류"
 
 #. Notification status: agent error
 #: src/mobile/presentation.ts
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -5758,7 +5762,7 @@ msgstr "패키지 나열"
 msgid "List tasks"
 msgstr "작업 나열"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Live"
 msgstr "실시간"
 
@@ -6824,6 +6828,7 @@ msgstr "설치된 에이전트가 없습니다."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "아직 추적된 AI 커밋, PR, 충돌 해결이 없습니다."
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "보관된 스레드가 없습니다."
@@ -7296,7 +7301,7 @@ msgstr "공식"
 msgid "Official sources only"
 msgstr "공식 소스만"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "오프라인"
@@ -7739,7 +7744,7 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "휴대폰, 태블릿 또는 브라우저를 이 데스크톱과 페어링합니다."
 
 #: src/mobile/components.tsx
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pair again"
 msgstr "다시 페어링"
 
@@ -7751,12 +7756,13 @@ msgstr "Poracode와 페어링"
 msgid "Paired devices"
 msgstr "페어링된 기기"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pairing"
 msgstr "페어링 중"
 
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "페어링이 만료되었습니다. 다시 연결하려면 다시 페어링하세요."
 
@@ -8552,7 +8558,7 @@ msgstr "다시 연결"
 msgid "Reconnect the server to add projects."
 msgstr "프로젝트를 추가하려면 서버에 다시 연결하세요."
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Reconnecting"
 msgstr "다시 연결 중"
 
@@ -8746,12 +8752,16 @@ msgstr "{0} 제거"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-msgid "Remove {0} from panel"
-msgstr "패널에서 {0} 제거"
+#~ msgid "Remove {0} from panel"
+#~ msgstr "패널에서 {0} 제거"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
 msgstr "{pattern} 제거"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Remove {rowTitle} from panel"
+msgstr "패널에서 {rowTitle} 제거"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10387,7 +10397,7 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} 스레드를 시작했습니다."
 
 #. Button label while the microphone test is starting
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx

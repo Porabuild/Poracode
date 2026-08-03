@@ -611,8 +611,12 @@ msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "©{currentYear}セルヒイ・ヴェチェレンコ。無断転載を禁じます。"
 
 #: src/renderer/components/find/FindBar.tsx
-msgid "<0/> of <1/>"
-msgstr "<0/> / <1/>"
+msgid "<0/> of {matchCount}"
+msgstr "<0/> / {matchCount}"
+
+#: src/renderer/components/find/FindBar.tsx
+#~ msgid "<0/> of <1/>"
+#~ msgstr "<0/> / <1/>"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
@@ -1309,8 +1313,8 @@ msgid "Archived Threads"
 msgstr "アーカイブされたスレッド"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
-msgstr "アーカイブ済みスレッドはデスクトップアプリで管理されます。このデバイスからの復元または削除はまだ利用できません。"
+#~ msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
+#~ msgstr "アーカイブ済みスレッドはデスクトップアプリで管理されます。このデバイスからの復元または削除はまだ利用できません。"
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -4203,7 +4207,7 @@ msgstr "エラー"
 
 #. Notification status: agent error
 #: src/mobile/presentation.ts
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -5757,7 +5761,7 @@ msgstr "パッケージを一覧表示"
 msgid "List tasks"
 msgstr "タスクを一覧表示"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Live"
 msgstr "ライブ"
 
@@ -6822,6 +6826,7 @@ msgstr "エージェントがインストールされていません。"
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "AIによるコミット、PR、競合解決はまだ記録されていません。"
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "アーカイブされたスレッドはありません。"
@@ -7294,7 +7299,7 @@ msgstr "公式"
 msgid "Official sources only"
 msgstr "公式ソースのみ"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "オフライン"
@@ -7737,7 +7742,7 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "このデスクトップとスマートフォン、タブレット、またはブラウザをペアリングします。"
 
 #: src/mobile/components.tsx
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pair again"
 msgstr "もう一度ペアリング"
 
@@ -7749,12 +7754,13 @@ msgstr "Poracode とペアリング"
 msgid "Paired devices"
 msgstr "ペアリング済みデバイス"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pairing"
 msgstr "ペアリング中"
 
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "ペアリングの期限が切れました。再接続するにはもう一度ペアリングしてください。"
 
@@ -8550,7 +8556,7 @@ msgstr "再接続"
 msgid "Reconnect the server to add projects."
 msgstr "プロジェクトを追加するにはサーバーに再接続してください。"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Reconnecting"
 msgstr "再接続中"
 
@@ -8744,12 +8750,16 @@ msgstr "{0}を削除"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-msgid "Remove {0} from panel"
-msgstr "{0}をパネルから削除"
+#~ msgid "Remove {0} from panel"
+#~ msgstr "{0}をパネルから削除"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
 msgstr "{pattern}を削除"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Remove {rowTitle} from panel"
+msgstr "{rowTitle}をパネルから削除"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10385,7 +10395,7 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel}スレッドを開始しました"
 
 #. Button label while the microphone test is starting
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx

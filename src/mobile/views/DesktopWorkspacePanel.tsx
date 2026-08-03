@@ -101,7 +101,7 @@ export function DesktopWorkspacePanel(props: {
   const subAgentThreadId = useDesktopPanelStore((state) => state.subAgentThreadId);
   const subAgentParentItemId = useDesktopPanelStore((state) => state.subAgentParentItemId);
   const threadId = storedThreadId ?? currentThreadId;
-  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  const thread = remote.activeThreads.find((entry) => entry.id === threadId) ?? null;
   const project = thread
     ? (remote.projects.find((entry) => entry.id === thread.projectId) ?? null)
     : null;

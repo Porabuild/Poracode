@@ -9,6 +9,7 @@ const toastDanger = vi.hoisted(() => vi.fn<(message: string) => void>());
 
 const bridge = vi.hoisted(() => ({
   browserCreateTab: vi.fn<() => Promise<unknown>>(),
+  browserGetState: vi.fn<() => Promise<unknown>>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -29,6 +30,7 @@ vi.mock("@heroui/react", async (importOriginal) => {
 describe("mobile BrowserView", () => {
   beforeEach(() => {
     bridge.browserCreateTab.mockReset();
+    bridge.browserGetState.mockReset();
     toastDanger.mockClear();
     useBrowserMirrorStore.getState().reset();
     useBrowserMirrorStore.getState().setState({
@@ -44,6 +46,7 @@ describe("mobile BrowserView", () => {
         },
       ],
     });
+    bridge.browserGetState.mockResolvedValue(useBrowserMirrorStore.getState().state);
   });
 
   it("reports failed browser commands instead of silently doing nothing", async () => {
@@ -59,6 +62,7 @@ describe("mobile BrowserView", () => {
   });
 
   it("shows browser unavailability instead of spinning when no state has loaded", () => {
+    bridge.browserGetState.mockReturnValue(new Promise(() => undefined));
     useBrowserMirrorStore.getState().reset();
     useBrowserMirrorStore.getState().setStatus({
       status: "unavailable",

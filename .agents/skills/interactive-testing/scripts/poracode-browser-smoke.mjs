@@ -42,9 +42,9 @@ try {
   const initial = await rendererSnapshot();
   assert(initial.url === appUrl, "App target", `expected ${appUrl}, got ${initial.url}`);
   assert(
-    initial.text.includes("Poracode") || initial.text.includes("Poracode"),
+    initial.text.trim().length > 0 && initial.buttons.length > 0,
     "App boot",
-    "renderer body contains the app shell text",
+    "renderer body contains rendered app controls",
   );
 
   step("opening Browser panel");

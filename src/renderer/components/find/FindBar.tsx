@@ -44,15 +44,15 @@ export const FindBar = forwardRef<HTMLInputElement, FindBarProps>(function FindB
 ) {
   const { t } = useLingui();
   const hasQuery = query.length > 0;
-  // The position rolls as you step through matches and the total rolls as you
-  // type, both without the counter leaving its reserved slot.
+  // The position rolls as you step through matches; the result total stays
+  // still so typing does not animate both sides of the label.
   const counter = !hasQuery ? (
     ""
   ) : matchCount === 0 ? (
     t`No results`
   ) : (
     <Trans>
-      <AnimatedNumber value={currentIndex + 1} /> of <AnimatedNumber value={matchCount} />
+      <AnimatedNumber value={currentIndex + 1} /> of {matchCount}
     </Trans>
   );
 

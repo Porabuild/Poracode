@@ -5,8 +5,8 @@ import {
   setBrowserWebPushActive,
 } from "@/renderer/browserNotificationPermission";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { RemoteDesktopClient } from "../remoteClient";
 import { isNativeApp } from "../pwaInstall";
+import { createBackgroundRemoteClient } from "../remoteSessionTransport";
 import { getOrCreateDeviceId } from "../storage";
 import { configureLiveActivities } from "./liveActivityController";
 import { syncPushRegistration, teardownPushListeners, unregisterPush } from "./pushRegistration";
@@ -115,7 +115,7 @@ export function usePushLifecycle(input: PushLifecycleInput): void {
   useEffect(() => {
     if (!isNativeApp() || !desktopId || !endpoint || !accessToken) return;
     let cancelled = false;
-    const client = new RemoteDesktopClient(endpoint, accessToken);
+    const client = createBackgroundRemoteClient(endpoint, accessToken);
     void (async () => {
       if (!notificationsEnabled) {
         await teardownPushListeners({ resetSentState: true });
@@ -140,7 +140,7 @@ export function usePushLifecycle(input: PushLifecycleInput): void {
   useEffect(() => {
     if (isNativeApp() || !desktopId || !endpoint || !accessToken) return;
     let cancelled = false;
-    const client = new RemoteDesktopClient(endpoint, accessToken);
+    const client = createBackgroundRemoteClient(endpoint, accessToken);
     void (async () => {
       const deviceId = await getOrCreateDeviceId();
       if (cancelled) return;

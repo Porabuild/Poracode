@@ -810,6 +810,8 @@ export const remoteBrowserMirrorStatusSchema = z.object({
 });
 export type RemoteBrowserMirrorStatus = z.infer<typeof remoteBrowserMirrorStatusSchema>;
 
+export const remoteThreadItemInterestsSchema = z.array(z.string().min(1)).max(200);
+
 export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("ping"),
@@ -847,7 +849,7 @@ export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
    */
   z.object({
     type: z.literal("thread-item-interests"),
-    threadIds: z.array(z.string().min(1)).max(200),
+    threadIds: remoteThreadItemInterestsSchema,
   }),
 ]);
 export type RemoteWebSocketClientMessage = z.infer<typeof remoteWebSocketClientMessageSchema>;

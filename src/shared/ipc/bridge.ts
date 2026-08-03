@@ -82,12 +82,21 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
 export function createInvokeBridge(
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>,
 ): PoracodeInvokeBridge {
+  return createProcedureBridge((name, args) => {
+    const procedure = ipcProcedureMap[name];
+    return invoke(procedure.channel, ...args);
+  });
+}
+
+/** Builds every typed procedure method while preserving its canonical name. */
+export function createProcedureBridge(
+  invoke: (name: IpcProcedureName, args: unknown[]) => Promise<unknown>,
+): PoracodeInvokeBridge {
   const bridge = {} as PoracodeInvokeBridge;
   const names = Object.keys(ipcProcedureMap) as IpcProcedureName[];
   for (const name of names) {
-    const procedure = ipcProcedureMap[name];
     (bridge as Record<IpcProcedureName, unknown>)[name] = (...args: unknown[]) =>
-      invoke(procedure.channel, ...args);
+      invoke(name, args);
   }
   return bridge;
 }

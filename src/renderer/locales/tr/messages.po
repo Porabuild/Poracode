@@ -612,8 +612,12 @@ msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Tüm hakları saklıdır."
 
 #: src/renderer/components/find/FindBar.tsx
-msgid "<0/> of <1/>"
-msgstr "<0/> / <1/>"
+msgid "<0/> of {matchCount}"
+msgstr "<0/> / {matchCount}"
+
+#: src/renderer/components/find/FindBar.tsx
+#~ msgid "<0/> of <1/>"
+#~ msgstr "<0/> / <1/>"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
@@ -1310,8 +1314,8 @@ msgid "Archived Threads"
 msgstr "Arşivlenmiş İleti Dizileri"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
-msgstr "Arşivlenmiş konular masaüstü uygulamasından yönetilir. Bu cihazdan geri yükleme veya silme henüz kullanılamıyor."
+#~ msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
+#~ msgstr "Arşivlenmiş konular masaüstü uygulamasından yönetilir. Bu cihazdan geri yükleme veya silme henüz kullanılamıyor."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -4204,7 +4208,7 @@ msgstr "hata"
 
 #. Notification status: agent error
 #: src/mobile/presentation.ts
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -5758,7 +5762,7 @@ msgstr "Paketleri listele"
 msgid "List tasks"
 msgstr "Görevleri listele"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Live"
 msgstr "Canlı"
 
@@ -6824,6 +6828,7 @@ msgstr "Hiçbir aracı yüklü değil."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Henüz yapay zeka commit'leri, PR'ları veya çakışma çözümleri izlenmedi."
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "Arşivlenmiş konu yok."
@@ -7296,7 +7301,7 @@ msgstr "Resmî"
 msgid "Official sources only"
 msgstr "Yalnızca resmî kaynaklar"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "Çevrimdışı"
@@ -7739,7 +7744,7 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
 
 #: src/mobile/components.tsx
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pair again"
 msgstr "Tekrar eşleştir"
 
@@ -7751,12 +7756,13 @@ msgstr "Poracode ile eşleştir"
 msgid "Paired devices"
 msgstr "Eşleştirilmiş cihazlar"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pairing"
 msgstr "Eşleştiriliyor"
 
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Eşleştirme süresi doldu — yeniden bağlanmak için tekrar eşleştirin."
 
@@ -8552,7 +8558,7 @@ msgstr "Yeniden bağlan"
 msgid "Reconnect the server to add projects."
 msgstr "Proje eklemek için sunucuya yeniden bağlanın."
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Reconnecting"
 msgstr "Yeniden bağlanıyor"
 
@@ -8746,12 +8752,16 @@ msgstr "{0} öğesini kaldır"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-msgid "Remove {0} from panel"
-msgstr "{0} öğesini panelden kaldırın"
+#~ msgid "Remove {0} from panel"
+#~ msgstr "{0} öğesini panelden kaldırın"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
 msgstr "{pattern} öğesini kaldır"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Remove {rowTitle} from panel"
+msgstr "{rowTitle} öğesini panelden kaldırın"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10387,7 +10397,7 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} iş parçacığı başlatıldı"
 
 #. Button label while the microphone test is starting
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx

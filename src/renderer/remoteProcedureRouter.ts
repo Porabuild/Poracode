@@ -1,18 +1,13 @@
-import type {
-  ControlThreadGoalPayload,
-  ProjectLocation,
-  ProjectNotes,
-  PrWatchInput,
-  PrWatchKey,
-  ResolveThreadServerRequestPayload,
-  SendThreadInputPayload,
-  SetPendingSteerPayload,
-  StartShellPayload,
-} from "@/shared/contracts";
+import type { ProjectLocation, StartShellPayload } from "@/shared/contracts";
 import type { IpcProcedureName, IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 import { msg } from "@/shared/messages";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
-import type { RemoteProcedureOwner } from "@/shared/remote/procedures";
+import {
+  invokeRemoteIpcProcedure,
+  RemoteTerminalOwnership,
+  type RemoteIpcAdapterProcedureName,
+  type RemoteProcedureOwner,
+} from "@/shared/remote";
 import { isProjectedRemoteEntityId } from "@/renderer/state/remoteProjection";
 import {
   isRemoteRoutableProcedure,
@@ -47,7 +42,7 @@ export type RemoteRouteDecision<Result = unknown> =
   | { readonly kind: "remote"; readonly result: Promise<Result> };
 
 let host: RemoteProcedureHost | undefined;
-const remoteTerminalOwners = new Map<string, string>();
+const remoteTerminals = new RemoteTerminalOwnership<string>();
 const REMOTE_LOCATION_KEYS = [
   "projectLocation",
   "worktreeLocation",
@@ -63,21 +58,19 @@ export function registerRemoteProcedureHost(next: RemoteProcedureHost | undefine
 }
 
 export function remoteTerminalOwner(terminalId: string): string | undefined {
-  return remoteTerminalOwners.get(terminalId);
+  return remoteTerminals.owner(terminalId);
 }
 
 export function releaseRemoteTerminal(terminalId: string): void {
-  remoteTerminalOwners.delete(terminalId);
+  remoteTerminals.release(terminalId);
 }
 
 export function releaseRemoteTerminalsForServer(desktopId: string): void {
-  for (const [terminalId, owner] of remoteTerminalOwners) {
-    if (owner === desktopId) remoteTerminalOwners.delete(terminalId);
-  }
+  remoteTerminals.releaseOwnedBy(desktopId);
 }
 
 export function resetRemoteProcedureRouterForTest(): void {
-  remoteTerminalOwners.clear();
+  remoteTerminals.clear();
 }
 
 export function unprojectProjectLocation(location: ProjectLocation): ProjectLocation {
@@ -144,34 +137,12 @@ async function invokeRemoteProcedure(
       return client.callRemoteProcedure(procedure, route.payload);
     case "noop":
       return undefined;
-    case "project-notes-read":
-      return client.projectNotes(String(route.payload.projectId));
-    case "project-notes-write":
-      return client.setProjectNotes(route.payload as unknown as ProjectNotes);
-    case "pr-watch-read":
-      return client.getPrWatch(route.payload as unknown as PrWatchKey);
-    case "pr-watch-check":
-      return client.checkPrWatch(route.payload as unknown as PrWatchKey);
-    case "pr-watch-upsert":
-      return client.upsertPrWatch(route.payload as unknown as PrWatchInput);
-    case "pr-watch-delete":
-      return client.deletePrWatch(route.payload as unknown as PrWatchKey);
-    case "runtime-items-page":
-      return client.threadRuntimeItemsPage(
-        route.payload as unknown as Parameters<RemoteDesktopClient["threadRuntimeItemsPage"]>[0],
+    case "adapter":
+      return invokeRemoteIpcProcedure(
+        client,
+        procedure as RemoteIpcAdapterProcedureName,
+        route.payload,
       );
-    case "thread-input":
-      return client.sendThreadInput(route.payload as unknown as SendThreadInputPayload);
-    case "thread-interrupt":
-      return client.interruptThread(String(route.payload.threadId));
-    case "thread-goal":
-      return client.controlThreadGoal(route.payload as unknown as ControlThreadGoalPayload);
-    case "thread-steer-set":
-      return client.setPendingSteer(route.payload as unknown as SetPendingSteerPayload);
-    case "thread-steer-clear":
-      return client.clearPendingSteer(String(route.payload.threadId));
-    case "thread-request-resolve":
-      return client.resolveRequest(route.payload as unknown as ResolveThreadServerRequestPayload);
     case "thread-clipboard-image": {
       const input = route.payload as IpcProcedurePayload<"saveClipboardImage">;
       return client.uploadAttachment({
@@ -190,39 +161,18 @@ async function invokeRemoteProcedure(
     }
     case "shell-start": {
       const input = route.payload as unknown as StartShellPayload;
-      remoteTerminalOwners.set(input.shellId, route.desktopId);
-      try {
-        return await client.startShell(input);
-      } catch (error) {
-        remoteTerminalOwners.delete(input.shellId);
-        throw error;
-      }
+      return remoteTerminals.start(input.shellId, route.desktopId, () => client.startShell(input));
     }
     case "shell-close":
       if (!route.terminalId) return undefined;
       if (route.terminalKind === "thread") {
         return client.closeThread(route.terminalId);
       }
-      try {
-        return await client.closeShell({ threadId: route.terminalId });
-      } finally {
-        remoteTerminalOwners.delete(route.terminalId);
-      }
-    case "terminal-write":
-      return route.terminalId
-        ? client.writeTerminal({
-            threadId: route.terminalId,
-            data: String(route.payload.data ?? ""),
-          })
-        : undefined;
-    case "terminal-resize":
-      return route.terminalId
-        ? client.resizeTerminal({
-            threadId: route.terminalId,
-            cols: Number(route.payload.cols),
-            rows: Number(route.payload.rows),
-          })
-        : undefined;
+      const terminalId = route.terminalId;
+      const closed = await remoteTerminals.close(terminalId, () =>
+        client.closeShell({ threadId: terminalId }),
+      );
+      return closed.routed ? closed.result : undefined;
   }
 }
 
@@ -253,12 +203,12 @@ function resolveRemoteRoute(
       ? "projectLocation"
       : strategy;
   const location = projectLocation(input[key]);
-  const owners = remoteLocationOwners(input);
+  const locations = analyzeRemoteLocations(input);
   if (!location?.remoteServerId) {
-    if (owners.size > 0) throw new Error(msg("remote.server.unreachable"));
+    if (locations.owners.size > 0) throw new Error(msg("remote.server.unreachable"));
     return undefined;
   }
-  assertSingleOwner(input, owners, location.remoteServerId);
+  assertSingleOwner(locations, location.remoteServerId);
   return {
     desktopId: location.remoteServerId,
     payload: unprojectRemotePayload(input) as Record<string, unknown>,
@@ -270,21 +220,21 @@ function resolveThreadRoute(
   remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
   if (typeof input.threadId !== "string") return undefined;
-  const owners = remoteLocationOwners(input);
+  const locations = analyzeRemoteLocations(input);
   if (!remoteHost) {
-    if (isProjectedRemoteEntityId(input.threadId, "thread") || owners.size > 0) {
+    if (isProjectedRemoteEntityId(input.threadId, "thread") || locations.owners.size > 0) {
       throw new Error(msg("remote.server.unreachable"));
     }
     return undefined;
   }
   const owner = remoteHost.resolveThreadOwner(input.threadId);
   if (!owner) {
-    if (isProjectedRemoteEntityId(input.threadId, "thread") || owners.size > 0) {
+    if (isProjectedRemoteEntityId(input.threadId, "thread") || locations.owners.size > 0) {
       throw new Error(msg("remote.server.unreachable"));
     }
     return undefined;
   }
-  assertSingleOwner(input, owners, owner.desktopId);
+  assertSingleOwner(locations, owner.desktopId);
   return {
     desktopId: owner.desktopId,
     payload: {
@@ -299,21 +249,21 @@ function resolveProjectRoute(
   remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
   if (typeof input.projectId !== "string") return undefined;
-  const owners = remoteLocationOwners(input);
+  const locations = analyzeRemoteLocations(input);
   if (!remoteHost) {
-    if (isProjectedRemoteEntityId(input.projectId, "project") || owners.size > 0) {
+    if (isProjectedRemoteEntityId(input.projectId, "project") || locations.owners.size > 0) {
       throw new Error(msg("remote.server.unreachable"));
     }
     return undefined;
   }
   const owner = remoteHost.resolveProjectOwner(input.projectId);
   if (!owner) {
-    if (isProjectedRemoteEntityId(input.projectId, "project") || owners.size > 0) {
+    if (isProjectedRemoteEntityId(input.projectId, "project") || locations.owners.size > 0) {
       throw new Error(msg("remote.server.unreachable"));
     }
     return undefined;
   }
-  assertSingleOwner(input, owners, owner.desktopId);
+  assertSingleOwner(locations, owner.desktopId);
   return {
     desktopId: owner.desktopId,
     projectedProjectId: input.projectId,
@@ -335,7 +285,7 @@ function resolveTerminalRoute(
         ? input.threadId
         : undefined;
   if (!terminalId) return undefined;
-  const shellDesktopId = remoteTerminalOwners.get(terminalId);
+  const shellDesktopId = remoteTerminals.owner(terminalId);
   if (shellDesktopId) {
     return {
       desktopId: shellDesktopId,
@@ -372,10 +322,10 @@ function resolveSkillLocationsOwner(
   input: Record<string, unknown>,
 ): ResolvedRemoteRoute | undefined {
   if (!Array.isArray(input.skills)) return undefined;
-  const owners = remoteLocationOwners(input);
-  if (owners.size === 0) return undefined;
-  assertSingleOwner(input, owners);
-  const desktopId = [...owners][0]!;
+  const locations = analyzeRemoteLocations(input);
+  if (locations.owners.size === 0) return undefined;
+  assertSingleOwner(locations);
+  const desktopId = [...locations.owners][0]!;
   if (!skillLocationsBelongToHost(input, desktopId)) {
     throw new Error(msg("remote.server.unreachable"));
   }
@@ -397,48 +347,38 @@ function skillLocationsBelongToHost(input: Record<string, unknown>, desktopId: s
   });
 }
 
-function remoteLocationOwners(input: Record<string, unknown>): Set<string> {
-  const owners = new Set<string>();
+interface RemoteLocationAnalysis {
+  readonly owners: Set<string>;
+  hasLocal: boolean;
+}
+
+function analyzeRemoteLocations(
+  input: Record<string, unknown>,
+  analysis: RemoteLocationAnalysis = { owners: new Set(), hasLocal: false },
+): RemoteLocationAnalysis {
   for (const key of REMOTE_LOCATION_KEYS) {
-    const owner = projectLocation(input[key])?.remoteServerId;
-    if (owner) owners.add(owner);
+    const location = projectLocation(input[key]);
+    if (!location) continue;
+    if (location.remoteServerId) analysis.owners.add(location.remoteServerId);
+    else analysis.hasLocal = true;
   }
   if (Array.isArray(input.skills)) {
     for (const skill of input.skills) {
       if (!skill || typeof skill !== "object" || Array.isArray(skill)) continue;
-      for (const owner of remoteLocationOwners(skill as Record<string, unknown>)) owners.add(owner);
+      analyzeRemoteLocations(skill as Record<string, unknown>, analysis);
     }
   }
-  return owners;
+  return analysis;
 }
 
-function assertSingleOwner(
-  input: Record<string, unknown>,
-  owners: Set<string>,
-  expected?: string,
-): void {
+function assertSingleOwner(locations: RemoteLocationAnalysis, expected?: string): void {
   if (
-    hasLocalLocation(input) ||
-    owners.size > 1 ||
-    (expected && owners.size === 1 && !owners.has(expected))
+    locations.hasLocal ||
+    locations.owners.size > 1 ||
+    (expected && locations.owners.size === 1 && !locations.owners.has(expected))
   ) {
     throw new Error(msg("remote.server.unreachable"));
   }
-}
-
-function hasLocalLocation(input: Record<string, unknown>): boolean {
-  for (const key of REMOTE_LOCATION_KEYS) {
-    const location = projectLocation(input[key]);
-    if (location && !location.remoteServerId) return true;
-  }
-  if (!Array.isArray(input.skills)) return false;
-  return input.skills.some(
-    (skill) =>
-      skill !== null &&
-      typeof skill === "object" &&
-      !Array.isArray(skill) &&
-      hasLocalLocation(skill as Record<string, unknown>),
-  );
 }
 
 function projectLocation(value: unknown): ProjectLocation | undefined {

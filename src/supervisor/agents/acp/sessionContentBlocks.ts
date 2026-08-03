@@ -32,8 +32,7 @@ export async function segmentsToContentBlocks(
         } catch {
           // Fall back to resource link if the image bytes can't be read
           // (permission / size / missing). Capability-gating is intentionally
-          // skipped — matches t3code's Cursor adapter which sends image
-          // blocks unconditionally; ACP agents that don't accept images
+          // skipped; ACP agents that don't accept images
           // should reject the prompt rather than silently dropping content.
           blocks.push({
             type: "resource_link",

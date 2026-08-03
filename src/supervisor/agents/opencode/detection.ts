@@ -614,8 +614,7 @@ export function buildCapabilityPartialFromSdkInventory(
   for (const provider of inventory.providers) {
     // OpenCode reports both authenticated and pseudo "available" providers in
     // `all`. The renderer's picker should only show models the user can
-    // actually call right now, so filter to the `connected` set — same gate
-    // t3code applies to its model list.
+    // actually call right now, so filter to the `connected` set.
     if (!connected.has(provider.id)) continue;
     subProviderIds.add(provider.id);
     for (const model of provider.models) {

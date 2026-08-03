@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemotePushRegistration } from "@/shared/remote";
-import type { RemoteDesktopClient } from "../remoteClient";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { syncWebPushRegistration, unregisterWebPush } from "./webPushRegistration";
 
 vi.mock("../pwaInstall", () => ({ isStandaloneDisplay: () => true }));

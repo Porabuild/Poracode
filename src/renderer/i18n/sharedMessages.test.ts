@@ -31,6 +31,9 @@ describe("shared message i18n integration", () => {
     expect(msg("update.serviceUnavailable")).toBe(
       "El servicio de actualizaciones no está disponible temporalmente.",
     );
+    expect(msg("remote.session.expired")).toBe(
+      "El emparejamiento caducó: empareja de nuevo para reconectar.",
+    );
   });
 
   it("preserves a leading placeholder + newline through translation", async () => {

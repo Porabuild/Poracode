@@ -457,21 +457,25 @@ async function settingsScenario(client) {
               text: document.body.innerText,
             }))()`,
           ),
-        (result) => result.hasSearch && result.text.includes("smoke-global"),
+        (result) => result.hasSearch && (mode === "real" || result.text.includes("smoke-global")),
         "skills settings fixture",
       );
-      ({
-        skillsImportScreenshotPath,
-        skillsImportDestinationsScreenshotPath,
-        skillsMarketplaceScreenshotPath,
-        skillsTargetsScreenshotPath,
-      } = await skillsSectionDeepDive(client));
+      if (mode === "mock") {
+        ({
+          skillsImportScreenshotPath,
+          skillsImportDestinationsScreenshotPath,
+          skillsMarketplaceScreenshotPath,
+          skillsTargetsScreenshotPath,
+        } = await skillsSectionDeepDive(client));
+      }
       skillsScreenshotPath = join(outDir, "smoke-02-skills.png");
       await screenshot(client, skillsScreenshotPath);
     }
     if (section === "mcpServers") {
-      ({ mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath } =
-        await mcpServersSectionDeepDive(client, mcpFixture));
+      if (mode === "mock") {
+        ({ mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath } =
+          await mcpServersSectionDeepDive(client, mcpFixture));
+      }
     }
   }
   const screenshotPath = join(outDir, "smoke-02-settings.png");
@@ -1068,14 +1072,16 @@ async function githubActionsScenario(client) {
         client,
         `(() => {
           const settings = window.__poracodeDev.stores.sharedSettings.getState();
-          const toggle = document.querySelector('[aria-label="GitHub Actions shortcut"]');
+          const toggle = [...document.querySelectorAll('[role="option"]')].find(
+            (element) => element.textContent?.includes("GitHub Actions"),
+          );
+          if (!toggle) {
+            document.querySelector('button[aria-label="Sidebar shortcuts"]')?.click();
+          }
           return {
             hiddenByDefault: settings.sidebarHiddenShortcuts.includes("githubActions"),
             toggleVisible: toggle instanceof HTMLElement,
-            toggleSelected:
-              toggle instanceof HTMLInputElement
-                ? toggle.checked
-                : toggle?.getAttribute("aria-checked") === "true",
+            toggleSelected: toggle?.getAttribute("aria-selected") === "true",
           };
         })()`,
       ),

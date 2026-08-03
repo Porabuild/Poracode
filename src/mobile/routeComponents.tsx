@@ -31,7 +31,7 @@ import {
   parsePairingUrl,
   subscribePairingLaunch,
 } from "./pairing";
-import { RemoteClientError } from "./remoteClient";
+import { RemoteClientError } from "@/shared/remote/client";
 import { MobileSetupEmptyState, type MobileSetupKind } from "./setupEmptyState";
 import { isDesktopSettingsSection } from "./settingsSections";
 import type { MobileSshPairRequest } from "./views/DesktopsView";
@@ -206,7 +206,7 @@ export function ThreadsRoute() {
     <>
       <ThreadsView
         projects={remote.projects}
-        threads={remote.threads}
+        threads={remote.activeThreads}
         selectedThreadId={null}
         projectFilter={projectFilter}
         loading={!remote.booted}
@@ -280,7 +280,7 @@ export function ThreadRoute() {
   // Opening (store watch + snapshot load) is owned by ThreadDetail's effect: it
   // also covers the fallback-selected thread on reloads, which a check against
   // remote.selectedThread here would wrongly consider already open.
-  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  const thread = remote.activeThreads.find((entry) => entry.id === threadId) ?? null;
   if (!isWide && narrowShellOwnsThread) return null;
   return <ThreadDetail thread={thread} hideHeader={!isWide} />;
 }
@@ -291,7 +291,7 @@ export function SubAgentRoute() {
   const remote = useRemote();
   const navigate = useNavigate();
   const useRightPanel = useMediaQuery(DESKTOP_RIGHT_PANEL_QUERY);
-  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  const thread = remote.activeThreads.find((entry) => entry.id === threadId) ?? null;
   const project = thread
     ? (remote.projects.find((entry) => entry.id === thread.projectId) ?? null)
     : null;
@@ -571,7 +571,7 @@ function SettingsRoute(props: { readonly sectionId: string | null }) {
   return (
     <LazyRoute>
       <SettingsView
-        threads={remote.threads}
+        archivedThreads={remote.archivedThreads}
         projects={remote.projects}
         sectionId={props.sectionId}
         onSectionChange={(section) => {
@@ -606,7 +606,7 @@ export function WorkspaceRoute() {
   const isWide = useMediaQuery(WIDE_SHELL_QUERY);
   const useRightPanel = useMediaQuery(DESKTOP_RIGHT_PANEL_QUERY);
   const { t } = useLingui();
-  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  const thread = remote.activeThreads.find((entry) => entry.id === threadId) ?? null;
   const project = thread
     ? (remote.projects.find((entry) => entry.id === thread.projectId) ?? null)
     : null;
@@ -656,7 +656,7 @@ export function WorkspaceRoute() {
         {...(line ? { initialLineNumber: line } : {})}
         onClose={() => void navigate({ to: "/thread/$threadId", params: { threadId } })}
         onOpenWorktreeBranch={({ worktreePath, worktreeBranch }) => {
-          const worktreeThread = remote.threads.find(
+          const worktreeThread = remote.activeThreads.find(
             (entry) =>
               entry.projectId === filesTarget.project.id && entry.worktreePath === worktreePath,
           );
@@ -705,7 +705,7 @@ export function NotesRoute() {
   const remote = useRemote();
   const navigate = useNavigate();
   const useRightPanel = useMediaQuery(DESKTOP_RIGHT_PANEL_QUERY);
-  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  const thread = remote.activeThreads.find((entry) => entry.id === threadId) ?? null;
   const project = thread
     ? (remote.projects.find((entry) => entry.id === thread.projectId) ?? null)
     : null;
@@ -752,7 +752,7 @@ export function TerminalRoute() {
   const navigate = useNavigate();
   const project = remote.projects.find((entry) => entry.id === projectId);
   const sourceThread = fromThread
-    ? remote.threads.find((entry) => entry.id === fromThread)
+    ? remote.activeThreads.find((entry) => entry.id === fromThread)
     : undefined;
   const hasProject = Boolean(project);
 

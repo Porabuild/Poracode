@@ -612,8 +612,12 @@ msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Все права защищены."
 
 #: src/renderer/components/find/FindBar.tsx
-msgid "<0/> of <1/>"
-msgstr "<0/> из <1/>"
+msgid "<0/> of {matchCount}"
+msgstr "<0/> из {matchCount}"
+
+#: src/renderer/components/find/FindBar.tsx
+#~ msgid "<0/> of <1/>"
+#~ msgstr "<0/> из <1/>"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
@@ -1310,8 +1314,8 @@ msgid "Archived Threads"
 msgstr "Архив тредов"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
-msgstr "Архивные треды управляются из настольного приложения. Восстановление или удаление с этого устройства пока недоступно."
+#~ msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
+#~ msgstr "Архивные треды управляются из настольного приложения. Восстановление или удаление с этого устройства пока недоступно."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -4204,7 +4208,7 @@ msgstr "ошибка"
 
 #. Notification status: agent error
 #: src/mobile/presentation.ts
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -5758,7 +5762,7 @@ msgstr "Список пакетов"
 msgid "List tasks"
 msgstr "Список задач"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Live"
 msgstr "Онлайн"
 
@@ -6824,6 +6828,7 @@ msgstr "Нет установленных агентов."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Пока нет отслеженных коммитов, PR или разрешений конфликтов от ИИ."
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "Нет архивированных тредов."
@@ -7296,7 +7301,7 @@ msgstr "Официальный"
 msgid "Official sources only"
 msgstr "Только официальные источники"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "Офлайн"
@@ -7739,7 +7744,7 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Сопрягите телефон, планшет или браузер с этим рабочим столом."
 
 #: src/mobile/components.tsx
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pair again"
 msgstr "Связать снова"
 
@@ -7751,12 +7756,13 @@ msgstr "Связать с Poracode"
 msgid "Paired devices"
 msgstr "Сопряженные устройства"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pairing"
 msgstr "Связывание"
 
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Связывание истекло — свяжите снова, чтобы подключиться."
 
@@ -8552,7 +8558,7 @@ msgstr "Переподключить"
 msgid "Reconnect the server to add projects."
 msgstr "Переподключите сервер, чтобы добавлять проекты."
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Reconnecting"
 msgstr "Переподключение"
 
@@ -8746,12 +8752,16 @@ msgstr "Удалить {0}"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-msgid "Remove {0} from panel"
-msgstr "Удалить {0} с панели"
+#~ msgid "Remove {0} from panel"
+#~ msgstr "Удалить {0} с панели"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
 msgstr "Удалить {pattern}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Remove {rowTitle} from panel"
+msgstr "Удалить {rowTitle} с панели"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10387,7 +10397,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Тред {targetLabel} запущен"
 
 #. Button label while the microphone test is starting
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx

@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Profile & usage-statistics contracts.
  *
- * These power the Profile page (a Codex/Synara-style identity + usage dashboard)
+ * These power the Profile page (an identity and usage dashboard)
  * and are deliberately shaped to survive the jump from LOCAL-only aggregation to
  * the future Poracode Cloud, where the same stats are synced and merged across
  * a user's devices.

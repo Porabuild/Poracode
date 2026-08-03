@@ -414,9 +414,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * Dump the OpenCode server's view of this thread's messages. Mirrors
-   * t3code's `readThread`: `session.messages` returns every message in the
-   * session (both roles), each with its parts (text / tool / reasoning) and
+   * Dump the OpenCode server's view of this thread's messages. `session.messages`
+   * returns every message in the session (both roles), each with its parts (text / tool / reasoning) and
    * `info` metadata (token counts, role, time fields). Consumers can replay
    * the result through the canonical mapper, or use it for a "regenerate
    * from turn X" UI.

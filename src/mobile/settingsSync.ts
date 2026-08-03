@@ -1,11 +1,11 @@
 import { applyExternalSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   REMOTE_SETTINGS_KEYS,
+  type RemoteSettingsClient,
   type RemoteSettings,
   type RemoteSettingsPatch,
 } from "@/shared/remote";
 import type { SharedSettingsInput } from "@/shared/settings";
-import type { RemoteDesktopClient } from "./remoteClient";
 
 /**
  * Two-way sync for the desktop's remote-editable settings (AI helpers,
@@ -55,7 +55,7 @@ export function resetDesktopSettings(): void {
 /** Forwards changed remote-editable keys to the desktop. No-op until the
  * desktop's settings have been hydrated, so local defaults never clobber it. */
 export function pushDesktopSettingsDiff(
-  client: RemoteDesktopClient | null,
+  client: RemoteSettingsClient | null,
   settings: SharedSettingsInput,
 ): void {
   const synced = desktopSettings;

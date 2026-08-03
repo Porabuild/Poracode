@@ -37,7 +37,7 @@ export function ThreadDetail(props: {
     const watched = state.view.kind === "thread" && state.view.panes.includes(threadId);
     const hasSnapshot = remote.selectedThreadSnapshot?.thread.id === threadId;
     if (watched && hasSnapshot) return;
-    const target = remote.threads.find((entry) => entry.id === threadId);
+    const target = remote.activeThreads.find((entry) => entry.id === threadId);
     if (target) void remote.openThread(target);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on displayed thread + desktop; openThread deduplicates the racing click path
   }, [threadId, activeDesktopId]);

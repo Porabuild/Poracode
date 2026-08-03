@@ -115,7 +115,7 @@ const thread = {
 
 const remote = {
   projects: [project],
-  threads: [thread],
+  activeThreads: [thread],
   activeDesktop: { desktopId: "desktop-1" },
   startThread: vi.fn<(project: Project, input: unknown) => Promise<string | null>>(),
 } as unknown as RemoteDesktopSession;
@@ -209,7 +209,7 @@ describe("DesktopWorkspacePanel", () => {
 
     rerender(
       <DesktopWorkspacePanel
-        remote={{ ...remote, threads: [{ ...thread, title: "Updated" }] }}
+        remote={{ ...remote, activeThreads: [{ ...thread, title: "Updated" }] }}
         currentThreadId={thread.id}
       />,
     );
@@ -233,7 +233,7 @@ describe("DesktopWorkspacePanel", () => {
 
     rerender(
       <DesktopWorkspacePanel
-        remote={{ ...remote, threads: [{ ...thread, title: "Updated" }] }}
+        remote={{ ...remote, activeThreads: [{ ...thread, title: "Updated" }] }}
         currentThreadId={thread.id}
       />,
     );

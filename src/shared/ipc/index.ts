@@ -12,6 +12,7 @@ export {
 } from "./procedureMap";
 export {
   createInvokeBridge,
+  createProcedureBridge,
   defineMainLocalIpcHandlers,
   defineSupervisorIpcHandlers,
   IPC_EVENT_CHANNELS,

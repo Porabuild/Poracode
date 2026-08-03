@@ -184,7 +184,7 @@ export function runThreadAction(
  * when the thread or its project is not loaded yet.
  */
 export function buildGitTarget(remote: RemoteSession, threadId: string): GitTarget | null {
-  const thread = remote.threads.find((entry) => entry.id === threadId);
+  const thread = remote.activeThreads.find((entry) => entry.id === threadId);
   if (!thread) return null;
   const project = remote.projects.find((entry) => entry.id === thread.projectId);
   if (!project) return null;
@@ -205,7 +205,7 @@ export function buildGitTarget(remote: RemoteSession, threadId: string): GitTarg
 
 /** Resolve the project/worktree root the file tree should browse for a thread. */
 export function buildFilesTarget(remote: RemoteSession, threadId: string): FilesTarget | null {
-  const thread = remote.threads.find((entry) => entry.id === threadId);
+  const thread = remote.activeThreads.find((entry) => entry.id === threadId);
   if (!thread) return null;
   const project = remote.projects.find((entry) => entry.id === thread.projectId);
   if (!project) return null;

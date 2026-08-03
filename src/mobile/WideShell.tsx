@@ -217,7 +217,7 @@ export function WideShell(props: {
         <div className="m-sidebar__scroll">
           <ThreadsView
             projects={remote.projects}
-            threads={remote.threads}
+            threads={remote.activeThreads}
             selectedThreadId={selectedThreadId}
             projectFilter={projectFilter}
             loading={!remote.booted}

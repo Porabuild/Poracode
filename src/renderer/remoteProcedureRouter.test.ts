@@ -99,6 +99,9 @@ describe("remote procedure routing registry", () => {
   const setPendingSteer = vi.fn<RemoteDesktopClient["setPendingSteer"]>(async () => {});
   const clearPendingSteer = vi.fn<RemoteDesktopClient["clearPendingSteer"]>(async () => {});
   const resolveRequest = vi.fn<RemoteDesktopClient["resolveRequest"]>(async () => {});
+  const truncateThreadRuntimeAfter = vi.fn<RemoteDesktopClient["truncateThreadRuntimeAfter"]>(
+    async () => {},
+  );
   const uploadAttachment = vi.fn<RemoteDesktopClient["uploadAttachment"]>(
     async () => "/remote/attachment",
   );
@@ -116,6 +119,7 @@ describe("remote procedure routing registry", () => {
     setPendingSteer,
     clearPendingSteer,
     resolveRequest,
+    truncateThreadRuntimeAfter,
     uploadAttachment,
     startShell,
     closeShell,
@@ -138,6 +142,21 @@ describe("remote procedure routing registry", () => {
     vi.clearAllMocks();
     resetRemoteProcedureRouterForTest();
     registerRemoteProcedureHost(host);
+  });
+
+  it("persists remote runtime truncation on the authoritative host", async () => {
+    await remoteResult(
+      decide("dbTruncateThreadRuntimeAfter", {
+        threadId: "projected-thread",
+        itemId: "item-2",
+      }),
+    );
+
+    expect(truncateThreadRuntimeAfter).toHaveBeenCalledWith({
+      threadId: "remote-thread",
+      itemId: "item-2",
+    });
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
   });
 
   it.each(Object.entries(REMOTE_PROCEDURE_SPECS).filter(([, spec]) => spec.owner !== "none"))(
@@ -379,6 +398,26 @@ describe("remote procedure routing registry", () => {
     });
     expect(closeShell).toHaveBeenCalledWith({ threadId: "shell-1" });
     expect(closeThread).toHaveBeenCalledWith("remote-thread");
+  });
+
+  it("retries a failed remote shell close through the shell endpoint", async () => {
+    closeShell.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(undefined);
+    await remoteResult(
+      decide("startShell", {
+        shellId: "shell-1",
+        projectLocation: remoteLocation,
+      }),
+    );
+
+    await expect(remoteResult(decide("closeThread", { threadId: "shell-1" }))).rejects.toThrow(
+      "offline",
+    );
+    await expect(
+      remoteResult(decide("closeThread", { threadId: "shell-1" })),
+    ).resolves.toBeUndefined();
+
+    expect(closeShell).toHaveBeenCalledTimes(2);
+    expect(closeThread).not.toHaveBeenCalled();
   });
 
   it("keeps all structurally project-scoped procedures explicitly classified", () => {

@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { Check, ChevronRight, Columns2, Loader2, Plus, Rows2, Wifi, WifiOff } from "lucide-react";
 import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useSheetGrabber";
 import type { ThreadStatus } from "@/shared/contracts";
-import { CONNECTION_LABELS, type ConnectionState } from "./useRemoteDesktop";
+import { CONNECTION_LABELS, type ConnectionState } from "./remoteConnectionState";
 import { THREAD_STATUS_LABELS, threadStatusTone } from "./presentation";
 import { DESKTOP_POINTER_QUERY, useMediaQuery } from "./useMediaQuery";
 

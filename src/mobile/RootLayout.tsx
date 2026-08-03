@@ -132,7 +132,7 @@ export function RootLayout() {
       return;
     }
     if (handledGitContextRef.current === gitReviewContext) return;
-    const thread = remote.threads.find((entry) => {
+    const thread = remote.activeThreads.find((entry) => {
       if (entry.projectId !== gitReviewContext.projectId) return false;
       return gitReviewContext.worktreePath
         ? entry.worktreePath === gitReviewContext.worktreePath
@@ -158,7 +158,7 @@ export function RootLayout() {
       search: { tab: "changes" },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate is stable; guarded by ref
-  }, [gitReviewContext, gitOverlayOpen, gitReviewAsPanel, remote.threads, useRightPanel]);
+  }, [gitReviewContext, gitOverlayOpen, gitReviewAsPanel, remote.activeThreads, useRightPanel]);
 
   const context: MobileAppContextValue = {
     remote,

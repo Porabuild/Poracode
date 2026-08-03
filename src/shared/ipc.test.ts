@@ -3,6 +3,7 @@ import { createLocalIpcHandlers } from "@/main/ipc/localHandlers";
 import { createSupervisorIpcHandlers } from "@/supervisor/ipcHandlers";
 import {
   createInvokeBridge,
+  createProcedureBridge,
   ipcProcedureMap,
   MAIN_LOCAL_PROCEDURE_NAMES,
   type MainLocalProcedureName,
@@ -22,6 +23,15 @@ describe("ipcProcedureMap", () => {
     for (const name of Object.keys(ipcProcedureMap)) {
       expect(typeof bridge[name as keyof typeof bridge]).toBe("function");
     }
+  });
+
+  it("can generate a bridge while preserving procedure names and arguments", async () => {
+    const invoke = vi.fn<(name: string, args: unknown[]) => Promise<unknown>>(async () => null);
+    const bridge = createProcedureBridge(invoke);
+
+    await bridge.dbGetProjectNotes("project-1");
+
+    expect(invoke).toHaveBeenCalledWith("dbGetProjectNotes", ["project-1"]);
   });
 
   it("repairs blank legacy thread models at the database persistence boundary", () => {

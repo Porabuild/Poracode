@@ -1,13 +1,8 @@
-import NumberFlow, {
-  NumberFlowGroup,
-  useIsSupported,
-  type Format,
-  type Trend,
-} from "@number-flow/react";
+import NumberFlow, { useIsSupported, type Format, type Trend } from "@number-flow/react";
 
 /**
- * Digit-rolling number for values that mutate *in place* — diff stats, staged
- * file counts, progress pairs, live percentages.
+ * Digit-rolling number for values that mutate *in place* — diff stats, progress
+ * values, live percentages.
  *
  * Only reach for this when the number changes while its container stays
  * mounted. A value that appears once together with its row (a per-file diff
@@ -71,7 +66,6 @@ export function AnimatedNumber({
     <NumberFlow
       // Keep scroll anchoring, virtualizer corrections, and sibling layout
       // changes in the same React commit out of the number's FLIP measurement.
-      // NumberFlowGroup ignores this and still coordinates intentional pairs.
       isolate
       value={value}
       className={numeralClass}
@@ -85,15 +79,9 @@ export function AnimatedNumber({
 }
 
 /**
- * Wrap sibling `AnimatedNumber`s so they roll on one shared timing instead of
- * each running its own — use it for pairs like `+12 / -3` or `4/9`.
- */
-export const AnimatedNumberGroup = NumberFlowGroup;
-
-/**
  * `done/total` progress pair for the thread docks — todo steps completed,
- * subagents finished, workflow agents done. Both sides roll together, and the
- * separator stays readable so assistive tech still hears "4 / 9".
+ * subagents finished, workflow agents done. Only the changing completed value
+ * rolls; the stable total stays still.
  */
 export function AnimatedFraction({
   value,
@@ -105,10 +93,8 @@ export function AnimatedFraction({
   className?: string;
 }) {
   return (
-    <AnimatedNumberGroup>
-      <span className={className}>
-        <AnimatedNumber value={value} />/<AnimatedNumber value={total} />
-      </span>
-    </AnimatedNumberGroup>
+    <span className={className}>
+      <AnimatedNumber value={value} />/{total}
+    </span>
   );
 }

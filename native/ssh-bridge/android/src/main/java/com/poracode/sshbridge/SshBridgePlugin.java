@@ -37,6 +37,7 @@ import net.schmizz.sshj.connection.channel.direct.Session;
 import net.schmizz.sshj.sftp.SFTPClient;
 import net.schmizz.sshj.transport.verification.HostKeyVerifier;
 import net.schmizz.sshj.transport.verification.FingerprintVerifier;
+import net.schmizz.sshj.userauth.UserAuthException;
 import net.schmizz.sshj.userauth.keyprovider.KeyProvider;
 import net.schmizz.sshj.xfer.InMemorySourceFile;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -138,7 +139,7 @@ public class SshBridgePlugin extends Plugin {
                 if (client != null) {
                     try { client.close(); } catch (IOException ignored) {}
                 }
-                call.reject(message(error, "Unable to connect over SSH."), "SSH_CONNECT_FAILED", asException(error));
+                call.reject(message(error, "Unable to connect over SSH."), connectErrorCode(error), asException(error));
             }
         });
     }
@@ -295,9 +296,14 @@ public class SshBridgePlugin extends Plugin {
             try (FileOutputStream output = new FileOutputStream(keyFile)) {
                 output.write(privateKey.getBytes(StandardCharsets.UTF_8));
             }
-            KeyProvider provider = passphrase.isEmpty()
-                ? client.loadKeys(keyFile.getAbsolutePath())
-                : client.loadKeys(keyFile.getAbsolutePath(), passphrase);
+            KeyProvider provider;
+            try {
+                provider = passphrase.isEmpty()
+                    ? client.loadKeys(keyFile.getAbsolutePath())
+                    : client.loadKeys(keyFile.getAbsolutePath(), passphrase);
+            } catch (IOException error) {
+                throw new UserAuthException(error);
+            }
             client.authPublickey(username, provider);
         } finally {
             if (keyFile.exists() && !keyFile.delete()) {
@@ -355,6 +361,15 @@ public class SshBridgePlugin extends Plugin {
     private static String message(Throwable error, String fallback) {
         String value = error.getMessage();
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    static String connectErrorCode(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof UserAuthException) return "SSH_AUTHENTICATION_FAILED";
+            current = current.getCause();
+        }
+        return "SSH_CONNECT_FAILED";
     }
 
     private static Exception asException(Throwable error) {

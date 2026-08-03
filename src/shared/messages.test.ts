@@ -30,6 +30,9 @@ describe("friendlyErrorWithDetail", () => {
     expect(friendlyError(new Error("connect ECONNREFUSED 127.0.0.1:39001"))).toBe(
       "Can't reach the remote server. Check that it is online, then reconnect it.",
     );
+    expect(friendlyError(new TypeError("Failed to fetch"))).toBe(
+      "Can't reach the remote server. Check that it is online, then reconnect it.",
+    );
   });
 
   it("splits an attached details block out of the message", () => {

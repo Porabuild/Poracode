@@ -1,5 +1,45 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RemoteDesktopClient } from "./client";
+import {
+  isRemoteTransportFailure,
+  isUnauthorizedRemoteError,
+  RemoteClientError,
+  RemoteDesktopClient,
+} from "./client";
+
+describe("remote error classification", () => {
+  it("separates transport failures from reachable application errors", () => {
+    expect(isRemoteTransportFailure(new RemoteClientError("timed out", 0, "timeout"))).toBe(true);
+    expect(isRemoteTransportFailure(new TypeError("Failed to fetch"))).toBe(true);
+    expect(
+      isRemoteTransportFailure(
+        new Error("wrapped", { cause: new RemoteClientError("offline", 0, "offline") }),
+      ),
+    ).toBe(true);
+    expect(isRemoteTransportFailure(new RemoteClientError("constraint", 409, "conflict"))).toBe(
+      false,
+    );
+    expect(isRemoteTransportFailure(new RemoteClientError("server offline", 502, "relay"))).toBe(
+      true,
+    );
+    expect(
+      isRemoteTransportFailure(
+        new RemoteClientError("desktop unavailable", 503, "desktop_unavailable"),
+      ),
+    ).toBe(false);
+  });
+
+  it("recognizes authorization failures without treating other HTTP errors as expired", () => {
+    expect(isUnauthorizedRemoteError(new RemoteClientError("expired", 401, "unauthorized"))).toBe(
+      true,
+    );
+    expect(isUnauthorizedRemoteError(new RemoteClientError("forbidden", 403, "forbidden"))).toBe(
+      true,
+    );
+    expect(isUnauthorizedRemoteError(new RemoteClientError("conflict", 409, "conflict"))).toBe(
+      false,
+    );
+  });
+});
 
 describe("RemoteDesktopClient", () => {
   afterEach(() => {
@@ -42,6 +82,36 @@ describe("RemoteDesktopClient", () => {
         deviceType: "browser",
       },
     });
+  });
+
+  it("reports successful and failed requests through the client lifecycle hooks", async () => {
+    const onRequestSuccess = vi.fn<() => void>();
+    const onRequestError = vi.fn<(error: unknown) => void>();
+    const successClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(
+          JSON.stringify({ ticket: "lc_ws_test", expiresAt: "2099-01-01T00:00:00.000Z" }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      { onRequestSuccess, onRequestError },
+    );
+
+    await expect(successClient.websocketTicket()).resolves.toBe("lc_ws_test");
+    expect(onRequestSuccess).toHaveBeenCalledOnce();
+    expect(onRequestError).not.toHaveBeenCalled();
+
+    const transportError = new TypeError("Failed to fetch");
+    const failureClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () => Promise.reject(transportError),
+      { onRequestSuccess, onRequestError },
+    );
+
+    await expect(failureClient.websocketTicket()).rejects.toBe(transportError);
+    expect(onRequestError).toHaveBeenLastCalledWith(transportError);
   });
 
   it("keeps profile-stats fields beyond the light shape check (loose parse)", async () => {
@@ -429,6 +499,15 @@ describe("RemoteDesktopClient", () => {
     );
   });
 
+  it("includes initial thread interests so replay is scoped before open", () => {
+    const client = new RemoteDesktopClient("https://relay.example.test/s/server-1");
+    const url = new URL(
+      client.websocketUrl("lc_ws_test", 42, { threadItemInterests: ["thread-1"] }),
+    );
+
+    expect(url.searchParams.get("threadItemInterests")).toBe('["thread-1"]');
+  });
+
   it("sends lastSeenSeq=0 (replay-from-start) but omits it for the no-snapshot sentinel", () => {
     const client = new RemoteDesktopClient("https://relay.example.test/s/server-1");
 
@@ -559,7 +638,30 @@ describe("RemoteDesktopClient", () => {
     expect(body.client).toEqual({ label: "My Mac", deviceType: "desktop" });
   });
 
-  it("gives long-running git operations a larger timeout than ordinary requests", async () => {
+  it.each(["gitPush", "waitMcpServerOauth"])(
+    "gives long-running %s operations a larger timeout than ordinary requests",
+    async (procedure) => {
+      vi.useFakeTimers();
+      const client = new RemoteDesktopClient(
+        "http://127.0.0.1:38987/",
+        "lc_access_test",
+        () => new Promise<Response>(() => {}),
+        { requestTimeoutMs: 10 },
+      );
+
+      const operation = client.callRemoteProcedure(procedure, {}).then(
+        () => "resolved",
+        (error: unknown) => error,
+      );
+      await vi.advanceTimersByTimeAsync(60_000);
+      await expect(Promise.race([operation, Promise.resolve("pending")])).resolves.toBe("pending");
+
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      await expect(operation).resolves.toMatchObject({ code: "timeout" });
+    },
+  );
+
+  it("gives repository clones the long-running request timeout", async () => {
     vi.useFakeTimers();
     const client = new RemoteDesktopClient(
       "http://127.0.0.1:38987/",
@@ -568,20 +670,22 @@ describe("RemoteDesktopClient", () => {
       { requestTimeoutMs: 10 },
     );
 
-    const push = client
-      .callRemoteProcedure("gitPush", { projectLocation: { kind: "posix", path: "/tmp/x" } })
+    const clone = client
+      .projectCommand({
+        kind: "clone",
+        parentPath: "/tmp",
+        name: "repo",
+        source: { kind: "url", url: "https://example.test/repo.git" },
+      })
       .then(
         () => "resolved",
         (error: unknown) => error,
       );
-    // Ordinary 10ms deadline has long passed, but the push uses the 5-minute
-    // long-op deadline, so it must still be pending.
     await vi.advanceTimersByTimeAsync(60_000);
-    await expect(Promise.race([push, Promise.resolve("pending")])).resolves.toBe("pending");
+    await expect(Promise.race([clone, Promise.resolve("pending")])).resolves.toBe("pending");
 
-    // Once the long deadline elapses it times out (rather than never).
     await vi.advanceTimersByTimeAsync(5 * 60_000);
-    await expect(push).resolves.toMatchObject({ code: "timeout" });
+    await expect(clone).resolves.toMatchObject({ code: "timeout" });
   });
 
   it("builds authenticated local image URLs against the endpoint", () => {

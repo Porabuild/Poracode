@@ -612,8 +612,12 @@ msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Mọi quyền được bảo lưu."
 
 #: src/renderer/components/find/FindBar.tsx
-msgid "<0/> of <1/>"
-msgstr "<0/> / <1/>"
+msgid "<0/> of {matchCount}"
+msgstr "<0/> trên {matchCount}"
+
+#: src/renderer/components/find/FindBar.tsx
+#~ msgid "<0/> of <1/>"
+#~ msgstr "<0/> / <1/>"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
@@ -1310,8 +1314,8 @@ msgid "Archived Threads"
 msgstr "Luồng đã lưu trữ"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
-msgstr "Các luồng đã lưu trữ được quản lý từ ứng dụng máy tính. Chưa thể khôi phục hoặc xóa chúng từ thiết bị này."
+#~ msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
+#~ msgstr "Các luồng đã lưu trữ được quản lý từ ứng dụng máy tính. Chưa thể khôi phục hoặc xóa chúng từ thiết bị này."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -4204,7 +4208,7 @@ msgstr "lỗi"
 
 #. Notification status: agent error
 #: src/mobile/presentation.ts
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -5758,7 +5762,7 @@ msgstr "Liệt kê các gói"
 msgid "List tasks"
 msgstr "Liệt kê nhiệm vụ"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Live"
 msgstr "Trực tuyến"
 
@@ -6824,6 +6828,7 @@ msgstr "Không có tác nhân nào được cài đặt."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Chưa ghi nhận commit, PR hay giải quyết xung đột nào bằng AI."
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "Không có luồng nào đã lưu trữ."
@@ -7296,7 +7301,7 @@ msgstr "Chính thức"
 msgid "Official sources only"
 msgstr "Chỉ nguồn chính thức"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 msgid "Offline"
 msgstr "Ngoại tuyến"
@@ -7739,7 +7744,7 @@ msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt với máy tính này."
 
 #: src/mobile/components.tsx
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pair again"
 msgstr "Ghép đôi lại"
 
@@ -7751,12 +7756,13 @@ msgstr "Ghép nối với Poracode"
 msgid "Paired devices"
 msgstr "Thiết bị đã ghép đôi"
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Pairing"
 msgstr "Đang ghép đôi"
 
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Ghép đôi đã hết hạn — hãy ghép đôi lại để kết nối."
 
@@ -8552,7 +8558,7 @@ msgstr "Kết nối lại"
 msgid "Reconnect the server to add projects."
 msgstr "Kết nối lại máy chủ để thêm dự án."
 
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 msgid "Reconnecting"
 msgstr "Đang kết nối lại"
 
@@ -8746,12 +8752,16 @@ msgstr "Xóa {0}"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-msgid "Remove {0} from panel"
-msgstr "Xóa {0} khỏi bảng điều khiển"
+#~ msgid "Remove {0} from panel"
+#~ msgstr "Xóa {0} khỏi bảng điều khiển"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
 msgstr "Xóa {pattern}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Remove {rowTitle} from panel"
+msgstr "Xóa {rowTitle} khỏi bảng điều khiển"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10387,7 +10397,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Đã bắt đầu chủ đề {targetLabel}"
 
 #. Button label while the microphone test is starting
-#: src/mobile/useRemoteDesktop.ts
+#: src/mobile/remoteConnectionState.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx

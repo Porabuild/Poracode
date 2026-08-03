@@ -1,4 +1,5 @@
 import type { IpcProcedureName } from "@/shared/ipc";
+import { REMOTE_IPC_ADAPTER_SPECS } from "@/shared/remote";
 import {
   REMOTE_NOOP_PROCEDURES,
   REMOTE_PROCEDURE_SPECS,
@@ -10,25 +11,11 @@ import {
 export type RemoteRouteHandler =
   | "passthrough"
   | "noop"
-  | "project-notes-read"
-  | "project-notes-write"
-  | "pr-watch-read"
-  | "pr-watch-check"
-  | "pr-watch-upsert"
-  | "pr-watch-delete"
-  | "runtime-items-page"
-  | "thread-input"
-  | "thread-interrupt"
-  | "thread-goal"
-  | "thread-steer-set"
-  | "thread-steer-clear"
-  | "thread-request-resolve"
+  | "adapter"
   | "thread-clipboard-image"
   | "thread-handoff-context"
   | "shell-start"
-  | "shell-close"
-  | "terminal-write"
-  | "terminal-resize";
+  | "shell-close";
 
 export interface RemoteProcedureRouteSpec {
   readonly owner: RemoteProcedureOwner;
@@ -49,30 +36,22 @@ const noopRoutes = Object.fromEntries(
   ]),
 ) as Record<RemoteNoopProcedureName, RemoteProcedureRouteSpec>;
 
+const adapterRoutes = Object.fromEntries(
+  Object.entries(REMOTE_IPC_ADAPTER_SPECS).map(([procedure, owner]) => [
+    procedure,
+    { owner, handler: "adapter" },
+  ]),
+) as Record<keyof typeof REMOTE_IPC_ADAPTER_SPECS, RemoteProcedureRouteSpec>;
+
 /** Single policy table for choosing the host and transport for project-aware IPC. */
 export const REMOTE_PROCEDURE_ROUTES = {
   ...passthroughRoutes,
   ...noopRoutes,
-  dbGetProjectNotes: { owner: "project", handler: "project-notes-read" },
-  dbSetProjectNotes: { owner: "project", handler: "project-notes-write" },
-  getPrWatch: { owner: "project", handler: "pr-watch-read" },
-  checkPrWatch: { owner: "project", handler: "pr-watch-check" },
-  upsertPrWatch: { owner: "project", handler: "pr-watch-upsert" },
-  deletePrWatch: { owner: "project", handler: "pr-watch-delete" },
-  dbGetThreadRuntimeItemsPage: { owner: "thread", handler: "runtime-items-page" },
-  dbTruncateThreadRuntimeAfter: { owner: "thread", handler: "noop" },
-  sendThreadInput: { owner: "thread", handler: "thread-input" },
-  interruptThread: { owner: "thread", handler: "thread-interrupt" },
-  controlThreadGoal: { owner: "thread", handler: "thread-goal" },
-  setPendingSteer: { owner: "thread", handler: "thread-steer-set" },
-  clearPendingSteer: { owner: "thread", handler: "thread-steer-clear" },
-  resolveThreadServerRequest: { owner: "thread", handler: "thread-request-resolve" },
+  ...adapterRoutes,
   saveClipboardImage: { owner: "thread", handler: "thread-clipboard-image" },
   saveHandoffContext: { owner: "thread", handler: "thread-handoff-context" },
   startShell: { owner: "projectLocation", handler: "shell-start" },
   closeThread: { owner: "terminal", handler: "shell-close" },
-  writeTerminal: { owner: "terminal", handler: "terminal-write" },
-  resizeTerminal: { owner: "terminal", handler: "terminal-resize" },
 } as const satisfies Partial<Record<IpcProcedureName, RemoteProcedureRouteSpec>>;
 
 /** Project-aware procedures intentionally dispatched or disabled outside the bridge router. */

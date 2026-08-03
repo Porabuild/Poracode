@@ -41,7 +41,7 @@ const remoteMock = vi.hoisted(() => ({
         createdAt: "2026-01-01T00:00:00.000Z",
       },
     ],
-    threads: [
+    activeThreads: [
       {
         id: "thread-1",
         projectId: "project-1",
@@ -60,6 +60,7 @@ const remoteMock = vi.hoisted(() => ({
         updatedAt: "2026-01-01T00:00:00.000Z",
       },
     ],
+    archivedThreads: [],
     selectedThread: null as { id: string; title: string } | null,
     selectedThreadSnapshot: null,
     reconnect: vi.fn<() => void>(),
@@ -432,7 +433,7 @@ describe("mobile RootLayout", () => {
   it("shows a generic thread header (no thread-scoped actions) on a stale deep link", () => {
     // selectedThread falls back to the most-recent thread even when the routed
     // id was deleted elsewhere; the header must NOT bind its actions to it.
-    remoteMock.session.selectedThread = remoteMock.session.threads[0]!;
+    remoteMock.session.selectedThread = remoteMock.session.activeThreads[0]!;
     routerMock.pathname = "/thread/thread-deleted-elsewhere";
 
     render(<RootLayout />);
@@ -443,7 +444,7 @@ describe("mobile RootLayout", () => {
   });
 
   it("renders the thread header when the routed id matches the selected thread", () => {
-    remoteMock.session.selectedThread = remoteMock.session.threads[0]!;
+    remoteMock.session.selectedThread = remoteMock.session.activeThreads[0]!;
     routerMock.pathname = "/thread/thread-1";
 
     render(<RootLayout />);
@@ -454,7 +455,7 @@ describe("mobile RootLayout", () => {
   });
 
   it("keeps outgoing chrome while the next location is pending", () => {
-    remoteMock.session.selectedThread = remoteMock.session.threads[0]!;
+    remoteMock.session.selectedThread = remoteMock.session.activeThreads[0]!;
     routerMock.pathname = "/threads";
     routerMock.pendingPathname = "/thread/thread-1";
 
@@ -467,7 +468,7 @@ describe("mobile RootLayout", () => {
   it("holds the previous thread header while pushing into the workspace screen", () => {
     vi.useFakeTimers();
     try {
-      remoteMock.session.selectedThread = remoteMock.session.threads[0]!;
+      remoteMock.session.selectedThread = remoteMock.session.activeThreads[0]!;
       routerMock.pathname = "/thread/thread-1";
       const { container, rerender } = render(
         <StrictMode>

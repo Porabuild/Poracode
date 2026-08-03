@@ -1076,6 +1076,9 @@ describe("RemoteAccessServer", () => {
       },
     });
     expect(JSON.stringify(snapshot)).not.toContain("top-secret");
+    expect((snapshot as { threads: Thread[] }).threads).toContainEqual(
+      expect.objectContaining({ id: "thread-archived", archived: true }),
+    );
     expect((snapshot as { projects: Project[] }).projects[0]).not.toHaveProperty("mcpServers");
     expect(dbGetThreadRuntimeSummaries).toHaveBeenCalledWith(["thread-visible"]);
     expect(dbGetThreadRuntimeItems).not.toHaveBeenCalled();
@@ -1370,10 +1373,19 @@ describe("RemoteAccessServer", () => {
     // standing in for an older client that must keep receiving everything. Both
     // ride one access token because a pairing credential is single-use.
     const token = await issueAccessToken(info, ["session:read"]);
-    const openSocket = async () => {
+    const openSocket = async (options?: {
+      readonly lastSeenSeq?: number;
+      readonly threadItemInterests?: readonly string[];
+    }) => {
       const ticket = await issueWebSocketTicket(info, token);
       const url = new URL("/ws", info.wsBaseUrl);
       url.searchParams.set("ticket", ticket);
+      if (options?.lastSeenSeq !== undefined) {
+        url.searchParams.set("lastSeenSeq", String(options.lastSeenSeq));
+      }
+      if (options?.threadItemInterests) {
+        url.searchParams.set("threadItemInterests", JSON.stringify(options.threadItemInterests));
+      }
       const ws = new WebSocket(url);
       // Reader before `open`: `ready` can arrive in the same tick.
       const next = createWsReader(ws);
@@ -1381,8 +1393,9 @@ describe("RemoteAccessServer", () => {
         ws.once("open", resolve);
         ws.once("error", reject);
       });
-      expect(await next()).toMatchObject({ type: "ready" });
-      return { ws, next };
+      const ready = await next();
+      expect(ready).toMatchObject({ type: "ready" });
+      return { ws, next, ready };
     };
     const watcher = await openSocket();
     const legacy = await openSocket();
@@ -1459,6 +1472,25 @@ describe("RemoteAccessServer", () => {
     // still holds and neither client is forced into a spurious resync.
     const buffer = (server as unknown as { eventBuffer: unknown[] }).eventBuffer;
     expect(buffer).toHaveLength(3);
+
+    const replay = await openSocket({ lastSeenSeq: 0, threadItemInterests: ["thread-A"] });
+    expect(replay.ready).toMatchObject({ type: "ready", seq: 3 });
+    expect(await replay.next()).toMatchObject({
+      type: "event",
+      seq: 1,
+      event: { threadId: "thread-A", event: { payload: { result: expect.any(String) } } },
+    });
+    expect(await replay.next()).toEqual({
+      type: "event",
+      seq: 2,
+      event: { type: "thread-runtime-events", threadId: "thread-B", events: [] },
+    });
+    expect(await replay.next()).toMatchObject({
+      type: "event",
+      seq: 3,
+      event: { event: { type: "request.opened", requestId: "req-1" } },
+    });
+    replay.ws.close();
   });
 
   it("replaces inline images with references on the live event stream", async () => {

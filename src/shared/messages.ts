@@ -147,6 +147,7 @@ const messages = {
   "remote.project.runningThreads": "Stop the project's running threads before changing its folder.",
   "remote.project.experimentsOwned":
     "Remove the project's experiments before removing the project.",
+  "remote.session.expired": "Pairing expired — pair again to reconnect.",
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
 } as const;
@@ -278,10 +279,9 @@ const errorPatterns: Array<{
     key: "remote.helper.startFailed",
   },
   {
-    // undici collapses every transport-level failure into this opaque message
-    // (the OS errno, if any, lives only in the cause chain). Anchored so a
-    // longer message that merely mentions fetching keeps its own wording.
-    test: /^fetch failed\.?$/i,
+    // undici and browser fetch collapse transport failures into these opaque
+    // messages. Anchored so longer errors that mention fetching keep their text.
+    test: /^(?:fetch failed|failed to fetch)\.?$/i,
     key: "remote.server.unreachable",
   },
   {

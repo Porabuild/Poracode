@@ -214,8 +214,14 @@ public class SshBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         else { return }
         let port = call.getInt("port") ?? 22
         Task {
+            let method: SSHAuthenticationMethod
             do {
-                let method = try makeAuthentication(username: username, input: authentication)
+                method = try makeAuthentication(username: username, input: authentication)
+            } catch {
+                call.reject(error.localizedDescription, "SSH_AUTHENTICATION_FAILED", error)
+                return
+            }
+            do {
                 let validator = HostKeyValidator(expected: fingerprint)
                 let client = try await SSHClient.connect(
                     host: host,
@@ -231,7 +237,7 @@ public class SshBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                 if let previous { await previous.close() }
                 call.resolve()
             } catch {
-                call.reject(error.localizedDescription, "SSH_CONNECT_FAILED", error)
+                call.reject(error.localizedDescription, sshConnectErrorCode(for: error), error)
             }
         }
     }
@@ -350,6 +356,22 @@ public class SshBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         defer { lock.unlock() }
         guard let state = connections[id] else { throw MissingConnection() }
         return state
+    }
+}
+
+func sshConnectErrorCode(for error: Error) -> String {
+    if error is AuthenticationFailed { return "SSH_AUTHENTICATION_FAILED" }
+    guard let clientError = error as? SSHClientError else { return "SSH_CONNECT_FAILED" }
+    switch clientError {
+    case .unsupportedPasswordAuthentication,
+         .unsupportedPrivateKeyAuthentication,
+         .unsupportedHostBasedAuthentication,
+         .allAuthenticationOptionsFailed:
+        return "SSH_AUTHENTICATION_FAILED"
+    case .channelCreationFailed:
+        return "SSH_CONNECT_FAILED"
+    @unknown default:
+        return "SSH_CONNECT_FAILED"
     }
 }
 

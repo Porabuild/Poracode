@@ -224,6 +224,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "remote.project.experimentsOwned": msg({
     message: "Remove the project's experiments before removing the project.",
   }),
+  "remote.session.expired": msg({
+    message: "Pairing expired — pair again to reconnect.",
+  }),
   "remote.server.unreachable": msg({
     message: "Can't reach the remote server. Check that it is online, then reconnect it.",
   }),

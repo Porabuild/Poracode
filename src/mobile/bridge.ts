@@ -1,29 +1,25 @@
 import type {
-  ClearPendingSteerPayload,
   CloseThreadPayload,
-  ControlThreadGoalPayload,
   RefreshAgentScope,
-  InterruptThreadPayload,
-  PrWatchInput,
-  PrWatchKey,
   ProfileIdentity,
   ProfileStatsRequest,
-  ProjectNotes,
-  ResizeTerminalPayload,
-  ResolveThreadServerRequestPayload,
-  SearchProjectFilesPayload,
-  SearchProjectFilesResult,
-  SendThreadInputPayload,
-  SetPendingSteerPayload,
   StartShellPayload,
   StartThreadPayload,
-  WriteTerminalPayload,
   ScheduledTaskInput,
 } from "@/shared/contracts";
-import type { BrowserState, BrowserTabInfo, PoracodeBridge } from "@/shared/ipc";
 import {
+  createProcedureBridge,
+  parseIpcProcedureArgs,
+  type BrowserState,
+  type BrowserTabInfo,
+  type PoracodeBridge,
+} from "@/shared/ipc";
+import {
+  invokeRemoteIpcProcedure,
+  isRemoteIpcAdapterProcedure,
   isRemoteNoopProcedure,
   isRemoteProcedure,
+  RemoteTerminalOwnership,
   type RemoteBrowserCommand,
   type RemoteRuntimeItemsPageRequest,
 } from "@/shared/remote";
@@ -33,7 +29,7 @@ import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import type { SharedSettingsInput } from "@/shared/settings";
 import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
 import { useBrowserMirrorStore } from "./browserMirror";
-import type { RemoteDesktopClient } from "./remoteClient";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { pushDesktopSettingsDiff } from "./settingsSync";
 import { applyAgentStatuses } from "./storeSync";
 
@@ -47,6 +43,7 @@ import { applyAgentStatuses } from "./storeSync";
  */
 
 let activeClient: RemoteDesktopClient | null = null;
+const remoteTerminals = new RemoteTerminalOwnership<true>();
 /** Host OS of the paired desktop (`win32`/`darwin`/`linux`), when known. */
 let hostPlatform: NodeJS.Platform | null = null;
 
@@ -60,6 +57,7 @@ export function setRemoteBridgeClient(
   platform?: NodeJS.Platform | null,
 ): void {
   activeClient = client;
+  remoteTerminals.clear();
   hostPlatform = client ? (platform ?? null) : null;
   // poracode-local <img> sources load only inside the desktop's Electron
   // shell; in the PWA, swap them for the desktop's authenticated HTTP image
@@ -92,11 +90,6 @@ function remoteLocalImageUrl(client: RemoteDesktopClient, url: string): string {
 function decodeLocalFileUrlPath(url: string): string {
   const raw = decodeURIComponent(new URL(url).pathname);
   return /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
-}
-
-/** Mobile-native views (BrowserView) call the remote API directly. */
-export function getRemoteBridgeClient(): RemoteDesktopClient | null {
-  return activeClient;
 }
 
 function requireClient(): RemoteDesktopClient {
@@ -153,7 +146,7 @@ async function pickBrowserFiles(options?: {
   });
 }
 
-const remoteBridge = {
+const remoteBridgeOverrides = {
   // Metadata reads. Analytics/diagnostics stay disabled in remote sessions.
   // `platform` is a getter so it tracks the paired desktop after connect.
   get platform(): NodeJS.Platform {
@@ -163,6 +156,7 @@ const remoteBridge = {
   arch: "web",
   chromeVersion: "",
   isDev: false,
+  windowKind: "main",
   channel: "stable",
   electronVersion: "",
   nodeVersion: "",
@@ -172,34 +166,26 @@ const remoteBridge = {
   posthogKey: "",
   sentryEnabled: false,
 
-  // Thread mutations forwarded to the paired desktop.
-  sendThreadInput: (payload: SendThreadInputPayload) => requireClient().sendThreadInput(payload),
-  interruptThread: (payload: InterruptThreadPayload) =>
-    requireClient().interruptThread(payload.threadId),
-  controlThreadGoal: (payload: ControlThreadGoalPayload) =>
-    requireClient().controlThreadGoal(payload),
-  writeTerminal: (payload: WriteTerminalPayload) => requireClient().writeTerminal(payload),
-  resizeTerminal: (payload: ResizeTerminalPayload) => requireClient().resizeTerminal(payload),
+  // Thread/session mutations with PWA-specific lifecycle handling.
   startThread: (payload: StartThreadPayload) => requireClient().startThread(payload),
-  startShell: (payload: StartShellPayload) => requireClient().startShell(payload),
-  closeThread: (payload: CloseThreadPayload) => requireClient().closeThread(payload.threadId),
+  startShell: (payload: StartShellPayload) =>
+    remoteTerminals.start(payload.shellId, true, () => requireClient().startShell(payload)),
+  closeThread: async (payload: CloseThreadPayload) => {
+    const shell = await remoteTerminals.close(payload.threadId, () =>
+      requireClient().closeShell({ threadId: payload.threadId }),
+    );
+    if (shell.routed) return;
+    return requireClient().closeThread(payload.threadId);
+  },
   // Live PTY bytes arrive over the WebSocket (terminalFeed); the surface gets
   // its initial scrollback via prop, so the bridge read is a no-op here.
   readTerminalScrollback: () => Promise.resolve(""),
-  setPendingSteer: (payload: SetPendingSteerPayload) => requireClient().setPendingSteer(payload),
-  clearPendingSteer: (payload: ClearPendingSteerPayload) =>
-    requireClient().clearPendingSteer(payload.threadId),
-  resolveThreadServerRequest: (payload: ResolveThreadServerRequestPayload) =>
-    requireClient().resolveRequest(payload),
-
   // Usage panel: snapshots come from the paired desktop's supervisor cache.
   // Login state stays unknown (no remote secrets); login actions are
   // desktop-only and fall through to the rejecting proxy below.
   getProviderUsage: () => requireClient().providerUsage(),
   refreshProviderUsage: () => requireClient().providerUsage(),
   getUsageLoginState: () => Promise.resolve({ stored: {} }),
-  dbGetProjectNotes: (projectId: string) => requireClient().projectNotes(projectId),
-  dbSetProjectNotes: (notes: ProjectNotes) => requireClient().setProjectNotes(notes),
   refreshAgentStatuses: async (_wslDistros?: string[], _scope?: RefreshAgentScope) => {
     const statuses = await requireClient().agentStatuses();
     applyAgentStatuses(statuses);
@@ -223,10 +209,6 @@ const remoteBridge = {
     requireClient().updateSchedule(id, task),
   deleteSchedule: ({ id }: { id: string }) => requireClient().deleteSchedule(id),
   runScheduleNow: ({ id }: { id: string }) => requireClient().runScheduleNow(id),
-  getPrWatch: (input: PrWatchKey) => requireClient().getPrWatch(input),
-  checkPrWatch: (input: PrWatchKey) => requireClient().checkPrWatch(input),
-  upsertPrWatch: (input: PrWatchInput) => requireClient().upsertPrWatch(input),
-  deletePrWatch: (input: PrWatchKey) => requireClient().deletePrWatch(input),
 
   // Shared settings persist per device via the store's localStorage fallback.
   // Remote-editable keys (including persistent composer MCP enablement) are
@@ -246,6 +228,10 @@ const remoteBridge = {
   // Notification click handlers focus the app window.
   focusWindow: () => {
     window.focus();
+    return Promise.resolve();
+  },
+  reloadRenderer: () => {
+    window.location.reload();
     return Promise.resolve();
   },
   getDroppedFilePaths: () => [],
@@ -289,11 +275,6 @@ const remoteBridge = {
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     return Promise.resolve(null);
   },
-  searchProjectFiles: (payload: SearchProjectFilesPayload) =>
-    requireClient().callRemoteProcedure(
-      "searchProjectFiles",
-      payload,
-    ) as Promise<SearchProjectFilesResult>,
   getAgentHookPluginStatuses: () => Promise.resolve([]),
 
   // Runtime history hydration is fed by the remote sync layer instead of the
@@ -303,9 +284,7 @@ const remoteBridge = {
   dbGetThreadRuntimeItemsPage: (payload: RemoteRuntimeItemsPageRequest) =>
     payload.beforePosition === undefined
       ? Promise.resolve({ items: [], nextCursor: null })
-      : requireClient().threadRuntimeItemsPage(payload),
-  dbTruncateThreadRuntimeAfter: (payload: { threadId: string; itemId: string }) =>
-    requireClient().truncateThreadRuntimeAfter(payload),
+      : invokeRemoteIpcProcedure(requireClient(), "dbGetThreadRuntimeItemsPage", payload),
   dbGetThreadCompletedTurns: () => Promise.resolve([]),
   dbGetThreadContextUsage: () => Promise.resolve(null),
 
@@ -372,31 +351,40 @@ const remoteBridge = {
   onUpdateStatus: () => () => undefined,
   onBrowserEvent: () => () => undefined,
   onRemoteThreadCommand: () => () => undefined,
+  onRemoteAccessPairingChanged: () => () => undefined,
   onSharedSettingsChanged: () => () => undefined,
+  onProjectStateChanged: () => () => undefined,
   onThreadOpenRequested: () => () => undefined,
+  onQuickComposerSubmit: () => () => undefined,
+  onQuickComposerDismissRequested: () => () => undefined,
+  submitQuickComposer: () =>
+    Promise.reject(new Error("Quick Composer is not available in a remote session.")),
+  dismissQuickComposer: () =>
+    Promise.reject(new Error("Quick Composer is not available in a remote session.")),
+  pickQuickComposerFiles: () =>
+    Promise.reject(new Error("Quick Composer is not available in a remote session.")),
+  notifyQuickComposerMainReady: () => Promise.resolve(),
 };
+
+const remoteBridge = Object.defineProperties(
+  createProcedureBridge((procedure, args) => {
+    if (isRemoteIpcAdapterProcedure(procedure)) {
+      return invokeRemoteIpcProcedure(
+        requireClient(),
+        procedure,
+        parseIpcProcedureArgs(procedure, args),
+      );
+    }
+    if (isRemoteProcedure(procedure)) {
+      return requireClient().callRemoteProcedure(procedure, args[0]);
+    }
+    if (isRemoteNoopProcedure(procedure)) return Promise.resolve();
+    return Promise.reject(new Error(`"${procedure}" is not available in a remote session.`));
+  }),
+  Object.getOwnPropertyDescriptors(remoteBridgeOverrides),
+);
 
 export function installRemoteBridge(): void {
   if (typeof window === "undefined" || window.poracode !== undefined) return;
-  window.poracode = new Proxy(remoteBridge, {
-    get(target, prop, receiver) {
-      if (prop in target) {
-        return Reflect.get(target, prop, receiver) as unknown;
-      }
-      if (typeof prop !== "string") return undefined;
-      // Optional bridge metadata is genuinely unavailable in a browser. Do not
-      // expose the missing value as the generic unavailable-method fallback.
-      if (prop === "homeDir") return undefined;
-      // Reused/mobile desktop-backed surfaces call bridge methods directly;
-      // forward allowlisted project-aware calls to the paired desktop.
-      if (isRemoteProcedure(prop)) {
-        return (payload: unknown) => requireClient().callRemoteProcedure(prop, payload);
-      }
-      // Watchers are desktop-only; resolve so manual-refresh paths don't reject.
-      if (isRemoteNoopProcedure(prop)) {
-        return () => Promise.resolve();
-      }
-      return () => Promise.reject(new Error(`"${prop}" is not available in a remote session.`));
-    },
-  }) as unknown as PoracodeBridge;
+  window.poracode = remoteBridge as unknown as PoracodeBridge;
 }

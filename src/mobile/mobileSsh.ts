@@ -1,4 +1,4 @@
-import { SshBridge, type SshBridgeAuthentication } from "@poracode/ssh-bridge";
+import { SshBridge, type SshBridgeAuthentication, type SshBridgeError } from "@poracode/ssh-bridge";
 import { arrayBufferToBase64 } from "@/shared/base64";
 import {
   bootstrapRemoteRuntime,
@@ -21,6 +21,19 @@ export interface MobileSshConnectResult {
 
 let manifestPromise: Promise<RuntimeManifest> | null = null;
 let archivePromise: Promise<string> | null = null;
+
+export function isMobileSshAuthenticationError(error: unknown): boolean {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    (error as Partial<SshBridgeError>).code === "SSH_AUTHENTICATION_FAILED"
+  ) {
+    return true;
+  }
+  return error instanceof Error && error.cause !== undefined
+    ? isMobileSshAuthenticationError(error.cause)
+    : false;
+}
 
 function runtimeBaseUrl(): URL {
   if (import.meta.env.BASE_URL.startsWith("/")) {

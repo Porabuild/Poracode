@@ -104,7 +104,7 @@ export function NarrowShell(props: {
   const hostedThreadId =
     chrome.layout === "thread" || chrome.layout === "subagent" ? chrome.threadId : null;
   const hostedThread = hostedThreadId
-    ? (remote.threads.find((thread) => thread.id === hostedThreadId) ?? null)
+    ? (remote.activeThreads.find((thread) => thread.id === hostedThreadId) ?? null)
     : null;
   const subagentCoversThread = chrome.layout === "subagent";
   const shellRef = useRef<HTMLDivElement | null>(null);
@@ -147,7 +147,7 @@ export function NarrowShell(props: {
     pathname,
     chromeLayout: chrome.layout,
     selectedThread: remote.selectedThread,
-    threads: remote.threads,
+    threads: remote.activeThreads,
   });
 
   // One stable tree for every layout: the routed <Outlet/> always lives inside
@@ -177,7 +177,7 @@ export function NarrowShell(props: {
             {headerThread ? (
               <ThreadTitleRow
                 thread={headerThread}
-                threads={remote.threads}
+                threads={remote.activeThreads}
                 onAction={(action) =>
                   runThreadAction(
                     remote,

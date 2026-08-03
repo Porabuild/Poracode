@@ -5,7 +5,6 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
-import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import { DiffStat } from "@/renderer/components/common/DiffStat";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { compareFilesByDirThenName } from "@/renderer/utils/gitHelpers";
@@ -123,9 +122,7 @@ export function FileGroup(props: {
         >
           {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
           {title}
-          <span className="font-normal text-muted/60">
-            (<AnimatedNumber value={count} />)
-          </span>
+          <span className="font-normal tabular-nums text-muted/60">({count})</span>
         </button>
         <span className="ml-auto flex items-center gap-0.5">
           {touch ? (

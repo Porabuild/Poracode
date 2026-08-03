@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket } from "ws";
-import { remoteWebSocketClientMessageSchema } from "@/shared/remote";
+import {
+  remoteThreadItemInterestsSchema,
+  remoteWebSocketClientMessageSchema,
+} from "@/shared/remote";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import type { RemoteBrowserFrame } from "../RemoteBrowserGateway";
 import type { RemoteServerContext } from "./context";
@@ -67,13 +70,23 @@ export function serializeBrowserFrame(frame: RemoteBrowserFrame): string {
   return serialized;
 }
 
-export function parseLastSeenSeq(req: IncomingMessage, httpBaseUrl: string): number | null {
+function parseLastSeenSeq(searchParams: URLSearchParams): number | null {
   try {
-    const url = new URL(req.url ?? "/", httpBaseUrl);
-    const raw = url.searchParams.get("lastSeenSeq");
+    const raw = searchParams.get("lastSeenSeq");
     if (raw === null) return null;
     const seq = Number(raw);
     return Number.isSafeInteger(seq) && seq >= 0 ? seq : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseThreadItemInterests(searchParams: URLSearchParams): ReadonlySet<string> | null {
+  try {
+    const raw = searchParams.get("threadItemInterests");
+    if (raw === null) return null;
+    const parsed = remoteThreadItemInterestsSchema.safeParse(JSON.parse(raw) as unknown);
+    return parsed.success ? new Set(parsed.data) : null;
   } catch {
     return null;
   }
@@ -118,8 +131,10 @@ export async function handleUpgrade(
     // gate and treat the short-lived, one-use ticket as the WS capability.
     const ticket = url.searchParams.get("ticket") ?? "";
     const session = ctx.auth.consumeWebSocketTicket(ticket);
+    const lastSeenSeq = parseLastSeenSeq(url.searchParams);
+    const initialItemInterests = parseThreadItemInterests(url.searchParams);
     ctx.wss.handleUpgrade(req, socket, head, (ws) => {
-      handleConnection(ctx, ws, req, session);
+      handleConnection(ctx, ws, session, lastSeenSeq, initialItemInterests);
     });
   } catch (error) {
     if (error instanceof RemoteHttpError) {
@@ -133,12 +148,16 @@ export async function handleUpgrade(
 function handleConnection(
   ctx: RemoteServerContext,
   ws: WebSocket,
-  req: IncomingMessage,
   session: AuthenticatedRemoteSession,
+  lastSeenSeq: number | null,
+  initialItemInterests: ReadonlySet<string> | null,
 ): void {
   ctx.clients.set(ws, session);
   ctx.clientLiveness.set(ws, true);
   ctx.terminalWatches.set(ws, new Set());
+  if (initialItemInterests && session.scopes.includes("session:read")) {
+    ctx.itemInterests.set(ws, initialItemInterests);
+  }
   const gitStateInterestOwnerId = `${session.sessionId}:${randomUUID()}`;
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
@@ -250,7 +269,6 @@ function handleConnection(
   });
   scheduleSessionExpiry();
 
-  const lastSeenSeq = parseLastSeenSeq(req, ctx.requireInfo().httpBaseUrl);
   ctx.send(ws, { type: "ready", seq: ctx.seq });
   if (lastSeenSeq === null || lastSeenSeq === ctx.seq) {
     // No client cursor, or the client is already current — nothing to replay.

@@ -8,7 +8,7 @@ import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { clearPairingLaunch, parsePairingLaunch, setPairingLaunch } from "./pairing";
-import { RemoteClientError } from "./remoteClient";
+import { RemoteClientError } from "@/shared/remote/client";
 import {
   DesktopsRoute,
   NotesRoute,
@@ -105,7 +105,8 @@ const fixtures = vi.hoisted(() => {
       projects: [project],
       selectedThread,
       selectedThreadSnapshot: { thread: routedThread },
-      threads: [selectedThread, routedThread],
+      activeThreads: [selectedThread, routedThread],
+      archivedThreads: [],
       openThread: vi.fn<(thread: Thread) => Promise<void>>().mockResolvedValue(undefined),
       sendPrompt: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       pairDesktop: vi
@@ -548,7 +549,7 @@ describe("mobile route components", () => {
     // opened it (no watched pane, no snapshot request) — the old effect
     // early-returned here and the thread stayed blank forever.
     const previous = fixtures.remote.selectedThread;
-    fixtures.remote.selectedThread = fixtures.remote.threads[1]!;
+    fixtures.remote.selectedThread = fixtures.remote.activeThreads[1]!;
     try {
       render(<ThreadRoute />);
 

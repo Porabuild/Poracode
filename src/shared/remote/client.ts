@@ -3,8 +3,10 @@ import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_COMMAND_ID_HEADER,
+  REMOTE_PROCEDURE_SPECS,
   REMOTE_STANDARD_SCOPES,
   filterKnownRemoteAccessScopes,
+  isRemoteProcedure,
   remoteAgentStatusesSchema,
   remoteAccessTokenResultSchema,
   remoteBrowserStateSchema,
@@ -98,6 +100,23 @@ export class RemoteClientError extends Error {
     super(message, options);
     this.name = "RemoteClientError";
   }
+}
+
+export function isUnauthorizedRemoteError(error: unknown): error is RemoteClientError {
+  return error instanceof RemoteClientError && (error.status === 401 || error.status === 403);
+}
+
+export function isRemoteTransportFailure(error: unknown): boolean {
+  if (error instanceof TypeError && /fetch|network|load failed/i.test(error.message)) return true;
+  if (
+    error instanceof RemoteClientError &&
+    (error.status === 0 || error.status === 502 || error.status === 504)
+  ) {
+    return true;
+  }
+  return error instanceof Error && error.cause !== undefined
+    ? isRemoteTransportFailure(error.cause)
+    : false;
 }
 
 export interface ThreadHistoryOptions {
@@ -203,6 +222,8 @@ export type RemoteFetch = (
 export interface RemoteDesktopClientOptions {
   readonly requestTimeoutMs?: number;
   readonly maxResponseBodyBytes?: number;
+  readonly onRequestSuccess?: () => void;
+  readonly onRequestError?: (error: unknown) => void;
 }
 
 const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 60_000;
@@ -216,33 +237,6 @@ const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
  */
 const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
 
-/**
- * Git-call procedures that mutate remote state and can run long (network I/O
- * against a remote or GitHub). These use {@link LONG_REMOTE_REQUEST_TIMEOUT_MS}.
- * Kept in sync loosely with REMOTE_PROCEDURE_SPECS' `session:operate`
- * network operations — the point is to avoid false timeouts on slow ops, so
- * over-inclusion here is harmless.
- */
-const LONG_RUNNING_GIT_PROCEDURES: ReadonlySet<string> = new Set([
-  "gitFetch",
-  "gitPull",
-  "gitPullRebase",
-  "gitPush",
-  "gitSync",
-  "gitSyncRebase",
-  "gitCommit",
-  "gitMergeToSource",
-  "gitPullFromSource",
-  "gitFinishMerge",
-  "ghCreatePr",
-  "ghMergePr",
-  "ghUpdatePrBranch",
-  "ghSubmitPrReview",
-  "generateCommitMessage",
-  "generateTitle",
-  "generatePrSummary",
-]);
-
 const settingsResponseSchema = z.object({ settings: remoteSettingsSchema });
 const browserStateResponseSchema = z.object({ state: remoteBrowserStateSchema });
 const attachmentUploadResponseSchema = z.object({ path: z.string().min(1) });
@@ -253,6 +247,8 @@ export class RemoteDesktopClient {
   private readonly fetchImpl: RemoteFetch;
   private readonly requestTimeoutMs: number;
   private readonly maxResponseBodyBytes: number;
+  private readonly onRequestSuccess: (() => void) | undefined;
+  private readonly onRequestError: ((error: unknown) => void) | undefined;
 
   constructor(
     readonly endpoint: string,
@@ -271,6 +267,8 @@ export class RemoteDesktopClient {
         }));
     this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REMOTE_REQUEST_TIMEOUT_MS;
     this.maxResponseBodyBytes = options.maxResponseBodyBytes ?? DEFAULT_REMOTE_RESPONSE_MAX_BYTES;
+    this.onRequestSuccess = options.onRequestSuccess;
+    this.onRequestError = options.onRequestError;
   }
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
@@ -773,11 +771,11 @@ export class RemoteDesktopClient {
    * it.
    */
   async callRemoteProcedure(procedure: string, payload: unknown): Promise<unknown> {
+    const spec = isRemoteProcedure(procedure) ? REMOTE_PROCEDURE_SPECS[procedure] : undefined;
     const result = (await this.requestJson("/api/git/call", {
       method: "POST",
       body: { procedure, payload },
-      // push / PR creation / commit / sync run long; don't false-timeout them.
-      ...(LONG_RUNNING_GIT_PROCEDURES.has(procedure)
+      ...(spec && "timeout" in spec && spec.timeout === "long"
         ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
         : {}),
     })) as { result: unknown };
@@ -792,7 +790,11 @@ export class RemoteDesktopClient {
    */
   async projectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult> {
     return remoteProjectCommandResultSchema.parse(
-      await this.requestJson("/api/projects/command", { method: "POST", body: command }),
+      await this.requestJson("/api/projects/command", {
+        method: "POST",
+        body: command,
+        ...(command.kind === "clone" ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS } : {}),
+      }),
     );
   }
 
@@ -887,11 +889,18 @@ export class RemoteDesktopClient {
    * "no replay". A client at snapshotSeq=0 that omitted the param would
    * otherwise silently miss events.
    */
-  websocketUrl(ticket: string, lastSeenSeq: number | null | undefined): string {
+  websocketUrl(
+    ticket: string,
+    lastSeenSeq: number | null | undefined,
+    options: { readonly threadItemInterests?: readonly string[] } = {},
+  ): string {
     const url = toWebSocketUrl(endpointUrl(this.endpoint, "/ws"));
     url.searchParams.set("ticket", ticket);
     if (typeof lastSeenSeq === "number" && Number.isInteger(lastSeenSeq) && lastSeenSeq >= 0) {
       url.searchParams.set("lastSeenSeq", String(lastSeenSeq));
+    }
+    if (options.threadItemInterests) {
+      url.searchParams.set("threadItemInterests", JSON.stringify(options.threadItemInterests));
     }
     return url.toString();
   }
@@ -1004,17 +1013,20 @@ export class RemoteDesktopClient {
           error.success ? error.data.error.code : "request_failed",
         );
       }
+      this.onRequestSuccess?.();
       return parsed;
     } catch (error) {
-      if (controller.signal.aborted && error !== timeoutError) {
-        throw new RemoteClientError(
-          `Remote request timed out after ${effectiveTimeoutMs}ms.`,
-          0,
-          "timeout",
-          { cause: error },
-        );
-      }
-      throw error;
+      const requestError =
+        controller.signal.aborted && error !== timeoutError
+          ? new RemoteClientError(
+              `Remote request timed out after ${effectiveTimeoutMs}ms.`,
+              0,
+              "timeout",
+              { cause: error },
+            )
+          : error;
+      this.onRequestError?.(requestError);
+      throw requestError;
     } finally {
       if (timeout) clearTimeout(timeout);
     }

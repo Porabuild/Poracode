@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AnimatedNumber } from "./AnimatedNumber";
+import { AnimatedFraction, AnimatedNumber } from "./AnimatedNumber";
 
 const mocks = vi.hoisted(() => ({
   numberFlow: vi.fn<(props: Record<string, unknown>) => void>(),
@@ -29,5 +29,13 @@ describe("AnimatedNumber", () => {
         value: 9,
       }),
     );
+  });
+
+  it("animates only the changing side of a progress fraction", () => {
+    const { container } = render(<AnimatedFraction value={4} total={7} />);
+
+    expect(mocks.numberFlow).toHaveBeenCalledTimes(1);
+    expect(mocks.numberFlow).toHaveBeenCalledWith(expect.objectContaining({ value: 4 }));
+    expect(container.textContent).toBe("/7");
   });
 });

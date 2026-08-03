@@ -1028,6 +1028,29 @@ describe("useRemoteServersStore", () => {
     expect(websocketUrl).toHaveBeenNthCalledWith(2, "ticket-2", 7);
   });
 
+  it("stops reconnecting when the event stream reports an expired session", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    sockets[0]?.onclose?.({ code: 1008, reason: "Remote access session expired" });
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+      status: "error",
+      message: "Pairing expired — pair again to reconnect.",
+    });
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+  });
+
   it("marks a server offline when its event stream reconnect cannot reach it", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];
@@ -1136,6 +1159,22 @@ describe("useRemoteServersStore", () => {
     await vi.advanceTimersByTimeAsync(5_001);
 
     expect(socket.close).not.toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+  });
+
+  it("does not health-probe sockets that cannot send", async () => {
+    vi.useFakeTimers();
+    const socket = makeSocket({ readyState: 1 });
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => socket);
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    await vi.advanceTimersByTimeAsync(30_001);
+
+    expect(socket.close).not.toHaveBeenCalled();
+    expect(socketFactory).toHaveBeenCalledTimes(1);
     expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
   });
 
@@ -1759,6 +1798,23 @@ describe("useRemoteServersStore", () => {
       ...second,
       threadId: remoteThreadId("d1", "rt-1"),
     });
+
+    sockets[1]?.onmessage?.({
+      data: JSON.stringify({
+        type: "resync-required",
+        seq: 2,
+        reason: "The remote server restarted.",
+      }),
+    });
+    sockets[1]?.onclose?.();
+    await vi.advanceTimersByTimeAsync(1000);
+    await Promise.resolve();
+
+    expect(socketFactory).toHaveBeenCalledTimes(3);
+    expect(socketFactory).toHaveBeenNthCalledWith(
+      3,
+      "ws://192.168.1.9:38987/ws?ticket=ticket-3&last=2",
+    );
   });
 
   it("refreshes remote thread history when websocket replay requires resync", async () => {

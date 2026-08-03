@@ -1,6 +1,5 @@
 import { setBrowserWebPushActive } from "@/renderer/browserNotificationPermission";
-import type { RemoteWebPushSubscription } from "@/shared/remote";
-import type { RemoteDesktopClient } from "../remoteClient";
+import type { RemotePushClient, RemoteWebPushSubscription } from "@/shared/remote";
 import { isStandaloneDisplay } from "../pwaInstall";
 import { mobileRouterBasePath } from "../routing";
 
@@ -95,7 +94,7 @@ export function supportsWebPushRegistration(): boolean {
  * gesture; this function never opens the browser permission sheet itself.
  */
 export async function syncWebPushRegistration(
-  client: RemoteDesktopClient,
+  client: RemotePushClient,
   input: { readonly deviceId: string; readonly appVersion?: string },
 ): Promise<boolean> {
   if (!supportsWebPushRegistration() || Notification.permission !== "granted") {
@@ -129,10 +128,7 @@ export async function syncWebPushRegistration(
   return true;
 }
 
-export async function unregisterWebPush(
-  client: RemoteDesktopClient,
-  deviceId: string,
-): Promise<void> {
+export async function unregisterWebPush(client: RemotePushClient, deviceId: string): Promise<void> {
   setBrowserWebPushActive(false);
   const subscription =
     "serviceWorker" in navigator

@@ -62,7 +62,7 @@ export interface RemoteSocketLike {
   readonly readyState?: number;
   onopen?: (() => void) | null;
   onmessage: ((event: { data: unknown }) => void) | null;
-  onclose: (() => void) | null;
+  onclose: ((event?: { readonly code?: number; readonly reason?: string }) => void) | null;
 }
 
 export type RemoteSocketFactory = (url: string) => RemoteSocketLike;

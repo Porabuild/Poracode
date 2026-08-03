@@ -28,6 +28,14 @@ let package = Package(
                 .product(name: "Crypto", package: "swift-crypto")
             ],
             path: "ios/Sources/SshBridgePlugin"
+        ),
+        .testTarget(
+            name: "SshBridgePluginTests",
+            dependencies: [
+                "SshBridgePlugin",
+                .product(name: "Citadel", package: "Citadel")
+            ],
+            path: "ios/Tests/SshBridgePluginTests"
         )
     ]
 )
