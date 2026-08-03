@@ -11,6 +11,7 @@ import {
 import {
   DEFAULT_TERMINAL_SIZE,
   emptyMcpLaunchSnapshot,
+  type Project,
   type RemoteThreadCommand,
   type Thread,
 } from "@/shared/contracts";
@@ -83,7 +84,10 @@ export async function runRemoteProcedure(
 export function runProjectCommand(
   ctx: RemoteServerContext,
   command: RemoteProjectCommand,
-): Promise<RemoteProjectCommandResult> {
+): Promise<{
+  readonly projects: readonly Project[];
+  readonly response: RemoteProjectCommandResult;
+}> {
   return applyRemoteProjectCommand(command, {
     getProjects: () => dbGetProjects(),
     removeProjectExperiments: (project) =>
@@ -108,7 +112,10 @@ export function runProjectCommand(
     },
     platform: process.platform,
     now: () => new Date().toISOString(),
-  }).then((result) => remoteProjectCommandResultSchema.parse(result));
+  }).then((result) => ({
+    projects: result.projects,
+    response: remoteProjectCommandResultSchema.parse(result),
+  }));
 }
 
 /**

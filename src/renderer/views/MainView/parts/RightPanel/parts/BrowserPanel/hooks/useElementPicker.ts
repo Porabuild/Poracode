@@ -5,12 +5,11 @@ import { useShallow } from "zustand/shallow";
 import type { PromptSegment } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
+import { materializePickerAttachment } from "@/renderer/actions/browserAttachmentActions";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildSelectorPlainText, useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { useComposerUiStore } from "@/renderer/state/composerUiStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useBrowserPanelStore,
@@ -125,41 +124,6 @@ function buildSelectionSegments(attachment: PendingPickerAttachment): {
       { kind: "text", content: selectorText },
     ],
   };
-}
-
-export async function materializePickerAttachment(
-  threadId: string,
-  attachment: PendingPickerAttachment,
-): Promise<PendingPickerAttachment> {
-  const { data, ...materialized } = attachment;
-  if (!data) return materialized;
-  const uploadData = new Uint8Array(data);
-
-  const app = useAppStore.getState();
-  if (isDraftPaneId(threadId)) {
-    const project = app.projects.find(
-      (candidate) => candidate.id === parseDraftProjectId(threadId),
-    );
-    const owner = remoteOwner(project);
-    if (!owner) return materialized;
-    const attachmentPath = await useRemoteServersStore
-      .getState()
-      .saveClipboardImage(owner.desktopId, {
-        threadId: `draft-${owner.remoteId}`,
-        data: uploadData,
-        extension: "png",
-      });
-    return { ...materialized, attachmentPath };
-  }
-
-  const thread = app.threads.find((candidate) => candidate.id === threadId);
-  if (!remoteOwner(thread)) return materialized;
-  const attachmentPath = await readBridge().saveClipboardImage({
-    threadId,
-    data: uploadData,
-    extension: "png",
-  });
-  return { ...materialized, attachmentPath };
 }
 
 export function useElementPicker() {
@@ -279,7 +243,6 @@ export function useElementPicker() {
         attachmentPath: result.attachmentPath,
         attachmentName: result.attachmentName,
         mimeType: result.mimeType ?? "image/png",
-        ...(result.data ? { data: result.data } : {}),
         selector: result.selector,
         sourceUrl: result.sourceUrl,
         ...(anchor ? { anchorX: anchor.x, anchorY: anchor.y } : {}),

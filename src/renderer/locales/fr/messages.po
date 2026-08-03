@@ -4432,16 +4432,16 @@ msgid "Failed jobs queued to run again."
 msgstr "Les tâches en échec ont été remises en file d’attente."
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to clear goal"
-msgstr "Impossible d'effacer l'objectif"
+#~ msgid "Failed to clear goal"
+#~ msgstr "Impossible d'effacer l'objectif"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "Échec de la fermeture de la pull request : {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to close remote thread."
-msgstr "Impossible de fermer le fil de discussion distant."
+#~ msgid "Failed to close remote thread."
+#~ msgstr "Impossible de fermer le fil de discussion distant."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
@@ -4452,8 +4452,8 @@ msgid "Failed to create pull request: {detail}"
 msgstr "Échec de la création de la pull request : {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to interrupt remote thread."
-msgstr "Impossible d'interrompre le fil de discussion distant."
+#~ msgid "Failed to interrupt remote thread."
+#~ msgstr "Impossible d'interrompre le fil de discussion distant."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -4476,8 +4476,8 @@ msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {b
 msgstr "Échec de l'enregistrement des métadonnées de propriété de la branche : {detail}. La restauration a laissé la branche {branch} : {rollback}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to update goal"
-msgstr "Impossible de mettre à jour l'objectif"
+#~ msgid "Failed to update goal"
+#~ msgstr "Impossible de mettre à jour l'objectif"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -8014,6 +8014,10 @@ msgstr "Poracode attend peut-être des données enregistrées ou un service en a
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Poracode only"
 msgstr "Poracode uniquement"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
+msgstr "Le manifeste d’exécution SSH de Poracode est manquant ou non valide : {path}"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."

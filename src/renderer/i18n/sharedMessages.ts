@@ -206,6 +206,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
     message:
       "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
   }),
+  "ssh.runtimeManifest.invalid": msg({
+    message: "Poracode SSH runtime manifest is missing or invalid: {path}",
+  }),
   "remote.project.invalidName": msg({ message: "Enter a valid project name." }),
   "remote.project.invalidPath": msg({ message: "Enter a valid absolute project path." }),
   "remote.project.invalidCloneUrl": msg({

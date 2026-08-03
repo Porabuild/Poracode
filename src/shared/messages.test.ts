@@ -92,6 +92,18 @@ describe("friendlyErrorWithDetail", () => {
     );
   });
 
+  it("preserves the path when mapping SSH runtime manifest failures", () => {
+    expect(
+      friendlyError(
+        new Error(
+          "Poracode SSH runtime manifest is missing or invalid: C:\\Poracode\\server.ssh-runtime-manifest.json",
+        ),
+      ),
+    ).toBe(
+      "Poracode SSH runtime manifest is missing or invalid: C:\\Poracode\\server.ssh-runtime-manifest.json",
+    );
+  });
+
   it("maps dirty remote pulls to the pull-specific stash message", () => {
     const error = new Error(
       "Git pull failed: Command failed: git pull --no-rebase origin\nYour local changes would be overwritten by merge",

@@ -47,7 +47,6 @@ import {
   dbFailRemoteCommand,
   dbGetProject,
   dbGetProjectNotes,
-  dbGetProjects,
   dbGetThread,
   dbSetProjectNotes,
   dbTruncateThreadRuntimeAfter,
@@ -727,14 +726,14 @@ export async function handleHttp(
       // Tell every connected client to refresh its shell snapshot.
       ctx.publishSupervisorEvent({
         type: "remote-projects-changed",
-        projects: result.projects,
+        projects: result.response.projects,
       });
       // Remote responses deliberately omit sensitive project settings such as
       // MCP server definitions. The host renderer persists this internal
       // notification, so give it the authoritative rows rather than the
       // redacted response or it would write the omitted settings back as null.
-      ctx.options.onProjectsChanged?.(dbGetProjects());
-      writeJson(res, 200, result);
+      ctx.options.onProjectsChanged?.(result.projects);
+      writeJson(res, 200, result.response);
       return;
     }
     const projectSettingsId = projectIdFromPath(url.pathname, "settings");

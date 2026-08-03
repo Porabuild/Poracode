@@ -395,7 +395,6 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           return result;
         } catch (error) {
           if (!isRemoteTransportFailure(error)) {
-            setRemoteServerFailure(desktopId, "error", friendlyError(error));
             throw error;
           }
           const message = sharedMsg("remote.server.unreachable");

@@ -429,7 +429,7 @@ describe("useRemoteServersStore", () => {
     });
   });
 
-  it("keeps application errors retryable and restores online state after a successful action", async () => {
+  it("keeps a reachable server online after an application error", async () => {
     const gitCall = vi
       .fn<RemoteDesktopClient["callRemoteProcedure"]>()
       .mockRejectedValueOnce(new RemoteClientError("Internal server error.", 500, "internal"))
@@ -446,10 +446,8 @@ describe("useRemoteServersStore", () => {
         .getState()
         .withClient("d1", (client) => client.callRemoteProcedure("getGitStatus", {})),
     ).rejects.toThrow("Internal server error");
-    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
-      status: "error",
-      message: "Internal server error.",
-    });
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "online" });
+    expect(useRemoteServersStore.getState().runtime.d1?.message).toBeUndefined();
 
     await expect(
       useRemoteServersStore
@@ -2296,7 +2294,7 @@ describe("useRemoteServersStore", () => {
   });
 
   // ── Finding #6: failing openRemoteThread does not reject ────────────
-  it("does not reject (and reports) when openRemoteThread fails", async () => {
+  it("does not reject or mark the server offline when openRemoteThread fails", async () => {
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async () => {
       throw new Error("server offline");
     });
@@ -2311,9 +2309,9 @@ describe("useRemoteServersStore", () => {
     await expect(
       useRemoteServersStore.getState().openRemoteThread("d1", "rt-1"),
     ).resolves.toBeUndefined();
-    // The failure is reflected in the server's runtime status/message.
-    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("error");
-    expect(useRemoteServersStore.getState().runtime.d1?.message).toBe("server offline");
+    expect(toastDanger).toHaveBeenCalledWith("server offline");
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+    expect(useRemoteServersStore.getState().runtime.d1?.message).toBeUndefined();
     expect(useRemoteServersStore.getState().openThread).toBeNull();
   });
 
@@ -2372,7 +2370,7 @@ describe("useRemoteServersStore", () => {
     expect(remoteIds()).toEqual(expect.arrayContaining(["p1", "p2"]));
   });
 
-  it("rejects interrupt failures so the invoking control can surface them", async () => {
+  it("rejects interrupt application failures without disabling the connection", async () => {
     const interruptThread = vi.fn<RemoteDesktopClient["interruptThread"]>(async () => {
       throw new Error("unreachable");
     });
@@ -2385,6 +2383,6 @@ describe("useRemoteServersStore", () => {
     await expect(
       invokeRemoteRoute("interruptThread", { threadId: remoteThreadId("d1", "rt-1") }),
     ).rejects.toThrow("unreachable");
-    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("error");
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
   });
 });

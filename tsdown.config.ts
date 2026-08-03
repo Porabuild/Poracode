@@ -1,6 +1,12 @@
 import { isBuiltin } from "node:module";
 import { defineConfig, type TsdownPlugin } from "tsdown";
 import packageJson from "./package.json" with { type: "json" };
+import {
+  SSH_RUNTIME_ENTRY_CONFIG,
+  SSH_RUNTIME_MANIFEST_VERSION,
+  sshRuntimeManifestFileName,
+  type SshRuntimeEntryName,
+} from "./src/shared/sshRuntimeManifest.ts";
 
 const isProd = process.env.NODE_ENV === "production";
 const sourcemap = isProd ? ("hidden" as const) : true;
@@ -28,10 +34,7 @@ function packageNameFor(moduleId: string): string | null {
   return packageName && !isBuiltin(packageName) ? packageName : null;
 }
 
-function sshRuntimeManifest(
-  entryName: string,
-  supplementalDependencies: readonly string[] = [],
-): TsdownPlugin {
+function sshRuntimeManifest(entryName: SshRuntimeEntryName): TsdownPlugin {
   return {
     name: `poracode:ssh-runtime-manifest:${entryName}`,
     generateBundle(_options, bundle) {
@@ -40,7 +43,7 @@ function sshRuntimeManifest(
         .map((output) => output.fileName)
         .sort();
       const fileSet = new Set(files);
-      const dependencies = new Set(supplementalDependencies);
+      const dependencies = new Set<string>(SSH_RUNTIME_ENTRY_CONFIG[entryName]);
       for (const output of Object.values(bundle)) {
         if (output.type !== "chunk") continue;
         for (const moduleId of [...output.imports, ...output.dynamicImports]) {
@@ -56,8 +59,12 @@ function sshRuntimeManifest(
       }
       this.emitFile({
         type: "asset",
-        fileName: `${entryName}.ssh-runtime-manifest.json`,
-        source: `${JSON.stringify({ version: 1, files, dependencies: [...dependencies].sort() })}\n`,
+        fileName: sshRuntimeManifestFileName(entryName),
+        source: `${JSON.stringify({
+          version: SSH_RUNTIME_MANIFEST_VERSION,
+          files,
+          dependencies: [...dependencies].sort(),
+        })}\n`,
       });
     },
   };
@@ -120,7 +127,7 @@ export default defineConfig([
   {
     entry: { supervisor: "src/supervisor/index.ts" },
     clean: false,
-    plugins: [sshRuntimeManifest("supervisor", ["@opencode-ai/sdk", "@sentry/node"])],
+    plugins: [sshRuntimeManifest("supervisor")],
     ...shared,
   },
   {

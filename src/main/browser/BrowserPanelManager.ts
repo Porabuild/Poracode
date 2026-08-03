@@ -843,7 +843,6 @@ export class BrowserPanelManager {
       attachmentPath: path,
       attachmentName: baseName,
       mimeType: "image/png",
-      data,
       selector: pick.selector,
       sourceUrl: pick.url,
       rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },

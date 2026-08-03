@@ -4432,16 +4432,16 @@ msgid "Failed jobs queued to run again."
 msgstr "Неудачные задания поставлены в очередь на повторный запуск."
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to clear goal"
-msgstr "Не удалось очистить цель"
+#~ msgid "Failed to clear goal"
+#~ msgstr "Не удалось очистить цель"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "Не удалось закрыть pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to close remote thread."
-msgstr "Не удалось закрыть удалённый тред."
+#~ msgid "Failed to close remote thread."
+#~ msgstr "Не удалось закрыть удалённый тред."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
@@ -4452,8 +4452,8 @@ msgid "Failed to create pull request: {detail}"
 msgstr "Не удалось создать pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to interrupt remote thread."
-msgstr "Не удалось прервать удалённый тред."
+#~ msgid "Failed to interrupt remote thread."
+#~ msgstr "Не удалось прервать удалённый тред."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -4476,8 +4476,8 @@ msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {b
 msgstr "Не удалось записать метаданные принадлежащей приложению ветки: {detail}. После отката осталась ветка {branch}: {rollback}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to update goal"
-msgstr "Не удалось обновить цель"
+#~ msgid "Failed to update goal"
+#~ msgstr "Не удалось обновить цель"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -8015,6 +8015,10 @@ msgstr "Возможно, Poracode ожидает сохранённые дан�
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Poracode only"
 msgstr "Только в Poracode"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
+msgstr "Манифест среды выполнения Poracode SSH отсутствует или недействителен: {path}"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."

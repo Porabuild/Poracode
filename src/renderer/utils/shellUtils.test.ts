@@ -164,6 +164,26 @@ describe("writeScriptToShell", () => {
     expect(supervisorHandlers).toHaveLength(0);
   });
 
+  it("returns a disposer for shells removed before an exit event", () => {
+    const dispose = writeScriptToShell("shell:1", "npm run dev");
+
+    expect(supervisorHandlers).toHaveLength(1);
+    dispose();
+
+    expect(supervisorHandlers).toHaveLength(0);
+  });
+
+  it("replaces an existing session for the same shell", () => {
+    writeScriptToShell("shell:1", "npm run first");
+    writeScriptToShell("shell:1", "npm run second");
+
+    expect(supervisorHandlers).toHaveLength(1);
+    emit({ type: "thread-output", threadId: "shell:1", data: "$ ", outputLength: 2 });
+
+    expect(bridge.writeTerminal).toHaveBeenCalledOnce();
+    expect(lastWrite()).toBe("npm run second\r");
+  });
+
   it("ignores events for other shells", () => {
     writeScriptToShell("shell:1", "npm run dev");
 

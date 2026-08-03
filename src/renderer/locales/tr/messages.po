@@ -4432,16 +4432,16 @@ msgid "Failed jobs queued to run again."
 msgstr "Başarısız işler yeniden çalıştırılmak üzere sıraya alındı."
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to clear goal"
-msgstr "Hedef temizlenemedi"
+#~ msgid "Failed to clear goal"
+#~ msgstr "Hedef temizlenemedi"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "Çekme isteği kapatılamadı: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to close remote thread."
-msgstr "Uzak konu kapatılamadı."
+#~ msgid "Failed to close remote thread."
+#~ msgstr "Uzak konu kapatılamadı."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
@@ -4452,8 +4452,8 @@ msgid "Failed to create pull request: {detail}"
 msgstr "Çekme isteği oluşturulamadı: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to interrupt remote thread."
-msgstr "Uzak konu kesintiye uğratılamadı."
+#~ msgid "Failed to interrupt remote thread."
+#~ msgstr "Uzak konu kesintiye uğratılamadı."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -4476,8 +4476,8 @@ msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {b
 msgstr "Sahipli şube meta verileri kaydedilemedi: {detail}. Geri alma işlemi {branch} şubesini bıraktı: {rollback}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to update goal"
-msgstr "Hedef güncellenemedi"
+#~ msgid "Failed to update goal"
+#~ msgstr "Hedef güncellenemedi"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -8015,6 +8015,10 @@ msgstr "Poracode kayıtlı verileri veya bir arka plan hizmetini bekliyor olabil
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Poracode only"
 msgstr "Yalnızca Poracode"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
+msgstr "Poracode SSH çalışma zamanı bildirimi eksik veya geçersiz: {path}"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."

@@ -8,7 +8,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
-import { writeScriptToShell } from "@/renderer/utils/shellUtils";
+import { disposeRoutedShellSession, writeScriptToShell } from "@/renderer/utils/shellUtils";
 
 function resolveLoginProject(): Project | undefined {
   const app = useAppStore.getState();
@@ -56,6 +56,7 @@ export function runAgentLoginCommand(input: {
   const previous = useLoginTerminalStore.getState().active;
   if (previous) {
     previous.onForceClose?.();
+    disposeRoutedShellSession(previous.shellId);
     void readBridge()
       .closeThread({ threadId: previous.shellId })
       .catch(() => undefined);
@@ -176,6 +177,7 @@ export function runAgentInstallCommand(input: {
   const previous = useLoginTerminalStore.getState().active;
   if (previous) {
     previous.onForceClose?.();
+    disposeRoutedShellSession(previous.shellId);
     void readBridge()
       .closeThread({ threadId: previous.shellId })
       .catch(() => undefined);

@@ -1,10 +1,14 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { ProjectLocation } from "@/shared/contracts";
-import { extractOscEventsFromPtyStream } from "@/shared/osc";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
-import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import {
+  createRoutedShellSession,
+  disposeRoutedShellSession,
+} from "@/renderer/utils/routedShellSession";
+
+export { disposeRoutedShellSession } from "@/renderer/utils/routedShellSession";
 
 interface StartShellPayload {
   shellId: string;
@@ -27,6 +31,7 @@ export function wasShellStartedEagerly(shellId: string): boolean {
 
 export function clearEagerShellStart(shellId: string): void {
   eagerlyStartedShells.delete(shellId);
+  disposeRoutedShellSession(shellId);
 }
 
 export function startShellWithToast(payload: StartShellPayload, label: string): void {
@@ -59,64 +64,6 @@ function createShellCompletionToken(): string {
 
 function shellCompletionMarker(token: string): string {
   return `\u001B]777;poracode-shell-complete=${token}:`;
-}
-
-const REMOTE_SHELL_QUIET_READY_MS = 250;
-const REMOTE_SHELL_QUERY_FALLBACK_MS = 12_000;
-
-/** Remote background shells have no xterm instance to answer startup terminal
- * capability queries. Wait for shell-integration's prompt marker when present;
- * otherwise send after a short quiet period, extended only when a capability
- * query was observed (fish falls back after roughly ten seconds). */
-function createShellInputGate(remoteServerId: string | undefined, write: () => void) {
-  let armed = true;
-  let outputBuffer = "";
-  let oscCarry = "";
-  let timer = 0;
-
-  const clearTimer = () => {
-    if (timer === 0) return;
-    window.clearTimeout(timer);
-    timer = 0;
-  };
-  const dispatch = () => {
-    if (!armed) return;
-    armed = false;
-    clearTimer();
-    write();
-  };
-
-  return {
-    onOutput(output: string): boolean {
-      if (!armed) return false;
-      if (!remoteServerId) {
-        dispatch();
-        return true;
-      }
-      outputBuffer = `${outputBuffer}${output}`.slice(-2048);
-      const extracted = extractOscEventsFromPtyStream(oscCarry, output);
-      oscCarry = extracted.carryOut;
-      if (extracted.shell.some((event) => event.code === 133 && event.kind === "prompt-end")) {
-        dispatch();
-        return true;
-      }
-      clearTimer();
-      const sawTerminalQuery =
-        outputBuffer.includes("\u001B[0c") || outputBuffer.includes("\u001B[6n");
-      timer = window.setTimeout(
-        dispatch,
-        sawTerminalQuery ? REMOTE_SHELL_QUERY_FALLBACK_MS : REMOTE_SHELL_QUIET_READY_MS,
-      );
-      return true;
-    },
-    reset() {
-      armed = true;
-      outputBuffer = "";
-      oscCarry = "";
-      clearTimer();
-    },
-    dispose: clearTimer,
-  };
 }
 
 function quotePosixShellArg(value: string): string {
@@ -177,34 +124,24 @@ export function buildScriptWithExitOnSuccess(
  * respawns (e.g. the terminal panel's viewport-sized respawn replacing an
  * eagerly started shell); detaches once the shell exits.
  */
-export function writeScriptToShell(shellId: string, script: string, remoteServerId?: string) {
+export function writeScriptToShell(
+  shellId: string,
+  script: string,
+  remoteServerId?: string,
+): () => void {
   const command = normalizeShellScript(script);
-  if (!command) return;
-  let unsubscribe: () => void = () => undefined;
-  const inputGate = createShellInputGate(remoteServerId, () => {
-    void readBridge()
-      .writeTerminal({ threadId: shellId, data: command + "\r" })
-      .catch((error) => {
-        inputGate.dispose();
-        unsubscribe();
-        console.warn(
-          `[shellUtils] Unable to write command to shell ${shellId}:`,
-          error instanceof Error ? error.message : error,
-        );
-      });
-  });
-  unsubscribe = watchRoutedTerminal(
+  if (!command) return () => undefined;
+  return createRoutedShellSession({
     shellId,
-    {
-      onReset: inputGate.reset,
-      onOutput: inputGate.onOutput,
-      onExited: () => {
-        inputGate.dispose();
-        unsubscribe();
-      },
+    data: `${command}\r`,
+    ...(remoteServerId ? { remoteServerId } : {}),
+    onWriteError: (error) => {
+      console.warn(
+        `[shellUtils] Unable to write command to shell ${shellId}:`,
+        error instanceof Error ? error.message : error,
+      );
     },
-    remoteServerId,
-  );
+  });
 }
 
 /**
@@ -261,59 +198,44 @@ export function writeScriptToShellThenExitOnSuccess(
       : buildScriptWithExitOnSuccess(script, locationKind)
   }\r`;
 
-  let detached = false;
   let commandCompleted = false;
   let outputBuffer = "";
-  let unsubscribe: () => void = () => undefined;
+  let detach: () => void = () => undefined;
   const reportCommandComplete = (exitCode: number) => {
     if (commandCompleted) return;
     commandCompleted = true;
     onCommandComplete?.(exitCode);
   };
-  const inputGate = createShellInputGate(remoteServerId, () => {
-    void readBridge()
-      .writeTerminal({ threadId: shellId, data })
-      .catch((error) => {
-        console.warn(
-          `[shellUtils] Unable to write command to shell ${shellId}:`,
-          error instanceof Error ? error.message : error,
-        );
-        reportCommandComplete(-1);
-      });
-  });
-  const detach = () => {
-    if (detached) return;
-    detached = true;
-    inputGate.dispose();
-    unsubscribe();
-  };
-  unsubscribe = watchRoutedTerminal(
+  detach = createRoutedShellSession({
     shellId,
-    {
-      onReset: () => {
-        // A fresh PTY spawned; re-send on its first output so the command runs
-        // in the survivor rather than a PTY that is about to be replaced.
-        inputGate.reset();
-        outputBuffer = "";
-      },
-      onOutput: (output) => {
-        if (inputGate.onOutput(output)) return;
-        if (!completionToken) return;
-        outputBuffer = `${outputBuffer}${output}`.slice(-1024);
-        const marker = shellCompletionMarker(completionToken);
-        const markerStart = outputBuffer.indexOf(marker);
-        if (markerStart < 0) return;
-        const match = /^(\d+)/u.exec(outputBuffer.slice(markerStart + marker.length));
-        if (match) reportCommandComplete(Number(match[1]));
-      },
-      onExited: (exitCode) => {
-        reportCommandComplete(exitCode ?? -1);
-        detach();
-        onExit(exitCode);
-      },
+    data,
+    ...(remoteServerId ? { remoteServerId } : {}),
+    onReset: () => {
+      // A fresh PTY spawned; re-send on its first output so the command runs
+      // in the survivor rather than a PTY that is about to be replaced.
+      outputBuffer = "";
     },
-    remoteServerId,
-  );
+    onOutput: (output) => {
+      if (!completionToken) return;
+      outputBuffer = `${outputBuffer}${output}`.slice(-1024);
+      const marker = shellCompletionMarker(completionToken);
+      const markerStart = outputBuffer.indexOf(marker);
+      if (markerStart < 0) return;
+      const match = /^(\d+)/u.exec(outputBuffer.slice(markerStart + marker.length));
+      if (match) reportCommandComplete(Number(match[1]));
+    },
+    onExited: (exitCode) => {
+      reportCommandComplete(exitCode ?? -1);
+      onExit(exitCode);
+    },
+    onWriteError: (error) => {
+      console.warn(
+        `[shellUtils] Unable to write command to shell ${shellId}:`,
+        error instanceof Error ? error.message : error,
+      );
+      reportCommandComplete(-1);
+    },
+  });
   return detach;
 }
 
@@ -327,21 +249,15 @@ export async function runShellScriptToCompletion(
 
   await new Promise<void>((resolve, reject) => {
     let done = false;
-    let unsubscribe: () => void = () => undefined;
+    let dispose: () => void = () => undefined;
     let timeout = 0;
     function settle(complete: () => void) {
       if (done) return;
       done = true;
       window.clearTimeout(timeout);
-      inputGate.dispose();
-      unsubscribe();
+      dispose();
       complete();
     }
-    const inputGate = createShellInputGate(projectLocation.remoteServerId, () => {
-      void readBridge()
-        .writeTerminal({ threadId: shellId, data: `${command}\rexit\r` })
-        .catch((error) => settle(() => reject(error)));
-    });
     timeout = window.setTimeout(() => {
       if (done) return;
       void readBridge()
@@ -349,17 +265,13 @@ export async function runShellScriptToCompletion(
         .catch(() => undefined);
       settle(() => reject(new Error(`Timed out waiting for cleanup shell ${shellId}.`)));
     }, 30_000);
-    unsubscribe = watchRoutedTerminal(
+    dispose = createRoutedShellSession({
       shellId,
-      {
-        onReset: inputGate.reset,
-        onOutput: (output) => {
-          if (!done) inputGate.onOutput(output);
-        },
-        onExited: () => settle(resolve),
-      },
-      projectLocation.remoteServerId,
-    );
+      data: `${command}\rexit\r`,
+      ...(projectLocation.remoteServerId ? { remoteServerId: projectLocation.remoteServerId } : {}),
+      onExited: () => settle(resolve),
+      onWriteError: (error) => settle(() => reject(error)),
+    });
     void readBridge()
       .startShell({ shellId, projectLocation })
       .catch((error) => settle(() => reject(error)));
@@ -368,7 +280,10 @@ export async function runShellScriptToCompletion(
 
 export async function closeThreads(threadIds: readonly string[]): Promise<void> {
   const uniqueThreadIds = [...new Set(threadIds.filter(Boolean))];
-  for (const threadId of uniqueThreadIds) eagerlyStartedShells.delete(threadId);
+  for (const threadId of uniqueThreadIds) {
+    eagerlyStartedShells.delete(threadId);
+    disposeRoutedShellSession(threadId);
+  }
   await Promise.allSettled(
     uniqueThreadIds.map((threadId) => readBridge().closeThread({ threadId })),
   );

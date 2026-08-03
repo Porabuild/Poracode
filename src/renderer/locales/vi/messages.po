@@ -4432,16 +4432,16 @@ msgid "Failed jobs queued to run again."
 msgstr "Các công việc thất bại đã được xếp hàng để chạy lại."
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to clear goal"
-msgstr "Không thể xóa mục tiêu"
+#~ msgid "Failed to clear goal"
+#~ msgstr "Không thể xóa mục tiêu"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "Không thể đóng pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to close remote thread."
-msgstr "Không thể đóng luồng từ xa."
+#~ msgid "Failed to close remote thread."
+#~ msgstr "Không thể đóng luồng từ xa."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
@@ -4452,8 +4452,8 @@ msgid "Failed to create pull request: {detail}"
 msgstr "Không tạo được pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to interrupt remote thread."
-msgstr "Không thể ngắt luồng từ xa."
+#~ msgid "Failed to interrupt remote thread."
+#~ msgstr "Không thể ngắt luồng từ xa."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -4476,8 +4476,8 @@ msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {b
 msgstr "Không thể ghi siêu dữ liệu của nhánh có chủ sở hữu: {detail}. Quá trình hoàn tác vẫn để lại nhánh {branch}: {rollback}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to update goal"
-msgstr "Không thể cập nhật mục tiêu"
+#~ msgid "Failed to update goal"
+#~ msgstr "Không thể cập nhật mục tiêu"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -8015,6 +8015,10 @@ msgstr "Poracode có thể đang chờ dữ liệu đã lưu hoặc một dịch
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Poracode only"
 msgstr "Chỉ Poracode"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
+msgstr "Tệp kê khai thời gian chạy SSH của Poracode bị thiếu hoặc không hợp lệ: {path}"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."

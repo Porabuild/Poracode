@@ -4432,16 +4432,16 @@ msgid "Failed jobs queued to run again."
 msgstr "실패한 작업을 다시 실행하도록 대기열에 추가했습니다."
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to clear goal"
-msgstr "목표를 지우지 못했습니다"
+#~ msgid "Failed to clear goal"
+#~ msgstr "목표를 지우지 못했습니다"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "풀 요청을 닫지 못했습니다: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to close remote thread."
-msgstr "원격 스레드를 닫지 못했습니다."
+#~ msgid "Failed to close remote thread."
+#~ msgstr "원격 스레드를 닫지 못했습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
@@ -4452,8 +4452,8 @@ msgid "Failed to create pull request: {detail}"
 msgstr "풀 요청 생성 실패: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to interrupt remote thread."
-msgstr "원격 스레드를 중단하지 못했습니다."
+#~ msgid "Failed to interrupt remote thread."
+#~ msgstr "원격 스레드를 중단하지 못했습니다."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -4476,8 +4476,8 @@ msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {b
 msgstr "소유권이 표시된 브랜치 메타데이터를 기록하지 못했습니다: {detail}. 롤백 후에도 브랜치 {branch}이(가) 남았습니다: {rollback}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to update goal"
-msgstr "목표를 업데이트하지 못했습니다"
+#~ msgid "Failed to update goal"
+#~ msgstr "목표를 업데이트하지 못했습니다"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -8015,6 +8015,10 @@ msgstr "Poracode가 저장된 데이터나 백그라운드 서비스를 기다�
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Poracode only"
 msgstr "Poracode 전용"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
+msgstr "Poracode SSH 런타임 매니페스트가 없거나 유효하지 않습니다: {path}"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."

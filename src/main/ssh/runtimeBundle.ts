@@ -13,13 +13,13 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import packageJson from "../../../package.json" with { type: "json" };
-
-const REMOTE_RUNTIME_ENTRIES = [
-  "server",
-  "supervisor",
-  "claudeSdkProbeWorker",
-  "cursorSdkWorker",
-] as const;
+import { msg } from "@/shared/messages";
+import {
+  SSH_RUNTIME_ENTRY_NAMES,
+  SSH_RUNTIME_MANIFEST_VERSION,
+  sshRuntimeManifestFileName,
+  type SshRuntimeBuildManifest,
+} from "@/shared/sshRuntimeManifest";
 
 export interface SshRuntimeBundleOptions {
   readonly mainBundleDir: string;
@@ -36,27 +36,21 @@ export interface SshRuntimeBundle {
   readonly version: string;
 }
 
-interface RuntimeBuildManifest {
-  readonly version: 1;
-  readonly files: readonly string[];
-  readonly dependencies: readonly string[];
-}
-
-function readRuntimeBuildManifest(mainBundleDir: string): RuntimeBuildManifest {
+function readRuntimeBuildManifest(mainBundleDir: string): SshRuntimeBuildManifest {
   const files = new Set<string>();
   const dependencies = new Set<string>();
-  for (const entry of REMOTE_RUNTIME_ENTRIES) {
-    const path = join(mainBundleDir, `${entry}.ssh-runtime-manifest.json`);
-    let value: Partial<RuntimeBuildManifest> | null;
+  for (const entry of SSH_RUNTIME_ENTRY_NAMES) {
+    const path = join(mainBundleDir, sshRuntimeManifestFileName(entry));
+    let value: Partial<SshRuntimeBuildManifest> | null;
     try {
-      value = JSON.parse(readFileSync(path, "utf8")) as Partial<RuntimeBuildManifest> | null;
+      value = JSON.parse(readFileSync(path, "utf8")) as Partial<SshRuntimeBuildManifest> | null;
     } catch (error) {
-      throw new Error(`Poracode SSH runtime manifest is missing or invalid: ${path}`, {
+      throw new Error(msg("ssh.runtimeManifest.invalid", { path }), {
         cause: error,
       });
     }
     if (
-      value?.version !== 1 ||
+      value?.version !== SSH_RUNTIME_MANIFEST_VERSION ||
       !Array.isArray(value.files) ||
       !value.files.every(
         (file) =>
@@ -68,12 +62,16 @@ function readRuntimeBuildManifest(mainBundleDir: string): RuntimeBuildManifest {
       !Array.isArray(value.dependencies) ||
       !value.dependencies.every((dependency) => typeof dependency === "string")
     ) {
-      throw new Error(`Poracode SSH runtime manifest is invalid: ${path}`);
+      throw new Error(msg("ssh.runtimeManifest.invalid", { path }));
     }
     for (const file of value.files) files.add(file);
     for (const dependency of value.dependencies) dependencies.add(dependency);
   }
-  return { version: 1, files: [...files].sort(), dependencies: [...dependencies].sort() };
+  return {
+    version: SSH_RUNTIME_MANIFEST_VERSION,
+    files: [...files].sort(),
+    dependencies: [...dependencies].sort(),
+  };
 }
 
 function runtimePackageJson(dependencyNames: readonly string[]): string {
@@ -214,8 +212,8 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   const runtimePackage = runtimePackageJson(buildManifest.dependencies);
   const signature = statSignature(
     [
-      ...REMOTE_RUNTIME_ENTRIES.map((entry) =>
-        join(options.mainBundleDir, `${entry}.ssh-runtime-manifest.json`),
+      ...SSH_RUNTIME_ENTRY_NAMES.map((entry) =>
+        join(options.mainBundleDir, sshRuntimeManifestFileName(entry)),
       ),
       ...buildManifest.files.map((file) => join(options.mainBundleDir, file)),
       options.agentPluginsDir,

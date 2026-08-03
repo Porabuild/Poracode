@@ -4431,16 +4431,16 @@ msgid "Failed jobs queued to run again."
 msgstr "失敗したジョブを再実行キューに追加しました。"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to clear goal"
-msgstr "目標をクリアできませんでした"
+#~ msgid "Failed to clear goal"
+#~ msgstr "目標をクリアできませんでした"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
 msgstr "プル リクエストを閉じることができませんでした:{detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to close remote thread."
-msgstr "リモートスレッドを閉じられませんでした。"
+#~ msgid "Failed to close remote thread."
+#~ msgstr "リモートスレッドを閉じられませんでした。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
@@ -4451,8 +4451,8 @@ msgid "Failed to create pull request: {detail}"
 msgstr "プル リクエストの作成に失敗しました:{detail}"
 
 #: src/renderer/state/remoteServersStore.ts
-msgid "Failed to interrupt remote thread."
-msgstr "リモートスレッドを中断できませんでした。"
+#~ msgid "Failed to interrupt remote thread."
+#~ msgstr "リモートスレッドを中断できませんでした。"
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -4475,8 +4475,8 @@ msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {b
 msgstr "所有権付きブランチのメタデータを記録できませんでした: {detail}。ロールバック後もブランチ {branch} が残っています: {rollback}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-msgid "Failed to update goal"
-msgstr "目標を更新できませんでした"
+#~ msgid "Failed to update goal"
+#~ msgstr "目標を更新できませんでした"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
@@ -8013,6 +8013,10 @@ msgstr "Poracode は保存済みデータまたはバックグラウンドサー
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Poracode only"
 msgstr "Poracode のみ"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
+msgstr "Poracode SSH ランタイムマニフェストが見つからないか、無効です: {path}"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."

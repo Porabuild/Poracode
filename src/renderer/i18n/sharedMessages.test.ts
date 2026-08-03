@@ -50,5 +50,16 @@ describe("shared message i18n integration", () => {
     expect(summary).not.toBe("Merge has conflicts");
     expect(summary.length).toBeGreaterThan(0);
   });
+
+  it("translates main-process SSH manifest errors and preserves their path", async () => {
+    await dynamicActivate("es");
+    const path = "C:\\Poracode\\server.ssh-runtime-manifest.json";
+    const summary = friendlyError(
+      new Error(`Poracode SSH runtime manifest is missing or invalid: ${path}`),
+    );
+
+    expect(summary).not.toBe(`Poracode SSH runtime manifest is missing or invalid: ${path}`);
+    expect(summary).toContain(path);
+  });
 });
 // @vitest-environment node

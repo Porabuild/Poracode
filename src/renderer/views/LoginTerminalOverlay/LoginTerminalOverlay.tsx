@@ -8,6 +8,7 @@ import {
   type LoginTerminalSession,
 } from "@/renderer/state/loginTerminalStore";
 import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { disposeRoutedShellSession } from "@/renderer/utils/shellUtils";
 import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
 
 /**
@@ -64,6 +65,7 @@ export function LoginTerminalOverlay() {
     const id = renderedSession?.shellId;
     if (!id) return;
     return () => {
+      disposeRoutedShellSession(id);
       void readBridge()
         .closeThread({ threadId: id })
         .catch(() => undefined);
@@ -73,6 +75,7 @@ export function LoginTerminalOverlay() {
   const closeSession = () => {
     if (!active) return;
     const session = active;
+    disposeRoutedShellSession(session.shellId);
     void readBridge()
       .closeThread({ threadId: session.shellId })
       .catch(() => undefined);

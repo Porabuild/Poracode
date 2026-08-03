@@ -135,7 +135,6 @@ export const browserStartPickerResultSchema = z.object({
   attachmentPath: z.string().optional(),
   attachmentName: z.string().optional(),
   mimeType: z.string().optional(),
-  data: z.instanceof(Uint8Array).optional(),
   selector: z.string().optional(),
   sourceUrl: z.string().optional(),
   rect: z

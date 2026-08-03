@@ -137,6 +137,7 @@ const messages = {
   "remote.helper.timeout": "Timed out waiting for Poracode Helper.",
   "remote.helper.startFailed":
     "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
+  "ssh.runtimeManifest.invalid": "Poracode SSH runtime manifest is missing or invalid: {path}",
   "remote.project.invalidName": "Enter a valid project name.",
   "remote.project.invalidPath": "Enter a valid absolute project path.",
   "remote.project.invalidCloneUrl":
@@ -260,6 +261,13 @@ const errorPatterns: Array<{
     test: /Poracode Helper probe returned HTTP \d+/i,
     key: "remote.helper.probeFailed",
     params: (raw) => ({ status: raw.match(/HTTP (\d+)/i)?.[1] ?? "?" }),
+  },
+  {
+    test: /^Poracode SSH runtime manifest is missing or invalid: .+$/i,
+    key: "ssh.runtimeManifest.invalid",
+    params: (raw) => ({
+      path: raw.match(/^Poracode SSH runtime manifest is missing or invalid: (.+)$/i)?.[1] ?? "?",
+    }),
   },
   {
     test: /Timed out waiting for the SSH tunnel to reach Poracode Helper/i,
