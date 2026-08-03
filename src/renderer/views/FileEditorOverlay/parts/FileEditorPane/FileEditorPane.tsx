@@ -226,16 +226,18 @@ function TabStripHeader(props: {
       </div>
 
       <div className="flex-1" />
-      <EditorToolbar
-        isMarkdown={props.isMarkdown}
-        showPreview={props.showPreview}
-        setShowPreview={props.setShowPreview}
-        isDirty={props.isDirty}
-        activePath={props.activePath}
-        onSave={() => props.activePath && props.onSave(props.activePath)}
-        {...(props.onOpenFullscreen ? { onOpenFullscreen: props.onOpenFullscreen } : {})}
-        {...(props.onClose ? { onClose: props.onClose } : {})}
-      />
+      <div className="poracode-content-over-drag-region flex items-center gap-1.5">
+        <EditorToolbar
+          isMarkdown={props.isMarkdown}
+          showPreview={props.showPreview}
+          setShowPreview={props.setShowPreview}
+          isDirty={props.isDirty}
+          activePath={props.activePath}
+          onSave={() => props.activePath && props.onSave(props.activePath)}
+          {...(props.onOpenFullscreen ? { onOpenFullscreen: props.onOpenFullscreen } : {})}
+          {...(props.onClose ? { onClose: props.onClose } : {})}
+        />
+      </div>
     </div>
   );
 }
