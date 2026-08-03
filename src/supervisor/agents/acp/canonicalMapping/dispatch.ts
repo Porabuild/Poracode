@@ -154,6 +154,13 @@ export function mapAcpSessionUpdate(
     }
 
     case "agent_thought_chunk": {
+      const thoughtMeta =
+        update._meta && typeof update._meta === "object" && !Array.isArray(update._meta)
+          ? (update._meta as Record<string, unknown>)
+          : undefined;
+      if (thoughtMeta?.[PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY] === true) {
+        events.push(...closeOpenContentItems(state));
+      }
       if (!state.openReasoningItemId) {
         // Close any prior assistant — reasoning bracket starts.
         if (state.openAssistantItemId) {

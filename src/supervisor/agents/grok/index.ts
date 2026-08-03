@@ -15,6 +15,7 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildGrokAcpArgs, buildGrokArgs } from "./argv";
+import { createGrokAcpSessionUpdateTransform } from "./acpTransform";
 import { buildGrokCommand, grokDefaultCapabilities, grokDetectionSpec } from "./detection";
 import {
   installGrokPlugin,
@@ -90,6 +91,12 @@ export function createGrokAdapter(): AgentAdapter {
     // — do not set oscHintsDeferToHookPlugin.
     handleOscNotification: iterm2ProgressOscHint,
     handleOscTitle: brailleSpinnerOscTitleHint,
+
+    buildGoalControlPrompt(control) {
+      return control.action === "pause" || control.action === "resume" || control.action === "clear"
+        ? `/goal ${control.action}`
+        : undefined;
+    },
 
     pluginId: "poracode-status@grok",
     pluginVersion: GROK_PLUGIN_VERSION,
@@ -172,7 +179,10 @@ export function createGrokAdapter(): AgentAdapter {
         [...acpArgs, "agent", "stdio"],
         resolveAgentBinaryPath(input.projectLocation, "grok"),
       );
-      return createAcpStructuredSession(command, input);
+      return createAcpStructuredSession(command, {
+        ...input,
+        acpSessionUpdateTransform: createGrokAcpSessionUpdateTransform(),
+      });
     },
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {

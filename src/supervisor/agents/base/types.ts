@@ -383,6 +383,8 @@ export interface AgentAcpAuth {
 export interface AgentPromptFormatter {
   shouldDeferPromptToTerminal?(config: ThreadConfig): boolean;
   buildTerminalPreInputs?(config: ThreadConfig): string[][] | undefined;
+  /** Translate a canonical goal control into the provider's native prompt command. */
+  buildGoalControlPrompt?(control: ThreadGoalControl): string | undefined;
   buildDirectInput?(
     prompt: string,
     segments?: PromptSegment[],
