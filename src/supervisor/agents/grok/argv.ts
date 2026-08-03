@@ -86,7 +86,7 @@ export function buildGrokArgs(
   _prompt: string,
   session?: GrokSessionArg,
 ): string[] {
-  const args: string[] = [];
+  const args = ["--no-auto-update"];
 
   if (session?.kind === "resume") {
     args.push("-r", session.sessionId);
