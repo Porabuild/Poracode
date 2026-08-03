@@ -63,6 +63,23 @@ describe("agent selection", () => {
     expect(resolveReasoningSelection(gui, "chat-model", "missing")).toBe("high");
   });
 
+  it("prefers a model's own probed default effort over the provider-wide one", () => {
+    const withModelDefaults: AgentCapability = {
+      ...capabilities,
+      models: [
+        { id: "highspeed", label: "Highspeed" },
+        { id: "k3", label: "K3" },
+      ],
+      efforts: ["low", "medium", "high", "max"],
+      defaultEffort: "low",
+      modelDefaultEfforts: { k3: "high", "removed-model": "max", highspeed: "unsupported" },
+    };
+    // Per-model default wins; an unsupported per-model value falls back to the
+    // provider default; models without an entry keep the provider default.
+    expect(modelSelectionFor(withModelDefaults, "k3").reasoning.default).toBe("high");
+    expect(modelSelectionFor(withModelDefaults, "highspeed").reasoning.default).toBe("low");
+  });
+
   it("uses provider visibility defaults until the user saves an explicit list", () => {
     const withDefaults: AgentCapability = {
       ...capabilities,

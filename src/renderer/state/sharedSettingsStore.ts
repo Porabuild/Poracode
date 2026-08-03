@@ -72,7 +72,6 @@ interface SharedSettingsState extends SharedSettings {
   setHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setAgentDisabled: (agentKind: string, disabled: boolean) => void;
   setCrossagentProviderPaused: (agentKind: string, paused: boolean) => void;
-  setCrossagentModelHidden: (agentKind: string, modelId: string, hidden: boolean) => void;
   setCrossagentHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setProviderOrder: (order: string[]) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
@@ -407,13 +406,6 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       ? [...new Set([...current, agentKind])]
       : current.filter((k) => k !== agentKind);
     set({ crossagentPausedProviders: next });
-    persistSettings(selectSharedSettings(get()));
-  },
-  setCrossagentModelHidden: (agentKind, modelId, hidden) => {
-    const current = get().crossagentHiddenModels;
-    const list = current[agentKind] ?? [];
-    const next = hidden ? [...new Set([...list, modelId])] : list.filter((id) => id !== modelId);
-    set({ crossagentHiddenModels: { ...current, [agentKind]: next } });
     persistSettings(selectSharedSettings(get()));
   },
   setCrossagentHiddenModels: (agentKind, hiddenIds) => {

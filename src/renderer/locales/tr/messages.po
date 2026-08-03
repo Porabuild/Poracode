@@ -578,13 +578,13 @@ msgstr "{usedLabel} / {maxLabel} jeton"
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} jeton"
 
-#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} usable"
 msgstr "{totalCount} öğeden {visibleCount} tanesi kullanılabilir"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount} öğeden {visibleCount} tanesi görünür"
 
@@ -1056,8 +1056,12 @@ msgid "Agents · General"
 msgstr "Temsilciler · Genel"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
-msgstr "Ajanlar devredilen işi görev etiketleriyle sınıflandırır. Önce manuel görev rotaları, ardından eşleşen öğrenilmiş rotalar, genel Crossagents kullanımı, favoriler, normal ajan kullanımı ve yerleşik sıra gelir."
+#~ msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, favorites, normal agent usage, and built-in order."
+#~ msgstr "Ajanlar devredilen işi görev etiketleriyle sınıflandırır. Önce manuel görev rotaları, ardından eşleşen öğrenilmiş rotalar, genel Crossagents kullanımı, favoriler, normal ajan kullanımı ve yerleşik sıra gelir."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Agents classify delegated work with task tags. Manual task routes rank first, followed by matching learned routes, global Crossagents usage, normal agent usage and favorites, and built-in order."
+msgstr "Agentlar devredilen işi görev etiketleriyle sınıflandırır. Manuel görev rotaları ilk sırada yer alır; ardından eşleşen öğrenilmiş rotalar, genel Crossagents kullanımı, normal agent kullanımı ve favoriler ile yerleşik sıralama gelir."
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
@@ -1228,6 +1232,10 @@ msgstr "Bu deney için başka bir işlem hâlâ devam ediyor."
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
+msgstr "Şu anda kullanılamayan her şey — bir sağlayıcı, model, akıl yürütme düzeyi veya Fast modu — otomatik olarak atlanır. İşaretlenmemiş sağlayıcılar ve modeller yeniden işaretlenene kadar atlanır."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
@@ -2020,6 +2028,10 @@ msgstr "Son ilerlememi kontrol et ve sırada ne yapmam gerektiğine dair tek bir
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "Seçilen cihazdan canlı giriş seviyesini kontrol edin."
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Checked"
+msgstr "İşaretli"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Checking"
@@ -3251,12 +3263,16 @@ msgstr "Crossagent ({subagent}): {description}"
 
 #. placeholder {0}: props.provider.label
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
-msgid "Crossagent models for {0}"
-msgstr "{0} için Crossagent modelleri"
+#~ msgid "Crossagent models for {0}"
+#~ msgstr "{0} için Crossagent modelleri"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #~ msgid "Crossagent not found."
 #~ msgstr "Crossagent bulunamadı."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagent providers and models"
+msgstr "Crossagent sağlayıcıları ve modelleri"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3324,6 +3340,10 @@ msgstr "Güncel"
 #: src/renderer/components/skills/SkillImportModal.tsx
 #~ msgid "Current project"
 #~ msgstr "Geçerli proje"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Current routing order"
+msgstr "Geçerli yönlendirme sırası"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
@@ -4408,6 +4428,10 @@ msgstr "Deney hakeminin kazananı 1 ile {candidateCount} arasında olmalıdır"
 msgid "Experiment prompt must not be blank"
 msgstr "Deney istemi boş olmamalıdır"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
+msgstr "Geçmiş devretmelerden kaydedilen açık seçimler — yukarıdaki yönlendirme sırasını besler. Yeniden şekillendirmek için etiketleri düzenleyin veya girişleri kaldırın."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCP sunucularını dışa aktar"
@@ -5134,10 +5158,9 @@ msgstr "Gizle"
 msgid "Hide {label} circle in sidebar"
 msgstr "{label} dairesini kenar çubuğunda gizle"
 
-#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "Tümünü gizle"
 
@@ -5721,8 +5744,12 @@ msgid "Launching…"
 msgstr "Başlatılıyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
-msgid "Learned routing memory"
-msgstr "Öğrenilmiş yönlendirme belleği"
+#~ msgid "Learned routing memory"
+#~ msgstr "Öğrenilmiş yönlendirme belleği"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Learned selections"
+msgstr "Öğrenilen seçimler"
 
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
@@ -6999,8 +7026,12 @@ msgid "No jobs reported for this run."
 msgstr "Bu çalıştırma için bildirilen iş yok."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
-msgid "No learned routing memory yet."
-msgstr "Henüz öğrenilmiş yönlendirme belleği yok."
+#~ msgid "No learned routing memory yet."
+#~ msgstr "Henüz öğrenilmiş yönlendirme belleği yok."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No learned selections yet."
+msgstr "Henüz öğrenilen seçim yok."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -7064,9 +7095,8 @@ msgid "No microphone found."
 msgstr "Mikrofon bulunamadı."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "No models found"
 msgstr "Hiçbir model bulunamadı"
 
@@ -7839,6 +7869,10 @@ msgstr "Sunucudaki üst klasör"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "Üst klasör, örn. /home/me/projects"
 
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Partially checked"
+msgstr "Kısmen işaretli"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
 msgstr "Geçti"
@@ -7889,8 +7923,8 @@ msgstr "Duraklat"
 
 #. placeholder {0}: entry.label
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
-msgid "Pause {0}"
-msgstr "{0} öğesini duraklat"
+#~ msgid "Pause {0}"
+#~ msgstr "{0} öğesini duraklat"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
@@ -7898,17 +7932,16 @@ msgstr "Hedefi duraklat"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Paused"
 msgstr "Duraklatıldı"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Paused providers"
-msgstr "Duraklatılmış sağlayıcılar"
+#~ msgid "Paused providers"
+#~ msgstr "Duraklatılmış sağlayıcılar"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Paused providers are skipped by Crossagents until resumed."
-msgstr "Duraklatılmış sağlayıcılar, sürdürülene kadar Crossagents tarafından atlanır."
+#~ msgid "Paused providers are skipped by Crossagents until resumed."
+#~ msgstr "Duraklatılmış sağlayıcılar, sürdürülene kadar Crossagents tarafından atlanır."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
@@ -8146,8 +8179,8 @@ msgid "Pre-commit hook failed"
 msgstr "Pre-commit kancası başarısız oldu"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Preferred routing order"
-msgstr "Tercih edilen yönlendirme sırası"
+#~ msgid "Preferred routing order"
+#~ msgstr "Tercih edilen yönlendirme sırası"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -8357,6 +8390,10 @@ msgstr "sağlayıcılar"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Sağlayıcılar"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Providers & models"
+msgstr "Sağlayıcılar ve modeller"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -9115,8 +9152,8 @@ msgid "Resume"
 msgstr "Sürdür"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Resume {label}"
-msgstr "{label} öğesini sürdür"
+#~ msgid "Resume {label}"
+#~ msgstr "{label} öğesini sürdür"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -9622,16 +9659,14 @@ msgstr "MCP sunucularında ara"
 msgid "Search MCP servers..."
 msgstr "MCP sunucularında ara..."
 
-#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models"
 msgstr "Modelleri ara"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models..."
 msgstr "Modelleri ara..."
 
@@ -9903,10 +9938,9 @@ msgstr "İşletim sistemi düzeyindeki aracı oturumları için projesiz bir Ana
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "Tümünü göster"
 
@@ -10211,6 +10245,11 @@ msgstr "Skills.sh"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "Atlandı"
+
+#. placeholder {0}: skippedProviderNames.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Skipped by Crossagents: {0}"
+msgstr "Crossagents tarafından atlananlar: {0}"
 
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
@@ -10665,8 +10704,8 @@ msgid "Support:"
 msgstr "Destek:"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Supports Fast mode"
 msgstr "Hızlı modu destekler"
 
@@ -11803,12 +11842,24 @@ msgid "Unavailable provider"
 msgstr "Kullanılamayan sağlayıcı"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
-msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
-msgstr "Kullanılamayan sağlayıcılar, modeller, akıl yürütme düzeyleri ve Fast modları otomatik olarak atlanır."
+#~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
+#~ msgstr "Kullanılamayan sağlayıcılar, modeller, akıl yürütme düzeyleri ve Fast modları otomatik olarak atlanır."
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
+#~ msgstr "Kullanılamayan sağlayıcılar, modeller, akıl yürütme düzeyleri ve Fast modları otomatik olarak atlanır. İşaretlenmemiş sağlayıcılar ve modeller yeniden işaretlenene kadar atlanır."
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+msgid "Unchecked"
+msgstr "İşaretlenmemiş"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
-msgid "Unchecked models are skipped by Crossagents only."
-msgstr "İşaretlenmemiş modeller yalnızca Crossagents tarafından atlanır."
+#~ msgid "Unchecked models are skipped by Crossagents only."
+#~ msgstr "İşaretlenmemiş modeller yalnızca Crossagents tarafından atlanır."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Unchecked providers and models are skipped by Crossagents only."
+msgstr "İşaretlenmemiş sağlayıcılar ve modeller yalnızca Crossagents tarafından atlanır."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -12386,8 +12437,8 @@ msgid "Weekly review"
 msgstr "Haftalık değerlendirme"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
-msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
-msgstr "Crossagents'ın açık seçimlerden öğrendikleri. Yönlendirmeyi yeniden şekillendirmek için etiketleri düzenleyin veya girdileri kaldırın."
+#~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
+#~ msgstr "Crossagents'ın açık seçimlerden öğrendikleri. Yönlendirmeyi yeniden şekillendirmek için etiketleri düzenleyin veya girdileri kaldırın."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"

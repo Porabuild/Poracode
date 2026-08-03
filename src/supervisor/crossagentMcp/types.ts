@@ -7,7 +7,11 @@ import type {
   ResolvedMcpServer,
 } from "@/shared/contracts";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
-import type { CrossagentRankSource } from "@/shared/crossagentRanking";
+import type {
+  CrossagentExecution,
+  CrossagentRankingCandidate,
+  CrossagentRankSource,
+} from "@/shared/crossagentRanking";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 
 /** Terminal states a subagent run can settle into. */
@@ -43,8 +47,6 @@ export interface SpawnableAgentModel {
  *   streams stdout as its output and settles when the process exits. No
  *   interactive approval channel.
  */
-export type SpawnableAgentExecution = "structured" | "one-shot";
-
 /**
  * Single source of truth for which lane an adapter runs as a subagent child:
  * `structured` if it has a GUI runtime, else `one-shot` if it can build a
@@ -54,7 +56,7 @@ export type SpawnableAgentExecution = "structured" | "one-shot";
 export function resolveSubagentExecution(adapter: {
   createStructuredSession?: unknown;
   buildSubagentOneShotCommand?: unknown;
-}): SpawnableAgentExecution | undefined {
+}): CrossagentExecution | undefined {
   if (adapter.createStructuredSession) return "structured";
   if (adapter.buildSubagentOneShotCommand) return "one-shot";
   return undefined;
@@ -98,7 +100,7 @@ export interface SpawnableAgent {
     options: Array<{ value: "full-access"; label: string }>;
     default: "full-access";
   };
-  execution: SpawnableAgentExecution;
+  execution: CrossagentExecution;
   preference?: {
     rank: number;
     source: CrossagentRankSource;
@@ -111,11 +113,27 @@ export interface SpawnableAgent {
   };
 }
 
+/** Adapt a spawnable agent to the ranking layer's candidate shape. */
+export function rankingCandidateOf(
+  agent: Omit<SpawnableAgent, "preference">,
+): CrossagentRankingCandidate {
+  return {
+    provider: agent.provider.value,
+    defaultModel: agent.defaultModel,
+    models: agent.models.map((model) => ({
+      id: model.value,
+      efforts: model.reasoning.values,
+      ...(model.reasoning.default ? { defaultEffort: model.reasoning.default } : {}),
+      fastAvailable: model.fast?.available === true,
+    })),
+  };
+}
+
 /** Compact first-stage provider discovery returned by `list_agents`. */
 export interface SpawnableAgentSummary {
   id: string;
   label: string;
-  execution: SpawnableAgentExecution;
+  execution: CrossagentExecution;
   defaultModel: string;
   modelCount: number;
   rank: number;

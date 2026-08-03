@@ -1,19 +1,23 @@
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
-import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
-import { normalizeCrossagentTags, rankCrossagentCandidates } from "@/shared/crossagentRanking";
-import type { CrossagentRoutingSnapshotEntry } from "@/shared/crossagentRanking";
+import { modelSelectionFor } from "@/shared/agentSelection";
+import {
+  crossagentRankingPreferences,
+  normalizeCrossagentTags,
+  rankCrossagentCandidates,
+} from "@/shared/crossagentRanking";
 import { formatReasoningLabel } from "@/shared/modelLabels";
 import type { CrossagentRoutingOverride, SharedSettings } from "@/shared/settings";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import {
   filterCrossagentCapabilities,
   isCrossagentProviderEnabled,
+  presentedCrossagentCapabilities,
   type CrossagentVisibilitySettings,
 } from "./availability";
 import { MAX_CONCURRENT_CHILDREN_PER_PARENT, type SubagentRunManager } from "./SubagentRunManager";
 import { errorResult, jsonResult, parseWaitTimeoutMs, TIMEOUT_S_DESCRIPTION } from "./toolResult";
 import { parseRunIds, parseSpawnRequest, parseSpawnRequests } from "./toolRequests";
-import { resolveSubagentExecution } from "./types";
+import { rankingCandidateOf, resolveSubagentExecution } from "./types";
 import type {
   McpToolResult,
   ExplicitSpawnAgentSelection,
@@ -53,7 +57,7 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
   "Call list_agents first for the compact provider roster, learned rank, and preferred selection, then call get_agent with a provider id when you need its full models, reasoning options, Fast availability, and permissions preset.",
   "Classify every task with 1-5 concise lowercase tags and pass the same tags to list_agents and spawn_agent. Prefer this vocabulary when applicable: frontend, ui, design, backend, mobile, simulator, implementation, bugfix, review, testing, research, refactor, docs, devops, data. Crossagents learns tag-to-selection affinity from user-explicit selection choices without an extra model call.",
-  "Explicit provider, model, reasoning, and Fast values always win. When the user does not specify them, omit those fields and Crossagents will resolve matching manual task routes first, then learned task tags, global explicit Crossagents usage, favorite and frequently used composer selections, then built-in order.",
+  "Explicit provider, model, reasoning, and Fast values always win. When the user does not specify them, omit those fields and Crossagents will resolve matching manual task routes first, then learned task tags, global explicit Crossagents usage, frequently used and favorite composer selections, then built-in order.",
   "When the user explicitly asks to always prefer a provider/model for a kind of task, call set_routing_preference with its tags and selection. This persistent manual override ranks before learned affinity. Use remove_routing_preference when the user asks to forget or reset it; do not create or remove persistent preferences without clear user intent.",
   "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread, best for search, summarization, bulk edits, and one-off checks.",
   "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent once for every background result the task requires. Use a bounded timeout and do not repeatedly poll a stalled run; cancel it or continue without it.",
@@ -330,10 +334,10 @@ export function buildSpawnableAgents(
     if (!adapter) continue;
     const execution = resolveSubagentExecution(adapter);
     if (!execution) continue;
-    const presentationCapabilities =
-      execution === "structured"
-        ? capabilitiesForPresentation(status.capabilities, "gui")
-        : status.capabilities;
+    const presentationCapabilities = presentedCrossagentCapabilities(
+      execution,
+      status.capabilities,
+    );
     const capabilities = filterCrossagentCapabilities(
       status.kind,
       execution,
@@ -380,23 +384,8 @@ export function buildSpawnableAgents(
     });
   }
   const ranked = rankCrossagentCandidates(
-    out.map((agent) => ({
-      provider: agent.provider.value,
-      defaultModel: agent.defaultModel,
-      models: agent.models.map((model) => ({
-        id: model.value,
-        efforts: model.reasoning.values,
-        ...(model.reasoning.default ? { defaultEffort: model.reasoning.default } : {}),
-        fastAvailable: model.fast?.available === true,
-      })),
-    })),
-    {
-      crossagentSelectionUsage: visibility.crossagentSelectionUsage ?? [],
-      routingOverrides: visibility.crossagentRoutingOverrides ?? [],
-      agentSelectionUsage: visibility.agentSelectionUsage ?? [],
-      favoriteModels: visibility.favoriteModels ?? [],
-      contextTags,
-    },
+    out.map(rankingCandidateOf),
+    crossagentRankingPreferences(visibility, contextTags),
   );
   const agentsByProvider = new Map(out.map((agent) => [agent.provider.value, agent]));
   return ranked.map((entry) => {
@@ -442,30 +431,6 @@ function summarizeAgent(agent: SpawnableAgent): SpawnableAgentSummary {
     matchedTags: preference.matchedTags ?? [],
     learnedTags: preference.learnedTags ?? [],
   };
-}
-
-export function crossagentRoutingSnapshot(
-  agents: readonly SpawnableAgent[],
-): CrossagentRoutingSnapshotEntry[] {
-  return agents.map((agent) => {
-    const summary = summarizeAgent(agent);
-    const model = agent.models.find((candidate) => candidate.value === summary.preferredModel);
-    return {
-      provider: summary.id,
-      label: summary.label,
-      execution: summary.execution,
-      rank: summary.rank,
-      source: summary.preferenceSource,
-      usageCount: summary.usageCount,
-      model: {
-        id: summary.preferredModel,
-        label: model?.label ?? summary.preferredModel,
-      },
-      ...(summary.preferredReasoning ? { reasoning: summary.preferredReasoning } : {}),
-      fast: summary.preferredFast,
-      learnedTags: summary.learnedTags,
-    };
-  });
 }
 
 export interface SubagentToolContext {

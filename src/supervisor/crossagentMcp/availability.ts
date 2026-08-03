@@ -27,6 +27,6 @@ export function visibleCrossagentCapabilitiesForAdapter(
   const execution = resolveSubagentExecution(adapter);
   if (!execution) return null;
   const base = cachedCapabilities ?? adapter.capabilities;
-  const presented = presentedCrossagentCapabilities(adapter.kind, execution, base);
+  const presented = presentedCrossagentCapabilities(execution, base);
   return filterCrossagentCapabilities(adapter.kind, execution, presented, settings);
 }

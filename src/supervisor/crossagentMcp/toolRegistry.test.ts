@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import type { SubagentRunManager } from "./SubagentRunManager";
+import { listCrossagentEligibleProviders } from "./routingSnapshot";
 import {
   buildSpawnableAgents,
   classifyModelTier,
@@ -173,6 +174,47 @@ describe("buildSpawnableAgents", () => {
     ).toEqual([]);
   });
 
+  it("excludes providers paused only for Crossagents", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "claude" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+    ]);
+    expect(
+      buildSpawnableAgents(adapters, [makeStatus()], {
+        disabledAgents: [],
+        hiddenModels: {},
+        crossagentPausedProviders: ["claude"],
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps paused and fully-filtered providers listed as eligible, but not globally disabled ones", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "claude" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+    ]);
+    expect(
+      listCrossagentEligibleProviders(adapters, [makeStatus()], {
+        disabledAgents: [],
+        hiddenModels: {},
+        crossagentPausedProviders: ["claude"],
+        crossagentHiddenModels: {
+          claude: ["claude-haiku-4", "claude-sonnet-4.5", "claude-opus-4"],
+        },
+      }),
+    ).toEqual([{ kind: "claude", label: "Claude", execution: "structured" }]);
+    expect(
+      listCrossagentEligibleProviders(adapters, [makeStatus()], {
+        disabledAgents: ["claude"],
+        hiddenModels: {},
+      }),
+    ).toEqual([]);
+  });
+
   it("filters hidden models and recomputes the advertised default", () => {
     const adapters = new Map<AgentKind, AgentAdapter>([
       [
@@ -183,6 +225,22 @@ describe("buildSpawnableAgents", () => {
     const [agent] = buildSpawnableAgents(adapters, [makeStatus()], {
       disabledAgents: [],
       hiddenModels: { claude: ["claude-haiku-4", "claude-sonnet-4.5"] },
+    });
+    expect(agent?.models.map((model) => model.value)).toEqual(["claude-opus-4"]);
+    expect(agent?.defaultModel).toBe("claude-opus-4");
+  });
+
+  it("applies Crossagents-only model visibility on top of global visibility", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "claude" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+    ]);
+    const [agent] = buildSpawnableAgents(adapters, [makeStatus()], {
+      disabledAgents: [],
+      hiddenModels: { claude: ["claude-haiku-4"] },
+      crossagentHiddenModels: { claude: ["claude-sonnet-4.5"] },
     });
     expect(agent?.models.map((model) => model.value)).toEqual(["claude-opus-4"]);
     expect(agent?.defaultModel).toBe("claude-opus-4");

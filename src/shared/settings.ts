@@ -40,6 +40,9 @@ export const agentSelectionUsageEntrySchema = z.object({
 });
 export type AgentSelectionUsageEntry = z.infer<typeof agentSelectionUsageEntrySchema>;
 
+export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
+export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
+
 export const crossagentSelectionUsageEntrySchema = agentSelectionUsageEntrySchema.extend({
   /** Normalized task classifications supplied by the calling agent. */
   tags: z.array(z.string().min(1).max(32)).max(5).optional(),
@@ -58,8 +61,23 @@ export const crossagentSelectionUsageEntrySchema = agentSelectionUsageEntrySchem
 });
 export type CrossagentSelectionUsageEntry = z.infer<typeof crossagentSelectionUsageEntrySchema>;
 
-export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
-export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
+export const crossagentSelectionUsageEntryKeySchema = crossagentSelectionUsageEntrySchema
+  .pick({
+    agentKind: true,
+    modelId: true,
+    effort: true,
+    fast: true,
+    tags: true,
+    explicitFields: true,
+  })
+  .extend({
+    agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+    modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+    fast: z.boolean(),
+  });
+export type CrossagentSelectionUsageEntryKey = z.infer<
+  typeof crossagentSelectionUsageEntryKeySchema
+>;
 
 export const crossagentRoutingOverrideSchema = z.object({
   tags: z.array(z.string().min(1).max(32)).min(1).max(5),

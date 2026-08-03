@@ -4,11 +4,11 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { AgentStatus } from "@/shared/contracts";
-import type { CrossagentRoutingSnapshotEntry } from "@/shared/crossagentRanking";
+import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import { CrossagentRoutingSection } from "./CrossagentRoutingSection";
 
 const mocks = vi.hoisted(() => ({
-  getCrossagentRouting: vi.fn<() => Promise<CrossagentRoutingSnapshotEntry[]>>(),
+  getCrossagentRouting: vi.fn<() => Promise<CrossagentRoutingState>>(),
   removeCrossagentRoutingOverride:
     vi.fn<
       (payload: {
@@ -58,53 +58,66 @@ function makeStatus(kind: string, label: string, model: string): AgentStatus {
 describe("CrossagentRoutingSection", () => {
   beforeEach(() => {
     mocks.removeCrossagentRoutingOverride.mockResolvedValue([]);
-    mocks.getCrossagentRouting.mockImplementation(async () =>
-      useSharedSettings.getState().disabledAgents.includes("kimi") ||
-      useSharedSettings.getState().crossagentPausedProviders.includes("kimi")
-        ? [
-            {
-              provider: "claude",
-              label: "Claude Code",
-              execution: "structured",
-              rank: 1,
-              source: "favorite",
-              usageCount: 0,
-              model: { id: "sonnet", label: "SONNET" },
-              reasoning: "high",
-              fast: false,
-              learnedTags: [{ tag: "frontend", count: 3 }],
-            },
-          ]
-        : [
-            {
-              provider: "kimi",
-              label: "Kimi Code",
-              execution: "one-shot",
-              rank: 1,
-              source: "crossagent-usage",
-              usageCount: 4,
-              model: { id: "k3", label: "K3" },
-              reasoning: "max",
-              fast: false,
-              learnedTags: [
-                { tag: "mobile", count: 4 },
-                { tag: "simulator", count: 4 },
-              ],
-            },
-            {
-              provider: "claude",
-              label: "Claude Code",
-              execution: "structured",
-              rank: 2,
-              source: "favorite",
-              usageCount: 0,
-              model: { id: "sonnet", label: "SONNET" },
-              reasoning: "high",
-              fast: false,
-              learnedTags: [{ tag: "frontend", count: 3 }],
-            },
-          ],
-    );
+    mocks.getCrossagentRouting.mockImplementation(async () => {
+      const { disabledAgents, crossagentPausedProviders, crossagentHiddenModels } =
+        useSharedSettings.getState();
+      const kimiRanked =
+        !disabledAgents.includes("kimi") &&
+        !crossagentPausedProviders.includes("kimi") &&
+        !(crossagentHiddenModels.kimi ?? []).includes("k3");
+      const claudeEntry = (rank: number): CrossagentRoutingState["ranked"][number] => ({
+        provider: "claude",
+        label: "Claude Code",
+        execution: "structured",
+        rank,
+        source: "favorite",
+        usageCount: 0,
+        model: { id: "sonnet", label: "SONNET" },
+        reasoning: "high",
+        fast: false,
+        learnedTags: [{ tag: "frontend", count: 3 }],
+      });
+      return {
+        ranked: kimiRanked
+          ? [
+              {
+                provider: "kimi",
+                label: "Kimi Code",
+                execution: "one-shot",
+                rank: 1,
+                source: "crossagent-usage",
+                usageCount: 4,
+                model: { id: "k3", label: "K3" },
+                reasoning: "max",
+                fast: false,
+                learnedTags: [
+                  { tag: "mobile", count: 4 },
+                  { tag: "simulator", count: 4 },
+                ],
+              },
+              claudeEntry(2),
+            ]
+          : [claudeEntry(1)],
+        providers: [
+          ...(disabledAgents.includes("kimi")
+            ? []
+            : [
+                {
+                  kind: "kimi",
+                  label: "Kimi Code",
+                  execution: "one-shot" as const,
+                  paused: crossagentPausedProviders.includes("kimi"),
+                },
+              ]),
+          {
+            kind: "claude",
+            label: "Claude Code",
+            execution: "structured" as const,
+            paused: false,
+          },
+        ],
+      };
+    });
     useAgentStatusesStore.setState({
       agentStatuses: [
         makeStatus("claude", "Claude Code", "sonnet"),
@@ -145,7 +158,7 @@ describe("CrossagentRoutingSection", () => {
   it("shows the supervisor's active learned order and refreshes it when availability changes", async () => {
     render(<CrossagentRoutingSection />);
 
-    expect(await screen.findByText("Kimi Code")).toBeInTheDocument();
+    expect(await screen.findByText("Kimi Code · K3")).toBeInTheDocument();
     expect(screen.getByText("Crossagents usage")).toBeInTheDocument();
     expect(screen.getByText("4 uses")).toBeInTheDocument();
     expect(screen.getByText("#mobile (4) · #simulator (4)")).toBeInTheDocument();
@@ -155,8 +168,8 @@ describe("CrossagentRoutingSection", () => {
 
     act(() => useSharedSettings.setState({ disabledAgents: ["kimi"] }));
 
-    await waitFor(() => expect(screen.queryByText("Kimi Code")).not.toBeInTheDocument());
-    expect(screen.getByText("Claude Code")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Kimi Code · K3")).not.toBeInTheDocument());
+    expect(screen.getByText("Claude Code · SONNET")).toBeInTheDocument();
     expect(screen.getByText("Favorite")).toBeInTheDocument();
     expect(screen.getAllByText("#1")).toHaveLength(1);
   });
@@ -185,25 +198,66 @@ describe("CrossagentRoutingSection", () => {
     expect(useSharedSettings.getState().crossagentRoutingOverrides).toEqual([]);
   });
 
-  it("pauses a provider from the rotation and resumes it", async () => {
+  it("pauses a provider by unchecking it in the global filter and resumes it", async () => {
     render(<CrossagentRoutingSection />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Pause Kimi Code" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagent providers and models" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Kimi Code/ }));
     expect(useSharedSettings.getState().crossagentPausedProviders).toEqual(["kimi"]);
 
-    await waitFor(() => expect(screen.getByText("Paused providers")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Resume Kimi Code" }));
+    // Paused providers drop out of the ranked list but stay in the checklist,
+    // and the closed-state note calls them out.
+    await waitFor(() =>
+      expect(screen.getByText("Skipped by Crossagents: Kimi Code")).toBeInTheDocument(),
+    );
+    await waitFor(() => expect(screen.queryByText("Crossagents usage")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("option", { name: /Kimi Code/ }));
     expect(useSharedSettings.getState().crossagentPausedProviders).toEqual([]);
   });
 
-  it("filters Crossagent models per provider without touching global visibility", async () => {
+  it("filters Crossagent models from the global filter without touching global visibility", async () => {
     render(<CrossagentRoutingSection />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Crossagent models for Kimi Code" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagent providers and models" }));
     fireEvent.click(await screen.findByRole("option", { name: /k3/i }));
 
     expect(useSharedSettings.getState().crossagentHiddenModels).toEqual({ kimi: ["k3"] });
     expect(useSharedSettings.getState().hiddenModels).toEqual({});
+  });
+
+  it("treats Hide all and Show all as inverses across providers and models", async () => {
+    render(<CrossagentRoutingSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagent providers and models" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Hide all" }));
+
+    // Nothing is usable afterwards: every model hidden and every provider unchecked.
+    expect(useSharedSettings.getState().crossagentHiddenModels).toEqual({
+      claude: ["sonnet"],
+      kimi: ["k3"],
+    });
+    expect(useSharedSettings.getState().crossagentPausedProviders.toSorted()).toEqual([
+      "claude",
+      "kimi",
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+
+    expect(useSharedSettings.getState().crossagentHiddenModels).toEqual({ claude: [], kimi: [] });
+    expect(useSharedSettings.getState().crossagentPausedProviders).toEqual([]);
+    expect(useSharedSettings.getState().hiddenModels).toEqual({});
+  });
+
+  it("shows a fully filtered provider as unchecked rather than partially checked", async () => {
+    useSharedSettings.setState({ crossagentHiddenModels: { kimi: ["k3"] } });
+    render(<CrossagentRoutingSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagent providers and models" }));
+
+    const [kimiHeader] = await screen.findAllByRole("option", { name: /Kimi Code/ });
+    expect(kimiHeader).toHaveAccessibleName(/Unchecked/);
+    const [claudeHeader] = screen.getAllByRole("option", { name: /Claude Code/ });
+    expect(claudeHeader).toHaveAccessibleName(/Checked/);
   });
 
   it("edits tags and removes learned memory entries", async () => {
@@ -217,6 +271,7 @@ describe("CrossagentRoutingSection", () => {
           count: 4,
           lastUsedAt: 10,
           tags: ["mobile", "simulator"],
+          explicitFields: { provider: false, model: true, effort: true, fast: false },
         },
       ],
     });
@@ -229,19 +284,25 @@ describe("CrossagentRoutingSection", () => {
         count: 4,
         lastUsedAt: 10,
         tags,
+        explicitFields: { provider: false, model: true, effort: true, fast: false },
       },
     ]);
     mocks.removeCrossagentMemoryEntry.mockResolvedValue([]);
     render(<CrossagentRoutingSection />);
 
-    expect(await screen.findByText("Learned routing memory")).toBeInTheDocument();
+    expect(await screen.findByText("Learned selections")).toBeInTheDocument();
     expect(screen.getByText("#mobile · #simulator")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Edit tags for Kimi Code" }));
     fireEvent.click(await screen.findByRole("button", { name: "Remove tag mobile" }));
     await waitFor(() =>
       expect(mocks.updateCrossagentMemoryEntryTags).toHaveBeenCalledWith(
-        expect.objectContaining({ tags: ["simulator"] }),
+        expect.objectContaining({
+          tags: ["simulator"],
+          entry: expect.objectContaining({
+            explicitFields: { provider: false, model: true, effort: true, fast: false },
+          }),
+        }),
       ),
     );
 

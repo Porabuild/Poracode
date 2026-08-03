@@ -166,6 +166,7 @@ const agentPresentationCapabilityOverrideSchema = z
     efforts: z.array(z.string().min(1)),
     defaultEffort: z.string().optional(),
     modelEfforts: z.record(z.string(), z.array(z.string().min(1))),
+    modelDefaultEfforts: z.record(z.string(), z.string()).optional(),
     subProviders: z.array(labeledOptionSchema).optional(),
     modelSubProvider: z.record(z.string(), z.string()).optional(),
     contextSizes: z.array(labeledOptionSchema).optional(),
@@ -231,6 +232,8 @@ export const agentCapabilitySchema = z.object({
   efforts: z.array(z.string().min(1)).default([]),
   defaultEffort: z.string().optional(),
   modelEfforts: z.record(z.string(), z.array(z.string().min(1))).default({}),
+  /** Per-model default effort. Wins over `defaultEffort` for that model. */
+  modelDefaultEfforts: z.record(z.string(), z.string()).optional(),
   /** Optional sub-provider grouping (e.g. OpenCode Zen, GitHub Copilot under OpenCode). */
   subProviders: z.array(labeledOptionSchema).optional(),
   /** Map from model id to its sub-provider id. Falls back to model-id namespace prefix when omitted. */

@@ -1,8 +1,6 @@
 import type { AgentCapability, AgentKind } from "./contracts";
 import { capabilitiesForPresentation, filterHiddenModels } from "./agentSelection";
-
-/** Execution lane a Crossagents child would use; mirrors the supervisor type. */
-export type CrossagentExecution = "structured" | "one-shot";
+import type { CrossagentExecution } from "./crossagentRanking";
 
 export interface CrossagentVisibilitySettings {
   disabledAgents: readonly string[];
@@ -78,7 +76,6 @@ export function filterCrossagentCapabilities(
 
 /** Present the capability surface one execution lane shows to Crossagents. */
 export function presentedCrossagentCapabilities(
-  kind: AgentKind,
   execution: CrossagentExecution,
   capabilities: AgentCapability,
 ): AgentCapability {

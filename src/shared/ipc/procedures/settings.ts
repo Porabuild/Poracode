@@ -2,23 +2,14 @@ import { z } from "zod";
 import type { AgentInstanceConfig, SetClaudeProfileEnvironmentPayload } from "../../contracts";
 import { setClaudeProfileEnvironmentPayloadSchema } from "../../contracts";
 import {
-  MAX_CROSSAGENT_SELECTION_VALUE_LENGTH,
   type CrossagentRoutingOverride,
   type CrossagentSelectionUsageEntry,
+  type CrossagentSelectionUsageEntryKey,
+  crossagentSelectionUsageEntryKeySchema,
   type SharedSettings,
   type SharedSettingsInput,
 } from "../../settings";
-import type { CrossagentSelectionUsageEntryKey } from "../../crossagentRanking";
 import { defineNoArgProcedure, definePayloadProcedure } from "../core";
-
-/** Identity of one learned Crossagents memory entry (see crossagentRanking). */
-const crossagentMemoryEntryKeySchema = z.object({
-  agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
-  modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
-  effort: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
-  fast: z.boolean(),
-  tags: z.array(z.string().min(1).max(32)).max(5).optional(),
-});
 import {
   windowChromePayloadSchema,
   type WindowChromePayload,
@@ -69,7 +60,7 @@ export const settingsProcedures = {
   >(
     "removeCrossagentMemoryEntry",
     "main-local",
-    z.object({ entry: crossagentMemoryEntryKeySchema }),
+    z.object({ entry: crossagentSelectionUsageEntryKeySchema }),
   ),
   updateCrossagentMemoryEntryTags: definePayloadProcedure<
     { entry: CrossagentSelectionUsageEntryKey; tags: string[] },
@@ -79,7 +70,7 @@ export const settingsProcedures = {
     "updateCrossagentMemoryEntryTags",
     "main-local",
     z.object({
-      entry: crossagentMemoryEntryKeySchema,
+      entry: crossagentSelectionUsageEntryKeySchema,
       tags: z.array(z.string().min(1).max(32)).max(5),
     }),
   ),

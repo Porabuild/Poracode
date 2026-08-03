@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Popover, toast } from "@heroui/react";
+import { Button, Input, Popover, toast } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
@@ -7,23 +7,13 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { CrossagentSelectionUsageEntry } from "@/shared/settings";
 import {
+  crossagentSelectionUsageEntryKey,
   normalizeCrossagentTags,
-  type CrossagentSelectionUsageEntryKey,
 } from "@/shared/crossagentRanking";
 import { formatReasoningLabel } from "@/shared/modelLabels";
 
-function entryKey(entry: CrossagentSelectionUsageEntry): CrossagentSelectionUsageEntryKey {
-  return {
-    agentKind: entry.agentKind,
-    modelId: entry.modelId,
-    ...(entry.effort !== undefined ? { effort: entry.effort } : {}),
-    fast: entry.fast,
-    ...(entry.tags ? { tags: entry.tags } : {}),
-  };
-}
-
 function entryRowKey(entry: CrossagentSelectionUsageEntry): string {
-  return JSON.stringify(entryKey(entry));
+  return JSON.stringify(crossagentSelectionUsageEntryKey(entry));
 }
 
 /**
@@ -50,7 +40,9 @@ export function CrossagentMemorySection() {
     const key = entryRowKey(entry);
     setPendingKey(key);
     try {
-      const next = await readBridge().removeCrossagentMemoryEntry({ entry: entryKey(entry) });
+      const next = await readBridge().removeCrossagentMemoryEntry({
+        entry: crossagentSelectionUsageEntryKey(entry),
+      });
       useSharedSettings.setState({ crossagentSelectionUsage: next });
     } catch {
       toast.danger(t`Unable to remove memory entry.`);
@@ -64,7 +56,7 @@ export function CrossagentMemorySection() {
     setPendingKey(key);
     try {
       const next = await readBridge().updateCrossagentMemoryEntryTags({
-        entry: entryKey(entry),
+        entry: crossagentSelectionUsageEntryKey(entry),
         tags,
       });
       useSharedSettings.setState({ crossagentSelectionUsage: next });
@@ -78,17 +70,17 @@ export function CrossagentMemorySection() {
   return (
     <section className="space-y-2">
       <p className="text-sm font-medium text-foreground">
-        <Trans>Learned routing memory</Trans>
+        <Trans>Learned selections</Trans>
       </p>
       <p className="text-xs text-muted">
         <Trans>
-          What Crossagents learned from explicit selections. Edit the tags or remove entries to
-          reshape routing.
+          Explicit selections recorded from past delegations — they feed the routing order above.
+          Edit the tags or remove entries to reshape it.
         </Trans>
       </p>
       {learned.length === 0 ? (
         <p className="text-xs text-muted">
-          <Trans>No learned routing memory yet.</Trans>
+          <Trans>No learned selections yet.</Trans>
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border">
@@ -121,7 +113,6 @@ export function CrossagentMemorySection() {
                 {!isRemoteSession() ? (
                   <div className="flex shrink-0 items-center gap-1">
                     <TagEditor
-                      entry={entry}
                       label={providerLabel(entry.agentKind)}
                       tags={tags}
                       busy={busy}
@@ -149,7 +140,6 @@ export function CrossagentMemorySection() {
 }
 
 function TagEditor(props: {
-  entry: CrossagentSelectionUsageEntry;
   label: string;
   tags: string[];
   busy: boolean;
@@ -191,14 +181,17 @@ function TagEditor(props: {
                 className="flex items-center gap-1 rounded-md border border-border bg-overlay px-1.5 py-0.5 text-[11px] text-foreground"
               >
                 #{tag}
-                <button
-                  type="button"
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
                   aria-label={t`Remove tag ${tag}`}
-                  className="text-muted hover:text-foreground"
-                  onClick={() => onRetag(tags.filter((candidate) => candidate !== tag))}
+                  className="size-5 min-w-0 p-0 text-muted hover:text-foreground"
+                  isDisabled={busy}
+                  onPress={() => onRetag(tags.filter((candidate) => candidate !== tag))}
                 >
                   <X className="size-3" />
-                </button>
+                </Button>
               </span>
             ))}
             {tags.length === 0 ? (
@@ -208,7 +201,7 @@ function TagEditor(props: {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <input
+            <Input
               aria-label={t`Add tag`}
               className="flex-1 rounded-md border border-border bg-transparent px-2 py-1 text-xs text-foreground placeholder:text-muted outline-none"
               placeholder={t`Add tag...`}
