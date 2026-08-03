@@ -155,6 +155,10 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     todoDockState !== null &&
     todoDockState.sourceItemId !== retiredTodoSourceItemId;
 
+  const previousGitReviewContextRef = useRef<GitReviewContext | null>(null);
+  const gitReviewContextChanged = previousGitReviewContextRef.current !== gitReviewContext;
+  previousGitReviewContextRef.current = gitReviewContext;
+
   const lastGitPanelContextRef = useRef(gitReviewContext);
   if (gitReviewContext && gitReviewAsPanel) {
     lastGitPanelContextRef.current = gitReviewContext;
@@ -212,7 +216,12 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     if (!props.visible) return;
     let refreshTimer: number | undefined;
     const frame = requestAnimationFrame(() => {
-      syncRightPanelTabToFocusedThread(activeTab);
+      // A new git context is an explicit target (for example, clicking thread
+      // B's badge while thread A is focused). Let that open win; the follow
+      // lock will take over again on the next thread or tab change.
+      if (activeTab !== "git" || !gitReviewContextChanged) {
+        syncRightPanelTabToFocusedThread(activeTab);
+      }
       if (activeTab !== "git") return;
 
       // Let the thread and linked-panel frames paint before paying for PR I/O.
@@ -230,7 +239,14 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       cancelAnimationFrame(frame);
       if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
     };
-  }, [activeTab, currentThreadId, props.visible, rightPanelFollowsThread]);
+  }, [
+    activeTab,
+    currentThreadId,
+    gitReviewContext,
+    gitReviewContextChanged,
+    props.visible,
+    rightPanelFollowsThread,
+  ]);
   useProductViewTracking(productSurfaceView(activeTab, "panel"), "panel", {
     active: props.visible,
     finishWhenInactive: true,
