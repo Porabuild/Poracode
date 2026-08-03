@@ -214,10 +214,13 @@ function formatGrokAuthMode(mode: string): string {
  */
 async function grokAuthFileProbe(
   ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
-): Promise<"authenticated" | "unknown"> {
+): Promise<"authenticated" | "missing" | "unknown"> {
   const check = (home: string) => {
     if (existsSync(join(home, ".grok", "auth.json"))) return "authenticated";
-    return "unknown";
+    // `grok logout` removes this file, so absence is a definitive signed-out
+    // state. Reporting unknown hides the terminal login action when the
+    // unauthenticated ACP handshake cannot advertise methods or models.
+    return "missing";
   };
   if (ctx.location.kind !== "wsl") {
     return check(homedir());
@@ -225,7 +228,8 @@ async function grokAuthFileProbe(
   const [r] = await batchWslCommandsAsync(ctx.location.distro, [
     "test -f ~/.grok/auth.json && echo yes || echo no",
   ]);
-  return r?.ok && r.stdout.trim() === "yes" ? "authenticated" : "unknown";
+  if (!r?.ok) return "unknown";
+  return r.stdout.trim() === "yes" ? "authenticated" : "missing";
 }
 
 export const grokDetectionSpec: DetectionSpec = {

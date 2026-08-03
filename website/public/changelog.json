@@ -1,6 +1,134 @@
 {
   "releases": [
     {
+      "version": "1.6.0",
+      "date": "2026-08-03",
+      "title": "Remote machines, GitHub Actions & PR automation",
+      "summary": "Poracode now runs agents on remote machines over SSH, manages GitHub Actions, and automates pull request fixes and merges. This release also adds project workspaces, configurable Crossagents routing, structured Cursor SDK chat, goal controls for Codex and Grok, and performance and reliability improvements.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Remote",
+          "text": "Connect a machine from your SSH config to install the Poracode runtime and run agents, clone repositories, open threads and terminals, and review Git while project data remains on the remote machine."
+        },
+        {
+          "kind": "added",
+          "label": "Remote",
+          "text": "Remote machines report their reachability in the sidebar, block launches while offline, support per-project sync and host updates, and can keep your desktop awake while remote access is enabled."
+        },
+        {
+          "kind": "added",
+          "label": "GitHub",
+          "text": "Use the GitHub Actions view to pin and browse workflows, dispatch runs with inputs, rerun, cancel, or delete runs, and inspect job and step status from pull request checks."
+        },
+        {
+          "kind": "added",
+          "label": "Pull requests",
+          "text": "PR automation monitors a pull request, fixes failed checks, merges with your selected method, marks the thread done, and shows live PR status in the thread's changes bubble."
+        },
+        {
+          "kind": "added",
+          "label": "Workspaces",
+          "text": "Group projects into named workspaces and switch the sidebar between them."
+        },
+        {
+          "kind": "added",
+          "label": "Crossagents",
+          "text": "Configure delegation routing in settings by ranking providers by usage, favorites, and tags; pinning overrides; pausing providers; hiding models; and editing learned routing data."
+        },
+        {
+          "kind": "added",
+          "label": "Crossagents",
+          "text": "Delegated agents can run in the background and notify you after the parent turn becomes idle."
+        },
+        {
+          "kind": "added",
+          "label": "Providers",
+          "text": "Cursor now supports structured SDK chat alongside CLI and ACP modes, with a default runtime setting, per-thread selection from the model menu, and managed installation and updates."
+        },
+        {
+          "kind": "added",
+          "label": "Goals",
+          "text": "Codex threads now support edit, pause, resume, and clear goal controls from the composer on desktop and PWA, while Grok supports goal tracking and subagent work."
+        },
+        {
+          "kind": "added",
+          "label": "Experiments",
+          "text": "AI judging can grade captured, anonymized chat responses instead of comparing only diffs."
+        },
+        {
+          "kind": "added",
+          "label": "Git review",
+          "text": "Add an inline comment to any diff line to place it and its context in the composer as a fix prompt."
+        },
+        {
+          "kind": "improved",
+          "label": "Layout",
+          "text": "Tool rails can attach to either edge of a thread, side panels can lock to threads, floating right panels and the bottom terminal are resizable, and sidebar footer shortcuts are configurable."
+        },
+        {
+          "kind": "improved",
+          "text": "Thread plans now dock in the right panel alongside Git and terminals, and diff counters animate as numbers change."
+        },
+        {
+          "kind": "improved",
+          "label": "Performance",
+          "text": "Idle resource use is lower: the composer avoids continuous GPU work, Git polling backs off, and terminal panels prewarm for faster opening."
+        },
+        {
+          "kind": "improved",
+          "label": "Git",
+          "text": "Pull with rebase now stashes and reapplies local changes, preserving the stash if reapplication conflicts."
+        },
+        {
+          "kind": "improved",
+          "label": "Remote",
+          "text": "Remote sessions now render remote-hosted images in chat and preserve previews when uploading clipboard pastes and staged attachments."
+        },
+        {
+          "kind": "improved",
+          "label": "PWA",
+          "text": "The PWA groups completed threads into a Done section, identifies the paired desktop in the wide sidebar, and uses lighter iOS transitions for fullscreen pages."
+        },
+        {
+          "kind": "improved",
+          "label": "Command Code",
+          "text": "Command Code now reuses CLI credentials across native and WSL environments and reports OAuth usage in provider stats."
+        },
+        {
+          "kind": "improved",
+          "text": "A recovery screen now provides update and migration options when the database cannot open after an update."
+        },
+        {
+          "kind": "fixed",
+          "label": "Remote",
+          "text": "Pairing links refresh before they expire, the PWA recovers from stale cached assets after a deployment, and unresponsive SSH machines are marked offline instead of leaving projects stuck loading."
+        },
+        {
+          "kind": "fixed",
+          "text": "Virtual chat rows no longer overlap after growing mid-list, the transcript stays pinned to the bottom while the composer resizes, and tool groups re-pin correctly on touch screens."
+        },
+        {
+          "kind": "fixed",
+          "text": "Replacement Codex sessions survive teardown, pending agent questions recover after a remote reconnect, and agent-initiated follow-up turns no longer remain stuck open."
+        },
+        {
+          "kind": "fixed",
+          "label": "Usage",
+          "text": "Usage reporting is more accurate and reliable: exhausted plans show zero credits, empty Codex credit cards stay hidden, and Grok CLI tokens refresh before they expire."
+        },
+        {
+          "kind": "fixed",
+          "label": "Windows",
+          "text": "Agent detection resolves Scoop shims correctly, and Cursor probes and launches without the cmd wrapper."
+        },
+        {
+          "kind": "fixed",
+          "text": "Built-in agent updates verify the installed version before reporting failure, and native and WSL environments track available updates independently."
+        }
+      ]
+    },
+    {
       "version": "1.5.3",
       "date": "2026-07-24",
       "title": "Pi & Qoder agents, Opus 5, a mobile workspace & synced notes",
@@ -188,7 +316,7 @@
         },
         {
           "kind": "added",
-          "label": "Mobile",
+          "label": "PWA",
           "text": "Take your work anywhere with the Poracode PWA at app.poracode.com — pair it with your desktop over your local network or an SSH connection to follow live threads, read terminal output, and send messages from a phone or any browser, with dynamic port forwarding and native iOS and Android betas on the way."
         },
         {

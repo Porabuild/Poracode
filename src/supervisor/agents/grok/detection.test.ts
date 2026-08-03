@@ -1,5 +1,21 @@
-import { describe, expect, it } from "vitest";
-import { buildGrokProviderMetadata, mapGrokEffortCapabilities } from "./detection";
+import { describe, expect, it, vi } from "vitest";
+
+const authFileMock = vi.hoisted(() => ({ exists: false }));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    existsSync: (path: import("node:fs").PathLike) =>
+      String(path).endsWith("/.grok/auth.json") ? authFileMock.exists : actual.existsSync(path),
+  };
+});
+
+import {
+  buildGrokProviderMetadata,
+  grokDetectionSpec,
+  mapGrokEffortCapabilities,
+} from "./detection";
 
 // Model `_meta` shapes as returned live by `grok agent stdio` 0.2.118
 // (initialize/_meta.modelState and session/new `models.availableModels[]._meta`).
@@ -87,5 +103,25 @@ describe("buildGrokProviderMetadata", () => {
     expect(buildGrokProviderMetadata({ email: "dev@example.com", team_name: null })).toEqual({
       authenticatedAs: "dev@example.com",
     });
+  });
+});
+
+describe("Grok auth file detection", () => {
+  const probe = grokDetectionSpec.authProbes?.[1];
+
+  it("reports missing authentication after logout removes auth.json", async () => {
+    authFileMock.exists = false;
+
+    await expect(
+      probe?.({ location: { kind: "posix", path: "/repo" }, executablePath: "grok" }),
+    ).resolves.toBe("missing");
+  });
+
+  it("reports authentication while auth.json is present", async () => {
+    authFileMock.exists = true;
+
+    await expect(
+      probe?.({ location: { kind: "posix", path: "/repo" }, executablePath: "grok" }),
+    ).resolves.toBe("authenticated");
   });
 });
