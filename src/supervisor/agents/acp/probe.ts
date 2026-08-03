@@ -24,7 +24,12 @@ import type { AgentSlashCommand, AuthState, ThreadMode } from "@/shared/contract
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { findThoughtLevelConfigOption } from "./thoughtLevel";
 import { filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
-import { readUnstableSessionModels, type UnstableModelInfo } from "./unstableModelCompat";
+import {
+  readUnstableInitializeModels,
+  readUnstableSessionModels,
+  type UnstableModelInfo,
+  type UnstableSessionModelState,
+} from "./unstableModelCompat";
 
 const ACP_AUTH_REQUIRED_ERROR = RequestError.authRequired();
 
@@ -411,6 +416,7 @@ export async function probeAcpCapabilities(
   try {
     const configOptionsWaiters: Array<(configOptions: unknown[] | undefined) => void> = [];
     let latestSlashCommands: AgentSlashCommand[] | undefined;
+    let initializeModels: UnstableSessionModelState | undefined;
     const rememberSlashCommands = (commands: AgentSlashCommand[] | undefined) => {
       latestSlashCommands = commands;
     };
@@ -519,6 +525,7 @@ export async function probeAcpCapabilities(
         }
         if (initResult._meta && typeof initResult._meta === "object") {
           probeResult.acpMeta = initResult._meta as Record<string, unknown>;
+          initializeModels = readUnstableInitializeModels(initResult._meta);
         }
 
         // Non-spec compatibility fallback for agents that still expose
@@ -584,10 +591,11 @@ export async function probeAcpCapabilities(
         ...(newSessionMeta as Record<string, unknown>),
       };
     }
-    // Unstable pre-1.0 model list (see unstableModelCompat.ts). Read after the
-    // handshake so agents that only speak the removed surface (cursor-agent)
-    // still surface their models; `configOptions` "model" stays primary below.
-    const unstableModels = readUnstableSessionModels(result);
+    // Unstable pre-1.0 model list (see unstableModelCompat.ts). Cursor exposes
+    // it on session/new while Grok 0.2.x exposes it on initialize._meta. Read
+    // only after newSession succeeds so a cached initialize list cannot make a
+    // signed-out agent appear usable. `configOptions` "model" stays primary.
+    const unstableModels = readUnstableSessionModels(result) ?? initializeModels;
     if (unstableModels?.availableModels.length) {
       probeResult.models = mapAcpModels(unstableModels.availableModels);
       const modelMetadata = mapAcpModelMetadata(unstableModels.availableModels);

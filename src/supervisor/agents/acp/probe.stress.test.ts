@@ -1,5 +1,5 @@
 /**
- * Stress tests for the Qoder-relevant `probeAcpCapabilities` timing paths.
+ * Live-process tests for `probeAcpCapabilities` compatibility and timing paths.
  *
  * These drive the real probe against a fake ACP agent process
  * (`fixtures/fake-acp-agent.mjs`) that injects deterministic timing faults.
@@ -24,7 +24,27 @@ function probeWith(
   });
 }
 
-describe("probeAcpCapabilities stress (Qoder timing paths)", () => {
+describe("probeAcpCapabilities live-process paths", () => {
+  it("uses initialize._meta.modelState after a successful session handshake", async () => {
+    const result = await probeWith({ FAKE_INIT_MODELS: "grok-4.5" }, 3_000);
+
+    expect(result?.models).toEqual([{ id: "grok-4.5", label: "Grok 4.5" }]);
+    expect(result?.modelMetadata).toEqual({
+      "grok-4.5": { totalContextTokens: 500_000 },
+    });
+    expect(result?.authState).toBe("authenticated");
+  });
+
+  it("does not expose initialize models when the session requires authentication", async () => {
+    const result = await probeWith(
+      { FAKE_INIT_MODELS: "grok-4.5", FAKE_AUTH_REQUIRED_ON_NEW: "1" },
+      3_000,
+    );
+
+    expect(result?.models).toBeUndefined();
+    expect(result?.authState).toBe("missing");
+  });
+
   it("captures slash commands delivered in a later batch within the 2s grace window", async () => {
     // Qoder can deliver its initial command list after newSession resolves and
     // may append skills after its built-ins have already been published.

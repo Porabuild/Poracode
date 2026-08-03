@@ -8,6 +8,7 @@
  * stress scenario is deterministic:
  *
  *   FAKE_MODELS                 comma-separated model ids for the "model" selector
+ *   FAKE_INIT_MODELS            comma-separated model ids for initialize._meta.modelState
  *   FAKE_EFFORTS                comma-separated reasoning-effort values (default "low,high")
  *   FAKE_REASONING_EFFORT       "1" → advertise a {category:"model",id:"reasoning_effort"} selector
  *   FAKE_SLASH_BATCHES          JSON array of {delayMs, commands:[{name,description}]} — each
@@ -15,6 +16,7 @@
  *   FAKE_SET_CONFIG_DELAY_MS    delay before answering session/set_config_option
  *   FAKE_HANG_SET_CONFIG        "1" → never answer session/set_config_option (simulates a wedged agent)
  *   FAKE_CRASH_AFTER_NEW_SESSION "1" → exit(0) immediately after answering session/new
+ *   FAKE_AUTH_REQUIRED_ON_NEW     "1" → reject session/new as unauthenticated
  *   FAKE_SELF_DESTRUCT_MS       exit(0) after N ms regardless (test cleanup guard)
  */
 import { createInterface } from "node:readline";
@@ -26,6 +28,10 @@ const models = (env.FAKE_MODELS ?? "")
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
+const initializeModels = (env.FAKE_INIT_MODELS ?? "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
 const efforts = (env.FAKE_EFFORTS ?? "low,high")
   .split(",")
   .map((value) => value.trim())
@@ -34,6 +40,7 @@ const slashBatches = JSON.parse(env.FAKE_SLASH_BATCHES ?? "[]");
 const setConfigDelayMs = Number(env.FAKE_SET_CONFIG_DELAY_MS ?? 0);
 const hangSetConfig = env.FAKE_HANG_SET_CONFIG === "1";
 const crashAfterNewSession = env.FAKE_CRASH_AFTER_NEW_SESSION === "1";
+const authRequiredOnNewSession = env.FAKE_AUTH_REQUIRED_ON_NEW === "1";
 const selfDestructMs = Number(env.FAKE_SELF_DESTRUCT_MS ?? 0);
 const includeReasoningEffort = env.FAKE_REASONING_EFFORT === "1";
 
@@ -104,6 +111,20 @@ rl.on("line", (line) => {
         protocolVersion: 1,
         agentCapabilities: { promptCapabilities: {}, sessionCapabilities: {} },
         agentInfo: { name: "fake-acp-agent", version: "0.0.0" },
+        ...(initializeModels.length > 0
+          ? {
+              _meta: {
+                modelState: {
+                  currentModelId: initializeModels[0],
+                  availableModels: initializeModels.map((modelId) => ({
+                    modelId,
+                    name: modelId === "grok-4.5" ? "Grok 4.5" : modelId,
+                    _meta: { totalContextTokens: 500_000 },
+                  })),
+                },
+              },
+            }
+          : {}),
       });
       return;
 
@@ -112,6 +133,14 @@ rl.on("line", (line) => {
       return;
 
     case "session/new":
+      if (authRequiredOnNewSession) {
+        send({
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32_000, message: "Authentication required" },
+        });
+        return;
+      }
       respond(id, {
         sessionId: SESSION_ID,
         modes: {
