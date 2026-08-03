@@ -22,6 +22,7 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 - **Every user-facing string you add or change in `src/renderer` must be localized.** Wrap it in a Lingui macro, run `pnpm i18n:extract`, then fill the new `msgstr` in all 12 non-English catalogs — never ship empty translations (that leaves a half-English UI). See [Internationalization (i18n)](#internationalization-i18n).
 - The codebase is provider-agnostic. Providers are self-contained plugins — both supervisor adapters and renderer UI. No provider-specific if/else in shared runtime, UI, or layout code. Adding a new provider should require zero changes to existing shared files.
 - Windows projects use native Windows cwd. WSL projects run through `wsl.exe -d <distro> --cd <linuxPath> -- <agent command>`.
+- **Version every compatibility boundary intentionally.** Before finishing a change to persisted state, a cache or derived index, a serialized manifest, a wire/IPC protocol, or a deployed helper/plugin, audit the version at that boundary and every mirrored copy. If an older app artifact can remain present but is no longer valid, add a migration or invalidate it with a version bump and a pre-upgrade regression test. See [Versioned State & Protocols](.agents/docs/versioning.md) for the required checklist and repository inventory.
 
 ## Working Rules
 
@@ -114,4 +115,5 @@ toast.warning(i18n._(msg`Unable to install ${label}.`));
 - [UI Patterns & Component Reuse](.agents/docs/ui-patterns.md)
 - [Editing & React Patterns](.agents/docs/editing-rules.md)
 - [Internationalization (i18n)](.agents/docs/i18n.md)
+- [Versioned State & Protocols](.agents/docs/versioning.md)
 - [Mobile Dev & Remote Pairing](docs/MOBILE_DEV.md) — `pnpm run dev:ios`, simulator pairing, deep linking

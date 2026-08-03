@@ -45,8 +45,10 @@ const execFileAsync = promisify(execFile);
  * runtime), so statuses written before that setting was supplied must not be
  * reused. v8 adds independently cached runtime variants and session-id routing
  * so existing threads remain pinned when a provider's default runtime changes.
+ * v9 refreshes ACP-derived model capabilities after adding support for model
+ * lists advertised through initialize metadata (used by Grok 0.2.x).
  */
-export const STATUS_CACHE_VERSION = 8;
+export const STATUS_CACHE_VERSION = 9;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

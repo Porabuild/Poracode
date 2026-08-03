@@ -44,6 +44,36 @@ function reset() {
 
 beforeEach(reset);
 
+describe("persisted agent status cache", () => {
+  it("invalidates v5 statuses after ACP initialize model discovery", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    expect(options.version).toBe(6);
+    expect(options.migrate).toBeTypeOf("function");
+
+    const grok = makeStatus({
+      kind: "grok",
+      label: "Grok Build",
+      capabilities: { ...makeStatus().capabilities, models: [] },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [grok],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      5,
+    );
+
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+});
+
 describe("setAgentStatuses", () => {
   it("preserves the existing array reference when statuses are identity-equal", () => {
     const initial = [makeStatus({ kind: "claude", label: "Claude" })];

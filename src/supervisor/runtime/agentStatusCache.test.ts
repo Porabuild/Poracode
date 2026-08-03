@@ -40,6 +40,42 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
+  it("invalidates caches from before ACP initialize model discovery", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 8,
+        windows: [
+          {
+            kind: "grok",
+            label: "Grok Build",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { models: [] },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
   it("migrates stale cached settingDefs to current schema", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;

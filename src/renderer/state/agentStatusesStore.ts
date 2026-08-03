@@ -246,12 +246,12 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 5,
-      // v5 adds independently cached runtime variants. Drop older cached
-      // statuses so an existing thread cannot inherit whichever GUI runtime is
-      // currently the provider default.
-      // Mirrors the supervisor STATUS_CACHE_VERSION bump, which only invalidates
-      // the supervisor's on-disk cache, not this renderer localStorage copy.
+      version: 6,
+      // v6 refreshes ACP-derived models after model discovery began reading
+      // initialize metadata (used by Grok 0.2.x). Drop older cached statuses so
+      // the UI cannot hydrate a stale 0/0 before the supervisor refresh arrives.
+      // This mirrors the supervisor STATUS_CACHE_VERSION=9 bump, which only
+      // invalidates the supervisor's on-disk cache, not this localStorage copy.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {
