@@ -12,6 +12,7 @@ import {
 } from "@/renderer/state/composerInputInbox";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import type { ThreadErrorDockState } from "./threadErrorState";
 
@@ -29,6 +30,12 @@ const runtimeActions = vi.hoisted(() => ({
   changeThreadConfig: vi.fn<() => void>(),
   resolveThreadServerRequest: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   submitThreadInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+}));
+
+const loginActions = vi.hoisted(() => ({
+  runAgentLoginCommand: vi.fn<
+    (input: { onCommandComplete?: (exitCode: number) => void }) => boolean
+  >(() => true),
 }));
 
 const analytics = vi.hoisted(() => ({
@@ -52,6 +59,10 @@ vi.mock("@/renderer/actions/threadRuntimeActions", async (importOriginal) => ({
   changeThreadConfig: runtimeActions.changeThreadConfig,
   resolveThreadServerRequest: runtimeActions.resolveThreadServerRequest,
   submitThreadInput: runtimeActions.submitThreadInput,
+}));
+
+vi.mock("@/renderer/actions/agentLoginActions", () => ({
+  runAgentLoginCommand: loginActions.runAgentLoginCommand,
 }));
 
 vi.mock("../../bridge", () => ({
@@ -216,6 +227,7 @@ describe("ThreadComposerSection", () => {
     bridgeMock.clearPendingSteer.mockClear();
     bridgeMock.clearPendingSteer.mockResolvedValue(undefined);
     bridgeMock.refreshAgentStatuses.mockClear();
+    loginActions.runAgentLoginCommand.mockClear();
     bridgeMock.interruptThread.mockClear();
     bridgeMock.interruptThread.mockResolvedValue(undefined);
     bridgeMock.setPendingSteer.mockClear();
@@ -900,6 +912,44 @@ describe("ThreadComposerSection", () => {
     await waitFor(() => {
       expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("refreshes the owning remote desktop after remote agent authentication", async () => {
+    const refreshServer = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const originalRefreshServer = useRemoteServersStore.getState().refreshServer;
+    useRemoteServersStore.setState({ refreshServer });
+    useAppStore.setState({
+      projects: [
+        {
+          id: "project-1",
+          name: "Remote repo",
+          location: { kind: "posix", path: "/repo", remoteServerId: "desktop-1" },
+          remoteServerId: "desktop-1",
+          remoteId: "remote-project-1",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    renderComposer({
+      thread: { ...terminalThread, remoteServerId: "desktop-1", remoteId: "remote-thread-1" },
+      agentStatus: {
+        ...claudeTerminalStatus,
+        authState: "missing",
+        loginCommand: "claude auth login",
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Login" }));
+
+    const onCommandComplete =
+      loginActions.runAgentLoginCommand.mock.calls[0]?.[0].onCommandComplete;
+    expect(onCommandComplete).toBeDefined();
+    act(() => onCommandComplete?.(0));
+
+    await waitFor(() => expect(refreshServer).toHaveBeenCalledWith("desktop-1"));
+    expect(bridgeMock.refreshAgentStatuses).not.toHaveBeenCalled();
+    useRemoteServersStore.setState({ refreshServer: originalRefreshServer });
   });
 
   it("disables desktop-local attachment drops in remote sessions", () => {
