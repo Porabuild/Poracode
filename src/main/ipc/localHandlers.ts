@@ -73,7 +73,11 @@ import {
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { SharedSettings } from "@/shared/settings";
-import { removeCrossagentRoutingOverride } from "@/shared/crossagentRanking";
+import {
+  removeCrossagentRoutingOverride,
+  removeCrossagentSelectionUsageEntry,
+  retagCrossagentSelectionUsageEntry,
+} from "@/shared/crossagentRanking";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
@@ -394,6 +398,28 @@ export function createLocalIpcHandlers(
       writeSharedSettingsFile(settingsPath, settings);
       options.onSharedSettingsChanged?.(settings);
       return overrides;
+    },
+    removeCrossagentMemoryEntry: ({ entry }) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const current = readSharedSettingsFile(settingsPath);
+      const usage = removeCrossagentSelectionUsageEntry(current.crossagentSelectionUsage, entry);
+      const settings = { ...current, crossagentSelectionUsage: usage };
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return usage;
+    },
+    updateCrossagentMemoryEntryTags: ({ entry, tags }) => {
+      const settingsPath = options.requirePoracodePaths().settingsPath;
+      const current = readSharedSettingsFile(settingsPath);
+      const usage = retagCrossagentSelectionUsageEntry(
+        current.crossagentSelectionUsage,
+        entry,
+        tags,
+      );
+      const settings = { ...current, crossagentSelectionUsage: usage };
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.(settings);
+      return usage;
     },
     setClaudeProfileEnvironment: (payload) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;

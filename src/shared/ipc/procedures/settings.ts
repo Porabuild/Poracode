@@ -2,11 +2,23 @@ import { z } from "zod";
 import type { AgentInstanceConfig, SetClaudeProfileEnvironmentPayload } from "../../contracts";
 import { setClaudeProfileEnvironmentPayloadSchema } from "../../contracts";
 import {
+  MAX_CROSSAGENT_SELECTION_VALUE_LENGTH,
   type CrossagentRoutingOverride,
+  type CrossagentSelectionUsageEntry,
   type SharedSettings,
   type SharedSettingsInput,
 } from "../../settings";
+import type { CrossagentSelectionUsageEntryKey } from "../../crossagentRanking";
 import { defineNoArgProcedure, definePayloadProcedure } from "../core";
+
+/** Identity of one learned Crossagents memory entry (see crossagentRanking). */
+const crossagentMemoryEntryKeySchema = z.object({
+  agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+  modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+  effort: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
+  fast: z.boolean(),
+  tags: z.array(z.string().min(1).max(32)).max(5).optional(),
+});
 import {
   windowChromePayloadSchema,
   type WindowChromePayload,
@@ -45,6 +57,30 @@ export const settingsProcedures = {
     "main-local",
     z.object({
       tags: z.array(z.string().min(1).max(32)).min(1).max(5),
+    }),
+  ),
+  // Learned-memory edits from the Crossagents settings UI. `crossagentSelectionUsage`
+  // is supervisor-managed (renderer persists can't write it), so removals and tag
+  // edits round-trip through main like `removeCrossagentRoutingOverride`.
+  removeCrossagentMemoryEntry: definePayloadProcedure<
+    { entry: CrossagentSelectionUsageEntryKey },
+    CrossagentSelectionUsageEntry[],
+    "main-local"
+  >(
+    "removeCrossagentMemoryEntry",
+    "main-local",
+    z.object({ entry: crossagentMemoryEntryKeySchema }),
+  ),
+  updateCrossagentMemoryEntryTags: definePayloadProcedure<
+    { entry: CrossagentSelectionUsageEntryKey; tags: string[] },
+    CrossagentSelectionUsageEntry[],
+    "main-local"
+  >(
+    "updateCrossagentMemoryEntryTags",
+    "main-local",
+    z.object({
+      entry: crossagentMemoryEntryKeySchema,
+      tags: z.array(z.string().min(1).max(32)).max(5),
     }),
   ),
   // Seals sensitive vars in main before writing settings.json, so a profile's

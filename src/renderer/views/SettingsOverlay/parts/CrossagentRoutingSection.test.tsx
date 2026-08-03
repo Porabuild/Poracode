@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
         tags: string[];
       }) => Promise<ReturnType<typeof useSharedSettings.getState>["crossagentRoutingOverrides"]>
     >(),
+  removeCrossagentMemoryEntry: vi.fn<(payload: { entry: unknown }) => Promise<unknown[]>>(),
+  updateCrossagentMemoryEntryTags:
+    vi.fn<(payload: { entry: unknown; tags: string[] }) => Promise<unknown[]>>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -22,6 +25,8 @@ vi.mock("@/renderer/bridge", () => ({
     appVersion: "desktop",
     getCrossagentRouting: mocks.getCrossagentRouting,
     removeCrossagentRoutingOverride: mocks.removeCrossagentRoutingOverride,
+    removeCrossagentMemoryEntry: mocks.removeCrossagentMemoryEntry,
+    updateCrossagentMemoryEntryTags: mocks.updateCrossagentMemoryEntryTags,
   }),
   isRemoteSession: () => false,
 }));
@@ -54,7 +59,8 @@ describe("CrossagentRoutingSection", () => {
   beforeEach(() => {
     mocks.removeCrossagentRoutingOverride.mockResolvedValue([]);
     mocks.getCrossagentRouting.mockImplementation(async () =>
-      useSharedSettings.getState().disabledAgents.includes("kimi")
+      useSharedSettings.getState().disabledAgents.includes("kimi") ||
+      useSharedSettings.getState().crossagentPausedProviders.includes("kimi")
         ? [
             {
               provider: "claude",
@@ -109,6 +115,8 @@ describe("CrossagentRoutingSection", () => {
       crossagentRoutingGuide: "",
       disabledAgents: [],
       hiddenModels: {},
+      crossagentPausedProviders: [],
+      crossagentHiddenModels: {},
       favoriteModels: [{ agentKind: "claude", modelId: "sonnet", presentationMode: "gui" }],
       agentSelectionUsage: [],
       crossagentSelectionUsage: [
@@ -175,5 +183,70 @@ describe("CrossagentRoutingSection", () => {
       expect(mocks.removeCrossagentRoutingOverride).toHaveBeenCalledWith({ tags: ["review"] }),
     );
     expect(useSharedSettings.getState().crossagentRoutingOverrides).toEqual([]);
+  });
+
+  it("pauses a provider from the rotation and resumes it", async () => {
+    render(<CrossagentRoutingSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pause Kimi Code" }));
+    expect(useSharedSettings.getState().crossagentPausedProviders).toEqual(["kimi"]);
+
+    await waitFor(() => expect(screen.getByText("Paused providers")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Resume Kimi Code" }));
+    expect(useSharedSettings.getState().crossagentPausedProviders).toEqual([]);
+  });
+
+  it("filters Crossagent models per provider without touching global visibility", async () => {
+    render(<CrossagentRoutingSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagent models for Kimi Code" }));
+    fireEvent.click(await screen.findByRole("option", { name: /k3/i }));
+
+    expect(useSharedSettings.getState().crossagentHiddenModels).toEqual({ kimi: ["k3"] });
+    expect(useSharedSettings.getState().hiddenModels).toEqual({});
+  });
+
+  it("edits tags and removes learned memory entries", async () => {
+    useSharedSettings.setState({
+      crossagentSelectionUsage: [
+        {
+          agentKind: "kimi",
+          modelId: "k3",
+          effort: "max",
+          fast: false,
+          count: 4,
+          lastUsedAt: 10,
+          tags: ["mobile", "simulator"],
+        },
+      ],
+    });
+    mocks.updateCrossagentMemoryEntryTags.mockImplementation(async ({ tags }) => [
+      {
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        count: 4,
+        lastUsedAt: 10,
+        tags,
+      },
+    ]);
+    mocks.removeCrossagentMemoryEntry.mockResolvedValue([]);
+    render(<CrossagentRoutingSection />);
+
+    expect(await screen.findByText("Learned routing memory")).toBeInTheDocument();
+    expect(screen.getByText("#mobile · #simulator")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit tags for Kimi Code" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove tag mobile" }));
+    await waitFor(() =>
+      expect(mocks.updateCrossagentMemoryEntryTags).toHaveBeenCalledWith(
+        expect.objectContaining({ tags: ["simulator"] }),
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove memory entry for Kimi Code" }));
+    await waitFor(() => expect(mocks.removeCrossagentMemoryEntry).toHaveBeenCalled());
+    expect(useSharedSettings.getState().crossagentSelectionUsage).toEqual([]);
   });
 });

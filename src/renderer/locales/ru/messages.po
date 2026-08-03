@@ -110,8 +110,10 @@ msgstr "{0, plural, one {# инструмент} few {# инструмента} 
 #~ msgid "{0, plural, one {# turn} other {# turns}}"
 #~ msgstr "{0, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}"
 
+#. placeholder {0}: entry.count
 #. placeholder {0}: entry.usageCount
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "{0, plural, one {# use} other {# uses}}"
 msgstr "{0, plural, one {# использование} few {# использования} many {# использований} other {# использования}}"
 
@@ -576,6 +578,10 @@ msgstr "{usedLabel} / {maxLabel} токенов"
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} токенов"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+msgid "{visibleCount} of {totalCount} usable"
+msgstr "{visibleCount} из {totalCount} доступных"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -944,6 +950,14 @@ msgstr "Добавить навык"
 msgid "Add skill destination"
 msgstr "Назначение нового навыка"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag"
+msgstr "Добавить тег"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag..."
+msgstr "Добавить тег..."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Добавить в Composer"
@@ -1018,7 +1032,7 @@ msgstr "Размер шрифта терминала агента"
 msgid "Agent update available"
 msgstr "Доступно обновление агента"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "Использование агентов"
 
@@ -1771,7 +1785,7 @@ msgstr "Встроенный"
 msgid "Built-in MCP servers"
 msgstr "Встроенные серверы MCP"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "Встроенный порядок"
 
@@ -3235,6 +3249,11 @@ msgstr "Crossagent"
 msgid "Crossagent ({subagent}): {description}"
 msgstr "Crossagent ({subagent}): {description}"
 
+#. placeholder {0}: props.provider.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+msgid "Crossagent models for {0}"
+msgstr "Модели Crossagent для {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #~ msgid "Crossagent not found."
 #~ msgstr "Crossagent не найден."
@@ -3276,7 +3295,7 @@ msgstr "Crossagents"
 msgid "Crossagents enabled for this thread"
 msgstr "Crossagents включены для этого треда"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Crossagents usage"
 msgstr "Использование Crossagents"
 
@@ -3986,6 +4005,10 @@ msgstr "Изменить расписание"
 #~ msgid "Edit scheduled task"
 #~ msgstr "Изменить запланированную задачу"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Edit tags for {label}"
+msgstr "Изменить теги для {label}"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Edit task"
 #~ msgstr "Изменить задачу"
@@ -4482,6 +4505,8 @@ msgstr "Не удалось записать метаданные принадл
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "Быстрый"
@@ -4500,7 +4525,7 @@ msgstr "Быстрее всего (Whisper tiny)"
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "Режим «Быстрее всего» использует Whisper tiny; «Лучше» — Whisper base."
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Favorite"
 msgstr "Избранное"
 
@@ -5109,6 +5134,7 @@ msgstr "Скрыть"
 msgid "Hide {label} circle in sidebar"
 msgstr "Скрыть кружок {label} на боковой панели"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -5694,6 +5720,10 @@ msgstr "Запуск"
 msgid "Launching…"
 msgstr "Запуск…"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Learned routing memory"
+msgstr "Изученная память маршрутизации"
+
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
@@ -6026,7 +6056,7 @@ msgstr "Управляется провайдером"
 msgid "Manual order"
 msgstr "Ручной порядок"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Manual override"
 msgstr "Ручное переопределение"
 
@@ -6968,6 +6998,10 @@ msgstr "Истории пока нет"
 msgid "No jobs reported for this run."
 msgstr "Для этого запуска нет данных о заданиях."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No learned routing memory yet."
+msgstr "Изученная память маршрутизации пока пуста."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
 msgstr "Данные Lightcode не найдены."
@@ -7030,6 +7064,7 @@ msgid "No microphone found."
 msgstr "Микрофон не найден."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "No models found"
@@ -7156,6 +7191,10 @@ msgstr "Нет подготовленных изменений"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Поддерживаемые агенты не обнаружены"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No tags — the entry stops influencing tag affinity."
+msgstr "Нет тегов — запись перестаёт влиять на сродство тегов."
 
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/ThreadView.tsx
@@ -7848,14 +7887,28 @@ msgstr "Вставьте закрытый ключ SSH."
 msgid "Pause"
 msgstr "Приостановить"
 
+#. placeholder {0}: entry.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
+msgid "Pause {0}"
+msgstr "Приостановить {0}"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "Приостановить цель"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Paused"
 msgstr "Приостановлено"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Paused providers"
+msgstr "Приостановленные провайдеры"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Paused providers are skipped by Crossagents until resumed."
+msgstr "Приостановленные провайдеры пропускаются Crossagents до возобновления."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
@@ -8800,6 +8853,11 @@ msgstr "Удалить из группы"
 msgid "Remove from panel"
 msgstr "Удалить с панели"
 
+#. placeholder {0}: providerLabel(entry.agentKind)
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove memory entry for {0}"
+msgstr "Удалить запись памяти для {0}"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "Удалить модель"
@@ -8819,6 +8877,10 @@ msgstr "Удалить проект"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Удалить сочетание клавиш"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove tag {tag}"
+msgstr "Удалить тег {tag}"
 
 #. placeholder {0}: pendingDelete.name
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -9051,6 +9113,10 @@ msgstr "Результаты"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
 msgstr "Возобновить"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Resume {label}"
+msgstr "Возобновить {label}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -9556,12 +9622,14 @@ msgstr "Поиск серверов MCP"
 msgid "Search MCP servers..."
 msgstr "Поиск серверов MCP..."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models"
 msgstr "Поиск моделей"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models..."
@@ -9835,6 +9903,7 @@ msgstr "Показывать домашнюю область без проект
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -10753,13 +10822,17 @@ msgstr "Целевой провайдер"
 msgid "Task"
 msgstr "Задача"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "Соответствие задаче"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "Вывод задачи"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Task tags"
+msgstr "Теги задач"
 
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -11593,6 +11666,10 @@ msgstr "Не удалось обновить профили Claude."
 msgid "Unable to remove {0} credentials."
 msgstr "Не удалось удалить учётные данные {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to remove memory entry."
+msgstr "Не удалось удалить запись памяти."
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Unable to remove pinned route."
 msgstr "Не удалось удалить закреплённый маршрут."
@@ -11689,6 +11766,10 @@ msgstr "Не удалось обновить {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Не удалось обновить {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to update learned tags."
+msgstr "Не удалось обновить изученные теги."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Не удалось обновить удаленный доступ."
@@ -11724,6 +11805,10 @@ msgstr "Недоступный провайдер"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
 msgstr "Недоступные провайдеры, модели, уровни рассуждений и режимы Fast автоматически пропускаются."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+msgid "Unchecked models are skipped by Crossagents only."
+msgstr "Неотмеченные модели пропускаются только Crossagents."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -12299,6 +12384,10 @@ msgstr "Еженедельно"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekly review"
 msgstr "Еженедельный обзор"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
+msgstr "Чему Crossagents научились из явных выборов. Изменяйте теги или удаляйте записи, чтобы скорректировать маршрутизацию."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"

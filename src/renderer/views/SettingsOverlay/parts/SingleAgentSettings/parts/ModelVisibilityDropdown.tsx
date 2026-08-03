@@ -177,7 +177,7 @@ export function ModelVisibilityDropdown(props: {
   );
 }
 
-function ModelVisibilityRow(props: {
+export function ModelVisibilityRow(props: {
   item: ProviderModelItem;
   isVisible: boolean;
   subGroupState?: "all" | "some" | "none";

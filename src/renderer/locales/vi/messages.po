@@ -110,8 +110,10 @@ msgstr "{0, plural, one {# công cụ} other {# công cụ}}"
 #~ msgid "{0, plural, one {# turn} other {# turns}}"
 #~ msgstr "{0, plural, other {# lượt}}"
 
+#. placeholder {0}: entry.count
 #. placeholder {0}: entry.usageCount
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "{0, plural, one {# use} other {# uses}}"
 msgstr "{0, plural, other {# lần dùng}}"
 
@@ -576,6 +578,10 @@ msgstr "{usedLabel} / {maxLabel} mã thông báo"
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} mã thông báo"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+msgid "{visibleCount} of {totalCount} usable"
+msgstr "{visibleCount} trong số {totalCount} khả dụng"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -944,6 +950,14 @@ msgstr "Thêm skill"
 msgid "Add skill destination"
 msgstr "Đích của skill mới"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag"
+msgstr "Thêm thẻ"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Add tag..."
+msgstr "Thêm thẻ..."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Thêm vào trình soạn thảo"
@@ -1018,7 +1032,7 @@ msgstr "Kích thước phông chữ terminal của tác nhân"
 msgid "Agent update available"
 msgstr "Đã có bản cập nhật tác nhân"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "Mức sử dụng tác nhân"
 
@@ -1771,7 +1785,7 @@ msgstr "Tích hợp sẵn"
 msgid "Built-in MCP servers"
 msgstr "Máy chủ MCP tích hợp sẵn"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "Thứ tự tích hợp"
 
@@ -3235,6 +3249,11 @@ msgstr "Crossagent"
 msgid "Crossagent ({subagent}): {description}"
 msgstr "Crossagent ({subagent}): {description}"
 
+#. placeholder {0}: props.provider.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+msgid "Crossagent models for {0}"
+msgstr "Mô hình Crossagent cho {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #~ msgid "Crossagent not found."
 #~ msgstr "Không tìm thấy Crossagent."
@@ -3276,7 +3295,7 @@ msgstr "Crossagents"
 msgid "Crossagents enabled for this thread"
 msgstr "Đã bật Crossagents cho chủ đề này"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Crossagents usage"
 msgstr "Mức sử dụng Crossagents"
 
@@ -3986,6 +4005,10 @@ msgstr "Chỉnh sửa lịch"
 #~ msgid "Edit scheduled task"
 #~ msgstr "Chỉnh sửa tác vụ đã lên lịch"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Edit tags for {label}"
+msgstr "Sửa thẻ cho {label}"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Edit task"
 #~ msgstr "Chỉnh sửa tác vụ"
@@ -4482,6 +4505,8 @@ msgstr "Không thể ghi siêu dữ liệu của nhánh có chủ sở hữu: {d
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "Nhanh"
@@ -4500,7 +4525,7 @@ msgstr "Nhanh nhất (Whisper tiny)"
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "Nhanh nhất dùng Whisper tiny; Tốt hơn dùng Whisper base."
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Favorite"
 msgstr "Yêu thích"
 
@@ -5109,6 +5134,7 @@ msgstr "Ẩn"
 msgid "Hide {label} circle in sidebar"
 msgstr "Ẩn vòng tròn {label} ở thanh bên"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -5694,6 +5720,10 @@ msgstr "Đang khởi chạy"
 msgid "Launching…"
 msgstr "Đang khởi chạy…"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Learned routing memory"
+msgstr "Bộ nhớ định tuyến đã học"
+
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
@@ -6026,7 +6056,7 @@ msgstr "Do nhà cung cấp quản lý"
 msgid "Manual order"
 msgstr "Sắp xếp thủ công"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Manual override"
 msgstr "Ghi đè thủ công"
 
@@ -6968,6 +6998,10 @@ msgstr "Chưa có lịch sử"
 msgid "No jobs reported for this run."
 msgstr "Không có công việc nào được báo cáo cho lần chạy này."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No learned routing memory yet."
+msgstr "Chưa có bộ nhớ định tuyến đã học."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
 msgstr "Không tìm thấy dữ liệu Lightcode."
@@ -7030,6 +7064,7 @@ msgid "No microphone found."
 msgstr "Không tìm thấy micrô."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "No models found"
@@ -7156,6 +7191,10 @@ msgstr "Không có thay đổi nào được đưa vào staging"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Không phát hiện thấy tác nhân được hỗ trợ nào"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "No tags — the entry stops influencing tag affinity."
+msgstr "Không có thẻ — mục này sẽ không còn ảnh hưởng đến độ ưu tiên theo thẻ."
 
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/ThreadView.tsx
@@ -7848,14 +7887,28 @@ msgstr "Dán khóa riêng SSH."
 msgid "Pause"
 msgstr "Tạm dừng"
 
+#. placeholder {0}: entry.label
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
+msgid "Pause {0}"
+msgstr "Tạm dừng {0}"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "Tạm dừng mục tiêu"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Paused"
 msgstr "Đã tạm dừng"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Paused providers"
+msgstr "Nhà cung cấp đã tạm dừng"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Paused providers are skipped by Crossagents until resumed."
+msgstr "Các nhà cung cấp đã tạm dừng sẽ được Crossagents bỏ qua cho đến khi được tiếp tục."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
@@ -8800,6 +8853,11 @@ msgstr "Xóa khỏi nhóm"
 msgid "Remove from panel"
 msgstr "Xóa khỏi bảng điều khiển"
 
+#. placeholder {0}: providerLabel(entry.agentKind)
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove memory entry for {0}"
+msgstr "Xóa mục bộ nhớ cho {0}"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "Xóa mô hình"
@@ -8819,6 +8877,10 @@ msgstr "Xóa dự án"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Xóa phím tắt"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Remove tag {tag}"
+msgstr "Xóa thẻ {tag}"
 
 #. placeholder {0}: pendingDelete.name
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -9051,6 +9113,10 @@ msgstr "Kết quả"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
 msgstr "Tiếp tục"
+
+#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+msgid "Resume {label}"
+msgstr "Tiếp tục {label}"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -9556,12 +9622,14 @@ msgstr "Tìm kiếm máy chủ MCP"
 msgid "Search MCP servers..."
 msgstr "Tìm kiếm máy chủ MCP..."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models"
 msgstr "Tìm kiếm mô hình"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models..."
@@ -9835,6 +9903,7 @@ msgstr "Hiển thị phạm vi Trang chủ không có dự án cho các phiên t
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -10753,13 +10822,17 @@ msgstr "Nhà cung cấp mục tiêu"
 msgid "Task"
 msgstr "Tác vụ"
 
-#: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Task match"
 msgstr "Khớp tác vụ"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "Đầu ra nhiệm vụ"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Task tags"
+msgstr "Thẻ tác vụ"
 
 #. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -11593,6 +11666,10 @@ msgstr "Không thể làm mới hồ sơ Claude."
 msgid "Unable to remove {0} credentials."
 msgstr "Không thể xóa thông tin xác thực {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to remove memory entry."
+msgstr "Không thể xóa mục bộ nhớ."
+
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Unable to remove pinned route."
 msgstr "Không thể xóa tuyến đã ghim."
@@ -11689,6 +11766,10 @@ msgstr "Không thể cập nhật {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Không thể cập nhật {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "Unable to update learned tags."
+msgstr "Không thể cập nhật thẻ đã học."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Không thể cập nhật quyền truy cập từ xa."
@@ -11724,6 +11805,10 @@ msgstr "Nhà cung cấp không khả dụng"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically."
 msgstr "Nhà cung cấp, mô hình, mức suy luận và chế độ Fast không khả dụng sẽ tự động được bỏ qua."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
+msgid "Unchecked models are skipped by Crossagents only."
+msgstr "Các mô hình không được chọn chỉ bị Crossagents bỏ qua."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -12299,6 +12384,10 @@ msgstr "Hằng tuần"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekly review"
 msgstr "Đánh giá hằng tuần"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
+msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
+msgstr "Những gì Crossagents học được từ các lựa chọn rõ ràng. Chỉnh sửa thẻ hoặc xóa mục để định hình lại định tuyến."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"

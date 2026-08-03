@@ -198,6 +198,86 @@ export function removeCrossagentRoutingOverride(
   return entries.filter((entry) => routingOverrideKey(entry.tags) !== key);
 }
 
+/**
+ * Identity of one learned-memory entry, as supplied by the settings UI. Two
+ * entries with the same key are the same learned fact; matching mirrors the
+ * identity comparison used by `incrementCrossagentSelectionUsage`.
+ */
+export interface CrossagentSelectionUsageEntryKey {
+  agentKind: string;
+  modelId: string;
+  effort?: string | undefined;
+  fast: boolean;
+  tags?: readonly string[] | undefined;
+}
+
+function selectionUsageEntryKey(key: CrossagentSelectionUsageEntryKey): string {
+  return [
+    key.agentKind,
+    key.modelId,
+    key.effort ?? "",
+    key.fast ? "1" : "0",
+    normalizeCrossagentTags(key.tags).join("\0"),
+  ].join("\0");
+}
+
+function selectionUsageEntryKeyOf(entry: CrossagentSelectionUsageEntry): string {
+  return selectionUsageEntryKey({
+    agentKind: entry.agentKind,
+    modelId: entry.modelId,
+    ...(entry.effort !== undefined ? { effort: entry.effort } : {}),
+    fast: entry.fast,
+    ...(entry.tags ? { tags: entry.tags } : {}),
+  });
+}
+
+/** Drop one learned-memory entry (the settings UI's "remove memory item"). */
+export function removeCrossagentSelectionUsageEntry(
+  entries: readonly CrossagentSelectionUsageEntry[],
+  key: CrossagentSelectionUsageEntryKey,
+): CrossagentSelectionUsageEntry[] {
+  const target = selectionUsageEntryKey(key);
+  return entries.filter((entry) => selectionUsageEntryKeyOf(entry) !== target);
+}
+
+/**
+ * Replace the task tags of one learned-memory entry (the settings UI's tag
+ * editor). Normalized like any learned entry; if the retagged entry collides
+ * with an existing one, their counts merge and the most recent use wins.
+ */
+export function retagCrossagentSelectionUsageEntry(
+  entries: readonly CrossagentSelectionUsageEntry[],
+  key: CrossagentSelectionUsageEntryKey,
+  tags: readonly string[],
+): CrossagentSelectionUsageEntry[] {
+  const target = selectionUsageEntryKey(key);
+  const matched = entries.find((entry) => selectionUsageEntryKeyOf(entry) === target);
+  if (!matched) return [...entries];
+  const normalizedTags = normalizeCrossagentTags(tags);
+  const updated: CrossagentSelectionUsageEntry = {
+    ...matched,
+    ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
+  };
+  if (normalizedTags.length === 0) delete updated.tags;
+  const updatedKey = selectionUsageEntryKeyOf(updated);
+  let merged = updated;
+  const rest: CrossagentSelectionUsageEntry[] = [];
+  for (const entry of entries) {
+    const entryKey = selectionUsageEntryKeyOf(entry);
+    if (entryKey === target) continue;
+    if (entryKey === updatedKey) {
+      merged = {
+        ...merged,
+        count: merged.count + entry.count,
+        lastUsedAt: Math.max(merged.lastUsedAt, entry.lastUsedAt),
+      };
+      continue;
+    }
+    rest.push(entry);
+  }
+  return [merged, ...rest].slice(0, SELECTION_USAGE_LIMIT);
+}
+
 function modelFor(
   candidate: CrossagentRankingCandidate,
   modelId: string,

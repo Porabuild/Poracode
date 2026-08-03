@@ -5,6 +5,8 @@ import {
   normalizeCrossagentTags,
   rankCrossagentCandidates,
   removeCrossagentRoutingOverride,
+  removeCrossagentSelectionUsageEntry,
+  retagCrossagentSelectionUsageEntry,
   upsertCrossagentRoutingOverride,
   type CrossagentRankingCandidate,
 } from "./crossagentRanking";
@@ -686,5 +688,89 @@ describe("normalizeCrossagentTags", () => {
         "extra",
       ]),
     ).toEqual(["backend", "frontend", "review", "simulator", "ui"]);
+  });
+});
+
+describe("learned memory edits", () => {
+  const entry = {
+    agentKind: "kimi",
+    modelId: "k3",
+    effort: "max",
+    fast: false,
+    count: 4,
+    lastUsedAt: 10,
+    tags: ["mobile", "simulator"],
+  };
+  const other = {
+    agentKind: "claude",
+    modelId: "sonnet",
+    fast: false,
+    count: 2,
+    lastUsedAt: 5,
+    tags: ["frontend"],
+  };
+
+  it("removes one entry and keeps the rest", () => {
+    const next = removeCrossagentSelectionUsageEntry([entry, other], {
+      agentKind: "kimi",
+      modelId: "k3",
+      effort: "max",
+      fast: false,
+      tags: ["mobile", "simulator"],
+    });
+    expect(next).toEqual([other]);
+  });
+
+  it("retags an entry with normalized tags", () => {
+    const next = retagCrossagentSelectionUsageEntry(
+      [entry, other],
+      {
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        tags: ["mobile", "simulator"],
+      },
+      ["Mobile Sim", "testing"],
+    );
+    expect(next[0]).toMatchObject({ agentKind: "kimi", count: 4, tags: ["simulator", "testing"] });
+    expect(next).toHaveLength(2);
+  });
+
+  it("merges counts when a retag collides with an existing entry", () => {
+    const duplicate = { ...entry, count: 3, lastUsedAt: 50, tags: ["frontend"] };
+    const next = retagCrossagentSelectionUsageEntry(
+      [entry, duplicate],
+      {
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        tags: ["mobile", "simulator"],
+      },
+      ["frontend"],
+    );
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({
+      agentKind: "kimi",
+      count: 7,
+      lastUsedAt: 50,
+      tags: ["frontend"],
+    });
+  });
+
+  it("drops the tags field when the last tag is removed", () => {
+    const next = retagCrossagentSelectionUsageEntry(
+      [entry],
+      {
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        tags: ["mobile", "simulator"],
+      },
+      [],
+    );
+    expect(next[0]).not.toHaveProperty("tags");
   });
 });
