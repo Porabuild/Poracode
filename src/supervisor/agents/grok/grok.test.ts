@@ -16,7 +16,7 @@ function oscNotify(body: string, code: 9 | 99 | 777 = 9): OscNotification {
   return { code, title: "", body, payload: undefined };
 }
 
-// Observed live from grok PTY captures (0.1.218, re-verified on 0.2.93 —
+// Observed live from grok PTY captures (0.1.218, re-verified on 0.2.118 —
 // idle title is still plain "grok"):
 //   OSC 0 "grok"                       (idle, frequent)
 //   OSC 0 "⠴ - Waiting - grok"         (working, braille frames ⠴ / ⠦)
@@ -201,6 +201,23 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     );
     expect(result.args.slice(0, 2)).toEqual(["-s", SESSION_ID]);
     expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
+  });
+
+  it("resumes a known UUID after the project directory moves", () => {
+    const originalProjectDir = join(tmpdir(), "grok-original-proj");
+    mkdirSync(join(grokHome, "sessions", encodeURIComponent(originalProjectDir), SESSION_ID), {
+      recursive: true,
+    });
+
+    const adapter = createGrokAdapter();
+    const result = adapter.buildLaunchArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef(SESSION_ID),
+      {},
+    );
+    expect(result.args.slice(0, 2)).toEqual(["-r", SESSION_ID]);
   });
 
   it("buildResumeArgv applies the same materialization fallback", () => {

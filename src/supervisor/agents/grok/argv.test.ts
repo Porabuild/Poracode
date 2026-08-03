@@ -98,8 +98,8 @@ describe("buildGrokArgs (TUI/PTY)", () => {
 });
 
 describe("buildGrokAcpArgs (`grok agent stdio` prefix)", () => {
-  it("emits nothing for a bare default config", () => {
-    expect(buildGrokAcpArgs({} as any)).toEqual([]);
+  it("disables auto-update for a bare default config", () => {
+    expect(buildGrokAcpArgs({} as any)).toEqual(["--no-auto-update"]);
   });
 
   it("never emits --permission-mode or --no-plan", () => {
@@ -113,16 +113,25 @@ describe("buildGrokAcpArgs (`grok agent stdio` prefix)", () => {
   });
 
   it("forwards config.effort as --reasoning-effort", () => {
-    expect(buildGrokAcpArgs({ effort: "medium" } as any)).toEqual(["--reasoning-effort", "medium"]);
+    expect(buildGrokAcpArgs({ effort: "medium" } as any)).toEqual([
+      "--no-auto-update",
+      "--reasoning-effort",
+      "medium",
+    ]);
   });
 
   it("adds --always-approve when approval policy bypasses permissions", () => {
     expect(buildGrokAcpArgs({ approvalPolicy: "bypassPermissions" } as any)).toEqual([
+      "--no-auto-update",
       "--always-approve",
     ]);
   });
 
   it("passes -m <model> when set", () => {
-    expect(buildGrokAcpArgs({ model: "grok-4.5" } as any)).toEqual(["-m", "grok-4.5"]);
+    expect(buildGrokAcpArgs({ model: "grok-4.5" } as any)).toEqual([
+      "--no-auto-update",
+      "-m",
+      "grok-4.5",
+    ]);
   });
 });

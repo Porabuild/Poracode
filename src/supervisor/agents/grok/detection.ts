@@ -20,7 +20,7 @@ import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
 
 // Approval policies surfaced to Poracode. Grok only honors `--always-approve`
 // (bypass) at launch — `--permission-mode <MODE>` is silently ignored by both
-// the TUI and `grok agent stdio` (re-verified live on 0.2.93; see argv.ts).
+// the TUI and `grok agent stdio` (re-verified live on 0.2.118; see argv.ts).
 // We therefore expose a single Default ↔ Bypass Approvals toggle in the
 // composer.
 const GROK_APPROVAL_POLICIES = [
@@ -30,7 +30,7 @@ const GROK_APPROVAL_POLICIES = [
 
 // Plan mode is intentionally omitted from the composer surface: it cannot be
 // force-activated at launch on either Grok surface — `--permission-mode plan`
-// is silently ignored (verified live on 0.2.93). Plan mode is entered in the
+// is silently ignored (verified live on 0.2.118). Plan mode is entered in the
 // TUI via Shift+Tab or by the model calling `enter_plan_mode`, so a Plan/Work
 // toggle would falsely imply we drive it.
 //
@@ -64,7 +64,7 @@ async function probeCapabilities(
   location: ProjectLocation,
   executablePath?: string,
 ): Promise<CapabilitiesProbeResult> {
-  const spec = buildGrokCommand(location, ["agent", "stdio"], executablePath);
+  const spec = buildGrokCommand(location, ["--no-auto-update", "agent", "stdio"], executablePath);
   const sessionCwd = getAgentProbeCwd(location);
   const processCwd = resolveProbeSpawnCwd(location, spec.cwd);
   const probe = await probeAcpCapabilities(spec.command, spec.args, sessionCwd, {
@@ -79,7 +79,7 @@ async function probeCapabilities(
   });
 
   // Extract context windows from model _meta (grok reports totalContextTokens
-  // per model, e.g. 500k for grok-4.5 and 200k for grok-composer-2.5-fast).
+  // per model, e.g. 500k for grok-4.5).
   let contextCaps: Pick<AgentCapability, "contextSizes" | "modelContextSizes"> = {};
   if (probe?.modelMetadata) {
     const sizes = new Map<string, number>();
@@ -145,10 +145,9 @@ type GrokReasoningEffortMeta = { id?: unknown; default?: unknown };
 
 /**
  * Derive effort capabilities from the per-model `_meta.reasoningEfforts` the
- * grok 0.2.x ACP handshake advertises (verified live on 0.2.93: grok-4.5
- * exposes high/medium/low with high as default; grok-composer-2.5-fast
- * advertises none). Models without tiers get an explicit empty list so the
- * shared model picker hides the effort dropdown for them.
+ * grok 0.2.x ACP handshake advertises (verified live on 0.2.118: grok-4.5
+ * exposes high/medium/low with high as default). Models without tiers get an
+ * explicit empty list so the shared model picker hides the effort dropdown.
  */
 export function mapGrokEffortCapabilities(
   modelMetadata: Record<string, Record<string, unknown>> | undefined,
