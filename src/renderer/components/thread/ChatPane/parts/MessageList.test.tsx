@@ -15,7 +15,7 @@ import { clearTimelineMeasurementCache } from "./timelineMeasurementCache";
 type MockLegendProps = {
   data: readonly ChatTimelineEntry[];
   dataKey: string;
-  drawDistance: number;
+  drawDistance?: number;
   estimatedItemSize: number;
   getFixedItemSize: (item: ChatTimelineEntry, index: number, type: string) => number | undefined;
   getItemType: (item: ChatTimelineEntry, index: number) => string;
@@ -217,7 +217,7 @@ describe("MessageList", () => {
 
     const props = latestLegendProps.current as MockLegendProps;
     expect(props.dataKey).toBe("thread-1");
-    expect(props.drawDistance).toBe(1_000);
+    expect(props.drawDistance).toBeUndefined();
     expect(props.estimatedItemSize).toBe(59);
     expect(props.initialScrollAtEnd).toBe(true);
     expect(props.maintainScrollAtEnd).toEqual({
