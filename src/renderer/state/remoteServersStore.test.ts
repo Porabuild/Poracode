@@ -807,6 +807,35 @@ describe("useRemoteServersStore", () => {
     expect(bridge.sshDisconnect).toHaveBeenCalledWith({ connectionId: id });
   });
 
+  it("marks a persisted SSH server offline when reconnecting its tunnel fails", async () => {
+    const connection = {
+      id: "1a2f655a-e274-4213-9a2b-029f29062fd7",
+      label: "Build host",
+      target: "dev@build",
+    };
+    bridge.sshConnect.mockRejectedValue(new Error("SSH connection failed"));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Build host",
+          endpoint: "http://127.0.0.1:39999/",
+          accessToken: "token",
+          scopes: [],
+          transport: { kind: "ssh", connection },
+        },
+      ],
+      runtime: {},
+    });
+
+    await useRemoteServersStore.getState().connectAll();
+
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+      status: "offline",
+      message: "SSH connection failed",
+    });
+  });
+
   it("de-duplicates when the same desktop is paired twice", async () => {
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
     await useRemoteServersStore

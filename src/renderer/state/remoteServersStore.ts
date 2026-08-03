@@ -749,7 +749,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               ),
             }));
           } catch (error) {
-            reportRemoteServerError(server.desktopId, error, i18n._(msg`SSH connection failed.`));
+            const message = friendlyError(error) || i18n._(msg`SSH connection failed.`);
+            toast.danger(message);
+            setRemoteServerFailure(server.desktopId, "offline", message);
             return;
           }
         }
