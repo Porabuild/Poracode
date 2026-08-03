@@ -2,20 +2,20 @@ import { describe, expect, it } from "vitest";
 import { buildGrokArgs, buildGrokAcpArgs } from "./argv";
 
 describe("buildGrokArgs (TUI/PTY)", () => {
-  it("emits nothing for a bare default config", () => {
-    expect(buildGrokArgs({ mode: "agent" } as any, "", undefined)).toEqual([]);
+  it("disables auto-update for a bare default config", () => {
+    expect(buildGrokArgs({ mode: "agent" } as any, "", undefined)).toEqual(["--no-auto-update"]);
   });
 
   it("passes -r <id> when resuming a materialized session", () => {
     expect(
       buildGrokArgs({ mode: "agent" } as any, "", { kind: "resume", sessionId: "abc-123" }),
-    ).toEqual(["-r", "abc-123"]);
+    ).toEqual(["--no-auto-update", "-r", "abc-123"]);
   });
 
   it("passes -s <id> when pre-assigning a new session id", () => {
     expect(
       buildGrokArgs({ mode: "agent" } as any, "", { kind: "new", sessionId: "abc-123" }),
-    ).toEqual(["-s", "abc-123"]);
+    ).toEqual(["--no-auto-update", "-s", "abc-123"]);
   });
 
   it("never emits -c, --no-plan, or --permission-mode", () => {
@@ -35,6 +35,7 @@ describe("buildGrokArgs (TUI/PTY)", () => {
 
   it("forwards config.effort as --reasoning-effort", () => {
     expect(buildGrokArgs({ mode: "agent", effort: "low" } as any, "", undefined)).toEqual([
+      "--no-auto-update",
       "--reasoning-effort",
       "low",
     ]);
@@ -49,7 +50,7 @@ describe("buildGrokArgs (TUI/PTY)", () => {
   it("adds --always-approve when approval policy bypasses permissions", () => {
     expect(
       buildGrokArgs({ mode: "agent", approvalPolicy: "bypassPermissions" } as any, "", undefined),
-    ).toEqual(["--always-approve"]);
+    ).toEqual(["--no-auto-update", "--always-approve"]);
   });
 
   it("treats legacy 'never' and 'yolo' policies as bypass", () => {
@@ -68,6 +69,7 @@ describe("buildGrokArgs (TUI/PTY)", () => {
 
   it("passes -m <model> when set", () => {
     expect(buildGrokArgs({ mode: "agent", model: "grok-4.5" } as any, "", undefined)).toEqual([
+      "--no-auto-update",
       "-m",
       "grok-4.5",
     ]);
@@ -86,6 +88,7 @@ describe("buildGrokArgs (TUI/PTY)", () => {
         { kind: "new", sessionId: "abc-123" },
       ),
     ).toEqual([
+      "--no-auto-update",
       "-s",
       "abc-123",
       "-m",
