@@ -1,7 +1,6 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, ToolCallProgress } from "@/shared/contracts";
 import type { ClaudeMapperState, ToolItemState } from "../sdkCanonicalMappingState";
-import { emitActiveGoalTaskUsageUpdate } from "./goal";
 import { classifyToolItemType, isSubAgentToolName } from "./toolClassification";
 import { syncSubAgentModelProgress } from "./toolItems";
 import { toolPayload } from "./toolPayload";
@@ -66,13 +65,16 @@ function mergeTaskProgress(
  * Absorb a `task_started` / `task_progress` / `task_notification` system
  * message into the parent Task tool_call's progress field. Lets a collapsed
  * sub-agent row show its current step without expanding to read the children.
+ *
+ * The per-task `usage` is reflected on the tool progress only — it must NOT
+ * feed goal/session token totals: sidechain spend is already counted exactly
+ * once from the sub-agent's own assistant messages, and task usage is a
+ * cumulative-per-task counter that would double-count it.
  */
 export function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   const obj = message as TaskLifecycleMessage;
   const usage = readTaskUsage(obj);
-  const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
-  if (goalUsage) events.push(goalUsage);
 
   const toolUseId = typeof obj.tool_use_id === "string" ? obj.tool_use_id : undefined;
   if (!toolUseId) return events;
@@ -180,8 +182,6 @@ export function applyTaskNotification(
 
   const events: RuntimeEvent[] = [];
   const usage = readTaskUsage(obj);
-  const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
-  if (goalUsage) events.push(goalUsage);
 
   const tool = state.toolItemsById.get(registeredToolUseId);
   if (!tool) {

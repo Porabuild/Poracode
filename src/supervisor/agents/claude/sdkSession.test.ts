@@ -1025,7 +1025,7 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
-  it("updates active goal tokens from live SDK api usage including cache", async () => {
+  it("ticks the active goal on context polls without deriving tokens from apiUsage", async () => {
     vi.useFakeTimers();
     try {
       const fake = createFakeQuery();
@@ -1076,23 +1076,18 @@ describe("ClaudeSdkSession", () => {
           breakdown: [{ id: "messages-0", label: "Messages", tokens: 238_000 }],
         },
       });
-      expect(runtimeEvents).toContainEqual(
-        expect.objectContaining({
-          type: "item.updated",
-          threadId: "thread-claude-goal-spend",
-          payload: expect.objectContaining({
-            objective: "fix live token count",
-            status: "active",
-            tokensUsed: 237_000,
-          }),
-        }),
+      // The goal tick re-emits the dock state (objective/status/time)…
+      const goalTick = runtimeEvents.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.updated" }> =>
+          event.type === "item.updated" &&
+          (event.payload as { objective?: unknown } | undefined)?.objective ===
+            "fix live token count",
       );
-      expect(runtimeEvents).not.toContainEqual(
-        expect.objectContaining({
-          type: "item.updated",
-          payload: expect.objectContaining({ tokensUsed: 238_000 }),
-        }),
-      );
+      expect(goalTick).toBeDefined();
+      // …but the last-call `apiUsage` snapshot is NOT token spend: nothing may
+      // be derived from it (that would be 237_000 here). Goal tokens accumulate
+      // only from per-call assistant-message usage, so the tick still reports 0.
+      expect(goalTick?.payload).toMatchObject({ tokensUsed: 0 });
 
       await session.dispose();
     } finally {
@@ -1176,6 +1171,21 @@ describe("ClaudeSdkSession", () => {
     )?.itemId;
     expect(goalItemId).toBeDefined();
 
+    // Goal spend comes from the per-call assistant message, not the result's
+    // session-cumulative usage counter.
+    fake.emitMessage({
+      type: "assistant",
+      session_id: openedSessionId,
+      uuid: "uuid-msg-goal-steer",
+      parent_tool_use_id: null,
+      message: {
+        id: "msg-goal-steer",
+        role: "assistant",
+        model: "claude-opus-4-8",
+        content: [{ type: "text", text: "partial" }],
+        usage: { input_tokens: 10_000, output_tokens: 2_000 },
+      },
+    } as unknown as SDKMessage);
     fake.emitMessage({
       type: "result",
       subtype: "error_during_execution",

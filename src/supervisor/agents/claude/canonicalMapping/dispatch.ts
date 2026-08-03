@@ -2,7 +2,12 @@ import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, ToolCallProgress, TurnState } from "@/shared/contracts";
 import { readFileChangePath, readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
-import { applyActiveGoalMessage, completeActiveGoalEvents, isActiveGoalMessage } from "./goal";
+import {
+  accumulateActiveGoalAssistantSpend,
+  applyActiveGoalMessage,
+  completeActiveGoalEvents,
+  isActiveGoalMessage,
+} from "./goal";
 import {
   extractCompletedStringFields,
   extractText,
@@ -376,15 +381,21 @@ function mapClaudeSdkMessageInner(
       state.usageScope && readClaudeAssistantSpendTokens(message) !== undefined
         ? createClaudeUsageSpentEvent(state.threadId, message, state.usageScope.sample())
         : undefined;
+    // The active goal's running total shares the exact same per-call spend —
+    // accumulated here so goal tokens and Profile tokens can never diverge.
+    const goalSpendEvent = accumulateActiveGoalAssistantSpend(state, message);
     // Sub-agent (parent-attributed) whole messages must not touch the shared
     // main-lane per-index maps — index 0 of a sub-agent message would collide
     // with the main thread's streaming block at index 0. Emit self-contained,
     // already-complete child items instead (tagParent attaches parentItemId).
     if (readParentToolUseId(message)) {
       const subAgentEvents = flushSubAgentAssistantMessage(message, state);
-      return usageSpentEvent ? [usageSpentEvent, ...subAgentEvents] : subAgentEvents;
+      return [usageSpentEvent, goalSpendEvent, ...subAgentEvents].filter(
+        (event): event is RuntimeEvent => event !== undefined,
+      );
     }
     if (usageSpentEvent) events.push(usageSpentEvent);
+    if (goalSpendEvent) events.push(goalSpendEvent);
     const messageId = readClaudeAssistantMessageId(message.message);
     const skipTextSnapshot = messageId ? state.streamedAssistantMessageIds.has(messageId) : false;
     const content = (message.message as { content?: unknown }).content;
@@ -537,7 +548,7 @@ function mapClaudeSdkMessageInner(
       const msg = extractResultErrorMessage(message) ?? "Claude turn failed.";
       events.push({ type: "error", threadId: state.threadId, message: msg });
     }
-    events.push(...completeActiveGoalEvents(state, message, stateValue));
+    events.push(...completeActiveGoalEvents(state, stateValue));
     if (state.currentTurnId) {
       events.push({
         type: "turn.completed",

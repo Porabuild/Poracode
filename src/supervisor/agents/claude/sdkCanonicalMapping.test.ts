@@ -1,10 +1,16 @@
-import type { SDKControlGetContextUsageResponse, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  SDKAssistantMessage,
+  SDKControlGetContextUsageResponse,
+  SDKMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 import { describe, expect, it, vi } from "vitest";
+import type { RuntimeEvent } from "@/shared/contracts";
 import {
+  accumulateActiveGoalAssistantSpend,
   buildClaudeQuestionAnswerEvents,
   ClaudeUsageScopeTracker,
   createClaudeMapperState,
-  emitActiveGoalTokenUpdate,
+  emitActiveGoalTick,
   mapClaudeContextUsageResponse,
   mapClaudePermissionRequest,
   mapClaudeQuestionRequest,
@@ -15,6 +21,32 @@ import {
 
 function streamEvent(event: Record<string, unknown>): SDKMessage {
   return { type: "stream_event", session_id: "claude-session", event } as unknown as SDKMessage;
+}
+
+/** Whole assistant message carrying per-call API usage (main lane or sidechain). */
+function assistantUsageMessage(
+  id: string,
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  },
+  parentToolUseId?: string,
+): SDKAssistantMessage {
+  return {
+    type: "assistant",
+    session_id: "claude-session",
+    uuid: `uuid-${id}`,
+    parent_tool_use_id: parentToolUseId ?? null,
+    message: {
+      id,
+      role: "assistant",
+      model: "claude-opus-4-8",
+      content: [{ type: "text", text: "working" }],
+      usage,
+    },
+  } as unknown as SDKAssistantMessage;
 }
 
 function activeGoalMessage(
@@ -137,11 +169,23 @@ describe("sdkCanonicalMapping — prompt content", () => {
       );
 
       vi.setSystemTime(new Date("2026-05-12T10:02:05Z"));
+      // Goal spend accumulates from per-call assistant-message usage…
+      mapClaudeSdkMessage(
+        assistantUsageMessage("msg-goal-1", {
+          input_tokens: 60_000,
+          output_tokens: 8_000,
+          cache_read_input_tokens: 1_000,
+          cache_creation_input_tokens: 500,
+        }),
+        state,
+      );
       const resultEvents = mapClaudeSdkMessage(
         {
           type: "result",
           subtype: "success",
           session_id: "claude-session",
+          // …never from the result: the CLI reports this as a session-cumulative
+          // counter, so it must be ignored for goal totals.
           usage: {
             input_tokens: 60_000,
             output_tokens: 8_000,
@@ -204,6 +248,10 @@ describe("sdkCanonicalMapping — prompt content", () => {
       );
 
       vi.setSystemTime(new Date("2026-05-12T10:01:00Z"));
+      mapClaudeSdkMessage(
+        assistantUsageMessage("msg-goal-1", { input_tokens: 30_000, output_tokens: 4_000 }),
+        state,
+      );
       const interruptedResult = mapClaudeSdkMessage(
         {
           type: "result",
@@ -211,6 +259,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
           is_error: true,
           errors: ["[ede_diagnostic] turn interrupted before assistant content"],
           session_id: "claude-session",
+          // Session-cumulative — ignored for goal totals.
           usage: { input_tokens: 30_000, output_tokens: 4_000, total_tokens: 34_000 },
         } as unknown as SDKMessage,
         state,
@@ -232,15 +281,19 @@ describe("sdkCanonicalMapping — prompt content", () => {
       });
 
       expect(state.activeGoalItemId).toBe("goal-turn-goal");
-      expect(state.activeGoalCompletedTurnTokensUsed).toBe(34_000);
+      expect(state.activeGoalTokensUsed).toBe(34_000);
 
       vi.setSystemTime(new Date("2026-05-12T10:03:00Z"));
+      mapClaudeSdkMessage(
+        assistantUsageMessage("msg-goal-2", { input_tokens: 50_000, output_tokens: 8_000 }),
+        state,
+      );
       const successResult = mapClaudeSdkMessage(
         {
           type: "result",
           subtype: "success",
           session_id: "claude-session",
-          usage: { input_tokens: 50_000, output_tokens: 8_000, total_tokens: 58_000 },
+          usage: { input_tokens: 92_000, output_tokens: 12_000, total_tokens: 104_000 },
         } as unknown as SDKMessage,
         state,
       );
@@ -270,6 +323,10 @@ describe("sdkCanonicalMapping — prompt content", () => {
 
       vi.setSystemTime(new Date("2026-05-12T10:00:30Z"));
       mapClaudeSdkMessage(
+        assistantUsageMessage("msg-goal-1", { input_tokens: 8_000, output_tokens: 2_000 }),
+        state,
+      );
+      mapClaudeSdkMessage(
         {
           type: "result",
           subtype: "error_during_execution",
@@ -286,7 +343,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
 
       expect(state.activeGoalItemId).toBe("goal-turn-goal");
       expect(state.activeGoalObjective).toBe("fix the bug");
-      expect(state.activeGoalCompletedTurnTokensUsed).toBe(10_000);
+      expect(state.activeGoalTokensUsed).toBe(10_000);
     } finally {
       vi.useRealTimers();
     }
@@ -300,6 +357,10 @@ describe("sdkCanonicalMapping — prompt content", () => {
       startClaudeTurn(state, "turn-goal-1", "/goal old objective", undefined);
 
       vi.setSystemTime(new Date("2026-05-12T10:00:30Z"));
+      mapClaudeSdkMessage(
+        assistantUsageMessage("msg-goal-1", { input_tokens: 4_000, output_tokens: 1_000 }),
+        state,
+      );
       mapClaudeSdkMessage(
         {
           type: "result",
@@ -318,7 +379,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
       expect(state.activeGoalItemId).toBe("goal-turn-goal-2");
       expect(state.activeGoalObjective).toBe("new objective");
       expect(state.activeGoalStartedAtMs).toBe(Date.now());
-      expect(state.activeGoalCompletedTurnTokensUsed).toBeUndefined();
+      expect(state.activeGoalTokensUsed).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
@@ -361,7 +422,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
     expect(state.activeGoalItemId).toBeUndefined();
   });
 
-  it("does not lower goal token usage when a final result reports fewer tokens than live spend", () => {
+  it("ignores session-cumulative result usage for goal token totals", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
     try {
@@ -369,7 +430,10 @@ describe("sdkCanonicalMapping — prompt content", () => {
       startClaudeTurn(state, "turn-goal", "/goal ship it", undefined);
 
       vi.setSystemTime(new Date("2026-05-12T10:00:45Z"));
-      emitActiveGoalTokenUpdate(state, 42_000);
+      mapClaudeSdkMessage(
+        assistantUsageMessage("msg-goal-1", { input_tokens: 40_000, output_tokens: 2_000 }),
+        state,
+      );
 
       vi.setSystemTime(new Date("2026-05-12T10:01:00Z"));
       const resultEvents = mapClaudeSdkMessage(
@@ -377,7 +441,9 @@ describe("sdkCanonicalMapping — prompt content", () => {
           type: "result",
           subtype: "success",
           session_id: "claude-session",
-          usage: { total_tokens: 4_000 },
+          // The CLI's result usage is session-cumulative (includes pre-goal and
+          // sidechain spend): counting it would corrupt the goal total.
+          usage: { total_tokens: 4_000_000 },
         } as unknown as SDKMessage,
         state,
       );
@@ -539,6 +605,10 @@ describe("sdkCanonicalMapping — prompt content", () => {
       );
 
       vi.setSystemTime(new Date("2026-05-12T10:01:00Z"));
+      mapClaudeSdkMessage(
+        assistantUsageMessage("msg-goal-1", { input_tokens: 15_000, output_tokens: 5_000 }),
+        state,
+      );
       const resultEvents = mapClaudeSdkMessage(
         {
           type: "result",
@@ -580,6 +650,10 @@ describe("sdkCanonicalMapping — prompt content", () => {
           tokens_at_start: 0,
           last_reason: "one test still red",
         }),
+        state,
+      );
+      mapClaudeSdkMessage(
+        assistantUsageMessage("msg-goal-1", { input_tokens: 35_000, output_tokens: 5_000 }),
         state,
       );
       mapClaudeSdkMessage(
@@ -2315,15 +2389,17 @@ describe("sdkCanonicalMapping — task progress", () => {
     expect(events).toEqual([]);
   });
 
-  it("adds deduped task usage to active goal token totals", () => {
+  it("does not count task_progress/task_notification usage toward goal tokens", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
     try {
       vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
       startClaudeTurn(state, "turn-goal", "/goal count subagent tokens", undefined);
 
-      vi.setSystemTime(new Date("2026-05-12T10:00:20Z"));
-      const firstProgress = mapClaudeSdkMessage(
+      // Task usage is a cumulative-per-task counter over the same sidechain
+      // calls whose assistant messages already fed the goal total — counting
+      // it here would double-count subagent spend.
+      const progress = mapClaudeSdkMessage(
         {
           type: "system",
           subtype: "task_progress",
@@ -2335,39 +2411,14 @@ describe("sdkCanonicalMapping — task progress", () => {
         } as unknown as SDKMessage,
         state,
       );
-      expect(firstProgress).toContainEqual(
-        expect.objectContaining({
-          type: "item.updated",
-          itemId: "goal-turn-goal",
-          payload: expect.objectContaining({
-            status: "active",
-            tokensUsed: 4_200,
-          }),
-        }),
-      );
+      expect(
+        progress.some(
+          (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+        ),
+      ).toBe(false);
+      expect(state.activeGoalTokensUsed).toBeUndefined();
 
-      vi.setSystemTime(new Date("2026-05-12T10:00:30Z"));
-      const secondProgress = mapClaudeSdkMessage(
-        {
-          type: "system",
-          subtype: "task_progress",
-          session_id: "claude-session",
-          task_id: "task-1",
-          tool_use_id: "toolu_T1",
-          description: "Reading",
-          usage: { total_tokens: 5_000, tool_uses: 4, duration_ms: 2_000 },
-        } as unknown as SDKMessage,
-        state,
-      );
-      expect(secondProgress).toContainEqual(
-        expect.objectContaining({
-          type: "item.updated",
-          itemId: "goal-turn-goal",
-          payload: expect.objectContaining({ tokensUsed: 5_000 }),
-        }),
-      );
-
-      const lowerDuplicate = mapClaudeSdkMessage(
+      const notification = mapClaudeSdkMessage(
         {
           type: "system",
           subtype: "task_notification",
@@ -2380,10 +2431,51 @@ describe("sdkCanonicalMapping — task progress", () => {
         state,
       );
       expect(
-        lowerDuplicate.some(
+        notification.some(
           (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
         ),
       ).toBe(false);
+      expect(state.activeGoalTokensUsed).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts subagent sidechain assistant spend in goal token totals", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal count subagent tokens", undefined);
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:20Z"));
+      const subAgentEvents = mapClaudeSdkMessage(
+        assistantUsageMessage(
+          "msg-sub-1",
+          { input_tokens: 4_000, output_tokens: 200, cache_read_input_tokens: 3_000 },
+          "toolu_T1",
+        ),
+        state,
+      );
+      expect(subAgentEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({ status: "active", tokensUsed: 7_200 }),
+        }),
+      );
+
+      const mainEvents = mapClaudeSdkMessage(
+        assistantUsageMessage("msg-main-1", { input_tokens: 10, output_tokens: 5 }),
+        state,
+      );
+      expect(mainEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({ status: "active", tokensUsed: 7_215 }),
+        }),
+      );
 
       vi.setSystemTime(new Date("2026-05-12T10:01:00Z"));
       const resultEvents = mapClaudeSdkMessage(
@@ -2391,7 +2483,7 @@ describe("sdkCanonicalMapping — task progress", () => {
           type: "result",
           subtype: "success",
           session_id: "claude-session",
-          usage: { input_tokens: 10, output_tokens: 5 },
+          usage: { total_tokens: 7_215 },
         } as unknown as SDKMessage,
         state,
       );
@@ -2399,10 +2491,7 @@ describe("sdkCanonicalMapping — task progress", () => {
         expect.objectContaining({
           type: "item.updated",
           itemId: "goal-turn-goal",
-          payload: expect.objectContaining({
-            status: "complete",
-            tokensUsed: 5_015,
-          }),
+          payload: expect.objectContaining({ status: "complete", tokensUsed: 7_215 }),
         }),
       );
     } finally {
@@ -3625,8 +3714,8 @@ describe("sdkCanonicalMapping — requests", () => {
   });
 });
 
-describe("sdkCanonicalMapping — emitActiveGoalTokenUpdate", () => {
-  it("emits a goal item.updated with spend tokens when a goal is active", () => {
+describe("sdkCanonicalMapping — goal token accumulation", () => {
+  it("accumulates per-call assistant spend and emits a goal update on growth", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
     try {
@@ -3634,7 +3723,11 @@ describe("sdkCanonicalMapping — emitActiveGoalTokenUpdate", () => {
       startClaudeTurn(state, "turn-goal", "/goal ship it", undefined);
 
       vi.setSystemTime(new Date("2026-05-12T10:00:45Z"));
-      const event = emitActiveGoalTokenUpdate(state, 42_000);
+      const message = assistantUsageMessage("msg-1", {
+        input_tokens: 40_000,
+        output_tokens: 2_000,
+      });
+      const event = accumulateActiveGoalAssistantSpend(state, message);
 
       expect(event).toMatchObject({
         type: "item.updated",
@@ -3647,14 +3740,166 @@ describe("sdkCanonicalMapping — emitActiveGoalTokenUpdate", () => {
           timeUsedSeconds: 45,
         },
       });
+
+      const second = accumulateActiveGoalAssistantSpend(
+        state,
+        assistantUsageMessage("msg-2", { input_tokens: 1_000, output_tokens: 0 }),
+      );
+      expect(second).toMatchObject({ payload: { tokensUsed: 43_000 } });
+      expect(accumulateActiveGoalAssistantSpend(state, message)).toBeUndefined();
+      expect(state.activeGoalTokensUsed).toBe(43_000);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("returns undefined when no goal is active", () => {
+  it("skips assistant messages without usage and runs without an active goal", () => {
     const state = createClaudeMapperState("thread-1");
-    expect(emitActiveGoalTokenUpdate(state, 1_000)).toBeUndefined();
+    startClaudeTurn(state, "turn-goal", "/goal ship it", undefined);
+    const noUsage = {
+      type: "assistant",
+      session_id: "claude-session",
+      uuid: "uuid-no-usage",
+      parent_tool_use_id: null,
+      message: {
+        id: "msg-no-usage",
+        role: "assistant",
+        model: "claude-opus-4-8",
+        content: [{ type: "text", text: "hi" }],
+      },
+    } as unknown as SDKAssistantMessage;
+    expect(accumulateActiveGoalAssistantSpend(state, noUsage)).toBeUndefined();
+
+    const idleState = createClaudeMapperState("thread-2");
+    expect(
+      accumulateActiveGoalAssistantSpend(
+        idleState,
+        assistantUsageMessage("msg-3", { input_tokens: 1_000, output_tokens: 0 }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("emits a tick with current totals only while a goal is active", () => {
+    const state = createClaudeMapperState("thread-1");
+    expect(emitActiveGoalTick(state)).toBeUndefined();
+
+    startClaudeTurn(state, "turn-goal", "/goal ship it", undefined);
+    accumulateActiveGoalAssistantSpend(
+      state,
+      assistantUsageMessage("msg-1", { input_tokens: 1_000, output_tokens: 0 }),
+    );
+    const tick = emitActiveGoalTick(state);
+    expect(tick).toMatchObject({
+      type: "item.updated",
+      itemId: "goal-turn-goal",
+      payload: { status: "active", tokensUsed: 1_000 },
+    });
+  });
+
+  it("resets goal tokens and clock when a native verdict replaces the objective", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal old objective", undefined);
+      accumulateActiveGoalAssistantSpend(
+        state,
+        assistantUsageMessage("msg-1", { input_tokens: 9_000, output_tokens: 1_000 }),
+      );
+      mapClaudeSdkMessage(
+        activeGoalMessage({
+          condition: "old objective",
+          iterations: 2,
+          set_at: Date.parse("2026-05-12T10:00:00Z") / 1000,
+          tokens_at_start: 0,
+          last_reason: "old reason",
+        }),
+        state,
+      );
+
+      vi.setSystemTime(new Date("2026-05-12T10:10:00Z"));
+      const events = mapClaudeSdkMessage(
+        activeGoalMessage({
+          condition: "new objective",
+          iterations: 1,
+          set_at: Date.parse("2026-05-12T10:10:00Z") / 1000,
+          tokens_at_start: 0,
+        }),
+        state,
+      );
+
+      expect(state.activeGoalObjective).toBe("new objective");
+      expect(state.activeGoalTokensUsed).toBeUndefined();
+      expect(state.activeGoalLastReason).toBeUndefined();
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({
+            objective: "new objective",
+            timeUsedSeconds: 0,
+          }),
+        }),
+      );
+      // tokensUsed resets to 0 rather than disappearing: the renderer merges
+      // goal payloads shallowly, so omitting it would keep the replaced
+      // goal's total on the dock until new spend accumulates.
+      const goalUpdate = events.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.updated" }> =>
+          event.type === "item.updated" && event.itemId === "goal-turn-goal",
+      );
+      expect(goalUpdate?.payload).toMatchObject({ tokensUsed: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps goal tokens identical to the Profile usage.spent ledger sum", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", true);
+    startClaudeTurn(state, "turn-goal", "/goal consistent totals", undefined);
+
+    const stream: SDKMessage[] = [
+      assistantUsageMessage("msg-1", { input_tokens: 10_000, output_tokens: 500 }),
+      // Subagent sidechain call — counted by both.
+      assistantUsageMessage(
+        "msg-2",
+        { input_tokens: 4_000, output_tokens: 200, cache_read_input_tokens: 900 },
+        "toolu_T1",
+      ),
+      // Cumulative-per-task counter — excluded from both.
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-1",
+        status: "completed",
+        summary: "Done",
+        usage: { total_tokens: 5_100, tool_uses: 4, duration_ms: 2_100 },
+      } as unknown as SDKMessage,
+      assistantUsageMessage("msg-3", { input_tokens: 2_000, output_tokens: 100 }),
+      // Session-cumulative — excluded from both.
+      {
+        type: "result",
+        subtype: "success",
+        session_id: "claude-session",
+        usage: { total_tokens: 999_999 },
+      } as unknown as SDKMessage,
+    ];
+
+    let spentSum = 0;
+    let completedTokens: number | undefined;
+    for (const message of stream) {
+      for (const event of mapClaudeSdkMessage(message, state)) {
+        if (event.type === "usage.spent") spentSum += event.usage.counter;
+        if (event.type === "item.updated" && event.itemId === "goal-turn-goal") {
+          const payload = event.payload as { status?: string; tokensUsed?: number };
+          if (payload.status === "complete") completedTokens = payload.tokensUsed;
+        }
+      }
+    }
+    expect(spentSum).toBe(17_700);
+    expect(completedTokens).toBe(spentSum);
   });
 });
 

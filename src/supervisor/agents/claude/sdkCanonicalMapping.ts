@@ -15,15 +15,15 @@ export {
   type ClaudeQuestion,
 } from "./canonicalMapping/questions";
 export {
+  accumulateActiveGoalAssistantSpend,
   completeActiveGoalOnTaskDrainEvents,
-  emitActiveGoalTokenUpdate,
+  emitActiveGoalTick,
 } from "./canonicalMapping/goal";
 export {
   extractResultErrorMessage,
   isApiErrorResult,
   mapClaudeContextUsageResponse,
   nonDiagnosticErrors,
-  readClaudeApiUsageSpendTokens,
 } from "./canonicalMapping/result";
 export { mapClaudeSdkMessage, readParentToolUseId } from "./canonicalMapping/dispatch";
 export {
