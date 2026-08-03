@@ -526,7 +526,7 @@ describe("isCursorSemverSupportedForHooks", () => {
 
 describe("buildCursorProbeSpec", () => {
   it.skipIf(process.platform !== "win32")(
-    "routes Windows probes through the same wrapped command path as real launches",
+    "falls back to the wrapped command path when the installer entrypoint is unavailable",
     () => {
       const spec = buildCursorProbeSpec(
         "C:\\Users\\demo\\AppData\\Local\\cursor-agent\\cursor-agent.cmd",
