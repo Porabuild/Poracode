@@ -38,6 +38,19 @@ describe("grok session materialization (native)", () => {
     expect(grokSessionDirMaterialized(location, projectDir, SESSION_ID)).toBe(true);
   });
 
+  it("reports true after the project moves because UUID resumes are global", () => {
+    const originalProjectDir = join(tmpdir(), "grok-original-proj");
+    mkdirSync(join(grokHome, "sessions", encodeURIComponent(originalProjectDir), SESSION_ID), {
+      recursive: true,
+    });
+
+    expect(grokSessionDirMaterialized(location, projectDir, SESSION_ID)).toBe(true);
+    expect(resolveGrokSessionArg(location, projectDir, SESSION_ID)).toEqual({
+      kind: "resume",
+      sessionId: SESSION_ID,
+    });
+  });
+
   it("resolveGrokSessionArg re-assigns unmaterialized ids with -s and resumes real ones with -r", () => {
     expect(resolveGrokSessionArg(location, projectDir, SESSION_ID)).toEqual({
       kind: "new",

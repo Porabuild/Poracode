@@ -139,7 +139,7 @@ function GoalObjectiveText({
   return (
     <div className="min-w-0 flex-1">
       <Tooltip delay={0}>
-        <Tooltip.Trigger>{text}</Tooltip.Trigger>
+        <Tooltip.Trigger className="block w-full min-w-0 overflow-hidden">{text}</Tooltip.Trigger>
         <Tooltip.Content className="max-w-[32rem] whitespace-normal break-words">
           <span className="block">{objective}</span>
           {lastReason ? (

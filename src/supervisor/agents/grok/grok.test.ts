@@ -16,7 +16,7 @@ function oscNotify(body: string, code: 9 | 99 | 777 = 9): OscNotification {
   return { code, title: "", body, payload: undefined };
 }
 
-// Observed live from grok PTY captures (0.1.218, re-verified on 0.2.93 —
+// Observed live from grok PTY captures (0.1.218, re-verified on 0.2.118 —
 // idle title is still plain "grok"):
 //   OSC 0 "grok"                       (idle, frequent)
 //   OSC 0 "⠴ - Waiting - grok"         (working, braille frames ⠴ / ⠦)
@@ -95,6 +95,22 @@ describe("createGrokAdapter skill roots", () => {
   });
 });
 
+describe("createGrokAdapter goal controls", () => {
+  const adapter = createGrokAdapter();
+
+  it("maps Grok-supported goal actions to native slash commands", () => {
+    expect(adapter.buildGoalControlPrompt?.({ action: "pause" })).toBe("/goal pause");
+    expect(adapter.buildGoalControlPrompt?.({ action: "resume" })).toBe("/goal resume");
+    expect(adapter.buildGoalControlPrompt?.({ action: "clear" })).toBe("/goal clear");
+  });
+
+  it("does not advertise an in-place edit command that Grok lacks", () => {
+    expect(
+      adapter.buildGoalControlPrompt?.({ action: "edit", objective: "Replacement goal" }),
+    ).toBeUndefined();
+  });
+});
+
 describe("grokDetectionSpec", () => {
   it("uses device auth for WSL login to avoid localhost callback nonce mismatches", () => {
     expect(typeof grokDetectionSpec.loginCommand).toBe("function");
@@ -153,9 +169,10 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
   it("pre-assigns a fresh UUID with -s and returns it as the session ref", () => {
     const adapter = createGrokAdapter();
     const result = adapter.buildLaunchArgv(location, config, "", undefined, {});
-    expect(result.args[0]).toBe("-s");
-    expect(result.args[1]).toMatch(UUID_RE);
-    expect(result.sessionRef?.providerSessionId).toBe(result.args[1]);
+    expect(result.args[0]).toBe("--no-auto-update");
+    expect(result.args[1]).toBe("-s");
+    expect(result.args[2]).toMatch(UUID_RE);
+    expect(result.sessionRef?.providerSessionId).toBe(result.args[2]);
   });
 
   it("resumes a known id with -r when the session dir has materialized", () => {
@@ -170,7 +187,7 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       createKnownSessionRef(SESSION_ID),
       {},
     );
-    expect(result.args.slice(0, 2)).toEqual(["-r", SESSION_ID]);
+    expect(result.args.slice(0, 3)).toEqual(["--no-auto-update", "-r", SESSION_ID]);
     expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
   });
 
@@ -183,14 +200,31 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       createKnownSessionRef(SESSION_ID),
       {},
     );
-    expect(result.args.slice(0, 2)).toEqual(["-s", SESSION_ID]);
+    expect(result.args.slice(0, 3)).toEqual(["--no-auto-update", "-s", SESSION_ID]);
     expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
+  });
+
+  it("resumes a known UUID after the project directory moves", () => {
+    const originalProjectDir = join(tmpdir(), "grok-original-proj");
+    mkdirSync(join(grokHome, "sessions", encodeURIComponent(originalProjectDir), SESSION_ID), {
+      recursive: true,
+    });
+
+    const adapter = createGrokAdapter();
+    const result = adapter.buildLaunchArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef(SESSION_ID),
+      {},
+    );
+    expect(result.args.slice(0, 3)).toEqual(["--no-auto-update", "-r", SESSION_ID]);
   });
 
   it("buildResumeArgv applies the same materialization fallback", () => {
     const adapter = createGrokAdapter();
     const fresh = adapter.buildResumeArgv(location, config, "", createKnownSessionRef(SESSION_ID));
-    expect(fresh.args.slice(0, 2)).toEqual(["-s", SESSION_ID]);
+    expect(fresh.args.slice(0, 3)).toEqual(["--no-auto-update", "-s", SESSION_ID]);
 
     mkdirSync(join(grokHome, "sessions", encodeURIComponent(projectDir), SESSION_ID), {
       recursive: true,
@@ -201,7 +235,7 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       "",
       createKnownSessionRef(SESSION_ID),
     );
-    expect(materialized.args.slice(0, 2)).toEqual(["-r", SESSION_ID]);
+    expect(materialized.args.slice(0, 3)).toEqual(["--no-auto-update", "-r", SESSION_ID]);
   });
 
   it("does not project custom MCP servers into Grok's global config", () => {

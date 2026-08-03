@@ -631,10 +631,13 @@ export class ThreadSessionManager {
   async controlThreadGoal(payload: ControlThreadGoalPayload): Promise<void> {
     const { threadId, ...control } = payload;
     const session = this.requireSession(threadId);
-    if (!session.structuredSession?.controlGoal) {
-      throw new Error(`${session.adapter.label} does not support goal controls.`);
+    if (session.structuredSession?.controlGoal) {
+      await session.structuredSession.controlGoal(control);
+      return;
     }
-    await session.structuredSession.controlGoal(control);
+    const prompt = session.adapter.buildGoalControlPrompt?.(control);
+    if (!prompt) throw new Error(`${session.adapter.label} does not support this goal control.`);
+    await this.sendThreadInput({ threadId, prompt, config: session.config });
   }
 
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
