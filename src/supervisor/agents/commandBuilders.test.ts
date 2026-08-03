@@ -454,14 +454,10 @@ describe("agent command builders", () => {
 
   it("builds a Grok one-shot command via the headless `grok -p` path", () => {
     expect(
-      createGrokAdapter().buildOneShotCommand?.(
-        "grok-composer-2.5-fast",
-        undefined,
-        "Summarize this diff",
-      ),
+      createGrokAdapter().buildOneShotCommand?.("grok-4.5", undefined, "Summarize this diff"),
     ).toEqual({
       command: "grok",
-      args: ["-p", "Summarize this diff", "-m", "grok-composer-2.5-fast", "--always-approve"],
+      args: ["--no-auto-update", "-p", "Summarize this diff", "-m", "grok-4.5", "--always-approve"],
       stdin: "",
     });
   });
@@ -538,6 +534,7 @@ describe("agent command builders", () => {
     ).toEqual({
       command: "grok",
       args: [
+        "--no-auto-update",
         "-p",
         "Summarize this diff",
         "-m",

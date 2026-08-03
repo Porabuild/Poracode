@@ -2,7 +2,7 @@ import type { ThreadConfig } from "@/shared/contracts";
 
 /**
  * Flag references — verified against `grok --help`, `grok agent --help`, and
- * live PTY/ACP probes on grok 0.2.93 (2026-07-09):
+ * live PTY/ACP probes on grok 0.2.118 (2026-08-02):
  *   https://docs.x.ai/build/cli/headless-scripting
  *   https://docs.x.ai/build/modes-and-commands
  *
@@ -21,10 +21,10 @@ import type { ThreadConfig } from "@/shared/contracts";
  *   • `--reasoning-effort <EFFORT>` is honored at TUI launch since 0.2.x
  *     (verified live: the composer footer shows "Grok 4.5 (low)" and the
  *     session's summary.json records `reasoning_effort`). Models that don't
- *     advertise `supportsReasoningEffort` (grok-composer-2.5-fast) simply
- *     ignore it, so we forward `config.effort` whenever it is set.
+ *     advertise `supportsReasoningEffort` simply ignore it, so we forward
+ *     `config.effort` whenever it is set.
  *   • `--permission-mode <MODE>` is STILL silently ignored at launch on both
- *     surfaces (verified live on 0.2.93: booting the TUI with
+ *     surfaces (verified live on 0.2.118: booting the TUI with
  *     `--permission-mode plan` shows no "· plan" footer chip while Shift+Tab
  *     does, and an ACP session created with it reports kind "build"). The
  *     only approval control Grok honors at launch remains `--always-approve`
@@ -103,7 +103,7 @@ export function buildGrokArgs(
  * Argv prefix for `grok [FLAGS] agent stdio` (ACP / GUI tab).
  */
 export function buildGrokAcpArgs(config: ThreadConfig): string[] {
-  const args: string[] = [];
+  const args = ["--no-auto-update"];
   pushSharedFlags(args, config);
   return args;
 }

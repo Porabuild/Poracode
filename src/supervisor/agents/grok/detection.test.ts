@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildGrokProviderMetadata, mapGrokEffortCapabilities } from "./detection";
 
-// Model `_meta` shapes as returned live by `grok agent stdio` 0.2.93
+// Model `_meta` shapes as returned live by `grok agent stdio` 0.2.118
 // (initialize/_meta.modelState and session/new `models.availableModels[]._meta`).
 const GROK_45_META = {
   totalContextTokens: 500_000,
@@ -15,7 +15,7 @@ const GROK_45_META = {
   ],
 };
 
-const COMPOSER_META = {
+const MODEL_WITHOUT_EFFORT_META = {
   totalContextTokens: 200_000,
   agentType: "cursor",
 };
@@ -24,7 +24,7 @@ describe("mapGrokEffortCapabilities", () => {
   it("derives ascending effort tiers and the advertised default", () => {
     const caps = mapGrokEffortCapabilities({
       "grok-4.5": GROK_45_META,
-      "grok-composer-2.5-fast": COMPOSER_META,
+      "model-without-effort": MODEL_WITHOUT_EFFORT_META,
     });
     expect(caps.efforts).toEqual(["low", "medium", "high"]);
     expect(caps.defaultEffort).toBe("high");
@@ -33,11 +33,11 @@ describe("mapGrokEffortCapabilities", () => {
   it("gives models without tiers an explicit empty list so the picker hides effort", () => {
     const caps = mapGrokEffortCapabilities({
       "grok-4.5": GROK_45_META,
-      "grok-composer-2.5-fast": COMPOSER_META,
+      "model-without-effort": MODEL_WITHOUT_EFFORT_META,
     });
     expect(caps.modelEfforts).toEqual({
       "grok-4.5": ["low", "medium", "high"],
-      "grok-composer-2.5-fast": [],
+      "model-without-effort": [],
     });
   });
 
