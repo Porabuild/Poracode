@@ -46,9 +46,11 @@ const execFileAsync = promisify(execFile);
  * reused. v8 adds independently cached runtime variants and session-id routing
  * so existing threads remain pinned when a provider's default runtime changes.
  * v9 refreshes ACP-derived model capabilities after adding support for model
- * lists advertised through initialize metadata (used by Grok 0.2.x).
+ * lists advertised through initialize metadata (used by Grok 0.2.x). v10
+ * invalidates v9 results whose macOS Grok probe could not find Node because
+ * the login-shell environment was not forwarded to the ACP child process.
  */
-export const STATUS_CACHE_VERSION = 9;
+export const STATUS_CACHE_VERSION = 10;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

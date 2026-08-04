@@ -246,11 +246,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 6,
-      // v6 refreshes ACP-derived models after model discovery began reading
-      // initialize metadata (used by Grok 0.2.x). Drop older cached statuses so
-      // the UI cannot hydrate a stale 0/0 before the supervisor refresh arrives.
-      // This mirrors the supervisor STATUS_CACHE_VERSION=9 bump, which only
+      version: 7,
+      // v7 drops the v6 status written when the macOS Grok ACP probe lost the
+      // login-shell PATH and could not start its Node-backed executable. This
+      // prevents the UI from hydrating that stale 0/0 before detection reruns.
+      // This mirrors the supervisor STATUS_CACHE_VERSION=10 bump, which only
       // invalidates the supervisor's on-disk cache, not this localStorage copy.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;

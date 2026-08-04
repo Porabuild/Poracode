@@ -45,9 +45,9 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
-  it("invalidates v5 statuses after ACP initialize model discovery", async () => {
+  it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(6);
+    expect(options.version).toBe(7);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -62,7 +62,7 @@ describe("persisted agent status cache", () => {
         windowsLoaded: true,
         wslLoaded: true,
       },
-      5,
+      6,
     );
 
     expect(migrated).toMatchObject({

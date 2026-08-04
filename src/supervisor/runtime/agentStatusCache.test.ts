@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
-  it("invalidates caches from before ACP initialize model discovery", () => {
+  it("invalidates v9 caches produced without the Grok login-shell environment", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -49,7 +49,7 @@ describe("agent status cache", () => {
     writeFileSync(
       statusCachePath,
       JSON.stringify({
-        version: 8,
+        version: 9,
         windows: [
           {
             kind: "grok",

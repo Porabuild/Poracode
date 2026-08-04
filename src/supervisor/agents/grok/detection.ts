@@ -69,6 +69,11 @@ async function probeCapabilities(
   const processCwd = resolveProbeSpawnCwd(location, spec.cwd);
   const probe = await probeAcpCapabilities(spec.command, spec.args, sessionCwd, {
     ...(processCwd ? { processCwd } : {}),
+    // macOS apps launched from Finder/Dock inherit a system-only PATH. The
+    // resolved Grok executable is a `#!/usr/bin/env node` script, so preserve
+    // the login-shell environment captured by buildGrokCommand or the script
+    // exits before ACP initialize with `env: node: No such file or directory`.
+    ...(spec.env ? { env: spec.env } : {}),
     timeoutMs: 20_000, // grok may take a moment on first init
     label: location.kind === "wsl" ? `grok:wsl:${location.distro}` : `grok:${location.kind}`,
     // Grok returns identity (email, auth_mode, subscription_tier) in the

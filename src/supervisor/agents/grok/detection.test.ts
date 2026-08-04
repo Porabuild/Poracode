@@ -1,6 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ProjectLocation } from "@/shared/contracts";
 
 const authFileMock = vi.hoisted(() => ({ exists: false }));
+const buildAgentCommandMock = vi.hoisted(() =>
+  vi.fn<
+    (
+      location: ProjectLocation,
+      command: string,
+      args: string[],
+      executablePath?: string,
+    ) => { command: string; args: string[]; cwd?: string; env?: Record<string, string> }
+  >(),
+);
+const probeAcpCapabilitiesMock = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+);
 
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
@@ -9,6 +23,16 @@ vi.mock("node:fs", async (importOriginal) => {
     existsSync: (path: import("node:fs").PathLike) =>
       String(path).endsWith("/.grok/auth.json") ? authFileMock.exists : actual.existsSync(path),
   };
+});
+
+vi.mock("../base", async () => {
+  const actual = await vi.importActual<typeof import("../base")>("../base");
+  return { ...actual, buildAgentCommand: buildAgentCommandMock };
+});
+
+vi.mock("../acp", async () => {
+  const actual = await vi.importActual<typeof import("../acp")>("../acp");
+  return { ...actual, probeAcpCapabilities: probeAcpCapabilitiesMock };
 });
 
 import {
@@ -35,6 +59,41 @@ const MODEL_WITHOUT_EFFORT_META = {
   totalContextTokens: 200_000,
   agentType: "cursor",
 };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  buildAgentCommandMock.mockReturnValue({
+    command: "/Users/demo/.local/share/fnm/node-versions/v24/bin/grok",
+    args: ["--no-auto-update", "agent", "stdio"],
+    cwd: "/Users/demo/project",
+    env: { PATH: "/Users/demo/.local/share/fnm/node-versions/v24/bin:/usr/bin:/bin" },
+  });
+  probeAcpCapabilitiesMock.mockResolvedValue(undefined);
+});
+
+describe("Grok capability detection", () => {
+  it("forwards the login-shell environment to the ACP process", async () => {
+    const location: ProjectLocation = { kind: "posix", path: "/Users/demo/project" };
+
+    await grokDetectionSpec.capabilitiesProbe?.({
+      location,
+      executablePath: "/Users/demo/.local/share/fnm/node-versions/v24/bin/grok",
+    });
+
+    expect(probeAcpCapabilitiesMock).toHaveBeenCalledWith(
+      "/Users/demo/.local/share/fnm/node-versions/v24/bin/grok",
+      ["--no-auto-update", "agent", "stdio"],
+      expect.any(String),
+      expect.objectContaining({
+        env: {
+          PATH: "/Users/demo/.local/share/fnm/node-versions/v24/bin:/usr/bin:/bin",
+        },
+        label: "grok:posix",
+        timeoutMs: 20_000,
+      }),
+    );
+  });
+});
 
 describe("mapGrokEffortCapabilities", () => {
   it("derives ascending effort tiers and the advertised default", () => {
