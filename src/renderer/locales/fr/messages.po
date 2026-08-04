@@ -7704,10 +7704,12 @@ msgid "Open terminal in worktree"
 msgstr "Ouvrir le terminal dans le worktree"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "Ouvrir le sélecteur d'effort"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "Ouvrir le sélecteur de modèle"
 
@@ -10763,10 +10765,12 @@ msgid "Switch project"
 msgstr "Changer de projet"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Passer ce chat en mode agent"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "Passer ce chat en mode plan"
 
@@ -11442,6 +11446,7 @@ msgstr "Basculer le panneau du navigateur"
 
 #: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "Activer/désactiver le mode rapide"
 

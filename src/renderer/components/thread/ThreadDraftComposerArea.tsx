@@ -367,12 +367,16 @@ export function ThreadDraftComposerArea(props: {
     props.project.location,
     props.selectedAgent.kind,
   );
+  const slashLookupContext = {
+    agentKind: props.selectedAgent.kind,
+    presentationMode: props.presentationMode,
+    runtimeLabel: props.selectedAgent.capabilities.runtimeLabel,
+  };
   const availableCommands = resolveAvailableSlashCommands(
     undefined,
     props.selectedAgent.capabilities.slashCommands,
     {
-      agentKind: props.selectedAgent.kind,
-      presentationMode: props.presentationMode,
+      ...slashLookupContext,
       hasEffort:
         ((
           props.selectedAgent.capabilities.modelEfforts?.[props.config.model] ??
@@ -588,10 +592,11 @@ export function ThreadDraftComposerArea(props: {
       void runExperiment(allSegments, fallbackPrompt);
       return;
     }
-    const boundSegments = bindLeadingSkillUnlessLocalAction(allSegments, availableCommands, {
-      agentKind: props.selectedAgent.kind,
-      presentationMode: props.presentationMode,
-    });
+    const boundSegments = bindLeadingSkillUnlessLocalAction(
+      allSegments,
+      availableCommands,
+      slashLookupContext,
+    );
     const currentSegments = rebindSkillSegments(
       boundSegments,
       availableCommands,
@@ -601,10 +606,11 @@ export function ThreadDraftComposerArea(props: {
     if (flatPrompt.length === 0) {
       return;
     }
-    const localAction = resolveLocalActionUnlessSkill(currentSegments, flatPrompt, {
-      agentKind: props.selectedAgent.kind,
-      presentationMode: props.presentationMode,
-    });
+    const localAction = resolveLocalActionUnlessSkill(
+      currentSegments,
+      flatPrompt,
+      slashLookupContext,
+    );
     if (localAction?.kind === "set-mode") {
       props.onConfigChange({ mode: localAction.mode });
       mentionRef.current?.clear();
@@ -684,10 +690,11 @@ export function ThreadDraftComposerArea(props: {
   }
 
   function resolveExperimentInput(allSegments: PromptSegment[], fallbackPrompt = "") {
-    const boundSegments = bindLeadingSkillUnlessLocalAction(allSegments, availableCommands, {
-      agentKind: props.selectedAgent.kind,
-      presentationMode: props.presentationMode,
-    });
+    const boundSegments = bindLeadingSkillUnlessLocalAction(
+      allSegments,
+      availableCommands,
+      slashLookupContext,
+    );
     const segments = rebindSkillSegments(
       boundSegments,
       availableCommands,

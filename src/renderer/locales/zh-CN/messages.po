@@ -7704,10 +7704,12 @@ msgid "Open terminal in worktree"
 msgstr "在 worktree 中打开终端"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "打开工作量选择器"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "打开模型选择器"
 
@@ -10763,10 +10765,12 @@ msgid "Switch project"
 msgstr "切换项目"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "将此聊天切换到代理模式"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "将此聊天切换到计划模式"
 
@@ -11442,6 +11446,7 @@ msgstr "切换浏览器面板"
 
 #: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "切换快速模式"
 
