@@ -35,6 +35,7 @@ import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
+import { ThreadContextMenu } from "@/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { isMac, readBridge } from "@/renderer/bridge";
 import {
@@ -184,12 +185,13 @@ function RemoteAccessSidebarIcon(props: { status: RemoteAccessSidebarStatus }) {
 function CollapsedThreadRailButton(props: { thread: Thread; projectName?: string }) {
   const { thread, projectName } = props;
   const isActive = useIsCurrentThread(thread.id);
+  const project = useAppStore((s) => s.projects.find((p) => p.id === thread.projectId));
   const title = thread.done ? (
     <span className="opacity-50 line-through">{thread.title}</span>
   ) : (
     thread.title
   );
-  return (
+  const button = (
     <SidebarButton
       iconOnly
       icon={<ThreadIcon thread={thread} />}
@@ -207,6 +209,13 @@ function CollapsedThreadRailButton(props: { thread: Thread; projectName?: string
       isActive={isActive}
       onPress={() => openThread(thread.id)}
     />
+  );
+  if (!project) return button;
+  // No `onRename`: the icon rail has no inline rename affordance.
+  return (
+    <ThreadContextMenu thread={thread} project={project}>
+      {button}
+    </ThreadContextMenu>
   );
 }
 
