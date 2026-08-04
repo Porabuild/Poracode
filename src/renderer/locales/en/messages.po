@@ -4763,6 +4763,10 @@ msgstr "Fix in Agent"
 msgid "Fixed"
 msgstr "Fixed"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Flat list"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Focus browser address bar"
@@ -5119,6 +5123,10 @@ msgstr "Group open threads"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Grouped by project"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5815,6 +5823,10 @@ msgstr "Linked"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "List"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "List options"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9760,7 +9772,7 @@ msgstr "Searching…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Security-focused directory with verified skill metadata."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "See more"
 
@@ -10315,8 +10327,8 @@ msgid "Sort marketplace skills"
 msgstr "Sort marketplace skills"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Sort threads"
+#~ msgid "Sort threads"
+#~ msgstr "Sort threads"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11354,6 +11366,10 @@ msgstr "Thread goal dock"
 msgid "Thread is already unloaded."
 msgstr "Thread is already unloaded."
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Thread list options"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Thread mode"
@@ -11364,8 +11380,8 @@ msgid "Thread Only"
 msgstr "Thread Only"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Thread sort order"
+#~ msgid "Thread sort order"
+#~ msgstr "Thread sort order"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

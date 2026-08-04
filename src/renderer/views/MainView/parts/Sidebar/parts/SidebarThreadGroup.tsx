@@ -30,6 +30,8 @@ export function SidebarThreadGroup(props: {
   project: Project;
   editingThreadId: string | null;
   setEditingThreadId: (id: string | null) => void;
+  /** Trailing project label for cross-project (flat) lists. */
+  projectTag?: React.ReactNode;
 }) {
   const { entry, editingThreadId, setEditingThreadId } = props;
   const { t } = useLingui();
@@ -230,6 +232,7 @@ export function SidebarThreadGroup(props: {
                     <span className={`shrink-0 text-muted/60 ${isDone ? "opacity-50" : ""}`}>
                       {entry.group.threads.length}
                     </span>
+                    {props.projectTag}
                   </>
                 )}
               </button>

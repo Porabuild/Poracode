@@ -20,140 +20,219 @@ import {
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { SidebarPanelDragButton } from "../../SidebarPanelDragButton";
 
-export function ThreadItemSuffix(props: {
+interface ThreadItemSuffixProps {
   thread: Thread;
   showWorktreeBadge: boolean;
   showWorktreeFilesButton: boolean;
   isExperimentCandidate: boolean;
-}) {
-  const { thread, showWorktreeBadge, showWorktreeFilesButton, isExperimentCandidate } = props;
-  const { t } = useLingui();
-  const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
-  const prState = usePrState(thread.worktreePath);
-  // A merged PR means the work landed, so the row offers Done inline instead of
-  // sending the user through the context menu.
-  const showDoneButton =
-    !isExperimentCandidate && !thread.done && !!thread.worktreePath && prState === "merged";
-  const isFilesActive = useIsWorktreeFilesPanelActive(thread.worktreePath);
-  const isGitActive = useIsWorktreeGitPanelActive(thread.worktreePath);
-  const isTerminalActive = useIsWorktreeTerminalActive(thread.worktreePath);
-  const isTerminalOpen = useIsWorktreeTerminalOpen(thread.worktreePath);
-  const isTerminalBusy = useIsWorktreeTerminalBusy(thread.worktreePath);
-  const isTerminalVisible = isTerminalActive || isTerminalOpen;
-  const hiddenPanelButtonClass =
-    "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
+}
 
-  // Sits left of the git badge so the PR glyph keeps its slot next to the
-  // timestamp whether or not the row is hovered.
-  const doneButton = showDoneButton ? (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={t`Mark ${thread.title} done`}
-      className={`flex h-[18px] shrink-0 items-center justify-center rounded text-muted/60 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-success ${hiddenPanelButtonClass}`}
-      onClick={(event) => {
-        event.stopPropagation();
-        markThreadDone(thread.id);
-      }}
-      onKeyDown={(event) =>
-        handleKeyActivate(event, () => markThreadDone(thread.id), { stopPropagation: true })
-      }
-    >
-      <CircleCheck className="size-3.5" />
-    </div>
-  ) : null;
+const iconSizeClass = "size-3.5";
+const buttonHeightClass = "h-[18px]";
+const buttonVisibleClass = "w-[18px] p-0.5";
+const hiddenPanelButtonClass =
+  "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
+
+function ThreadItemWorktreeActions(props: ThreadItemSuffixProps) {
+  const { thread, showWorktreeBadge, showWorktreeFilesButton } = props;
+  const { t } = useLingui();
+  const worktreePath = showWorktreeBadge ? thread.worktreePath : undefined;
+  const isFilesActive = useIsWorktreeFilesPanelActive(worktreePath);
+  const isTerminalActive = useIsWorktreeTerminalActive(worktreePath);
+  const isTerminalOpen = useIsWorktreeTerminalOpen(worktreePath);
+  const isTerminalBusy = useIsWorktreeTerminalBusy(worktreePath);
+  const isTerminalVisible = isTerminalActive || isTerminalOpen;
 
   return (
     <>
-      {thread.starred && <Star className="size-3 shrink-0 fill-current" aria-label={t`Pinned`} />}
-      {showWorktreeBadge && thread.worktreePath && (
-        <>
-          {showWorktreeFilesButton ? (
-            <SidebarPanelDragButton
-              panel="files"
-              projectId={thread.projectId}
-              worktreePath={thread.worktreePath}
-              ariaLabel={t`Files for ${thread.worktreeBranch ?? thread.title}`}
-              className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-                isFilesActive
-                  ? "w-[18px] p-0.5 text-accent"
-                  : `text-muted/60 ${hiddenPanelButtonClass}`
-              }`}
-              onPress={() => openFilesPanel(thread.projectId, thread.worktreePath)}
-            >
-              <FolderOpen className="size-3.5" />
-            </SidebarPanelDragButton>
-          ) : null}
-          <SidebarPanelDragButton
-            panel="terminal"
-            projectId={thread.projectId}
-            worktreePath={thread.worktreePath}
-            ariaLabel={t`Terminal for ${thread.worktreeBranch}`}
-            className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-              isTerminalVisible
-                ? `w-[18px] p-0.5 ${isTerminalActive ? "text-accent" : "text-foreground"}`
-                : `text-muted/60 ${hiddenPanelButtonClass}`
-            }`}
-            onPress={() => openWorktreeTerminal(thread.projectId, thread.worktreePath!)}
-          >
-            <AnimatedTerminalIcon className="size-3.5" isBusy={isTerminalBusy} />
-          </SidebarPanelDragButton>
-          <SyncBadge projectId={thread.projectId} worktreePath={thread.worktreePath} />
-          {doneButton}
-          <GitBadge
-            projectId={thread.projectId}
-            projectName={thread.worktreeBranch ?? ""}
-            worktreePath={thread.worktreePath}
-            onPress={() => openGitReview(thread.projectId, thread.worktreePath, thread.id)}
-            isActive={isGitActive}
-            fallbackToWorktreeIcon
-          />
-        </>
-      )}
-      {/* Rows inside a worktree group hide the badge cluster — keep the button. */}
-      {!showWorktreeBadge || !thread.worktreePath ? doneButton : null}
-      <span className="relative w-[2.4ch] shrink-0">
+      {thread.starred ? (
+        <Star className="size-3 shrink-0 fill-current" aria-label={t`Pinned`} />
+      ) : null}
+      {worktreePath && showWorktreeFilesButton ? (
+        <SidebarPanelDragButton
+          panel="files"
+          projectId={thread.projectId}
+          worktreePath={worktreePath}
+          ariaLabel={t`Files for ${thread.worktreeBranch ?? thread.title}`}
+          className={`flex ${buttonHeightClass} shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+            isFilesActive
+              ? `${buttonVisibleClass} text-accent`
+              : `text-muted/60 ${hiddenPanelButtonClass}`
+          }`}
+          onPress={() => openFilesPanel(thread.projectId, worktreePath)}
+        >
+          <FolderOpen className={iconSizeClass} />
+        </SidebarPanelDragButton>
+      ) : null}
+      {worktreePath ? (
+        <SidebarPanelDragButton
+          panel="terminal"
+          projectId={thread.projectId}
+          worktreePath={worktreePath}
+          ariaLabel={t`Terminal for ${thread.worktreeBranch}`}
+          className={`flex ${buttonHeightClass} shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+            isTerminalVisible
+              ? `${buttonVisibleClass} ${isTerminalActive ? "text-accent" : "text-foreground"}`
+              : `text-muted/60 ${hiddenPanelButtonClass}`
+          }`}
+          onPress={() => openWorktreeTerminal(thread.projectId, worktreePath)}
+        >
+          <AnimatedTerminalIcon className={iconSizeClass} isBusy={isTerminalBusy} />
+        </SidebarPanelDragButton>
+      ) : null}
+    </>
+  );
+}
+
+function ThreadItemStatusBadges(props: ThreadItemSuffixProps) {
+  const { thread, showWorktreeBadge, isExperimentCandidate } = props;
+  const { t } = useLingui();
+  const worktreePath = showWorktreeBadge ? thread.worktreePath : undefined;
+  const prState = usePrState(thread.worktreePath);
+  const isGitActive = useIsWorktreeGitPanelActive(worktreePath);
+  const showDoneButton =
+    !isExperimentCandidate && !thread.done && !!thread.worktreePath && prState === "merged";
+
+  return (
+    <>
+      {worktreePath ? <SyncBadge projectId={thread.projectId} worktreePath={worktreePath} /> : null}
+      {showDoneButton ? (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={t`Mark ${thread.title} done`}
+          className={`flex ${buttonHeightClass} shrink-0 items-center justify-center rounded text-muted/60 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-success ${hiddenPanelButtonClass}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            markThreadDone(thread.id);
+          }}
+          onKeyDown={(event) =>
+            handleKeyActivate(event, () => markThreadDone(thread.id), { stopPropagation: true })
+          }
+        >
+          <CircleCheck className={iconSizeClass} />
+        </div>
+      ) : null}
+      {worktreePath ? (
+        <GitBadge
+          projectId={thread.projectId}
+          projectName={thread.worktreeBranch ?? ""}
+          worktreePath={worktreePath}
+          onPress={() => openGitReview(thread.projectId, worktreePath, thread.id)}
+          isActive={isGitActive}
+          fallbackToWorktreeIcon
+        />
+      ) : null}
+    </>
+  );
+}
+
+function ThreadItemRemovalTime(
+  props: Pick<ThreadItemSuffixProps, "thread" | "isExperimentCandidate"> & {
+    compact?: boolean;
+  },
+) {
+  const { thread, isExperimentCandidate, compact = false } = props;
+  const { t } = useLingui();
+  const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
+  const removeThread = () => {
+    if (threadRemoveAction === "archive") {
+      archiveThread(thread.id);
+    } else {
+      deleteThread(thread.id, thread.worktreePath, thread.projectId);
+    }
+  };
+  const removeLabel =
+    threadRemoveAction === "archive" ? t`Archive ${thread.title}` : t`Delete ${thread.title}`;
+  const removeIcon =
+    threadRemoveAction === "archive" ? (
+      <Archive className={iconSizeClass} />
+    ) : (
+      <Trash2 className={iconSizeClass} />
+    );
+
+  if (compact) {
+    return (
+      <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center">
         <RelativeTime
           iso={thread.updatedAt}
-          className={`block text-center font-mono text-[10px] tabular-nums text-muted ${isExperimentCandidate ? "" : "group-hover:invisible"}`}
+          className={`block font-mono text-[10px] leading-none tabular-nums text-muted ${isExperimentCandidate ? "" : "group-hover:invisible"}`}
         />
         {!isExperimentCandidate ? (
           <div
             role="button"
             tabIndex={0}
-            aria-label={
-              threadRemoveAction === "archive"
-                ? t`Archive ${thread.title}`
-                : t`Delete ${thread.title}`
-            }
-            className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
+            aria-label={removeLabel}
+            className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:bg-[var(--row-hover)] hover:text-warning" : "hover:bg-[var(--row-hover)] hover:text-danger"}`}
             onClick={(event) => {
               event.stopPropagation();
-              if (threadRemoveAction === "archive") {
-                archiveThread(thread.id);
-              } else {
-                deleteThread(thread.id, thread.worktreePath, thread.projectId);
-              }
+              removeThread();
             }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.stopPropagation();
-                if (threadRemoveAction === "archive") {
-                  archiveThread(thread.id);
-                } else {
-                  deleteThread(thread.id, thread.worktreePath, thread.projectId);
-                }
-              }
-            }}
+            onKeyDown={(event) => handleKeyActivate(event, removeThread, { stopPropagation: true })}
           >
-            {threadRemoveAction === "archive" ? (
-              <Archive className="size-3.5" />
-            ) : (
-              <Trash2 className="size-3.5" />
-            )}
+            {removeIcon}
           </div>
         ) : null}
       </span>
+    );
+  }
+
+  return (
+    <span className="relative w-[2.4ch] shrink-0">
+      <RelativeTime
+        iso={thread.updatedAt}
+        className={`block text-center font-mono text-[10px] tabular-nums text-muted ${isExperimentCandidate ? "" : "group-hover:invisible"}`}
+      />
+      {!isExperimentCandidate ? (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={removeLabel}
+          className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            removeThread();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.stopPropagation();
+              removeThread();
+            }
+          }}
+        >
+          {removeIcon}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+export function ThreadItemTopSuffix(props: ThreadItemSuffixProps) {
+  return (
+    <>
+      <ThreadItemWorktreeActions {...props} />
+      <ThreadItemRemovalTime
+        thread={props.thread}
+        isExperimentCandidate={props.isExperimentCandidate}
+        compact
+      />
+    </>
+  );
+}
+
+export function ThreadItemBottomSuffix(props: ThreadItemSuffixProps) {
+  return <ThreadItemStatusBadges {...props} />;
+}
+
+export function ThreadItemSuffix(props: ThreadItemSuffixProps) {
+  return (
+    <>
+      <ThreadItemWorktreeActions {...props} />
+      <ThreadItemStatusBadges {...props} />
+      <ThreadItemRemovalTime
+        thread={props.thread}
+        isExperimentCandidate={props.isExperimentCandidate}
+      />
     </>
   );
 }

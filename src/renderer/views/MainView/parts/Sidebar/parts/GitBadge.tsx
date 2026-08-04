@@ -20,7 +20,26 @@ import {
 import type { DragSourceData } from "@/renderer/dnd";
 
 const gitBadgeButtonClass =
-  "shrink-0 cursor-grab rounded px-1 py-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing";
+  "shrink-0 cursor-grab rounded text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing";
+
+/**
+ * A glyph-only badge is an 18px square around its 12px glyph — the same box as
+ * every other icon button in these rows, so its background can't read as a
+ * different-sized chip and its glyph shares their column. Only a badge carrying
+ * diff counts takes extra horizontal room for the text.
+ */
+const gitBadgeIconPaddingClass = "p-[3px]";
+const gitBadgeTextPaddingClass = "px-1 py-0.5";
+
+/**
+ * "Its Git panel is open" is a persistent accent wash behind the badge, at
+ * roughly hover weight. Deliberately not a glyph recolor — the glyph carries the
+ * PR's status tone, which the open state must not mask — and not a ring, which
+ * drew outside the badge's box and clipped inside truncating rows. Overrides the
+ * base `hover:bg-*` so hovering an open badge deepens the wash instead of
+ * flattening it back to neutral.
+ */
+const activeGitBadgeClass = "bg-accent/15 hover:bg-accent/25";
 const hiddenGitBadgeClass =
   "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto";
 
@@ -155,8 +174,8 @@ export function GitBadge(props: {
             role="button"
             tabIndex={0}
             aria-label={t`Git status for ${props.projectName}: not a Git repository`}
-            className={`${gitBadgeButtonClass} ${
-              props.isActive ? "bg-accent/15 ring-1 ring-accent/40" : "text-muted/60"
+            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${
+              props.isActive ? activeGitBadgeClass : ""
             }`}
             onClick={(e) => {
               e.stopPropagation();
@@ -188,10 +207,8 @@ export function GitBadge(props: {
             role="button"
             tabIndex={0}
             aria-label={t`Git status for ${props.projectName}`}
-            className={`${gitBadgeButtonClass} ${
-              props.isActive
-                ? "bg-accent/15 ring-1 ring-accent/40"
-                : `text-muted/60 ${hiddenGitBadgeClass}`
+            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${
+              props.isActive ? activeGitBadgeClass : hiddenGitBadgeClass
             }`}
             onClick={(e) => {
               e.stopPropagation();
@@ -228,9 +245,9 @@ export function GitBadge(props: {
       role="button"
       tabIndex={0}
       aria-label={t`Git status for ${props.projectName}`}
-      className={`shrink-0 cursor-grab rounded px-1 py-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-        props.isActive ? "bg-accent/15 ring-1 ring-accent/40" : "text-muted/60"
-      }`}
+      className={`${gitBadgeButtonClass} ${
+        hasChanges ? gitBadgeTextPaddingClass : gitBadgeIconPaddingClass
+      } ${props.isActive ? activeGitBadgeClass : ""}`}
       onClick={(e) => {
         e.stopPropagation();
         props.onPress?.();
