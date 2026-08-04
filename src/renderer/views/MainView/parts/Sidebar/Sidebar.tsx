@@ -4,9 +4,11 @@ import {
   ChevronRight,
   Download,
   GitPullRequest,
+  Globe,
   House,
   PanelLeft,
   PanelLeftClose,
+  Plus,
   RefreshCw,
   Search,
   Settings2,
@@ -34,11 +36,15 @@ import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/part
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { readBridge } from "@/renderer/bridge";
-import { openRemoteAccessSettings, openSettings } from "@/renderer/actions/panelActions";
+import { isMac, readBridge } from "@/renderer/bridge";
+import {
+  openRemoteAccessSettings,
+  openSettings,
+  toggleBrowserPanel,
+} from "@/renderer/actions/panelActions";
 import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
 import { openTerminal } from "@/renderer/actions/terminalActions";
-import { openThread } from "@/renderer/actions/threadActions";
+import { openNewThread, openThread } from "@/renderer/actions/threadActions";
 import {
   useCurrentProjectId,
   useIsCurrentThread,
@@ -266,6 +272,7 @@ export function Sidebar() {
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
+  const browserVisible = usePanelStore((s) => s.browserPanelOpen && s.rightPanelTab === "browser");
   const githubActionsOpen = usePanelStore((s) => s.githubActionsContext !== null);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
@@ -392,7 +399,14 @@ export function Sidebar() {
   return (
     <div className="relative h-full">
       {isCollapsed && (
-        <div className="absolute inset-y-0 left-0 z-10 flex h-full min-h-0 w-12 flex-col items-start gap-3 pl-2 pb-0 pt-0">
+        <div
+          className={`absolute inset-y-0 left-0 z-10 flex h-full min-h-0 w-12 flex-col items-start gap-3 pl-2 pb-0 ${
+            // macOS keeps the rail below the hidden-inset titlebar (traffic
+            // lights); elsewhere the header spacer is dropped when collapsed,
+            // so the rail starts at the window top with its own inset.
+            isMac() ? "pt-0" : "pt-2"
+          }`}
+        >
           <div className="flex shrink-0 flex-col gap-0.5">
             <SidebarButton
               iconOnly
@@ -407,6 +421,20 @@ export function Sidebar() {
               label={t`Search`}
               isActive={threadSearchOpen}
               onPress={openThreadSearch}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Globe className="size-3.5" />}
+              label={t`Browser`}
+              isActive={browserVisible}
+              onPress={toggleBrowserPanel}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Plus className="size-3.5" />}
+              label={t`New thread`}
+              isActive={appView.kind === "draft"}
+              onPress={() => openNewThread()}
             />
           </div>
           <CollapsedThreadRail />
