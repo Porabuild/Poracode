@@ -28,6 +28,8 @@ export function WorktreeGroupHeader(props: {
   isDone?: boolean;
   updatedAt: string;
   onContextMenu?: React.MouseEventHandler | undefined;
+  /** Trailing project label for cross-project (flat) lists. */
+  projectTag?: React.ReactNode;
 }) {
   const { t } = useLingui();
   const hiddenPanelButtonClass =
@@ -55,10 +57,13 @@ export function WorktreeGroupHeader(props: {
         )
       }
       label={
-        <span
-          className={`font-medium ${props.isDone ? "opacity-50 line-through" : "text-foreground/80"}`}
-        >
-          {props.worktreeBranch}
+        <span className="flex items-center gap-1.5">
+          <span
+            className={`min-w-0 truncate font-medium ${props.isDone ? "opacity-50 line-through" : "text-foreground/80"}`}
+          >
+            {props.worktreeBranch}
+          </span>
+          {props.projectTag}
         </span>
       }
       tooltip={t`Worktree: ${props.worktreeBranch}`}

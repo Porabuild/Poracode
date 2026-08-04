@@ -4758,6 +4758,10 @@ msgstr "Sửa trong Tác nhân"
 msgid "Fixed"
 msgstr "Đã sửa"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Danh sách phẳng"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Tập trung vào thanh địa chỉ trình duyệt"
@@ -5114,6 +5118,10 @@ msgstr "Nhóm chủ đề mở"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Nhóm các dự án để thanh bên, lịch biểu và pull request chỉ hiển thị một nhóm mỗi lần. Chuyển giữa chúng ở cuối thanh bên."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Nhóm theo dự án"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5810,6 +5818,10 @@ msgstr "Đã liên kết"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "Danh sách"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Tùy chọn danh sách"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9755,7 +9767,7 @@ msgstr "Đang tìm kiếm…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Danh mục tập trung vào bảo mật với siêu dữ liệu skill đã được xác minh."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Xem thêm"
 
@@ -10310,8 +10322,8 @@ msgid "Sort marketplace skills"
 msgstr "Sắp xếp skill trên marketplace"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Sắp xếp luồng"
+#~ msgid "Sort threads"
+#~ msgstr "Sắp xếp luồng"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11349,6 +11361,10 @@ msgstr "Dock mục tiêu luồng"
 msgid "Thread is already unloaded."
 msgstr "Luồng đã được dỡ bỏ."
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Tùy chọn danh sách luồng"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Chế độ luồng"
@@ -11359,8 +11375,8 @@ msgid "Thread Only"
 msgstr "Chỉ luồng"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Thứ tự sắp xếp luồng"
+#~ msgid "Thread sort order"
+#~ msgstr "Thứ tự sắp xếp luồng"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

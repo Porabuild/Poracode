@@ -4758,6 +4758,10 @@ msgstr "Napraw w Agencie"
 msgid "Fixed"
 msgstr "Naprawiono"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Płaska lista"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Przejdź do paska adresu przeglądarki"
@@ -5114,6 +5118,10 @@ msgstr "Grupuj otwarte wątki"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Grupuj projekty, aby pasek boczny, harmonogramy i żądania ściągnięcia pokazywały tylko jeden zestaw naraz. Przełączaj je u dołu paska bocznego."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Pogrupowane według projektu"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5810,6 +5818,10 @@ msgstr "Połączono"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "Lista"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Opcje listy"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9755,7 +9767,7 @@ msgstr "Wyszukiwanie…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Katalog ukierunkowany na bezpieczeństwo ze zweryfikowanymi metadanymi skilli."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Zobacz więcej"
 
@@ -10310,8 +10322,8 @@ msgid "Sort marketplace skills"
 msgstr "Sortuj umiejętności z marketplace"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Sortuj wątki"
+#~ msgid "Sort threads"
+#~ msgstr "Sortuj wątki"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11349,6 +11361,10 @@ msgstr "Stacja dokująca celu wątku"
 msgid "Thread is already unloaded."
 msgstr "Wątek został już wyładowany."
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Opcje listy wątków"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Tryb wątku"
@@ -11359,8 +11375,8 @@ msgid "Thread Only"
 msgstr "Tylko wątek"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Kolejność sortowania wątków"
+#~ msgid "Thread sort order"
+#~ msgstr "Kolejność sortowania wątków"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

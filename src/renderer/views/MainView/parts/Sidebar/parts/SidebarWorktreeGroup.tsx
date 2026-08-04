@@ -39,6 +39,8 @@ export function SidebarWorktreeGroup(props: {
   project: Project;
   sortableGroup: string;
   sortDisabled?: boolean;
+  /** Trailing project label for cross-project (flat) lists. */
+  projectTag?: React.ReactNode;
 }) {
   const { group, project, sortDisabled = false } = props;
   const { t } = useLingui();
@@ -173,6 +175,7 @@ export function SidebarWorktreeGroup(props: {
           isDraggingAnything={!!source}
           isDone={isDone}
           updatedAt={latestThreadUpdatedAt}
+          {...(props.projectTag !== undefined ? { projectTag: props.projectTag } : {})}
         />
       </ContextMenu>
     </div>

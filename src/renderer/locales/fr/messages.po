@@ -4758,6 +4758,10 @@ msgstr "Correction dans l'agent"
 msgid "Fixed"
 msgstr "Corrigé"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Liste plate"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Accéder à la barre d'adresse du navigateur"
@@ -5114,6 +5118,10 @@ msgstr "Grouper les discussions ouvertes"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Regroupez les projets pour que la barre latérale, les planifications et les pull requests n'affichent qu'un ensemble à la fois. Changez d'espace en bas de la barre latérale."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Groupés par projet"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5810,6 +5818,10 @@ msgstr "Liée"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "Liste"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Options de liste"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9754,7 +9766,7 @@ msgstr "Recherche…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Annuaire axé sur la sécurité avec des métadonnées de skills vérifiées."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Voir plus"
 
@@ -10309,8 +10321,8 @@ msgid "Sort marketplace skills"
 msgstr "Trier les compétences de la place de marché"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Trier les fils"
+#~ msgid "Sort threads"
+#~ msgstr "Trier les fils"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11348,6 +11360,10 @@ msgstr "Dock d'objectif du fil"
 msgid "Thread is already unloaded."
 msgstr "Le fil est déjà déchargé."
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Options de la liste des fils"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Mode fil de discussion"
@@ -11358,8 +11374,8 @@ msgid "Thread Only"
 msgstr "Fil de discussion uniquement"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Ordre de tri des fils de discussion"
+#~ msgid "Thread sort order"
+#~ msgstr "Ordre de tri des fils de discussion"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"
