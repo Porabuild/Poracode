@@ -900,10 +900,10 @@ describe("useRemoteDesktop", () => {
     expect(h.applyThreadSnapshot).toHaveBeenCalledWith(expect.anything(), { fromServer: false });
   });
 
-  it("opening a DONE thread propagates the un-done to the desktop", async () => {
+  it("opening a DONE thread preserves done (no set-done command to the desktop)", async () => {
     const d = makeDesktop("d1");
     // A GUI thread with an idle status is not startable (so ensureThreadRunning
-    // stays out of the way) — this isolates the done-propagation behavior.
+    // stays out of the way) — this isolates the done-preservation behavior.
     const doneThread = {
       id: "done1",
       projectId: "p",
@@ -925,18 +925,17 @@ describe("useRemoteDesktop", () => {
     client.sendThreadCommand.mockClear();
 
     await act(async () => {
+      useAppStore.setState({ threads: [doneThread as never] });
       await view.result.current.openThread(doneThread as never);
     });
 
-    // The local store clear alone never reaches the desktop DB, so the next
-    // snapshot would revert `done` back to true. Opening a done thread must
-    // forward a set-done:false command — mirroring the desktop, which clears
-    // `done` in its own authoritative, persisted store.
-    expect(client.sendThreadCommand).toHaveBeenCalledWith({
-      kind: "set-done",
-      done: false,
-      threadId: "done1",
-    });
+    // Opening is not an undone action: no set-done command may leave for the
+    // desktop, and the local mirror keeps the flag. Only an explicit unmark or
+    // real activity (status -> working) clears `done`.
+    expect(client.sendThreadCommand).not.toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "set-done" }),
+    );
+    expect(useAppStore.getState().threads.find((t) => t.id === "done1")?.done).toBe(true);
   });
 
   it("opening a FINISHED thread acknowledges it on the source desktop", async () => {
