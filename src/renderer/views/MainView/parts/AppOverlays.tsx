@@ -105,8 +105,12 @@ export function AppOverlays() {
           <DeferredSettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
         </Suspense>
       </OverlayShell>
+      {/* No fade-in: the project settings view is lazily loaded and resolves its
+          project as it mounts, so fading it in over the hidden base app just
+          shows full-screen acrylic until the content lands. */}
       <OverlayShell
         open={!!projectSettingsId}
+        instantEnter
         onExited={() => usePanelStore.getState().closeProjectSettings()}
       >
         {projectSettingsId && (
