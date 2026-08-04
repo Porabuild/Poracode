@@ -134,6 +134,12 @@ export function createKimiAdapter(): AgentAdapter {
       );
       session = createAcpStructuredSession(command, {
         ...input,
+        // Kimi keeps per-session state (plan-mode plan files, profiles) under
+        // ~/.kimi-code and, once fs capability is advertised, routes those
+        // reads/writes through the ACP client too. Without this carve-out the
+        // bridge rejects them as outside-project and plan mode breaks
+        // (Write/Read of the plan file and ExitPlanMode all fail).
+        acpFsAgentHomeDirs: [".kimi-code"],
         acpEmptyResponseErrorResolver: resolveKimiEmptyResponseError,
         acpSessionUpdateTransform: createKimiAcpSessionUpdateTransform({
           subagents,

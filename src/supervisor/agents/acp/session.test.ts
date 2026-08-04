@@ -9,6 +9,7 @@ import {
   AcpStructuredSession,
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
+  resolveAcpWritableHostFsPath,
   rewriteLoadSessionError,
   toAcpResourceUri,
 } from "./session";
@@ -578,6 +579,68 @@ describe("ACP resource path helpers", () => {
         },
         "/home/me/.agents/skills/../secret.txt",
       ),
+    ).toThrow("Invalid params");
+  });
+
+  const WINDOWS_LOCATION = { kind: "windows", path: "C:\\repo" } as const;
+  const WSL_LOCATION = {
+    kind: "wsl",
+    distro: "Ubuntu",
+    linuxPath: "/home/me/repo",
+    uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+  } as const;
+  const KIMI_PLAN_WINDOWS = "C:\\Users\\me\\.kimi-code\\sessions\\ws\\sid\\agents\\a\\plans\\p.md";
+  const KIMI_PLAN_LINUX = "/home/me/.kimi-code/sessions/ws/sid/agents/a/plans/p.md";
+
+  it("allows read and write access to a declared agent home dir outside the project", () => {
+    expect(resolveAcpReadableHostFsPath(WINDOWS_LOCATION, KIMI_PLAN_WINDOWS, [".kimi-code"])).toBe(
+      KIMI_PLAN_WINDOWS,
+    );
+    expect(resolveAcpWritableHostFsPath(WINDOWS_LOCATION, KIMI_PLAN_WINDOWS, [".kimi-code"])).toBe(
+      KIMI_PLAN_WINDOWS,
+    );
+  });
+
+  it("maps agent home dir paths inside a WSL project to UNC host paths", () => {
+    const unc =
+      "\\\\wsl.localhost\\Ubuntu\\home\\me\\.kimi-code\\sessions\\ws\\sid\\agents\\a\\plans\\p.md";
+    expect(resolveAcpReadableHostFsPath(WSL_LOCATION, KIMI_PLAN_LINUX, [".kimi-code"])).toBe(unc);
+    expect(resolveAcpWritableHostFsPath(WSL_LOCATION, KIMI_PLAN_LINUX, [".kimi-code"])).toBe(unc);
+  });
+
+  it("still rejects agent home dir paths when no carve-out is declared", () => {
+    expect(() => resolveAcpReadableHostFsPath(WINDOWS_LOCATION, KIMI_PLAN_WINDOWS)).toThrow(
+      "Invalid params",
+    );
+    expect(() => resolveAcpWritableHostFsPath(WINDOWS_LOCATION, KIMI_PLAN_WINDOWS)).toThrow(
+      "Invalid params",
+    );
+  });
+
+  it("keeps user agent skills read-only even with agent home carve-outs", () => {
+    expect(() =>
+      resolveAcpWritableHostFsPath(WSL_LOCATION, "/home/me/.agents/skills/x/SKILL.md", [
+        ".kimi-code",
+      ]),
+    ).toThrow("Invalid params");
+  });
+
+  it("rejects agent home dir paths that escape through parent segments", () => {
+    expect(() =>
+      resolveAcpWritableHostFsPath(WSL_LOCATION, "/home/me/.kimi-code/../secret.txt", [
+        ".kimi-code",
+      ]),
+    ).toThrow("Invalid params");
+    expect(() =>
+      resolveAcpWritableHostFsPath(WINDOWS_LOCATION, "C:\\Users\\me\\.kimi-code\\..\\secret.txt", [
+        ".kimi-code",
+      ]),
+    ).toThrow("Invalid params");
+  });
+
+  it("does not match the agent home dir root itself", () => {
+    expect(() =>
+      resolveAcpWritableHostFsPath(WSL_LOCATION, "/home/me/.kimi-code", [".kimi-code"]),
     ).toThrow("Invalid params");
   });
 });

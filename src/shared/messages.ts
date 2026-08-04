@@ -117,6 +117,7 @@ const messages = {
   "supervisor.restarted": "Background process restarted",
   "supervisor.exited": "Background process exited unexpectedly",
   "supervisor.notRunning": "Background process is not running",
+  "supervisor.proposedPlan": "Proposed plan",
 
   // ── Kimi Code ─────────────────────────────────────────────
   "kimi.credentialsLocked":

@@ -2409,6 +2409,96 @@ describe("mapAcpPermissionRequest", () => {
     });
   });
 
+  it("maps ExitPlanMode approvals to the unified plan review shape", () => {
+    const state = createAcpMapperState("t-perm-plan");
+
+    const event = mapAcpPermissionRequest(
+      {
+        sessionId: "s1",
+        toolCall: {
+          toolCallId: "tool-plan-1",
+          title: "ExitPlanMode",
+          content: [
+            {
+              type: "content",
+              content: {
+                type: "text",
+                text: "Plan saved to: /home/me/.kimi-code/sessions/ws/sid/agents/main/plans/p.md\n\n# KIMI_PLAN_SMOKE\n\n1. Step one\n2. Step two",
+              },
+            },
+            {
+              type: "content",
+              content: {
+                type: "text",
+                text: "Requesting approval to Presenting plan and exiting plan mode",
+              },
+            },
+          ],
+        },
+        options: [
+          { optionId: "plan_approve", name: "Approve", kind: "allow_once" },
+          { optionId: "plan_revise", name: "Revise", kind: "reject_once" },
+          { optionId: "plan_reject_and_exit", name: "Reject and Exit", kind: "reject_once" },
+        ],
+      } as Parameters<typeof mapAcpPermissionRequest>[0],
+      state,
+      "acp-perm-plan-0",
+    );
+
+    expect(event).toEqual({
+      type: "request.opened",
+      threadId: "t-perm-plan",
+      requestId: "acp-perm-plan-0",
+      requestType: "tool_call_approval",
+      payload: {
+        summary: "Proposed plan",
+        details: {
+          toolName: "ExitPlanMode",
+          input: {
+            plan: "# KIMI_PLAN_SMOKE\n\n1. Step one\n2. Step two",
+            planFilePath: "/home/me/.kimi-code/sessions/ws/sid/agents/main/plans/p.md",
+          },
+        },
+        options: [
+          { optionId: "plan_approve", label: "Approve", description: undefined },
+          { optionId: "plan_revise", label: "Revise", description: undefined },
+          { optionId: "plan_reject_and_exit", label: "Reject and Exit", description: undefined },
+        ],
+      },
+    });
+  });
+
+  it("maps ExitPlanMode approvals without a saved-path prefix", () => {
+    const state = createAcpMapperState("t-perm-plan-bare");
+
+    const event = mapAcpPermissionRequest(
+      {
+        sessionId: "s1",
+        toolCall: {
+          toolCallId: "tool-plan-2",
+          title: "exit_plan_mode",
+          content: [
+            {
+              type: "content",
+              content: { type: "text", text: "Just the plan body" },
+            },
+          ],
+        },
+        options: [{ optionId: "plan_approve", name: "Approve", kind: "allow_once" }],
+      } as Parameters<typeof mapAcpPermissionRequest>[0],
+      state,
+      "acp-perm-plan-1",
+    );
+
+    expect(event.type).toBe("request.opened");
+    if (event.type !== "request.opened") return;
+    expect(event.payload.summary).toBe("Proposed plan");
+    expect(event.payload.details).toEqual({
+      toolName: "exit_plan_mode",
+      input: { plan: "Just the plan body" },
+    });
+  });
+
   it("unwraps command approval input instead of surfacing raw JSON details", () => {
     const state = createAcpMapperState("t-perm-command");
 

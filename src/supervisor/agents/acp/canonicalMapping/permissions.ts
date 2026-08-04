@@ -9,11 +9,14 @@ import type {
   PermissionRequestDetails,
   RuntimeEvent,
 } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { readStringField } from "../../fileChangeSummary";
 import {
   extractToolCallContentText,
+  isAcpExitPlanModeTool,
   isApplyPatchToolName,
   normalizeToolText,
+  parseAcpPlanReviewText,
 } from "./contentExtraction";
 import type { AcpMapperState } from "./state";
 import { mapAcpQuestionPermissionRequest } from "../acpQuestionPermissions";
@@ -39,6 +42,31 @@ export function mapAcpPermissionRequest(
     rawInput?: unknown;
     content?: unknown;
   };
+  // Cross-provider plan review: an ExitPlanMode approval renders through the
+  // unified plan-review composer, so emit the same canonical shape Claude
+  // produces — "Proposed plan" summary plus `input.plan`/`input.planFilePath`
+  // recovered from the ACP text content block.
+  if (isAcpExitPlanModeTool(toolCall.title, toolCall.kind)) {
+    const planReview = parseAcpPlanReviewText(extractToolCallContentText(toolCall.content));
+    return {
+      type: "request.opened",
+      threadId: state.threadId,
+      requestId,
+      requestType: "tool_call_approval",
+      payload: {
+        summary: msg("supervisor.proposedPlan"),
+        details: {
+          toolName: normalizeToolText(toolCall.title) ?? "ExitPlanMode",
+          input: {
+            ...(planReview ? { plan: planReview.plan } : {}),
+            ...(planReview?.planFilePath ? { planFilePath: planReview.planFilePath } : {}),
+          },
+        },
+        options: mapPermissionOptions(req),
+      },
+    };
+  }
+
   const command =
     readStringField(toolCall.rawInput, "command") ??
     extractCommandFromApprovalContent(toolCall.content);
@@ -55,11 +83,7 @@ export function mapAcpPermissionRequest(
       : requestType === "tool_call_approval"
         ? buildToolCallPermissionDetails(toolCall.rawInput, title, kind)
         : toolCall.rawInput;
-  const options = req.options.map((opt) => ({
-    optionId: opt.optionId,
-    label: opt.name,
-    description: undefined,
-  }));
+  const options = mapPermissionOptions(req);
   return {
     type: "request.opened",
     threadId: state.threadId,
@@ -71,6 +95,14 @@ export function mapAcpPermissionRequest(
       options,
     },
   };
+}
+
+function mapPermissionOptions(req: RequestPermissionRequest) {
+  return req.options.map((opt) => ({
+    optionId: opt.optionId,
+    label: opt.name,
+    description: undefined,
+  }));
 }
 
 function buildCommandPermissionDetails(

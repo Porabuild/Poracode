@@ -88,15 +88,48 @@ export function resolveAcpHostFsPath(location: ProjectLocation, rawPath: string)
     : win32.join(location.uncPath, ...relative.split("/").filter(Boolean));
 }
 
-export function resolveAcpReadableHostFsPath(location: ProjectLocation, rawPath: string): string {
+export function resolveAcpReadableHostFsPath(
+  location: ProjectLocation,
+  rawPath: string,
+  agentHomeDirs: readonly string[] = [],
+): string {
   const absolutePath = resolveAcpResourcePath(location, rawPath);
   if (isProjectRelativePath(location, absolutePath)) {
     return resolveAcpHostFsPath(location, rawPath);
   }
   const normalizedPath = normalizeAcpPath(location, absolutePath);
-  if (!isAgentSkillReadPath(location, normalizedPath)) {
+  if (
+    !isAgentSkillReadPath(location, normalizedPath) &&
+    !isAgentHomeDirPath(location, normalizedPath, agentHomeDirs)
+  ) {
     throw RequestError.invalidParams({ message: `Path is outside the project: ${rawPath}` });
   }
+  return toHostFsPathOutsideProject(location, normalizedPath);
+}
+
+/**
+ * Like {@link resolveAcpHostFsPath}, but with the provider's declared
+ * home-relative carve-outs (`agentHomeDirs`) writable in addition to the
+ * project root. `~/.agents/skills` stays read-only — it is deliberately NOT
+ * honored here.
+ */
+export function resolveAcpWritableHostFsPath(
+  location: ProjectLocation,
+  rawPath: string,
+  agentHomeDirs: readonly string[] = [],
+): string {
+  const absolutePath = resolveAcpResourcePath(location, rawPath);
+  if (isProjectRelativePath(location, absolutePath)) {
+    return resolveAcpHostFsPath(location, rawPath);
+  }
+  const normalizedPath = normalizeAcpPath(location, absolutePath);
+  if (!isAgentHomeDirPath(location, normalizedPath, agentHomeDirs)) {
+    throw RequestError.invalidParams({ message: `Path is outside the project: ${rawPath}` });
+  }
+  return toHostFsPathOutsideProject(location, normalizedPath);
+}
+
+function toHostFsPathOutsideProject(location: ProjectLocation, normalizedPath: string): string {
   if (location.kind === "wsl" && !isWindowsAbsolutePath(normalizedPath)) {
     return toWslUncPath(location.distro, normalizedPath);
   }
@@ -160,12 +193,39 @@ export function sliceTextFileContent(
 }
 
 function isAgentSkillReadPath(location: ProjectLocation, absolutePath: string): boolean {
+  return isUserHomeRelativePath(location, absolutePath, ".agents/skills");
+}
+
+function isAgentHomeDirPath(
+  location: ProjectLocation,
+  absolutePath: string,
+  agentHomeDirs: readonly string[],
+): boolean {
+  return agentHomeDirs.some((dir) => isUserHomeRelativePath(location, absolutePath, dir));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * True when `absolutePath` points strictly inside `<user home>/<homeRelativeDir>`
+ * (posix-style relative dir, e.g. ".agents/skills" or ".kimi-code"). The home
+ * root itself does not match — only files/dirs beneath it.
+ */
+function isUserHomeRelativePath(
+  location: ProjectLocation,
+  absolutePath: string,
+  homeRelativeDir: string,
+): boolean {
+  const segments = homeRelativeDir.split("/").filter(Boolean).map(escapeRegExp);
   switch (location.kind) {
     case "windows": {
-      const match =
-        /^([A-Za-z]:[\\/]Users[\\/][^\\/]+[\\/]\\.agents[\\/]skills)(?:[\\/].*)?$/i.exec(
-          absolutePath,
-        );
+      const dirPattern = segments.join("[\\\\/]");
+      const match = new RegExp(
+        `^([A-Za-z]:[\\\\/]Users[\\\\/][^\\\\/]+[\\\\/]${dirPattern})(?:[\\\\/].*)?$`,
+        "i",
+      ).exec(absolutePath);
       if (!match) return false;
       const root = match[1]!;
       const relative = win32.relative(root, absolutePath);
@@ -173,7 +233,8 @@ function isAgentSkillReadPath(location: ProjectLocation, absolutePath: string): 
     }
     case "wsl":
     case "posix": {
-      const match = /^(\/(?:home\/[^/]+|Users\/[^/]+|root)\/\.agents\/skills)(?:\/.*)?$/.exec(
+      const dirPattern = segments.join("/");
+      const match = new RegExp(`^(/(?:home/[^/]+|Users/[^/]+|root)/${dirPattern})(?:/.*)?$`).exec(
         absolutePath,
       );
       if (!match) return false;

@@ -60,5 +60,6 @@ export function createAcpStructuredSession(
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),
     ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
+    ...(input.acpFsAgentHomeDirs ? { fsAgentHomeDirs: input.acpFsAgentHomeDirs } : {}),
   });
 }
