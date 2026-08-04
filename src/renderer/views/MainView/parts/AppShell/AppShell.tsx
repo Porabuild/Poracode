@@ -280,7 +280,10 @@ function ShellSidebarAside(props: {
             } ${!hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`
       }`}
     >
-      {sidebarHeader && (
+      {/* Collapsed icon rail on Windows/Linux starts at the window top — the
+          titlebar-height header row would only be an empty spacer there. macOS
+          keeps it so the rail clears the hidden-inset traffic-light controls. */}
+      {sidebarHeader && (isMac() || !effectiveIsCollapsed || effectiveIsOverlay) && (
         <div
           className={`poracode-overlay-header flex shrink-0 items-center gap-3 ${
             isMac() ? "pl-3 pr-2 pt-0.5" : "px-2"

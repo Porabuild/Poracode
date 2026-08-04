@@ -1729,6 +1729,7 @@ msgstr "GitHub リポジトリを参照するか、クローン URL を貼り付
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -6771,6 +6772,7 @@ msgstr "グループ内に新しいタブ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "新しいスレッド"
