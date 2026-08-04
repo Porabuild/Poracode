@@ -293,4 +293,52 @@ describe("GitBadge", () => {
     });
     expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
   });
+
+  it("shares one PR lookup across concurrent badges for the same project branch", async () => {
+    let resolvePr: (pr: PrData | null) => void = () => {};
+    ghGetPrForBranchMock.mockReturnValue(
+      new Promise<PrData | null>((resolve) => {
+        resolvePr = resolve;
+      }),
+    );
+    useAppStore.setState({
+      projects: [
+        {
+          id: "project-1",
+          name: "Project",
+          location: { kind: "posix", path: "/repo" },
+          createdAt: "2026-06-02T00:00:00.000Z",
+        },
+      ],
+    });
+    useGitStore.setState({
+      statuses: {
+        "project-1": makeStatus({
+          branch: "feature/current",
+          remoteInfo: { platform: "github", owner: "o", repo: "r", url: "https://github.com/o/r" },
+        }),
+      },
+      ghAvailable: { "project-1": true },
+    });
+
+    render(
+      <>
+        <GitBadge projectId="project-1" projectName="Project" />
+        <GitBadge projectId="project-1" projectName="Project" />
+      </>,
+    );
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(1);
+
+    resolvePr({ ...basePr, number: 2, title: "Current PR" });
+
+    await waitFor(() => {
+      const badges = screen.getAllByRole("button", { name: "Git status for Project" });
+      expect(badges).toHaveLength(2);
+      for (const badge of badges) {
+        expect(badge.querySelector(".lucide-git-pull-request")).not.toBeNull();
+      }
+    });
+    expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
+  });
 });

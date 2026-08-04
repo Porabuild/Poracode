@@ -11,6 +11,7 @@ import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
 import { openWorktreeTerminal } from "@/renderer/actions/terminalActions";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import {
+  useIsProjectGitPanelActive,
   useIsWorktreeFilesPanelActive,
   useIsWorktreeGitPanelActive,
   useIsWorktreeTerminalActive,
@@ -25,6 +26,14 @@ interface ThreadItemSuffixProps {
   showWorktreeBadge: boolean;
   showWorktreeFilesButton: boolean;
   isExperimentCandidate: boolean;
+  /**
+   * Flat cross-project lists have no project header to carry the project's git
+   * state, so a main-branch thread row shows the project-level badge itself
+   * (mirrors the PWA row). Off in grouped lists, where the header has it.
+   */
+  showProjectBadge?: boolean;
+  /** Project display name for the project-level badge's accessibility label. */
+  projectName: string;
 }
 
 const iconSizeClass = "size-3.5";
@@ -32,6 +41,18 @@ const buttonHeightClass = "h-[18px]";
 const buttonVisibleClass = "w-[18px] p-0.5";
 const hiddenPanelButtonClass =
   "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
+
+function ProjectGitBadge(props: { projectId: string; projectName: string; threadId: string }) {
+  const isActive = useIsProjectGitPanelActive(props.projectId);
+  return (
+    <GitBadge
+      projectId={props.projectId}
+      projectName={props.projectName}
+      onPress={() => openGitReview(props.projectId, undefined, props.threadId)}
+      isActive={isActive}
+    />
+  );
+}
 
 function ThreadItemWorktreeActions(props: ThreadItemSuffixProps) {
   const { thread, showWorktreeBadge, showWorktreeFilesButton } = props;
@@ -121,6 +142,12 @@ function ThreadItemStatusBadges(props: ThreadItemSuffixProps) {
           onPress={() => openGitReview(thread.projectId, worktreePath, thread.id)}
           isActive={isGitActive}
           fallbackToWorktreeIcon
+        />
+      ) : !thread.worktreePath && props.showProjectBadge ? (
+        <ProjectGitBadge
+          projectId={thread.projectId}
+          projectName={props.projectName}
+          threadId={thread.id}
         />
       ) : null}
     </>
