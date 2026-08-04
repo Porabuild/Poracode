@@ -199,6 +199,49 @@ export function isAcpTodoWriteTool(
 }
 
 /**
+ * Detect ACP tool calls that represent the cross-provider `ExitPlanMode`
+ * plan-review convention (same names Claude and the renderer's plan-approval
+ * detection use).
+ */
+export function isAcpExitPlanModeTool(
+  title: string | null | undefined,
+  kind: string | null | undefined,
+): boolean {
+  const t = (title ?? "").trim().toLowerCase();
+  const k = (kind ?? "").trim().toLowerCase();
+  return (
+    t === "exitplanmode" || t === "exit_plan_mode" || k === "exitplanmode" || k === "exit_plan_mode"
+  );
+}
+
+export interface AcpPlanReviewContent {
+  plan: string;
+  planFilePath?: string;
+}
+
+/**
+ * Parse the plan body out of an ExitPlanMode approval's text content.
+ *
+ * ACP plan-review bridges (e.g. Kimi's acp-server) send the plan as a text
+ * block of the form `"Plan saved to: <path>\n\n<plan markdown>"` (the path
+ * prefix is optional) and append a trailing human summary line
+ * (`"Requesting approval to …"`). Returns `undefined` when no plan body
+ * remains after stripping that summary.
+ */
+export function parseAcpPlanReviewText(text: string | undefined): AcpPlanReviewContent | undefined {
+  if (!text) return undefined;
+  const body = text.replace(/\n+Requesting approval to [^\n]*$/i, "").trim();
+  if (!body || /^Requesting approval to /i.test(body)) return undefined;
+  const saved = /^Plan saved to:\s*(\S[^\n]*?)\s*\r?\n\r?\n([\s\S]*)$/.exec(body);
+  if (saved) {
+    const plan = saved[2]!.trim();
+    if (!plan) return undefined;
+    return { plan, planFilePath: saved[1]! };
+  }
+  return { plan: body };
+}
+
+/**
  * Extract canonical plan steps from a `todo_write` tool's `rawInput`.
  *
  * The input shape mirrors Claude's `TodoWrite`: `{ todos: [{ content, status }] }`.

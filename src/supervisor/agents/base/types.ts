@@ -200,6 +200,15 @@ export interface CreateStructuredSessionInput {
    * that carry metadata absent from the standard `session/update` stream.
    */
   acpExtensionNotificationHandler?: AcpExtensionNotificationHandler;
+  /**
+   * Home-relative directories (posix-style, e.g. ".kimi-code") this provider
+   * may read and write through the ACP fs bridge even though they live outside
+   * the project root. For agents that keep internal session state (plan files,
+   * profiles) under their own home dir and route every text read/write through
+   * the client once fs capability is advertised — without a carve-out the
+   * bridge rejects those paths and provider features like plan mode break.
+   */
+  acpFsAgentHomeDirs?: readonly string[];
 }
 
 export type AcpEmptyResponseErrorResolver = (input: {
