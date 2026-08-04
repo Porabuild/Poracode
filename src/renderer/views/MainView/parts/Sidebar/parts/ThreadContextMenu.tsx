@@ -29,6 +29,7 @@ import {
   useProjectAgentStatuses,
 } from "@/renderer/hooks/uiSelectors";
 import { openGitReview } from "@/renderer/actions/panelActions";
+import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
 import {
   gitPull,
   gitPush,
@@ -97,6 +98,26 @@ export function ThreadContextMenu(props: {
                 label: t`Git`,
                 icon: <GitFork className="size-3.5" />,
                 items: worktreeGitItems,
+              },
+            ]
+          : []),
+        ...(!thread.worktreePath && !isExperimentCandidate
+          ? [
+              {
+                type: "submenu" as const,
+                id: "move-to-worktree",
+                label: t`Move to Worktree`,
+                icon: <GitFork className="size-3.5" />,
+                items: [
+                  {
+                    id: "move-to-worktree-with-changes",
+                    label: t`Bring Uncommitted Changes`,
+                  },
+                  {
+                    id: "move-to-worktree-clean",
+                    label: t`Clean Worktree`,
+                  },
+                ],
               },
             ]
           : []),
@@ -218,6 +239,8 @@ export function ThreadContextMenu(props: {
               resolveWorktreeBranch(thread.projectId, thread.worktreePath, thread.worktreeBranch) ??
               thread.worktreePath,
           });
+        if (key === "move-to-worktree-with-changes") void moveThreadToWorktree(thread.id, true);
+        if (key === "move-to-worktree-clean") void moveThreadToWorktree(thread.id, false);
         if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath, thread.id);
         if (key === "git-sync" && thread.worktreePath)
           gitSync(thread.projectId, thread.worktreePath);

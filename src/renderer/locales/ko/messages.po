@@ -1683,6 +1683,10 @@ msgstr "브랜치 {branch}: {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "<0>{0}</0> 분기에 병합되지 않은 변경 사항이 있습니다:"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "브랜치 이름"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "완전히 병합되지 않은 분기"
@@ -1706,6 +1710,10 @@ msgstr "패널로 되돌리기"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "이 패널로 되돌리거나 실행 중인 창으로 이동하세요."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "커밋되지 않은 변경 사항 가져오기"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
@@ -2201,6 +2209,10 @@ msgstr "Claude 프로필 이름"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Claude 프로필이 삭제되었습니다."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "클린 작업 트리"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -3244,6 +3256,7 @@ msgstr "에이전트로 만들기"
 #~ msgid "Create:"
 #~ msgstr "생성:"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "\"{newBranch}\"에 작업 트리를 만들었지만 변경 사항이 충돌하여 git stash에 남아 있습니다. 작업 트리에서 해결하세요."
@@ -6590,6 +6603,14 @@ msgstr "변경 사항을 새 작업 트리로 이동"
 msgid "Move to Workspace"
 msgstr "작업 영역으로 이동"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "작업 트리로 이동"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "작업 트리로 이동…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "할 일 도크를 오른쪽 패널로 이동"
@@ -6603,6 +6624,18 @@ msgstr "할 일 도크를 오른쪽 패널로 이동"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "프로젝트 1개를 {0}(으)로 옮겼습니다."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "스레드와 변경 사항을 \"{newBranch}\"의 새 작업 트리로 옮겼습니다."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "스레드와 변경 사항을 \"{newBranch}\"의 새 작업 트리로 옮겼습니다. \"{currentBranch}\"은 이제 깨끗합니다."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "스레드를 \"{branch}\"의 새 작업 트리로 옮겼습니다."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -7704,12 +7737,10 @@ msgstr "터미널 열기"
 msgid "Open terminal in worktree"
 msgstr "worktree에서 터미널 열기"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "노력 선택 도구 열기"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "모델 선택기 열기"
@@ -8139,6 +8170,10 @@ msgstr "Poracode가 다시 시작되어 현재 데이터를 백업한 다음 Lig
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode의 기본 제공 브라우저 도구."
+
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10765,12 +10800,10 @@ msgstr "모드 전환: {title}"
 msgid "Switch project"
 msgstr "프로젝트 전환"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "이 채팅을 에이전트 모드로 전환하세요"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "이 채팅을 계획 모드로 전환하세요"
@@ -11149,6 +11182,10 @@ msgstr "SSH 터널이 호환되지 않는 Poracode 서버에 연결되었습니�
 msgid "the target provider"
 msgstr "대상 공급자"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "스레드가 새 브랜치의 별도 작업 트리에서 실행됩니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "업데이트 작업에 실패했습니다."
@@ -11446,7 +11483,6 @@ msgid "Toggle browser panel"
 msgstr "브라우저 패널 표시 전환"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "빠른 모드 전환"
@@ -12367,6 +12403,10 @@ msgstr "우승자를 병합하기 전에 모든 후보가 완료될 때까지 �
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "풀 리퀘스트를 열기 전에 모든 후보가 완료될 때까지 기다리세요."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "작업 트리로 이동하기 전에 스레드 시작이 완료될 때까지 기다리세요."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

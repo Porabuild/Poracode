@@ -1683,6 +1683,10 @@ msgstr "branch {branch}: {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "Branch <0>{0}</0> tem alterações não mescladas:"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "Nome do branch"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Branch não totalmente mesclado"
@@ -1706,6 +1710,10 @@ msgstr "Trazer de volta ao painel"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Traga-o de volta para este painel ou vá para a janela em que ele está sendo executado."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "Trazer alterações não commitadas"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
@@ -2201,6 +2209,10 @@ msgstr "Nome do perfil de Claude"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Perfil de Claude removido."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "Árvore de trabalho limpa"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -3244,6 +3256,7 @@ msgstr "Criar com agente"
 #~ msgid "Create:"
 #~ msgstr "Criar:"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Criou uma árvore de trabalho em \"{newBranch}\", mas as alterações entraram em conflito e permanecem em um git stash — resolva-as na árvore de trabalho."
@@ -6590,6 +6603,14 @@ msgstr "Mover alterações para uma nova árvore de trabalho"
 msgid "Move to Workspace"
 msgstr "Mover para espaço de trabalho"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "Mover para árvore de trabalho"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "Mover para árvore de trabalho…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Mover dock de tarefas para o painel direito"
@@ -6603,6 +6624,18 @@ msgstr "Mover dock de tarefas para o painel direito"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "1 projeto movido para {0}."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "O tópico e suas alterações foram movidos para uma nova árvore de trabalho em \"{newBranch}\"."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "O tópico e suas alterações foram movidos para uma nova árvore de trabalho em \"{newBranch}\". \"{currentBranch}\" agora está limpo."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "O tópico foi movido para uma nova árvore de trabalho em \"{branch}\"."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -7704,12 +7737,10 @@ msgstr "Abrir terminal"
 msgid "Open terminal in worktree"
 msgstr "Abrir terminal no worktree"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "Abra o seletor de esforço"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "Abra o seletor de modelo"
@@ -8139,6 +8170,10 @@ msgstr "O Poracode será reiniciado, fará backup dos dados atuais e os substitu
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "As ferramentas de navegador integradas do Poracode."
+
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10765,12 +10800,10 @@ msgstr "Mudar de modo: {title}"
 msgid "Switch project"
 msgstr "Trocar projeto"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Mude este chat para o modo de agente"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "Mude este chat para o modo de planejamento"
@@ -11149,6 +11182,10 @@ msgstr "O túnel SSH alcançou um servidor Poracode incompatível."
 msgid "the target provider"
 msgstr "o provedor alvo"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "O tópico será executado em uma árvore de trabalho separada em um novo branch."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "A operação de atualização falhou."
@@ -11446,7 +11483,6 @@ msgid "Toggle browser panel"
 msgstr "Alternar painel do navegador"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "Alternar modo rápido"
@@ -12367,6 +12403,10 @@ msgstr "Aguarde todos os candidatos terminarem antes de mesclar um vencedor."
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Aguarde todos os candidatos terminarem antes de abrir uma pull request."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "Aguarde o tópico terminar de iniciar antes de movê-lo para uma árvore de trabalho."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

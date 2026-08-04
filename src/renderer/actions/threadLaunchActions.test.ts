@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 
 const mocks = vi.hoisted(() => {
-  const bridge = {
-    gitAddWorktree:
-      vi.fn<(input: unknown) => Promise<{ path: string; changesTransferred?: boolean }>>(),
-  };
   const appState = {
     updateProjectDraftConfig: vi.fn<(projectId: string, config: unknown) => void>(),
     view: { kind: "home" as const },
@@ -23,9 +19,15 @@ const mocks = vi.hoisted(() => {
     launchRemoteThread: vi.fn<(input: unknown) => Promise<void>>(),
   };
   return {
-    bridge,
     appState,
     remoteState,
+    createWorktree:
+      vi.fn<
+        (
+          project: Project,
+          input: unknown,
+        ) => Promise<{ path: string; changesTransferred?: boolean }>
+      >(),
     primeWorktreeGitState: vi.fn<(project: Project, path: string) => Promise<void>>(),
     runWorktreeSetupScript:
       vi.fn<(project: Project, path: string, script: string) => Promise<void>>(),
@@ -33,10 +35,6 @@ const mocks = vi.hoisted(() => {
     generateTitleAsync: vi.fn<(...args: unknown[]) => void>(),
   };
 });
-
-vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => mocks.bridge,
-}));
 
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
@@ -85,11 +83,8 @@ vi.mock("@/renderer/utils/titleGen", () => ({
   generateTitleAsync: mocks.generateTitleAsync,
 }));
 
-vi.mock("./worktreePlacement", () => ({
-  worktreePlacementPayload: () => ({ worktreeRoot: "C:\\shared-worktrees" }),
-}));
-
 vi.mock("./worktreeLaunchActions", () => ({
+  createWorktree: mocks.createWorktree,
   primeWorktreeGitState: mocks.primeWorktreeGitState,
   runWorktreeSetupScript: mocks.runWorktreeSetupScript,
 }));
@@ -126,7 +121,7 @@ describe("startThreadFromDraft host transport", () => {
       id: "local-thread",
       projectId: localProject.id,
     } as Thread);
-    mocks.bridge.gitAddWorktree.mockResolvedValue({
+    mocks.createWorktree.mockResolvedValue({
       path: "C:\\shared-worktrees\\feature",
       changesTransferred: true,
     });
@@ -146,14 +141,12 @@ describe("startThreadFromDraft host transport", () => {
       worktreeIsNewBranch: true,
     });
 
-    expect(mocks.bridge.gitAddWorktree).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectLocation: localProject.location,
-        branch: "feature",
-        createBranch: true,
-        worktreeRoot: "C:\\shared-worktrees",
-      }),
-    );
+    expect(mocks.createWorktree).toHaveBeenCalledWith(localProject, {
+      branch: "feature",
+      createBranch: true,
+      keepChangesInSource: false,
+      transferUncommitted: false,
+    });
     expect(mocks.appState.createThread).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: localProject.id,
@@ -173,7 +166,7 @@ describe("startThreadFromDraft host transport", () => {
 
   it("launches a helper thread through the same flow and runs setup from the client", async () => {
     mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
-    mocks.bridge.gitAddWorktree.mockResolvedValue({
+    mocks.createWorktree.mockResolvedValue({
       path: "/srv/worktrees/feature",
       changesTransferred: true,
     });
@@ -186,16 +179,12 @@ describe("startThreadFromDraft host transport", () => {
       worktreeIsNewBranch: true,
     });
 
-    expect(mocks.bridge.gitAddWorktree).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectLocation: remoteProject.location,
-        branch: "feature",
-        createBranch: true,
-      }),
-    );
-    expect(mocks.bridge.gitAddWorktree).not.toHaveBeenCalledWith(
-      expect.objectContaining({ worktreeRoot: expect.anything() }),
-    );
+    expect(mocks.createWorktree).toHaveBeenCalledWith(remoteProject, {
+      branch: "feature",
+      createBranch: true,
+      keepChangesInSource: false,
+      transferUncommitted: false,
+    });
     expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledWith({
       desktopId: "d1",
       projectId: "p1",
@@ -227,13 +216,13 @@ describe("startThreadFromDraft host transport", () => {
     });
 
     // Bails before creating a worktree we would have to unwind.
-    expect(mocks.bridge.gitAddWorktree).not.toHaveBeenCalled();
+    expect(mocks.createWorktree).not.toHaveBeenCalled();
     expect(mocks.remoteState.launchRemoteThread).not.toHaveBeenCalled();
   });
 
   it("does not duplicate setup owned by a desktop remote host", async () => {
     mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "desktop" }];
-    mocks.bridge.gitAddWorktree.mockResolvedValue({
+    mocks.createWorktree.mockResolvedValue({
       path: "/srv/worktrees/feature",
       changesTransferred: true,
     });
