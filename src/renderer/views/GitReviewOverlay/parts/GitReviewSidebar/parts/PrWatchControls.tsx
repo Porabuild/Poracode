@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Popover, toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Workflow } from "lucide-react";
+import { GitMerge, Workflow, Wrench } from "lucide-react";
 import type { PrAutomationMode, PrWatch, PrWatchInput } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
@@ -40,6 +40,13 @@ export function PrWatchControls(props: {
   const refreshPrRef = useRef(props.onRefreshPr);
   const mode = automationMode(watch);
   const enabled = mode !== "off";
+  const TriggerIcon = mode === "merge" ? GitMerge : mode === "fix" ? Wrench : Workflow;
+  const triggerLabel =
+    mode === "merge"
+      ? t`PR automation: Auto Merge`
+      : mode === "fix"
+        ? t`PR automation: Auto Fix`
+        : t`PR automation`;
 
   useEffect(() => {
     refreshPrRef.current = props.onRefreshPr;
@@ -156,13 +163,13 @@ export function PrWatchControls(props: {
       <Popover.Trigger className="flex shrink-0 items-center">
         <button
           type="button"
-          aria-label={t`PR automation`}
-          title={t`PR automation`}
+          aria-label={triggerLabel}
+          title={triggerLabel}
           className={`flex items-center justify-center rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${
             enabled ? "text-foreground" : "text-muted"
           }`}
         >
-          <Workflow className="size-3.5" />
+          <TriggerIcon className="size-3.5" />
         </button>
       </Popover.Trigger>
       <Popover.Content placement="bottom end" className="w-80">

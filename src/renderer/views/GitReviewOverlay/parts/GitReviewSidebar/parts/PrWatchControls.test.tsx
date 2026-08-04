@@ -144,11 +144,39 @@ describe("PrWatchControls", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
+    fireEvent.click(screen.getByRole("button", { name: "PR automation: Auto Merge" }));
     const slider = screen.getByRole("slider", { name: "PR automation" });
     expect(slider).toHaveValue("2");
     expect(slider).not.toBeDisabled();
     expect(onInitialWatchUsed).toHaveBeenCalledOnce();
+  });
+
+  it("indicates the selected automation mode on the trigger icon and label", async () => {
+    bridge.getPrWatch.mockResolvedValue({
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: true,
+      autoMerge: false,
+      agentKind: "codex",
+      config: { model: "gpt-5.7", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    });
+
+    const { container } = render(
+      <PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "PR automation: Auto Fix" })).toBeInTheDocument(),
+    );
+    expect(container.querySelector("svg.lucide-wrench")).not.toBeNull();
+    expect(container.querySelector("svg.lucide-git-merge")).toBeNull();
   });
 
   it("enables watching with the AI Helpers conflict resolver model", async () => {
