@@ -272,9 +272,12 @@ export function ModelVisibilitySection() {
             {visibleCount} / {totalCount}
           </Button>
         </Popover.Trigger>
-        <Popover.Content placement="bottom end" className="w-96 p-0">
-          <Popover.Dialog className="flex max-h-[32rem] flex-col overflow-hidden !p-0">
-            <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <Popover.Content placement="bottom end" maxHeight={512} className="w-96 p-0">
+          {/* max-h-[inherit] tracks the available-height cap React Aria sets on
+              the popover element, so the list shrinks near screen edges instead
+              of overflowing the window. */}
+          <Popover.Dialog className="flex max-h-[inherit] flex-col overflow-hidden !p-0">
+            <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
               <Search className="size-3.5 shrink-0 text-muted" />
               <input
                 aria-label={t`Search models`}
@@ -285,7 +288,7 @@ export function ModelVisibilitySection() {
                 onKeyDown={(event) => event.stopPropagation()}
               />
             </div>
-            <div className="flex items-center justify-between gap-2 border-b border-border/40 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted/80">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted/80">
               <span className="tabular-nums">
                 <Trans>
                   {visibleCount} of {totalCount} visible
@@ -318,7 +321,7 @@ export function ModelVisibilitySection() {
                 role="listbox"
                 aria-label={t`Visible models`}
                 aria-multiselectable="true"
-                className="poracode-menu no-scrollbar max-h-[26rem] overflow-y-auto py-1.5"
+                className="poracode-menu no-scrollbar min-h-0 overflow-y-auto py-1.5"
               >
                 {(() => {
                   let underSub = false;
