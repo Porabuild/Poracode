@@ -3,6 +3,8 @@ import type { Project } from "@/shared/contracts";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 
 const bridge = vi.hoisted(() => ({
+  gitAddWorktree:
+    vi.fn<(payload: unknown) => Promise<{ path: string; changesTransferred?: boolean }>>(),
   startShell: vi.fn<(payload: unknown) => Promise<void>>(),
   onSupervisorEvent: vi.fn<() => () => void>(),
 }));
@@ -11,7 +13,11 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
-import { runWorktreeSetupScript } from "./worktreeLaunchActions";
+vi.mock("./worktreePlacement", () => ({
+  worktreePlacementPayload: () => ({ worktreeRoot: "C:\\shared-worktrees" }),
+}));
+
+import { createWorktree, runWorktreeSetupScript } from "./worktreeLaunchActions";
 
 const project = {
   id: "project-1",
@@ -19,6 +25,53 @@ const project = {
   location: { kind: "windows", path: "C:\\repo" },
   createdAt: "2026-07-16T00:00:00.000Z",
 } satisfies Project;
+
+describe("createWorktree", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    bridge.gitAddWorktree.mockResolvedValue({ path: "C:\\shared-worktrees\\feature" });
+  });
+
+  it("applies the shared creation payload for local projects", async () => {
+    await createWorktree(project, {
+      branch: "feature",
+      startPoint: "main",
+      createBranch: true,
+      transferUncommitted: true,
+      keepChangesInSource: false,
+    });
+
+    expect(bridge.gitAddWorktree).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      branch: "feature",
+      startPoint: "main",
+      createBranch: true,
+      worktreeRoot: "C:\\shared-worktrees",
+      transferUncommitted: true,
+      keepChangesInSource: false,
+    });
+  });
+
+  it("does not send local placement settings to remote projects", async () => {
+    await createWorktree(
+      { ...project, remoteServerId: "desktop-1", remoteId: "project-1" },
+      {
+        branch: "feature",
+        createBranch: true,
+        transferUncommitted: false,
+        keepChangesInSource: false,
+      },
+    );
+
+    expect(bridge.gitAddWorktree).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      branch: "feature",
+      createBranch: true,
+      transferUncommitted: false,
+      keepChangesInSource: false,
+    });
+  });
+});
 
 describe("runWorktreeSetupScript", () => {
   beforeEach(() => {

@@ -1683,6 +1683,10 @@ msgstr "branche {branch} : {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "La branche <0>{0}</0> comporte des modifications non fusionnées :"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "Nom de la branche"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Branche pas complètement fusionnée"
@@ -1706,6 +1710,10 @@ msgstr "Ramener dans le panneau"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Ramenez-le dans ce panneau ou accédez à la fenêtre dans laquelle il s’exécute."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "Apporter les modifications non validées"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
@@ -2201,6 +2209,10 @@ msgstr "Nom du profil Claude"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Profil de Claude supprimé."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "Worktree propre"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -3244,6 +3256,7 @@ msgstr "Créer avec un agent"
 #~ msgid "Create:"
 #~ msgstr "Créer :"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Arbre de travail créé sur \"{newBranch}\", mais les modifications sont entrées en conflit et restent dans un stash git — résolvez-les dans l'arbre de travail."
@@ -6589,6 +6602,14 @@ msgstr "Déplacer les modifications vers un nouvel arbre de travail"
 msgid "Move to Workspace"
 msgstr "Déplacer vers un espace de travail"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "Déplacer vers un worktree"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "Déplacer vers un worktree…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Déplacer le dock Todo vers le panneau de droite"
@@ -6602,6 +6623,18 @@ msgstr "Déplacer le dock Todo vers le panneau de droite"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "1 projet déplacé vers {0}."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "Le fil de discussion et vos modifications ont été déplacés vers un nouveau worktree sur \"{newBranch}\"."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "Le fil de discussion et vos modifications ont été déplacés vers un nouveau worktree sur \"{newBranch}\". \"{currentBranch}\" est désormais propre."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "Le fil de discussion a été déplacé vers un nouveau worktree sur \"{branch}\"."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -7703,12 +7736,10 @@ msgstr "Ouvrir le terminal"
 msgid "Open terminal in worktree"
 msgstr "Ouvrir le terminal dans le worktree"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "Ouvrir le sélecteur d'effort"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "Ouvrir le sélecteur de modèle"
@@ -8138,6 +8169,10 @@ msgstr "Poracode va redémarrer, sauvegarder ses données actuelles et les rempl
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Les outils de navigateur intégrés de Poracode."
+
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10764,12 +10799,10 @@ msgstr "Changer de mode : {title}"
 msgid "Switch project"
 msgstr "Changer de projet"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Passer ce chat en mode agent"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "Passer ce chat en mode plan"
@@ -11148,6 +11181,10 @@ msgstr "Le tunnel SSH a atteint un serveur Poracode incompatible."
 msgid "the target provider"
 msgstr "le fournisseur cible"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "Le fil de discussion s'exécutera dans un worktree séparé sur une nouvelle branche."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "L’opération de mise à jour a échoué."
@@ -11445,7 +11482,6 @@ msgid "Toggle browser panel"
 msgstr "Basculer le panneau du navigateur"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "Activer/désactiver le mode rapide"
@@ -12366,6 +12402,10 @@ msgstr "Attendez que tous les candidats aient terminé avant de fusionner un gag
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Attendez que tous les candidats aient terminé avant d’ouvrir une pull request."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "Attendez que le fil de discussion ait fini de démarrer avant de le déplacer vers un worktree."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

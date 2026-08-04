@@ -1683,6 +1683,10 @@ msgstr "nhánh {branch}: {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "Nhánh <0>{0}</0> có các thay đổi chưa được hợp nhất:"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "Tên nhánh"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Nhánh chưa được hợp nhất hoàn toàn"
@@ -1706,6 +1710,10 @@ msgstr "Đưa về bảng điều khiển"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Đưa trở lại bảng điều khiển này, hoặc chuyển đến cửa sổ đang chạy."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "Mang theo các thay đổi chưa được cam kết"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
@@ -2201,6 +2209,10 @@ msgstr "Tên hồ sơ Claude"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Hồ sơ Claude đã bị xóa."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "Cây làm việc sạch"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -3244,6 +3256,7 @@ msgstr "Tạo bằng tác nhân"
 #~ msgid "Create:"
 #~ msgstr "Tạo:"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Đã tạo một cây làm việc trên \"{newBranch}\", nhưng những thay đổi này xung đột và vẫn nằm trong kho lưu trữ git — hãy giải quyết chúng trong cây làm việc."
@@ -6590,6 +6603,14 @@ msgstr "Di chuyển các thay đổi sang một cây làm việc mới"
 msgid "Move to Workspace"
 msgstr "Chuyển tới không gian làm việc"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "Chuyển sang cây làm việc"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "Chuyển sang cây làm việc…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Di chuyển khay việc cần làm sang bảng bên phải"
@@ -6603,6 +6624,18 @@ msgstr "Di chuyển khay việc cần làm sang bảng bên phải"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "Đã chuyển 1 dự án sang {0}."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "Đã chuyển luồng và các thay đổi của bạn sang một cây làm việc mới trên \"{newBranch}\"."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "Đã chuyển luồng và các thay đổi của bạn sang một cây làm việc mới trên \"{newBranch}\". \"{currentBranch}\" hiện đã sạch."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "Đã chuyển luồng sang một cây làm việc mới trên \"{branch}\"."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -7704,12 +7737,10 @@ msgstr "Mở terminal"
 msgid "Open terminal in worktree"
 msgstr "Mở terminal trong worktree"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "Mở bộ chọn nỗ lực"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "Mở bộ chọn mô hình"
@@ -8139,6 +8170,10 @@ msgstr "Poracode sẽ khởi động lại, sao lưu dữ liệu hiện tại v�
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Công cụ trình duyệt tích hợp sẵn của Poracode."
+
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10765,12 +10800,10 @@ msgstr "Chuyển đổi chế độ: {title}"
 msgid "Switch project"
 msgstr "Chuyển đổi dự án"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Chuyển cuộc trò chuyện này sang chế độ tác nhân"
 
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "Chuyển cuộc trò chuyện này sang chế độ lập kế hoạch"
@@ -11149,6 +11182,10 @@ msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode kh
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "Luồng sẽ chạy trong một cây làm việc riêng trên một nhánh mới."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "Thao tác cập nhật không thành công."
@@ -11446,7 +11483,6 @@ msgid "Toggle browser panel"
 msgstr "Bật/tắt bảng điều khiển trình duyệt"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "Chuyển đổi chế độ Nhanh"
@@ -12367,6 +12403,10 @@ msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi hợp nhất
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi mở pull request."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "Đợi luồng khởi động xong trước khi chuyển nó sang cây làm việc."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

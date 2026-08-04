@@ -5,6 +5,7 @@ import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { getProjectActiveWorktreePaths } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   normalizeShellScript,
@@ -12,6 +13,30 @@ import {
   writeScriptToShellThenExitOnSuccess,
 } from "@/renderer/utils/shellUtils";
 import { cancelPendingWorktreeSetup, enqueueWorktreeSetup } from "./worktreeSetupQueue";
+import { worktreePlacementPayload } from "./worktreePlacement";
+
+export function createWorktree(
+  project: Project,
+  input: {
+    branch: string;
+    startPoint?: string;
+    createBranch: boolean;
+    transferUncommitted: boolean;
+    keepChangesInSource: boolean;
+  },
+) {
+  const copyIgnoredPatterns = project.scripts?.worktreeCopyPatterns;
+  return readBridge().gitAddWorktree({
+    projectLocation: project.location,
+    branch: input.branch,
+    ...(input.startPoint ? { startPoint: input.startPoint } : {}),
+    createBranch: input.createBranch,
+    ...(!remoteOwner(project) ? worktreePlacementPayload(project) : {}),
+    ...(copyIgnoredPatterns?.length ? { copyIgnoredPatterns } : {}),
+    transferUncommitted: input.transferUncommitted,
+    keepChangesInSource: input.keepChangesInSource,
+  });
+}
 
 export async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
   const worktreePaths = [

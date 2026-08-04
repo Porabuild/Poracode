@@ -30,8 +30,11 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
-import { worktreePlacementPayload } from "./worktreePlacement";
-import { primeWorktreeGitState, runWorktreeSetupScript } from "./worktreeLaunchActions";
+import {
+  createWorktree,
+  primeWorktreeGitState,
+  runWorktreeSetupScript,
+} from "./worktreeLaunchActions";
 
 export async function performInitialThreadLaunch(input: {
   thread: Thread;
@@ -174,13 +177,10 @@ export async function startThreadFromDraft(
   if (!isHomeScope && !worktreePath && worktreeBranch) {
     try {
       const transferUncommitted = worktreeTransferUncommitted ?? false;
-      const result = await readBridge().gitAddWorktree({
-        projectLocation: project.location,
+      const result = await createWorktree(project, {
         branch: worktreeBranch,
         ...(worktreeBaseBranch ? { startPoint: worktreeBaseBranch } : {}),
         createBranch: worktreeIsNewBranch ?? false,
-        ...(!remoteOwner(project) ? worktreePlacementPayload(project) : {}),
-        copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
         transferUncommitted,
         keepChangesInSource: transferUncommitted,
       });
