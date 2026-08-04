@@ -10,6 +10,11 @@ import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import { registerProviderIcon } from "../ProviderIcon";
 import { registerComposerControls, registerConfigNormalizer } from "../providerComposer";
 import { registerGuiSlashCommands } from "../providerSlashCommands";
+import {
+  buildStandardGuiSlashCommands,
+  guiSlashCommand,
+  resolveStandardLocalSlashAction,
+} from "../standardGuiSlashCommands";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
@@ -46,32 +51,13 @@ registerConfigNormalizer(PROVIDER_KIND, ({ config, presentationMode }) => {
   return {};
 });
 
-// A slash command's label is its id followed by the (translated) description, so
-// the description is translated once and the `/id` keyword stays untranslatable.
-const codexCommand = (id: string, description: string) => ({
-  id,
-  description,
-  label: `${id} - ${description}`,
-});
-
 registerGuiSlashCommands(PROVIDER_KIND, {
-  buildCommands: ({ hasEffort, supportsFast }) => [
-    codexCommand("model", i18n._(msg`Open the model picker`)),
-    codexCommand("plan", i18n._(msg`Switch this chat to plan mode`)),
-    codexCommand("agent", i18n._(msg`Switch this chat to agent mode`)),
-    codexCommand("goal", i18n._(msg`Set or view an experimental goal`)),
-    ...(hasEffort ? [codexCommand("effort", i18n._(msg`Open the effort picker`))] : []),
-    ...(supportsFast ? [codexCommand("fast", i18n._(msg`Toggle Fast mode`))] : []),
-  ],
-  resolveLocalAction: (typed) => {
-    const normalized = typed.trim().toLowerCase();
-    if (normalized === "/model") return { kind: "open-control", target: "model" };
-    if (normalized === "/effort") return { kind: "open-control", target: "effort" };
-    if (normalized === "/fast") return { kind: "toggle-fast" };
-    if (normalized === "/plan") return { kind: "set-mode", mode: "plan" };
-    if (normalized === "/agent") return { kind: "set-mode", mode: "agent" };
-    return null;
-  },
+  buildCommands: (ctx) =>
+    buildStandardGuiSlashCommands(ctx, [
+      // `/goal` has no local action: it submits to the provider.
+      guiSlashCommand("goal", i18n._(msg`Set or view an experimental goal`)),
+    ]),
+  resolveLocalAction: resolveStandardLocalSlashAction,
 });
 
 const CODEX_PERMISSION_PRESETS = [

@@ -10,10 +10,35 @@ import { flattenSegments } from "@/renderer/components/composer/serializeMention
 import type { MentionInputHandle } from "@/renderer/components/composer/MentionInput";
 import {
   getGuiSlashCommands,
+  type GuiSlashCommandRegistration,
   type LocalSlashCommandAction,
 } from "@/renderer/components/providers/providerSlashCommands";
 
 export type { LocalSlashCommandAction };
+
+/** Fields every local GUI slash-command lookup needs from the composer. */
+export type SlashCommandLookupContext = {
+  agentKind?: AgentStatus["kind"] | undefined;
+  presentationMode?: ThreadPresentationMode | undefined;
+  runtimeLabel?: string | undefined;
+};
+
+/**
+ * A provider's local GUI command registration can opt out of runtime scopes
+ * (e.g. Cursor's applies to the SDK runtime only, so ACP sessions keep the
+ * commands the agent reports itself).
+ */
+function activeGuiSlashCommands(
+  context: Pick<SlashCommandLookupContext, "agentKind" | "runtimeLabel">,
+): GuiSlashCommandRegistration | undefined {
+  if (!context.agentKind) return undefined;
+  const registration = getGuiSlashCommands(context.agentKind);
+  if (!registration) return undefined;
+  if (registration.isEnabled && !registration.isEnabled({ runtimeLabel: context.runtimeLabel })) {
+    return undefined;
+  }
+  return registration;
+}
 
 const EMPTY_SLASH_COMMANDS: AgentSlashCommand[] = [];
 
@@ -160,9 +185,7 @@ export function rebindSkillSegments(
 export function resolveAvailableSlashCommands(
   threadCommands: readonly AgentSlashCommand[] | undefined,
   capabilityCommands: readonly AgentSlashCommand[] | undefined,
-  context?: {
-    agentKind?: AgentStatus["kind"] | undefined;
-    presentationMode?: ThreadPresentationMode | undefined;
+  context?: SlashCommandLookupContext & {
     hasEffort?: boolean | undefined;
     supportsFast?: boolean | undefined;
     skillCommands?: readonly AgentSlashCommand[] | undefined;
@@ -183,8 +206,8 @@ export function resolveAvailableSlashCommands(
     const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
     return [...dedupeBaseCommands(base, skills), ...skills];
   }
-  if (context?.agentKind) {
-    const registration = getGuiSlashCommands(context.agentKind);
+  if (context) {
+    const registration = activeGuiSlashCommands(context);
     if (registration) {
       return [
         ...registration.buildCommands({
@@ -201,13 +224,10 @@ export function resolveAvailableSlashCommands(
 
 export function resolveLocalSlashCommandAction(
   input: string,
-  context: {
-    agentKind?: AgentStatus["kind"] | undefined;
-    presentationMode?: ThreadPresentationMode | undefined;
-  },
+  context: SlashCommandLookupContext,
 ): LocalSlashCommandAction | null {
-  if (!context.agentKind || context.presentationMode === "terminal") return null;
-  const registration = getGuiSlashCommands(context.agentKind);
+  if (context.presentationMode === "terminal") return null;
+  const registration = activeGuiSlashCommands(context);
   return registration ? registration.resolveLocalAction(input) : null;
 }
 
@@ -219,10 +239,7 @@ export function resolveLocalSlashCommandAction(
 export function bindLeadingSkillUnlessLocalAction(
   segments: PromptSegment[],
   commands: readonly AgentSlashCommand[],
-  context: {
-    agentKind?: AgentStatus["kind"] | undefined;
-    presentationMode?: ThreadPresentationMode | undefined;
-  },
+  context: SlashCommandLookupContext,
 ): PromptSegment[] {
   return resolveLocalSlashCommandAction(flattenSegments(segments), context)
     ? segments
@@ -236,10 +253,7 @@ export function bindLeadingSkillUnlessLocalAction(
 export function resolveLocalActionUnlessSkill(
   segments: readonly PromptSegment[],
   input: string,
-  context: {
-    agentKind?: AgentStatus["kind"] | undefined;
-    presentationMode?: ThreadPresentationMode | undefined;
-  },
+  context: SlashCommandLookupContext,
 ): LocalSlashCommandAction | null {
   return segments.some((segment) => segment.kind === "skill")
     ? null

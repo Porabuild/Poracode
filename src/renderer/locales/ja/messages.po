@@ -7703,10 +7703,12 @@ msgid "Open terminal in worktree"
 msgstr "worktree でターミナルを開く"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "工数ピッカーを開く"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "モデルピッカーを開く"
 
@@ -10754,10 +10756,12 @@ msgid "Switch project"
 msgstr "プロジェクトの切り替え"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "このチャットをエージェント モードに切り替えます"
 
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "このチャットを計画モードに切り替えます"
 
@@ -11433,6 +11437,7 @@ msgstr "ブラウザパネルの切り替え"
 
 #: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "高速モードの切り替え"
 

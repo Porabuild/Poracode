@@ -14,6 +14,11 @@ import { cursorRuntimeInstallState, cursorSdkUpdateCommand } from "./runtimeInst
 import { fullAccessToggle, planWorkToggle } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
 import { registerComposerControls, registerComposerRuntimeUpdate } from "../providerComposer";
+import { registerGuiSlashCommands } from "../providerSlashCommands";
+import {
+  buildStandardGuiSlashCommands,
+  resolveStandardLocalSlashAction,
+} from "../standardGuiSlashCommands";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
@@ -21,6 +26,14 @@ import { registerTitleGenDefaults } from "../titleGen";
 const PROVIDER_KIND = providerManifest.kind;
 
 registerProviderIcon(PROVIDER_KIND, CursorIcon);
+// The SDK runtime reports no session commands, so the GUI slash menu offers
+// Poracode's composer-local set (mode, model, fast). ACP sessions keep the
+// commands cursor-agent reports via `available_commands_update` instead.
+registerGuiSlashCommands(PROVIDER_KIND, {
+  isEnabled: ({ runtimeLabel }) => runtimeLabel === "SDK",
+  buildCommands: buildStandardGuiSlashCommands,
+  resolveLocalAction: resolveStandardLocalSlashAction,
+});
 registerComposerRuntimeUpdate(PROVIDER_KIND, ({ agentStatus, project }) => {
   const runtimeLabel = agentStatus.capabilities.runtimeLabel;
   if (runtimeLabel !== "SDK") return undefined;
