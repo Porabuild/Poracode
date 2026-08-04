@@ -1,20 +1,21 @@
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { startPostPushPrStatusRefresh } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
-import { closeThreads } from "@/renderer/utils/shellUtils";
 import {
   runGitMergeToSource,
   runGitPullFromSource,
   runGitSyncCommand,
+  refreshGitStatusForWorktree,
   showGitActionError,
   showGitOperationFailure,
 } from "./gitCommandRunner";
-import { performWorktreeRemoval } from "./worktreeActions";
+import { deleteWorktreeGroup } from "./worktreeActions";
 
 function captureGitActionError(error: unknown): void {
   showGitActionError(error, { capture: true });
@@ -85,7 +86,18 @@ export function gitPull(projectId: string, worktreePath: string): void {
     command: "pull",
     projectLocation: worktreeLocation,
     remote: "origin",
-  }).catch(captureGitActionError);
+  }).catch((error) =>
+    showGitActionError(error, {
+      capture: true,
+      onStashAndPull: () =>
+        runGitSyncCommand({
+          command: "pull",
+          projectLocation: worktreeLocation,
+          remote: "origin",
+          preserveLocalChanges: true,
+        }),
+    }),
+  );
 }
 
 export function gitPullRebase(projectId: string, worktreePath: string): void {
@@ -96,10 +108,22 @@ export function gitPullRebase(projectId: string, worktreePath: string): void {
     command: "pullRebase",
     projectLocation: worktreeLocation,
     remote: "origin",
-  }).catch(captureGitActionError);
+  }).catch((error) =>
+    showGitActionError(error, {
+      capture: true,
+      onStashAndPull: () =>
+        runGitSyncCommand({
+          command: "pullRebase",
+          projectLocation: worktreeLocation,
+          remote: "origin",
+          preserveLocalChanges: true,
+        }),
+    }),
+  );
 }
 
 export function gitMergeToSource(projectId: string, worktreePath: string): void {
+  if (findExperimentByWorktree(projectId, worktreePath)) return;
   const project = useAppStore.getState().projects.find((p) => p.id === projectId);
   if (!project) return;
   const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
@@ -126,6 +150,7 @@ export function gitMergeToSource(projectId: string, worktreePath: string): void 
 }
 
 export function gitMergeAndRemove(projectId: string, worktreePath: string): void {
+  if (findExperimentByWorktree(projectId, worktreePath)) return;
   const project = useAppStore.getState().projects.find((p) => p.id === projectId);
   if (!project) return;
   const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
@@ -147,12 +172,11 @@ export function gitMergeAndRemove(projectId: string, worktreePath: string): void
       if (!result.merged) return;
       const allThreads = useAppStore.getState().threads;
       const siblings = allThreads.filter((t) => t.worktreePath === worktreePath);
-      const deleteThread = useAppStore.getState().deleteThread;
-      for (const sib of siblings) {
-        deleteThread(sib.id);
-      }
-      await closeThreads(siblings.map((sib) => sib.id));
-      await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+      deleteWorktreeGroup(
+        projectId,
+        worktreePath,
+        siblings.map((sibling) => sibling.id),
+      );
     } catch (error) {
       captureGitActionError(error);
       // ignored — user can open git review for details
@@ -186,6 +210,7 @@ export function gitPullFromSource(projectId: string, worktreePath: string): void
         });
         return;
       }
+      await refreshGitStatusForWorktree(worktreeLocation, worktreePath);
       if (result.conflicting) {
         openGitReviewForWorktree(projectId, worktreePath);
         return;

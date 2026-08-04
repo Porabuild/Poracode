@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitStatusResult, Project } from "@/shared/contracts";
+import type { GitStatusResult, PrData, Project } from "@/shared/contracts";
 
 const bridgeMock = vi.hoisted(() => ({
   gitStage: vi.fn<() => Promise<void>>(),
@@ -17,6 +17,7 @@ const bridgeMock = vi.hoisted(() => ({
     vi.fn<
       () => Promise<{ sourceBranch: string | null; commitsAhead: number; sourceAhead: number }>
     >(),
+  ghGetPrForBranch: vi.fn<() => Promise<PrData | null>>(),
   generateCommitMessage: vi.fn<() => Promise<{ message: string }>>(),
 }));
 
@@ -103,6 +104,7 @@ vi.mock("@heroui/react", () => {
     ButtonGroup,
     Dropdown,
     Label: (props: { children: ReactNode }) => <span>{props.children}</span>,
+    Link: Button,
     ListBox,
     Select,
     Separator: () => <span />,
@@ -239,6 +241,7 @@ describe("GitReviewSidebar", () => {
     bridgeMock.gitCommit.mockResolvedValue(undefined);
     bridgeMock.gitFetch.mockResolvedValue(undefined);
     bridgeMock.gitGetWorktreeSourceBranch.mockImplementation(() => new Promise(() => {}));
+    bridgeMock.ghGetPrForBranch.mockResolvedValue(null);
     bridgeMock.generateCommitMessage.mockResolvedValue({ message: "generated" });
     useGitStore.setState({
       ghAvailable: {},
@@ -298,6 +301,228 @@ describe("GitReviewSidebar", () => {
     expect(screen.getByText("worktree-only.ts")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
+  });
+
+  it("keeps remote routing when resolving the PR target branch", async () => {
+    const project: Project = {
+      id: "remote:desktop-1:project:project-1",
+      remoteServerId: "desktop-1",
+      remoteId: "project-1",
+      name: "Remote Poracode",
+      createdAt: new Date().toISOString(),
+      location: {
+        kind: "windows",
+        path: "C:\\repo-worktree",
+        remoteServerId: "desktop-1",
+      },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/remote",
+      tracking: "",
+      hasRemote: true,
+      remoteInfo: {
+        url: "https://github.com/example/poracode.git",
+        platform: "github",
+        owner: "example",
+        repo: "poracode",
+      },
+      ahead: 0,
+      behind: 0,
+      staged: [
+        {
+          path: "src/remote-change.ts",
+          status: "M",
+          staged: true,
+          insertions: 1,
+          deletions: 0,
+        },
+      ],
+      unstaged: [],
+      totalInsertions: 1,
+      totalDeletions: 0,
+    };
+
+    bridgeMock.gitGetWorktreeSourceBranch.mockResolvedValue({
+      sourceBranch: "main",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    useGitStore.setState({ ghAvailable: { [project.id]: true } });
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(bridgeMock.gitGetWorktreeSourceBranch).toHaveBeenCalledWith({
+        projectLocation: {
+          kind: "windows",
+          path: "C:\\repo-worktree",
+          remoteServerId: "desktop-1",
+        },
+        branch: "feature/remote",
+      }),
+    );
+    expect(await screen.findByText("Commit & Create PR")).toBeInTheDocument();
+  });
+
+  it("virtualizes long staged and unstaged file lists independently", async () => {
+    const clientHeightSpy = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(240);
+    const offsetHeightSpy = vi
+      .spyOn(HTMLElement.prototype, "offsetHeight", "get")
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains("overflow-y-auto") ? 240 : 24;
+      });
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        const height = this.classList.contains("overflow-y-auto") ? 240 : 24;
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          right: 320,
+          bottom: height,
+          left: 0,
+          width: 320,
+          height,
+          toJSON: () => ({}),
+        };
+      });
+
+    try {
+      const project: Project = {
+        id: "project-1",
+        name: "Poracode",
+        createdAt: new Date().toISOString(),
+        location: { kind: "windows", path: "C:\\repo" },
+      };
+      const gitStatus: GitStatusResult = {
+        isRepo: true,
+        branch: "feature",
+        tracking: "",
+        hasRemote: false,
+        remoteInfo: null,
+        ahead: 0,
+        behind: 0,
+        staged: Array.from({ length: 100 }, (_, index) => ({
+          path: `src/staged-${index.toString().padStart(3, "0")}.ts`,
+          status: "M",
+          staged: true,
+          insertions: 1,
+          deletions: 0,
+        })),
+        unstaged: Array.from({ length: 100 }, (_, index) => ({
+          path: `src/unstaged-${index.toString().padStart(3, "0")}.ts`,
+          status: "M",
+          staged: false,
+          insertions: 1,
+          deletions: 0,
+        })),
+        totalInsertions: 200,
+        totalDeletions: 0,
+      };
+
+      const { container } = render(
+        <GitReviewSidebar
+          project={project}
+          gitStatus={gitStatus}
+          selectedFile={null}
+          selectedStaged={false}
+          refreshKey={0}
+          onSelectFile={() => undefined}
+          onClose={() => undefined}
+          onRefresh={() => undefined}
+          mode="panel"
+        />,
+      );
+
+      await waitFor(() => {
+        const sizers = [...container.querySelectorAll<HTMLElement>("div.relative.min-w-0")].filter(
+          (element) => Number.parseInt(element.style.height, 10) > 2000,
+        );
+        expect(sizers).toHaveLength(2);
+      });
+      expect(screen.queryByText("src/staged-099.ts")).not.toBeInTheDocument();
+      expect(screen.queryByText("src/unstaged-099.ts")).not.toBeInTheDocument();
+
+      // Rows must be offset with `top`; a transform would shift the sticky
+      // header of an expanded row away from the scroll container's top edge.
+      const rows = [...container.querySelectorAll<HTMLElement>("[data-index]")];
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((row) => row.style.transform === "")).toBe(true);
+      expect(rows.some((row) => row.style.top !== "" && row.style.top !== "0px")).toBe(true);
+    } finally {
+      clientHeightSpy.mockRestore();
+      offsetHeightSpy.mockRestore();
+      rectSpy.mockRestore();
+    }
+  });
+
+  it("mounts panel row actions only while the row is hovered or focused", () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [
+        {
+          path: "src/actions.ts",
+          status: "M",
+          staged: false,
+          insertions: 1,
+          deletions: 0,
+        },
+      ],
+      totalInsertions: 1,
+      totalDeletions: 0,
+    };
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        mode="panel"
+      />,
+    );
+
+    const row = screen.getByText("actions.ts").closest('[role="button"]');
+    expect(row).not.toBeNull();
+    expect(screen.queryByTitle("Open in editor")).not.toBeInTheDocument();
+    fireEvent.pointerMove(row!);
+    expect(screen.getByTitle("Open in editor")).toBeInTheDocument();
+    fireEvent.pointerLeave(row!);
+    expect(screen.queryByTitle("Open in editor")).not.toBeInTheDocument();
+    fireEvent.focus(row!);
+    expect(screen.getByTitle("Open in editor")).toBeInTheDocument();
   });
 
   it("uses Git's merge message as an editable commit template", async () => {
@@ -879,6 +1104,97 @@ describe("GitReviewSidebar", () => {
     expect(screen.getByText("Merge Worktree")).toBeInTheDocument();
     expect(screen.getByText("Merge Locally & Remove Worktree")).toBeInTheDocument();
     expect(screen.queryByText("Merge & Remove Worktree")).not.toBeInTheDocument();
+  });
+
+  it("hides Create PR when the branch still points at the latest merged PR commit", async () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo-worktree" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/worktree",
+      headSha: "merged-head",
+      tracking: "origin/feature/worktree",
+      hasRemote: true,
+      remoteInfo: {
+        url: "https://github.com/example/poracode.git",
+        platform: "github",
+        owner: "example",
+        repo: "poracode",
+      },
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+    const mergedPr: PrData = {
+      number: 429,
+      state: "merged",
+      headSha: "merged-head",
+      title: "Add GitHub Actions workflow management view",
+      url: "https://github.com/example/poracode/pull/429",
+      baseBranch: "master",
+      isDraft: false,
+      updatedAt: "2026-07-30T00:00:00.000Z",
+    };
+
+    bridgeMock.gitGetWorktreeSourceBranch.mockResolvedValue({
+      sourceBranch: "master",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    bridgeMock.ghGetPrForBranch.mockResolvedValue(mergedPr);
+    useGitStore.setState({ ghAvailable: { [project.id]: true } });
+
+    const { rerender } = render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        worktreeBranch="feature/worktree"
+        worktreePath="C:\\repo-worktree"
+        refreshKey={1}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(
+      await screen.findByText("#429 - Add GitHub Actions workflow management view"),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole("button", { name: "Create PR" })
+        .some((button) => button.classList.contains("flex-1")),
+    ).toBe(false);
+
+    rerender(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={{ ...gitStatus, headSha: "new-pushed-head" }}
+        selectedFile={null}
+        selectedStaged={false}
+        worktreeBranch="feature/worktree"
+        worktreePath="C:\\repo-worktree"
+        refreshKey={1}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(
+      screen
+        .getAllByRole("button", { name: "Create PR" })
+        .some((button) => button.classList.contains("flex-1")),
+    ).toBe(true);
   });
 
   it("does not show the removed merge section while worktree source info is still loading", () => {

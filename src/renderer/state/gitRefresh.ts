@@ -5,8 +5,10 @@ import type {
   ProjectLocation,
   RemoteHostPlatform,
 } from "@/shared/contracts";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { summaryBackfillMissed, useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchNamePrKey, buildBranchPrKey } from "@/renderer/state/gitSelectors";
@@ -55,6 +57,85 @@ export function mightBeGitHubRemote(platform: RemoteHostPlatform | undefined): b
 const BRANCH_PR_PREFETCH_THROTTLE_MS = 10_000;
 const branchPrPrefetchLastRun = new Map<string, number>();
 const branchPrPrefetchInFlight = new Set<string>();
+const branchPrPrefetchCache = new Map<string, Record<string, PrData>>();
+
+function shouldApplyPrefetchedPr(
+  existing: PrData | null | undefined,
+  incoming: PrData,
+  fillMissingOnly: boolean,
+): boolean {
+  if (fillMissingOnly) return existing === undefined;
+  if (!existing || existing.number !== incoming.number) return true;
+  const existingUpdatedAt = Date.parse(existing.updatedAt);
+  const incomingUpdatedAt = Date.parse(incoming.updatedAt);
+  if (Number.isFinite(existingUpdatedAt) && Number.isFinite(incomingUpdatedAt)) {
+    return incomingUpdatedAt > existingUpdatedAt;
+  }
+  if (existing.updatedAt && !incoming.updatedAt) return false;
+  return true;
+}
+
+function mergePrefetchedPr(existing: PrData | null | undefined, incoming: PrData): PrData {
+  if (
+    incoming.viewerDidAuthor !== undefined ||
+    existing?.number !== incoming.number ||
+    existing?.viewerDidAuthor === undefined
+  ) {
+    return incoming;
+  }
+  return { ...incoming, viewerDidAuthor: existing.viewerDidAuthor };
+}
+
+function applyPrefetchedPrData(
+  projectId: string,
+  prs: Record<string, PrData>,
+  fillMissingOnly: boolean,
+): void {
+  const gitState = useGitStore.getState();
+  const updates: Record<string, PrData> = {};
+  const queueUpdate = (key: string, pr: PrData | undefined) => {
+    if (!pr) return;
+    const existing = gitState.prData[key];
+    if (shouldApplyPrefetchedPr(existing, pr, fillMissingOnly)) {
+      updates[key] = mergePrefetchedPr(existing, pr);
+    }
+  };
+  for (const [branch, pr] of Object.entries(prs)) {
+    queueUpdate(buildBranchNamePrKey(projectId, branch), pr);
+  }
+
+  const appState = useAppStore.getState();
+  const worktreeBranches = new Map<string, string>();
+
+  for (const thread of appState.threads) {
+    if (
+      thread.projectId === projectId &&
+      !thread.archived &&
+      thread.worktreePath &&
+      thread.worktreeBranch
+    ) {
+      worktreeBranches.set(thread.worktreePath, thread.worktreeBranch);
+    }
+  }
+  for (const worktree of gitState.worktrees[projectId] ?? []) {
+    if (!worktree.isMain && worktree.branch) {
+      worktreeBranches.set(worktree.path, worktree.branch);
+    }
+  }
+
+  for (const [worktreePath, branch] of worktreeBranches) {
+    queueUpdate(worktreePath, prs[branch]);
+  }
+
+  const currentBranch = gitState.statuses[projectId]?.branch;
+  if (currentBranch) {
+    queueUpdate(buildBranchPrKey(projectId), prs[currentBranch]);
+  }
+
+  if (Object.keys(updates).length > 0) {
+    useGitStore.getState().setPrDataBatch(updates);
+  }
+}
 
 /**
  * Bulk-fetch PR status for every branch of a project in one `gh pr list` call and
@@ -69,6 +150,9 @@ export async function prefetchBranchPrData(project: {
   id: string;
   location: ProjectLocation;
 }): Promise<void> {
+  const cachedPrs = branchPrPrefetchCache.get(project.id);
+  if (cachedPrs) applyPrefetchedPrData(project.id, cachedPrs, true);
+
   if (branchPrPrefetchInFlight.has(project.id)) return;
   const last = branchPrPrefetchLastRun.get(project.id) ?? 0;
   if (Date.now() - last < BRANCH_PR_PREFETCH_THROTTLE_MS) return;
@@ -80,18 +164,31 @@ export async function prefetchBranchPrData(project: {
   branchPrPrefetchLastRun.set(project.id, Date.now());
   try {
     const { prs } = await readBridge().ghListPrs({ projectLocation: project.location });
-    const updates: Record<string, PrData | null> = {};
-    for (const [branch, pr] of Object.entries(prs)) {
-      updates[buildBranchNamePrKey(project.id, branch)] = pr;
-    }
-    if (Object.keys(updates).length > 0) {
-      useGitStore.getState().setPrDataBatch(updates);
-    }
+    branchPrPrefetchCache.set(project.id, prs);
+    applyPrefetchedPrData(project.id, prs, false);
   } catch (err) {
     console.warn(`[git-refresh] ghListPrs failed project=${project.id}`, err);
   } finally {
     branchPrPrefetchInFlight.delete(project.id);
   }
+}
+
+/** Refresh PR data only while Git is visibly scoped to this real project/worktree. */
+export function prefetchVisibleGitPanelPrData(
+  projectId: string,
+  worktreePath: string | undefined,
+): Promise<void> {
+  if (isHomeProjectId(projectId)) return Promise.resolve();
+  const panel = usePanelStore.getState();
+  if (
+    !panel.gitReviewAsPanel ||
+    panel.gitReviewContext?.projectId !== projectId ||
+    panel.gitReviewContext.worktreePath !== worktreePath
+  ) {
+    return Promise.resolve();
+  }
+  const project = useAppStore.getState().projects.find((item) => item.id === projectId);
+  return project ? prefetchBranchPrData(project) : Promise.resolve();
 }
 
 function getWorktreeStatusDetail(
@@ -183,11 +280,12 @@ function applyWorktreeStatusBatch(
 type ActiveGitProject = { id: string; location: ProjectLocation };
 
 interface PendingPrRefreshTarget {
+  projectId: string;
   projectLocation: ProjectLocation;
   prKey: string;
   branch: string;
-  detailsCacheKey?: string;
-  prNumber?: number;
+  detailsCacheKey: string;
+  prNumber: number;
 }
 
 interface PendingPrRefreshEntry {
@@ -237,6 +335,23 @@ export function getProjectActiveWorktreePaths(projectId: string): string[] {
   const paths = new Set<string>();
   const project = appState.projects.find((p) => p.id === projectId);
   const projectThreads = appState.threads.filter((t) => t.projectId === projectId && !t.archived);
+  const experimentState = useExperimentStore.getState();
+
+  for (const experiment of Object.values(experimentState.experiments)) {
+    if (
+      experiment.projectId !== projectId ||
+      (experiment.status !== "running" &&
+        !(appState.view.kind === "experiment" && appState.view.experimentId === experiment.id))
+    ) {
+      continue;
+    }
+    for (const candidate of experiment.candidates) {
+      const worktreePath = appState.threads.find(
+        (thread) => thread.id === candidate.threadId,
+      )?.worktreePath;
+      if (worktreePath) paths.add(worktreePath);
+    }
+  }
 
   if (project && !project.disabled && !(sidebarState.collapsedProjects[projectId] ?? false)) {
     const rows = buildSidebarProjectRows({
@@ -264,7 +379,8 @@ export function getProjectActiveWorktreePaths(projectId: string): string[] {
   addPanelContextWorktreePath(
     paths,
     projectId,
-    panelState.rightPanelTab === "git" && panelState.gitReviewAsPanel,
+    (panelState.rightPanelTab === "git" && panelState.gitReviewAsPanel) ||
+      panelState.gitOverlayOpen,
     panelState.gitReviewContext,
   );
   addPanelContextWorktreePath(
@@ -357,17 +473,18 @@ function buildPendingPrRefreshTargets(
   function visitBranchPr(project: ActiveGitProject, prKey: string, branch: string) {
     const pr = gitState.prData[prKey];
     if (!pr) return;
-    const detailsCacheKey = pr.number ? `${project.id}#${pr.number}` : undefined;
-    const details = detailsCacheKey ? gitState.prDetails[detailsCacheKey] : undefined;
+    const detailsCacheKey = `${project.id}#${pr.number}`;
+    const details = gitState.prDetails[detailsCacheKey];
     const detailsStatus = aggregatePrChecksStatus(details?.checks);
     const checksStatus = combineChecksStatus(detailsStatus, pr.checksStatus);
     if (pr.state !== "open" || checksStatus !== "PENDING") return;
-    targets.set(detailsCacheKey ?? prKey, {
+    targets.set(detailsCacheKey, {
+      projectId: project.id,
       projectLocation: project.location,
       prKey,
       branch,
-      ...(detailsCacheKey ? { detailsCacheKey } : {}),
-      ...(pr.number ? { prNumber: pr.number } : {}),
+      detailsCacheKey,
+      prNumber: pr.number,
     });
   }
 
@@ -389,6 +506,22 @@ function buildPendingPrRefreshTargets(
   return targets;
 }
 
+function didPendingPrSettle(target: PendingPrRefreshTarget): boolean {
+  const gitState = useGitStore.getState();
+  const pr = gitState.prData[target.prKey];
+  if (pr === null) return true;
+  if (!pr || pr.number !== target.prNumber) return false;
+  const detailsStatus = aggregatePrChecksStatus(gitState.prDetails[target.detailsCacheKey]?.checks);
+  const checksStatus = combineChecksStatus(detailsStatus, pr.checksStatus);
+  return checksStatus === "SUCCESS" || checksStatus === "FAILURE";
+}
+
+function requestSettledPrCheck(target: PendingPrRefreshTarget): void {
+  void readBridge()
+    .checkPrWatch({ projectId: target.projectId, prNumber: target.prNumber })
+    .catch(() => undefined);
+}
+
 /**
  * Fetch a single PR's data (and its details, when a number + cache key are
  * known) and write both into the git store. Shared by the background
@@ -401,9 +534,10 @@ export async function refreshSinglePr(params: {
   projectLocation: ProjectLocation;
   prKey: string;
   branch: string;
+  projectId?: string;
   detailsCacheKey?: string;
   prNumber?: number;
-}): Promise<void> {
+}): Promise<PrData | null | undefined> {
   const bridge = readBridge();
   const prPromise = bridge
     .ghGetPrForBranch({ projectLocation: params.projectLocation, branch: params.branch })
@@ -421,6 +555,17 @@ export async function refreshSinglePr(params: {
   if (params.detailsCacheKey && details) {
     useGitStore.getState().setPrDetails(params.detailsCacheKey, details.details);
   }
+  if (!params.detailsCacheKey && params.projectId && pr && pr.number !== params.prNumber) {
+    const discoveredDetails = await bridge
+      .ghGetPrDetails({ projectLocation: params.projectLocation, prNumber: pr.number })
+      .catch(() => undefined);
+    if (discoveredDetails) {
+      useGitStore
+        .getState()
+        .setPrDetails(`${params.projectId}#${pr.number}`, discoveredDetails.details);
+    }
+  }
+  return pr;
 }
 
 async function refreshPendingPr(key: string): Promise<void> {
@@ -521,6 +666,12 @@ export function syncPendingPrRefreshProjects(activeProjects: readonly ActiveGitP
     if (!target) {
       clearInterval(entry.intervalId);
       pendingPrRefreshEntries.delete(key);
+      if (
+        activeProjects.some((project) => project.id === entry.target.projectId) &&
+        didPendingPrSettle(entry.target)
+      ) {
+        requestSettledPrCheck(entry.target);
+      }
       continue;
     }
     entry.target = target;
@@ -560,6 +711,17 @@ export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>)
   }
   for (const projectId of activeRefreshTokens.keys()) {
     if (!activeProjectIds.has(projectId)) activeRefreshTokens.delete(projectId);
+  }
+  const stalePrefetchProjectIds = new Set([
+    ...branchPrPrefetchCache.keys(),
+    ...branchPrPrefetchLastRun.keys(),
+    ...branchPrPrefetchInFlight,
+  ]);
+  for (const projectId of stalePrefetchProjectIds) {
+    if (activeProjectIds.has(projectId)) continue;
+    branchPrPrefetchCache.delete(projectId);
+    branchPrPrefetchLastRun.delete(projectId);
+    branchPrPrefetchInFlight.delete(projectId);
   }
   for (const [key, entry] of postPushPrRefreshEntries) {
     if (activeProjectIds.has(entry.target.projectId)) continue;
@@ -628,7 +790,7 @@ export async function refreshGitProject(
             await readBridge().gitFetch({
               projectLocation: project.location,
               remote: "origin",
-              prune: false,
+              prune: true,
             });
           } catch {
             // ignore — remote may be unreachable

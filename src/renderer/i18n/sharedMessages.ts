@@ -33,6 +33,10 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "git.pull.stashPreserved": msg({
     message: "Pull did not complete. Your local changes remain in a Poracode stash.",
   }),
+  "git.pull.reapplyAfterMerge": msg({
+    message: "Your local changes were stashed and will be re-applied once the merge is resolved.",
+  }),
+  "git.pull.stashReapplied": msg({ message: "Your stashed local changes were re-applied." }),
   "git.worktree.noBranch": msg({
     message: "Cannot create a default worktree path without a branch name",
   }),
@@ -48,6 +52,117 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "git.worktree.cleanupFailed": msg({
     message: "{original}\nWorktree cleanup also failed: {cleanup}",
   }),
+  "git.detachedHead": msg({ message: "detached HEAD" }),
+  "experiment.diff.baseFullCommit": msg({
+    message: "Experiment diff base must be a full commit hash",
+  }),
+  "experiment.candidate.changedDuringDiff": msg({
+    message: "Experiment candidate changed while its diff was being captured",
+  }),
+  "experiment.candidate.statusFailed": msg({
+    message: "Unable to read experiment candidate status",
+  }),
+  "experiment.candidate.tooManyUntracked": msg({
+    message: "Experiment candidate has too many untracked files ({count}; maximum {maximum})",
+  }),
+  "experiment.candidate.diffTooLarge": msg({
+    message: "Experiment candidate diff is too large to compare safely",
+  }),
+  "experiment.candidate.untrackedReadFailed": msg({
+    message: "Unable to read untracked candidate file: {path}",
+  }),
+  "experiment.candidate.changedDuringStats": msg({
+    message: "Experiment candidate changed while its stats were being captured",
+  }),
+  "experiment.candidate.commitResolveFailed": msg({
+    message: "Unable to resolve the experiment candidate commit",
+  }),
+  "experiment.candidate.notDescendant": msg({
+    message: "Experiment candidate no longer descends from its frozen base commit",
+  }),
+  "experiment.merge.branchTipsFailed": msg({
+    message: "Unable to resolve branch tips for fast-forward merge",
+  }),
+  "experiment.merge.sourceBranchMismatch": msg({
+    message: "Expected source worktree branch {expected}, but found {actual}",
+  }),
+  "experiment.merge.worktreeDirty": msg({
+    message: "Worktree {path} has uncommitted changes",
+  }),
+  "experiment.merge.worktreeBranchMismatch": msg({
+    message: "Expected worktree branch {expected}, but found {actual}",
+  }),
+  "experiment.merge.worktreeHeadMismatch": msg({
+    message: "Expected worktree HEAD {expected}, but found {actual}",
+  }),
+  "experiment.merge.branchHeadMismatch": msg({
+    message: "Expected branch {branch} at {expected}, but found {actual}",
+  }),
+  "experiment.worktree.ownerNeedsFrozenSource": msg({
+    message: "A worktree owner requires a frozen branch source",
+  }),
+  "experiment.worktree.creationRollbackFailed": msg({
+    message: "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}",
+  }),
+  "experiment.worktree.expectedOwnerNeedsBranch": msg({
+    message: "An expected worktree owner requires a branch",
+  }),
+  "experiment.worktree.metadataRollbackFailed": msg({
+    message:
+      "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}",
+  }),
+  "experiment.worktree.sourceMetadataRollbackFailed": msg({
+    message: "Failed to record frozen source metadata: {detail}. Rollback left {rollback}",
+  }),
+  "experiment.worktree.rollbackWorktree": msg({
+    message: "worktree at {path}: {detail}",
+  }),
+  "experiment.worktree.rollbackBranch": msg({ message: "branch {branch}: {detail}" }),
+  "experiment.worktree.frozenSourceNeedsCommit": msg({
+    message: "A frozen worktree source requires a full commit hash",
+  }),
+  "experiment.worktree.frozenSourceNotLocal": msg({
+    message: "Frozen worktree source is not a local branch: {branch}",
+  }),
+  "experiment.worktree.sourceMoved": msg({
+    message: "Source branch {branch} moved before the worktree was created",
+  }),
+  "experiment.worktree.ownerMismatch": msg({
+    message: "Expected worktree owner {expected}, but found {actual}",
+  }),
+  "experiment.worktree.noOwner": msg({ message: "none" }),
+  "experiment.worktree.unavailable": msg({
+    message: "The experiment candidate worktree is unavailable.",
+  }),
+  "experiment.judge.atLeastTwo": msg({
+    message: "Experiment judge requires at least two candidates",
+  }),
+  "experiment.judge.invalidJson": msg({ message: "Experiment judge returned invalid JSON" }),
+  "experiment.judge.invalidShape": msg({
+    message: "Experiment judge returned an invalid response shape",
+  }),
+  "experiment.judge.winnerRange": msg({
+    message: "Experiment judge winner must be between 1 and {candidateCount}",
+  }),
+  "experiment.judge.emptyRationale": msg({
+    message: "Experiment judge returned an empty rationale",
+  }),
+  "experiment.judge.noChanges": msg({
+    message: "The candidates have not made any changes yet.",
+  }),
+  "experiment.judge.noResponse": msg({
+    message: "No chat response is available for experiment candidate {threadId}.",
+  }),
+  "experiment.judge.promptBlank": msg({ message: "Experiment prompt must not be blank" }),
+  "experiment.judge.uniqueThreadIds": msg({
+    message: "Experiment candidate thread ids must be unique",
+  }),
+  "experiment.judge.noDefaultModel": msg({
+    message: "No default one-shot model configured for {provider}",
+  }),
+  "experiment.judge.oneShotUnsupported": msg({
+    message: "{provider} does not support one-shot generation",
+  }),
   "git.wsl.homeNotFound": msg({
     message: 'Unable to resolve home directory for WSL distro "{distro}"',
   }),
@@ -59,7 +174,62 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "supervisor.restarted": msg({ message: "Background process restarted" }),
   "supervisor.exited": msg({ message: "Background process exited unexpectedly" }),
   "supervisor.notRunning": msg({ message: "Background process is not running" }),
+  "kimi.credentialsLocked": msg({
+    message:
+      "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",
+  }),
+  "kimi.emptyResponse": msg({
+    message:
+      "Kimi Code ended the turn without returning a response. Restart the thread and try again.",
+  }),
   "update.error": msg({ message: "Update error: {detail}" }),
+  "update.serviceUnavailable": msg({
+    message: "The update service is temporarily unavailable.",
+  }),
+  "update.operationFailed": msg({ message: "The update operation failed." }),
+  "update.devUnavailable": msg({
+    message: "Update checks are not available in development mode.",
+  }),
+  "remote.helper.invalidResponse": msg({
+    message: "Poracode Helper returned an invalid response.",
+  }),
+  "remote.helper.wrongHost": msg({
+    message: "The SSH tunnel reached an incompatible Poracode server.",
+  }),
+  "remote.helper.probeFailed": msg({
+    message: "Poracode Helper is not ready yet (HTTP {status}).",
+  }),
+  "remote.helper.timeout": msg({
+    message: "Timed out waiting for Poracode Helper.",
+  }),
+  "remote.helper.startFailed": msg({
+    message:
+      "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
+  }),
+  "ssh.runtimeManifest.invalid": msg({
+    message: "Poracode SSH runtime manifest is missing or invalid: {path}",
+  }),
+  "remote.project.invalidName": msg({ message: "Enter a valid project name." }),
+  "remote.project.invalidPath": msg({ message: "Enter a valid absolute project path." }),
+  "remote.project.invalidCloneUrl": msg({
+    message: "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax.",
+  }),
+  "remote.project.directoryFailed": msg({
+    message: "Could not create the project folder.",
+  }),
+  "remote.project.notFound": msg({ message: "Project not found." }),
+  "remote.project.runningThreads": msg({
+    message: "Stop the project's running threads before changing its folder.",
+  }),
+  "remote.project.experimentsOwned": msg({
+    message: "Remove the project's experiments before removing the project.",
+  }),
+  "remote.session.expired": msg({
+    message: "Pairing expired — pair again to reconnect.",
+  }),
+  "remote.server.unreachable": msg({
+    message: "Can't reach the remote server. Check that it is online, then reconnect it.",
+  }),
 };
 
 /**

@@ -1,21 +1,33 @@
 import { useEffect, useState } from "react";
-import { DiffFile, DiffView, highlighter } from "@git-diff-view/react";
+import { DiffFile, highlighter } from "@git-diff-view/react";
 import { Plural, Trans } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { buildInWorker, diffFileFromBundle } from "../../diffBuildClient";
 import { FileHeader } from "./FileHeader";
 import type { DiffEntry } from "./diffHelpers";
+import { DiffAnnotationView } from "../../DiffAnnotationView";
 
 export function DiffSection(props: {
   entry: DiffEntry;
   mode: number;
   theme: "light" | "dark";
   projectLocation: Project["location"];
+  projectId: Project["id"];
+  worktreePath: string | undefined;
   mountDelay: number;
   onMounted?: () => void;
 }) {
-  const { entry, mode: rawMode, theme, projectLocation, mountDelay, onMounted } = props;
+  const {
+    entry,
+    mode: rawMode,
+    theme,
+    projectLocation,
+    projectId,
+    worktreePath,
+    mountDelay,
+    onMounted,
+  } = props;
   // New files have no old side — force unified mode so content renders full-width
   const isNewFile = entry.deletions === 0 && (!entry.oldName || entry.oldName === "/dev/null");
   const mode = isNewFile ? 4 : rawMode; // 4 = Unified
@@ -141,8 +153,12 @@ export function DiffSection(props: {
           className={`poracode-git-diff-body${isNewFile ? " diff-new-file" : ""}`}
           style={collapsed ? { display: "none" } : undefined}
         >
-          <DiffView
+          <DiffAnnotationView
             diffFile={activeDiffFile}
+            filePath={entry.filePath}
+            projectId={projectId}
+            staged={entry.staged}
+            worktreePath={worktreePath}
             diffViewMode={mode}
             diffViewTheme={theme}
             diffViewFontSize={12}

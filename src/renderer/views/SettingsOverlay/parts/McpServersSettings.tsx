@@ -2,11 +2,12 @@ import { useLingui } from "@lingui/react/macro";
 import type { McpServer } from "@/shared/contracts";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
 import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
+import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isHomeProject } from "@/shared/homeScope";
 import { SettingsPage } from "./SettingsForm";
-import { SubagentRoutingSection } from "./SubagentRoutingSection";
+import { CrossagentRoutingSection } from "./CrossagentRoutingSection";
 
 export function McpServersSettings() {
   const { t } = useLingui();
@@ -22,7 +23,6 @@ export function McpServersSettings() {
     return isHomeProject(project) ? undefined : project;
   });
   const projects = useAppStore((state) => state.projects);
-  const updateProjectMcpServers = useAppStore((state) => state.updateProjectMcpServers);
   const importProjects = projects
     .filter((project) => !isHomeProject(project))
     .map((project) => ({
@@ -64,10 +64,11 @@ export function McpServersSettings() {
           onBuiltInDisabledChange={setBuiltInDisabled}
           onBuiltInToolEnabledChange={setBuiltInToolEnabled}
           builtInSettings={{
-            subagents: {
-              title: t`Subagents`,
-              actionLabel: t`Subagent routing guide`,
-              content: <SubagentRoutingSection />,
+            crossagents: {
+              title: t`Crossagents`,
+              actionLabel: t`Crossagent routing and ranking`,
+              content: <CrossagentRoutingSection />,
+              dialogClassName: "sm:max-w-2xl",
             },
           }}
         />

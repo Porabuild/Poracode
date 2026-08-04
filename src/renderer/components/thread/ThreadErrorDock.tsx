@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Tooltip } from "@heroui/react";
 import { AlertTriangle, ChevronDown, X } from "lucide-react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import type { ThreadErrorDockState } from "./threadErrorState";
-import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
+import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 
 interface ThreadErrorDockProps {
   state: ThreadErrorDockState;
@@ -27,40 +26,24 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
         actions={
           <>
             {canExpand ? (
-              <Tooltip delay={0}>
-                <Tooltip.Trigger>
-                  <button
-                    aria-label={collapsed ? t`Expand error` : t`Collapse error`}
-                    className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
-                    type="button"
-                    onClick={() => setCollapsed(!collapsed)}
-                  >
-                    <ChevronDown
-                      className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-                    />
-                  </button>
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                  {collapsed ? <Trans>Expand</Trans> : <Trans>Collapse</Trans>}
-                </Tooltip.Content>
-              </Tooltip>
+              <ThreadDockIconButton
+                label={collapsed ? t`Expand error` : t`Collapse error`}
+                tooltip={collapsed ? t`Expand` : t`Collapse`}
+                onPress={() => setCollapsed(!collapsed)}
+              >
+                <ChevronDown
+                  className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
+                />
+              </ThreadDockIconButton>
             ) : null}
             {onDismiss ? (
-              <Tooltip delay={0}>
-                <Tooltip.Trigger>
-                  <button
-                    aria-label={t`Dismiss error`}
-                    className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
-                    type="button"
-                    onClick={onDismiss}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                  <Trans>Dismiss</Trans>
-                </Tooltip.Content>
-              </Tooltip>
+              <ThreadDockIconButton
+                label={t`Dismiss error`}
+                tooltip={t`Dismiss`}
+                onPress={onDismiss}
+              >
+                <X className="size-3.5" />
+              </ThreadDockIconButton>
             ) : null}
           </>
         }

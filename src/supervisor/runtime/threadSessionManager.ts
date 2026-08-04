@@ -1,17 +1,18 @@
-import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
-import { defaultSharedSettings, normalizeSharedSettings } from "@/shared/settings";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
   type ClearPendingSteerPayload,
+  type ControlThreadGoalPayload,
   type AgentEventEnvelope,
+  type AgentKind,
   type CloseThreadPayload,
   type PromptSegment,
   type ProjectLocation,
   type ResizeTerminalPayload,
+  type ReloadAgentMcpServersPayload,
   type ResolveThreadServerRequestPayload,
   type RollbackThreadConversationPayload,
   type SendThreadInputPayload,
@@ -26,20 +27,16 @@ import {
   type WriteTerminalPayload,
   type RuntimeEvent,
   type McpLaunchSnapshot,
+  type ResolvedMcpServer,
 } from "@/shared/contracts";
 import {
   type AgentAdapter,
-  type ThreadHistory,
   createKnownSessionRef,
   defaultFormatPromptSegments,
   getRefreshedWindowsPath,
   primeProjectShellEnv,
   resolveLaunchSpec,
 } from "../agents/base";
-import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
-import type { ChromeMcpHttpConfig } from "../agents/chromeMcp";
-import type { ComputerUseMcpHttpConfig } from "../agents/computerUseMcp";
-import type { AppControlsMcpHttpConfig } from "../agents/appControlsMcp";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import type { QueuedStructuredTurn, SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
@@ -70,9 +67,13 @@ import {
   type SpawnThreadInput,
 } from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
+import { StructuredFailureReporter } from "./threadSession/structuredFailureReporter";
+import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
+
+const RECENTLY_REMOVED_THREAD_LIMIT = 256;
 
 export class ThreadSessionManager {
   readonly sessions = new Map<string, SessionRuntime>();
@@ -92,6 +93,8 @@ export class ThreadSessionManager {
   private readonly spawnPipeline: SpawnPipeline;
   private readonly invalidSessionRecovery: InvalidSessionRecoveryCoordinator;
   private readonly structuredTurnQueue: StructuredTurnQueue;
+  private readonly structuredFailureReporter = new StructuredFailureReporter();
+  private readonly recentlyRemovedThreadIds = new Set<string>();
   private disposed = false;
 
   constructor(private readonly options: ThreadSessionManagerOptions) {
@@ -115,12 +118,12 @@ export class ThreadSessionManager {
     this.structuredInterruptWatchdog = new StructuredInterruptWatchdog({
       sessions: this.sessions,
       isDisposed: () => this.disposed,
-      clearPendingSteerSlot: (session) => clearPendingSteerSlot(session, options.emit),
-      failStructuredSession: (session, error) => this.failStructuredSession(session, error),
+      completeForcedInterrupt: (session) => this.completeForcedStructuredInterrupt(session),
     });
     this.structuredTurnQueue = new StructuredTurnQueue({
       emit: options.emit,
       sessions: this.sessions,
+      beginFailureEpisode: (session) => this.structuredFailureReporter.beginEpisode(session),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
     });
     this.steerCoordinator = new SteerCoordinator({
@@ -139,8 +142,6 @@ export class ThreadSessionManager {
       options: this.options,
       outputPipeline: this.outputPipeline,
       indexSessionRef: (session, prevId) => this.indexSessionRef(session, prevId),
-      isBrowserMcpEnabledForLaunch: (adapter, config) =>
-        this.isBrowserMcpEnabledForLaunch(adapter, config),
     });
     const sessionRuntimeLifecycle = new SessionRuntimeLifecycle({
       sessions: this.sessions,
@@ -169,11 +170,14 @@ export class ThreadSessionManager {
       closeThread: (payload) => this.closeThread(payload),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
       isCurrentSession: (session) => this.isCurrentSession(session),
-      isBrowserMcpEnabledForLaunch: (adapter, config) =>
-        this.isBrowserMcpEnabledForLaunch(adapter, config),
       resolveAgentSettings: (adapter) => this.resolveAgentSettings(adapter),
-      emitOptimisticUserMessage: (threadId, prompt, segments) =>
-        this.structuredTurnQueue.emitOptimisticUserMessage(threadId, prompt, segments),
+      emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId) =>
+        this.structuredTurnQueue.emitOptimisticUserMessage(
+          threadId,
+          prompt,
+          segments,
+          requestedItemId,
+        ),
     });
     this.invalidSessionRecovery = new InvalidSessionRecoveryCoordinator({
       spawnPipeline: this.spawnPipeline,
@@ -186,6 +190,30 @@ export class ThreadSessionManager {
       primeProjectShellEnv,
       resolveLaunchSpec,
     });
+  }
+
+  /**
+   * Resolve a provider-native root or child session to its live Poracode
+   * thread. Root ids use the reverse index; provider-owned child sessions can
+   * opt into the fallback through `ownsProviderSession`.
+   */
+  getThreadIdByProviderSessionId(providerSessionId: string): string | undefined {
+    const indexed = this.sessionsBySessionId.get(providerSessionId);
+    if (indexed?.adapter.capabilities.crossagentMcpRouting === "provider-session") {
+      return indexed.threadId;
+    }
+
+    for (const session of this.sessions.values()) {
+      if (session.adapter.capabilities.crossagentMcpRouting !== "provider-session") continue;
+      if (session.sessionRef?.providerSessionId === providerSessionId) {
+        this.sessionsBySessionId.set(providerSessionId, session);
+        return session.threadId;
+      }
+      if (session.structuredSession?.ownsProviderSession?.(providerSessionId)) {
+        return session.threadId;
+      }
+    }
+    return undefined;
   }
 
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
@@ -213,12 +241,40 @@ export class ThreadSessionManager {
    * event the user sees a red icon and nothing else.
    */
   private failStructuredSession(session: SessionRuntime, error: unknown): void {
+    this.structuredFailureReporter.capture(session, error);
     const message = error instanceof Error ? error.message : String(error);
     this.outputPipeline.updateState(session, "error", "error", message);
     this.enqueueRuntimeEvent(session.threadId, {
       type: "error",
       threadId: session.threadId,
       message,
+    });
+  }
+
+  private completeForcedStructuredInterrupt(session: SessionRuntime): void {
+    this.runtimeEventRouter.flush();
+    this.outputPipeline.updateState(session, "idle", "none", undefined, {
+      forceCloseActiveTurn: true,
+    });
+
+    // A force-stopped explicit Stop stays idle until the user's next submit.
+    // A force-stopped steer is different: the submitted message is still an
+    // accepted user action and must survive the dead provider process. Paint
+    // it before clearing the strip, then resume the session and send it with
+    // the same item id so the replacement session cannot duplicate it.
+    const pending = session.pendingSteer;
+    if (!pending) return;
+    const userMessageItemId = this.structuredTurnQueue.emitOptimisticUserMessage(
+      session.threadId,
+      pending.prompt,
+      pending.segments,
+      pending.userMessageItemId,
+    );
+    const turn: QueuedStructuredTurn = { ...pending, userMessageItemId };
+    clearPendingSteerSlot(session, this.options.emit);
+    void this.spawnPipeline.restartThread(session, turn).catch((error) => {
+      if (!this.isCurrentSession(session)) return;
+      this.failStructuredSession(session, error);
     });
   }
 
@@ -240,19 +296,12 @@ export class ThreadSessionManager {
     | undefined {
     const session = this.sessions.get(threadId);
     if (!session) return undefined;
-    // Children inherit the effective launch config: built-in disables applied,
-    // and browser forced on when the agent-settings toggle (not just the
-    // per-thread flag) enables it for the parent.
+    // Children inherit the effective launch config with built-in disables applied.
     const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
     const effectiveConfig = effectiveLaunchConfig(session.config, disabledIds);
-    const config =
-      !disabledIds.includes("browser") &&
-      this.isBrowserMcpEnabledForLaunch(session.adapter, session.config)
-        ? { ...effectiveConfig, browserMcp: true }
-        : effectiveConfig;
     return {
       projectLocation: session.projectLocation,
-      config,
+      config: effectiveConfig,
       mcpLaunchSnapshot: session.mcpLaunchSnapshot,
     };
   }
@@ -261,52 +310,71 @@ export class ThreadSessionManager {
   async resolveSubagentParentMcpAccess(
     threadId: string,
     identity: McpThreadIdentity,
-  ): Promise<{
-    browserMcp?: BrowserMcpHttpConfig;
-    computerUseMcp?: ComputerUseMcpHttpConfig;
-    chromeMcp?: ChromeMcpHttpConfig;
-    appControlsMcp?: AppControlsMcpHttpConfig;
-    mcpServers?: McpLaunchSnapshot["mcpServers"];
-  }> {
+    targetAgentKind: AgentKind,
+  ): Promise<{ mcpServers?: ResolvedMcpServer[] }> {
     const session = this.sessions.get(threadId);
     if (!session) return {};
+    const targetAdapter = this.options.adapters.get(targetAgentKind);
+    if (!targetAdapter) return {};
     const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
-    const { mcpServers } = mcpLaunchSnapshot;
     const launchConfig = effectiveLaunchConfig(
       session.config,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
     );
-    const browserMcp = await this.spawnPipeline.resolveBrowserMcpForLaunch(
-      session.adapter,
-      session.projectLocation,
-      launchConfig,
+    const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
+      location: session.projectLocation,
+      config: launchConfig,
       mcpLaunchSnapshot,
       identity,
-    );
-    const computerUseMcp = this.spawnPipeline.resolveComputerUseMcpForLaunch(
-      session.projectLocation,
-      launchConfig,
-      mcpLaunchSnapshot,
-      identity,
-    );
-    const chromeMcp = this.spawnPipeline.resolveChromeMcpForLaunch(
-      session.projectLocation,
-      launchConfig,
-      mcpLaunchSnapshot,
-      identity,
-    );
-    const appControlsMcp = await this.spawnPipeline.resolveAppControlsMcpForLaunch(
-      session.projectLocation,
-      mcpLaunchSnapshot,
-      identity,
-    );
-    return {
-      ...(browserMcp ? { browserMcp } : {}),
-      ...(computerUseMcp ? { computerUseMcp } : {}),
-      ...(chromeMcp ? { chromeMcp } : {}),
-      ...(appControlsMcp ? { appControlsMcp } : {}),
-      ...(mcpServers.length > 0 ? { mcpServers } : {}),
-    };
+      adapter: targetAdapter,
+    });
+    return mcpServers.length > 0 || targetAdapter.capabilities.mcpConfigSource === "agentSettings"
+      ? { mcpServers }
+      : {};
+  }
+
+  /**
+   * Apply a provider-level MCP settings change (the provider settings page's
+   * Save) to the provider's live sessions. Only meaningful for adapters that
+   * declare `mcpConfigSource: "agentSettings"` — their MCP set is re-resolved
+   * from the freshly saved settings and each structured session that exposes
+   * `updateMcpServers` applies the new set to its directory instance. Terminal
+   * threads and sessions without the hook pick the change up on next launch.
+   * Per-session failures are logged, never fatal: one broken directory update
+   * must not strand the remaining sessions on the old set.
+   */
+  async reloadAgentMcpServers(payload: ReloadAgentMcpServersPayload): Promise<void> {
+    const reloads: Promise<void>[] = [];
+    for (const session of this.sessions.values()) {
+      if (session.agentKind !== payload.agentKind) continue;
+      if (session.adapter.capabilities.mcpConfigSource !== "agentSettings") continue;
+      const update = session.structuredSession?.updateMcpServers?.bind(session.structuredSession);
+      if (!update) continue;
+      reloads.push(
+        (async () => {
+          try {
+            const launchConfig = effectiveLaunchConfig(
+              session.config,
+              session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+            );
+            const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
+              location: session.projectLocation,
+              config: launchConfig,
+              mcpLaunchSnapshot: session.mcpLaunchSnapshot,
+              crossagentThreadId: session.threadId,
+              adapter: session.adapter,
+            });
+            await update(mcpServers);
+          } catch (error) {
+            console.warn(
+              `[supervisor] failed to reload MCP servers for thread ${session.threadId}:`,
+              error,
+            );
+          }
+        })(),
+      );
+    }
+    await Promise.all(reloads);
   }
 
   /**
@@ -317,39 +385,6 @@ export class ThreadSessionManager {
   appendSubagentRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void {
     if (!this.sessions.has(parentThreadId)) return;
     this.runtimeEventRouter.append(parentThreadId, event);
-  }
-
-  /**
-   * Orchestrator host hook: a thread's live runtime state plus whether its
-   * session supports non-interrupting steer. `undefined` once the session is
-   * gone. Consumed by the subagents MCP orchestrator lane.
-   */
-  getOrchestratorThreadState(threadId: string):
-    | {
-        status: import("@/shared/contracts").ThreadStatus;
-        attention: import("@/shared/contracts").ThreadAttention;
-        config: ThreadConfig;
-        supportsSteer: boolean;
-      }
-    | undefined {
-    const session = this.sessions.get(threadId);
-    if (!session) return undefined;
-    return {
-      status: session.status,
-      attention: session.attention,
-      config: session.config,
-      supportsSteer: Boolean(session.structuredSession?.steerTurn),
-    };
-  }
-
-  /**
-   * Orchestrator host hook: read a thread's provider transcript when its
-   * session's adapter supports `readThread`; `undefined` otherwise.
-   */
-  async readThreadHistory(threadId: string): Promise<ThreadHistory | undefined> {
-    const session = this.sessions.get(threadId);
-    if (!session?.structuredSession?.readThread) return undefined;
-    return await session.structuredSession.readThread();
   }
 
   /**
@@ -427,6 +462,7 @@ export class ThreadSessionManager {
     if (pending) {
       return { threadId };
     }
+    this.recentlyRemovedThreadIds.delete(threadId);
 
     const run = this.spawnPipeline.startThreadInner({ ...payload, threadId });
     this.startLocks.set(
@@ -448,20 +484,21 @@ export class ThreadSessionManager {
   }
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
-    const session = this.requireSession(payload.threadId);
-    if (session.status === "inactive") {
-      if (session.sessionRef) {
-        await this.spawnPipeline.restartThread(session, payload.prompt, payload.config);
-        return;
-      }
+    const session = this.sessions.get(payload.threadId);
+    if (!session) {
+      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
+      throw new Error(`Unknown thread session: ${payload.threadId}`);
+    }
+    if (session.status === "inactive" && !session.sessionRef) {
       throw new Error("This thread exited before a resumable session id was discovered.");
     }
-
     const usesStructuredFlow =
       session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
     const effectiveSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
           preserveImageAttachments: usesStructuredFlow,
+          preservePdfAttachments:
+            usesStructuredFlow && session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
       : undefined;
     const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
@@ -474,27 +511,34 @@ export class ThreadSessionManager {
         : payload.config;
 
     session.config = effectiveConfig;
+    const inlineInstructions = usesStructuredFlow
+      ? await this.resolveSkillTurnInjection(session, effectiveSegments)
+      : undefined;
+    const turn: QueuedStructuredTurn = {
+      prompt,
+      config: effectiveConfig,
+      ...(effectiveSegments ? { segments: effectiveSegments } : {}),
+      ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
+      ...(inlineInstructions ? { inlineInstructions } : {}),
+    };
+    if (session.status === "inactive") {
+      // Guaranteed to have a sessionRef here — the no-ref case threw above.
+      await this.spawnPipeline.restartThread(session, turn);
+      return;
+    }
     if (
       usesStructuredFlow &&
       !session.structuredSession &&
-      session.status === "error" &&
+      (session.status === "error" || session.status === "idle") &&
       session.sessionRef
     ) {
-      await this.spawnPipeline.restartThread(session, prompt, effectiveConfig);
+      await this.spawnPipeline.restartThread(session, turn);
       return;
     }
     // Route through the structured session when either the adapter is
     // server-controlled OR this thread was launched in chat mode (the
     // structured session owns input/output instead of the PTY).
     if (usesStructuredFlow && session.structuredSession?.startTurn) {
-      const inlineInstructions = await this.resolveSkillTurnInjection(session, effectiveSegments);
-      const turn: QueuedStructuredTurn = {
-        prompt,
-        config: effectiveConfig,
-        ...(effectiveSegments ? { segments: effectiveSegments } : {}),
-        ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
-        ...(inlineInstructions ? { inlineInstructions } : {}),
-      };
       // GUI threads route submit-while-working through the pending-steer
       // path. Renderers should call `setPendingSteer` directly for that case;
       // any `sendThreadInput` that lands here while working is treated as a
@@ -566,6 +610,7 @@ export class ThreadSessionManager {
       if (this.startLocks.has(payload.threadId)) {
         this.pendingStartInterrupts.add(payload.threadId);
         this.pendingStartAborts.add(payload.threadId);
+        this.rememberRemovedThread(payload.threadId);
         this.options.emit({
           type: "thread-state",
           threadId: payload.threadId,
@@ -576,10 +621,23 @@ export class ThreadSessionManager {
         });
         return;
       }
+      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
       throw new Error(`Unknown thread session: ${payload.threadId}`);
     }
-    this.options.subagentMcp?.cancelAll(payload.threadId);
+    this.options.crossagentMcp?.cancelForeground(payload.threadId);
     await this.structuredInterruptWatchdog.interruptStructuredTurn(session);
+  }
+
+  async controlThreadGoal(payload: ControlThreadGoalPayload): Promise<void> {
+    const { threadId, ...control } = payload;
+    const session = this.requireSession(threadId);
+    if (session.structuredSession?.controlGoal) {
+      await session.structuredSession.controlGoal(control);
+      return;
+    }
+    const prompt = session.adapter.buildGoalControlPrompt?.(control);
+    if (!prompt) throw new Error(`${session.adapter.label} does not support this goal control.`);
+    await this.sendThreadInput({ threadId, prompt, config: session.config });
   }
 
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
@@ -593,7 +651,9 @@ export class ThreadSessionManager {
     }
 
     const previousSessionId = session.sessionRef?.providerSessionId;
-    const history = await session.structuredSession.rollbackThread(payload.numTurns);
+    const history = payload.config
+      ? await session.structuredSession.rollbackThread(payload.numTurns, payload.config)
+      : await session.structuredSession.rollbackThread(payload.numTurns);
     if (
       history.providerSessionId &&
       history.providerSessionId !== session.sessionRef?.providerSessionId
@@ -611,7 +671,11 @@ export class ThreadSessionManager {
       shell.pty.write(payload.data);
       return;
     }
-    const session = this.requireSession(payload.threadId);
+    const session = this.sessions.get(payload.threadId);
+    if (!session) {
+      if (this.recentlyRemovedThreadIds.has(payload.threadId)) return;
+      throw new Error(`Unknown thread session: ${payload.threadId}`);
+    }
     requireSessionPty(session).write(payload.data);
     this.maybeArmUserInterruptRecovery(session, payload.data);
   }
@@ -738,7 +802,7 @@ export class ThreadSessionManager {
   async resizeTerminal(payload: ResizeTerminalPayload): Promise<void> {
     const shell = this.shellSessions.get(payload.threadId);
     if (shell) {
-      shell.pty.resize(payload.cols, payload.rows);
+      this.ptyLifecycle.resize(shell, payload.cols, payload.rows);
       return;
     }
     const session = this.sessions.get(payload.threadId);
@@ -746,7 +810,7 @@ export class ThreadSessionManager {
       return;
     }
     session.terminalSize = { cols: payload.cols, rows: payload.rows };
-    session.pty?.resize(payload.cols, payload.rows);
+    this.ptyLifecycle.resize(session, payload.cols, payload.rows);
   }
 
   /**
@@ -774,6 +838,7 @@ export class ThreadSessionManager {
     if (shell) {
       shell.ignoreExit = true;
       this.shellSessions.delete(payload.threadId);
+      this.rememberRemovedThread(payload.threadId);
       this.ptyLifecycle.killShell(shell);
       await this.ptyLifecycle.waitForExit(shell);
       return;
@@ -783,11 +848,13 @@ export class ThreadSessionManager {
     if (!existing) {
       if (this.startLocks.has(payload.threadId)) {
         this.pendingStartAborts.add(payload.threadId);
+        this.rememberRemovedThread(payload.threadId);
       }
       return;
     }
 
     existing.ignoreExit = true;
+    this.rememberRemovedThread(payload.threadId);
     this.outputPipeline.clearSessionTimers(existing);
     existing.stopSessionRefWatcher?.();
     existing.stopSessionRefWatcher = undefined;
@@ -796,8 +863,8 @@ export class ThreadSessionManager {
       this.sessionsBySessionId.delete(existing.sessionRef.providerSessionId);
     }
     this.runtimeEventRouter.clearAllForThread(payload.threadId);
-    this.options.subagentMcp?.cancelAll(payload.threadId);
-    this.options.subagentMcp?.unregister(payload.threadId);
+    this.options.crossagentMcp?.cancelAll(payload.threadId);
+    this.options.crossagentMcp?.unregister(payload.threadId);
     await existing.structuredSession?.dispose();
     if (existing.structuredSession) {
       await sleep(150);
@@ -808,6 +875,7 @@ export class ThreadSessionManager {
 
   async startShell(payload: StartShellPayload): Promise<void> {
     ensureNodePtySpawnHelperExecutable();
+    this.recentlyRemovedThreadIds.delete(payload.shellId);
     const existing = this.shellSessions.get(payload.shellId);
     if (existing) {
       existing.ignoreExit = true;
@@ -911,6 +979,7 @@ export class ThreadSessionManager {
         return;
       }
       this.shellSessions.delete(payload.shellId);
+      this.rememberRemovedThread(payload.shellId);
       this.options.emit({
         type: "thread-exited",
         threadId: payload.shellId,
@@ -923,7 +992,7 @@ export class ThreadSessionManager {
     // Forwarded subagent requests carry a run-namespaced id; route them to the
     // owning child handle first and only fall through to the parent session
     // when the id isn't a subagent request.
-    if (this.options.subagentMcp?.resolveChildRequest(payload.requestId, payload.response)) {
+    if (this.options.crossagentMcp?.resolveChildRequest(payload.requestId, payload.response)) {
       return;
     }
     const session = this.requireSession(payload.threadId);
@@ -959,6 +1028,7 @@ export class ThreadSessionManager {
     await Promise.allSettled(
       [...this.sessions.values()].map(async (session) => {
         session.ignoreExit = true;
+        this.rememberRemovedThread(session.threadId);
         this.outputPipeline.clearSessionTimers(session);
         await session.structuredSession?.dispose();
         this.ptyLifecycle.kill(session);
@@ -969,6 +1039,7 @@ export class ThreadSessionManager {
 
     for (const shell of this.shellSessions.values()) {
       shell.ignoreExit = true;
+      this.rememberRemovedThread(shell.shellId);
       this.ptyLifecycle.killShell(shell);
     }
     this.shellSessions.clear();
@@ -981,6 +1052,16 @@ export class ThreadSessionManager {
       throw new Error(`Unknown thread session: ${threadId}`);
     }
     return session;
+  }
+
+  private rememberRemovedThread(threadId: string): void {
+    this.recentlyRemovedThreadIds.delete(threadId);
+    this.recentlyRemovedThreadIds.add(threadId);
+    if (this.recentlyRemovedThreadIds.size <= RECENTLY_REMOVED_THREAD_LIMIT) return;
+    const oldest = this.recentlyRemovedThreadIds.values().next().value;
+    if (oldest !== undefined) {
+      this.recentlyRemovedThreadIds.delete(oldest);
+    }
   }
 
   private isCurrentSession(session: SessionRuntime): boolean {
@@ -1054,22 +1135,10 @@ export class ThreadSessionManager {
   }
 
   private resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string> {
-    let settings = defaultSharedSettings;
-    try {
-      const raw = readFileSync(this.options.settingsPath, "utf8");
-      settings = normalizeSharedSettings(JSON.parse(raw));
-    } catch {
-      // use defaults
-    }
-    return settings.agentSettings[adapter.kind] ?? {};
-  }
-
-  private isBrowserMcpEnabledForLaunch(
-    adapter: AgentAdapter | undefined,
-    config: ThreadConfig,
-  ): boolean {
-    if (config.browserMcp === true) return true;
-    if (!adapter) return false;
-    return this.resolveAgentSettings(adapter).browserMcp === true;
+    const settings = readSupervisorSharedSettings(this.options.settingsPath);
+    return {
+      ...(adapter.capabilities.agentSettingsDefaults ?? {}),
+      ...(settings.agentSettings[adapter.kind] ?? {}),
+    };
   }
 }

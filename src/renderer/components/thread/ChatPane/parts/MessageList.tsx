@@ -1,10 +1,28 @@
-import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEventHandler,
+  type PointerEventHandler,
+  type ReactNode,
+  type RefObject,
+  type WheelEventHandler,
+} from "react";
+import { LegendList, type LegendListRef, type LegendListState } from "@legendapp/list/react";
 import { Surface } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
-import type { MessageItemPayload, ProjectLocation } from "@/shared/contracts";
+import type {
+  MessageItemPayload,
+  ProjectLocation,
+  ThreadConfig,
+  ToolCallPayload,
+} from "@/shared/contracts";
+import { threadProductProperties } from "@/renderer/analytics/posthog";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
-import { isIosTouchScroll } from "@/renderer/utils/iosScroll";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -27,17 +45,21 @@ import {
 } from "../chatPaneSelectors";
 import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
-import { imageViewRendersInline } from "./items/imageViewSource";
+import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import {
   getTimelineMeasurementSignature,
   readTimelineMeasurements,
   writeTimelineMeasurements,
 } from "./timelineMeasurementCache";
-import { BOTTOM_EPSILON_PX } from "../chatScrollGeometry";
+import { syncFollowingVirtualRowPositions } from "./virtualRowLayout";
 
 export interface CheckpointRevertActions {
-  rollbackThreadConversation(input: { threadId: string; numTurns: number }): Promise<void>;
+  rollbackThreadConversation(input: {
+    threadId: string;
+    numTurns: number;
+    config?: ThreadConfig;
+  }): Promise<void>;
   restoreFileCheckpoint(input: {
     threadId: string;
     checkpointItemId: string;
@@ -47,9 +69,26 @@ export interface CheckpointRevertActions {
 
 interface MessageListProps {
   threadId: string;
+  threadConfig?: ThreadConfig;
   entries: readonly ChatTimelineEntry[];
   isTurnActive?: boolean;
-  scrollElement: HTMLDivElement | null;
+  markTailAsLive?: boolean;
+  setScrollContainer?: (element: HTMLDivElement | null) => void;
+  scrollContentRef?: RefObject<HTMLDivElement | null>;
+  onContentHeightChange?: () => void;
+  onVirtualizerLayoutChange?: () => void;
+  onLiveVirtualizerLayoutChange?: () => void;
+  registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
+  scrollClassName?: string;
+  scrollStyle?: CSSProperties;
+  contentClassName?: string;
+  header?: ReactNode;
+  footer?: ReactNode;
+  emptyContent?: ReactNode;
+  onWheelCapture?: WheelEventHandler<HTMLDivElement>;
+  onPointerDownCapture?: PointerEventHandler<HTMLDivElement>;
+  onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>;
+  onStartReached?: () => void;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
    * late provider events cannot append onto a truncated timeline.
@@ -74,39 +113,37 @@ interface MessageListProps {
   ) => void;
 }
 
-// Trackpad deltas can jump farther than a viewport before React commits the
-// next virtual range. Keep a larger item-count band mounted so fast scrolls do
-// not expose the spacer before rows render.
-const CHAT_TRANSCRIPT_OVERSCAN = 16;
-const DEFAULT_ROW_ESTIMATE_PX = 96;
-const INLINE_IMAGE_ROW_ESTIMATE_PX = 320;
-const ASSISTANT_IMAGE_ROW_ESTIMATE_PX = 384;
-// A collapsed tool/command/file/search row — and a collapsed tool-call group —
-// renders a single accordion/disclosure trigger: `chatRowClass`'s `py-1` (8px)
-// wrapping command-size text with `leading-tight` (~15px at the 13px default),
-// plus the virtual row wrapper's `pb-1` (4px) ≈ 27px. Groups are only expanded
-// while they are the live tail (measured immediately), so collapsed is the
-// right default. This was 64 (group) / 56 (items) — a ~2x over-estimate that
-// fed a large estimate→measure delta into scroll compensation on scrollback.
-const COLLAPSED_ROW_ESTIMATE_PX = 28;
-// The completed reasoning "Thought" toggle is a custom row (not the accordion):
-// `py-2` (16px) around a single ~12px icon/label line (`size-3` icons,
-// `leading-none`), plus the virtual row wrapper's `pb-1` (4px) ≈ 32px. Was 52.
-const COLLAPSED_REASONING_ROW_ESTIMATE_PX = 32;
+const DEFAULT_ROW_ESTIMATE_PX = 59;
+const INLINE_IMAGE_ROW_CHROME_PX = 27;
+const INLINE_IMAGE_MAX_HEIGHT_REM = 18;
+const INLINE_IMAGE_MAX_VIEWPORT_HEIGHT = 0.4;
+const INLINE_IMAGE_HORIZONTAL_CHROME_PX = 26;
 const SKIP_REVERT_CONFIRM_PREF_KEY = "poracode-chat-checkpoint-revert-skip-confirm";
-// How long the iOS scroll-compensation flush waits for momentum to idle before
-// applying the buffered delta. Matches @tanstack/virtual-core's
-// `isScrollingResetDelay` (150ms) so it fires right as the virtualizer itself
-// considers the scroll settled.
-const COMPENSATION_SETTLE_MS = 150;
 
 // Intentionally not wrapped in `React.memo`: pane swaps preserve this fiber
 // while moving the DOM, so the virtualizer must re-render to re-measure.
 export function MessageList({
   threadId,
+  threadConfig,
   entries,
   isTurnActive = false,
-  scrollElement,
+  markTailAsLive = true,
+  setScrollContainer,
+  scrollContentRef,
+  onContentHeightChange,
+  onVirtualizerLayoutChange,
+  onLiveVirtualizerLayoutChange,
+  registerVirtualScrollToBottom,
+  scrollClassName,
+  scrollStyle,
+  contentClassName,
+  header,
+  footer,
+  emptyContent,
+  onWheelCapture,
+  onPointerDownCapture,
+  onKeyDownCapture,
+  onStartReached,
   canRevertCheckpoints = true,
   checkpointGuard,
   checkpointActions,
@@ -116,230 +153,117 @@ export function MessageList({
 }: MessageListProps) {
   const hasItems = entries.length > 0;
   const parentActions = useChatPaneActions();
+  const listRef = useRef<LegendListRef | null>(null);
+  const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
   const virtualSizeBoxRef = useRef<HTMLDivElement | null>(null);
-  const pendingScrollCompensationRef = useRef(0);
-  // iOS WebKit cancels an in-flight momentum scroll the instant any
-  // programmatic `scrollTop` write lands, so the per-commit compensation write
-  // below makes a flick-up "stop" each time a row above the viewport trades its
-  // estimated height for a real one. On iOS we instead buffer that delta while a
-  // backward momentum scroll is in flight and flush it in a single write once
-  // the gesture settles. Captured once: the form factor never changes at runtime.
-  const deferScrollCompensation = useRef(isIosTouchScroll()).current;
-  const isCompensationDeferredRef = useRef(false);
-  const compensationFlushTimerRef = useRef<number | null>(null);
-  const scheduleCompensationFlushRef = useRef<(() => void) | null>(null);
+  const totalSizeUnsubscribeRef = useRef<(() => void) | null>(null);
+  const measurementSignatureRef = useRef<string | null>(null);
+  const restoredMeasurementSignatureRef = useRef<string | null>(null);
   const [pendingRevertItemId, setPendingRevertItemId] = useState<string | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
-  const [initialMeasurementSignature] = useState(() =>
-    getTimelineMeasurementSignature(scrollElement),
-  );
-  const [initialMeasurementsCache] = useState(() =>
-    readTimelineMeasurements(threadId, initialMeasurementSignature),
-  );
-  const measurementSignatureRef = useRef(initialMeasurementSignature);
-  const virtualizer = useVirtualizer({
-    count: entries.length,
-    getScrollElement: useCallback(() => scrollElement, [scrollElement]),
-    estimateSize: useCallback(
-      (index: number) => {
-        const entry = entries[index];
-        return estimateTimelineEntrySize(entry, threadId);
-      },
-      [entries, threadId],
-    ),
-    getItemKey: useCallback((index: number) => entries[index]?.id ?? index, [entries]),
-    overscan: CHAT_TRANSCRIPT_OVERSCAN,
-    useFlushSync: true,
-    // On iOS the rAF-wrapped ResizeObserver adds ~16ms of latency that desyncs a
-    // remeasure from the momentum frame for no benefit (TanStack's own default is
-    // off). Keep it on elsewhere — it's load-bearing nowhere else and flipping it
-    // for everyone is out of scope for this fix.
-    useAnimationFrameWithResizeObserver: !deferScrollCompensation,
-    // Force the first range calculation to the tail. A fixed overshoot avoids
-    // both an extra estimation pass and a mismatch when restored measurements
-    // are taller than the current estimates.
-    initialOffset: () => Number.MAX_SAFE_INTEGER,
-    initialMeasurementsCache,
-    anchorTo: "end",
-    followOnAppend: true,
-    scrollEndThreshold: BOTTOM_EPSILON_PX,
-  });
 
-  useLayoutEffect(() => {
-    const signature = getTimelineMeasurementSignature(scrollElement);
-    if (measurementSignatureRef.current === null) {
-      measurementSignatureRef.current = signature;
-    }
-    return () => {
-      const cacheSignature = measurementSignatureRef.current;
-      if (!cacheSignature || getTimelineMeasurementSignature(scrollElement) !== cacheSignature) {
-        return;
-      }
+  const snapshotMeasurements = useCallback(
+    (instance: LegendListRef, scrollElement: HTMLDivElement) => {
+      const signature = measurementSignatureRef.current;
+      if (!signature || getTimelineMeasurementSignature(scrollElement) !== signature) return;
       const state = useAppStore.getState();
-      const measurements = virtualizer
-        .takeSnapshot()
-        .filter((measurement) =>
-          isRemountStableSnapshotItem(
-            selectRuntimeItemById(state, threadId, String(measurement.key)),
-          ),
-        );
-      writeTimelineMeasurements(threadId, cacheSignature, measurements);
-    };
-  }, [scrollElement, threadId, virtualizer]);
+      const sizes = instance.getState().sizes;
+      const measurements = entriesRef.current.flatMap((entry, index) => {
+        if (entry.kind !== "item") return [];
+        if (!isRemountStableSnapshotItem(selectRuntimeItemById(state, threadId, entry.id))) {
+          return [];
+        }
+        const size = sizes.get(entry.id);
+        return size === undefined ? [] : [{ key: entry.id, index, size }];
+      });
+      writeTimelineMeasurements(threadId, signature, measurements);
+    },
+    [threadId],
+  );
+
+  const setListRef = useCallback(
+    (instance: LegendListRef | null) => {
+      const previousInstance = listRef.current;
+      const previousScrollElement = scrollElementRef.current;
+      if (!instance && previousInstance && previousScrollElement) {
+        snapshotMeasurements(previousInstance, previousScrollElement);
+      }
+      totalSizeUnsubscribeRef.current?.();
+      totalSizeUnsubscribeRef.current = null;
+      listRef.current = instance;
+      const scrollElement = instance?.getScrollableNode() as HTMLDivElement | undefined;
+      const contentElement = scrollElement?.querySelector<HTMLDivElement>(
+        ".legend-list-content-container",
+      );
+      scrollElementRef.current = scrollElement ?? null;
+      virtualSizeBoxRef.current = contentElement ?? null;
+      if (contentElement) {
+        contentElement.dataset.chatVirtualSizeBox = "true";
+        contentElement.dataset.bottomFadeVisible = "true";
+      }
+      if (scrollContentRef) scrollContentRef.current = contentElement ?? null;
+      setScrollContainer?.(scrollElement ?? null);
+      if (instance) {
+        totalSizeUnsubscribeRef.current = instance
+          .getState()
+          .listen("totalSize", () =>
+            (onContentHeightChange ?? parentActions?.onContentHeightChange)?.(),
+          );
+      }
+    },
+    [
+      onContentHeightChange,
+      parentActions,
+      scrollContentRef,
+      setScrollContainer,
+      snapshotMeasurements,
+    ],
+  );
 
   useLayoutEffect(() => {
-    if (!parentActions?.registerVirtualScrollToBottom) return;
-    parentActions.registerVirtualScrollToBottom(() => {
-      if (entries.length === 0) return;
-      virtualizer.scrollToIndex(entries.length - 1, { align: "end" });
+    const instance = listRef.current;
+    const scrollElement = scrollElementRef.current;
+    if (!instance || !scrollElement || entries.length === 0) return;
+    const signature = getTimelineMeasurementSignature(scrollElement);
+    measurementSignatureRef.current = signature;
+    if (!signature || restoredMeasurementSignatureRef.current === signature) return;
+    restoredMeasurementSignatureRef.current = signature;
+    const entryIds = new Set(entries.map((entry) => entry.id));
+    const measurements = readTimelineMeasurements(threadId, signature);
+    for (const measurement of measurements) {
+      if (!entryIds.has(String(measurement.key))) continue;
+      instance.setItemSize(String(measurement.key), {
+        height: measurement.size,
+        width: scrollElement.clientWidth,
+      });
+    }
+  }, [entries, threadId]);
+
+  useLayoutEffect(() => {
+    const register = registerVirtualScrollToBottom ?? parentActions?.registerVirtualScrollToBottom;
+    if (!register) return;
+    register(() => {
+      void listRef.current?.scrollToEnd({ animated: false });
     });
-    return () => parentActions.registerVirtualScrollToBottom?.(null);
-  }, [entries.length, parentActions, virtualizer]);
+    return () => register(null);
+  }, [parentActions, registerVirtualScrollToBottom]);
 
   useLayoutEffect(() => {
     if (!registerScrollToIndex) return;
     registerScrollToIndex((index, options) => {
       if (index < 0 || index >= entries.length) return;
-      virtualizer.scrollToIndex(index, options ?? { align: "center" });
+      const align = options?.align ?? "center";
+      void listRef.current?.scrollToIndex({
+        animated: false,
+        index,
+        viewPosition: align === "start" ? 0 : align === "end" ? 1 : 0.5,
+      });
     });
     return () => registerScrollToIndex(null);
-  }, [entries.length, registerScrollToIndex, virtualizer]);
-
-  useLayoutEffect(() => {
-    // Compensate when a row above a user-controlled scrollback window trades
-    // its estimate for a real measurement. End-pinned growth is owned by
-    // TanStack's native anchor; scrollback corrections stay synchronous with
-    // our row commit so they do not paint a frame apart from the height change.
-    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, delta, instance) => {
-      if (!scrollElement) return false;
-      const isAboveViewport = item.start + item.size <= scrollElement.scrollTop;
-      const stickToBottom = parentActions?.isStickToBottom?.() === true;
-      const hasIntent = parentActions?.hasRecentUserScrollIntent?.() === true;
-      // Sticky / in-viewport measure while the user is scrolling away must not
-      // write scrollTop — that yanks a thumb/wheel drag back toward the bottom.
-      // Above-viewport deltas are different: they keep the same pixels on screen
-      // when an estimated row mounts shorter/taller, so they must still apply
-      // (synchronously) or scroll-back jumps.
-      if (hasIntent && (stickToBottom || !isAboveViewport)) {
-        return false;
-      }
-      // Native end anchoring owns sticky row growth. Keep the custom buffered
-      // compensation only for rows above a user-controlled scrollback window.
-      if (!stickToBottom && isAboveViewport) {
-        pendingScrollCompensationRef.current += delta;
-        // Defer above-viewport corrections only for momentum coasts without a
-        // hard intent flag (iOS / trackpad). While intent is active we apply
-        // above-viewport deltas in the same frame as the measure.
-        if (!hasIntent && instance?.isScrolling && instance.scrollDirection === "backward") {
-          isCompensationDeferredRef.current = true;
-        }
-      }
-      return false;
-    };
-    return () => {
-      virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
-    };
-  }, [parentActions, scrollElement, virtualizer]);
-
-  // Intentionally dependency-free: runs after every commit, once row refs have
-  // synchronously measured newly mounted rows, so the scroll correction lands
-  // before the browser paints the row's real height.
-  useLayoutEffect(() => {
-    if (pendingScrollCompensationRef.current === 0 || !scrollElement) return;
-    // Buffered deltas are held until the gesture settles (see the effect below)
-    // so the write never lands mid-momentum. Sticky / intent above-viewport
-    // corrections still apply synchronously, in the same paint as the measure.
-    if (isCompensationDeferredRef.current) {
-      // Arm the settle flush from the commit itself, not just from scroll
-      // events — so a deferral set on the final scroll tick of a coast (where no
-      // further scroll arrives to re-arm) is still flushed once activity idles,
-      // even on platforms without `scrollend`.
-      scheduleCompensationFlushRef.current?.();
-      return;
-    }
-    parentActions?.noteProgrammaticScroll?.(
-      scrollElement.scrollTop + pendingScrollCompensationRef.current,
-    );
-    scrollElement.scrollTop += pendingScrollCompensationRef.current;
-    pendingScrollCompensationRef.current = 0;
-  });
-
-  // Apply buffered scroll compensation in a single write once an upward scroll
-  // has settled. A `scroll`-idle debounce covers both a short flick and a long
-  // inertial coast; `scrollend` gives a crisper signal when available. Sticky
-  // corrections never enter this path (they stay synchronous above).
-  useLayoutEffect(() => {
-    if (!scrollElement) return;
-    const flushCompensation = () => {
-      if (compensationFlushTimerRef.current !== null) {
-        clearTimeout(compensationFlushTimerRef.current);
-        compensationFlushTimerRef.current = null;
-      }
-      if (pendingScrollCompensationRef.current === 0) {
-        isCompensationDeferredRef.current = false;
-        return;
-      }
-      // Intent still active — keep any leftover buffer and retry after settle.
-      // Do not discard: that used to jump scroll-back when estimate→measure
-      // shrinks landed above the viewport with no compensation.
-      if (parentActions?.hasRecentUserScrollIntent?.()) {
-        isCompensationDeferredRef.current = true;
-        if (compensationFlushTimerRef.current === null) {
-          compensationFlushTimerRef.current = window.setTimeout(
-            flushCompensation,
-            COMPENSATION_SETTLE_MS,
-          );
-        }
-        return;
-      }
-      isCompensationDeferredRef.current = false;
-      parentActions?.noteProgrammaticScroll?.(
-        scrollElement.scrollTop + pendingScrollCompensationRef.current,
-      );
-      scrollElement.scrollTop += pendingScrollCompensationRef.current;
-      pendingScrollCompensationRef.current = 0;
-    };
-    const scheduleFlush = () => {
-      if (!isCompensationDeferredRef.current) return;
-      if (compensationFlushTimerRef.current !== null) {
-        clearTimeout(compensationFlushTimerRef.current);
-      }
-      // Re-armed on every scroll tick, so it only fires once momentum truly idles.
-      compensationFlushTimerRef.current = window.setTimeout(
-        flushCompensation,
-        COMPENSATION_SETTLE_MS,
-      );
-    };
-    scheduleCompensationFlushRef.current = scheduleFlush;
-    scrollElement.addEventListener("scroll", scheduleFlush, { passive: true });
-    scrollElement.addEventListener("scrollend", flushCompensation);
-    if (deferScrollCompensation) {
-      // iOS: a new touchstart itself cancels any in-flight momentum — flush then
-      // so visible drift is bounded to a single gesture.
-      scrollElement.addEventListener("touchstart", flushCompensation, { passive: true });
-    }
-    return () => {
-      scheduleCompensationFlushRef.current = null;
-      scrollElement.removeEventListener("scroll", scheduleFlush);
-      scrollElement.removeEventListener("scrollend", flushCompensation);
-      if (deferScrollCompensation) {
-        scrollElement.removeEventListener("touchstart", flushCompensation);
-      }
-      if (compensationFlushTimerRef.current !== null) {
-        clearTimeout(compensationFlushTimerRef.current);
-        compensationFlushTimerRef.current = null;
-      }
-      // Don't strand a buffered delta when the thread unmounts mid-flick.
-      if (pendingScrollCompensationRef.current !== 0) {
-        parentActions?.noteProgrammaticScroll?.(
-          scrollElement.scrollTop + pendingScrollCompensationRef.current,
-        );
-        scrollElement.scrollTop += pendingScrollCompensationRef.current;
-        pendingScrollCompensationRef.current = 0;
-      }
-    };
-  }, [deferScrollCompensation, parentActions, scrollElement]);
+  }, [entries.length, registerScrollToIndex]);
 
   useLayoutEffect(() => {
     const virtualSizeBox = virtualSizeBoxRef.current;
@@ -359,14 +283,6 @@ export function MessageList({
     return useAppStore.subscribe(selectLastItemIsAssistantMessage, updateBottomMask);
   }, [entries, threadId]);
 
-  const virtualItems = virtualizer.getVirtualItems();
-  const totalSize = virtualizer.getTotalSize();
-  const firstVisibleStart = virtualItems[0]?.start ?? 0;
-
-  useLayoutEffect(() => {
-    parentActions?.onContentHeightChange();
-  }, [parentActions, totalSize]);
-
   // The "live tail" index drives the auto-expand on `ToolCallGroup`. Trailing
   // empty/in-flight reasoning items don't count: an agent emitting a reasoning
   // bracket between tool calls would otherwise collapse the group prematurely
@@ -379,20 +295,30 @@ export function MessageList({
   );
   const lastLiveIndex = useAppStore(liveTailSelector);
 
-  const measureRowElement = useCallback(
-    (index: number, element: HTMLDivElement | null) => {
-      if (element && element.dataset.index !== String(index)) {
-        // TanStack reads data-index during measurement; keep reused rows aligned.
-        element.dataset.index = String(index);
+  const remeasureRowElement = useCallback(
+    (itemKey: string, element: HTMLDivElement | null, liveStreamGrowth = false) => {
+      const instance = listRef.current;
+      if (!element || !instance) return null;
+      const height = element.offsetHeight;
+      // A streamed store delta and the live-row ResizeObserver can report the
+      // same painted size in either order. Let the first path update LegendList
+      // and make the second a no-op instead of starting a redundant anchor /
+      // scroll reconciliation cycle.
+      if (liveStreamGrowth && instance.getState().sizes.get(itemKey) === height) {
+        return instance.getState();
       }
-      // Register with TanStack's ResizeObserver cache. measureElement skips
-      // resizeItem while isScrolling, so scroll-back still needs a forced sync
-      // size — but only one offsetHeight read (the old path measured twice).
-      virtualizer.measureElement(element);
-      if (!element) return;
-      virtualizer.resizeItem(index, element.offsetHeight);
+      if (liveStreamGrowth) {
+        onLiveVirtualizerLayoutChange?.();
+      } else {
+        onVirtualizerLayoutChange?.();
+      }
+      instance.setItemSize(itemKey, {
+        height,
+        width: element.offsetWidth,
+      });
+      return instance.getState();
     },
-    [virtualizer],
+    [onLiveVirtualizerLayoutChange, onVirtualizerLayoutChange],
   );
 
   const performRevert = useCallback(
@@ -407,9 +333,15 @@ export function MessageList({
           ? countRollbackTurnsAfterCheckpoint(itemIds, itemsById, completedTurns, itemId)
           : 0;
       const revert = checkpointActions ?? readBridge();
+      let providerRollbackSucceeded = rollbackTurns === 0;
       if (rollbackTurns > 0) {
         try {
-          await revert.rollbackThreadConversation({ threadId, numTurns: rollbackTurns });
+          await revert.rollbackThreadConversation({
+            threadId,
+            numTurns: rollbackTurns,
+            ...(threadConfig ? { config: threadConfig } : {}),
+          });
+          providerRollbackSucceeded = true;
         } catch (error) {
           console.warn(
             "[checkpoint] provider rollback failed; continuing with local revert",
@@ -426,9 +358,16 @@ export function MessageList({
       }
       state.truncateThreadRuntimeAfter(threadId, itemId);
       await readBridge().dbTruncateThreadRuntimeAfter({ threadId, itemId });
+      const thread = state.threads.find((item) => item.id === threadId);
+      captureProductEvent("thread.checkpoint_reverted", {
+        ...(thread ? threadProductProperties(thread) : {}),
+        has_file_checkpoint: Boolean(projectLocation && checkpoint),
+        outcome: providerRollbackSucceeded ? "complete" : "local_only",
+        rollback_turn_count: rollbackTurns,
+      });
       parentActions?.onContentHeightChange();
     },
-    [checkpointActions, parentActions, projectLocation, threadId],
+    [checkpointActions, parentActions, projectLocation, threadConfig, threadId],
   );
 
   const requestRevert = useCallback(
@@ -475,51 +414,69 @@ export function MessageList({
       : undefined,
   );
 
-  if (!hasItems) return null;
-
   return (
     <>
-      <div className="mx-auto w-full max-w-[920px] pb-1">
-        <div
-          ref={virtualSizeBoxRef}
-          data-chat-virtual-size-box="true"
-          data-bottom-fade-visible="true"
-          className="relative w-full overflow-hidden [--lc-chat-bottom-mask-end-alpha:0]"
-          style={{
-            height: totalSize,
-            WebkitMaskImage:
-              "linear-gradient(to bottom, black calc(100% - 14px), rgb(0 0 0 / var(--lc-chat-bottom-mask-end-alpha, 0)))",
-            maskImage:
-              "linear-gradient(to bottom, black calc(100% - 14px), rgb(0 0 0 / var(--lc-chat-bottom-mask-end-alpha, 0)))",
-            transition: "--lc-chat-bottom-mask-end-alpha 150ms ease-out",
-          }}
-        >
-          <div
-            data-chat-virtual-block="true"
-            className="absolute left-0 top-0 w-full"
-            style={{ transform: `translateY(${firstVisibleStart}px)` }}
-          >
-            {virtualItems.map((virtualRow) => {
-              const entry = entries[virtualRow.index];
-              if (!entry) return null;
-              return (
-                <VirtualChatListRow
-                  key={virtualRow.key}
-                  threadId={threadId}
-                  entry={entry}
-                  index={virtualRow.index}
-                  isLastEntry={virtualRow.index === lastLiveIndex}
-                  isTurnActive={isTurnActive}
-                  measureElement={measureRowElement}
-                  suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
-                  canRevertCheckpoints={canRevertCheckpoints}
-                  onRequestRevert={requestRevert}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      <LegendList
+        ref={setListRef}
+        data={entries}
+        dataKey={threadId}
+        estimatedItemSize={DEFAULT_ROW_ESTIMATE_PX}
+        extraData={`${lastLiveIndex}:${isTurnActive}:${markTailAsLive}:${suppressInlineTurnAnchorId ?? ""}:${canRevertCheckpoints}`}
+        getFixedItemSize={(entry) =>
+          getFixedTimelineEntrySize(entry, threadId, scrollElementRef.current?.clientWidth)
+        }
+        getItemType={(entry, index) =>
+          getTimelineEntryType(
+            entry,
+            threadId,
+            index,
+            index === lastLiveIndex && isTurnActive,
+            suppressInlineTurnAnchorId,
+          )
+        }
+        initialScrollAtEnd
+        keyExtractor={(entry) => entry.id}
+        maintainScrollAtEnd={{
+          animated: false,
+          on: { dataChange: true, footerLayout: true, itemLayout: true, layout: true },
+        }}
+        maintainScrollAtEndThreshold={0}
+        maintainVisibleContentPosition={{ data: true, size: true }}
+        {...(onStartReached ? { onStartReached, onStartReachedThreshold: 0.75 } : {})}
+        recycleItems={false}
+        renderItem={({ item: entry, index }) => (
+          <VirtualChatListRow
+            threadId={threadId}
+            entry={entry}
+            index={index}
+            isLastEntry={markTailAsLive && index === lastLiveIndex}
+            isTurnActive={isTurnActive}
+            remeasureElement={remeasureRowElement}
+            {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
+            suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
+            canRevertCheckpoints={canRevertCheckpoints}
+            onRequestRevert={requestRevert}
+          />
+        )}
+        {...(header ? { ListHeaderComponent: <>{header}</> } : {})}
+        {...(!hasItems && emptyContent ? { ListEmptyComponent: <>{emptyContent}</> } : {})}
+        {...(footer ? { ListFooterComponent: <div className="pb-2">{footer}</div> } : {})}
+        {...(scrollClassName ? { className: scrollClassName } : {})}
+        contentContainerClassName={`relative w-full overflow-hidden [--lc-chat-bottom-mask-end-alpha:0] ${contentClassName ?? ""}`}
+        contentContainerStyle={{
+          WebkitMaskImage:
+            "linear-gradient(to bottom, black calc(100% - 14px), rgb(0 0 0 / var(--lc-chat-bottom-mask-end-alpha, 0)))",
+          maskImage:
+            "linear-gradient(to bottom, black calc(100% - 14px), rgb(0 0 0 / var(--lc-chat-bottom-mask-end-alpha, 0)))",
+          transition: "--lc-chat-bottom-mask-end-alpha 150ms ease-out",
+        }}
+        data-poracode-chat-scroller="true"
+        {...(onKeyDownCapture ? { onKeyDownCapture } : {})}
+        onLoad={() => (onContentHeightChange ?? parentActions?.onContentHeightChange)?.()}
+        {...(onPointerDownCapture ? { onPointerDownCapture } : {})}
+        {...(onWheelCapture ? { onWheelCapture } : {})}
+        {...(scrollStyle ? { style: scrollStyle } : {})}
+      />
       <RevertCheckpointDialog
         isOpen={pendingRevertItemId !== null}
         dontAskAgain={dontAskAgain}
@@ -540,7 +497,12 @@ type VirtualChatListRowProps = {
   index: number;
   isLastEntry: boolean;
   isTurnActive: boolean;
-  measureElement: (index: number, element: HTMLDivElement | null) => void;
+  remeasureElement: (
+    itemKey: string,
+    element: HTMLDivElement | null,
+    liveStreamGrowth?: boolean,
+  ) => LegendListState | null;
+  onVirtualizerLayoutChange?: () => void;
   suppressInlineTurnAnchorId: string | null;
   canRevertCheckpoints: boolean;
   onRequestRevert: (itemId: string) => void;
@@ -552,32 +514,36 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
   index,
   isLastEntry,
   isTurnActive,
-  measureElement,
+  remeasureElement,
+  onVirtualizerLayoutChange,
   suppressInlineTurnAnchorId,
   canRevertCheckpoints,
   onRequestRevert,
 }: VirtualChatListRowProps) {
   const rowElementRef = useRef<HTMLDivElement | null>(null);
   const liveMeasureRafRef = useRef<number | null>(null);
-  const ref = useCallback(
-    (element: HTMLDivElement | null) => {
-      rowElementRef.current = element;
-      measureElement(index, element);
-    },
-    [index, measureElement],
-  );
+  // Keep the observer mounted when an appended prompt changes this row from
+  // tail to mid-list; resetting its height baseline there misses completion
+  // growth that lands in the same commit.
+  const isLastEntryRef = useRef(isLastEntry);
+  isLastEntryRef.current = isLastEntry;
+  const ref = useCallback((element: HTMLDivElement | null) => {
+    rowElementRef.current = element;
+  }, []);
   const remeasureRow = useCallback(() => {
     const element = rowElementRef.current;
     if (!element) return;
-    measureElement(index, element);
-  }, [index, measureElement]);
+    remeasureElement(entry.id, element);
+  }, [entry.id, remeasureElement]);
   const scheduleLiveMeasure = useCallback(() => {
     if (liveMeasureRafRef.current !== null) return;
     liveMeasureRafRef.current = requestAnimationFrame(() => {
       liveMeasureRafRef.current = null;
-      remeasureRow();
+      const element = rowElementRef.current;
+      if (!element) return;
+      remeasureElement(entry.id, element, true);
     });
-  }, [remeasureRow]);
+  }, [entry.id, remeasureElement]);
   useLayoutEffect(() => {
     if (!isLastEntry) return;
     return useAppStore.subscribe(
@@ -599,6 +565,39 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
       },
     );
   }, [entry, isLastEntry, scheduleLiveMeasure, threadId]);
+  useLayoutEffect(() => {
+    const element = rowElementRef.current;
+    if (!element) return;
+
+    let previousHeight = element.offsetHeight;
+    let previousWidth = element.offsetWidth;
+    const observer = new ResizeObserver(() => {
+      const nextHeight = element.offsetHeight;
+      const nextWidth = element.offsetWidth;
+      if (nextHeight === previousHeight && nextWidth === previousWidth) return;
+      const previousMeasuredHeight = previousHeight;
+      const heightDelta = nextHeight - previousMeasuredHeight;
+      previousHeight = nextHeight;
+      previousWidth = nextWidth;
+      // The smoothed Markdown renderer can grow between provider deltas, and the
+      // completion commit renders the final text concurrently — often a few
+      // frames after the store event. The DOM resize is the earliest reliable
+      // signal and ResizeObserver runs after layout but before paint, so measure
+      // LegendList here rather than waiting for the next stream event or frame.
+      const layout = remeasureElement(entry.id, element, true);
+      // LegendList may commit its position wrappers on this frame or the next.
+      // Nothing sits below the tail, but a growing mid-list row can briefly
+      // paint into its neighbour. Mirror the virtualizer's authoritative
+      // single-column positions before paint; never infer them from DOM deltas.
+      // Shrinks remain entirely LegendList-owned because it deliberately
+      // confirms them on the next animation frame.
+      if (layout && !isLastEntryRef.current && heightDelta > 0) {
+        syncFollowingVirtualRowPositions(element, layout);
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [entry.id, remeasureElement]);
   useLayoutEffect(
     () => () => {
       if (liveMeasureRafRef.current !== null) {
@@ -627,6 +626,13 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
     completedTurn !== undefined &&
     completedTurn.anchorItemId !== null &&
     completedTurn.anchorItemId !== suppressInlineTurnAnchorId;
+  const inlineTurnVisibleRef = useRef(false);
+  useLayoutEffect(() => {
+    if (inlineTurnVisibleRef.current === showInlineTurn) return;
+    inlineTurnVisibleRef.current = showInlineTurn;
+    onVirtualizerLayoutChange?.();
+    scheduleLiveMeasure();
+  }, [onVirtualizerLayoutChange, scheduleLiveMeasure, showInlineTurn]);
 
   return (
     <div
@@ -634,7 +640,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
       data-chat-virtual-row="true"
       data-index={index}
       data-item-id={entry.id}
-      className="w-full"
+      className="relative mx-auto w-full max-w-[920px]"
     >
       <div className={`group/checkpoint relative w-full pb-1 ${showTurnGap ? "pt-3" : ""}`}>
         <div className="relative">
@@ -643,6 +649,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
             entry={entry}
             isLastEntry={isLastEntry}
             onHeightChange={remeasureRow}
+            {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
             isTurnActive={isTurnActive}
             checkpointRevert={
               checkpointRevertItemId ? { itemId: checkpointRevertItemId, onRequestRevert } : null
@@ -710,54 +717,88 @@ function liveStreamMeasureToken(item: RuntimeChatItem | undefined): string | nul
   return `${item.id}:${item.state}:${growingStreamLength(item)}`;
 }
 
-function estimateTimelineEntrySize(entry: ChatTimelineEntry | undefined, threadId: string): number {
-  if (!entry) return DEFAULT_ROW_ESTIMATE_PX;
-  // A tool-call group only estimates while collapsed (it auto-expands solely as
-  // the live tail, which is measured immediately), so use the collapsed trigger.
-  if (entry.kind === "tool_call_group") return COLLAPSED_ROW_ESTIMATE_PX;
-  return estimateRuntimeItemSize(selectRuntimeItemById(useAppStore.getState(), threadId, entry.id));
+function getTimelineEntryType(
+  entry: ChatTimelineEntry,
+  threadId: string,
+  index: number,
+  isLiveTail: boolean,
+  suppressInlineTurnAnchorId: string | null,
+): string {
+  const state = useAppStore.getState();
+  const completedTurn = selectCompletedTurnForEntry(state, threadId, entry);
+  const hasInlineTurn =
+    completedTurn !== undefined &&
+    completedTurn.anchorItemId !== null &&
+    completedTurn.anchorItemId !== suppressInlineTurnAnchorId;
+  const rowSuffix = hasInlineTurn ? ":turn" : "";
+  if (entry.kind === "tool_call_group") {
+    return `${isLiveTail ? "tool_call_group:live" : entry.kind}${rowSuffix}`;
+  }
+  const item = selectRuntimeItemById(state, threadId, entry.id);
+  if (!item) return "unknown";
+  if (item.type !== "assistant_message" && item.type !== "user_message") {
+    return `${item.type}${rowSuffix}`;
+  }
+  if (isLiveTail) return `${item.type}:live${rowSuffix}`;
+  const payload = getRuntimeItemPayload<MessageItemPayload>(item, item.type);
+  const leadingGapSuffix = item.type === "user_message" && index > 0 ? ":gap" : "";
+  if (payload?.content.some((block) => block.kind === "image")) {
+    return `${item.type}:media${leadingGapSuffix}${rowSuffix}`;
+  }
+  const payloadTextLength =
+    payload?.content.reduce(
+      (length, block) =>
+        length +
+        (block.kind === "text"
+          ? block.text.length
+          : block.kind === "skill"
+            ? block.invocation.length
+            : 0),
+      0,
+    ) ?? 0;
+  const textLength = growingStreamLength(item) + payloadTextLength;
+  const sizeBucket = textLength <= 256 ? "short" : textLength <= 2_048 ? "medium" : "long";
+  return `${item.type}:${sizeBucket}${leadingGapSuffix}${rowSuffix}`;
 }
 
-function estimateRuntimeItemSize(item: ReturnType<typeof selectRuntimeItemById>): number {
-  if (!item) return DEFAULT_ROW_ESTIMATE_PX;
-  switch (item.type) {
-    case "assistant_message":
-      if (assistantMessageHasImageContent(item)) return ASSISTANT_IMAGE_ROW_ESTIMATE_PX;
-      return item.state === "completed" ? 168 : 208;
-    case "user_message":
-      return 88;
-    case "reasoning":
-      return item.state === "completed" ? COLLAPSED_REASONING_ROW_ESTIMATE_PX : 128;
-    case "plan":
-      return 128;
-    case "tool_call":
-    case "mcp_tool_call":
-    case "image_view":
-    case "dynamic_tool_call":
-      if (imageViewRendersInline(item.payload)) return INLINE_IMAGE_ROW_ESTIMATE_PX;
-      return item.state === "completed" ? COLLAPSED_ROW_ESTIMATE_PX : 132;
-    case "command_execution":
-    case "file_change":
-    case "web_search":
-      return item.state === "completed" ? COLLAPSED_ROW_ESTIMATE_PX : 132;
-    case "error":
-      return 80;
-    default:
-      return DEFAULT_ROW_ESTIMATE_PX;
-  }
+function getFixedTimelineEntrySize(
+  entry: ChatTimelineEntry,
+  threadId: string,
+  listWidth: number | undefined,
+): number | undefined {
+  if (entry.kind !== "item" || !listWidth) return undefined;
+  const item = selectRuntimeItemById(useAppStore.getState(), threadId, entry.id);
+  if (!item || !isToolLikeItem(item) || !imageViewRendersInline(item.payload)) return undefined;
+  // Legend's single fallback estimate is intentionally message-sized. Inline
+  // images are the large outlier during prepend, so reserve their intrinsic
+  // responsive height before the row mounts and MVCP never anchors to 59px.
+  const source = resolveImageViewSource(item.payload as ToolCallPayload | undefined);
+  if (!source?.width || !source.height) return undefined;
+  const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+  const maxHeight = Math.min(
+    INLINE_IMAGE_MAX_HEIGHT_REM * (Number.isFinite(rootFontSize) ? rootFontSize : 16),
+    window.innerHeight * INLINE_IMAGE_MAX_VIEWPORT_HEIGHT,
+  );
+  const availableWidth = Math.max(0, Math.min(listWidth, 920) - INLINE_IMAGE_HORIZONTAL_CHROME_PX);
+  const renderedHeight = Math.min(
+    source.height,
+    maxHeight,
+    (availableWidth * source.height) / source.width,
+  );
+  return Math.round(renderedHeight + INLINE_IMAGE_ROW_CHROME_PX);
 }
 
 /**
  * Whether a completed row's measured height survives a remount unchanged, so its
- * cached measurement may be restored (see `writeTimelineMeasurements`). Kept
- * beside `estimateRuntimeItemSize` because both are per-type tables that must
- * stay in sync: a row type with local expand/collapse state remounts collapsed
- * (its `useState` dies with the fiber), so restoring an expanded-state size
- * would hand scroll compensation one huge delta on first revisit — the jump the
- * snapshot cache exists to prevent. Tool-call groups, reasoning ("Thought"
- * toggle), user messages (clamped "Show more"), and every tool/command/file/
- * search accordion are therefore unstable; non-completed rows are dropped too
- * since their height keeps changing while the thread works in the background.
+ * cached measurement may be restored (see `writeTimelineMeasurements`, applied
+ * via LegendList's `setItemSize`). A row type with local expand/collapse state
+ * remounts collapsed (its `useState` dies with the fiber), so restoring an
+ * expanded-state size would anchor the list to a stale height on first revisit
+ * — the jump the snapshot cache exists to prevent. Tool-call groups, reasoning
+ * ("Thought" toggle), user messages (clamped "Show more"), and every tool/
+ * command/file/search accordion are therefore unstable; non-completed rows are
+ * dropped too since their height keeps changing while the thread works in the
+ * background.
  */
 function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean {
   if (!item || item.state !== "completed") return false;
@@ -772,13 +813,6 @@ function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean
       // the collapsible accordion and remounts collapsed.
       return isToolLikeItem(item) && imageViewRendersInline(item.payload);
   }
-}
-
-function assistantMessageHasImageContent(
-  item: NonNullable<ReturnType<typeof selectRuntimeItemById>>,
-): boolean {
-  const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
-  return payload?.content.some((block) => block.kind === "image") ?? false;
 }
 
 function findCheckpointBeforeUserMessage(

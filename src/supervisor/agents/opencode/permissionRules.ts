@@ -1,4 +1,4 @@
-import type { PermissionRule } from "@opencode-ai/sdk/v2";
+import type { PermissionRule } from "./legacySdk";
 
 /**
  * Build the Poracode-owned permission override for OpenCode sessions.

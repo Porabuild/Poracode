@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { RuntimeEvent, WorkflowRun } from "../contracts";
 import {
   agentKindSchema,
+  experimentSchema,
   promptSegmentSchema,
   projectLocationSchema,
   projectNotesSchema,
@@ -15,6 +16,8 @@ import {
 export const pickFilesOptionsSchema = z
   .object({
     title: z.string().optional(),
+    /** Remote composer destination. The desktop dialog ignores this field. */
+    attachmentThreadId: z.string().min(1).optional(),
     filters: z
       .array(
         z.object({
@@ -66,6 +69,10 @@ export const copyImageToClipboardPayloadSchema = z.object({
   data: z.instanceof(Uint8Array),
 });
 
+export const readLocalImageFilePayloadSchema = z.object({
+  url: z.string().regex(/^(?:poracode|lightcode)-local:\/\//),
+});
+
 export const createProjectDirectoryPayloadSchema = z.object({
   /** Absolute parent directory (native path, or a `\\wsl...` UNC path). */
   parent: z.string().min(1),
@@ -106,6 +113,20 @@ export interface WorkflowGetRunResult {
   mtimeMs?: number;
 }
 
+export const workflowAgentChatPayloadSchema = z.object({
+  /** Synthetic renderer-side thread id the returned events are keyed under. */
+  threadId: z.string().min(1),
+  transcriptDir: z.string().min(1),
+  agentId: z.string().min(1),
+  /** When true, dangling open items are flushed to completed. */
+  agentFinished: z.boolean(),
+  location: projectLocationSchema,
+});
+export type WorkflowAgentChatPayload = z.infer<typeof workflowAgentChatPayloadSchema>;
+export interface WorkflowAgentChatResult {
+  events: RuntimeEvent[];
+}
+
 export const dbStateKeySchema = z.string().min(1);
 export const dbStatePayloadSchema = z.object({
   key: z.string().min(1),
@@ -117,11 +138,28 @@ export const dbDeleteThreadPayloadSchema = z.object({
 export const dbDeleteProjectPayloadSchema = z.object({
   projectId: z.string().min(1),
 });
+const persistedThreadConfigSchema = threadConfigSchema
+  .extend({ model: z.string() })
+  .transform((config) => (config.model.trim().length > 0 ? config : { ...config, model: "auto" }));
+export const persistedThreadSchema = threadSchema.extend({
+  config: persistedThreadConfigSchema,
+});
 export const dbSyncAllPayloadSchema = z.object({
   projects: z.array(projectSchema),
-  threads: z.array(threadSchema),
+  threads: z.array(persistedThreadSchema),
   viewJson: z.string(),
 });
+export const dbPersistExperimentStatePayloadSchema = z.object({
+  upsertThreads: z.array(
+    z.object({
+      thread: persistedThreadSchema,
+      sortOrder: z.number().int().nonnegative(),
+    }),
+  ),
+  deletedThreadIds: z.array(z.string().min(1)),
+  experiments: z.record(z.string(), experimentSchema),
+});
+export type DbPersistExperimentStatePayload = z.infer<typeof dbPersistExperimentStatePayloadSchema>;
 
 export const persistedRuntimeItemSchema = z.object({
   id: z.string().min(1),
@@ -146,6 +184,7 @@ export const dbGetRuntimeItemsPagePayloadSchema = z.object({
   threadId: z.string().min(1),
   beforePosition: z.number().int().nonnegative().optional(),
   limit: z.number().int().min(1).max(500),
+  targetTimelineEntryCount: z.number().int().min(1).max(100).optional(),
 });
 export const dbTruncateRuntimeItemsPayloadSchema = z.object({
   threadId: z.string().min(1),

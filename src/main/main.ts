@@ -1,4 +1,4 @@
-import { watch } from "node:fs";
+import { existsSync, watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -9,12 +9,16 @@ import {
   Menu,
   nativeTheme,
   session as electronSession,
+  type RenderProcessGoneDetails,
 } from "electron";
 import { resolveThemeMode } from "@/shared/themeMode";
+import { isThreadTurnActive, type RemoteThreadCommand } from "@/shared/contracts";
 import {
   closeDatabase,
   dbDeleteThread,
   dbGetProject,
+  dbGetProjectNotes,
+  dbGetProjects,
   dbGetThread,
   dbGetThreads,
   dbInsertScheduleRun,
@@ -22,12 +26,13 @@ import {
   dbUpdateScheduleRun,
   dbUpsertThread,
   initDatabase,
+  onProjectThreadDataChanged,
 } from "./db";
 import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeData";
-import { handleOrchestratorThreadCreated } from "./orchestratorThreadBridge";
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { createSleepInhibitor } from "./sleepInhibitor";
+import { shouldPreventSystemSleep } from "./sleepPolicy";
 import {
   installLocalFileProtocolHandler,
   registerLocalFileProtocolScheme,
@@ -48,7 +53,9 @@ import {
 } from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
+import { showOsNotification } from "./osNotifications";
 import { createMainWindow } from "./window/createMainWindow";
+import { requestTrackedRendererReload } from "./window/windowHardening";
 import {
   createQuickComposerWindow,
   showQuickComposerWindow,
@@ -59,6 +66,11 @@ import { readKeybindingsFile } from "./keybindingsFile";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
 import { type PoracodePaths, resolvePoracodeBaseDir } from "@/shared/poracodePaths";
+import {
+  incrementCrossagentSelectionUsage,
+  removeCrossagentRoutingOverride,
+  upsertCrossagentRoutingOverride,
+} from "@/shared/crossagentRanking";
 import { getAppName } from "@/shared/appName";
 import { productNameFor, resolvePoracodeChannel } from "@/shared/channel";
 import {
@@ -66,27 +78,41 @@ import {
   IPC_WINDOW_CHANNELS,
   isAgentStatusSupervisorEvent,
   quickComposerSubmissionSchema,
+  type PrWatchStatusEvent,
   type QuickComposerSubmission,
   type SupervisorEvent,
+  type UpdateStatus,
 } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
-import { readSharedSettingsFile } from "./sharedSettingsFile";
+import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
+import { remoteProjectCommandResultSchema } from "@/shared/remote";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
+import {
+  classifyRendererProcessGone,
+  type RendererProcessGoneIntent,
+} from "./diagnostics/processGone";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import { createDesktopRemoteAccessController, type DesktopRemoteAccessController } from "./remote";
+import { readOrCreateRemoteAccessIdentity } from "./remote/identity";
+import { createGitStateExecutor, GitStateService } from "./gitState";
 import { SshConnectionManager } from "./ssh/SshConnectionManager";
 import {
   createDeviceScheduleService,
   ensureHomeProjectRow,
   ScheduleRunCoordinator,
 } from "./schedules";
-import { AppControlsMcpIngress } from "./app-controls";
+import {
+  AppControlsMcpIngress,
+  buildSharedAppControlsIngressDeps,
+  createAppControlsSupervisorCaller,
+} from "./app-controls";
 import { legacyProductNameFor, resolveLegacyElectronUserDataDir } from "./legacyDataMigration";
 import { refreshMacDockIcon } from "./macDockIcon";
 import { repairLegacyMacAppPath } from "./macAppPathMigration";
 import { persistSupervisorEvent } from "./remote/server/runtimePersistence";
+import { createDevicePrWatchService, type PrWatchService } from "./prWatch";
 import { shouldUseMockKeychain } from "./mockKeychain";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -185,6 +211,7 @@ let quickComposerDismissTimer: ReturnType<typeof setTimeout> | null = null;
 let revealMainAfterQuickComposerDismiss = false;
 let mainRendererReady = false;
 const pendingQuickComposerSubmissions: QuickComposerSubmission[] = [];
+let pendingTrayThreadId: string | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
@@ -198,6 +225,27 @@ let browserExtractWindow: BrowserWindow | null = null;
 let tray: TrayHandle | null = null;
 let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
 let isQuitting = false;
+
+function captureRendererProcessGone(
+  details: RenderProcessGoneDetails,
+  featureArea: "browser" | "quick-composer" | "renderer",
+  intent?: RendererProcessGoneIntent,
+): void {
+  const diagnostic = classifyRendererProcessGone(
+    details,
+    process.platform,
+    isQuitting ? "app-shutdown" : intent,
+  );
+  if (!diagnostic) return;
+  captureMainException(
+    new Error(`Electron renderer process gone (${diagnostic.bucket})`),
+    {
+      "poracode.feature_area": featureArea,
+      "poracode.process": "renderer",
+    },
+    diagnostic.fingerprint,
+  );
+}
 
 function isCloseToTrayEnabled(): boolean {
   if (!poracodePaths) return false;
@@ -275,6 +323,40 @@ function handleSharedSettingsChanged(settings: SharedSettings): void {
   syncStartupSettings(settings);
 }
 
+function recordCrossagentSelectionPreference(
+  event: Extract<SupervisorEvent, { type: "crossagent-selection-used" }>,
+): void {
+  const settingsPath = requirePoracodePaths().settingsPath;
+  const current = readSharedSettingsFile(settingsPath);
+  const next = {
+    ...current,
+    crossagentSelectionUsage: incrementCrossagentSelectionUsage(
+      current.crossagentSelectionUsage,
+      event.selections,
+    ),
+  };
+  writeSharedSettingsFile(settingsPath, next);
+  handleSharedSettingsChanged(next);
+  mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
+}
+
+function updateCrossagentRoutingOverride(
+  event: Extract<SupervisorEvent, { type: "crossagent-routing-override-changed" }>,
+): void {
+  const settingsPath = requirePoracodePaths().settingsPath;
+  const current = readSharedSettingsFile(settingsPath);
+  const next = {
+    ...current,
+    crossagentRoutingOverrides:
+      event.change.action === "set"
+        ? upsertCrossagentRoutingOverride(current.crossagentRoutingOverrides, event.change.override)
+        : removeCrossagentRoutingOverride(current.crossagentRoutingOverrides, event.change.tags),
+  };
+  writeSharedSettingsFile(settingsPath, next);
+  handleSharedSettingsChanged(next);
+  mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
+}
+
 function handleMainWindowClose(event: Electron.Event): void {
   if (isQuitting) return;
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -295,12 +377,25 @@ function flushQuickComposerSubmissions(): void {
   }
 }
 
+function flushTrayThreadOpen(): void {
+  if (!mainRendererReady || !mainWindow || mainWindow.isDestroyed() || !pendingTrayThreadId) return;
+  const threadId = pendingTrayThreadId;
+  pendingTrayThreadId = null;
+  mainWindow.webContents.send(IPC_EVENT_CHANNELS.threadOpenRequested, { threadId });
+}
+
 function ensureMainWindow(showOnReady = true): BrowserWindow {
   if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
   mainRendererReady = false;
   mainWindow = createMainAppWindow(showOnReady);
   browserPanelManager?.bindHost(mainWindow);
   return mainWindow;
+}
+
+function openThreadFromTray(threadId: string): void {
+  pendingTrayThreadId = threadId;
+  showAndFocusWindow(ensureMainWindow());
+  flushTrayThreadOpen();
 }
 
 function finishQuickComposerDismiss(window: BrowserWindow): void {
@@ -342,6 +437,7 @@ function commonAppWindowOptions() {
     posthogKey,
     sentryEnabled,
     browserUserAgent,
+    openDevTools: process.env.PORACODE_DISABLE_DEVTOOLS !== "1",
     ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
   };
 }
@@ -352,11 +448,8 @@ function createQuickComposerAppWindow(): BrowserWindow {
     onClosed: () => {
       if (quickComposerWindow === window) quickComposerWindow = null;
     },
-    onRendererProcessGone: (details) => {
-      captureMainException(new Error(`Quick composer renderer gone: ${details.reason}`), {
-        "poracode.feature_area": "quick-composer",
-        "poracode.process": "renderer",
-      });
+    onRendererProcessGone: (details, intent) => {
+      captureRendererProcessGone(details, "quick-composer", intent);
     },
   });
   window.on("blur", () => {
@@ -417,12 +510,9 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
       mainRendererReady = false;
     },
     onClose: handleMainWindowClose,
-    onRendererProcessGone: (details) => {
+    onRendererProcessGone: (details, intent) => {
       mainRendererReady = false;
-      captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
-        "poracode.feature_area": "renderer",
-        "poracode.process": "renderer",
-      });
+      captureRendererProcessGone(details, "renderer", intent);
     },
   });
   window.webContents.on("did-start-loading", () => {
@@ -479,11 +569,8 @@ function createBrowserExtractWindow(): BrowserWindow {
         revealBrowserInMainWindow();
       }
     },
-    onRendererProcessGone: (details) => {
-      captureMainException(new Error(`Browser renderer process gone: ${details.reason}`), {
-        "poracode.feature_area": "browser",
-        "poracode.process": "renderer",
-      });
+    onRendererProcessGone: (details, intent) => {
+      captureRendererProcessGone(details, "browser", intent);
     },
   });
   return window;
@@ -525,10 +612,12 @@ function requirePoracodePaths(): PoracodePaths {
 }
 
 function updatePowerSaveBlocker(): void {
-  const enabled = poracodePaths
-    ? readSharedSettingsFile(poracodePaths.settingsPath).preventSleepWhileWorking
-    : true;
-  sleepInhibitor.setActive(enabled && workingThreads.size > 0);
+  if (!poracodePaths) {
+    sleepInhibitor.setActive(workingThreads.size > 0);
+    return;
+  }
+  const settings = readSharedSettingsFile(poracodePaths.settingsPath);
+  sleepInhibitor.setActive(shouldPreventSystemSleep(settings, workingThreads.size));
 }
 
 function handleSupervisorEventForSleep(event: SupervisorEvent): void {
@@ -636,6 +725,8 @@ if (!hasSingleInstanceLock) {
       // Assigned right after the supervisor client below; the `onEvent` tap only
       // fires once the supervisor is started, by which point it is set.
       let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
+      let prWatchService: PrWatchService | null = null;
+      let gitStateService: GitStateService | null = null;
       const supervisorClient = new SupervisorClient({
         appVersion: app.getVersion(),
         isDev,
@@ -674,22 +765,40 @@ if (!hasSingleInstanceLock) {
           captureMainException(error, tags);
         },
         onEvent: (event) => {
-          // Orchestrator create_thread requests are consumed here (DB upsert,
-          // renderer mirror, startThread call-back) and never fanned out.
-          if (event.type === "orchestrator-thread-created") {
-            void handleOrchestratorThreadCreated(event, {
-              startThread: (payload) => supervisorClient.call("startThread", payload),
-              sendThreadCommand: (command) => {
-                if (!mainWindow) return false;
-                mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
-                return true;
-              },
-            });
+          if (event.type === "crossagent-selection-used") {
+            try {
+              recordCrossagentSelectionPreference(event);
+            } catch (error) {
+              captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
+            }
+            return;
+          }
+          if (event.type === "crossagent-routing-override-changed") {
+            let errorMessage: string | undefined;
+            try {
+              updateCrossagentRoutingOverride(event);
+            } catch (error) {
+              errorMessage =
+                error instanceof Error ? error.message : "Unable to save the routing preference";
+              captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
+            }
+            void supervisorClient
+              .call("confirmCrossagentRoutingOverride", {
+                requestId: event.requestId,
+                ok: errorMessage === undefined,
+                ...(errorMessage ? { error: errorMessage } : {}),
+              })
+              .catch((error) => {
+                captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
+              });
             return;
           }
           persistSupervisorEvent(event);
           handleSupervisorEventForSleep(event);
+          appControlsMcpIngress?.observeSupervisorEvent(event);
           scheduleRunCoordinator?.observeSupervisorEvent(event);
+          prWatchService?.observeSupervisorEvent(event);
+          gitStateService?.observeSupervisorEvent(event);
           remoteAccessController?.handleSupervisorEvent(event);
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
           forwardAgentStatusEventToQuickComposer(event);
@@ -722,10 +831,152 @@ if (!hasSingleInstanceLock) {
         onStartupInterrupted: (scheduleId) =>
           dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
       });
-      appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread);
+      const emitRemoteThreadCommand = (command: RemoteThreadCommand): boolean => {
+        if (!mainWindow) return false;
+        mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
+        return true;
+      };
+      const publishProjectsChanged = (): void => {
+        const projects = dbGetProjects();
+        remoteAccessController?.getServer()?.publishSupervisorEvent({
+          type: "remote-projects-changed",
+          projects: remoteProjectCommandResultSchema.parse({ projects }).projects,
+        });
+        mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, { projects });
+      };
+      const sharedAppControlsDeps = buildSharedAppControlsIngressDeps({
+        call: (name, payload) => supervisorClient.call(name, payload),
+        sendThreadCommand: emitRemoteThreadCommand,
+        getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
+        publishProjectsChanged,
+      });
+      prWatchService = createDevicePrWatchService({
+        getProject: dbGetProject,
+        getPrForBranch: (project, branch) =>
+          supervisorClient.call("ghGetPrForBranch", {
+            projectLocation: project.location,
+            branch,
+          }),
+        getPrDetails: (project, prNumber) =>
+          supervisorClient
+            .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
+            .then((result) => result.details),
+        getPrReviewThreads: (project, prNumber) =>
+          supervisorClient
+            .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
+            .then((result) => result.threads),
+        getMergeMethod: () =>
+          readSharedSettingsFile(requirePoracodePaths().settingsPath).prMergeMethod,
+        mergePr: (project, prNumber, method) =>
+          supervisorClient.call("ghMergePr", {
+            projectLocation: project.location,
+            prNumber,
+            method,
+            admin: false,
+          }),
+        onPrMerged: (mergedWatch) =>
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchMerged, {
+            projectId: mergedWatch.projectId,
+            prNumber: mergedWatch.prNumber,
+            ...(mergedWatch.worktreePath ? { worktreePath: mergedWatch.worktreePath } : {}),
+          }),
+        onPrObserved: (observedWatch, pr, details) => {
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchStatus, {
+            projectId: observedWatch.projectId,
+            prNumber: observedWatch.prNumber,
+            headBranch: observedWatch.headBranch,
+            ...(observedWatch.worktreePath ? { worktreePath: observedWatch.worktreePath } : {}),
+            pr,
+            ...(details ? { details } : {}),
+          } satisfies PrWatchStatusEvent);
+          // Paired remote clients read PR state from the git-state snapshot, not
+          // this IPC channel, so hand the same observation to the service that
+          // publishes their patches.
+          gitStateService?.applyObservedPullRequest(observedWatch, pr, details);
+        },
+        createThread: sharedAppControlsDeps.createThread,
+        isThreadActive: (threadId) => {
+          const status = dbGetThread(threadId)?.status;
+          return status !== undefined && isThreadTurnActive(status);
+        },
+        worktreeExists: existsSync,
+      });
+      gitStateService = new GitStateService({
+        hostId: readOrCreateRemoteAccessIdentity(paths.baseDir).desktopId,
+        executor: createGitStateExecutor((name, payload) => supervisorClient.call(name, payload)),
+        getProject: dbGetProject,
+        onPatch: (patch) => {
+          remoteAccessController?.getServer()?.publishSupervisorEvent({
+            type: "remote-git-state",
+            patch,
+          });
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, patch);
+        },
+      });
+      // Latest updater status, captured from the auto-updater's status stream so
+      // the app-controls `check_for_update` tool can report the most recent
+      // result (the check itself is fire-and-forget and event-driven).
+      let lastUpdateStatus: UpdateStatus | null = null;
+      appControlsMcpIngress = new AppControlsMcpIngress({
+        scheduleService,
+        getThread: dbGetThread,
+        getThreads: dbGetThreads,
+        getProjects: dbGetProjects,
+        getProject: dbGetProject,
+        getProjectNotes: dbGetProjectNotes,
+        ...sharedAppControlsDeps,
+        settings: {
+          read: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
+          write: (next) => {
+            writeSharedSettingsFile(requirePoracodePaths().settingsPath, next);
+            updatePowerSaveBlocker();
+            handleSharedSettingsChanged(next);
+            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
+          },
+        },
+        getAppInfo: () => ({
+          version: app.getVersion(),
+          platform: process.platform,
+          hasRendererWindow: mainWindow !== null && !mainWindow.isDestroyed(),
+        }),
+        supervisor: createAppControlsSupervisorCaller((name, payload) =>
+          supervisorClient.call(name, payload),
+        ),
+        emitRemoteThreadCommand,
+        // The desktop always has (or ensures) a main window to open into.
+        openThreadInUi: (threadId) => {
+          openThreadFromTray(threadId);
+          return true;
+        },
+        notifyUser: ({ title, body, threadId }) => {
+          const delivered = showOsNotification({ title, body, threadId }, () => mainWindow);
+          return delivered
+            ? { delivered: true }
+            : {
+                delivered: false,
+                note: "The operating system did not show the notification (notifications may be unsupported or disabled).",
+              };
+        },
+        checkForUpdate: async () => {
+          await autoUpdaterController.checkForUpdate();
+          const status = lastUpdateStatus;
+          const availableVersion =
+            status && (status.type === "update-available" || status.type === "downloaded")
+              ? status.version
+              : undefined;
+          return {
+            supported: true,
+            currentVersion: app.getVersion(),
+            ...(status ? { status: status.type } : {}),
+            ...(availableVersion ? { availableVersion } : {}),
+            note: "A background update check was triggered; its result surfaces in the app's update UI. status/availableVersion reflect the most recent known check, which may predate this call.",
+          };
+        },
+      });
 
       const autoUpdaterController = createAutoUpdaterController(
         (status) => {
+          lastUpdateStatus = status;
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.updateStatus, status);
         },
         channel,
@@ -799,6 +1050,7 @@ if (!hasSingleInstanceLock) {
 
       const controller = createDesktopRemoteAccessController({
         appVersion: app.getVersion(),
+        channel,
         paths,
         ...(process.env.VITE_DEV_SERVER_URL
           ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
@@ -811,10 +1063,25 @@ if (!hasSingleInstanceLock) {
         },
         getBrowserPanelManager: () => browserPanelManager,
         notifySharedSettingsChanged: (settings) => {
+          updatePowerSaveBlocker();
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, settings);
+        },
+        notifyRemoteAccessPairingChanged: (info) => {
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.remoteAccessPairingChanged, info);
+        },
+        notifyProjectStateChanged: (projects) => {
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, { projects });
         },
         reportError: captureMainException,
         scheduleService,
+        prWatchService,
+        gitStateService,
+        updates: {
+          currentVersion: () => app.getVersion(),
+          status: () => lastUpdateStatus,
+          check: () => autoUpdaterController.checkForUpdate(),
+          install: () => autoUpdaterController.installUpdate(),
+        },
       });
       remoteAccessController = controller;
 
@@ -865,6 +1132,7 @@ if (!hasSingleInstanceLock) {
             app.quit();
           },
           scheduleService,
+          prWatchService,
         }),
         callSupervisor: (name, payload) => supervisorClient.call(name, payload),
       });
@@ -901,6 +1169,11 @@ if (!hasSingleInstanceLock) {
         if (!window || window !== mainWindow || window.isDestroyed()) return;
         mainRendererReady = true;
         flushQuickComposerSubmissions();
+        flushTrayThreadOpen();
+      });
+      ipcMain.handle(IPC_WINDOW_CHANNELS.rendererReload, (event) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (window) requestTrackedRendererReload(window);
       });
 
       const initialMainWindow = ensureMainWindow(showMainWindowOnReady);
@@ -908,6 +1181,9 @@ if (!hasSingleInstanceLock) {
       tray = createTray({
         channel,
         appName: getAppName(channel, isDev),
+        getProjects: dbGetProjects,
+        getThreads: dbGetThreads,
+        onOpenThread: openThreadFromTray,
         onShow: () => showAndFocusWindow(ensureMainWindow()),
         onQuickComposer: toggleQuickComposerWindow,
         onQuit: () => {
@@ -916,6 +1192,7 @@ if (!hasSingleInstanceLock) {
         },
       });
       tray.setQuickComposerShortcut(quickComposerShortcutManager.active[0] ?? null);
+      onProjectThreadDataChanged(() => tray?.refreshMenu());
 
       await jobObjectReady;
 
@@ -935,7 +1212,12 @@ if (!hasSingleInstanceLock) {
       ]);
       supervisorClient.start(paths.baseDir);
       scheduleService.start();
+      prWatchService.start();
+      gitStateService.start();
+      // The remote controller performs one bounded warm-up when enabled.
+      // Recurring Git refreshes remain demand-driven by connected clients.
 
+      updatePowerSaveBlocker();
       void controller.startIfEnabled();
 
       initialMainWindow.once("ready-to-show", () => {
@@ -981,6 +1263,8 @@ if (!hasSingleInstanceLock) {
         quickComposerDismissTimer = null;
         pendingQuickComposerSubmissions.length = 0;
         scheduleService.dispose();
+        prWatchService.dispose();
+        gitStateService.dispose();
         supervisorClient.dispose();
         windowsJobObjectManager?.dispose();
         windowsJobObjectManager = null;

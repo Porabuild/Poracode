@@ -42,6 +42,7 @@ import type {
 } from "./types";
 
 export type {
+  AcpEmptyResponseErrorResolver,
   AcpSessionUpdateTransform,
   AgentAcpAuth,
   AgentAdapter,
@@ -84,6 +85,7 @@ export type {
   ThreadHistoryEntry,
 } from "./types";
 export * from "./terminalHints";
+export * from "./expectedRuntimeError";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
@@ -192,6 +194,7 @@ function resolveWindowsNodeCmdShim(commandPath: string):
       argsPrefix: string[];
     }
   | undefined {
+  if (isWindowsDirectExecutable(commandPath)) return undefined;
   let effectivePath = commandPath;
   if (!/\.cmd$/i.test(commandPath)) {
     // Bare command names like "npx" resolve to "npx.cmd" via PATHEXT.
@@ -438,21 +441,34 @@ export function buildAgentLogoutCommand(
 
 async function resolveDetectedBinary(
   ctx: AgentEnvContext | undefined,
-  binary: string,
+  spec: DetectionSpec,
 ): Promise<string | undefined> {
+  const { binary } = spec;
   if (ctx?.envKind === "wsl" && ctx.wslDistro) {
-    const [result] = await batchWslCommandsAsync(ctx.wslDistro, [`command -v ${binary}`]);
+    const commands = [`command -v ${quotePosixShellArg(binary)}`];
+    if (spec.wslBinaryHome) {
+      const { env, defaultSubpath } = spec.wslBinaryHome;
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(env)) {
+        throw new Error(`Invalid WSL binary-home environment variable: ${env}`);
+      }
+      commands.push(
+        `home="\${${env}:-}"; if [ -z "$home" ]; then home="$HOME"/${quotePosixShellArg(defaultSubpath)}; fi; candidate="$home/bin/"${quotePosixShellArg(binary)}; if [ -x "$candidate" ]; then printf '%s\\n' "$candidate"; fi`,
+      );
+    }
+    const results = await batchWslCommandsAsync(ctx.wslDistro, commands);
     // A `/mnt/...` result is a Windows binary surfaced via PATH interop, not a
     // real Linux install — reject it so detection matches launch-time
     // resolution (see isWslInteropBinaryPath).
-    const path = result?.ok && !isWslInteropBinaryPath(result.stdout) ? result.stdout : undefined;
+    const path = results
+      .map((result) => (result?.ok ? result.stdout.trim() : ""))
+      .find((candidate) => candidate.length > 0 && !isWslInteropBinaryPath(candidate));
     primeAgentBinaryPath(ctx.wslDistro, binary, path);
     return path;
   }
   return resolveExecutablePathAsync(binary);
 }
 
-function extractSemverFromVersionOutput(raw: string | undefined): string | undefined {
+export function extractSemverFromVersionOutput(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   // Allow a leading `v` ("v24.14.0"): without it, `\b` cannot match between
   // `v` and the first digit, so the regex would skip past the major segment
@@ -461,7 +477,7 @@ function extractSemverFromVersionOutput(raw: string | undefined): string | undef
   return match ? match[1] : raw.trim() || undefined;
 }
 
-async function readDetectedVersion(
+export async function readDetectedVersion(
   location: ProjectLocation,
   executablePath: string | undefined,
   versionArgs: string[],
@@ -626,10 +642,17 @@ export async function detectAgentInstall(
   spec: DetectionSpec,
 ): Promise<AgentStatus> {
   const location = detectProbeLocation(ctx);
-  const executablePath = await resolveDetectedBinary(ctx, spec.binary);
+  const executablePath = await resolveDetectedBinary(ctx, spec);
 
   const versionArgs = spec.versionArgs ?? ["--version"];
-  const version = await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
+  const version = spec.versionProbe
+    ? await spec.versionProbe({
+        location,
+        executablePath,
+        ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+        ...(spec.probeEnv ? { probeEnv: spec.probeEnv } : {}),
+      })
+    : await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;
@@ -639,7 +662,13 @@ export async function detectAgentInstall(
   let probedProviderMetadata: AgentProviderMetadata | undefined;
   let probedPreferTerminalLogin: boolean | undefined;
   if (executablePath) {
-    const probeCtx: DetectProbeCtx = { location, executablePath, version, probeEnv: spec.probeEnv };
+    const probeCtx: DetectProbeCtx = {
+      location,
+      executablePath,
+      version,
+      ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+      probeEnv: spec.probeEnv,
+    };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
       spec.capabilitiesProbe ? spec.capabilitiesProbe(probeCtx) : Promise.resolve(undefined),
       spec.statusProbe ? spec.statusProbe(probeCtx) : Promise.resolve(undefined),
@@ -673,7 +702,12 @@ export async function detectAgentInstall(
     statusProbeResult = nextStatusProbeResult;
   }
 
-  const probeCtx: DetectProbeCtx = { location, executablePath, version };
+  const probeCtx: DetectProbeCtx = {
+    location,
+    executablePath,
+    version,
+    ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+  };
 
   let authState: AuthState;
   if (!executablePath) {

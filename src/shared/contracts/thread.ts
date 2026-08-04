@@ -15,6 +15,7 @@ import {
   builtInMcpDisabledToolsSchema,
   mcpServerListSchema,
 } from "./mcpServer";
+import { goalControlActionSchema } from "./runtimeEvent";
 
 /** How thread status/attention is derived for terminal agents (supervisor → renderer). */
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
@@ -22,6 +23,9 @@ export type ThreadStatusSource = z.infer<typeof threadStatusSourceSchema>;
 
 export const threadSchema = z.object({
   id: z.string().min(1),
+  /** Server-owned identity for a transient thread mirrored into a desktop client. */
+  remoteServerId: z.string().min(1).optional(),
+  remoteId: z.string().min(1).optional(),
   projectId: z.string().min(1),
   title: z.string().min(1),
   agentKind: agentKindSchema,
@@ -57,9 +61,9 @@ export const threadSchema = z.object({
   errorMessage: z.string().optional(),
   slashCommands: z.array(agentSlashCommandSchema).optional(),
   /**
-   * Id of the orchestrator thread that created this thread via the subagents
-   * MCP `create_thread` tool. Pure metadata for now (no renderer UI keys on
-   * it); absent for user-created threads.
+   * Id of the thread that created this thread as a child (e.g. via the
+   * `poracode` MCP `create_thread` tool). Persisted so child threads render
+   * grouped with their parent in the sidebar; absent for user-created threads.
    */
   parentThreadId: z.string().min(1).optional(),
 });
@@ -91,6 +95,14 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("file"), path: z.string() }),
   z.object({ kind: z.literal("attachment"), path: z.string(), mimeType: z.string().optional() }),
   z.object({
+    kind: z.literal("diff_comment"),
+    path: z.string().min(1),
+    lineNumber: z.number().int().positive(),
+    side: z.enum(["old", "new"]),
+    staged: z.boolean(),
+    body: z.string().min(1),
+  }),
+  z.object({
     kind: z.literal("skill"),
     name: z.string().min(1),
     path: z.string().min(1),
@@ -98,6 +110,7 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     provider: z.string().min(1),
     scope: z.enum(["global", "project"]),
   }),
+  z.object({ kind: z.literal("mcp"), id: z.string().min(1), name: z.string().min(1) }),
 ]);
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 
@@ -146,9 +159,25 @@ export const interruptThreadPayloadSchema = z.object({
 });
 export type InterruptThreadPayload = z.infer<typeof interruptThreadPayloadSchema>;
 
+export const MAX_GOAL_OBJECTIVE_LENGTH = 4000;
+
+const goalObjectiveSchema = z.string().trim().min(1).max(MAX_GOAL_OBJECTIVE_LENGTH);
+
+export const threadGoalControlSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("edit"), objective: goalObjectiveSchema }),
+  z.object({ action: goalControlActionSchema.exclude(["edit"]) }),
+]);
+export type ThreadGoalControl = z.infer<typeof threadGoalControlSchema>;
+
+export const controlThreadGoalPayloadSchema = threadGoalControlSchema.and(
+  z.object({ threadId: z.string().min(1) }),
+);
+export type ControlThreadGoalPayload = z.infer<typeof controlThreadGoalPayloadSchema>;
+
 export const rollbackThreadConversationPayloadSchema = z.object({
   threadId: z.string().min(1),
   numTurns: z.number().int().min(0),
+  config: threadConfigSchema.optional(),
 });
 export type RollbackThreadConversationPayload = z.infer<
   typeof rollbackThreadConversationPayloadSchema
@@ -190,6 +219,18 @@ export interface PendingSteerState {
  * through the regular thread actions instead of writing to the DB directly.
  */
 export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
+  /**
+   * Host lifecycle preflight for a freshly-created worktree. The paired
+   * desktop enqueues setup before the host launches the thread. Keeping this
+   * separate from `start` prevents the post-launch metadata mirror from
+   * enqueueing setup a second time.
+   */
+  z.object({
+    kind: z.literal("prepare-worktree"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    worktreePath: z.string().min(1),
+  }),
   z.object({
     kind: z.literal("start"),
     threadId: z.string().min(1),
@@ -208,6 +249,7 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     presentationMode: threadPresentationModeSchema.optional(),
     worktreePath: z.string().min(1).optional(),
     worktreeBranch: z.string().optional(),
+    prNumber: z.number().int().min(1).optional(),
     isNewWorktree: z.boolean().optional(),
     /**
      * Desktop-renderer hint. Remote clients send `start` to the HTTP server;
@@ -228,8 +270,25 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
      * {@link threadSchema}'s `parentThreadId`).
      */
     parentThreadId: z.string().min(1).optional(),
+    /**
+     * Sidebar group the new thread belongs to (orchestrator children join a
+     * group shared with their parent so families render together).
+     */
+    groupId: z.string().min(1).optional(),
+    groupName: z.string().min(1).optional(),
+  }),
+  // Assigns an existing thread to a sidebar group. Used to pull an
+  // orchestrator parent into the group its children are created in; the
+  // renderer owns thread metadata, so this routes through its store like the
+  // other metadata commands instead of writing the DB directly.
+  z.object({
+    kind: z.literal("set-group"),
+    threadId: z.string().min(1),
+    groupId: z.string().min(1),
+    groupName: z.string().min(1),
   }),
   z.object({ kind: z.literal("rename"), threadId: z.string().min(1), title: z.string().min(1) }),
+  z.object({ kind: z.literal("acknowledge"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("set-done"), threadId: z.string().min(1), done: z.boolean() }),
   z.object({
     kind: z.literal("set-starred"),

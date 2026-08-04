@@ -77,6 +77,19 @@ export interface OpenCodeMapperState {
   unclaimedChildSessions: string[];
   /** Map child session id → live progress state. */
   subAgentSessions: Map<string, OpenCodeSubAgentSessionState>;
+  /**
+   * Provider session id the `usage.spent` ledger scope currently maps to.
+   * Mirrors `mainSessionId` but tracks epoch/fresh for the token ledger.
+   */
+  usageScopeId: string | null;
+  /** Epoch of the main usage scope — bumped when the provider session id changes. */
+  usageEpoch: number;
+  /** True when the current main scope's session was created new (baseline 0). */
+  usageScopeFresh: boolean;
+  /** Scope ids that have already emitted a `usage.spent` sample. */
+  usageSampledScopes: Set<string>;
+  /** Assistant message ids that already emitted `usage.spent` (exact-once). */
+  usageSpentMessages: Set<string>;
 }
 
 export function createOpenCodeMapperState(threadId: string): OpenCodeMapperState {
@@ -95,16 +108,58 @@ export function createOpenCodeMapperState(threadId: string): OpenCodeMapperState
     taskToolsAwaitingChild: [],
     unclaimedChildSessions: [],
     subAgentSessions: new Map(),
+    usageScopeId: null,
+    usageEpoch: 0,
+    usageScopeFresh: false,
+    usageSampledScopes: new Set(),
+    usageSpentMessages: new Set(),
   };
 }
 
 /**
  * Record the main session id once `openThread` has resolved. The mapper uses
  * this to recognise sub-sessions (`Session.parentID === mainSessionId`) when
- * the `task` tool spawns a subagent.
+ * the `task` tool spawns a subagent. Also establishes the `usage.spent` ledger
+ * scope: a changed session id ends the old counter lineage, so the epoch bumps
+ * rather than inferring a reset from counter values. `fresh` marks a session
+ * the runtime just created (vs resumed) — its first sample counts in full.
  */
-export function setOpenCodeMainSessionId(state: OpenCodeMapperState, sessionId: string): void {
+export function setOpenCodeMainSessionId(
+  state: OpenCodeMapperState,
+  sessionId: string,
+  options?: { fresh?: boolean },
+): void {
   state.mainSessionId = sessionId;
+  if (state.usageScopeId !== sessionId) {
+    if (state.usageScopeId !== null) state.usageEpoch += 1;
+    state.usageScopeId = sessionId;
+    state.usageScopeFresh = options?.fresh === true;
+  }
+}
+
+/**
+ * Resolve the `usage.spent` scope for a message's provider session. The main
+ * session carries the tracked epoch/fresh; child (subagent) sessions are
+ * independent scopes — always created fresh per `task` run, epoch 0.
+ * `fresh` is reported only for a scope's first emitted sample.
+ */
+export function openCodeUsageScopeForSession(
+  state: OpenCodeMapperState,
+  sessionId: string,
+): { scopeId: string; epoch: number; fresh: boolean } {
+  if (sessionId === state.usageScopeId) {
+    return {
+      scopeId: sessionId,
+      epoch: state.usageEpoch,
+      fresh: state.usageScopeFresh && !state.usageSampledScopes.has(sessionId),
+    };
+  }
+  return { scopeId: sessionId, epoch: 0, fresh: !state.usageSampledScopes.has(sessionId) };
+}
+
+/** Mark that a `usage.spent` sample was emitted for the given scope. */
+export function markOpenCodeUsageScopeSampled(state: OpenCodeMapperState, scopeId: string): void {
+  state.usageSampledScopes.add(scopeId);
 }
 
 /**

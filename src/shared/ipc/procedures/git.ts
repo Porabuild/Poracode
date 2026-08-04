@@ -16,6 +16,7 @@ import {
   gitDeleteBranchPayloadSchema,
   gitFetchPayloadSchema,
   gitFinishMergePayloadSchema,
+  gitGetWorktreeOwnerPayloadSchema,
   gitGetWorktreeSourceBranchPayloadSchema,
   gitInitPayloadSchema,
   gitListWorktreesPayloadSchema,
@@ -59,6 +60,7 @@ import type {
   GetGitFileContentPayload,
   GetGitStatusPayload,
   GitAbortMergePayload,
+  GitAbortMergeResult,
   GitAddRemotePayload,
   GitAddWorktreePayload,
   GitAddWorktreeResult,
@@ -72,6 +74,8 @@ import type {
   GitFileContentResult,
   GitFinishMergePayload,
   GitFinishMergeResult,
+  GitGetWorktreeOwnerPayload,
+  GitGetWorktreeOwnerResult,
   GitGetWorktreeSourceBranchPayload,
   GitGetWorktreeSourceBranchResult,
   GitInitPayload,
@@ -292,6 +296,11 @@ export const gitProcedures = {
     GitGetWorktreeSourceBranchResult,
     "supervisor"
   >("gitGetWorktreeSourceBranch", "supervisor", gitGetWorktreeSourceBranchPayloadSchema),
+  gitGetWorktreeOwner: definePayloadProcedure<
+    GitGetWorktreeOwnerPayload,
+    GitGetWorktreeOwnerResult,
+    "supervisor"
+  >("gitGetWorktreeOwner", "supervisor", gitGetWorktreeOwnerPayloadSchema),
   gitMergeToSource: definePayloadProcedure<
     GitMergeToSourcePayload,
     GitMergeToSourceResult,
@@ -302,7 +311,7 @@ export const gitProcedures = {
     GitPullFromSourceResult,
     "supervisor"
   >("gitPullFromSource", "supervisor", gitPullFromSourcePayloadSchema),
-  gitAbortMerge: definePayloadProcedure<GitAbortMergePayload, void, "supervisor">(
+  gitAbortMerge: definePayloadProcedure<GitAbortMergePayload, GitAbortMergeResult, "supervisor">(
     "gitAbortMerge",
     "supervisor",
     gitAbortMergePayloadSchema,

@@ -22,6 +22,11 @@ export function sanitizeWorktreePathSegment(value: string): string {
   return sanitized || "project";
 }
 
+export function normalizeWorktreePathForComparison(path: string, caseInsensitive: boolean): string {
+  const normalized = path.replace(/\\/gu, "/").replace(/\/+$/u, "");
+  return caseInsensitive ? normalized.toLowerCase() : normalized;
+}
+
 /**
  * Parse the "copy ignored files" textarea into a clean pattern list:
  * one gitignore-style pattern per line, blanks and `#` comments dropped.
@@ -101,12 +106,21 @@ export function buildWorktreeLocation(
       distro: original.distro,
       linuxPath: worktreePath,
       uncPath: toWslUncPath(original.distro, worktreePath),
+      ...(original.remoteServerId ? { remoteServerId: original.remoteServerId } : {}),
     };
   }
   if (original.kind === "posix") {
-    return { kind: "posix", path: worktreePath };
+    return {
+      kind: "posix",
+      path: worktreePath,
+      ...(original.remoteServerId ? { remoteServerId: original.remoteServerId } : {}),
+    };
   }
-  return { kind: "windows", path: worktreePath };
+  return {
+    kind: "windows",
+    path: worktreePath,
+    ...(original.remoteServerId ? { remoteServerId: original.remoteServerId } : {}),
+  };
 }
 
 /**

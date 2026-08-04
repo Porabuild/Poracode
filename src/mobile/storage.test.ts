@@ -1,11 +1,41 @@
-import { describe, expect, it } from "vitest";
+import "fake-indexeddb/auto";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { ThreadStatus } from "@/shared/contracts";
 import type { RemoteShellSnapshot } from "@/shared/remote";
 import {
+  markDesktopConnected,
+  mobileDb,
   selectOrphanThreadSnapshotIds,
   shouldPersistThreadSnapshot,
   THREAD_SNAPSHOT_THROTTLE_MS,
 } from "./storage";
+
+beforeEach(async () => {
+  await mobileDb.desktops.clear();
+});
+
+describe("markDesktopConnected", () => {
+  it("only lowers the persisted cursor for an authoritative server reset", async () => {
+    await mobileDb.desktops.put({
+      desktopId: "desktop-1",
+      label: "Desktop",
+      endpoint: "http://127.0.0.1:38987",
+      appVersion: "1.0.0",
+      accessToken: "token",
+      tokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      scopes: [],
+      lastSeenSeq: 42,
+      pairedAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    await markDesktopConnected("desktop-1", 0);
+    expect((await mobileDb.desktops.get("desktop-1"))?.lastSeenSeq).toBe(42);
+
+    await markDesktopConnected("desktop-1", 0, { resetLastSeenSeq: true });
+    expect((await mobileDb.desktops.get("desktop-1"))?.lastSeenSeq).toBe(0);
+  });
+});
 
 /**
  * The helper only reads `snapshot.threads[].id`, so a minimal shell snapshot

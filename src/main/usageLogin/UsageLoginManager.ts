@@ -1,10 +1,12 @@
 import { clipboard } from "electron";
-import { allUsageProviderDescriptors } from "@poracode/agents-usage";
+import {
+  ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL,
+  allUsageProviderDescriptors,
+} from "@poracode/agents-usage";
 import type { BrowserPanelManager } from "../browser";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { UsageLoginStateResponse } from "@/shared/contracts";
 import { clearUsageSecret, hasUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
-import { isCommandCodeLoginCookieLive } from "./commandCodeLoginProbe";
 import { isOpenCodeLoginCookieLive } from "./openCodeLoginProbe";
 
 /**
@@ -58,9 +60,10 @@ interface LocalStorageLoginConfig {
 
 /**
  * The provider authenticates its usage API with a long-lived key the user pastes
- * in (z.ai). There is no browser/OAuth step — the key is sealed via
- * {@link submitApiKey} and read back by the collector — but the provider still
- * lives in `PROVIDER_CONFIGS` so its stored-secret state surfaces like any login.
+ * in (for example, z.ai or Kimi). There is no browser/OAuth step — the key is
+ * sealed via {@link submitApiKey} and read back by the collector — but the
+ * provider still lives in `PROVIDER_CONFIGS` so its stored-secret state surfaces
+ * like any login.
  */
 interface ApiKeyLoginConfig {
   kind: "api-key";
@@ -80,18 +83,20 @@ function usageProviderLabel(providerId: string): string {
   return USAGE_PROVIDER_BY_ID.get(providerId)?.label ?? providerId;
 }
 
+function isAlibabaConsoleSessionCandidate(cookieHeader: string): boolean {
+  const names = new Set(
+    cookieHeader
+      .split(";")
+      .map((part) => part.slice(0, Math.max(0, part.indexOf("="))).trim())
+      .filter(Boolean),
+  );
+  return (
+    names.has("login_aliyunid_ticket") &&
+    (names.has("login_aliyunid_pk") || names.has("login_current_pk") || names.has("login_aliyunid"))
+  );
+}
+
 const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
-  commandcode: {
-    kind: "cookie",
-    loginUrl: "https://commandcode.ai/signin",
-    cookieUrl: "https://commandcode.ai/",
-    // commandcode.ai is a better-auth app; cookies that share a name with
-    // session/auth/token signal a candidate login.
-    authCookiePattern: /session|auth|token/i,
-    // Confirm the cookie actually authenticates before prompting — better-auth
-    // can set a placeholder cookie before sign-in completes.
-    validateSession: isCommandCodeLoginCookieLive,
-  },
   copilot: {
     kind: "github-device",
     host: "github.com",
@@ -131,11 +136,20 @@ const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     // actually authenticates before prompting.
     validateSession: isOpenCodeLoginCookieLive,
   },
-  // z.ai's GLM Coding Plan quota API takes a Bearer API key, not a web cookie.
-  // The user pastes it in (see `submitApiKey`); the env/config key is resolved
-  // host-side instead and needs no entry here.
-  zai: { kind: "api-key" },
+  qwen: {
+    kind: "cookie",
+    loginUrl: ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL,
+    cookieUrl: "https://modelstudio.console.alibabacloud.com/",
+    authCookiePattern: /^login_(?:aliyunid_ticket|aliyunid_pk|current_pk|aliyunid)$/i,
+    validateSession: async (cookieHeader) => isAlibabaConsoleSessionCandidate(cookieHeader),
+  },
 };
+
+for (const descriptor of USAGE_PROVIDER_BY_ID.values()) {
+  if (descriptor.needsLogin && descriptor.mechanism === "api-key") {
+    PROVIDER_CONFIGS[descriptor.id] = { kind: "api-key" };
+  }
+}
 
 for (const providerId of Object.keys(PROVIDER_CONFIGS)) {
   if (!USAGE_PROVIDER_BY_ID.has(providerId)) {
@@ -205,13 +219,17 @@ export class UsageLoginManager {
   }
 
   /**
-   * Seal a user-pasted API key for an `api-key` provider (z.ai). The stored
+   * Seal a user-pasted API key for an API-key or hybrid provider. The stored
    * secret is the persistent "signed in" signal; the collector validates the key
    * itself on the next fetch, so a bad key simply re-prompts via `auth-missing`.
    */
   submitApiKey(providerId: string, apiKey: string): Promise<UsageLoginResult> {
     const config = PROVIDER_CONFIGS[providerId];
-    if (config?.kind !== "api-key") {
+    const descriptor = USAGE_PROVIDER_BY_ID.get(providerId);
+    if (
+      config?.kind !== "api-key" &&
+      !(config?.kind === "cookie" && descriptor?.apiKeyFallback === true)
+    ) {
       return Promise.resolve({ ok: false, error: `No API-key login for ${providerId}` });
     }
     const trimmed = apiKey.trim();

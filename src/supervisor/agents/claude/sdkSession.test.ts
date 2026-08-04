@@ -106,6 +106,7 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
       agents: [],
       apiUsage: null,
     });
+  const backgroundTasks = vi.fn<(toolUseId?: string) => Promise<boolean>>().mockResolvedValue(true);
 
   const runtime = {
     async next(): Promise<IteratorResult<SDKMessage>> {
@@ -140,6 +141,7 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
     supportedCommands: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
     supportedModels: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
     getContextUsage,
+    backgroundTasks,
     close: vi.fn<() => void>(() => {
       closed = true;
       resolveNext?.({ done: true, value: undefined });
@@ -151,6 +153,7 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
     setModel,
     setPermissionMode,
     getContextUsage,
+    backgroundTasks,
     emitMessage(message: SDKMessage): void {
       const resolve = resolveNext;
       resolveNext = undefined;
@@ -265,13 +268,6 @@ function sdkTaskNotification(
     task_id: taskId,
     status,
   } as unknown as SDKMessage;
-}
-
-function promptQueueForLatestQuery(): AsyncIterator<{ message: { content: unknown } }> {
-  const queryArg = mockSdk.query.mock.calls.at(-1)?.[0] as {
-    prompt: AsyncIterable<{ message: { content: unknown } }>;
-  };
-  return queryArg.prompt[Symbol.asyncIterator]();
 }
 
 describe("ClaudeSdkSession", () => {
@@ -709,53 +705,11 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
-  it("steerTurn enqueues onto the running turn without interrupting or reopening", async () => {
+  it("prepares a steer interrupt by backgrounding foreground tasks", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);
-    const runtimeEvents: RuntimeEvent[] = [];
     const session = await ClaudeSdkSession.create({
       threadId: "thread-claude-steer",
-      projectLocation,
-      config,
-      presentationMode: "gui",
-    });
-    session.setListener({
-      onRuntimeEvent: (event) => runtimeEvents.push(event),
-      onUpdate: () => {},
-      onError: () => {},
-      onClose: () => {},
-    });
-
-    await session.openThread(config);
-    await session.startTurn("first", config);
-    await flushAsyncWork();
-    const queue = promptQueueForLatestQuery();
-    expect((await queue.next()).value?.message.content).toBe("first");
-
-    const turnStartsBeforeSteer = runtimeEvents.filter((e) => e.type === "turn.started").length;
-    runtimeEvents.length = 0;
-
-    await session.steerTurn!("steer this", config);
-
-    // No interrupt, no new turn.started; an optimistic user_message item is painted.
-    expect(fake.runtime.interrupt).not.toHaveBeenCalled();
-    expect(runtimeEvents.filter((e) => e.type === "turn.started").length).toBe(0);
-    expect(turnStartsBeforeSteer).toBe(1);
-    expect(
-      runtimeEvents.filter((e) => e.type === "item.started" && e.itemType === "user_message")
-        .length,
-    ).toBe(1);
-    // The steer message was pushed onto the SDK input queue.
-    expect((await queue.next()).value?.message.content).toBe("steer this");
-
-    await session.dispose();
-  });
-
-  it("steerTurn applies a changed model so a next-turn steer uses the new one", async () => {
-    const fake = createFakeQuery();
-    mockSdk.query.mockReturnValue(fake.runtime);
-    const session = await ClaudeSdkSession.create({
-      threadId: "thread-claude-steer-model",
       projectLocation,
       config,
       presentationMode: "gui",
@@ -770,48 +724,12 @@ describe("ClaudeSdkSession", () => {
     await session.openThread(config);
     await session.startTurn("first", config);
     await flushAsyncWork();
-    fake.setModel.mockClear();
+    expect("steerTurn" in session).toBe(false);
 
-    // setModel never affects the in-flight turn, but the steer message may
-    // start the NEXT turn, so the model change must be applied before pushing.
-    await session.steerTurn!("steer this", { model: "opus" });
-    expect(fake.setModel).toHaveBeenCalledWith("opus");
+    await session.prepareSteerInterrupt!();
 
-    // Unchanged model on a later steer must not re-send the control request.
-    await session.steerTurn!("again", { model: "opus" });
-    expect(fake.setModel).toHaveBeenCalledTimes(1);
-
-    await session.dispose();
-  });
-
-  it("steerTurn falls back to startTurn semantics when no turn is in flight", async () => {
-    const fake = createFakeQuery();
-    mockSdk.query.mockReturnValue(fake.runtime);
-    const runtimeEvents: RuntimeEvent[] = [];
-    const session = await ClaudeSdkSession.create({
-      threadId: "thread-claude-steer-idle",
-      projectLocation,
-      config,
-      presentationMode: "gui",
-    });
-    session.setListener({
-      onRuntimeEvent: (event) => runtimeEvents.push(event),
-      onUpdate: () => {},
-      onError: () => {},
-      onClose: () => {},
-    });
-
-    const openedSessionId = await session.openThread(config);
-    await session.startTurn("first", config);
-    await flushAsyncWork();
-    fake.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "done"));
-    fake.emitMessage(sdkSuccessResult(openedSessionId));
-    await flushAsyncWork();
-    runtimeEvents.length = 0;
-
-    // Raced idle: steer opens a fresh turn just like startTurn.
-    await session.steerTurn!("second", config);
-    expect(runtimeEvents.filter((e) => e.type === "turn.started").length).toBe(1);
+    expect(fake.backgroundTasks).toHaveBeenCalledTimes(1);
+    expect(fake.runtime.interrupt).not.toHaveBeenCalled();
 
     await session.dispose();
   });
@@ -1107,7 +1025,7 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
-  it("updates active goal tokens from live SDK api usage including cache", async () => {
+  it("ticks the active goal on context polls without deriving tokens from apiUsage", async () => {
     vi.useFakeTimers();
     try {
       const fake = createFakeQuery();
@@ -1158,23 +1076,18 @@ describe("ClaudeSdkSession", () => {
           breakdown: [{ id: "messages-0", label: "Messages", tokens: 238_000 }],
         },
       });
-      expect(runtimeEvents).toContainEqual(
-        expect.objectContaining({
-          type: "item.updated",
-          threadId: "thread-claude-goal-spend",
-          payload: expect.objectContaining({
-            objective: "fix live token count",
-            status: "active",
-            tokensUsed: 237_000,
-          }),
-        }),
+      // The goal tick re-emits the dock state (objective/status/time)…
+      const goalTick = runtimeEvents.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.updated" }> =>
+          event.type === "item.updated" &&
+          (event.payload as { objective?: unknown } | undefined)?.objective ===
+            "fix live token count",
       );
-      expect(runtimeEvents).not.toContainEqual(
-        expect.objectContaining({
-          type: "item.updated",
-          payload: expect.objectContaining({ tokensUsed: 238_000 }),
-        }),
-      );
+      expect(goalTick).toBeDefined();
+      // …but the last-call `apiUsage` snapshot is NOT token spend: nothing may
+      // be derived from it (that would be 237_000 here). Goal tokens accumulate
+      // only from per-call assistant-message usage, so the tick still reports 0.
+      expect(goalTick?.payload).toMatchObject({ tokensUsed: 0 });
 
       await session.dispose();
     } finally {
@@ -1258,6 +1171,21 @@ describe("ClaudeSdkSession", () => {
     )?.itemId;
     expect(goalItemId).toBeDefined();
 
+    // Goal spend comes from the per-call assistant message, not the result's
+    // session-cumulative usage counter.
+    fake.emitMessage({
+      type: "assistant",
+      session_id: openedSessionId,
+      uuid: "uuid-msg-goal-steer",
+      parent_tool_use_id: null,
+      message: {
+        id: "msg-goal-steer",
+        role: "assistant",
+        model: "claude-opus-4-8",
+        content: [{ type: "text", text: "partial" }],
+        usage: { input_tokens: 10_000, output_tokens: 2_000 },
+      },
+    } as unknown as SDKMessage);
     fake.emitMessage({
       type: "result",
       subtype: "error_during_execution",
@@ -1382,70 +1310,175 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
-  it("emits the deferred idle once the last background task_notification drains the registry", async () => {
-    const fake = createFakeQuery();
-    mockSdk.query.mockReturnValue(fake.runtime);
-    const updates: StructuredSessionUpdate[] = [];
-    const session = await ClaudeSdkSession.create({
-      threadId: "thread-claude-bg-drain",
-      projectLocation,
-      config,
-      presentationMode: "gui",
-    });
-    session.setListener({
-      onRuntimeEvent: () => {},
-      onUpdate: (update) => updates.push(update),
-      onError: () => {},
-      onClose: () => {},
-    });
+  it("emits the deferred idle after the resume grace once the last background task_notification drains the registry", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-drain",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
 
-    const openedSessionId = await session.openThread(config);
-    await session.startTurn("launch a background subagent", config);
-    await flushAsyncWork();
-    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
-    fake.emitMessage(sdkSuccessResult(openedSessionId));
-    await flushAsyncWork();
-    expect(updates.at(-1)).toMatchObject({ status: "working" });
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("/goal launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      const goalItemId = runtimeEvents.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+          event.type === "item.started" && event.itemType === "goal",
+      )?.itemId;
+      expect(goalItemId).toBeDefined();
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
 
-    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
-    await flushAsyncWork();
+      fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+      await vi.advanceTimersByTimeAsync(0);
 
-    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+      // Held through the resume grace window — the SDK usually wakes the
+      // model right after the notification.
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(runtimeEvents).not.toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: goalItemId,
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
+      );
 
-    await session.dispose();
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+      expect(runtimeEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: goalItemId,
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
+      );
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the thread working when the model resumes within the drain grace window", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-drain-resume",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("/goal launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      const goalItemId = runtimeEvents.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+          event.type === "item.started" && event.itemType === "goal",
+      )?.itemId;
+      expect(goalItemId).toBeDefined();
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+
+      // The last task drains, and the SDK wakes the model to consume the
+      // results: session-state running, then assistant activity.
+      fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+      // Real Claude wakeups can arrive just after two seconds. Crossing the
+      // old grace must not settle idle and reset the renderer's timer.
+      await vi.advanceTimersByTimeAsync(2_100);
+      fake.emitMessage(
+        sdkSystemMessage("session_state_changed", openedSessionId, { state: "running" }),
+      );
+      await vi.advanceTimersByTimeAsync(500);
+      fake.emitMessage({
+        type: "stream_event",
+        session_id: openedSessionId,
+        event: { type: "message_start", message: { id: "msg-resumed" } },
+      } as unknown as SDKMessage);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      // The stale held completion never settles the thread: no idle emitted,
+      // so the renderer's working timer and done-notification stay untouched.
+      expect(updates.some((update) => update.status === "idle")).toBe(false);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(runtimeEvents).not.toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: goalItemId,
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
+      );
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("preserves an error result through the deferral", async () => {
-    const fake = createFakeQuery();
-    mockSdk.query.mockReturnValue(fake.runtime);
-    const updates: StructuredSessionUpdate[] = [];
-    const session = await ClaudeSdkSession.create({
-      threadId: "thread-claude-bg-error",
-      projectLocation,
-      config,
-      presentationMode: "gui",
-    });
-    session.setListener({
-      onRuntimeEvent: () => {},
-      onUpdate: (update) => updates.push(update),
-      onError: () => {},
-      onClose: () => {},
-    });
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-error",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: () => {},
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
 
-    const openedSessionId = await session.openThread(config);
-    await session.startTurn("launch a background subagent", config);
-    await flushAsyncWork();
-    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
-    fake.emitMessage(sdkErrorResult(openedSessionId));
-    await flushAsyncWork();
-    expect(updates.at(-1)).toMatchObject({ status: "working" });
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+      fake.emitMessage(sdkErrorResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
 
-    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
-    await flushAsyncWork();
+      fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+      await vi.advanceTimersByTimeAsync(5_000);
 
-    expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
+      expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
 
-    await session.dispose();
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("only emits idle after the last of multiple concurrent background tasks closes", async () => {
@@ -1481,9 +1514,9 @@ describe("ClaudeSdkSession", () => {
 
     fake.emitMessage(sdkTaskNotification(openedSessionId, "task-2"));
     await flushAsyncWork();
-    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
-
+    // The drain grace holds the settle; dispose flushes it unconditionally.
     await session.dispose();
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
   });
 
   it("suppresses a session-state idle while a completion is deferred behind a live task", async () => {
@@ -1520,9 +1553,9 @@ describe("ClaudeSdkSession", () => {
 
     fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
     await flushAsyncWork();
-    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
-
+    // The drain grace holds the settle; dispose flushes it unconditionally.
     await session.dispose();
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
   });
 
   it("keeps a deferred error outcome intact across a suppressed session-state idle", async () => {
@@ -1556,10 +1589,10 @@ describe("ClaudeSdkSession", () => {
 
     fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
     await flushAsyncWork();
+    // The drain grace holds the settle; dispose flushes it unconditionally.
+    await session.dispose();
     expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
     expect(updates.some((update) => update.status === "idle")).toBe(false);
-
-    await session.dispose();
   });
 
   it("flushes a deferred idle when the stream throws with a background task still live", async () => {

@@ -4,6 +4,7 @@ import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useDraggable } from "@dnd-kit/react";
 import { readBridge } from "@/renderer/bridge";
+import { DiffStat } from "@/renderer/components/common/DiffStat";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
@@ -13,6 +14,7 @@ import {
   aggregatePrChecksStatus,
   combineChecksStatus,
   getPrStatusTone,
+  isPrActive,
   PR_TONE_TEXT_CLASS,
 } from "@/renderer/utils/prStatus";
 import type { DragSourceData } from "@/renderer/dnd";
@@ -67,6 +69,9 @@ export function GitBadge(props: {
     totalDeletions,
     prState,
     checksStatus,
+    reviewDecision,
+    mergeable,
+    mergeStateStatus,
     canCreatePr,
   } = useGitStore(
     useShallow((s) => {
@@ -82,7 +87,7 @@ export function GitBadge(props: {
       const details = pr?.number ? s.prDetails[`${props.projectId}#${pr.number}`] : undefined;
       const detailsStatus = aggregatePrChecksStatus(details?.checks);
       const isWorktree = props.worktreePath !== undefined;
-      const hasPr = pr !== undefined && pr !== null && pr.state !== "closed";
+      const hasActivePr = isPrActive(pr?.state);
       return {
         hasStatus: gitStatus !== undefined,
         isRepo: gitStatus?.isRepo ?? false,
@@ -93,10 +98,13 @@ export function GitBadge(props: {
         totalDeletions: gitStatus?.totalDeletions ?? 0,
         prState: pr?.state,
         checksStatus: combineChecksStatus(detailsStatus, pr?.checksStatus),
+        reviewDecision: pr?.reviewDecision,
+        mergeable: pr?.mergeable,
+        mergeStateStatus: pr?.mergeStateStatus,
         canCreatePr:
           isWorktree &&
           (s.ghAvailable[props.projectId] ?? false) &&
-          !hasPr &&
+          !hasActivePr &&
           Boolean(gitStatus?.tracking) &&
           (gitStatus?.ahead ?? 0) === 0,
       };
@@ -168,7 +176,7 @@ export function GitBadge(props: {
     );
   }
   const hasVisiblePr =
-    prState !== undefined && prState !== "closed" && (prState !== "merged" || isWorktree);
+    prState !== undefined && (isWorktree || (prState !== "merged" && prState !== "closed"));
   const showPrIcon = hasVisiblePr || canCreatePr;
   const showWorktreeFork = (props.fallbackToWorktreeIcon ?? false) && isWorktree && !showPrIcon;
   if (!isRepo || (!hasChanges && !showPrIcon && !showWorktreeFork)) {
@@ -204,9 +212,16 @@ export function GitBadge(props: {
       </Tooltip>
     );
   }
-  const prIconColor = canCreatePr
-    ? "text-[color:var(--git-branch-tone)]"
-    : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
+  const prIconColor =
+    prState === undefined
+      ? "text-[color:var(--git-branch-tone)]"
+      : PR_TONE_TEXT_CLASS[
+          getPrStatusTone(prState, checksStatus, {
+            reviewDecision,
+            mergeable,
+            mergeStateStatus,
+          })
+        ];
   return (
     <div
       ref={elementRef}
@@ -224,10 +239,12 @@ export function GitBadge(props: {
     >
       <span className="flex items-center gap-1 text-[10px] font-medium">
         {hasChanges && (
-          <span className="flex items-center gap-0.5">
-            {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
-            {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
-          </span>
+          <DiffStat
+            animated
+            className="flex items-center gap-0.5"
+            insertions={totalInsertions}
+            deletions={totalDeletions}
+          />
         )}
         {showPrIcon && <GitPullRequest className={`size-3 shrink-0 ${prIconColor}`} />}
         {showWorktreeFork && (

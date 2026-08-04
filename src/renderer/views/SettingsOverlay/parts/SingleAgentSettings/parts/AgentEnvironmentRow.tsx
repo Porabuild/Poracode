@@ -79,6 +79,12 @@ export function AgentEnvironmentRow(props: {
    * status's own `providerMetadata` for the summary line.
    */
   accountMetadata?: AgentProviderMetadata | undefined;
+  /**
+   * Plan label read from the provider's live usage snapshot. Takes precedence
+   * over the detected `providerMetadata.plan`, which snapshots the plan at
+   * sign-in time and goes stale when the user changes subscription.
+   */
+  livePlan?: string | undefined;
 }) {
   const { t } = useLingui();
   const { status, authMethods } = props;
@@ -103,7 +109,12 @@ export function AgentEnvironmentRow(props: {
     props.accountMetadata && isAuthenticated
       ? { ...status, providerMetadata: props.accountMetadata }
       : status,
-    { includeAuthFallback: props.includeAuthFallback },
+    {
+      includeAuthFallback: props.includeAuthFallback,
+      // Same gate as `accountMetadata`: usage is collected for the signed-in
+      // account, so a row awaiting its own login must not borrow that plan.
+      ...(isAuthenticated && props.livePlan ? { livePlan: props.livePlan } : {}),
+    },
   );
 
   const installedVer = status.version;
@@ -151,9 +162,9 @@ export function AgentEnvironmentRow(props: {
     : "";
 
   return (
-    <div className="flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
+    <div className="@container flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
       <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium @max-[400px]:flex-wrap">
           <span className="shrink-0 text-foreground/90">{env || t`Default`}</span>
           {props.isRedetecting ? (
             <PixelLoader size="xs" />
@@ -164,7 +175,7 @@ export function AgentEnvironmentRow(props: {
           )}
           {props.binaryUpdatePending && !props.isRedetecting ? (
             <div
-              className="flex h-5 min-h-5 items-center"
+              className="flex h-5 min-h-5 items-center @max-[400px]:basis-full"
               role="status"
               aria-label={
                 env ? t`Updating ${props.agentLabel} (${env})` : t`Updating ${props.agentLabel}`
@@ -174,7 +185,7 @@ export function AgentEnvironmentRow(props: {
             </div>
           ) : showUpdateButton ? (
             <Tooltip delay={0}>
-              <Tooltip.Trigger>
+              <Tooltip.Trigger className="@max-[400px]:basis-full">
                 <Button
                   size="sm"
                   variant="ghost"

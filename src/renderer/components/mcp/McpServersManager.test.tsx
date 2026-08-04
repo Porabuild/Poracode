@@ -7,8 +7,11 @@ import type {
   McpProbePayload,
   McpProbeResult,
   McpServer,
+  McpOauthBeginPayload,
+  McpOauthBeginResult,
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import type { PoracodeBridge } from "@/shared/ipc";
 import { McpServersManager, type McpImportProjectTarget } from "./McpServersManager";
 
 const bridge = vi.hoisted(() => ({
@@ -19,6 +22,15 @@ const bridge = vi.hoisted(() => ({
       (payload: DiscoverExternalMcpServersPayload) => Promise<DiscoverExternalMcpServersResult>
     >(),
   probeMcpServer: vi.fn<(payload: McpProbePayload) => Promise<McpProbeResult>>(),
+  getMcpOauthStatus: vi.fn<PoracodeBridge["getMcpOauthStatus"]>(async () => ({
+    authenticatedUrls: [],
+  })),
+  beginMcpServerOauth: vi.fn<(payload: McpOauthBeginPayload) => Promise<McpOauthBeginResult>>(),
+  openExternalNative: vi.fn<PoracodeBridge["openExternalNative"]>(async () => undefined),
+  waitMcpServerOauth: vi.fn<PoracodeBridge["waitMcpServerOauth"]>(async () => ({
+    status: "authorized",
+  })),
+  clearMcpServerOauth: vi.fn<PoracodeBridge["clearMcpServerOauth"]>(async () => undefined),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -47,7 +59,7 @@ function managerElement(options: {
   disabledBuiltInTools?: Record<string, string[]>;
   onBuiltInDisabledChange?: (id: string, disabled: boolean) => void;
   onBuiltInToolEnabledChange?: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
-  includeSubagentsSettings?: boolean;
+  includeCrossagentsSettings?: boolean;
 }) {
   const {
     userServers = [],
@@ -61,7 +73,7 @@ function managerElement(options: {
     disabledBuiltInTools,
     onBuiltInDisabledChange,
     onBuiltInToolEnabledChange,
-    includeSubagentsSettings,
+    includeCrossagentsSettings,
   } = options;
   const workspaceLocation = projectLocation ?? { kind: "windows" as const, path: "C:\\repo" };
   return (
@@ -99,12 +111,12 @@ function managerElement(options: {
       {...(disabledBuiltInTools ? { disabledBuiltInTools } : {})}
       {...(onBuiltInDisabledChange ? { onBuiltInDisabledChange } : {})}
       {...(onBuiltInToolEnabledChange ? { onBuiltInToolEnabledChange } : {})}
-      {...(includeSubagentsSettings
+      {...(includeCrossagentsSettings
         ? {
             builtInSettings: {
-              subagents: {
-                title: "Subagents",
-                actionLabel: "Subagent routing guide",
+              crossagents: {
+                title: "Crossagents",
+                actionLabel: "Crossagent routing guide",
                 content: <div>Routing settings</div>,
               },
             },
@@ -122,6 +134,11 @@ describe("McpServersManager", () => {
     bridge.discoverExternalMcpServers.mockResolvedValue({ groups: [] });
     bridge.probeMcpServer.mockReset();
     bridge.probeMcpServer.mockReturnValue(new Promise(() => undefined));
+    bridge.getMcpOauthStatus.mockReset().mockResolvedValue({ authenticatedUrls: [] });
+    bridge.beginMcpServerOauth.mockReset().mockResolvedValue({ status: "authorized" });
+    bridge.openExternalNative.mockClear();
+    bridge.waitMcpServerOauth.mockClear();
+    bridge.clearMcpServerOauth.mockClear();
   });
 
   it("renders immutable built-ins separately from editable configured servers", () => {
@@ -138,7 +155,7 @@ describe("McpServersManager", () => {
     expect(screen.getByRole("button", { name: "Edit memory" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete memory" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Browser" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "44 tools" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "46 tools" })).toBeInTheDocument();
   });
 
   it("shows the built-in tool list from its tool count", () => {
@@ -154,7 +171,7 @@ describe("McpServersManager", () => {
 
     const row = document.querySelector('[data-built-in-mcp-server="app-controls"]');
     expect(row).not.toBeNull();
-    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "5 tools" }));
+    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "57 tools" }));
 
     const dialog = screen.getByRole("dialog", { name: "App Controls" });
     expect(within(dialog).getByText("list_schedules")).toBeInTheDocument();
@@ -180,27 +197,27 @@ describe("McpServersManager", () => {
     expect(onBuiltInDisabledChange).toHaveBeenCalledWith("browser", true);
   });
 
-  it("opens subagents settings in a modal", () => {
+  it("opens Crossagents settings in a modal", () => {
     render(
       managerElement({
         disabledBuiltIns: {},
-        includeSubagentsSettings: true,
+        includeCrossagentsSettings: true,
       }),
     );
 
-    const row = document.querySelector('[data-built-in-mcp-server="subagents"]');
+    const row = document.querySelector('[data-built-in-mcp-server="crossagents"]');
     expect(row).not.toBeNull();
     expect(within(row as HTMLElement).queryByText("Routing settings")).not.toBeInTheDocument();
 
     fireEvent.click(
-      within(row as HTMLElement).getByRole("button", { name: "Subagent routing guide" }),
+      within(row as HTMLElement).getByRole("button", { name: "Crossagent routing guide" }),
     );
 
-    const dialog = screen.getByRole("dialog", { name: "Subagents" });
+    const dialog = screen.getByRole("dialog", { name: "Crossagents" });
     expect(dialog).toBeInTheDocument();
     expect(screen.getByText("Routing settings")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByText("Close"));
-    expect(screen.queryByRole("dialog", { name: "Subagents" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Crossagents" })).not.toBeInTheDocument();
   });
 
   it("probes an enabled server once and forwards the workspace location", async () => {
@@ -278,6 +295,42 @@ describe("McpServersManager", () => {
 
     expect(await screen.findByText("1 tool")).toBeInTheDocument();
     expect(bridge.probeMcpServer).toHaveBeenCalledTimes(2);
+  });
+
+  it("scopes workspace OAuth to the remote project's host", async () => {
+    const projectLocation = {
+      kind: "posix" as const,
+      path: "/remote/project",
+      remoteServerId: "d1",
+    };
+    const remoteServer: McpServer = {
+      ...server,
+      transport: { type: "http", url: "https://mcp.example.test", headers: {} },
+    };
+    bridge.probeMcpServer.mockResolvedValue({
+      status: "auth-required",
+      toolCount: 0,
+      latencyMs: 8,
+      environment: { runtime: "host", projectScoped: true },
+      error: { code: "auth-required", message: "Authentication required", authScheme: "oauth" },
+    });
+
+    render(
+      managerElement({
+        workspaceServers: [remoteServer],
+        defaultScope: "workspace",
+        projectLocation,
+      }),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Authenticate" }));
+    await waitFor(() =>
+      expect(bridge.beginMcpServerOauth).toHaveBeenCalledWith({
+        server: remoteServer,
+        projectLocation,
+      }),
+    );
+    expect(bridge.getMcpOauthStatus).toHaveBeenCalledWith({ projectLocation });
   });
 
   it("shows a localized unavailable error without a fake zero tool count", async () => {

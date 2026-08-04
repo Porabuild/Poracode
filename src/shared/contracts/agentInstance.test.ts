@@ -94,6 +94,28 @@ describe("Claude profile instance helpers", () => {
     ).toEqual({ configDir: "~/.poracode/claude-profiles/work" });
   });
 
+  it("parses external-provider model effort metadata", () => {
+    expect(
+      parseClaudeProfileInstanceConfig({
+        configDir: "~/.poracode/claude-profiles/kimi",
+        efforts: ["low", "high", "max", "ultracode"],
+        defaultEffort: "high",
+        modelEfforts: {
+          "k3[1m]": ["low", "high", "max", "ultracode"],
+          "kimi-for-coding": [],
+        },
+      }),
+    ).toEqual({
+      configDir: "~/.poracode/claude-profiles/kimi",
+      efforts: ["low", "high", "max", "ultracode"],
+      defaultEffort: "high",
+      modelEfforts: {
+        "k3[1m]": ["low", "high", "max", "ultracode"],
+        "kimi-for-coding": [],
+      },
+    });
+  });
+
   it("rejects an empty Claude profile config directory", () => {
     expect(() => parseClaudeProfileInstanceConfig({ configDir: "" })).toThrow(Error);
   });

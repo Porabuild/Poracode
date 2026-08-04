@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { ImageLightboxHost } from "@/renderer/components/composer/ImageLightbox";
 import { PullFromSourceDialog } from "@/renderer/views/MainView/parts/PullFromSourceDialog";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { getChrome } from "./chrome";
+import { useDesktopPanelStore } from "./desktopPanelStore";
+import { NarrowShell } from "./NarrowShell";
+import { usePushLifecycle } from "./push/usePushLifecycle";
+import { WebPushPermissionPrompt } from "./push/WebPushPermissionPrompt";
 import { MobileAppProvider, type MobileAppContextValue } from "./remoteContext";
 import { getStoredPreference, setStoredPreference } from "./storage";
 import { UserMessageActionsSheet } from "./UserMessageActionsSheet";
-import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
+import { TodoActionsSheet } from "./TodoActionsSheet";
+import { DESKTOP_RIGHT_PANEL_QUERY, useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { useDeepLinkPairing } from "./useDeepLinkPairing";
 import { useRemoteDesktop } from "./useRemoteDesktop";
-import { getChrome } from "./chrome";
-import { NarrowShell } from "./NarrowShell";
 import { WideShell } from "./WideShell";
-import { usePushLifecycle } from "./push/usePushLifecycle";
 
 const PROJECT_FILTER_PREF = "threads.projectFilter";
 
@@ -24,8 +28,17 @@ const PROJECT_FILTER_PREF = "threads.projectFilter";
 export function RootLayout() {
   const remote = useRemoteDesktop();
   const isWide = useMediaQuery(WIDE_SHELL_QUERY);
+  const useRightPanel = useMediaQuery(DESKTOP_RIGHT_PANEL_QUERY);
   const navigate = useNavigate();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  // `location` switches to the pending URL before TanStack starts the View
+  // Transition and commits its pending matches. Driving shell chrome from it
+  // would therefore put the incoming header over the still-rendered outgoing
+  // route. The active leaf match changes in the same commit as <Outlet>, so the
+  // header and page always belong to one route in both transition snapshots.
+  const pathname = useRouterState({
+    select: (state) =>
+      state.matches.at(-1)?.pathname ?? state.resolvedLocation?.pathname ?? state.location.pathname,
+  });
 
   // Native-only: push notifications + foreground Live Activities. Inert on the
   // PWA/web (guarded by isNativeApp inside the hook).
@@ -41,12 +54,6 @@ export function RootLayout() {
 
   const [threadSearchOpen, setThreadSearchOpen] = useState(false);
   const [threadSearchHost, setThreadSearchHost] = useState<HTMLDivElement | null>(null);
-  const [chromeHidden, setChromeHidden] = useState(false);
-  // A hidden header on /threads must not leak into the next screen; the list
-  // remounts scrolled to top on return, so re-anchor on every route change.
-  useEffect(() => {
-    setChromeHidden(false);
-  }, [pathname]);
 
   const [projectFilter, setProjectFilterState] = useState<string | null>(null);
   useEffect(() => {
@@ -125,7 +132,7 @@ export function RootLayout() {
       return;
     }
     if (handledGitContextRef.current === gitReviewContext) return;
-    const thread = remote.threads.find((entry) => {
+    const thread = remote.activeThreads.find((entry) => {
       if (entry.projectId !== gitReviewContext.projectId) return false;
       return gitReviewContext.worktreePath
         ? entry.worktreePath === gitReviewContext.worktreePath
@@ -141,13 +148,17 @@ export function RootLayout() {
     panelStore.setGitReviewAsPanel(false);
     panelStore.setGitReviewContext(null);
     if (!thread) return;
+    if (useRightPanel) {
+      useDesktopPanelStore.getState().show("git", thread.id);
+      return;
+    }
     void navigate({
       to: "/workspace/$threadId",
       params: { threadId: thread.id },
       search: { tab: "changes" },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate is stable; guarded by ref
-  }, [gitReviewContext, gitOverlayOpen, gitReviewAsPanel, remote.threads]);
+  }, [gitReviewContext, gitOverlayOpen, gitReviewAsPanel, remote.activeThreads, useRightPanel]);
 
   const context: MobileAppContextValue = {
     remote,
@@ -156,7 +167,6 @@ export function RootLayout() {
     threadSearchOpen,
     setThreadSearchOpen,
     threadSearchHost,
-    setChromeHidden,
   };
 
   return (
@@ -176,11 +186,13 @@ export function RootLayout() {
           searchOpen={threadSearchOpen}
           onSearchOpenChange={setThreadSearchOpen}
           onSearchHostChange={setThreadSearchHost}
-          chromeHidden={chromeHidden}
         />
       )}
       <PullFromSourceDialog />
+      <ImageLightboxHost />
       <UserMessageActionsSheet />
+      <TodoActionsSheet />
+      <WebPushPermissionPrompt />
     </MobileAppProvider>
   );
 }

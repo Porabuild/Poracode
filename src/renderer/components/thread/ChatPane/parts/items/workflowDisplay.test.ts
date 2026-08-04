@@ -40,7 +40,28 @@ Run ID: wf_5478fde3-ae0
 Use /workflows to watch live progress.`;
 
 describe("parseWorkflowInfo", () => {
-  it("prefers progress.description for the description", () => {
+  it("prefers the structured workflow payload over text parsing", () => {
+    const info = parseWorkflowInfo(
+      makePayload({
+        progress: { description: "verify:runtimeItems.ts:altitude" },
+        workflow: {
+          name: "simplify-review",
+          runId: "wf_struct",
+          summary: "Four-angle simplify review",
+          transcriptDir: "/home/x/.claude/projects/p/sess/subagents/workflows/wf_struct",
+        },
+      }),
+    );
+    // The stable workflow summary wins over the live agent label.
+    expect(info.description).toBe("Four-angle simplify review");
+    expect(info.runId).toBe("wf_struct");
+    expect(info.transcriptDir).toBe(
+      "/home/x/.claude/projects/p/sess/subagents/workflows/wf_struct",
+    );
+    expect(info.manifestPath).toBe("/home/x/.claude/projects/p/sess/workflows/wf_struct.json");
+  });
+
+  it("uses progress.description when no structured summary exists", () => {
     const info = parseWorkflowInfo(
       makePayload({
         args: { script: SCRIPT },

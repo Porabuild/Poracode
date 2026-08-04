@@ -13,6 +13,17 @@ export function mobileRouterBasePath(pathname: string, buildBasePath: string): s
   return "/";
 }
 
+/**
+ * Service-worker scope for this build. The desktop-served build (relative
+ * base → "/") owns the whole origin. Hosted channels live under their base
+ * path and must stay inside that scope. Hosted stable/nightly builds now use
+ * separate origins and therefore both legitimately own `/`.
+ */
+export function mobileServiceWorkerScope(buildBasePath: string): string {
+  const base = trimBasePath(buildBasePath);
+  return base === "/" ? "/" : `${base}/`;
+}
+
 function validInternalRoute(value: unknown): string | null {
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//")
     ? value

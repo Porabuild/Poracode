@@ -19,12 +19,14 @@ export function MainRightPanel() {
 
   const isTerminalRight = terminalPosition === "right";
 
+  if (isTerminalRight && !rightPanelOpen) return null;
+
   return (
     <Suspense>
       {!isTerminalRight ? (
         <DeferredDevTerminalPanel />
       ) : (
-        <DeferredProjectAuxiliaryPanel includeTerminal />
+        <DeferredProjectAuxiliaryPanel includeTerminal visible={rightPanelOpen} />
       )}
     </Suspense>
   );

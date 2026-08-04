@@ -76,6 +76,8 @@ describe("ComputerUseMcpIngress", () => {
 
     expect(body.result.serverInfo.name).toBe("computer_use");
     expect(body.result.instructions).toContain("computer_use.api");
+    expect(body.result.instructions).toContain("computer_use.enable");
+    expect(body.result.instructions).toContain("computer_use.disable");
     expect(body.result.instructions).toContain("switch to interactive mode");
   });
 
@@ -123,6 +125,7 @@ describe("ComputerUseMcpIngress", () => {
     });
     await vi.waitFor(() => {
       expect(onActivity).toHaveBeenCalledWith({
+        kind: "action",
         threadId: "thread-1",
         toolName: "click",
         active: true,
@@ -133,6 +136,19 @@ describe("ComputerUseMcpIngress", () => {
     resolveClick?.({ ok: true, mode: "interactive" });
     expect((await response).status).toBe(200);
     expect(onActivity.mock.calls.map(([event]) => event.active)).toEqual([true, false]);
+  });
+
+  it("holds takeover activity between explicit enable and disable calls", async () => {
+    const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
+    ingress = new ComputerUseMcpIngress({ driver: createDriver(), onActivity });
+    const info = await ingress.start();
+
+    expect((await callTool(info, "enable", {})).status).toBe(200);
+    expect((await callTool(info, "disable", {})).status).toBe(200);
+    expect(onActivity.mock.calls.map(([event]) => event)).toEqual([
+      { kind: "session", threadId: "thread-1", active: true },
+      { kind: "session", threadId: "thread-1", active: false },
+    ]);
   });
 
   it("does not emit takeover activity for passive tools", async () => {
@@ -161,9 +177,8 @@ describe("ComputerUseMcpIngress", () => {
     expect(
       (await callTool(info, "key", { window: { app: "calc", id: 1 }, key: "Escape" })).status,
     ).toBe(200);
-    expect(onActivity.mock.calls.map(([event]) => event.toolName)).toEqual([
-      "press_key",
-      "press_key",
-    ]);
+    expect(
+      onActivity.mock.calls.map(([event]) => (event.kind === "action" ? event.toolName : null)),
+    ).toEqual(["press_key", "press_key"]);
   });
 });

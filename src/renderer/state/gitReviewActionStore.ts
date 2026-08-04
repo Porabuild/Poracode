@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { PrWatch } from "@/shared/contracts";
 
 /**
  * Per-(project, worktree) working state for the git review panel: in-progress
@@ -52,6 +53,8 @@ export interface GitReviewActionState {
   prGen: GeneratedDraftMeta | null;
   /** Draft PR target branch (null = use the resolved source branch). */
   prTargetBranch: string | null;
+  /** Automation record returned while creating the newest PR in this panel. */
+  createdPrWatch: { prNumber: number; watch: PrWatch | null } | null;
   /** A commit-message generation is in flight (supervisor one-shot LLM call). */
   isGenerating: boolean;
   /** A PR-summary generation is in flight. */
@@ -70,6 +73,8 @@ export interface GitReviewActionState {
   isFinishingMerge: boolean;
   /** A PR creation is in flight. */
   isCreatingPr: boolean;
+  /** Commit hash of the Poracode pull stash awaiting re-apply after the in-progress merge. */
+  pullStashCommit: string | null;
 }
 
 /** Stable default returned for panels with no state yet — never mutate. */
@@ -81,6 +86,7 @@ const EMPTY_STATE: GitReviewActionState = Object.freeze({
   prBody: "",
   prGen: null,
   prTargetBranch: null,
+  createdPrWatch: null,
   isGenerating: false,
   isGeneratingPr: false,
   isCommitting: false,
@@ -90,7 +96,21 @@ const EMPTY_STATE: GitReviewActionState = Object.freeze({
   isAbortingMerge: false,
   isFinishingMerge: false,
   isCreatingPr: false,
+  pullStashCommit: null,
 });
+
+/**
+ * Key of a panel's slice in this store — must stay identical to the key the
+ * git review panel computes (`statusKey ?? project.id`, where `statusKey` is
+ * the worktree path; see GitReviewSidebar), so writers outside the panel
+ * (e.g. PullFromSourceDialog) land state where the panel will read it.
+ */
+export function gitReviewActionStoreKey(
+  projectId: string,
+  worktreePath: string | undefined,
+): string {
+  return worktreePath ?? projectId;
+}
 
 interface GitReviewActionStore {
   panels: Record<string, GitReviewActionState>;
@@ -109,6 +129,10 @@ export const useGitReviewActionStore = create<GitReviewActionStore>((set, get) =
     }));
   },
 }));
+
+export function resetGitReviewActionStore(): void {
+  useGitReviewActionStore.setState({ panels: {} });
+}
 
 /**
  * Reactive read of a single panel's state. Returns a stable empty default when

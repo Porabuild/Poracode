@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 
@@ -98,10 +99,98 @@ function ensureBetterSqlite3() {
   }
 }
 
+function hashFile(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function electronNativeFingerprint() {
+  const electronVersion = require("electron/package.json").version;
+  const betterSqlite3Version = require("better-sqlite3/package.json").version;
+  const nodePtyVersion = require("node-pty/package.json").version;
+  const bindingPath = join(
+    dirname(require.resolve("better-sqlite3/package.json")),
+    "build",
+    "Release",
+    "better_sqlite3.node",
+  );
+  return {
+    electronVersion,
+    betterSqlite3Version,
+    nodePtyVersion,
+    platform: process.platform,
+    arch: process.arch,
+    bindingHash: existsSync(bindingPath) ? hashFile(bindingPath) : null,
+  };
+}
+
+function fingerprintsMatch(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function validateElectronNativeDependencies() {
+  const electronPath = require("electron");
+  const validation = spawnSync(
+    electronPath,
+    [
+      "-e",
+      "const Database=require('better-sqlite3');const db=new Database(':memory:');db.close();require('node-pty');",
+    ],
+    {
+      encoding: "utf8",
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    },
+  );
+  return validation;
+}
+
+function rebuildElectronNativeDependencies() {
+  const rebuildCli = join(dirname(require.resolve("@electron/rebuild")), "cli.js");
+  const result = spawnSync(process.execPath, [rebuildCli, "--only", "better-sqlite3"], {
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    throw new Error("[poracode] electron-rebuild failed for better-sqlite3");
+  }
+}
+
+function ensureElectronNativeDependencies() {
+  const cacheDir = join(process.cwd(), "node_modules", ".cache", "poracode");
+  const cachePath = join(cacheDir, "electron-native.json");
+  const fingerprint = electronNativeFingerprint();
+  let cachedFingerprint;
+  try {
+    cachedFingerprint = JSON.parse(readFileSync(cachePath, "utf8"));
+  } catch {
+    // A missing or invalid cache is repaired by the runtime validation below.
+  }
+
+  if (fingerprintsMatch(cachedFingerprint, fingerprint)) {
+    console.log("[poracode] Electron native dependencies already compatible, skipping rebuild");
+    return;
+  }
+
+  let validation = validateElectronNativeDependencies();
+  if (validation.status !== 0) {
+    console.log("[poracode] Electron native dependency check failed; rebuilding better-sqlite3");
+    rebuildElectronNativeDependencies();
+    validation = validateElectronNativeDependencies();
+  }
+  if (validation.status !== 0) {
+    const detail = validation.stderr?.trim() || validation.error?.message || "unknown error";
+    throw new Error(`[poracode] Electron native dependency validation failed: ${detail}`);
+  }
+
+  mkdirSync(cacheDir, { recursive: true });
+  writeFileSync(cachePath, `${JSON.stringify(electronNativeFingerprint(), null, 2)}\n`);
+}
+
 try {
   ensureElectronBinary();
   ensureNodePty();
   ensureBetterSqlite3();
+  if (process.argv.includes("--electron-native")) {
+    ensureElectronNativeDependencies();
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

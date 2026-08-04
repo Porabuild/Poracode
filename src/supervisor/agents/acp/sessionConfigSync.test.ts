@@ -152,6 +152,39 @@ describe("AcpSessionConfigSync", () => {
     expect(connection.setSessionMode).not.toHaveBeenCalled();
   });
 
+  it("uses Kimi mode options when the ACP response has no legacy modes field", async () => {
+    const modeOption = {
+      id: "mode",
+      category: "mode",
+      type: "select",
+      currentValue: "default",
+      options: [
+        { value: "default", name: "Default" },
+        { value: "plan", name: "Plan" },
+        { value: "auto", name: "Auto" },
+        { value: "yolo", name: "YOLO" },
+      ],
+    };
+    const { connection, sync } = makeConfigSync({
+      availableModeIds: [],
+      configOptions: [modeOption],
+    });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, approvalPolicy: "yolo" },
+      previousConfig,
+    );
+
+    expect(sync.availableModeIds).toEqual(["default", "plan", "auto", "yolo"]);
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "mode",
+      value: "yolo",
+    });
+    expect(connection.setSessionMode).not.toHaveBeenCalled();
+  });
+
   it("uses ACP session config options for Cursor-style model aliases", async () => {
     const modelOption = {
       id: "model",
@@ -177,6 +210,36 @@ describe("AcpSessionConfigSync", () => {
       sessionId: "session-1",
       configId: "model",
       value: "composer-2[fast=true]",
+    });
+    expect(connection.request).not.toHaveBeenCalled();
+  });
+
+  it("maps Qwen's public model id to its provider-tagged ACP value", async () => {
+    const modelOption = {
+      id: "model",
+      category: "model",
+      type: "select",
+      currentValue: "coder-model(qwen-oauth)",
+      options: [
+        { value: "coder-model(qwen-oauth)", name: "coder-model" },
+        {
+          value: "qwen3.8-max-preview(openai)",
+          name: "[ModelStudio Coding Plan] qwen3.8-max-preview",
+        },
+      ],
+    };
+    const { connection, sync } = makeConfigSync({ configOptions: [modelOption] });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "qwen3.8-max-preview" },
+      previousConfig,
+    );
+
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "model",
+      value: "qwen3.8-max-preview(openai)",
     });
     expect(connection.request).not.toHaveBeenCalled();
   });
@@ -519,5 +582,64 @@ describe("AcpSessionConfigSync", () => {
       configId: "thought-level",
       value: "high",
     });
+  });
+
+  // Qoder files its effort selector as { category: "model", id: "reasoning_effort" }
+  // and only advertises it for reasoning-capable models, so a model switch can
+  // make the selector appear or disappear. These pin both transitions.
+  function qoderEffortOption(currentValue = "xhigh") {
+    return {
+      id: "reasoning_effort",
+      name: "Reasoning Effort",
+      category: "model",
+      type: "select",
+      currentValue,
+      options: [
+        { value: "xhigh", name: "Extra High" },
+        { value: "high", name: "High" },
+      ],
+    };
+  }
+
+  it("skips the effort update when the reasoning_effort selector disappears after a model change", async () => {
+    const initialOptions = [modelSelectOption(), qoderEffortOption()];
+    // model-b is not a reasoning model — its config options drop the selector.
+    const afterModelOptions = [modelSelectOption("model-b")];
+    const { connection, sync } = makeConfigSync({ configOptions: initialOptions });
+    connection.setSessionConfigOption.mockResolvedValueOnce({ configOptions: afterModelOptions });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "model-b", effort: "high" },
+      previousConfig,
+    );
+
+    // Only the model update is sent; the effort update is skipped rather than
+    // firing at a now-nonexistent "reasoning_effort" configId.
+    expect(connection.setSessionConfigOption.mock.calls.map(([call]) => call.configId)).toEqual([
+      "model",
+    ]);
+  });
+
+  it("applies effort through the reasoning_effort selector that appears after a model change", async () => {
+    // The initial model exposes no effort selector...
+    const initialOptions = [modelSelectOption()];
+    // ...switching to model-b reveals Qoder's reasoning-effort selector.
+    const afterModelOptions = [modelSelectOption("model-b"), qoderEffortOption("xhigh")];
+    const { connection, sync } = makeConfigSync({ configOptions: initialOptions });
+    connection.setSessionConfigOption.mockResolvedValueOnce({ configOptions: afterModelOptions });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "model-b", effort: "high" },
+      { ...previousConfig, model: "model-a" },
+    );
+
+    expect(
+      connection.setSessionConfigOption.mock.calls.map(([call]) => [call.configId, call.value]),
+    ).toEqual([
+      ["model", "model-b"],
+      ["reasoning_effort", "high"],
+    ]);
   });
 });

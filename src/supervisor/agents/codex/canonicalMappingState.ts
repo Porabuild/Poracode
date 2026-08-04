@@ -1,7 +1,14 @@
 import type { CanonicalItemType } from "@/shared/contracts";
+import type { CodexUsageScopeTracker } from "./canonicalMapping/usageScope";
 
 export interface CodexMapperState {
   threadId: string;
+  /**
+   * Cumulative usage scope (codex thread id + epoch) for `usage.spent`
+   * emission. Owned by the session layer (acp.ts / subAgentRouting.ts);
+   * undefined in terminal mode, where no spend events are emitted.
+   */
+  usageScope?: CodexUsageScopeTracker;
   /** Most recent turn id reported via `turn.started`. */
   currentTurnId?: string;
   /** Open assistant_message item id, if any (closed on `turn/completed`). */

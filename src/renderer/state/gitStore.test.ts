@@ -6,7 +6,7 @@ import type {
   PrData,
   PrDetails,
 } from "@/shared/contracts";
-import { summaryBackfillMissed, useGitStore } from "./gitStore";
+import { resetGitStoreCache, summaryBackfillMissed, useGitStore } from "./gitStore";
 
 const baseStatus: GitStatusResult = {
   isRepo: true,
@@ -114,6 +114,16 @@ describe("gitStore batch updates", () => {
       prData: {},
       prDetails: {},
     });
+  });
+
+  it("clears in-memory and persisted cache state immediately", () => {
+    useGitStore.getState().setStatus("p1", baseStatus);
+    localStorage.setItem("poracode-git-cache-v1", "stale-desktop-cache");
+
+    resetGitStoreCache();
+
+    expect(useGitStore.getState().statuses).toEqual({});
+    expect(localStorage.getItem("poracode-git-cache-v1")).toBeNull();
   });
 
   it("skips replacing project records when snapshot data is unchanged", () => {

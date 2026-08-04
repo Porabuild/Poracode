@@ -13,7 +13,6 @@ import { readBridge } from "@/renderer/bridge";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { BrowserEmptyState } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState";
 import { BrowserTabStrip } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip";
-import { getRemoteBridgeClient } from "../bridge";
 import { BottomSheet, useSheet } from "../components";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "../useMediaQuery";
 import {
@@ -640,8 +639,8 @@ export function BrowserView() {
     // it's in flight (fresher) — or the view unmounts — skip applying the older
     // snapshot, which would otherwise revert e.g. a just-created tab.
     const stateAtRequest = useBrowserMirrorStore.getState().state;
-    getRemoteBridgeClient()
-      ?.browserState()
+    readBridge()
+      .browserGetState()
       .then((next) => {
         if (cancelled || useBrowserMirrorStore.getState().state !== stateAtRequest) return;
         useBrowserMirrorStore.getState().setState(next);

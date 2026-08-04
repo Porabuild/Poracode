@@ -14,6 +14,17 @@ function oscNotify(body: string, code: 9 | 99 | 777 = 9): OscNotification {
   return { code, title: "", body, payload: undefined };
 }
 
+describe("createClaudeAdapter skill roots", () => {
+  it("links canonical projections starting with Claude 2.1.203", () => {
+    expect(createClaudeAdapter().skillSupport?.projectionRoots).toEqual([
+      expect.objectContaining({
+        id: "claude",
+        linkProjectionFromVersion: "2.1.203",
+      }),
+    ]);
+  });
+});
+
 describe("createClaudeAdapter handleOscTitle", () => {
   const adapter = createClaudeAdapter();
 
@@ -151,8 +162,19 @@ describe("claudeCapabilities", () => {
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
   });
 
-  it("lists Fable 5 first so it is the default for new threads", () => {
-    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-fable-5", label: "Fable 5" });
+  it("lists Opus 5 first at high effort so it is the default for new threads", () => {
+    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-opus-5", label: "Opus 5" });
+    expect(claudeCapabilities.defaultEffort).toBe("high");
+    expect(claudeCapabilities.modelEfforts["claude-opus-5"]).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xHigh",
+      "max",
+      "ultracode",
+    ]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-opus-5"]).toEqual(["1m"]);
+    expect(claudeCapabilities.fastModels).toContain("claude-opus-5");
   });
 
   it("surfaces Sonnet 5 with frontier effort tiers", () => {
@@ -311,6 +333,29 @@ describe("createClaudeProfileAdapter", () => {
 
     expect(adapter.capabilities.efforts).toEqual(["high", "max"]);
     expect(adapter.capabilities.defaultEffort).toBe("high");
+  });
+
+  it("applies an external provider's default and per-model effort choices", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "kimi",
+      driver: "claude",
+      displayName: "Kimi",
+      config: {
+        configDir: "~/.poracode/claude-profiles/kimi",
+        models: [{ id: "k3[1m]", label: "Kimi K3" }],
+        efforts: ["low", "high", "max", "ultracode"],
+        defaultEffort: "max",
+        modelEfforts: { "k3[1m]": ["low", "high", "max", "ultracode"] },
+      },
+    });
+
+    expect(adapter.capabilities.defaultEffort).toBe("max");
+    expect(adapter.capabilities.modelEfforts["k3[1m]"]).toEqual([
+      "low",
+      "high",
+      "max",
+      "ultracode",
+    ]);
   });
 
   it("re-homes the default effort to the first allowed tier when disabled", () => {

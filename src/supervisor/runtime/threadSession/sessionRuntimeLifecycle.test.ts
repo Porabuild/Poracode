@@ -100,10 +100,6 @@ function createHarness(
     vi.fn<
       SessionRuntimeLifecycleContext["structuredInterruptWatchdog"]["clearStructuredInterruptWatchdog"]
     >();
-  const touchStructuredInterruptWatchdog =
-    vi.fn<
-      SessionRuntimeLifecycleContext["structuredInterruptWatchdog"]["touchStructuredInterruptWatchdog"]
-    >();
   const emit = vi.fn<SessionRuntimeLifecycleContext["emit"]>();
   const failStructuredSession = vi.fn<SessionRuntimeLifecycleContext["failStructuredSession"]>();
   const indexSessionRef = vi.fn<SessionRuntimeLifecycleContext["indexSessionRef"]>();
@@ -121,7 +117,6 @@ function createHarness(
     steerCoordinator: { maybeDrainPendingSteer },
     structuredInterruptWatchdog: {
       clearStructuredInterruptWatchdog,
-      touchStructuredInterruptWatchdog,
     },
     emit,
     failStructuredSession,
@@ -158,7 +153,6 @@ function createHarness(
       append,
       maybeDrainPendingSteer,
       clearStructuredInterruptWatchdog,
-      touchStructuredInterruptWatchdog,
       emit,
       failStructuredSession,
       indexSessionRef,
@@ -267,7 +261,7 @@ describe("SessionRuntimeLifecycle", () => {
     expect(harness.session.structuredTurnInterruptRequested).toBe(false);
   });
 
-  it("releases idle suppression before touching the watchdog and appending runtime output", () => {
+  it("releases idle suppression before appending runtime output", () => {
     const harness = createHarness({
       session: { suppressInitialStructuredIdle: true },
     });
@@ -282,12 +276,10 @@ describe("SessionRuntimeLifecycle", () => {
     });
 
     expect(harness.session.suppressInitialStructuredIdle).toBeUndefined();
-    expect(harness.mocks.touchStructuredInterruptWatchdog).toHaveBeenCalledBefore(
-      harness.mocks.append,
-    );
+    expect(harness.mocks.append).toHaveBeenCalled();
   });
 
-  it("touches the watchdog and emits state for a config-only working update", () => {
+  it("emits state for a config-only working update", () => {
     const harness = createHarness();
     harness.lifecycle.attach(harness.session);
     harness.mocks.emitState.mockClear();
@@ -298,8 +290,40 @@ describe("SessionRuntimeLifecycle", () => {
       config: { model: "model-2" },
     });
 
-    expect(harness.mocks.touchStructuredInterruptWatchdog).toHaveBeenCalledWith(harness.session);
     expect(harness.mocks.emitState).toHaveBeenCalledExactlyOnceWith(harness.session);
+  });
+
+  it("emits state when an idle structured session changes its provider session id", () => {
+    const harness = createHarness({
+      session: {
+        status: "idle",
+        attention: "none",
+        sessionRef: {
+          providerSessionId: "old-session",
+          discoveredAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    });
+    harness.lifecycle.attach(harness.session);
+    harness.mocks.emitState.mockClear();
+    const emittedSessionIds: Array<string | undefined> = [];
+    harness.mocks.emitState.mockImplementation((session) => {
+      emittedSessionIds.push(session.sessionRef?.providerSessionId);
+    });
+
+    harness.structuredListener?.onUpdate({
+      status: "idle",
+      attention: "none",
+      sessionRef: {
+        providerSessionId: "forked-session",
+        discoveredAt: "2026-01-02T00:00:00.000Z",
+      },
+    });
+
+    expect(harness.session.sessionRef?.providerSessionId).toBe("forked-session");
+    expect(harness.mocks.indexSessionRef).toHaveBeenCalledWith(harness.session, "old-session");
+    expect(harness.mocks.emitState).toHaveBeenCalledExactlyOnceWith(harness.session);
+    expect(emittedSessionIds).toEqual(["forked-session"]);
   });
 
   it("ignores structured events for stale and ignored sessions", () => {
@@ -355,6 +379,35 @@ describe("SessionRuntimeLifecycle", () => {
 
       vi.advanceTimersByTime(150);
       expect(harness.mocks.kill).toHaveBeenCalledExactlyOnceWith(harness.session);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the authoritative error state when transport close follows onError", () => {
+    vi.useFakeTimers();
+    try {
+      const harness = createHarness();
+      harness.mocks.failStructuredSession.mockImplementation((session) => {
+        session.status = "error";
+      });
+      harness.lifecycle.attach(harness.session);
+      harness.mocks.updateState.mockClear();
+
+      harness.structuredListener?.onError("root failure");
+      harness.structuredListener?.onClose();
+
+      expect(harness.mocks.failStructuredSession).toHaveBeenCalledTimes(1);
+      expect(harness.mocks.updateState).not.toHaveBeenCalledWith(
+        harness.session,
+        "inactive",
+        "none",
+      );
+      expect(harness.mocks.emit).toHaveBeenCalledWith({
+        type: "thread-exited",
+        threadId: harness.session.threadId,
+        exitCode: null,
+      });
     } finally {
       vi.useRealTimers();
     }

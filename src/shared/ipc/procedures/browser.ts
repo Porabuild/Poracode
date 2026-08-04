@@ -83,6 +83,8 @@ export type BrowserState = z.infer<typeof browserStateSchema>;
 export const browserCreateTabPayloadSchema = z.object({
   url: z.string().optional(),
   activate: z.boolean().optional(),
+  /** When true, reveal the browser using the user's panel/overlay preference. */
+  reveal: z.boolean().optional(),
 });
 
 export const browserTabIdPayloadSchema = z.object({

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit, Globe, Pencil, Terminal, type LucideIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -56,13 +57,15 @@ import { LazyInlineDiffView } from "./LazyInlineDiffView";
 import { ReasoningInline } from "./ReasoningInline";
 import { detectLanguageFromPath, type ViewportLanguage } from "./languageDetect";
 import {
+  analyzeEditToolGroup,
   getToolLikePayload,
   isEditLikeToolPayload,
   isToolGroupItem,
   readCommandPayloadCommand,
-  summarizeSameFileEditGroup,
+  segmentToolGroupRows,
   summarizeToolCalls,
   type SameFileEditGroupSummary,
+  type ToolGroupRowSegment,
 } from "./toolCallCategorization";
 import { deriveToolDisplay } from "./toolDisplay";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
@@ -74,6 +77,8 @@ interface ToolCallGroupProps {
   isLive?: boolean;
   /** Synchronously remeasure the owning virtual row after an explicit layout change. */
   onHeightChange?: () => void;
+  /** Arm scroll anchoring before a disclosure commits a new row height. */
+  onVirtualizerLayoutChange?: () => void;
 }
 
 const TOOL_CALL_GROUP_MAX_VISIBLE_ROWS = 8;
@@ -83,6 +88,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   itemIds,
   isLive = false,
   onHeightChange,
+  onVirtualizerLayoutChange,
 }: ToolCallGroupProps) {
   const items = useAppStore(
     useShallow((state) =>
@@ -92,14 +98,19 @@ export const ToolCallGroup = memo(function ToolCallGroup({
     ),
   );
   const actions = useChatPaneActions();
-  // Live tail expands by default so the user sees in-flight calls; collapse
-  // automatically once another item arrives after the group (isLive flips
-  // false). Manual toggles still apply afterwards.
-  const [isExpanded, setIsExpanded] = useState(isLive);
+  // Single pass: edit-only groups stay collapsed while live; same-file multi
+  // patches also get the compact "N edits: path" header.
+  const { editOnly: editOnlyGroup, sameFile: sameFileEditSummary } = analyzeEditToolGroup(items);
+  // Mixed groups render per-segment: strictly consecutive same-file edits
+  // collapse into one merged edit row; everything else stays its own row.
+  const segments = segmentToolGroupRows(items);
+  const [isExpanded, setIsExpanded] = useState(() => isLive && !editOnlyGroup);
   const [showAll, setShowAll] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef({ isExpanded, showAll });
-  const hasOverflowRows = items.length > TOOL_CALL_GROUP_MAX_VISIBLE_ROWS;
+  const hasOverflowRows = segments.length > TOOL_CALL_GROUP_MAX_VISIBLE_ROWS;
+  // Preserve manual open/close across live-tail item updates.
+  const userToggledRef = useRef(false);
 
   useLayoutEffect(() => {
     const previous = previousLayoutRef.current;
@@ -113,8 +124,13 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   }, [actions, isExpanded, onHeightChange, showAll]);
 
   useEffect(() => {
-    if (!isLive) setIsExpanded(false);
-  }, [isLive]);
+    if (!isLive) {
+      userToggledRef.current = false;
+      setIsExpanded(false);
+      return;
+    }
+    if (!userToggledRef.current) setIsExpanded(!editOnlyGroup);
+  }, [isLive, editOnlyGroup]);
 
   useEffect(() => {
     if (!hasOverflowRows) setShowAll(false);
@@ -130,16 +146,22 @@ export const ToolCallGroup = memo(function ToolCallGroup({
 
   if (items.length === 0) return null;
   const sections = summarizeToolCalls(items);
-  const sameFileEditSummary = summarizeSameFileEditGroup(items);
-  const visibleItems =
-    !showAll && hasOverflowRows ? items.slice(-TOOL_CALL_GROUP_MAX_VISIBLE_ROWS) : items;
+  const visibleSegments =
+    !showAll && hasOverflowRows ? segments.slice(-TOOL_CALL_GROUP_MAX_VISIBLE_ROWS) : segments;
 
   return (
     <div className={chatRowShellClass}>
       <Disclosure
         className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
         isExpanded={isExpanded}
-        onExpandedChange={setIsExpanded}
+        onExpandedChange={(next) => {
+          // Arm the virtualizer guard before React commits the larger/smaller
+          // row. LegendList can adjust its visible-content anchor during that
+          // commit, before the post-commit remeasurement callback runs.
+          onVirtualizerLayoutChange?.();
+          userToggledRef.current = true;
+          setIsExpanded(next);
+        }}
       >
         <Disclosure.Heading>
           <Disclosure.Trigger className={`group ${chatRowClass} gap-2 ${chatRowHoverClass}`}>
@@ -147,21 +169,34 @@ export const ToolCallGroup = memo(function ToolCallGroup({
               {sameFileEditSummary ? (
                 <SameFileEditGroupTitle summary={sameFileEditSummary} />
               ) : (
-                sections.map((section, idx) => (
-                  <Fragment key={section.category}>
-                    {idx > 0 ? (
-                      <span aria-hidden="true" className="select-none opacity-40">
-                        ·
+                sections.map((section, idx) => {
+                  const diffLabel = formatDiffSummaryLabel(section.diffSummary, {
+                    animated: true,
+                  });
+                  return (
+                    <Fragment key={section.category}>
+                      {idx > 0 ? (
+                        <span aria-hidden="true" className="select-none opacity-40">
+                          ·
+                        </span>
+                      ) : null}
+                      <span className="flex shrink-0 items-center gap-1">
+                        <section.Icon className="size-3" />
+                        <code className="font-mono tabular-nums !text-[color:var(--muted)]">
+                          <AnimatedNumber value={section.count} />{" "}
+                          {section.category === "mcp" ? (
+                            <Plural value={section.count} one="MCP" other="MCPs" />
+                          ) : (
+                            section.label
+                          )}
+                        </code>
+                        {diffLabel ? (
+                          <span className="shrink-0 tabular-nums font-medium">{diffLabel}</span>
+                        ) : null}
                       </span>
-                    ) : null}
-                    <span className="flex shrink-0 items-center gap-1">
-                      <section.Icon className="size-3" />
-                      <code className="font-mono tabular-nums !text-[color:var(--muted)]">
-                        {section.count} {section.label}
-                      </code>
-                    </span>
-                  </Fragment>
-                ))
+                    </Fragment>
+                  );
+                })
               )}
             </div>
             <Disclosure.Indicator className={chatRowIndicatorClass} />
@@ -181,7 +216,10 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                       type="button"
                       aria-expanded={showAll}
                       className="-ml-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-[color:var(--muted)] transition-colors hover:bg-foreground/5 hover:text-foreground"
-                      onClick={() => setShowAll((prev) => !prev)}
+                      onClick={() => {
+                        onVirtualizerLayoutChange?.();
+                        setShowAll((prev) => !prev);
+                      }}
                     >
                       {showAll ? <Trans>Show less</Trans> : <Trans>Show all</Trans>}
                     </button>
@@ -196,9 +234,13 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                   {sameFileEditSummary ? (
                     <SameFileEditGroupBody items={items} />
                   ) : (
-                    visibleItems.map((item) => (
-                      <div key={item.id} className="animate-tool-call-enter">
-                        <GroupRowInline item={item} />
+                    visibleSegments.map((segment) => (
+                      <div key={segmentKey(segment)} className="animate-tool-call-enter">
+                        {segment.kind === "same-file-edits" ? (
+                          <SameFileEditRunInline items={segment.items} summary={segment.summary} />
+                        ) : (
+                          <GroupRowInline item={segment.item} />
+                        )}
                       </div>
                     ))
                   )}
@@ -212,14 +254,60 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   );
 });
 
+function segmentKey(segment: ToolGroupRowSegment): string {
+  return segment.kind === "same-file-edits" ? segment.items[0]!.id : segment.item.id;
+}
+
+/**
+ * Inline row for a consecutive same-file edit run inside a mixed group: the
+ * compact "N edits: path" header with the aggregated diff count, expanding to
+ * the same merged file diff the whole-group same-file treatment uses.
+ */
+function SameFileEditRunInline({
+  items,
+  summary,
+}: {
+  items: readonly RuntimeChatItem[];
+  summary: SameFileEditGroupSummary;
+}) {
+  const actions = useChatPaneActions();
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <Disclosure
+      className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
+      isExpanded={isExpanded}
+      onExpandedChange={(next) => {
+        setIsExpanded(next);
+        actions?.onContentHeightChange();
+      }}
+    >
+      <Disclosure.Heading>
+        <Disclosure.Trigger className={inlineRowTriggerClass}>
+          <SameFileEditGroupTitle summary={summary} />
+          <Disclosure.Indicator className={chatRowIndicatorClass} />
+        </Disclosure.Trigger>
+      </Disclosure.Heading>
+      <Disclosure.Content>
+        <Disclosure.Body className="pb-1 pl-4 pt-1">
+          {isExpanded ? <SameFileEditGroupBody items={items} /> : null}
+        </Disclosure.Body>
+      </Disclosure.Content>
+    </Disclosure>
+  );
+}
+
 function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary }) {
-  const diffLabel = formatDiffSummaryLabel(summary.diffSummary);
-  const label = `${summary.count} ${summary.count === 1 ? "edit" : "edits"}:`;
+  // Both the count and the totals grow while consecutive edits to the same file
+  // keep collapsing into this one header, so they animate in place.
+  const diffLabel = formatDiffSummaryLabel(summary.diffSummary, { animated: true });
   return (
     <>
       <span className="flex shrink-0 items-center gap-1">
         <Pencil className="size-3" />
-        <code className="font-mono tabular-nums !text-[color:var(--muted)]">{label}</code>
+        <code className="font-mono tabular-nums !text-[color:var(--muted)]">
+          <AnimatedNumber value={summary.count} />{" "}
+          <Plural value={summary.count} one="edit" other="edits" />:
+        </code>
       </span>
       <code className="flex min-w-0 flex-1 font-mono !text-[color:var(--muted)]">
         <ChatFilePath
@@ -235,43 +323,65 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
 }
 
 /**
- * Flattened body for a group where every item edits the same file: renders
- * each edit's diff directly, in order, without nesting each edit behind its
- * own disclosure row. Edits without a renderable diff (e.g. still running)
- * fall back to the regular inline row.
+ * Flattened body for a consecutive same-file multi-edit group: one merged file
+ * diff, without nesting each patch behind its own disclosure row. Edits without
+ * a renderable patch (e.g. still running) fall back to the regular inline row.
  */
 function SameFileEditGroupBody({ items }: { items: readonly RuntimeChatItem[] }) {
   const { t } = useLingui();
+  const diffRows: InlineRow[] = [];
+  const nonDiffBodies: InlineRow[] = [];
+  const fallbackItems: RuntimeChatItem[] = [];
+
+  for (const item of items) {
+    const row = getInlineRow(item, true, t);
+    if (row?.bodyText && row.bodyKind === "diff") {
+      diffRows.push(row);
+      continue;
+    }
+    if (row?.bodyText) {
+      nonDiffBodies.push(row);
+      continue;
+    }
+    fallbackItems.push(item);
+  }
+
+  const filePath = diffRows.find((row) => row.bodyFilePath)?.bodyFilePath ?? "";
+  const mergedDiffText =
+    diffRows.length > 0 ? diffRows.map((row) => row.bodyText).join("\n") : undefined;
+  // Content-backed rendering is only valid for a single patch: multi-edit merges
+  // share one unified path but intermediate old/new strings are per-step.
+  const singleContent =
+    diffRows.length === 1 &&
+    diffRows[0]!.bodyOldText !== undefined &&
+    diffRows[0]!.bodyNewText !== undefined
+      ? { oldText: diffRows[0]!.bodyOldText, newText: diffRows[0]!.bodyNewText }
+      : null;
+
   return (
     <>
-      {items.map((item) => {
-        const row = getInlineRow(item, true, t);
-        if (!row?.bodyText) {
-          return (
-            <div key={item.id} className="animate-tool-call-enter">
-              <GroupRowInline item={item} />
-            </div>
-          );
-        }
-        return (
-          <div key={item.id} className="animate-tool-call-enter">
-            {row.bodyKind === "diff" ? (
-              <LazyInlineDiffView
-                diffText={row.bodyText}
-                filePath={row.bodyFilePath ?? ""}
-                {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
-                  ? { oldText: row.bodyOldText, newText: row.bodyNewText }
-                  : {})}
-              />
-            ) : (
-              <CommandOutputViewport
-                text={row.bodyText}
-                {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
-              />
-            )}
-          </div>
-        );
-      })}
+      {mergedDiffText ? (
+        <div className="animate-tool-call-enter">
+          <LazyInlineDiffView
+            diffText={mergedDiffText}
+            filePath={filePath}
+            {...(singleContent ?? {})}
+          />
+        </div>
+      ) : null}
+      {nonDiffBodies.map((row, index) => (
+        <div key={`same-file-body-${index}`} className="animate-tool-call-enter">
+          <CommandOutputViewport
+            text={row.bodyText!}
+            {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
+          />
+        </div>
+      ))}
+      {fallbackItems.map((item) => (
+        <div key={item.id} className="animate-tool-call-enter">
+          <GroupRowInline item={item} />
+        </div>
+      ))}
     </>
   );
 }
@@ -411,13 +521,19 @@ function InlineRowTitle({
   const displayPrefix = titleParts ? normalizeCallTitleSeparator(titleParts.prefix) : undefined;
   const shimmerData = isRunning ? { "data-poracode-shimmer-text": displayTitle } : {};
   if (titleParts) {
+    // Shimmer only the stable prefix ("Edit · "), never the path: the path can
+    // change while running (absolute → project-relative), and mutating text
+    // under `background-clip: text` leaves ghosted glyphs (see
+    // .poracode-thinking-text in styles.css).
     return (
-      <code
-        ref={shimmerRef}
-        className={`flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text !flex" : ""}`}
-        {...shimmerData}
-      >
-        <span className="shrink-0 whitespace-pre">{displayPrefix}</span>
+      <code className="flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)]">
+        <span
+          ref={shimmerRef}
+          className={`shrink-0 whitespace-pre ${isRunning ? "poracode-thinking-text" : ""}`}
+          {...(isRunning ? { "data-poracode-shimmer-text": displayPrefix } : {})}
+        >
+          {displayPrefix}
+        </span>
         {titleParts.filePath ? (
           <>
             <span className="sr-only">{titleParts.path}</span>

@@ -10,6 +10,8 @@ import {
   commitDefaultActionSchema,
   newThreadModeSchema,
   notificationFilterSchema,
+  prAutomationModeSchema,
+  prMergeMethodSchema,
   providerDraftConfigSchema,
   terminalPositionSchema,
   themeModeSchema,
@@ -17,6 +19,7 @@ import {
   threadRemoveActionSchema,
   worktreeStorageModeSchema,
   mcpServerListSchema,
+  workspaceListSchema,
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
@@ -26,6 +29,65 @@ const modelPickerEntrySchema = z.object({
   modelId: z.string().min(1),
   presentationMode: threadPresentationModeSchema.default("terminal"),
 });
+
+export const agentSelectionUsageEntrySchema = z.object({
+  agentKind: z.string().min(1),
+  modelId: z.string().min(1),
+  effort: z.string().optional(),
+  fast: z.boolean().default(false),
+  count: z.number().int().positive(),
+  lastUsedAt: z.number().int().nonnegative(),
+});
+export type AgentSelectionUsageEntry = z.infer<typeof agentSelectionUsageEntrySchema>;
+
+export const MAX_CROSSAGENT_ROUTING_OVERRIDES = 100;
+export const MAX_CROSSAGENT_SELECTION_VALUE_LENGTH = 256;
+
+export const crossagentSelectionUsageEntrySchema = agentSelectionUsageEntrySchema.extend({
+  /** Normalized task classifications supplied by the calling agent. */
+  tags: z.array(z.string().min(1).max(32)).max(5).optional(),
+  /**
+   * Fields the caller actually supplied. Missing on legacy entries, which are
+   * treated as fully explicit to preserve their existing ranking behavior.
+   */
+  explicitFields: z
+    .object({
+      provider: z.boolean(),
+      model: z.boolean(),
+      effort: z.boolean(),
+      fast: z.boolean(),
+    })
+    .optional(),
+});
+export type CrossagentSelectionUsageEntry = z.infer<typeof crossagentSelectionUsageEntrySchema>;
+
+export const crossagentSelectionUsageEntryKeySchema = crossagentSelectionUsageEntrySchema
+  .pick({
+    agentKind: true,
+    modelId: true,
+    effort: true,
+    fast: true,
+    tags: true,
+    explicitFields: true,
+  })
+  .extend({
+    agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+    modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+    fast: z.boolean(),
+  });
+export type CrossagentSelectionUsageEntryKey = z.infer<
+  typeof crossagentSelectionUsageEntryKeySchema
+>;
+
+export const crossagentRoutingOverrideSchema = z.object({
+  tags: z.array(z.string().min(1).max(32)).min(1).max(5),
+  agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
+  modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
+  effort: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
+  fast: z.boolean().optional(),
+  updatedAt: z.number().int().nonnegative(),
+});
+export type CrossagentRoutingOverride = z.infer<typeof crossagentRoutingOverrideSchema>;
 
 /**
  * Cache entry recording whether a given agent supports the **CLI hook plugin**
@@ -145,6 +207,19 @@ export const DEFAULT_USAGE_DISABLED_PROVIDER_IDS = allUsageProviderDescriptors()
   .map((provider) => provider.id)
   .filter((id) => !DEFAULT_USAGE_ENABLED_PROVIDER_ID_SET.has(id));
 
+export const SIDEBAR_SHORTCUT_IDS = ["pullRequests", "githubActions", "schedules"] as const;
+export type SidebarShortcutId = (typeof SIDEBAR_SHORTCUT_IDS)[number];
+
+export function normalizeSidebarShortcutOrder(
+  order: readonly SidebarShortcutId[],
+): SidebarShortcutId[] {
+  const normalized = [...new Set(order)];
+  for (const id of SIDEBAR_SHORTCUT_IDS) {
+    if (!normalized.includes(id)) normalized.push(id);
+  }
+  return normalized;
+}
+
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
   /**
@@ -184,6 +259,11 @@ export const sharedSettingsSchema = z.object({
   conflictResolverEffort: z.string(),
   /** Launch the conflict-resolver session in fast mode (Opus-only; ignored otherwise). */
   conflictResolverFast: z.boolean(),
+  /** Last model configuration used to judge an experiment. */
+  experimentJudgeProvider: z.string(),
+  experimentJudgeModel: z.string(),
+  experimentJudgeEffort: z.string(),
+  experimentJudgeFast: z.boolean(),
   /**
    * Where "Fix in Agent" opens the conflict-resolver thread: structured chat
    * (`gui`) or terminal-native (`terminal`). Defaults to `gui`. If the resolved
@@ -242,6 +322,8 @@ export const sharedSettingsSchema = z.object({
   terminalPanelFontSize: z.number().int().min(8).max(20),
   /** Prevent OS sleep while any thread is actively working. */
   preventSleepWhileWorking: z.boolean(),
+  /** Prevent OS sleep while the desktop remote access server is enabled. */
+  remoteAccessPreventSleep: z.boolean(),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -270,10 +352,20 @@ export const sharedSettingsSchema = z.object({
   remoteAccessAdvertisedUrl: z.string(),
   /** Default action for the thread remove button: archive or delete permanently. */
   threadRemoveAction: threadRemoveActionSchema,
+  /**
+   * Mark a worktree thread done as soon as its pull request is observed turning
+   * merged. Only live transitions count — a PR already merged when the app
+   * starts leaves the thread alone (the sidebar row offers a Done button).
+   */
+  autoMarkDoneOnPrMerge: z.boolean(),
   /** Default new-thread behaviour: full page or side-by-side panel. */
   newThreadMode: newThreadModeSchema,
   /** Show the projectless Home scope for OS-level agent sessions. */
   homeScopeEnabled: z.boolean(),
+  /** Footer shortcuts hidden from both the expanded and collapsed sidebar. */
+  sidebarHiddenShortcuts: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
+  /** Display order for shortcuts in the expanded and collapsed sidebar footer. */
+  sidebarShortcutOrder: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
   /**
    * Translucent ("liquid glass") sidebar. When on, the window uses a
    * native blur material where supported (macOS vibrancy, Windows 11 acrylic)
@@ -318,6 +410,13 @@ export const sharedSettingsSchema = z.object({
    * sticky last-used choice for the Create PR split-button.
    */
   prCreateMode: prCreateModeSchema,
+  /** Default automation applied to pull requests created from Poracode. */
+  prAutomationDefault: prAutomationModeSchema,
+  /**
+   * Sticky last-used merge method. The PR split-button and automatic PR
+   * merging share this setting so automation matches the user's choice.
+   */
+  prMergeMethod: prMergeMethodSchema,
   /**
    * Sticky last-used primary commit action for the commit split-button,
    * remembered across sessions so it defaults to whatever the user picked last.
@@ -374,6 +473,16 @@ export const sharedSettingsSchema = z.object({
    * WebSocket-connected foreground app still shows full detail.
    */
   remotePushRedactContent: z.boolean(),
+  /**
+   * User-defined project groupings ("Work", "Side Hustle", …), newest last.
+   * Which one is *active* is not stored here but per-window (see the renderer's
+   * `workspaceStore`), so switching in one window leaves the others alone.
+   *
+   * Not part of `remoteSettingsSchema`, so paired clients (mobile PWA) receive no
+   * workspace list and therefore show every project — add it to that allowlist if
+   * workspaces should scope remote sessions too.
+   */
+  workspaces: workspaceListSchema,
   /** User-starred (provider, presentation, model) entries surfaced at the top of the model picker. */
   favoriteModels: z.array(modelPickerEntrySchema),
   /**
@@ -381,6 +490,36 @@ export const sharedSettingsSchema = z.object({
    * caps to 5 entries that aren't already in `favoriteModels`.
    */
   recentModels: z.array(modelPickerEntrySchema),
+  /** Popularity of user-launched provider/model configurations used as a Crossagents fallback. */
+  agentSelectionUsage: z.array(agentSelectionUsageEntrySchema).default([]),
+  /**
+   * Popularity of explicit Crossagents selections. Supervisor-managed so an
+   * automatic choice can never reinforce itself and renderer writes cannot
+   * overwrite a selection recorded by the MCP ingress.
+   */
+  crossagentSelectionUsage: z.array(crossagentSelectionUsageEntrySchema).default([]),
+  /**
+   * User-pinned task-tag routes managed by the Crossagents MCP. The most
+   * specific matching tag set wins before learned affinity.
+   */
+  crossagentRoutingOverrides: z
+    .array(crossagentRoutingOverrideSchema)
+    .max(MAX_CROSSAGENT_ROUTING_OVERRIDES)
+    .default([]),
+  /**
+   * Agent kinds temporarily excluded from the Crossagents routing rotation.
+   * Unlike `disabledAgents` (which hides a provider everywhere), pausing only
+   * affects Crossagents delegation — e.g. park a provider until its quota
+   * resets while keeping it in the normal composer picker.
+   */
+  crossagentPausedProviders: z.array(z.string()).default([]),
+  /**
+   * Extra hidden model ids keyed by agent kind, applied on top of the global
+   * `hiddenModels` visibility filter but only for Crossagents routing. The
+   * Crossagents settings model dropdown lists already-globally-visible models
+   * and lets the user narrow them further here.
+   */
+  crossagentHiddenModels: z.record(z.string(), z.array(z.string())).default({}),
   /**
    * Dev-only: force agents off the CLI hook plugin path (L1) so they fall back
    * to L2 terminal parsing. The UI toggle is only visible in the dev build;
@@ -393,14 +532,14 @@ export const sharedSettingsSchema = z.object({
   agentHookSupport: z.record(z.string(), agentHookSupportEntrySchema),
   /**
    * Composer MCP servers the user has turned on persistently, keyed by composer
-   * MCP id (`"browser"`, `"subagents"`, `"chrome"`, `"computer-use"`). `true` means the
+   * MCP id (`"browser"`, `"crossagents"`, `"chrome"`, `"computer-use"`). `true` means the
    * server is on for every *new* thread whose provider/presentation supports it
    * (baked into `thread.config` at launch) and shows no composer chip — it is a
    * standing default rather than a per-thread opt-in. Absent/`false` leaves the
    * server off unless the draft explicitly `@`-mentions it, which stages a
    * removable chip for that one thread. Toggled by the composer "+" menu.
    */
-  enabledMcpServers: z.record(z.string(), z.boolean()).default({}),
+  enabledMcpServers: z.record(z.string(), z.boolean()).default({ crossagents: true }),
   /** Custom MCP servers applied to every new thread unless overridden by its project. */
   mcpServers: mcpServerListSchema,
   /** Built-in MCP servers hard-disabled for all new launches. */
@@ -419,15 +558,15 @@ export const sharedSettingsSchema = z.object({
   /** Provider usage tracking (auto-refresh cadence, per-provider opt-out, cost). */
   usage: usageSettingsSchema,
   /**
-   * Free-text routing instructions appended to the subagents MCP server
+   * Free-text routing instructions appended to the Crossagents MCP server
    * `instructions`, guiding how an agent picks which connected agent/model to
    * delegate to when spawning subagents (e.g. "Codex GPT-5.5 fast for quick
    * lookups, Claude Opus for anything subtle"). Empty string = no guidance.
-   * Whether a thread gets the subagents MCP lives on `thread.config.subagentMcp`
-   * (persistent default in `enabledMcpServers.subagents` or a `@subagents`
+   * Whether a thread gets the Crossagents MCP lives on `thread.config.crossagentMcp`
+   * (persistent default in `enabledMcpServers.crossagents` or a `@crossagents`
    * mention); this is the global guidance text shared across every such thread.
    */
-  subagentRoutingGuide: z.string(),
+  crossagentRoutingGuide: z.string(),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -439,7 +578,10 @@ export type CliPickerTarget = SharedSettings["cliPickerTarget"];
  * supervisor-only fields (`agentHookSupport`) that the renderer never
  * manages and that the main process re-merges from disk on write.
  */
-export type SharedSettingsInput = Omit<SharedSettings, "agentHookSupport">;
+export type SharedSettingsInput = Omit<
+  SharedSettings,
+  "agentHookSupport" | "crossagentSelectionUsage" | "crossagentRoutingOverrides"
+>;
 
 export const defaultSharedSettings: SharedSettings = {
   themeMode: "dark",
@@ -459,6 +601,10 @@ export const defaultSharedSettings: SharedSettings = {
   conflictResolverModel: "",
   conflictResolverEffort: "",
   conflictResolverFast: false,
+  experimentJudgeProvider: "",
+  experimentJudgeModel: "",
+  experimentJudgeEffort: "",
+  experimentJudgeFast: false,
   conflictResolverPresentationMode: "gui",
   wslCommitGenProvider: "auto",
   wslCommitGenModel: "",
@@ -482,12 +628,13 @@ export const defaultSharedSettings: SharedSettings = {
   collapseTerminalComposer: false,
   cliPickerTarget: "ask",
   staleThreadUnloadMinutes: 60,
-  autoArchiveDoneAfterDays: 7,
+  autoArchiveDoneAfterDays: 3,
   scrollSpeed: 2,
   agentTerminalFontSize: 12,
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
   preventSleepWhileWorking: true,
+  remoteAccessPreventSleep: true,
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,
@@ -495,8 +642,11 @@ export const defaultSharedSettings: SharedSettings = {
   remoteAccessTailscaleHttps: false,
   remoteAccessAdvertisedUrl: "",
   threadRemoveAction: "archive",
+  autoMarkDoneOnPrMerge: true,
   newThreadMode: "page",
   homeScopeEnabled: true,
+  sidebarHiddenShortcuts: ["githubActions"],
+  sidebarShortcutOrder: [...SIDEBAR_SHORTCUT_IDS],
   sidebarTranslucency: true,
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
@@ -505,6 +655,8 @@ export const defaultSharedSettings: SharedSettings = {
   wslWorktreeBasePath: "",
   gitReviewMode: "panel",
   prCreateMode: "dialog",
+  prAutomationDefault: "off",
+  prMergeMethod: "squash",
   commitDefaultAction: "commit-push",
   providerConfigs: {},
   lastPresentationModeByAgent: {},
@@ -514,17 +666,23 @@ export const defaultSharedSettings: SharedSettings = {
   searchExclude: { ...DEFAULT_SEARCH_EXCLUDE },
   notificationsEnabled: true,
   notificationSound: true,
-  notificationFilter: "unfocused",
+  notificationFilter: "all",
   notificationStatuses: { done: true, needsAttention: true, error: true },
   notifyL2Cli: true,
   remotePushEnabled: true,
   remotePushRedactContent: false,
+  workspaces: [],
   favoriteModels: [],
   recentModels: [],
+  agentSelectionUsage: [],
+  crossagentSelectionUsage: [],
+  crossagentRoutingOverrides: [],
+  crossagentPausedProviders: [],
+  crossagentHiddenModels: {},
   disableCliHookPlugin: false,
   dismissedHookInstallProposals: {},
   agentHookSupport: {},
-  enabledMcpServers: {},
+  enabledMcpServers: { crossagents: true },
   mcpServers: [],
   disabledBuiltInMcpServers: {},
   disabledBuiltInMcpTools: {},
@@ -553,7 +711,7 @@ export const defaultSharedSettings: SharedSettings = {
     collapsedProviders: [],
     selectedRingGroups: {},
   },
-  subagentRoutingGuide: "",
+  crossagentRoutingGuide: "",
 };
 
 function parseSettingOrDefault<T>(schema: z.ZodType<T>, value: unknown, fallback: T): T {
@@ -586,16 +744,30 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
   const parsed = z.record(z.string(), z.unknown()).safeParse(value);
   if (!parsed.success) return normalized;
 
+  const hasAutomationMode = prAutomationModeSchema.safeParse(
+    parsed.data.prAutomationDefault,
+  ).success;
+  const legacyAutomationMode =
+    parsed.data.prAutoMergeDefault === true
+      ? "merge"
+      : parsed.data.prWatchDefault === true
+        ? "fix"
+        : "off";
   const usage = z.record(z.string(), z.unknown()).safeParse(parsed.data.usage);
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
     : undefined;
-
   return {
     ...normalized,
+    sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
+    prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
     usage: {
       ...normalized.usage,
       disabledProviders: disabledProviders?.success ? disabledProviders.data : [],
+    },
+    enabledMcpServers: {
+      ...defaultSharedSettings.enabledMcpServers,
+      ...normalized.enabledMcpServers,
     },
   };
 }

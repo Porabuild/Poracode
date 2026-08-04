@@ -6,7 +6,12 @@ import {
   type RequestPermissionRequest,
   type RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
-import type { RuntimeEvent, ThreadConfig, ThreadServerRequestId } from "@/shared/contracts";
+import type {
+  RequestOutcome,
+  RuntimeEvent,
+  ThreadConfig,
+  ThreadServerRequestId,
+} from "@/shared/contracts";
 import {
   mapAcpElicitationRequest,
   mapAcpPermissionRequest,
@@ -20,8 +25,15 @@ import {
   hasNativeAcpPermissionMode,
   selectAutoApprovedPermissionOption,
 } from "./sessionPermissionMode";
+import {
+  buildAcpQuestionPermissionAnswerEvents,
+  isRejectionOptionId,
+  mapAcpQuestionPermissionRequest,
+  normalizeAcpQuestionPermissionResponse,
+  parseAcpPermissionQuestions,
+} from "./acpQuestionPermissions";
 
-type RequestAttention = "needs_approval" | "needs_reply";
+type RequestAttention = "needs_approval" | "needs_reply" | "working";
 
 interface AcpSessionRequestsOptions {
   threadId: string;
@@ -40,12 +52,14 @@ interface PendingElicitation {
   request: CreateElicitationRequest;
 }
 
+interface PendingPermission {
+  resolve: (response: unknown) => void;
+  isQuestion: boolean;
+}
+
 /** Owns the pending ACP requests that block an agent until the client responds. */
 export class AcpSessionRequests {
-  private readonly pendingPermissionResolvers = new Map<
-    ThreadServerRequestId,
-    (response: unknown) => void
-  >();
+  private readonly pendingPermissionResolvers = new Map<ThreadServerRequestId, PendingPermission>();
   private readonly pendingElicitationResolvers = new Map<
     ThreadServerRequestId,
     PendingElicitation
@@ -60,7 +74,8 @@ export class AcpSessionRequests {
   constructor(private readonly options: AcpSessionRequestsOptions) {}
 
   requestPermission(params: RequestPermissionRequest): Promise<RequestPermissionResponse> {
-    if (this.shouldAutoApproveSyntheticPermissionRequest()) {
+    const isQuestion = parseAcpPermissionQuestions(params).length > 0;
+    if (!isQuestion && this.shouldAutoApproveSyntheticPermissionRequest()) {
       const optionId = selectAutoApprovedPermissionOption(params);
       if (optionId) {
         return Promise.resolve({ outcome: { outcome: "selected", optionId } });
@@ -70,19 +85,39 @@ export class AcpSessionRequests {
     return new Promise<RequestPermissionResponse>((resolve) => {
       const requestId = `acp-perm-${this.permissionRequestSeq++}`;
 
-      this.pendingPermissionResolvers.set(requestId, (response: unknown) => {
-        const selected = response as { optionId?: string } | undefined;
-        if (selected?.optionId) {
-          resolve({ outcome: { outcome: "selected", optionId: selected.optionId } });
-        } else {
-          resolve({ outcome: { outcome: "cancelled" } });
-        }
+      this.pendingPermissionResolvers.set(requestId, {
+        isQuestion,
+        resolve: (response: unknown) => {
+          if (isQuestion) {
+            resolve(normalizeAcpQuestionPermissionResponse(params, response));
+            const answerEvents = buildAcpQuestionPermissionAnswerEvents({
+              threadId: this.options.threadId,
+              itemId: `acp-question-answer-${String(requestId)}`,
+              request: params,
+              response,
+            });
+            if (answerEvents.length > 0) this.options.emitRuntimeEvents(answerEvents);
+            return;
+          }
+          const selected = response as { optionId?: string } | undefined;
+          if (selected?.optionId) {
+            resolve({ outcome: { outcome: "selected", optionId: selected.optionId } });
+          } else {
+            resolve({ outcome: { outcome: "cancelled" } });
+          }
+        },
       });
 
       this.options.emitRuntimeEvents([
-        mapAcpPermissionRequest(params, this.options.ensureMapperState(), String(requestId)),
+        isQuestion
+          ? mapAcpQuestionPermissionRequest(
+              params,
+              this.options.ensureMapperState(),
+              String(requestId),
+            )!
+          : mapAcpPermissionRequest(params, this.options.ensureMapperState(), String(requestId)),
       ]);
-      this.options.setRequestAttention("needs_approval");
+      this.options.setRequestAttention(isQuestion ? "needs_reply" : "needs_approval");
     });
   }
 
@@ -116,32 +151,33 @@ export class AcpSessionRequests {
     const requestId = this.pendingElicitationRequestIdsByElicitationId.get(params.elicitationId);
     if (!requestId) return;
     if (this.resolvePendingElicitationRequest(requestId, { action: "accept" })) {
-      this.options.emitRuntimeEvents([
-        {
-          type: "request.resolved",
-          threadId: this.options.threadId,
-          requestId: String(requestId),
-          outcome: "answered",
-        },
-      ]);
+      this.emitResolvedAndResume(requestId, "answered");
     }
   }
 
-  resolve(requestId: ThreadServerRequestId, response: unknown): void {
+  resolve(requestId: ThreadServerRequestId, response: unknown): boolean {
     const permissionResolver = this.pendingPermissionResolvers.get(requestId);
     if (permissionResolver) {
       this.pendingPermissionResolvers.delete(requestId);
-      permissionResolver(response);
-      return;
+      permissionResolver.resolve(response);
+      this.emitResolvedAndResume(
+        requestId,
+        permissionResolver.isQuestion ? "answered" : permissionOutcome(response),
+      );
+      return true;
     }
-    this.resolvePendingElicitationRequest(requestId, response);
+    const resolved = this.resolvePendingElicitationRequest(requestId, response);
+    if (resolved) {
+      this.emitResolvedAndResume(requestId, "answered");
+    }
+    return resolved;
   }
 
   cancelPending(): void {
     const cancelledIds: ThreadServerRequestId[] = [];
-    for (const [requestId, resolver] of this.pendingPermissionResolvers) {
+    for (const [requestId, entry] of this.pendingPermissionResolvers) {
       cancelledIds.push(requestId);
-      resolver({ outcome: { outcome: "cancelled" } });
+      entry.resolve({ action: "cancel" });
     }
     this.pendingPermissionResolvers.clear();
 
@@ -174,6 +210,25 @@ export class AcpSessionRequests {
     return !hasNativeAcpPermissionMode(policy, availableModeIds);
   }
 
+  private emitResolvedAndResume(requestId: ThreadServerRequestId, outcome: RequestOutcome): void {
+    this.options.emitRuntimeEvents([
+      {
+        type: "request.resolved",
+        threadId: this.options.threadId,
+        requestId: String(requestId),
+        outcome,
+      },
+    ]);
+    this.resumeAfterLastRequest();
+  }
+
+  /** Clear the yellow request state immediately once the agent is unblocked. */
+  private resumeAfterLastRequest(): void {
+    if (this.pendingPermissionResolvers.size === 0 && this.pendingElicitationResolvers.size === 0) {
+      this.options.setRequestAttention("working");
+    }
+  }
+
   private resolvePendingElicitationRequest(
     requestId: ThreadServerRequestId,
     response: unknown,
@@ -195,4 +250,12 @@ export class AcpSessionRequests {
     );
     return true;
   }
+}
+
+function permissionOutcome(response: unknown): "accepted" | "declined" | "cancelled" {
+  if (!response || typeof response !== "object") return "cancelled";
+  const record = response as { action?: unknown; optionId?: unknown };
+  if (record.action === "cancel") return "cancelled";
+  if (isRejectionOptionId(record.optionId)) return "declined";
+  return "accepted";
 }

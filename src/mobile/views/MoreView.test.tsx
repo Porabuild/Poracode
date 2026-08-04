@@ -30,6 +30,13 @@ describe("mobile MoreView (Settings page)", () => {
     expect(screen.queryByText("Connections")).not.toBeInTheDocument();
   });
 
+  it("exposes the public privacy policy and support pages", () => {
+    render(<MoreView hasDesktop={false} onOpen={() => {}} onOpenSettingsSection={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "Privacy Policy" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Support" })).toBeEnabled();
+  });
+
   it("disables desktop settings until a desktop is paired", () => {
     const onOpen = vi.fn<() => void>();
     render(<MoreView hasDesktop={false} onOpen={onOpen} onOpenSettingsSection={() => {}} />);

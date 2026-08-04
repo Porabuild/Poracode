@@ -1,6 +1,6 @@
 import type { ProjectLocation } from "@/shared/contracts";
 import { encodeThreadQuery, type McpThreadIdentity } from "@/shared/browserMcpThread";
-import type { SubagentMcpHostAccessResolver } from "../subagentMcp";
+import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
 
 export type AppControlsMcpLocation =
   | ProjectLocation
@@ -14,7 +14,6 @@ export interface AppControlsMcpHttpConfig {
   headers: Record<string, string>;
 }
 
-export const APP_CONTROLS_MCP_SERVER_NAME = "poracode";
 export const APP_CONTROLS_MCP_URL_ENV = "PORACODE_APP_CONTROLS_MCP_URL";
 export const APP_CONTROLS_MCP_TOKEN_ENV = "PORACODE_APP_CONTROLS_MCP_TOKEN";
 
@@ -28,17 +27,9 @@ export function resolveAppControlsMcpHttpConfig(
   return createConfig(encodeThreadQuery(`${url.replace(/\/$/u, "")}/mcp`, identity), token);
 }
 
-export function resolveOrFallbackAppControlsMcpConfig(
-  location: AppControlsMcpLocation,
-  appControlsMcp?: AppControlsMcpHttpConfig,
-): AppControlsMcpHttpConfig | undefined {
-  if (location.kind === "wsl" && !appControlsMcp) return undefined;
-  return appControlsMcp ?? resolveAppControlsMcpHttpConfig(location) ?? undefined;
-}
-
 export async function resolveAppControlsMcpHttpConfigForLaunch(
   location: AppControlsMcpLocation,
-  hostAccess: SubagentMcpHostAccessResolver | undefined,
+  hostAccess: WslHostAccessResolver | undefined,
   identity?: McpThreadIdentity,
 ): Promise<AppControlsMcpHttpConfig | undefined> {
   if (location.kind !== "wsl") {

@@ -12,6 +12,7 @@ import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import { AsyncPromptQueue } from "./promptQueue";
 import { resolveFastAvailability } from "./fastModeProbe";
 import { spawnClaudeProbeProcess } from "./sdkProbeProcess";
+import { claudeCapabilitiesFromSdkModels } from "./models";
 
 function mapCommands(commands: SlashCommand[]) {
   return commands.map((c) => ({
@@ -54,11 +55,13 @@ async function main() {
 
     const init = await q.initializationResult();
     const slashCommands = mapCommands(init.commands);
+    const modelCapabilities = claudeCapabilitiesFromSdkModels(init.models);
     const fastAvailable = cachePath
       ? await resolveFastAvailability(q, queue, init.account?.email, cachePath)
       : undefined;
 
     const payload = {
+      ...(modelCapabilities ?? {}),
       slashCommands,
       ...(fastAvailable !== undefined ? { fastAvailable } : {}),
     };

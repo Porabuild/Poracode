@@ -1,0 +1,4 @@
+interface:
+  display_name: "Provider chat smoke"
+  short_description: "Exercise real provider chat turn branches"
+  default_prompt: "Use $provider-chat-smoke to smoke test Qwen Code and Kimi Code threads end to end."

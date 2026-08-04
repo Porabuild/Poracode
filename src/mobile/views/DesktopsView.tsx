@@ -5,6 +5,7 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   Check,
   Download,
+  ExternalLink,
   KeyRound,
   Laptop,
   Loader2,
@@ -20,11 +21,10 @@ import { formatShortDateTime } from "@/renderer/utils/formatTime";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
 import { Fab, EmptyState, FullScreenDrawer, SheetMenu, useSheet } from "../components";
 import { QrScanner } from "../QrScanner";
+import { parsePairingUrl } from "../pairing";
+import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { isNativeApp, isStandaloneDisplay, promptInstall, useCanInstall } from "../pwaInstall";
 import type { StoredDesktop } from "../storage";
-import { DESKTOP_POINTER_QUERY, useMediaQuery } from "../useMediaQuery";
-
-const LOCAL_DESKTOP_ENDPOINT = "http://localhost:38987/";
 
 /** "Add to Home Screen" button — only shown when the browser offers install. */
 function InstallAppButton() {
@@ -58,6 +58,12 @@ export interface DesktopsViewProps {
   readonly onPair: () => void;
   /** Raw text decoded from a scanned QR; the route parses + pairs. */
   readonly onScan: (value: string) => void;
+  /**
+   * Present only after this https page failed to reach a cleartext LAN endpoint:
+   * leaves for the copy of the app the desktop serves itself, carrying the same
+   * pairing credential.
+   */
+  readonly onOpenDesktopServedApp?: () => void;
   readonly onSwitch: (desktop: StoredDesktop) => void;
   /** Save a local nickname for the desktop. */
   readonly onRename: (desktop: StoredDesktop, label: string) => void;
@@ -74,13 +80,6 @@ export interface MobileSshPairRequest {
   readonly port: number;
   readonly fingerprint: string;
   readonly authentication: SshBridgeAuthentication;
-}
-
-/** "Poracode on host" → "host"; the brand prefix is noise inside the app.
- *  Legacy "Lightcode on …" labels (paired pre-rebrand) are stripped too. */
-function desktopTitle(label: string): string {
-  const stripped = label.replace(/^(?:Poracode|Lightcode)\s+on\s+/i, "");
-  return stripped || label;
 }
 
 /** "http://172.16.21.25:49152/" → "172.16.21.25:49152". */
@@ -418,12 +417,11 @@ function DesktopRow(props: {
 
 export function DesktopsView(props: DesktopsViewProps) {
   const { t } = useLingui();
+  const nativeApp = isNativeApp();
   const [scanning, setScanning] = useState(false);
   const [pairingMethod, setPairingMethod] = useState("pairing-link");
-  const desktopPointer = useMediaQuery(DESKTOP_POINTER_QUERY);
-  const showLocalPairing = desktopPointer && !isNativeApp();
   const { pairing, onScan, showPairingHint } = props;
-  // The pairing form now lives in a full-screen drawer opened from the FAB.
+  // The pairing form lives in a drawer opened from the FAB.
   const pairDrawer = useSheet<true>();
   const { open: openPairDrawer } = pairDrawer;
   // A deep-link launch pre-fills the fields and flags the hint — surface the
@@ -435,6 +433,104 @@ export function DesktopsView(props: DesktopsViewProps) {
       openPairDrawer(true);
     }
   }, [showPairingHint, openPairDrawer]);
+
+  function updatePairingField(value: string, updateField: (next: string) => void) {
+    const parsed = parsePairingUrl(value);
+    if (!parsed?.credential) {
+      updateField(value);
+      return;
+    }
+    props.onEndpointChange(parsed.endpoint);
+    props.onTokenChange(parsed.credential);
+  }
+
+  const pairingLinkForm = (
+    <div className="m-form">
+      <p className="m-card__hint">
+        <Trans>
+          Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here
+          — or enter the endpoint and pairing token manually.
+        </Trans>
+      </p>
+      {showPairingHint ? (
+        <p className="m-card__hint m-card__hint--accent">
+          <Trans>Pairing link detected.</Trans>
+        </p>
+      ) : null}
+      <Button
+        className="m-form__submit text-foreground"
+        size="sm"
+        variant="tertiary"
+        isDisabled={pairing ?? false}
+        onPress={() => setScanning(true)}
+      >
+        <QrCode className="size-4" />
+        <Trans>Scan QR code</Trans>
+      </Button>
+      <InstallAppButton />
+      <label className="m-field">
+        <span className="m-field__label">
+          <Trans>Endpoint</Trans>
+        </span>
+        <input
+          value={props.manualEndpoint}
+          aria-label={t`Endpoint`}
+          inputMode="url"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="http://192.168.1.20:49152/"
+          onChange={(event) =>
+            updatePairingField(event.currentTarget.value, props.onEndpointChange)
+          }
+        />
+      </label>
+      <label className="m-field">
+        <span className="m-field__label">
+          <Trans>Pairing token</Trans>
+        </span>
+        <input
+          value={props.manualToken}
+          aria-label={t`Pairing token`}
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="lc_pair_…"
+          onChange={(event) => updatePairingField(event.currentTarget.value, props.onTokenChange)}
+        />
+      </label>
+      <Button
+        className="m-form__submit text-foreground"
+        size="sm"
+        variant="tertiary"
+        isDisabled={pairing || !props.canPair}
+        onPress={props.onPair}
+      >
+        {pairing ? <Loader2 className="size-4 m-spin" /> : <Smartphone className="size-4" />}
+        {pairing ? t`Pairing…` : t`Pair`}
+      </Button>
+      {props.onOpenDesktopServedApp ? (
+        <>
+          <p className="m-card__hint">
+            <Trans>
+              This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access
+              for this site and pair again, or continue on the desktop's own address.
+            </Trans>
+          </p>
+          <Button
+            className="m-form__submit text-foreground"
+            size="sm"
+            variant="tertiary"
+            isDisabled={pairing ?? false}
+            onPress={props.onOpenDesktopServedApp}
+          >
+            <ExternalLink className="size-4" />
+            <Trans>Continue on the desktop address</Trans>
+          </Button>
+        </>
+      ) : null}
+    </div>
+  );
   return (
     <section className="m-page m-desktops m-page--fab">
       {scanning ? (
@@ -488,154 +584,37 @@ export function DesktopsView(props: DesktopsViewProps) {
         <FullScreenDrawer
           title={t`Pair a connection`}
           label={t`Pair a connection`}
+          fitContent={!nativeApp}
           closeLabel={t`Close pairing`}
           closing={pairDrawer.closing}
           onClose={pairDrawer.close}
         >
-          <Tabs
-            selectedKey={pairingMethod}
-            variant="secondary"
-            onSelectionChange={(key) => {
-              const next = String(key);
-              setPairingMethod(next);
-              if (next === "local") props.onEndpointChange(LOCAL_DESKTOP_ENDPOINT);
-            }}
-          >
-            <Tabs.ListContainer>
-              <Tabs.List aria-label={t`Connection method`}>
-                <Tabs.Tab id="pairing-link">
-                  <Trans>Pairing link</Trans>
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-                {showLocalPairing ? (
-                  <Tabs.Tab id="local">
-                    <Trans>Local</Trans>
+          {nativeApp ? (
+            <Tabs
+              selectedKey={pairingMethod}
+              variant="secondary"
+              onSelectionChange={(key) => setPairingMethod(String(key))}
+            >
+              <Tabs.ListContainer>
+                <Tabs.List aria-label={t`Connection method`}>
+                  <Tabs.Tab id="pairing-link">
+                    <Trans>Pairing link</Trans>
                     <Tabs.Indicator />
                   </Tabs.Tab>
-                ) : null}
-                {isNativeApp() ? (
                   <Tabs.Tab id="ssh">
                     <Trans>SSH</Trans>
                     <Tabs.Indicator />
                   </Tabs.Tab>
-                ) : null}
-              </Tabs.List>
-            </Tabs.ListContainer>
-            <Tabs.Panel id="pairing-link">
-              <div className="m-form">
-                <p className="m-card__hint">
-                  <Trans>
-                    Open Settings → Remote Access in Poracode on your desktop, then scan the QR code
-                    from here — or enter the endpoint and pairing token manually.
-                  </Trans>
-                </p>
-                {showPairingHint ? (
-                  <p className="m-card__hint m-card__hint--accent">
-                    <Trans>Pairing link detected.</Trans>
-                  </p>
-                ) : null}
-                <Button
-                  className="m-form__submit text-foreground"
-                  size="sm"
-                  variant="tertiary"
-                  isDisabled={pairing ?? false}
-                  onPress={() => setScanning(true)}
-                >
-                  <QrCode className="size-4" />
-                  <Trans>Scan QR code</Trans>
-                </Button>
-                <InstallAppButton />
-                <label className="m-field">
-                  <span className="m-field__label">
-                    <Trans>Endpoint</Trans>
-                  </span>
-                  <input
-                    value={props.manualEndpoint}
-                    aria-label={t`Endpoint`}
-                    inputMode="url"
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    placeholder="http://192.168.1.20:49152/"
-                    onChange={(event) => props.onEndpointChange(event.currentTarget.value)}
-                  />
-                </label>
-                <label className="m-field">
-                  <span className="m-field__label">
-                    <Trans>Pairing token</Trans>
-                  </span>
-                  <input
-                    value={props.manualToken}
-                    aria-label={t`Pairing token`}
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    placeholder="lc_pair_…"
-                    onChange={(event) => props.onTokenChange(event.currentTarget.value)}
-                  />
-                </label>
-                <Button
-                  className="m-form__submit text-foreground"
-                  size="sm"
-                  variant="tertiary"
-                  isDisabled={pairing || !props.canPair}
-                  onPress={props.onPair}
-                >
-                  {pairing ? (
-                    <Loader2 className="size-4 m-spin" />
-                  ) : (
-                    <Smartphone className="size-4" />
-                  )}
-                  {pairing ? t`Pairing…` : t`Pair`}
-                </Button>
-              </div>
-            </Tabs.Panel>
-            {showLocalPairing ? (
-              <Tabs.Panel id="local">
-                <div className="m-form">
-                  <p className="m-card__hint">
-                    <Trans>
-                      Open Settings → Remote Access in Poracode on this computer, then paste its
-                      pairing token here.
-                    </Trans>
-                  </p>
-                  <label className="m-field">
-                    <span className="m-field__label">
-                      <Trans>Pairing token</Trans>
-                    </span>
-                    <input
-                      value={props.manualToken}
-                      aria-label={t`Pairing token`}
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      placeholder="lc_pair_…"
-                      onChange={(event) => props.onTokenChange(event.currentTarget.value)}
-                    />
-                  </label>
-                  <Button
-                    className="m-form__submit text-foreground"
-                    size="sm"
-                    variant="tertiary"
-                    isDisabled={pairing || !props.canPair}
-                    onPress={props.onPair}
-                  >
-                    {pairing ? (
-                      <Loader2 className="size-4 m-spin" />
-                    ) : (
-                      <Laptop className="size-4" />
-                    )}
-                    {pairing ? t`Pairing…` : t`Pair`}
-                  </Button>
-                </div>
-              </Tabs.Panel>
-            ) : null}
-            {isNativeApp() ? (
+                </Tabs.List>
+              </Tabs.ListContainer>
+              <Tabs.Panel id="pairing-link">{pairingLinkForm}</Tabs.Panel>
               <Tabs.Panel id="ssh">
                 <SshPairingForm onProbe={props.onProbeSsh} onPair={props.onPairSsh} />
               </Tabs.Panel>
-            ) : null}
-          </Tabs>
+            </Tabs>
+          ) : (
+            pairingLinkForm
+          )}
         </FullScreenDrawer>
       ) : null}
     </section>

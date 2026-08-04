@@ -10,6 +10,7 @@ import {
   type SshConnectionConfig,
   type SshDiscoveredHost,
 } from "@/shared/ssh";
+import { compareVersions } from "@/shared/changelog";
 import { ensureSshRuntimeBundle, type SshRuntimeBundleOptions } from "./runtimeBundle";
 import {
   bootstrapRemoteRuntime,
@@ -21,6 +22,8 @@ import {
 } from "@/shared/sshBootstrap";
 
 const MAX_CAPTURED_OUTPUT_BYTES = 256 * 1024;
+const SSH_EXISTING_TUNNEL_READY_TIMEOUT_MS = 2_000;
+const APP_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
 
 interface ProcessResult {
   readonly stdout: string;
@@ -165,6 +168,12 @@ function configKey(connection: SshConnectionConfig): string {
   });
 }
 
+function helperNeedsUpdate(remoteVersion: string, localVersion: string): boolean {
+  return (
+    !APP_VERSION_PATTERN.test(remoteVersion) || compareVersions(remoteVersion, localVersion) < 0
+  );
+}
+
 async function reserveLoopbackPort(): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     const server = createServer();
@@ -233,21 +242,38 @@ export class SshConnectionManager {
       throw new Error(`SSH identity file does not exist: ${connection.identityFile}`);
     }
 
+    const bundle = ensureSshRuntimeBundle(this.options);
     const current = this.tunnels.get(connection.id);
     if (current && current.configKey === configKey(connection) && current.child.exitCode === null) {
-      const pairingCredential = input.issuePairingCredential
-        ? await this.issuePairingCredential(connection, current.runtimeHash)
-        : undefined;
-      return {
-        connectionId: connection.id,
-        endpoint: current.endpoint,
-        remotePort: current.remotePort,
-        ...(pairingCredential ? { pairingCredential } : {}),
-      };
+      try {
+        const descriptor = await waitForRemoteEndpoint(
+          this.fetchImpl,
+          current.endpoint,
+          SSH_EXISTING_TUNNEL_READY_TIMEOUT_MS,
+        );
+        if (
+          current.runtimeHash !== bundle.hash ||
+          helperNeedsUpdate(descriptor.appVersion, bundle.version)
+        ) {
+          await this.disconnect(connection.id);
+        }
+      } catch {
+        await this.disconnect(connection.id);
+      }
+      if (this.tunnels.get(connection.id) === current) {
+        const pairingCredential = input.issuePairingCredential
+          ? await this.issuePairingCredential(connection, current.runtimeHash)
+          : undefined;
+        return {
+          connectionId: connection.id,
+          endpoint: current.endpoint,
+          remotePort: current.remotePort,
+          ...(pairingCredential ? { pairingCredential } : {}),
+        };
+      }
     }
-    if (current) await this.disconnect(connection.id);
+    if (this.tunnels.has(connection.id)) await this.disconnect(connection.id);
 
-    const bundle = ensureSshRuntimeBundle(this.options);
     const remotePort = await bootstrapRemoteRuntime(
       {
         runScript: this.scriptRunner(connection),

@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "@heroui/react";
 import type { ProjectTreeEntry } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
@@ -23,6 +23,7 @@ export function useProjectTree(props: {
   onSelectFile: (path: string) => void;
   onPinFile?: (path: string) => void;
 }) {
+  const remoteServerId = props.rootContext.remoteServerId;
   const refreshToken = useFileEditorStore((state) => state.refreshToken);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,9 +39,10 @@ export function useProjectTree(props: {
 
   const rootKey = `${props.rootContext.projectId}:${props.rootContext.worktreePath ?? ""}`;
 
-  const reloadPaths = useEffectEvent(async (paths: string[]) => {
+  async function reloadPaths(paths: string[]) {
     const uniquePaths = [...new Set(paths.flatMap((path) => [getParentPath(path), path]))];
     const treeStore = useProjectTreeStore.getState();
+    const generation = treeStore.generation;
     for (const path of uniquePaths) treeStore.setLoading(path, true);
 
     const results = await Promise.all(
@@ -65,6 +67,7 @@ export function useProjectTree(props: {
       return [];
     });
 
+    if (useProjectTreeStore.getState().generation !== generation) return;
     if (results.length > 0) {
       useProjectTreeStore
         .getState()
@@ -73,7 +76,7 @@ export function useProjectTree(props: {
         );
     }
     useProjectTreeStore.getState().clearLoadingFor(uniquePaths);
-  });
+  }
 
   useEffect(() => {
     useProjectTreeStore.getState().resetForRoot(rootKey);
@@ -81,6 +84,7 @@ export function useProjectTree(props: {
     setSearchQuery("");
     setSearchResults([]);
     void reloadPaths([""]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- root changes must reset and load exactly once; reloadPaths reads the matching render's root context.
   }, [rootKey]);
 
   useEffect(() => {
@@ -257,6 +261,7 @@ export function useProjectTree(props: {
   async function handleEntryAction(entry: ProjectTreeEntry, action: string) {
     try {
       if (action === "reveal") {
+        if (remoteServerId) return;
         await readBridge().revealProjectEntry({
           projectLocation: props.rootContext.projectLocation,
           path: entry.path,
@@ -316,6 +321,7 @@ export function useProjectTree(props: {
   async function handleRootAction(action: string) {
     try {
       if (action === "reveal-root") {
+        if (remoteServerId) return;
         await readBridge().revealProjectEntry({
           projectLocation: props.rootContext.projectLocation,
           path: "",

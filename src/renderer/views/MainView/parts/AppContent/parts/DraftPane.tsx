@@ -1,10 +1,5 @@
 import { useRef } from "react";
 import type { Project } from "@/shared/contracts";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import {
-  isDetectingAgentsForLocation,
-  useAgentStatusesStore,
-} from "@/renderer/state/agentStatusesStore";
 import {
   useInitialProjectDraftConfig,
   useProjectWithoutDraftConfig,
@@ -12,8 +7,8 @@ import {
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { useShallow } from "zustand/shallow";
 import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
+import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 
 export function DraftPane(props: {
   paneId: string;
@@ -26,14 +21,7 @@ export function DraftPane(props: {
 }) {
   const project = useProjectWithoutDraftConfig(props.projectId);
   const initialLastDraftConfig = useInitialProjectDraftConfig(props.projectId);
-  const projectAgentStatuses = useAgentStatusesStore(
-    useShallow((s) =>
-      project ? getProjectAgentStatuses(project.location, s.agentStatuses, s.wslAgentStatuses) : [],
-    ),
-  );
-  const isDetectingAgents = useAgentStatusesStore((s) =>
-    project ? isDetectingAgentsForLocation(s, project.location) : false,
-  );
+  const draftEnvironment = useDraftEnvironment(project);
 
   const paneElementRef = useRef<HTMLDivElement>(null);
   const { handleRef } = useDraggable({
@@ -57,8 +45,12 @@ export function DraftPane(props: {
   return (
     <ThreadDraftView
       project={project}
-      agentStatuses={projectAgentStatuses}
-      isDetectingAgents={isDetectingAgents}
+      agentStatuses={draftEnvironment.agentStatuses}
+      isDetectingAgents={draftEnvironment.isDetectingAgents}
+      {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
+      {...(draftEnvironment.saveClipboardImage
+        ? { saveClipboardImage: draftEnvironment.saveClipboardImage }
+        : {})}
       compact
       paneAlign={props.paneAlign}
       paneId={props.paneId}

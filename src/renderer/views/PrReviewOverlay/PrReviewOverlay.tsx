@@ -40,6 +40,7 @@ function PrReviewContent(props: {
   checksStatus: PrChecksStatus | undefined;
   effectiveLocation: ProjectLocation;
   prNumber: number;
+  projectId: string;
   loading: boolean;
   onLoad: () => void;
   selectedFile: string | null;
@@ -58,6 +59,7 @@ function PrReviewContent(props: {
     checksStatus,
     effectiveLocation,
     prNumber,
+    projectId,
     loading,
     onLoad,
     selectedFile,
@@ -100,7 +102,7 @@ function PrReviewContent(props: {
             />
           }
           commitsPanel={<PrCommitsTab cacheKey={cacheKey} prKey={prKey} loading={loading} />}
-          checksPanel={<PrChecksTab cacheKey={cacheKey} loading={loading} />}
+          checksPanel={<PrChecksTab cacheKey={cacheKey} loading={loading} projectId={projectId} />}
           changesPanel={
             <PrDiffContent
               files={files ?? []}
@@ -294,6 +296,7 @@ export function PrReviewOverlay(props: {
           loading={loading}
           projectId={project.id}
           projectLocation={effectiveLocation}
+          mergeSyncLocation={project.location}
           prKey={prKey}
           worktreePath={worktreePath}
           {...(skipLocalSync ? { skipLocalSync: true } : {})}
@@ -319,6 +322,7 @@ export function PrReviewOverlay(props: {
           checksStatus={combinedChecksStatus}
           effectiveLocation={effectiveLocation}
           prNumber={prNumber}
+          projectId={project.id}
           loading={loading}
           onLoad={() => void load()}
           selectedFile={selectedFile}

@@ -3,9 +3,9 @@
  *
  * The CLI parser (`opencode models --verbose`) was the only way to enumerate
  * providers/models/variants before we started shipping the SDK runtime. Now
- * that every project ends up spawning `opencode serve` for the GUI / TUI
- * session allocation anyway, we may as well also use it for the one-time
- * inventory call. The SDK returns:
+ * that the SDK runtime keeps one shared `opencode serve` per execution
+ * environment, the one-time inventory call reuses that same sidecar. The SDK
+ * returns:
  *
  *   - per-provider model `name` (we no longer need slug-titleization heuristics
  *     for everything the API knows)
@@ -22,10 +22,7 @@
  */
 
 import type { ProjectLocation } from "@/shared/contracts";
-import { resolveAgentBinaryPath } from "../binaryResolver";
-import { buildOpenCodeServerCommand } from "./argv";
-import { resolveOpenCodeSessionDirectory } from "./sdkClient";
-import { spawnOpenCodeServer } from "./sdkServer";
+import { acquireOpenCodeServer } from "./sdkClient";
 
 /** Per-model entry returned by the SDK provider list, normalised. */
 export interface OpenCodeSdkModel {
@@ -58,8 +55,6 @@ export interface OpenCodeSdkInventory {
   connected: string[];
   agents: OpenCodeSdkAgent[];
 }
-
-const PROBE_READY_GRACE_MS = 15_000;
 
 interface ProviderListPayloadModel {
   id?: unknown;
@@ -154,41 +149,17 @@ function normalizeAgentsResponse(raw: unknown): OpenCodeSdkAgent[] {
 }
 
 /**
- * Spawn an ephemeral `opencode serve`, call `provider.list()` + `app.agents()`,
- * and tear the server back down. The returned promise rejects on any failure;
- * callers are expected to fall back to the CLI parser.
+ * Acquire the runtime sidecar and call `provider.list()` + `app.agents()` in
+ * this directory. The returned promise rejects on any failure; callers are
+ * expected to fall back to the CLI parser.
  */
 export async function probeOpenCodeInventoryViaSdk(
   location: ProjectLocation,
-  executablePath: string,
 ): Promise<OpenCodeSdkInventory | undefined> {
-  const resolvedExecPath = resolveAgentBinaryPath(location, executablePath);
-  const command = buildOpenCodeServerCommand(location, resolvedExecPath);
-  const handle = spawnOpenCodeServer(command);
-
-  let baseUrl: string;
-  try {
-    baseUrl = await Promise.race([
-      handle.baseUrl,
-      new Promise<string>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`opencode serve did not start within ${PROBE_READY_GRACE_MS}ms`)),
-          PROBE_READY_GRACE_MS,
-        ),
-      ),
-    ]);
-  } catch (err) {
-    await handle.dispose();
-    throw err;
-  }
+  const acquired = await acquireOpenCodeServer({ projectLocation: location });
 
   try {
-    const { createOpencodeClient } = await import("@opencode-ai/sdk/v2/client");
-    const client = createOpencodeClient({
-      baseUrl,
-      directory: resolveOpenCodeSessionDirectory(location),
-      throwOnError: true,
-    });
+    const client = acquired.client;
 
     const [providerListResult, agentsResult] = await Promise.all([
       client.provider.list().catch((err: unknown) => {
@@ -215,6 +186,6 @@ export async function probeOpenCodeInventoryViaSdk(
     const agents = normalizeAgentsResponse(agentsPayload);
     return { providers, connected, agents };
   } finally {
-    await handle.dispose();
+    await acquired.dispose();
   }
 }

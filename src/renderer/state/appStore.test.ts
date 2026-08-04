@@ -7,6 +7,7 @@ import {
   writeStoredSizes,
 } from "@/renderer/components/layout/paneSizeStorage";
 import { useAppStore } from "./appStore";
+import { usePanelStore } from "./panelStore";
 
 describe("appStore runtime config sync", () => {
   beforeEach(() => {
@@ -18,6 +19,7 @@ describe("appStore runtime config sync", () => {
       threads: [],
       view: { kind: "home" },
     }));
+    usePanelStore.getState().setGitHubActionsContext(null);
   });
 
   it("applies resolved runtime config onto the stored thread", () => {
@@ -279,6 +281,22 @@ describe("appStore runtime config sync", () => {
   it("opens pull requests as a main view", () => {
     useAppStore.getState().openPullRequests();
     expect(useAppStore.getState().view).toEqual({ kind: "pullRequests" });
+  });
+
+  it("opens GitHub Actions for a project as an overlay", () => {
+    useAppStore.getState().openGitHubActions("project-1");
+    expect(usePanelStore.getState().githubActionsContext).toEqual({
+      projectId: "project-1",
+    });
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+  });
+
+  it("opens a GitHub Actions run from another surface", () => {
+    useAppStore.getState().openGitHubActions("project-1", 501);
+    expect(usePanelStore.getState().githubActionsContext).toEqual({
+      projectId: "project-1",
+      runId: 501,
+    });
   });
 
   it("openThread replaces panes[0] and keeps secondary panes", () => {
@@ -1640,6 +1658,42 @@ describe("group view layout restore", () => {
       groupLayouts: {},
       view: { kind: "home" },
     }));
+  });
+
+  it("opens four or more group threads in a balanced two-row grid", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const groupId = "group-grid";
+    const ids = Array.from(
+      { length: 5 },
+      (_, index) =>
+        useAppStore.getState().createThread({
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "m" },
+          prompt: `t${index}`,
+          groupId,
+          groupName: "Grid",
+        }).id,
+    );
+
+    useAppStore.getState().openGroupGrid(groupId);
+
+    const view = useAppStore.getState().view;
+    const expectedIds = [...ids].reverse();
+    expect(view.kind).toBe("thread");
+    expect(view.kind === "thread" && view.panes).toEqual(expectedIds);
+    expect(view.kind === "thread" && view.activeGroupId).toBe(groupId);
+    expect(view.kind === "thread" && view.paneLayout).toMatchObject({
+      kind: "split",
+      axis: "horizontal",
+      children: [
+        { kind: "split", axis: "vertical", children: [{}, {}, {}] },
+        { kind: "split", axis: "vertical", children: [{}, {}] },
+      ],
+    });
   });
 
   it("restores the saved pane layout after closing and reopening a reordered group", () => {

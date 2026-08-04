@@ -2,11 +2,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import type { ThreadAttention, ThreadStatus, ThreadStatusSource } from "@/shared/contracts";
 import { extractOscEventsFromPtyStream } from "@/shared/osc";
+import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import { isThreadConfigEqual } from "@/shared/contracts";
 import type { TerminalStatusHint } from "../agents/base";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import type { SessionRuntime, ThreadOutputPipelineCallbacks } from "./sessionTypes";
-import { TranscriptBuffer } from "./transcriptBuffer";
 import { writeSubmittedPrompt } from "./threadSessionManager";
 
 const STATUS_STABILIZATION_DELAY: Partial<Record<ThreadStatus, number>> = {

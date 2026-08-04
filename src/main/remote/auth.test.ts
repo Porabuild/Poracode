@@ -42,6 +42,17 @@ describe("RemoteAuthStore", () => {
     ).toThrow(/does not grant/);
   });
 
+  it("can retire an unconsumed pairing credential", () => {
+    const store = new RemoteAuthStore();
+    const pairing = store.issuePairingCredential();
+
+    expect(store.revokePairingCredential(pairing.credential)).toBe(true);
+    expect(store.revokePairingCredential(pairing.credential)).toBe(false);
+    expect(() => store.exchangePairingCredential({ credential: pairing.credential })).toThrow(
+      RemoteHttpError,
+    );
+  });
+
   it("issues one-use websocket tickets for authenticated sessions", () => {
     const store = new RemoteAuthStore();
     const pairing = store.issuePairingCredential({ scopes: ["session:read"] });

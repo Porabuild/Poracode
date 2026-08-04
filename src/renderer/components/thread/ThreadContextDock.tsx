@@ -1,8 +1,8 @@
-import { Tooltip } from "@heroui/react";
 import { Gauge, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { CSSProperties } from "react";
-import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
+import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
 
 export function ThreadContextDock({
@@ -16,7 +16,16 @@ export function ThreadContextDock({
   const usageStyle = {
     "--lc-context-progress": `${summary.percent ?? 0}%`,
   } as CSSProperties;
-  const countLabel = summary.percent === undefined ? t`Usage unknown` : t`${summary.percent}% Full`;
+  // The percentage rolls in place as the thread streams. `%` stays outside the
+  // animated element so locales that lead with the sign (Turkish) can move it.
+  const countLabel =
+    summary.percent === undefined ? (
+      t`Usage unknown`
+    ) : (
+      <Trans>
+        <AnimatedNumber value={summary.percent} />% Full
+      </Trans>
+    );
   const tone = resolveContextUsageTone(summary);
   const fillClassName =
     tone === "danger"
@@ -32,21 +41,9 @@ export function ThreadContextDock({
         title={t`Usage`}
         countLabel={countLabel}
         actions={
-          <Tooltip delay={0}>
-            <Tooltip.Trigger>
-              <button
-                aria-label={t`Close usage details`}
-                className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-                type="button"
-                onClick={onClose}
-              >
-                <X className="size-3.5" />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content>
-              <Trans>Close usage details</Trans>
-            </Tooltip.Content>
-          </Tooltip>
+          <ThreadDockIconButton label={t`Close usage details`} danger onPress={onClose}>
+            <X className="size-3.5" />
+          </ThreadDockIconButton>
         }
       />
       <div className="flex flex-col gap-2 px-3 pb-2">

@@ -63,8 +63,11 @@ export function getFilesFromDiff(diff: string): DiffPromptFile[] {
 
 function truncateFileDiff(diff: string, maxChars: number): string {
   if (diff.length <= maxChars) return diff;
-  const marker = "\n[diff excerpt truncated for this file]";
-  return diff.slice(0, Math.max(0, maxChars - marker.length)) + marker;
+  const marker = "\n[diff middle truncated for this file]\n";
+  const available = Math.max(0, maxChars - marker.length);
+  const headChars = Math.ceil(available / 2);
+  const tailChars = Math.floor(available / 2);
+  return `${diff.slice(0, headChars)}${marker}${tailChars > 0 ? diff.slice(-tailChars) : ""}`;
 }
 
 export function buildDiffExcerpts(

@@ -42,6 +42,30 @@ html {
     var(--composer-surface, var(--surface, var(--content-background))) var(--m-glass-alpha),
     transparent
   );
+  /* The same material a step less translucent, for floating CARDS rather than
+     controls — the composer's action docks and the info-chip panels. They carry
+     dense text (commands, paths, plan steps) over the transcript, so they need
+     more grounding than a pill. Mixing from --m-glass-surface keeps the
+     per-platform alpha ladder below intact. */
+  --m-glass-card-surface: color-mix(
+    in oklab,
+    var(--m-glass-surface) 75%,
+    var(--composer-surface, var(--surface, var(--content-background)))
+  );
+}
+
+/* iOS renders the backdrop blur as a real native material, so the 64% glass
+   reliably grounds floating controls there. Everywhere else (desktop browsers,
+   Windows especially) the blur is much weaker and the same alpha reads
+   washed-out/too transparent, so nudge it more opaque. */
+html:not([data-mobile-platform="ios"]) {
+  --m-glass-alpha: 70%;
+}
+
+/* Chromium's backdrop blur is especially faint on Windows, so the floating
+   controls need an almost-opaque base to retain the same visual weight. */
+html[data-mobile-platform="windows"] {
+  --m-glass-alpha: 96%;
 }
 
 /* Reused HeroUI buttons render at their "sm" size (~32px tall) throughout the
@@ -77,6 +101,311 @@ body {
   overflow: hidden;
 }
 
+/* The standalone bootstrap pins <html> to physical 100lvh before styles load.
+   Body/root inherit that height; list tails and floating controls add their
+   own env(safe-area-inset-bottom) clearance below. */
+html[data-mobile-platform="ios"][data-mobile-standalone="true"] body {
+  height: 100%;
+  min-height: 100%;
+}
+
+html[data-mobile-platform="ios"][data-mobile-standalone="true"] #root {
+  position: static;
+  height: 100%;
+  min-height: 100%;
+}
+
+/* iOS Safari 26 floats its bottom toolbar over the in-flow document. Size the
+   browser-mode shell to the large viewport so its bottom-edge paint supplies
+   Safari's covered band. Floating Poracode controls stay aligned to the
+   visible toolbar edge; installed/native shells keep their existing geometry
+   because their display mode is not `browser`. */
+@media (display-mode: browser) {
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"] {
+    /* Safari reports a zero bottom safe-area inset in browser mode. The
+       large/small viewport range is the single real collapsible-toolbar band. */
+    --m-browser-toolbar-depth: calc(100lvh - 100svh);
+    /* Everything is anchored to the SMALL viewport (100svh): the region that
+       is always visible above Safari's expanded chrome. Paint must continue
+       below it — through the toolbar band and the physical chrome under
+       100lvh (collapsed-pill zone + home indicator, ~98pt total on iPhone 17)
+       — but no env() exposes that depth, and Safari's derived flat fill
+       visibly cuts a row list mid-toolbar. Three toolbar bands is the
+       smallest derived length that covers it on current iPhones.
+       overflow:hidden on the shells means the extension never creates
+       scrollable range. The SAME quantity offsets pinned controls and
+       trailing clearances from an extended surface's bottom back up to the
+       visible viewport bottom. */
+    --m-browser-band-paint: calc(3 * var(--m-browser-toolbar-depth));
+    --m-browser-toolbar-safe-area: calc(env(safe-area-inset-bottom) + var(--m-browser-band-paint));
+    --m-browser-edge-gap: 0.75rem;
+    --m-browser-list-tail: 1.5rem;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"] #root {
+    bottom: auto;
+    height: 100lvh;
+  }
+
+  /* Fixed backdrops clip at Safari's layout-viewport line. Keep browser-mode
+     backdrops transparent so opening a composer or sheet preserves the
+     in-flow shell paint Safari samples for the covered bottom band. The layers
+     remain mounted and tappable to preserve outside-tap dismissal. */
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"] .m-compose-scrim {
+    background: transparent;
+  }
+
+  /* Responsive menu sheets portal into the mobile shell so they share the
+     page compositor with the composer. The backdrop and sheet both reach the
+     physical viewport bottom; browser-toolbar clearance belongs to the model
+     list's scroll content below, not to the sheet's outer geometry. */
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"] .m-shell > .m-sheet-backdrop {
+    position: absolute;
+    inset: 0 0 auto;
+    height: calc(100svh + var(--m-browser-band-paint));
+    background: transparent;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell
+    > .m-sheet-backdrop
+    > .m-sheet:has(.poracode-model-menu-listbox) {
+    overflow: hidden;
+    height: auto;
+    max-height: calc(65svh + var(--m-browser-band-paint));
+    padding-bottom: 0;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell
+    > .m-sheet-backdrop
+    > .m-sheet
+    .poracode-model-menu-listbox {
+    height: auto !important;
+    min-height: 0;
+    max-height: none !important;
+    flex: 1;
+    scroll-padding-bottom: calc(var(--m-browser-edge-gap) + var(--m-browser-toolbar-safe-area));
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell
+    > .m-sheet-backdrop
+    > .m-sheet[data-expanded]:has(.poracode-model-menu-listbox) {
+    height: calc(
+      100dvh - env(safe-area-inset-top) - var(--m-browser-edge-gap) + var(--m-browser-band-paint)
+    );
+    max-height: calc(
+      100dvh - env(safe-area-inset-top) - var(--m-browser-edge-gap) + var(--m-browser-band-paint)
+    );
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"] .m-home-compose-actions,
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="home"]
+    .m-compose-dock {
+    bottom: calc(var(--m-browser-edge-gap) + var(--m-browser-toolbar-safe-area));
+  }
+
+  /* Keep the home document locked to the visible viewport. Safari collapses
+     its browser chrome and enables pull-to-refresh for document-level scrolls;
+     the inner thread list remains the sole vertical scroller so neither can
+     happen while normal list scrolling continues to work. The svh-anchored,
+     band-paint-extended in-flow document gives Safari real page paint beneath
+     its glass toolbar all the way to the physical screen edge. */
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+    .m-shell[data-chrome="home"]
+  ),
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+      .m-shell[data-chrome="home"]
+    )
+    body {
+    height: calc(100svh + var(--m-browser-band-paint));
+    overflow: hidden;
+    overscroll-behavior-y: none;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+      .m-shell[data-chrome="home"]
+    )
+    #root {
+    position: static;
+    height: calc(100svh + var(--m-browser-band-paint));
+    overflow: hidden;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"] .m-shell[data-chrome="home"] {
+    height: 100%;
+    min-height: 0;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="home"]
+    > .m-main
+    > .m-threads
+    > .m-thread-list::after {
+    flex-basis: calc(
+      var(--m-floating-control-height) + var(--m-browser-list-tail) +
+        var(--m-browser-toolbar-safe-area)
+    );
+  }
+
+  /* Thread chrome: the transcript keeps its inner virtualized scroller (iOS
+     latches touch scrolls to it, so a document-scroll handoff can never
+     collapse the toolbar here). But Safari only composites DOCUMENT content
+     into the transparent slice beneath its toolbar — a fixed-position #root
+     is cut at the dynamic viewport and leaves a black band there. So the
+     thread shell leaves the fixed root and becomes in-flow document content
+     at 100lvh, with the interactive chrome pinned to the visible viewport. */
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+    .m-shell[data-chrome="thread"]
+  ),
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+      .m-shell[data-chrome="thread"]
+    )
+    body {
+    height: auto;
+    overflow: hidden;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+      .m-shell[data-chrome="thread"]
+    )
+    #root {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="thread"] {
+    height: calc(100svh + var(--m-browser-band-paint));
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="thread"]::before,
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="thread"]
+    > .m-topbar,
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="thread"]
+    .m-thread-bar,
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="thread"]
+    .m-thread-compose-dock {
+    position: fixed;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="thread"]
+    .m-thread
+    .m-thread-content
+    [data-chat-virtual-size-box="true"] {
+    padding-bottom: calc(
+      var(--m-floating-control-height) + var(--m-browser-list-tail) +
+        var(--m-browser-toolbar-safe-area)
+    );
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="thread"]
+    .m-thread
+    .m-thread-content
+    button.bottom-4:has(svg.lucide-arrow-down) {
+    bottom: calc(
+      var(--m-thread-pin-lift, 1.75rem) +
+        var(--m-thread-bubble-height, var(--m-floating-control-height)) +
+        var(--m-keyboard-offset, 0px) + var(--m-browser-toolbar-safe-area)
+    );
+  }
+
+  /* The routed subagent uses the same document-backed shell geometry as the
+     main thread. Its LegendList remains the only scroller, but the shell paints
+     through Safari's covered toolbar band and the virtualized tail owns enough
+     real scroll range to bring the final child row back above the glass. */
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+    .m-shell[data-chrome="subagent"]
+  ),
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+      .m-shell[data-chrome="subagent"]
+    )
+    body {
+    height: auto;
+    overflow: hidden;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+      .m-shell[data-chrome="subagent"]
+    )
+    #root {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="subagent"] {
+    height: calc(100svh + var(--m-browser-band-paint));
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="subagent"]::before,
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="subagent"]
+    > .m-topbar {
+    position: fixed;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="subagent"]
+    .m-subagent-page
+    [data-chat-virtual-size-box="true"] {
+    padding-bottom: calc(var(--m-browser-list-tail) + var(--m-browser-toolbar-safe-area));
+  }
+
+  /* Subscreens use the same in-flow large-viewport shell as threads so
+     Safari can derive the covered bottom band from the app background. The
+     shell is a flex column, so the top bar stays in flow (a fixed topbar
+     would paint behind the positioned, opaque .m-main that follows it) and
+     .m-page below it remains the sole scroller. */
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+    .m-shell[data-chrome="subscreen"]
+  ),
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+      .m-shell[data-chrome="subscreen"]
+    )
+    body {
+    height: auto;
+    overflow: hidden;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]:has(
+      .m-shell[data-chrome="subscreen"]
+    )
+    #root {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Subscreens never document-scroll, so the toolbar never collapses and the
+     visible viewport is exactly 100dvh. Sizing the shell to it keeps
+     bottom-anchored page content (footers, action rows) above the toolbar;
+     the band beneath gets Safari's derived fill from the matching shell
+     background. */
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="subscreen"] {
+    height: 100dvh;
+  }
+
+  html[data-mobile-platform="ios"][data-mobile-browser-chrome="true"]
+    .m-shell[data-chrome="subscreen"]
+    > .m-main
+    > .m-page:not(.m-subagent-page) {
+    padding-bottom: var(--m-browser-edge-gap);
+  }
+}
+
 body {
   margin: 0;
 }
@@ -84,6 +413,15 @@ body {
 body.bg-background {
   background: #070709;
   background: var(--background, #070709);
+}
+
+/* iOS paints the status-bar/safe-area canvas from the document, outside the
+   narrow shell where the mobile token override lives. Match that outer canvas
+   to the default mobile theme without changing the wide desktop PWA. */
+html[data-theme="dark"][data-theme-preset="default"]:has(.m-shell:not(.m-shell--wide)),
+html[data-theme="dark"][data-theme-preset="default"]:has(.m-shell:not(.m-shell--wide)) body,
+html[data-theme="dark"][data-theme-preset="default"]:has(.m-shell:not(.m-shell--wide)) #root {
+  background: #000;
 }
 
 /* ── Shell ─────────────────────────────────────────────────────── */
@@ -96,10 +434,38 @@ body.bg-background {
   color: var(--foreground, inherit);
 }
 
+/* Phone PWA pages intentionally use the theme's base background (black in the
+   default dark theme). The desktop PWA gets its distinct, slightly raised
+   content surface from .m-wide-content below. Keep that split structural so
+   transparency added for desktop auxiliary panels cannot change phone pages. */
+.m-shell:not(.m-shell--wide) {
+  --content-background: var(--background);
+}
+
+html[data-theme="dark"][data-theme-preset="default"] .m-shell:not(.m-shell--wide) {
+  --background: #000;
+  --content-background: #000;
+}
+
+.m-shell:not(.m-shell--wide) .m-main {
+  background: var(--background, #070709);
+}
+
 .m-shell--wide {
   display: grid;
   grid-template-columns: var(--m-sidebar-width, clamp(248px, 20vw, 304px)) minmax(0, 1fr);
   grid-template-rows: 100%;
+  background: var(--background, #070709);
+}
+
+.m-wide-content {
+  container-name: m-wide-content;
+  container-type: inline-size;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  background: var(--content-background, #0b0b11);
+  overflow: hidden;
 }
 
 .m-main {
@@ -113,6 +479,23 @@ body.bg-background {
   overflow: hidden;
 }
 
+.m-thread-route-host {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Keep the main thread's exact DOM and scroll node alive behind the pushed
+   subagent page. `visibility` removes it from paint and hit testing without
+   collapsing the virtualizer's measured viewport. */
+.m-thread-route-host[data-covered="true"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .m-main > .m-page {
   overflow-y: auto;
 }
@@ -121,7 +504,7 @@ body.bg-background {
   min-height: 100%;
   align-items: center;
   justify-content: center;
-  background: var(--background, #070709);
+  background: transparent;
   padding-top: calc(0.75rem + env(safe-area-inset-top));
   padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 }
@@ -139,27 +522,154 @@ body.bg-background {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Clear the floating composer pill so the last rows stay reachable. */
-  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .m-main > .m-threads > .m-threads__picker {
   position: static;
 }
 
-/* App chrome — top bar, bottom tab bar, the threads list, and the wide-layout
-   sidebar — is tap-only: a long-press here opens our own actions sheet (or does
-   nothing), and must never start iOS text selection. Marking only the row
-   non-selectable isn't enough: WebKit then falls back to selecting the page's
-   *other* chrome text ("Select All" over the brand + tab labels), which is the
-   selection users still see. Disabling selection (and the callout) across the
-   whole chrome removes anything for that fallback to grab. Content surfaces
+/* The home list owns the full visual viewport. Its first items start below the
+   safe-area-aware header at rest, then scroll underneath that translucent
+   chrome instead of stopping at its bottom edge. Keeping the clearance on the
+   scroll content (rather than on .m-main) also preserves native iOS overscroll
+   and leaves the bottom composer as a true overlay over the continuing list. */
+.m-shell[data-chrome="home"] {
+  --m-home-header-clearance: calc(env(safe-area-inset-top) + var(--m-tap-min));
+  position: relative;
+}
+
+.m-shell[data-chrome="home"] > .m-topbar {
+  position: absolute;
+  z-index: 7;
+  inset: 0 0 auto;
+  /* Opening search hides the brand, which is normally the in-flow element
+     that gives this border-box header its safe-area + control height. Keep
+     that full height while only the absolutely positioned search remains so
+     its bottom edge cannot jump into the iOS status bar. */
+  min-height: var(--m-home-header-clearance);
+  background: color-mix(in oklab, var(--background) 78%, transparent);
+  backdrop-filter: saturate(140%) blur(16px);
+  -webkit-backdrop-filter: saturate(140%) blur(16px);
+}
+
+.m-shell[data-chrome="home"] > .m-main > .m-threads > .m-thread-list {
+  padding-top: calc(var(--m-home-header-clearance) + 0.125rem);
+  scroll-padding-top: var(--m-home-header-clearance);
+}
+
+/* WebKit can omit an overflow flexbox's trailing padding from its scrollable
+   extent. Model the composer/safe-area clearance as a real final flex item so
+   the last card always has enough scroll range to clear the floating chrome. */
+.m-shell[data-chrome="home"] > .m-main > .m-threads > .m-thread-list::after {
+  content: "";
+  display: block;
+  flex: 0 0 calc(var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom));
+}
+
+.m-shell[data-chrome="home"] > .m-main > .m-threads > .m-skeleton-list {
+  padding-top: calc(var(--m-home-header-clearance) + 0.5rem);
+}
+
+/* The thread screen mirrors the home depth treatment: the shell top bar and
+   the workspace sub-bar float as one translucent glass slab and the
+   transcript scrolls beneath them. Clearance lives on the scroller content
+   (not the pane) so native overscroll and the floating composer overlay keep
+   working exactly like the home list. */
+.m-shell[data-chrome="thread"] {
+  position: relative;
+  --m-thread-bar-height: 2.25rem;
+  --m-thread-chrome-clearance: calc(
+    env(safe-area-inset-top) + var(--m-tap-min) + var(--m-thread-bar-height)
+  );
+}
+
+/* One glass slab behind BOTH the top bar and the git sub-bar: the bars
+   themselves stay transparent so the pair reads as a single surface with a
+   single bottom edge instead of two stacked strips. */
+.m-shell:is([data-chrome="thread"], [data-chrome="subagent"])::before {
+  content: "";
+  position: absolute;
+  z-index: 6;
+  inset: 0 0 auto;
+  pointer-events: none;
+  background: color-mix(in oklab, var(--background) 64%, transparent);
+  backdrop-filter: saturate(140%) blur(20px);
+  -webkit-backdrop-filter: saturate(140%) blur(20px);
+}
+
+.m-shell[data-chrome="thread"]::before {
+  height: var(--m-thread-chrome-clearance);
+}
+
+.m-shell[data-chrome="thread"] > .m-topbar {
+  position: absolute;
+  z-index: 7;
+  inset: 0 0 auto;
+  background: transparent;
+}
+
+.m-shell[data-chrome="thread"] .m-thread-bar {
+  position: absolute;
+  z-index: 7;
+  inset: calc(env(safe-area-inset-top) + var(--m-tap-min)) 0 auto;
+  min-height: var(--m-thread-bar-height);
+  background: transparent;
+}
+
+.m-shell[data-chrome="thread"]
+  .m-thread:not(.m-thread--terminal)
+  .m-thread-content
+  [data-poracode-chat-scroller] {
+  padding-top: calc(var(--m-thread-chrome-clearance) + 0.375rem);
+  scroll-padding-top: var(--m-thread-chrome-clearance);
+}
+
+/* The terminal is an opaque surface that cannot ghost under the glass — its
+   column starts below the floating chrome instead. */
+.m-shell[data-chrome="thread"] .m-thread--terminal .m-thread-content {
+  padding-top: calc(var(--m-thread-chrome-clearance) + 0.375rem);
+}
+
+/* A subagent is a pushed chat page, so its one-row header uses the same glass
+   and under-header transcript behavior as the main thread. */
+.m-shell[data-chrome="subagent"] {
+  position: relative;
+  --m-subagent-chrome-clearance: calc(env(safe-area-inset-top) + var(--m-tap-min));
+}
+
+.m-shell[data-chrome="subagent"]::before {
+  height: var(--m-subagent-chrome-clearance);
+}
+
+.m-shell[data-chrome="subagent"] > .m-topbar {
+  position: absolute;
+  z-index: 7;
+  inset: 0 0 auto;
+  background: transparent;
+}
+
+.m-shell[data-chrome="subagent"] .m-subagent-page [data-poracode-chat-scroller] {
+  padding-top: calc(var(--m-subagent-chrome-clearance) + 0.375rem);
+  scroll-padding-top: var(--m-subagent-chrome-clearance);
+}
+
+/* App chrome — top bar, bottom tab bar, the threads list, portaled sheets, and
+   the wide-layout sidebar — is tap-only: a long-press here opens our own actions
+   sheet (or does nothing), and must never start iOS text selection. Marking only
+   the row non-selectable isn't enough: WebKit then falls back to selecting the
+   page's *other* chrome text ("Select All" over the brand + tab labels), which is
+   the selection users still see. Disabling selection (and the callout) across
+   the whole chrome removes anything for that fallback to grab. Content surfaces
    (chat, diffs) live outside these and keep native selection. */
 .m-topbar,
 .m-compose-dock,
 .m-thread-compose-dock,
 .m-threads,
-.m-sidebar {
+.m-sidebar,
+.m-sheet-backdrop {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -168,6 +678,7 @@ body.bg-background {
 /* ── Top bar (narrow layout) ───────────────────────────────────── */
 
 .m-topbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -280,10 +791,8 @@ body.bg-background {
   font-size: 0.875rem;
 }
 
-/* Icon-only connection/sync affordance. The state word and pill border are
-   gone — color alone carries the state — so it stays small and leaves the
-   thread title room. The glyph is small but the button keeps a full tap
-   target via width/height (transparent, no border). */
+/* Compact connection/sync affordance. The narrow header uses the icon alone;
+   the wide sidebar includes the remote name. */
 .m-connection {
   display: inline-flex;
   flex: none;
@@ -297,6 +806,24 @@ body.bg-background {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+}
+
+.m-connection[data-labeled="true"] {
+  min-width: 0;
+  max-width: min(8rem, 35%);
+  gap: 0.25rem;
+  width: auto;
+  margin-right: 0;
+  padding-inline: 0.125rem;
+}
+
+.m-connection__label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .m-connection svg {
@@ -514,6 +1041,12 @@ body.bg-background {
     opacity 0.2s ease;
 }
 
+.m-shell:has(.m-compose-dock[data-expanded]) .m-home-compose-actions {
+  transform: translateY(calc(100% + 1.5rem + env(safe-area-inset-bottom)));
+  opacity: 0;
+  pointer-events: none;
+}
+
 .m-home-compose-action,
 .m-files-action,
 .m-fab {
@@ -533,11 +1066,13 @@ body.bg-background {
 .m-files-action,
 .m-fab {
   box-sizing: border-box;
-  border: 1px solid var(--hairline, var(--border));
+  border: 1px solid color-mix(in oklab, var(--foreground) 5%, transparent);
   border-radius: var(--m-floating-control-radius);
   background: var(--m-glass-surface);
   pointer-events: auto;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.28),
+    0 12px 32px rgb(0 0 0 / 0.32);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -564,67 +1099,77 @@ body.bg-background {
 }
 
 .m-topbar-search {
-  box-sizing: border-box;
-  height: 0;
+  position: absolute;
+  bottom: 0;
+  left: 0.625rem;
+  display: flex;
+  min-width: 0;
+  max-width: min(42vw, 12rem);
   flex: none;
-  overflow: hidden;
-  background: var(--background, #070709);
-  padding: 0 0.625rem;
-  opacity: 0;
-  transition:
-    height 0.28s cubic-bezier(0.32, 0.72, 0, 1),
-    padding-top 0.28s cubic-bezier(0.32, 0.72, 0, 1),
-    padding-bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1),
-    opacity 0.18s ease;
+  align-items: center;
 }
 
-.m-topbar-search:not(:empty) {
-  height: calc(var(--m-tap-min) + 1rem);
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  opacity: 1;
+.m-topbar-search > .m-threads__picker {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  background: transparent;
 }
 
-/* ── Scroll-aware chrome (home screen) ─────────────────────────────
- *
- * Scrolling the thread list down tucks the header away (its full height —
- * content row + safe-area padding — via margin) and slides the composer pill
- * off the bottom; scrolling up brings both back. The shell toggles
- * `data-chrome-hidden` (only ever on the home layout). */
-.m-topbar {
-  transition:
-    margin-top 0.28s cubic-bezier(0.32, 0.72, 0, 1),
-    opacity 0.2s ease;
+.m-topbar-search:has(.m-search-float) {
+  right: 0.625rem;
+  /* Give the portaled picker wrapper a definite full-width host instead of
+     inheriting the compact width used by the project-filter-only state. */
+  width: calc(100% - 1.25rem);
+  max-width: none;
 }
 
-.m-shell[data-chrome-hidden] .m-topbar {
-  margin-top: calc(-1 * (var(--m-tap-min) + env(safe-area-inset-top)) - 1px);
-  opacity: 0;
-  pointer-events: none;
+.m-topbar-search .m-search-float {
+  flex: 1;
 }
 
-.m-shell[data-chrome-hidden] .m-compose-dock:not([data-expanded]) {
-  transform: translateY(calc(100% + 1.5rem + env(safe-area-inset-bottom)));
-  opacity: 0;
-  pointer-events: none;
-}
-
-.m-shell[data-chrome-hidden] .m-home-compose-actions,
-.m-shell:has(.m-compose-dock[data-expanded]) .m-home-compose-actions {
-  transform: translateY(calc(100% + 1.5rem + env(safe-area-inset-bottom)));
-  opacity: 0;
-  pointer-events: none;
+.m-topbar:has(.m-topbar-search .m-search-float) .m-home-brand-cluster {
+  display: none;
 }
 
 /* ── Sidebar + detail (wide layout) ────────────────────────────── */
 
 .m-sidebar {
+  --m-sidebar-surface: color-mix(
+    in oklab,
+    var(--foreground, #fafafa) 1.5%,
+    var(--sidebar-background, #0e0e14)
+  );
+  --m-sidebar-picker-alpha: 78%;
+  --m-sidebar-picker-backdrop: saturate(140%) blur(16px);
+
   position: relative;
   display: flex;
   min-height: 0;
   flex-direction: column;
   border-right: 1px solid var(--hairline, var(--border));
-  background: var(--background, #070709);
+  /* Solid frosted tone derived from the theme's sidebar color — a slight
+     foreground lift over `--sidebar-background` reads as frosted glass
+     without a decorative wash behind it. Bevel highlights match the
+     desktop app's glass fallback. */
+  background: var(--m-sidebar-surface);
+  box-shadow:
+    inset 1px 0 0 color-mix(in oklab, var(--foreground, #fafafa) 7%, transparent),
+    inset 0 1px 0 color-mix(in oklab, var(--foreground, #fafafa) 9%, transparent);
+}
+
+/* Browser PWAs cannot request the OS window material used by Electron, but
+   backdrop-filter can match its character over app content. WebKit carries a
+   lighter, more saturated vibrancy-like layer; Chromium on Windows needs a
+   denser acrylic-like tint because its backdrop blur is visually weaker. */
+html[data-mobile-platform="macos"] .m-sidebar {
+  --m-sidebar-picker-alpha: 68%;
+  --m-sidebar-picker-backdrop: saturate(165%) blur(20px);
+}
+
+html[data-mobile-platform="windows"] .m-sidebar {
+  --m-sidebar-picker-alpha: 88%;
+  --m-sidebar-picker-backdrop: saturate(135%) blur(20px) brightness(1.04);
 }
 
 .m-sidebar__resize-handle {
@@ -667,8 +1212,14 @@ body.bg-background {
   padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0.375rem;
 }
 
-.m-sidebar__primary {
-  padding: 0 0.75rem 0.5rem;
+.m-sidebar__new {
+  flex: none;
+  margin-left: auto;
+}
+
+.m-sidebar__new[data-active="true"] {
+  background: var(--row-hover);
+  color: var(--foreground, inherit);
 }
 
 .m-sidebar__scroll {
@@ -686,6 +1237,8 @@ body.bg-background {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
+  max-height: 20rem;
+  overflow: hidden;
   padding-bottom: 0.375rem;
 }
 
@@ -757,11 +1310,14 @@ body.bg-background {
 }
 
 .m-detail {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
+  flex: 1;
   flex-direction: column;
-  background: var(--background, #070709);
+  /* Desktop app paints content panes one step above the window background. */
+  background: var(--content-background, #0b0b11);
 }
 
 .m-detail > .m-threads,
@@ -801,10 +1357,25 @@ body.bg-background {
   background: var(--background);
 }
 
+/* Keep the sticky wide-sidebar controls legible when thread rows scroll under
+   them. The tint uses the exact sidebar surface, so compositing it over the
+   sidebar keeps the resting color unchanged while the blur supplies the glass
+   separation. */
+.m-sidebar .m-threads__picker {
+  background: color-mix(
+    in oklab,
+    var(--m-sidebar-surface) var(--m-sidebar-picker-alpha),
+    transparent
+  );
+  backdrop-filter: var(--m-sidebar-picker-backdrop);
+  -webkit-backdrop-filter: var(--m-sidebar-picker-backdrop);
+}
+
 .m-thread-search {
   display: flex;
   box-sizing: border-box;
   min-width: 0;
+  height: var(--m-tap-min);
   min-height: var(--m-tap-min);
   flex: 1;
   align-items: center;
@@ -822,11 +1393,14 @@ body.bg-background {
   outline: none;
   background: transparent;
   color: var(--foreground);
-  font-size: 16px;
-  line-height: 1;
+  /* Normal UI text size; the iOS focus-zoom guard at the bottom of this file
+     bumps it to 16px on iOS only. The full-height line box keeps the text
+     vertically centered at either size. */
+  font-size: 0.875rem;
+  line-height: var(--m-floating-control-line-height);
   min-height: var(--m-floating-control-line-height);
   height: var(--m-floating-control-line-height);
-  padding-block: calc((var(--m-floating-control-line-height) - 16px) / 2);
+  padding-block: 0;
   -webkit-appearance: none;
 }
 
@@ -835,7 +1409,7 @@ body.bg-background {
   align-items: center;
   justify-content: center;
   width: 2.5rem;
-  height: var(--m-tap-min);
+  height: calc(var(--m-tap-min) - 2px);
   flex: none;
   border: none;
   border-radius: 0.375rem;
@@ -847,6 +1421,15 @@ body.bg-background {
 .m-thread-search button:active {
   background: var(--row-active, var(--row-hover));
   color: var(--foreground);
+}
+
+/* Desktop/tablet sidebar search: unlike the mobile pill's solid, bordered
+   surface, the wide-shell field is borderless and transparent so it reads as
+   part of the sidebar rather than a raised control. */
+.m-shell--wide .m-thread-search {
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
 }
 
 .m-threads__project-btn {
@@ -930,13 +1513,30 @@ body.bg-background {
 
 /* Ride above the on-screen keyboard while expanded (the dock is anchored to
    the layout viewport, which iOS keeps full-height under the keyboard). */
+/* [data-lifted]: the locked (pinned-collapsed) thread composer still takes the
+   keyboard band while its one-line input is focused — a denial typed under an
+   open approval must not sit behind the keyboard. */
 .m-compose-dock[data-expanded],
-.m-thread-compose-dock[data-expanded] {
+.m-thread-compose-dock[data-expanded],
+.m-thread-compose-dock[data-lifted] {
   transform: translateY(calc(-1 * (var(--m-keyboard-offset, 0px) + var(--m-keyboard-gap, 0px))));
 }
 
+html[data-mobile-platform="ios"][data-mobile-standalone="true"]
+  :is(
+    .m-compose-dock[data-expanded],
+    .m-thread-compose-dock[data-expanded],
+    .m-thread-compose-dock[data-lifted]
+  ) {
+  /* Installed PWAs have no Safari address pill between app content and the
+     keyboard accessory strip. Lift by the device's real home-indicator inset
+     instead of a fixed gap so the composer clears that strip on every iPhone. */
+  --m-keyboard-gap: env(safe-area-inset-bottom);
+}
+
 .m-compose-dock[data-expanded][data-android-runtime],
-.m-thread-compose-dock[data-expanded][data-android-runtime] {
+.m-thread-compose-dock[data-expanded][data-android-runtime],
+.m-thread-compose-dock[data-lifted][data-android-runtime] {
   /* Android resizes the layout viewport around the keyboard, so keep the old
      stable bottom anchor and add the requested keyboard breathing room as a
      paint-only shift. Changing `bottom` during WebView resize can bounce the
@@ -974,6 +1574,281 @@ body.bg-background {
   transition: none !important;
 }
 
+/* ── Composer info chips (thread view) ─────────────────────────────
+ *
+ * The informational dock sections (subagents, crossagents, workflows, context,
+ * plan, goal, errors) live OUTSIDE the compact composer as icon chips stacked
+ * directly on top of it inside the floating dock; tapping a chip expands that
+ * section into its own bubble above the row. The strip ducks away while the
+ * composer itself is expanded. */
+.m-thread-chips {
+  /* In-flow inside the floating dock, between the composer bubble below and the
+     action-dock card above: the chips always ride directly on the composer, and
+     a blocking approval/question always sits on top of the whole stack. Being a
+     dock child also means they inherit its keyboard lift and centered column
+     instead of tracking the dock's height from the outside. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.375rem;
+  margin-bottom: 0.375rem;
+  min-height: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.m-thread-chips > * {
+  pointer-events: auto;
+}
+
+/* Ducked (the composer is expanded): in-flow, so the strip must give its row
+   back instead of just fading — otherwise it holds a gap above the composer. */
+.m-thread-chips[data-hidden] {
+  display: none;
+}
+
+.m-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.m-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1.75rem;
+  padding: 0 0.5625rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 9999px;
+  background: var(--m-glass-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  transform-origin: bottom right;
+  animation: m-chip-enter 0.18s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.m-chip[data-exiting] {
+  pointer-events: none;
+  animation: m-chip-exit 0.16s ease both;
+}
+
+@keyframes m-chip-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes m-chip-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(0.25rem) scale(0.9);
+  }
+}
+
+.m-chip:active {
+  background: var(--row-active, var(--row-hover));
+}
+
+.m-chip[data-open] {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  color: var(--foreground);
+}
+
+.m-chip[data-tone="danger"] {
+  border-color: color-mix(in oklab, var(--danger) 40%, transparent);
+  color: var(--danger);
+}
+
+/* Chips backing live work (running agents, an in-progress plan step) pulse
+   their icon softly. Transform + opacity only, so it stays on the compositor
+   and costs nothing while the thread streams. */
+.m-chip[data-active] > svg {
+  animation: m-chip-icon-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes m-chip-icon-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.88);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-chip[data-active] > svg {
+    animation: none;
+  }
+}
+
+/* The expanded section bubble. The shared dock sections it hosts were styled
+   for the composer's fixedContent (transparent bg + border-b separators), so
+   the bubble supplies the surface and the trailing separator is dropped. Same
+   floating-card glass as the composer's action docks, so the two cards that can
+   sit stacked above the composer read as one material. */
+.m-chip-panel {
+  width: 100%;
+  max-height: min(45dvh, 22rem);
+  overflow-y: auto;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem;
+  background: var(--m-glass-card-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  padding: 0.25rem;
+  transform-origin: bottom right;
+  animation: m-chip-panel-exit 0.16s ease both;
+}
+
+.m-chip-panel[data-open] {
+  animation: m-chip-panel-enter 0.18s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.m-chip-panel > section:last-child {
+  border-bottom: none;
+}
+
+@keyframes m-chip-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes m-chip-panel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(0.25rem) scale(0.98);
+  }
+}
+
+/* ── Composer action docks (thread view) ───────────────────────────
+ *
+ * Sign-in required, a queued steer, and an open approval/question all block or
+ * gate the turn, so they must be visible and answerable without first expanding
+ * the composer. They stack in one card hosted by the floating dock above the
+ * composer bubble (ComposerActionDocks) — the bubble itself clips to one control
+ * line while collapsed. Same glass surface as the chip panels; the shared dock
+ * sections it hosts were styled for the composer's fixedContent (transparent bg
+ * + border-b separators), so the surface is supplied here and the trailing
+ * separator dropped. */
+.m-thread-action-docks {
+  /* Shrink before the composer does when both are tall (the dock is a bounded
+     flex column), and scroll internally past that. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(45dvh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-bottom: 0.375rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem;
+  /* Same glass as the composer bubble it sits on, one step less translucent —
+     the shared floating-card material. */
+  background: var(--m-glass-card-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  padding: 0.25rem;
+  /* Approvals quote commands and paths worth copying; the surrounding dock
+     chrome disables selection. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.m-thread-action-docks > section:last-child {
+  border-bottom: none;
+}
+
+/* With a card above the bubble the dock stacks two boxes, each with its own
+   height cap, so the total could run past the top of the viewport — most easily
+   on the desktop PWA, where the composer opens expanded and a long draft can
+   grow it to its own cap. Bound the dock and let it distribute: the card shrinks
+   (and scrolls) first, the composer keeps its geometry. */
+.m-thread-compose-dock {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 4.5rem);
+}
+
+/* iOS keeps the layout viewport full-height under the keyboard, so dvh would
+   double-count the band that --m-keyboard-offset already removes (same reasoning
+   as the expanded-bubble cap below). */
+html[data-mobile-platform="ios"] .m-thread-compose-dock {
+  max-height: calc(100lvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 4.5rem);
+}
+
+/* Requests that ask for text (elicitation forms, user-input questions) raise the
+   keyboard without ever focusing the composer, so the dock's own composer-focus
+   lift never runs. Ride the raw keyboard band instead. */
+.m-thread-compose-dock:not([data-expanded]):has(.m-thread-action-docks:focus-within) {
+  transform: translateY(
+    calc(-1 * (var(--m-thread-keyboard-band, 0px) + var(--m-keyboard-gap, 0px)))
+  );
+}
+
+/* Wide screens center the chat column at 920px (see ThreadView) — keep the
+   floating composer dock (and everything it stacks: info chips, action docks) on
+   the same column instead of spanning the whole detail pane. 100% here is the
+   thread section, i.e. the pane. */
+@media (min-width: 768px) {
+  .m-thread-compose-dock {
+    right: max(0.75rem, calc((100% - 920px) / 2));
+    left: max(0.75rem, calc((100% - 920px) / 2));
+  }
+
+  /* Subscreens (settings, projects) read as full-bleed lists on a wide detail
+     pane; cap them at the same readable column the thread view uses. Scoped to
+     the detail pane — the sidebar thread list must stay full width. */
+  .m-settings__body,
+  .m-detail .m-page,
+  .m-detail .m-page-head,
+  .m-detail .m-thread-list,
+  .m-detail .m-subscreen > * {
+    width: 100%;
+    max-width: 944px;
+    margin-inline: auto;
+  }
+
+  /* The workspace chip bar sits above the 920px-centered thread column. */
+  .m-thread-bar {
+    max-width: 920px;
+    margin-inline: auto;
+  }
+}
+
 /* Dims the screen behind the expanded composer; tapping it collapses. It is
    a SIBLING of the dock, not a child: the dock is transformed while expanded
    (keyboard lift), and a transformed ancestor becomes the containing block of
@@ -987,6 +1862,14 @@ body.bg-background {
   background: color-mix(in oklab, var(--background) 55%, transparent);
   cursor: default;
   animation: m-sheet-backdrop-in 0.2s ease;
+}
+
+/* On mouse devices the dim reads as a modal takeover of a window the user is
+   still reading; keep the invisible click-to-collapse layer but drop the
+   backdrop wash. Touch keeps the dim (it marks the keyboard session). */
+html:not([data-touch-device]) .m-compose-scrim {
+  background: transparent;
+  animation: none;
 }
 
 .m-compose-bubble {
@@ -1004,15 +1887,106 @@ body.bg-background {
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
   transition:
-    max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
-    border-radius 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    max-height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 0.15s ease;
 }
 
-.m-compose-dock[data-expanded] .m-compose-bubble,
-.m-thread-compose-dock[data-expanded] .m-compose-bubble {
+/* Keep compact composers quieter than the expanded card, then recover their
+   separation from the page with depth instead of outline. */
+:is(.m-compose-dock, .m-thread-compose-dock):not([data-expanded]) .m-compose-bubble {
+  border-color: color-mix(in oklab, var(--foreground) 5%, transparent);
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.28),
+    0 12px 32px rgb(0 0 0 / 0.32);
+}
+
+/* Bottom-anchor the composer inside the thread bubble. The shell's one-line
+   compact box then rests against the bubble's stationary bottom edge for the
+   whole collapse height tween, so the send — pinned absolute to the shell's
+   bottom-right corner — holds that corner from the first collapse frame
+   through rest. No shell-height lockstep with the pin is needed, and nothing
+   re-anchors (teleports) when [data-collapsing] drops at pin release. */
+.m-thread-compose-dock .m-compose-bubble {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  /* Inside the bounded dock column the composer keeps its own geometry; the
+     action-dock card above it is the one that gives way (it scrolls). Its own
+     cap always leaves room, so this can never overflow the dock. */
+  flex: 0 0 auto;
+}
+
+/* :not([data-collapsing]) — during the collapse height tween the pin owns the
+   geometry (inline height/max-height), so dropping this rule early lets the
+   surface/radius cross-fade back to the pill in sync with the shrink instead
+   of snapping after it. */
+.m-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-bubble,
+.m-thread-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-bubble {
   max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 7.5rem);
   border-radius: 1rem;
   background: var(--composer-surface, var(--sidebar-background, var(--background)));
+  /* The expanded surface is opaque, so the blur is invisible — but it still
+     forces a full backdrop repaint on every animation frame (the main source
+     of expand/collapse stutter on large desktop windows). */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* iOS keeps the layout viewport full-height while the keyboard reduces the
+   visual viewport. `--m-keyboard-offset` already removes that covered band,
+   so starting this cap from 100dvh double-counts the keyboard whenever Safari
+   also shrinks dvh. Use the stable large viewport as the iOS baseline: the
+   bubble can follow multiline input growth while remaining bounded above the
+   keyboard and safe-area chrome. Android keeps the dvh cap above because its
+   layout viewport genuinely resizes around the keyboard. */
+html[data-mobile-platform="ios"]
+  .m-compose-dock[data-expanded]:not([data-collapsing])
+  .m-compose-bubble,
+html[data-mobile-platform="ios"]
+  .m-thread-compose-dock[data-expanded]:not([data-collapsing])
+  .m-compose-bubble {
+  max-height: calc(100lvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 7.5rem);
+}
+
+/* The measured grow/shrink animation (useBubbleGrowAnimation) drives an
+   inline height between the two rest heights; the bubble is content-sized, so
+   only a real height — not max-height — can hold it open against the shrunken
+   collapsed content. Gate the height transition to that window so
+   content-driven height changes while expanded (typing, attachments) stay
+   instant. */
+.m-compose-bubble[data-height-animating] {
+  /* No outline while the height tween runs: a hairline around the mid-flight
+     geometry reads as a "wrong-size pill" ghost. It drops fast when the tween
+     starts and fades back (0.15s above) once the bubble rests at its final
+     size — so the border appears late on expand and disappears early on
+     collapse. */
+  border-color: transparent;
+  transition:
+    height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 0.06s ease;
+}
+
+/* Collapse drops the hairline with no fade at all — even a 0.06s fade reads
+   as a highlight flash around the shrinking bubble. */
+:is(.m-compose-dock, .m-thread-compose-dock)[data-collapsing] .m-compose-bubble {
+  border-color: transparent;
+  transition:
+    height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Mouse devices: the grow-in-place animation only needs the bubble's own
+   max-height/radius. Animating the inner paddings and the input's max-height
+   alongside it relayouts and repaints the whole composer every frame, which
+   stutters on desktop. Touch keeps the fully choreographed version, where the
+   keyboard rise masks the extra work. */
+html:not([data-touch-device]) .m-compose-bubble .m-draft,
+html:not([data-touch-device]) .m-compose-bubble [data-draft-body],
+html:not([data-touch-device]) .m-compose-bubble .poracode-mention-input,
+html:not([data-touch-device]) .m-compose-bubble [data-composer-input-anchor] {
+  transition: none;
 }
 
 /* The embedded draft view sizes to its content inside the bubble: neutralize
@@ -1022,7 +1996,7 @@ body.bg-background {
   overflow-y: auto;
   max-height: inherit;
   padding: 0.375rem 0.5rem 0.5rem;
-  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: padding 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .m-compose-bubble .m-draft > * {
@@ -1053,7 +2027,7 @@ body.bg-background {
   position: relative;
   overflow: hidden;
   max-height: 20rem;
-  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: max-height 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* Match the collapsed composer trick for every unfocused composer input: the
@@ -1061,8 +2035,10 @@ body.bg-background {
    locks scroll and focuses the real editor. If the contenteditable itself is
    the touch target, iOS can still run its keyboard reveal pan heuristics even
    after preventDefault. Once focused, remove the shield so normal caret taps
-   work natively. */
-.m-compose-bubble [data-composer-input-anchor]:not(:focus-within)::after {
+   work natively. Touch-capable devices only (html[data-touch-device], see
+   pointerModality.ts) — on a mouse-driven desktop the shield would block
+   native click-to-focus and caret placement. */
+html[data-touch-device] .m-compose-bubble [data-composer-input-anchor]:not(:focus-within)::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1073,7 +2049,19 @@ body.bg-background {
 }
 
 .m-compose-bubble .poracode-mention-input {
-  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: padding 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-compose-dock[data-expanded] .m-compose-bubble .poracode-mention-input,
+.m-thread-compose-dock[data-expanded] .m-compose-bubble .poracode-mention-input {
+  max-height: calc(3lh + 1.3rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.m-compose-dock[data-expanded] .m-compose-bubble .poracode-mention-input--compact,
+.m-thread-compose-dock[data-expanded] .m-compose-bubble .poracode-mention-input--compact {
+  max-height: calc(3lh + 1rem);
 }
 
 /* Collapsed: only the prompt input (single line) remains visible — project
@@ -1105,30 +2093,63 @@ body.bg-background {
 }
 
 .m-compose-bubble [data-draft-body] {
-  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: padding 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* Inner actions stay inside the shared compact line and are centered by the
-   0.25rem insets. */
-.m-main
+   0.25rem insets. Applies during [data-collapsing] too, and the base rule
+   below transitions the size/radius, so the button morphs into the circle
+   with the collapse tween instead of snapping at pin release. */
+/* Extra .m-compose-bubble hop outranks the toolbar-chip transition rule
+   (`.poracode-composer-toolbar > .flex.shrink-0 > *`), which would otherwise
+   replace this shorthand and leave the size/radius snapping. Keep its
+   max-width/opacity legs so the chip behaviors stay intact. */
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock
+  .m-compose-bubble
+  .poracode-composer-shell
+  .poracode-composer-send {
+  transition:
+    max-width 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease,
+    width 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    height 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
   .poracode-composer-shell
   .poracode-composer-send {
   width: var(--m-floating-control-inner-size);
   height: var(--m-floating-control-inner-size);
   min-width: var(--m-floating-control-inner-size);
   min-height: var(--m-floating-control-inner-size);
+  /* Match the home bubble's circular action inside the pill's rounded end. */
+  border-radius: var(--m-floating-control-radius);
 }
 
 .m-compose-dock:not([data-expanded]) .m-compose-bubble [data-composer-input-anchor] {
+  height: var(--m-floating-control-line-height);
+  min-height: var(--m-floating-control-line-height);
   max-height: var(--m-floating-control-line-height);
+  overflow: hidden;
 }
 
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-mention-input {
+  box-sizing: border-box;
+  height: var(--m-floating-control-line-height);
   min-height: var(--m-floating-control-line-height);
   max-height: var(--m-floating-control-line-height);
-  padding: calc((var(--m-floating-control-line-height) - 1lh) / 2) 1rem;
+  overflow: hidden;
+  padding: 0 1rem;
+  /* One line box exactly the collapsed pill's height: the half-leading centers
+     the single line vertically regardless of font metrics. The old
+     (height - 1lh)/2 padding calc drifted off-center whenever the effective
+     font-size/line-height changed (density overrides, the iOS 16px guard). */
+  line-height: var(--m-floating-control-line-height);
 }
 
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-shell {
@@ -1182,10 +2203,13 @@ body.bg-background {
   gap: 0.625rem;
   border: 1px solid var(--hairline, var(--border));
   border-radius: 0.625rem;
-  /* Same surface as the composer and chat bubbles (--surface-tertiary =
-     --composer-surface in the default dark theme) so the tappable cards read
-     as one family. */
-  background: var(--surface-tertiary, var(--surface, var(--content-background)));
+  /* Keep the cards in the composer/chat-bubble surface family, but step them
+     slightly darker so they sit back from the floating chrome. */
+  background: color-mix(
+    in oklab,
+    var(--surface-tertiary, var(--surface, var(--content-background))) 92%,
+    black
+  );
   padding: 0.5rem 0.625rem;
   color: inherit;
   cursor: pointer;
@@ -1259,6 +2283,12 @@ body.bg-background {
   text-overflow: ellipsis;
 }
 
+/* The project name keeps its full width; longer worktree badges truncate first. */
+.m-thread-row__meta-item--project {
+  flex: none;
+  max-width: 100%;
+}
+
 .m-thread-row__side {
   display: flex;
   flex: none;
@@ -1269,17 +2299,16 @@ body.bg-background {
 
 /* User messages get no in-bubble action icons in the PWA: a long-press on the
    bubble opens the message action sheet instead (UserMessageActionsSheet).
-   Suppress the OS text-selection / touch callout inside user bubbles so the
-   hold doesn't also start a selection — copying lives in the sheet. */
+   Keep text natively selectable for mouse users; the long-press handler still
+   suppresses the native touch gesture and this rule keeps the touch callout
+   out of the way of the action sheet. */
 [data-user-message] {
-  -webkit-user-select: none;
-  user-select: none;
+  -webkit-user-select: text;
+  user-select: text;
   -webkit-touch-callout: none;
 }
 
 [data-user-message] * {
-  -webkit-user-select: none;
-  user-select: none;
   -webkit-touch-callout: none;
 }
 
@@ -1329,11 +2358,12 @@ body.bg-background {
   opacity: 1;
 }
 
-/* Worktree / provider groups: a tappable header above indented child rows. */
+/* Worktree / provider groups keep mobile-sized cards and tap targets, but use
+   the Electron sidebar's tighter group rhythm and nested-rail geometry. */
 .m-thread-group {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.125rem;
 }
 
 .m-thread-group__header {
@@ -1341,7 +2371,7 @@ body.bg-background {
   width: 100%;
   min-height: var(--m-tap-min);
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.5rem;
   border-radius: 0.625rem;
   padding: 0.375rem 0.5rem;
   color: var(--muted);
@@ -1368,6 +2398,16 @@ body.bg-background {
 
 .m-thread-group__header[data-collapsed="true"] .m-thread-group__chevron {
   transform: rotate(0deg);
+}
+
+/* Electron uses the worktree glyph itself as the leading group icon. Its tone
+   carries the expanded state while provider groups keep the disclosure arrow. */
+.m-thread-group__kind-icon {
+  transition: color 0.15s ease;
+}
+
+.m-thread-group__header:not([data-collapsed="true"]) .m-thread-group__kind-icon {
+  color: var(--foreground);
 }
 
 .m-thread-group__title {
@@ -1408,14 +2448,15 @@ body.bg-background {
   color: color-mix(in oklab, var(--foreground) 65%, transparent);
 }
 
-/* Left rail visually nests the child rows under their group header. */
+/* Match Electron's 14px dashed rail, with a little extra breathing room before
+   the PWA's bordered cards. */
 .m-thread-group__items {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  margin-left: 0.5rem;
-  border-left: 1px solid var(--hairline, var(--border));
-  padding-left: 0.625rem;
+  gap: 0.25rem;
+  margin-left: 0.875rem;
+  border-left: 1px dashed var(--border);
+  padding-left: 0.5rem;
 }
 
 /* Status is a single colored dot now (the word is dropped for header space).
@@ -1479,6 +2520,23 @@ body.bg-background {
   overflow: hidden;
 }
 
+/* A routed subagent page owns its scroll inside the shared virtualized
+   transcript. Keep the page itself flush; trailing Safari/home-indicator
+   clearance belongs to LegendList's measured content box so it scrolls with
+   the final child row instead of shrinking the viewport from outside. */
+.m-subagent-page {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  gap: 0;
+  overflow: hidden !important;
+  padding: 0;
+}
+
+.m-subagent-page [data-chat-virtual-size-box="true"] {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+}
+
 /* GUI chat scrolls UNDER the floating composer: the column runs to the screen
    bottom (padding-bottom: 0 also neutralizes the JSX pb-2 utility) and the
    safe zone lives INSIDE the chat scroller, so the last message scrolls clear
@@ -1489,13 +2547,43 @@ body.bg-background {
 }
 
 .m-thread .m-thread-content [data-poracode-chat-scroller] {
-  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  padding-bottom: 0;
+}
+
+/* Keep the composer clearance inside LegendList's measured content box. A
+   scroller-level padding band sits outside its end calculation and makes a
+   visually-bottomed chat read as scrolled up. */
+.m-thread .m-thread-content [data-chat-virtual-size-box="true"] {
+  padding-bottom: calc(var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom));
 }
 
 /* The scroll-to-bottom pin anchors to the pane's (now full-height) bottom
-   edge; lift it above the floating composer band. */
+   edge; lift it above the floating composer band. --m-thread-bubble-height is
+   the composer bubble's live measured height (set by ThreadView from the
+   dock's ResizeObserver), so the pin rides up as the bubble grows — expanded
+   toolbar, multiline prompts — instead of sliding underneath it. The keyboard
+   offset term matches the dock's own keyboard lift. */
 .m-thread .m-thread-content button.bottom-4:has(svg.lucide-arrow-down) {
-  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  bottom: calc(
+    var(--m-thread-pin-lift, 1.75rem) + env(safe-area-inset-bottom) +
+      var(--m-thread-bubble-height, var(--m-floating-control-height)) +
+      var(--m-keyboard-offset, 0px)
+  );
+  transition:
+    opacity 0.2s ease-out,
+    bottom 0.2s ease-out;
+}
+
+/* The chips strip and the action-dock card are dock children, so the measured
+   dock height above already covers them and the pin needs no extra row — it
+   slides up as they appear. (It used to add one, back when the strip was
+   positioned outside the dock.) */
+
+/* An expanded chip panel grows over the pin's slot — duck the pin while the
+   panel is open instead of letting it float above the panel surface. */
+.m-thread:has(.m-chip-panel) .m-thread-content button.bottom-4:has(svg.lucide-arrow-down) {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* The terminal is an opaque bordered surface — it cannot scroll under the
@@ -2160,105 +3248,52 @@ body.bg-background {
   flex: none;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.125rem 0.5rem;
+  padding: 0 0.5rem;
 }
 
 /* ── Live-thread composer: compact ⇄ full ──────────────────────────
  *
- * Unfocused, the composer is a summary: a one-line input plus the current
- * model / effort / fast chips (the first three toolbar controls) — and the
- * send button whenever there is a prompt to send. Focusing the input widens
- * it and slides the remaining controls back in. The workspace entry above the
- * chat is the git surface, so the composer's own branch affordance is
- * dropped entirely on this device. */
-.m-shell [data-composer-branch] {
-  display: none;
-}
+ * Unfocused, the composer is a plain one-line pill: the centered placeholder
+ * (or the typed prompt) with the send button pinned right whenever there is a
+ * prompt to send; the toolbar stays invisible (opacity 0) and fades in on
+ * expand / out on collapse. Focusing the input grows the bubble and reveals
+ * the full toolbar row. */
 
-.m-main .m-thread .poracode-composer-shell [data-composer-input-anchor] {
+:is(.m-main, .m-detail) .m-thread .poracode-composer-shell [data-composer-input-anchor] {
   overflow: hidden;
   max-height: var(--m-floating-control-line-height);
-  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: max-height 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.m-main
+/* The [data-expanded]:not([data-collapsing]) / :is(:not([data-expanded]),
+   [data-collapsing]) pairs below make the compact chrome apply DURING the
+   collapse height tween (data-collapsing), so toolbar/input/summary/shell all
+   animate together with the shrinking bubble instead of snapping after it. */
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock[data-expanded]
+  .m-thread-compose-dock[data-expanded]:not([data-collapsing])
   .poracode-composer-shell
   [data-composer-input-anchor] {
   max-height: 12rem;
 }
 
-/* Collapse every toolbar control past the summary trio, and the leading/after
-   extras (context ring, attach, mic) — width+opacity so it animates. */
-.m-main .m-thread .poracode-composer-toolbar > .relative > div > *,
-.m-main .m-thread .poracode-composer-toolbar > .flex.shrink-0 > * {
+/* Toolbar chips get width/opacity transitions so the desktop wrap system's
+   label reveals animate; the compact pill itself hides the whole toolbar
+   (see the opacity rules below). */
+:is(.m-main, .m-detail) .m-thread .poracode-composer-toolbar > .relative > div > *,
+:is(.m-main, .m-detail) .m-thread .poracode-composer-toolbar > .flex.shrink-0 > * {
   transition:
     max-width 0.28s cubic-bezier(0.32, 0.72, 0, 1),
     opacity 0.2s ease;
   max-width: 16rem;
 }
 
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell
-  .poracode-composer-toolbar
-  > .relative
-  > div
-  > :nth-child(n + 4):not(:has(.poracode-composer-mode-icon)):not(
-    :has(.poracode-composer-permission-icon)
-  ),
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell
-  .poracode-composer-toolbar
-  > .flex.shrink-0
-  > :not(.poracode-composer-send) {
-  /* display:none, not max-width:0 — zero-width flex items still earn the
-     row's 0.875rem gap on both sides, which read as uneven spacing between
-     the visible summary chips. The reveal on expand is covered by the
-     toolbar's entrance animation, so the per-chip width transition is not
-     missed. */
-  display: none;
-}
-
-/* One rhythm in the compact summary: chips carry no margins/padding of their
-   own (the row gap is the only inter-chip space) and the icon-only chips
-   share one 1rem icon box, so mixed intrinsic icon sizes (3.5 vs 4) can't
-   make equal gaps read as unequal. */
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  > div
-  > * {
-  margin: 0;
-  padding: 0;
-}
-
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  > div
-  > *
-  :is(svg, .poracode-composer-permission-icon, .poracode-composer-mode-icon) {
-  width: 1rem;
-  height: 1rem;
-}
-
-/* Compact with nothing typed: no send either — the summary row stands alone.
-   (Disabled markers cover HeroUI/React Aria button states.) Scoped to the
-   EMPTY case only: with a typed follow-up the button must stay visible even
-   while disabled (e.g. a running thread's stop), or the row loses its only
-   action affordance. */
-.m-main
+/* Compact with nothing typed: no send either — the pill is a bare prompt
+   line. (Disabled markers cover HeroUI/React Aria button states.) Scoped to
+   the EMPTY case only: with a typed follow-up the button must stay visible
+   even while disabled (e.g. a running thread's stop), or the row loses its
+   only action affordance. */
+:is(.m-main, .m-detail)
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
   .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
@@ -2268,16 +3303,24 @@ body.bg-background {
 
 /* One composer language across screens: compact matches the home bubble's
    pill (hairline, radius, translucent surface, shadow)… */
-.m-main .m-thread .poracode-composer-shell {
+:is(.m-main, .m-detail) .m-thread .poracode-composer-shell {
   border-color: var(--hairline, var(--border));
   transition:
-    border-radius 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1),
     background-color 0.2s ease,
     box-shadow 0.2s ease,
     border-color 0.15s ease;
 }
 
-.m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .poracode-composer-shell {
+/* The collapsed thread composer floats over live chat on the same shared glass
+   as every other floating control: --m-glass-surface (with the per-platform
+   --m-glass-alpha) drives both the shell here and the .m-compose-bubble around
+   it, so one transparency knob covers every surface while the backdrop blur
+   still lets messages scroll visibly beneath. Expanded keeps a solid surface. */
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell {
   border-radius: var(--m-floating-control-radius);
   background: var(--m-glass-surface);
   backdrop-filter: blur(12px);
@@ -2285,37 +3328,41 @@ body.bg-background {
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
 }
 
-/* The collapsed thread composer floats over live chat: keep it properly
-   translucent (the backdrop blur carries legibility) so the messages visibly
-   scroll beneath it. Collapsed only — the expanded bubble keeps its solid
-   surface for legible controls. */
-.m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .m-compose-bubble {
-  background: color-mix(
-    in oklab,
-    var(--composer-surface, var(--surface, var(--content-background))) 45%,
-    transparent
-  );
-}
-
 /* …and expanded matches the expanded bubble: flatter radius, opaque surface,
    and the same animated border glow the draft composer shows (the glow node
    is rendered for every variant; desktop only lights it for drafts). */
-.m-main .m-thread .m-thread-compose-dock[data-expanded] .poracode-composer-shell {
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-expanded]:not([data-collapsing])
+  .poracode-composer-shell {
   border-radius: 1rem;
   border-color: transparent;
   background: var(--composer-surface, var(--sidebar-background, var(--background)));
 }
 
-.m-main
-  .m-thread
-  .m-thread-compose-dock[data-expanded]
-  .poracode-composer-shell
-  .poracode-composer-border-glow {
-  opacity: 0.7;
+:is(.m-main, .m-detail) .m-thread .m-thread-compose-dock .poracode-composer-border-glow {
   transition: opacity 0.3s ease;
 }
 
-.m-main
+/* Collapse kills the glow instantly — a lit border tracing the shrinking
+   bubble reads as a leftover highlight. */
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-collapsing]
+  .poracode-composer-border-glow {
+  opacity: 0;
+  transition: none;
+}
+
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-expanded]:not([data-collapsing])
+  .poracode-composer-shell
+  .poracode-composer-border-glow {
+  opacity: 0.7;
+}
+
+:is(.m-main, .m-detail)
   .m-thread
   .m-thread-compose-dock[data-expanded]
   .poracode-composer-shell
@@ -2323,20 +3370,23 @@ body.bg-background {
   animation-play-state: running;
 }
 
-/* Compact state: empty prompts show the summary trio in the placeholder slot;
+/* Compact state: empty prompts show just the centered placeholder line;
    typed prompts reserve the same one-line pill and pin the send action to the
-   right edge so it is not clipped below the collapsed bubble. */
-.m-main
+   right edge so it is not clipped below the collapsed bubble. The typed-prompt
+   rules also match [data-collapsing] (data-expanded is still set while the
+   height pin runs) so the send pins at collapse start instead of the summary
+   chips flashing in first and swapping to the send at pin release. */
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
   .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
   [data-composer-input-anchor] {
   margin-right: var(--m-floating-control-height);
 }
 
-.m-main
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
   .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
   .poracode-composer-toolbar {
   position: absolute;
@@ -2347,21 +3397,23 @@ body.bg-background {
   height: auto !important;
   align-items: center;
   justify-content: flex-end;
+  width: var(--m-floating-control-inner-size);
+  padding: 0;
   pointer-events: none;
 }
 
-.m-main
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
   .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
   .poracode-composer-toolbar
   > :not(:has(.poracode-composer-send)) {
   display: none;
 }
 
-.m-main
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
   .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
   .poracode-composer-toolbar
   > :has(.poracode-composer-send) {
@@ -2369,9 +3421,9 @@ body.bg-background {
   margin-left: 0;
 }
 
-.m-main
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
   .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
   .poracode-composer-toolbar
   > :has(.poracode-composer-send)
@@ -2379,194 +3431,211 @@ body.bg-background {
   display: none;
 }
 
-.m-main
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
   .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
   .poracode-composer-send {
   pointer-events: auto;
 }
 
-.m-main
+/* Compact + empty: the toolbar is invisible chrome. It sits absolute so it
+   can't stretch the one-line pill, and fades in on expand / out on collapse.
+   (Typed prompts keep the pinned send — see the :has() rules above.) */
+:is(.m-main, .m-detail) .m-thread .m-thread-compose-dock .poracode-composer-toolbar {
+  transition: opacity 0.2s ease;
+}
+
+/* The expanded toolbar holds the send 0.6rem (its compact row padding) off
+   the shell's bottom-right corner; the pinned layout uses the pill's 0.25rem
+   inset. Position flips can't transition, so run the 0.35rem settle as a
+   keyframe in sync with the size/radius morph — the button glides the last
+   few px into the corner instead of stepping on the first collapse frame.
+   Higher specificity than the [data-expanded] toolbar-enter rule so it owns
+   the toolbar's animation for the collapse window. */
+@keyframes m-thread-send-settle {
+  from {
+    transform: translate(-0.35rem, -0.35rem);
+  }
+  to {
+    transform: none;
+  }
+}
+
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-collapsing]
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar {
+  animation: m-thread-send-settle 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+:is(.m-main, .m-detail)
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
   .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .poracode-composer-toolbar {
   position: absolute;
-  inset: 0;
-  z-index: 1;
-  align-items: center;
-  justify-content: flex-start;
-  /* Left edge lines up with the input text (1rem, the shared compact line). */
-  padding: 0 0.625rem 0 1rem;
+  inset-inline: 0;
+  bottom: 0;
+  opacity: 0;
   pointer-events: none;
 }
 
-.m-main
+/* Hold the toolbar still while it fades: the compact input metrics applied
+   during data-collapsing shrink the input's paddings, which would drag the
+   still-visible toolbar upward. Delay the inner morph until the toolbar's
+   0.12s fade has finished; the running transitions keep their timing when
+   data-collapsing drops at release. */
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > :has(.poracode-composer-send) {
-  margin-left: auto;
-}
-
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  .poracode-composer-send {
-  pointer-events: auto;
-}
-
-/* The trio occupies the placeholder's slot; hide the placeholder itself. */
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock[data-collapsing]
   .poracode-composer-shell
-  .poracode-mention-input:empty::before {
-  content: none;
+  :is([data-composer-input-anchor], .poracode-mention-input) {
+  transition-delay: 0.1s;
+}
+
+/* While the collapse height tween runs (data-collapsing, data-expanded still
+   set so the row keeps its expanded position), fade the toolbar out in place —
+   by the time the compact absolute positioning above kicks in it is already
+   invisible, so it never ghosts over the placeholder. Empty prompts only:
+   typed prompts already run the pinned-send layout during the collapse, and
+   fading that toolbar would blink the send button. */
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-collapsing]
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar {
+  opacity: 0;
+  pointer-events: none;
+  /* Faster than the 0.2s height tween: the toolbar must be gone before the
+     summary chips land in the same corner, or the two read as a swap. */
+  transition-duration: 0.12s;
+}
+
+/* Attachments belong to the expanded composer only — the compact pill is a
+   single prompt line. Drop the attachment bar instantly (display can't
+   animate, so it never blinks) from the first collapse frame: leaving it in
+   flow inflates the pinned bubble height and it flickers as the shrinking
+   bubble clips it. Mirrors the home dock's compact trim. */
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell
+  .poracode-attachment-bar {
+  display: none;
 }
 
 /* Shared compact line metrics with the home bubble: one compact control line,
    text vertically centered (the desktop editor's padding is top-heavy). */
-.m-main .m-thread .poracode-composer-shell .poracode-mention-input {
-  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+:is(.m-main, .m-detail) .m-thread .poracode-composer-shell .poracode-mention-input {
+  /* Explicit length instead of the desktop's unitless 1.5 (same computed value
+     at 0.875rem): unitless line-height can't animate, so without this the
+     placeholder jumps between the compact full-height line box and the
+     expanded text metrics instead of riding the expand/collapse motion. */
+  line-height: 1.3125rem;
+  transition:
+    padding 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    line-height 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.m-main
+:is(.m-main, .m-detail)
   .m-thread
-  .m-thread-compose-dock:not([data-expanded])
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
   .poracode-composer-shell
   .poracode-mention-input {
+  box-sizing: border-box;
+  height: var(--m-floating-control-line-height);
   min-height: var(--m-floating-control-line-height);
   max-height: var(--m-floating-control-line-height);
-  padding: calc((var(--m-floating-control-line-height) - 1lh) / 2) 1rem;
+  overflow: hidden;
+  padding: 0 1rem;
+  /* Same single-line centering as the home bubble: a full-height line box
+     instead of the font-metric-sensitive (height - 1lh)/2 padding calc. */
+  line-height: var(--m-floating-control-line-height);
 }
 
-/* In the placeholder slot the trio reads as plain muted labels, not
-   dropdowns: chip chrome and the menu chevrons go away. The row is re-laid
-   out flat — uniform gap between items, everything on one center line, label
-   text at the input's own size. */
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative,
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  > div {
+/* Provider / fast / mode / permission summary pinned inside the compact pill's right end
+   (ComposerCompactSummary). Inert info chrome: it fades away when the
+   composer expands (the real controls take over) or once a prompt is typed
+   (the pinned send button owns that corner). */
+.m-compose-summary {
+  position: absolute;
+  top: 0;
+  right: 1rem;
+  z-index: 1;
   display: flex;
-  min-width: 0;
+  height: var(--m-floating-control-height);
   align-items: center;
-  gap: 0.875rem;
-}
-
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  :is(button, [role="button"]) {
-  display: inline-flex;
-  height: auto;
-  align-items: center;
-  gap: 0.375rem;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
+  gap: 0.5rem;
+  overflow: hidden;
+  white-space: nowrap;
   color: var(--muted);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  svg.lucide-chevron-down {
-  display: none;
+.m-compose-summary__item {
+  display: inline-flex;
+  align-items: center;
 }
 
-/* The desktop toolbar wrap system hides control labels (is-hidden /
-   data-collapse-tier) by measuring hidden probe rows against the container
-   width. On this device the compact line only ever surfaces the first three
-   controls, so that measurement is meaningless here — force the summary trio's
-   labels back on so effort reads as text, not a lone icon. Only <span> labels
-   are re-shown: the chevrons carry the same hideable class but are <svg> and
-   stay hidden (rule above). The Fast toggle is iconOnly (no label span), so it
-   stays an icon. min-width:0 + the label's own `truncate` keep a long model
-   name from overflowing the pointer-through overlay line. */
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  span.poracode-composer-label-hideable:not(.flex-col) {
-  display: inline-block;
-  min-width: 0;
-  max-width: 100%;
+/* Fast is only summarized when it's on (ComposerCompactSummary gates on the
+   selected toggle), so its Zap glyph is always the "active" state: fill it to
+   match the real toolbar, whose fill rides the toggle's selected state — a
+   state this inert read-only summary never has. */
+.m-compose-summary__item--fast svg {
+  fill: currentColor;
 }
 
-/* The model label is a stacked flex column (name over sub-provider); re-show it
-   as flex so its direction is preserved (display:inline-block would collapse
-   the two rows onto one line). */
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  span.poracode-composer-label-hideable.flex-col {
-  display: flex;
-  min-width: 0;
-  max-width: 100%;
+.m-compose-summary__model {
+  max-width: 7rem;
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
 }
 
-/* The mode (work/plan) and permission chips join the compact summary as
-   icon-only glyphs — informational, non-interactive (the overlay row is
-   pointer-events:none; tapping the line focuses the input). The force-show
-   rules above would surface their text labels, so re-hide those: the chips are
-   identified provider-agnostically by the shared icon markers, never by
-   provider name or brittle nth-child position. */
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  > div
-  > *:has(.poracode-composer-mode-icon)
-  span.poracode-composer-label-hideable,
-.m-main
-  .m-thread
-  .m-thread-compose-dock:not([data-expanded])
-  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .poracode-composer-toolbar
-  > .relative
-  > div
-  > *:has(.poracode-composer-permission-icon)
-  span.poracode-composer-label-hideable {
-  display: none;
+.m-compose-summary__effort {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
-/* Compact → expanded moves the toolbar from an absolute overlay (over the
-   input line) into its own row; position can't transition, so give the
-   expanded toolbar a brief entrance that reads as one motion with the dock's
-   max-height/transform animation. This is a keyframe animation, not a
-   transition, so [data-instant-expand] * (transition: none) does not disable
-   it — a short fade on the warm flip is harmless. */
+.m-thread-compose-dock[data-expanded]:not([data-collapsing]) .m-compose-summary,
+.m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .m-compose-bubble:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .m-compose-summary {
+  opacity: 0;
+  /* Expand: clear the corner quickly — the toolbar's own controls take over. */
+  transition-duration: 0.1s;
+}
+
+/* Collapse: let the toolbar's fast fade-out finish before the summary chips
+   fade into the same corner, so the change reads as one morph, not a swap.
+   (Running transitions keep their timing when data-collapsing drops.) */
+.m-thread-compose-dock[data-collapsing] .m-compose-summary {
+  transition-delay: 0.1s;
+}
+
+/* The compact input reserves the summary's measured width (published on the
+   bubble by ComposerCompactSummary) so the placeholder never runs beneath it.
+   Empty-prompt case only — typed prompts swap to the pinned-send reserve. */
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-collapsing])
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-mention-input {
+  padding-right: calc(1.5rem + var(--m-compose-summary-width, 0px));
+}
+
+/* Compact → expanded moves the toolbar from invisible absolute chrome into
+   its own row; position can't transition, so give the expanded toolbar a
+   brief entrance that reads as one motion with the dock's max-height
+   animation. This is a keyframe animation, not a transition, so
+   [data-instant-expand] * (transition: none) does not disable it — a short
+   fade on the warm flip is harmless. */
 @keyframes m-thread-toolbar-enter {
   from {
     opacity: 0;
@@ -2578,7 +3647,7 @@ body.bg-background {
   }
 }
 
-.m-main
+:is(.m-main, .m-detail)
   .m-thread
   .m-thread-compose-dock[data-expanded]
   .poracode-composer-shell
@@ -2586,11 +3655,61 @@ body.bg-background {
   animation: m-thread-toolbar-enter 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* The phone-wide 44px Button floor is right for standalone actions, but it
+   makes the composer's + / send actions spill outside the shared 2.25rem
+   toolbar row. Keep every control on the composer's own compact grid. */
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-toolbar
+  [data-slot="button"] {
+  min-height: 2.25rem;
+}
+
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-toolbar
+  [data-slot="button"].button--icon-only {
+  min-width: 2.25rem;
+}
+
+/* Model and effort are the two parameters that need to remain legible on a
+   phone. Preserve their text even when the desktop wrap probe collapses lower
+   priority labels; the effort's signal icon is redundant once its value is
+   written out. */
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-model-control
+  > .poracode-composer-label-hideable {
+  display: flex;
+}
+
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-effort-control
+  > .poracode-composer-label-hideable {
+  display: inline;
+}
+
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .poracode-composer-effort-control
+  > .poracode-composer-effort-icon {
+  display: none;
+}
+
 /* Inside the floating thread bubble, the bubble owns the card chrome just like
    the home composer. Keep the reused desktop composer as content only. */
-.m-main .m-thread .m-thread-compose-dock .poracode-composer-shell,
-.m-main .m-thread .m-thread-compose-dock .poracode-composer-shell:not(:focus-within),
-.m-main .m-thread .m-thread-compose-dock .poracode-composer-shell:focus-within {
+:is(.m-main, .m-detail) .m-thread .m-thread-compose-dock .poracode-composer-shell,
+:is(.m-main, .m-detail)
+  .m-thread
+  .m-thread-compose-dock
+  .poracode-composer-shell:not(:focus-within),
+:is(.m-main, .m-detail) .m-thread .m-thread-compose-dock .poracode-composer-shell:focus-within {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
@@ -2601,13 +3720,13 @@ body.bg-background {
   display: flex;
   min-width: 0;
   flex: 1;
-  min-height: var(--m-tap-min);
+  min-height: 2.5rem;
   align-items: center;
   gap: 0.5rem;
   border: none;
   border-radius: 0.5rem;
   background: transparent;
-  padding: 0.25rem 0.375rem;
+  padding: 0.125rem 0.375rem;
   color: var(--muted);
   cursor: pointer;
   text-align: left;
@@ -2662,12 +3781,6 @@ body.bg-background {
   gap: 0.375rem;
 }
 
-.m-ws-chip__chevron {
-  flex: none;
-  color: var(--muted);
-  opacity: 0.7;
-}
-
 /* Unified workspace panel (Changes | Files) — fullscreen host above the shell. */
 .m-workspace {
   position: fixed;
@@ -2685,6 +3798,270 @@ body.bg-background {
   min-height: 0;
   flex: 1;
   overflow: hidden;
+}
+
+/* Desktop PWA: the routed thread stays mounted while this shell-owned tool
+   strip opens a resizable auxiliary panel beside it. */
+.m-desktop-tools {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: none;
+  overflow: visible;
+}
+
+.m-desktop-tool-rail {
+  position: absolute;
+  z-index: 30;
+  top: calc(4.25rem + 20px);
+  right: 0.75rem;
+  display: flex;
+  width: 2.625rem;
+  flex: none;
+  align-items: center;
+  flex-direction: column;
+  gap: 0.125rem;
+  border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+  border-radius: 1rem;
+  background: var(--m-glass-surface);
+  padding: 0.3125rem;
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.28),
+    0 12px 32px rgb(0 0 0 / 0.32);
+  backdrop-filter: saturate(140%) blur(16px);
+  -webkit-backdrop-filter: saturate(140%) blur(16px);
+  transform: translateX(0);
+  opacity: 1;
+  transition:
+    transform 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 140ms ease-out,
+    max-height 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    background-color 140ms ease-out,
+    border-color 140ms ease-out,
+    box-shadow 140ms ease-out;
+}
+
+.m-desktop-tool-rail[data-hidden="true"] {
+  transform: translateX(0.5rem) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Only compact the rail once it materially overlaps the fixed 1040px thread
+   column. Slight edge contact still leaves the full rail visible. */
+@container m-wide-content (max-width: 1080px) {
+  .m-desktop-tool-rail:not([data-hidden]) {
+    max-height: 2.625rem;
+    border-color: color-mix(in oklab, var(--foreground) 5%, transparent);
+    background: color-mix(in oklab, var(--m-glass-surface) 42%, transparent);
+    box-shadow:
+      0 2px 8px rgb(0 0 0 / 0.12),
+      0 10px 24px rgb(0 0 0 / 0.16);
+    backdrop-filter: saturate(115%) blur(10px);
+    -webkit-backdrop-filter: saturate(115%) blur(10px);
+    opacity: 0.72;
+  }
+
+  .m-desktop-tool-rail:not([data-hidden]):is(:hover, :focus-within) {
+    max-height: 20rem;
+    border-color: color-mix(in oklab, var(--foreground) 8%, transparent);
+    background: var(--m-glass-surface);
+    box-shadow:
+      0 2px 8px rgb(0 0 0 / 0.28),
+      0 12px 32px rgb(0 0 0 / 0.32);
+    opacity: 1;
+  }
+
+  .m-desktop-tool-rail:not([data-hidden]):is(:hover, :focus-within)
+    .m-desktop-tool-rail__collapsed {
+    opacity: 0;
+  }
+
+  .m-desktop-tool-rail:not([data-hidden]):is(:hover, :focus-within) .m-desktop-tool-rail__actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.m-desktop-tool-rail__collapsed {
+  position: absolute;
+  top: 0.3125rem;
+  left: 0.3125rem;
+  display: none;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transition: opacity 100ms ease-out;
+}
+
+.m-desktop-tool-rail__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  transition: opacity 100ms ease-out;
+}
+
+@container m-wide-content (max-width: 1080px) {
+  .m-desktop-tool-rail__collapsed {
+    display: flex;
+  }
+
+  .m-desktop-tool-rail__actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.m-desktop-tool-rail__button {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.m-desktop-tool-rail__button:hover {
+  background: var(--row-hover);
+  color: var(--foreground);
+}
+
+.m-desktop-tool-rail__button[data-active="true"] {
+  background: var(--row-active, var(--row-hover));
+  color: var(--accent);
+}
+
+.m-desktop-tool-rail__button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.m-desktop-tool-rail__button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 70%, transparent);
+  outline-offset: 1px;
+}
+
+.m-desktop-workspace__panel {
+  position: relative;
+  width: 0;
+  min-width: 0;
+  min-height: 0;
+  flex: none;
+  overflow: hidden;
+  border-left: 1px solid transparent;
+  background: transparent;
+  transition:
+    width 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    min-width 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 180ms ease-out;
+  will-change: width, min-width;
+}
+
+.m-desktop-workspace__panel[data-open="true"] {
+  width: var(--m-desktop-panel-width, 26.25rem);
+  min-width: var(--m-desktop-panel-width, 26.25rem);
+  border-left-color: var(--hairline, var(--border));
+}
+
+.m-desktop-workspace__panel-inner {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: var(--m-desktop-panel-width, 26.25rem);
+  min-width: var(--m-desktop-panel-width, 26.25rem);
+  background: transparent;
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+  will-change: opacity;
+}
+
+.m-desktop-workspace__panel[data-open="true"] .m-desktop-workspace__panel-inner {
+  opacity: 1;
+  transition-duration: 300ms;
+  transition-timing-function: ease-out;
+}
+
+.m-desktop-workspace__resize {
+  position: relative;
+  z-index: 20;
+  width: 0;
+  flex: none;
+  cursor: col-resize;
+  outline: none;
+}
+
+.m-desktop-workspace__resize::after {
+  position: absolute;
+  inset: 0 auto 0 -3px;
+  width: 6px;
+  content: "";
+}
+
+.m-desktop-workspace__resize:hover::after,
+.m-desktop-workspace__resize:focus-visible::after {
+  background: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+/* GitView's phone drill-down normally covers the viewport. Inside the desktop
+   auxiliary panel it should cover only that panel's content layer. */
+.m-desktop-workspace__panel .m-git-diff {
+  position: absolute;
+}
+
+.m-desktop-workspace__panel .m-subscreen {
+  height: 100%;
+  background: transparent;
+  padding-bottom: 0;
+}
+
+.m-desktop-workspace__panel .m-subscreen > .m-page {
+  background: transparent;
+  overflow-y: auto;
+}
+
+.m-desktop-workspace__panel .m-fab {
+  position: absolute;
+}
+
+.m-desktop-workspace__panel [data-poracode-panel],
+.m-desktop-workspace__panel .poracode-overlay-surface {
+  background: transparent;
+}
+
+.m-desktop-workspace__panel .poracode-overlay-header {
+  height: 2.5rem;
+  gap: 0.375rem;
+  background: transparent;
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.m-desktop-workspace__panel .poracode-overlay-header button {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+}
+
+.m-desktop-workspace__panel .poracode-overlay-header button svg {
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* PWA pointer layouts raise icon-only buttons to the 34px desktop hit-target
+   floor. Center the actual target in the commit field instead of retaining the
+   24px-only top offset used by Electron. */
+.m-desktop-workspace__panel .lc-commit-field-action {
+  top: 50%;
+  margin-top: calc(var(--m-tap-min) / -2);
 }
 
 /* One tab's pane fills the body; the inactive tab stays mounted but hidden so
@@ -2737,10 +4114,10 @@ body.bg-background {
   padding-right: calc(var(--m-tap-min) + 0.5rem);
 }
 
-.m-workspace .lc-commit-generate {
+.m-workspace .lc-commit-field-action {
   top: 50%;
   right: 0;
-  margin-top: calc((var(--m-tap-min) / -2) - 2px);
+  margin-top: calc(var(--m-tap-min) / -2);
 }
 
 /* iOS-style segmented control switching Changes / Files. */
@@ -2855,6 +4232,34 @@ body.bg-background {
     max-height 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+.m-shell > .m-sheet-backdrop > .m-sheet:has(.poracode-model-menu-listbox) {
+  overflow: hidden;
+  height: auto;
+  max-height: 65dvh;
+  padding-bottom: 0;
+}
+
+.m-shell > .m-sheet-backdrop > .m-sheet[data-expanded]:has(.poracode-model-menu-listbox) {
+  height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+  max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+}
+
+.m-shell > .m-sheet-backdrop > .m-sheet .poracode-model-menu-listbox {
+  height: auto !important;
+  min-height: 0;
+  max-height: none !important;
+  flex: 1;
+}
+
+.m-shell
+  > .m-sheet-backdrop
+  > .m-sheet
+  .poracode-model-menu-listbox
+  .poracode-model-menu-bottom-spacer {
+  box-sizing: content-box;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 .m-sheet[data-expanded] {
   height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
   max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
@@ -2912,6 +4317,10 @@ body.bg-background {
   animation: m-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+.m-drawer[data-fit-content] {
+  height: auto;
+}
+
 .m-drawer[data-dragging] {
   transition: none;
 }
@@ -2960,17 +4369,52 @@ body.bg-background {
     --m-tap-min: 34px;
   }
 
-  .m-detail > .m-page {
+  /* The mouse-density pass above shrinks every tap target to 34px. Keep the
+     floating thread composer at the phone's 44px so the compact pill reads at
+     the same size on desktop as on mobile. The derived control vars are
+     declared on :root — computed there against the 34px --m-tap-min and then
+     inherited as fixed values — so overriding --m-tap-min alone here would NOT
+     recompute them. Redeclare the whole chain on the dock so bubble height,
+     input line, and the round send all resolve against 44px. The thread dock's
+     own insets are fixed (0.75rem), so nothing else shifts. */
+  .m-thread-compose-dock {
+    --m-tap-min: 44px;
+    --m-floating-control-height: var(--m-tap-min);
+    --m-floating-control-line-height: calc(var(--m-floating-control-height) - 2px);
+    --m-floating-control-inner-size: calc(var(--m-floating-control-height) - 0.5rem);
+  }
+
+  .m-detail > .m-page,
+  .m-detail > .m-subscreen,
+  .m-detail > .m-settings {
+    width: min(100%, 72rem);
+    align-self: center;
+  }
+
+  /* The workspace overlay (Changes / Files) is fixed-position outside
+     .m-detail; cap its chrome and content column the same way so neither the
+     controls nor file rows stretch across ultrawide monitors. The segmented
+     control keeps the same inset it has on mobile. The diff drill-down anchors
+     to the viewport (fixed) and is unaffected. */
+  .m-workspace > .m-git-head {
+    width: min(100%, 72rem);
+    align-self: center;
+  }
+
+  .m-workspace > .m-seg {
+    width: min(calc(100% - 1.5rem), calc(72rem - 1.5rem));
+    align-self: center;
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .m-ws-pane {
     width: min(100%, 72rem);
     align-self: center;
   }
 
   .m-sidebar__head {
     padding: calc(0.375rem + env(safe-area-inset-top)) 0.625rem 0.25rem;
-  }
-
-  .m-sidebar__primary {
-    padding: 0 0.375rem 0.375rem;
   }
 
   .m-sidebar .m-thread-list {
@@ -3017,6 +4461,23 @@ body.bg-background {
     display: none;
   }
 
+  /* Centered dialogs fade and scale into place instead of sliding up from the
+     bottom edge; the exit stays under useSheet's 200ms unmount timer. */
+  .m-sheet,
+  .m-drawer,
+  .m-picker {
+    animation: m-dialog-in 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .m-sheet-backdrop[data-closing] .m-sheet,
+  .m-sheet-backdrop[data-closing] .m-drawer {
+    animation: m-dialog-out 0.15s ease-in forwards;
+  }
+
+  .m-sheet-backdrop[data-closing] {
+    animation: m-sheet-backdrop-out 0.15s ease-in forwards;
+  }
+
   .m-sheet-action {
     min-height: 2.375rem;
     border-radius: 0.5rem;
@@ -3048,6 +4509,21 @@ body.bg-background {
 
   to {
     transform: translateY(100%);
+  }
+}
+
+/* Desktop (pointer: fine) dialog enter/exit — fade with a subtle scale. */
+@keyframes m-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes m-dialog-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
   }
 }
 
@@ -3115,6 +4591,44 @@ body.bg-background {
   flex-direction: column;
   gap: 0.375rem;
   overflow-y: auto;
+}
+
+/* Nested action pages slide horizontally without changing the sheet's height.
+   The main page stays in normal flow as the size anchor; the submenu overlays it. */
+.m-sheet-page-stack {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  width: 100%;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.m-sheet-page {
+  display: flex;
+  min-height: 0;
+  width: 100%;
+  flex-direction: column;
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+
+.m-sheet-page--submenu {
+  position: absolute;
+  inset: 0;
+  background: var(--sidebar-background, var(--background));
+  pointer-events: none;
+  transform: translateX(100%);
+}
+
+.m-sheet-page-stack[data-page="submenu"] .m-sheet-page--main {
+  pointer-events: none;
+  transform: translateX(-100%);
+}
+
+.m-sheet-page-stack[data-page="submenu"] .m-sheet-page--submenu {
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 /* Reused desktop menu rows rendered inside a drawer (e.g. the branch selector's
@@ -3362,13 +4876,75 @@ body.bg-background {
 
 /* Full-window overlay host above the app shell for the git panel and PR
    review. The reused desktop components fill .m-git-overlay__body. */
-.m-git-overlay {
+.m-git-overlay,
+.m-notes-screen {
   position: fixed;
   inset: 0;
   z-index: 50;
   display: flex;
   flex-direction: column;
   background: var(--background, #070709);
+}
+
+.m-notes-screen {
+  top: var(--m-visual-viewport-top, 0px);
+  bottom: var(--m-visual-viewport-bottom, 0px);
+  overflow: hidden;
+  transition: bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-notes-screen__body {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow: hidden;
+}
+
+.m-notes-screen__body > * {
+  min-height: 0;
+  flex: 1;
+}
+
+/* The shared notes panel stays compact on desktop. On the phone, make each
+   checklist row and its controls comfortable touch targets; row actions move
+   to the long-press sheet, so hover-only buttons do not reserve scarce width. */
+.m-notes-screen .lc-notes-todo-row {
+  min-height: 3rem;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.m-notes-screen .lc-notes-todo-toggle {
+  width: 2rem;
+  height: 2rem;
+}
+
+.m-notes-screen .lc-notes-todo-check {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.m-notes-screen .lc-notes-todo-text,
+.m-notes-screen .lc-notes-todo-input {
+  min-height: 2.25rem;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+
+.m-notes-screen .lc-notes-todo-text {
+  display: flex;
+  align-items: center;
+}
+
+.m-notes-screen .lc-notes-todo-actions {
+  display: none;
+}
+
+.m-notes-screen .lc-notes-todo-add-row {
+  min-height: var(--m-tap-min);
 }
 
 /* Cold-chunk Suspense fallback for the fullscreen screens (workspace,
@@ -3966,6 +5542,11 @@ body.bg-background {
   background: var(--background, #070709);
 }
 
+.m-shell:not(.m-shell--wide) .m-subscreen,
+.m-shell:not(.m-shell--wide) .m-subscreen > * {
+  background: var(--background, #070709);
+}
+
 .m-card {
   border: 1px solid var(--hairline, var(--border));
   border-radius: 0.625rem;
@@ -4234,105 +5815,158 @@ body.bg-background {
 /* Editable fields must stay selectable even inside the non-selectable chrome
    (the inline rename field in the thread actions sheet, the project picker):
    otherwise iOS won't let you place the cursor or select text to edit. */
-.m-shell textarea,
-.m-shell input,
-.m-shell [contenteditable="true"] {
+:is(.m-shell, .m-sheet-backdrop) textarea,
+:is(.m-shell, .m-sheet-backdrop) input,
+:is(.m-shell, .m-sheet-backdrop) [contenteditable="true"] {
   user-select: text;
   -webkit-user-select: text;
 }
 
-/* iOS zooms into inputs below 16px; keep editable text at 16px on phones.
-   `.m-sheet` / `.m-picker` drawers are portaled to <body> (outside `.m-shell`)
-   by BottomSheet, ResponsiveMenuSurface, and the host folder picker, so they
-   need the guard spelled out separately — otherwise the model-picker search
-   field (and any other in-drawer input) zooms on focus. */
+/* iOS (and only iOS) zooms into editable controls below 16px on focus. Keep
+   every PWA text-entry surface at the platform's no-zoom floor. This is
+   intentionally document-wide: HeroUI overlays plus the mobile sheet, drawer,
+   and picker implementations are portaled to <body>, so a container allow-list
+   is easy to make incomplete (the pairing form's `.m-drawer` was the concrete
+   regression). On Android and desktop browsers the same 16px floor would read
+   oversized against the 14px root, so gate it on the iOS platform marker. */
 @media (max-width: 767px) {
-  .m-shell textarea,
-  .m-shell input,
-  .m-shell [contenteditable="true"],
-  .m-sheet textarea,
-  .m-sheet input,
-  .m-sheet [contenteditable="true"],
-  .m-picker textarea,
-  .m-picker input,
-  .m-picker [contenteditable="true"] {
+  html[data-mobile-platform="ios"] :is(input, textarea, select, [contenteditable="true"]) {
     font-size: 16px;
+  }
+}
+
+/* iOS Safari can spend hundreds of milliseconds snapshotting the virtualized
+   scroll layer of a long thread before a View Transition starts. The router
+   skips that snapshot for thread -> list pops and this class animates only the
+   already-mounted lightweight destination shell on compositor transforms. */
+html[data-mobile-platform="ios"]
+  .m-shell--lightweight-thread-list-pop
+  > :is(.m-topbar, .m-main, .m-home-compose-actions) {
+  animation: m-lightweight-thread-list-pop 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-thread-list-pop {
+  from {
+    transform: translate3d(-25%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* The pushed subagent is already a separate absolutely positioned page. Move
+   only that new lightweight layer and its new header; the parent thread stays
+   mounted and Safari never snapshots either virtualized transcript. */
+html[data-mobile-platform="ios"] .m-shell--lightweight-subagent-push > .m-topbar,
+html[data-mobile-platform="ios"] .m-shell--lightweight-subagent-push .m-subagent-page {
+  animation: m-lightweight-subagent-push 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-subagent-push {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Back reveals the parent thread that NarrowShell kept mounted throughout the
+   subagent route. Animate only that incoming shell; the potentially huge
+   outgoing subagent transcript is removed without a Safari snapshot. */
+html[data-mobile-platform="ios"] .m-shell--lightweight-subagent-pop > :is(.m-topbar, .m-main) {
+  animation: m-lightweight-subagent-pop 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-subagent-pop {
+  from {
+    transform: translate3d(-25%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Push into a fullscreen overlay (workspace / PR / terminal / notes) from an
+   ordinary page. iOS Safari stalls snapshotting the outgoing transcript before
+   the View Transition starts, so skip it and slide only the incoming opaque
+   overlay in over the shell on compositor transforms. */
+html[data-mobile-platform="ios"]
+  .m-shell--lightweight-fullscreen-push
+  :is(.m-workspace, .m-git-overlay, .m-notes-screen, .m-screen-loading) {
+  animation: m-lightweight-fullscreen-push 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-fullscreen-push {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Back out of a fullscreen overlay to the page beneath. Animate only the
+   incoming shell; the outgoing overlay (diff / terminal / PR) is removed
+   without a Safari snapshot. */
+html[data-mobile-platform="ios"] .m-shell--lightweight-fullscreen-pop > :is(.m-topbar, .m-main) {
+  animation: m-lightweight-fullscreen-pop 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-fullscreen-pop {
+  from {
+    transform: translate3d(-25%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
   }
 }
 
 /* ── Native screen transitions (View Transitions API) ──────────────
  *
- * The phone layout navigates like a native app: the routed page slides while
- * the top bar and tab bar stay pinned. The router (router.tsx) tags each
- * navigation with a type — "push" (deeper), "pop" (back), or "fade" (tab /
- * sibling) — and only on the narrow layout, so this CSS only ever runs there.
- * Browsers without the API fall back to an instant swap.
+ * The phone layout navigates like a native app. The router (router.tsx) tags
+ * each navigation with a type — "push" (deeper), "pop" (back), or "fade"
+ * (tab / sibling) — and only on the narrow layout, so this CSS only ever runs
+ * there. Browsers without the API fall back to an instant swap.
  *
- * Naming an element pulls it into its own transition group: the page (.m-main)
- * gets the sliding animation below, while the chrome groups stay in place and
- * only cross-fade their contents (e.g. the title). Fullscreen routes
- * (workspace / PR / terminal) render their own full-window overlay instead of
- * .m-main, so they carry a second page name (m-screen) that shares the same
- * push/pop slide. .m-main and the fullscreen overlays never coexist in one DOM
- * state — a route renders one or the other — so the two names never collide;
- * across a navigation the old page's name and the new page's name differ, which
- * is exactly what lets them slide as a pair (old out, new in).
+ * Capture the entire ordinary phone shell as ONE transition image. The shell
+ * owns the route-aware header, routed Outlet, and floating composer controls;
+ * keeping them in one image guarantees Safari cannot combine the incoming
+ * thread header with the outgoing thread list while React commits the route.
+ * It also means the old page's layout is frozen before the new header exists,
+ * so the old list never receives the thread header's space and jumps downward.
  *
- * Navigations into/out of a fullscreen screen additionally carry the "screen"
- * type (router.tsx). It fixes two incoherencies of the split old page:
- * - Layering: on pop, spec group order appends the new page's groups AFTER the
- *   old m-screen, which would paint the revealed page ON TOP of the outgoing
- *   slide. The m-screen group is explicitly z-indexed above the page groups.
- * - Schedules: the old page's topbar and root snapshots would run their
- *   default 0.25s cross-fades on their own clock under the 0.32s slide — the
- *   title and floating chrome visibly dissolve before the screen covers them.
- *   The "screen" rules hold them steady instead: on push the old page sits
- *   (with only .m-main's parallax) until covered; on pop the revealed page is
- *   fully painted from the first frame beneath the departing screen. */
-.m-topbar {
-  view-transition-name: m-topbar;
-}
-
-.m-main {
-  view-transition-name: m-main;
-}
-
-/* Fullscreen chrome keeps .m-main mounted (stable Outlet position — see
-   NarrowShell in RootLayout.tsx) but the visible page is the fixed m-screen
-   overlay rendered inside it. Drop the page name so the m-main group doesn't
-   also participate in the transition (matching the old DOM shape, where the
-   fullscreen state had no .m-main at all): on push only the old page's m-main
-   slides out under the incoming screen, and on pop the returning page's m-main
-   is a new-only group that slides back in. */
-.m-shell[data-chrome="fullscreen"] .m-main {
-  view-transition-name: none;
+ * Fullscreen routes (workspace / PR / terminal) disable the shell image and
+ * render an m-screen overlay instead. m-page and m-screen share the same slide
+ * schedule, with the screen group explicitly layered above the ordinary page. */
+.m-shell:not(.m-shell--wide):not([data-chrome="fullscreen"]) {
+  view-transition-name: m-page;
 }
 
 /* Fullscreen chrome also keeps the top bar mounted (NarrowShell renders it in
    every layout). The opaque z-50 overlay covers it; `visibility: hidden` (not
    display: none) removes it from hit-testing/a11y while PRESERVING its layout
    height, so .m-main — and the thread page snapshotted inside it on a pop —
-   never shifts up into the status-bar safe zone. Dropping its transition name
-   keeps the m-topbar group old-/new-only across a screen push/pop, exactly as
-   when the bar was unmounted, so the underlying header holds steady beneath
-   the sliding screen instead of cross-fading with a hidden counterpart. */
+   never shifts up into the status-bar safe zone. */
 .m-shell[data-chrome="fullscreen"] .m-topbar {
   visibility: hidden;
-  view-transition-name: none;
 }
 
 /* During a push from a thread into a fullscreen workspace, Android WebView can
-   drop the old-only m-topbar transition image before the m-screen slide ends.
-   RootLayout renders this frozen copy as the fullscreen state's new m-topbar
-   image, so the browser has a paired header snapshot to hold for the whole
-   transition while the real fullscreen top bar remains hidden. */
+   drop the underlying header before the m-screen slide ends. RootLayout keeps
+   this frozen copy visible beneath the opaque fullscreen overlay for the whole
+   transition. */
 .m-shell[data-chrome="fullscreen"] .m-topbar.m-topbar--transition-hold {
   position: fixed;
   inset: 0 0 auto;
   z-index: 1;
   visibility: visible;
   pointer-events: none;
-  view-transition-name: m-topbar;
 }
 
 /* Fullscreen overlay routes (workspace / PR / terminal) slide like a nested
@@ -4341,6 +5975,7 @@ body.bg-background {
    screen), so this shared name is safe. */
 .m-workspace,
 .m-git-overlay,
+.m-notes-screen,
 .m-screen-loading {
   view-transition-name: m-screen;
 }
@@ -4354,7 +5989,7 @@ body.bg-background {
 }
 
 /* iOS-style easing, matched to the bottom-sheet timing. */
-::view-transition-group(m-main),
+::view-transition-group(m-page),
 ::view-transition-group(m-screen) {
   animation-duration: 0.32s;
   animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
@@ -4362,49 +5997,30 @@ body.bg-background {
 
 /* PUSH — the incoming page slides in from the right over the outgoing one, which
    drifts left with a subtle parallax. */
-html:active-view-transition-type(push)::view-transition-old(m-main),
+html:active-view-transition-type(push)::view-transition-old(m-page),
 html:active-view-transition-type(push)::view-transition-old(m-screen) {
   animation: m-vt-out-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
-html:active-view-transition-type(push)::view-transition-new(m-main),
+html:active-view-transition-type(push)::view-transition-new(m-page),
 html:active-view-transition-type(push)::view-transition-new(m-screen) {
   animation: m-vt-in-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 /* POP — the outgoing page slides off to the right, revealing the previous one
    underneath (which un-parallaxes back into place). */
-html:active-view-transition-type(pop)::view-transition-old(m-main),
+html:active-view-transition-type(pop)::view-transition-old(m-page),
 html:active-view-transition-type(pop)::view-transition-old(m-screen) {
   z-index: 1;
   animation: m-vt-out-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
-html:active-view-transition-type(pop)::view-transition-new(m-main),
+html:active-view-transition-type(pop)::view-transition-new(m-page),
 html:active-view-transition-type(pop)::view-transition-new(m-screen) {
   animation: m-vt-in-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
-/* SCREEN (both directions) — the top bar must simply sit still under the
-   sliding screen: on push it is an old-only group (the fullscreen state drops
-   its name), on pop a new-only group, and a singleton image otherwise gets the
-   UA's default cross-fade (fade-out for old, fade-in for new) on its own 0.25s
-   clock — which reads as the header dissolving while the screen is still
-   mid-slide. Pin BOTH images with a single-type selector (no chained
-   :active-view-transition-type, which is the fragile part on older WebViews)
-   so the header holds until the z-1 m-screen group covers or reveals it.
-   Android WebView can discard an old-only image with `animation: none`, so use
-   an explicit no-op animation that lasts as long as the screen slide. */
-html:active-view-transition-type(screen)::view-transition-old(m-topbar),
-html:active-view-transition-type(screen)::view-transition-new(m-topbar) {
-  animation: m-vt-hold 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-
-/* SCREEN PUSH — hold the old page steady (no topbar/root fades) while the
-   screen slides in over it; the new root is the empty shell behind the lifted
-   screen, so keep it hidden rather than letting it cross-fade the old chrome
-   away mid-slide. */
-html:active-view-transition-type(screen):active-view-transition-type(
-  push
-)::view-transition-old(m-topbar),
+/* SCREEN PUSH — hold the old root steady while the screen slides in over it;
+   the new root is the empty shell behind the lifted screen, so keep it hidden
+   rather than letting it cross-fade the old chrome away mid-slide. */
 html:active-view-transition-type(screen):active-view-transition-type(
   push
 )::view-transition-old(root) {
@@ -4419,9 +6035,6 @@ html:active-view-transition-type(screen):active-view-transition-type(
 /* SCREEN POP — the revealed page paints fully from the first frame beneath the
    departing screen (no fade-in), and the old root (the empty shell behind the
    lifted screen) stays out of the blend. */
-html:active-view-transition-type(screen):active-view-transition-type(
-  pop
-)::view-transition-new(m-topbar),
 html:active-view-transition-type(screen):active-view-transition-type(
   pop
 )::view-transition-new(root) {
@@ -4480,12 +6093,17 @@ html:active-view-transition-type(screen):active-view-transition-type(
   .m-sheet-backdrop,
   .m-sheet,
   .m-drawer,
+  .m-picker,
   .m-git-diff[data-state="entering"],
   .m-git-diff[data-state="closing"],
   .m-sheet-backdrop[data-closing],
   .m-sheet-backdrop[data-closing] .m-sheet,
   .m-sheet-backdrop[data-closing] .m-drawer {
     animation: none;
+  }
+
+  .m-sheet-page {
+    transition: none;
   }
 
   /* The router already skips view transitions under reduced motion; this guards

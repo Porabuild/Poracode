@@ -1,11 +1,4 @@
-import type {
-  AgentCapability,
-  McpServer,
-  ProjectLocation,
-  PromptSegment,
-  ThreadConfig,
-} from "@/shared/contracts";
-import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
+import type { AgentCapability, ResolvedMcpServer, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
@@ -13,7 +6,6 @@ import {
   detectAgentInstall,
   shortenHomePath,
   type AgentAdapter,
-  type AgentLaunchOptions,
   type CreateStructuredSessionInput,
   type RunOneShotInput,
   type TerminalStatusHint,
@@ -26,12 +18,9 @@ import {
   installOpenCodePlugin,
   isOpenCodePluginInstalled,
   readBundledOpenCodePluginVersion,
-  syncOpenCodeBrowserMcpConfigFile,
-  syncOpenCodeSubagentMcpConfigFile,
-  syncOpenCodeAppControlsMcpConfigFile,
   uninstallOpenCodePlugin,
 } from "./plugin/install";
-import { buildOpenCodeUserMcpLaunchConfig } from "../userMcp";
+import { buildOpenCodeMcpLaunchConfig } from "../userMcp";
 import { runOpenCodeOneShot } from "./sdkOneShot";
 import { detectOpenCodeTerminalStatus, opencodeOscHint, opencodeOscTitleHint } from "./terminal";
 
@@ -58,41 +47,18 @@ function opencodeHookActiveTerminalFallback(hint: TerminalStatusHint): boolean {
   return hint.status === "needs_approval";
 }
 
-// Shared by launch and resume: project the built-in MCP gates into OpenCode's
-// existing config path. Custom servers use the per-process env overlay below.
-// Built-in disables are already applied by the spawn pipeline: the config
-// flags are cleared and the http configs withheld before they reach here.
-function syncOpenCodeLaunchMcp(
-  location: ProjectLocation,
-  config: ThreadConfig,
-  launchOptions: AgentLaunchOptions | undefined,
-): void {
-  syncOpenCodeBrowserMcpConfigFile(
-    location,
-    // Browser enablement also comes from the OpenCode agent-settings toggle,
-    // so the http config's presence carries the pipeline's disable decision.
-    isOpenCodeBrowserMcpEnabled(launchOptions?.agentSettings) &&
-      launchOptions?.browserMcp !== undefined,
-    launchOptions?.browserMcp,
-    config.computerUse === true,
-    launchOptions?.computerUseMcp,
-    config.chromeMcp === true,
-    launchOptions?.chromeMcp,
-  );
-  syncOpenCodeSubagentMcpConfigFile(location, launchOptions?.subagentMcp);
-  syncOpenCodeAppControlsMcpConfigFile(
-    location,
-    launchOptions?.appControlsMcp !== undefined,
-    launchOptions?.appControlsMcp,
-  );
-}
-
-function buildOpenCodeUserMcpEnv(
-  mcpServers: readonly McpServer[] = [],
+function buildOpenCodeMcpEnv(
+  mcpServers: readonly ResolvedMcpServer[] = [],
 ): Record<string, string> | undefined {
   if (mcpServers.length === 0) return undefined;
-  const launch = buildOpenCodeUserMcpLaunchConfig(mcpServers);
-  return { ...launch.env, OPENCODE_CONFIG_CONTENT: launch.configContent };
+  const launch = buildOpenCodeMcpLaunchConfig(mcpServers);
+  return {
+    ...launch.env,
+    OPENCODE_CONFIG_CONTENT: launch.configContent,
+    ...(mcpServers.some((server) => server.id === "crossagents")
+      ? { PORACODE_OPENCODE_SESSION_ROUTING: "1" }
+      : {}),
+  };
 }
 
 export function createOpenCodeAdapter(): AgentAdapter {
@@ -185,18 +151,17 @@ export function createOpenCodeAdapter(): AgentAdapter {
     // ── Launch / resume ──────────────────────────────────────────────────
     //
     // Session ID allocation: see `createStructuredSession` below. On a fresh
-    // launch the runtime spins up `opencode serve`, calls `session.create`,
-    // captures the resulting `ses_xxx` id, sets `launchOptions.resumeThreadId`,
-    // and then disposes the SDK connection (because `liveInputMode ===
-    // "terminal"`).
+    // launch the runtime acquires the shared `opencode serve`, calls
+    // `session.create`, captures the resulting `ses_xxx` id, sets
+    // `launchOptions.resumeThreadId`, and then disposes the SDK connection
+    // (because `liveInputMode === "terminal"`).
     // The TUI process below picks up the pre-allocated id via `--session <id>`,
     // so the supervisor knows the providerSessionId synchronously instead of
     // polling `opencode session list` after spawn.
     buildLaunchArgv(_location, config, prompt, _sessionRef, launchOptions) {
-      syncOpenCodeLaunchMcp(_location, config, launchOptions);
       const sessionId = launchOptions?.resumeThreadId;
       const args = buildOpenCodeArgs(config, prompt, sessionId);
-      const env = buildOpenCodeUserMcpEnv(launchOptions?.mcpServers);
+      const env = buildOpenCodeMcpEnv(launchOptions?.mcpServers);
       return {
         binary: "opencode",
         args,
@@ -206,8 +171,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
       };
     },
     buildResumeArgv(_location, config, prompt, sessionRef, launchOptions) {
-      syncOpenCodeLaunchMcp(_location, config, launchOptions);
-      const env = buildOpenCodeUserMcpEnv(launchOptions?.mcpServers);
+      const env = buildOpenCodeMcpEnv(launchOptions?.mcpServers);
       return {
         binary: "opencode",
         args: buildOpenCodeArgs(config, prompt, sessionRef.providerSessionId),
@@ -223,11 +187,11 @@ export function createOpenCodeAdapter(): AgentAdapter {
     //
     // Terminal mode (default): runtime calls `activate()` + `openThread()`,
     // captures the returned session id into `launchOptions.resumeThreadId`,
-    // then disposes immediately because `liveInputMode === "terminal"`. The
-    // ephemeral `opencode serve` process exits; the TUI launches with
-    // `--session <id>` and resumes from SQLite. Same observable behaviour as
-    // the previous `opencode acp` allocation, just over HTTP+SDK so we share
-    // infrastructure with the GUI flow.
+    // then releases its SDK acquisition because `liveInputMode === "terminal"`.
+    // The shared runtime server stays warm; the TUI launches with `--session
+    // <id>` and resumes from SQLite. Same observable behaviour as the previous
+    // `opencode acp` allocation, just over HTTP+SDK so GUI projects share the
+    // runtime sidecar.
     //
     // GUI mode: same handle stays alive for the thread's lifetime; SSE
     // events stream through `sdkCanonicalMapping` into chat items.
@@ -292,9 +256,8 @@ export function createOpenCodeAdapter(): AgentAdapter {
     //
     // Two paths:
     //   - `runOneShot` (preferred): goes through `opencode serve` over SDK,
-    //     reusing the per-project server pool with a 30s idle TTL. Mirrors
-    //     t3code's text-generation flow and avoids one CLI cold-start per
-    //     generated commit/title/PR.
+    //     reusing the app-lifetime runtime server pool. Avoids one CLI
+    //     cold-start per generated commit/title/PR.
     //   - `buildOneShotCommand` (fallback): legacy `opencode run --format
     //     json` path. Kept so orchestrators that haven't migrated to the
     //     SDK-first runner still work, and so we have a CLI fallback for

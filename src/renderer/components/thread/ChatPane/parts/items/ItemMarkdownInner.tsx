@@ -19,16 +19,22 @@ import {
 } from "streamdown";
 import remarkGfm from "remark-gfm";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
-import { toLocalFileUrl } from "@/shared/promptContent";
+import {
+  resolveMarkdownImageUrl,
+  rewriteMarkdownLocalImageUrls,
+} from "@/shared/markdownLocalImages";
+import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
+import { getProjectFsPath } from "@/shared/wsl";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { CodeBlock } from "./CodeBlock";
 import { CopyTextButton } from "./CopyTextButton";
+import { ImageCard } from "./ImageCard";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
 import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
-import { chatInlineImageClass } from "./chatImageClass";
+import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
 import {
@@ -47,11 +53,15 @@ type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugin
 // (e.g. `https://sent`) routinely trip it, producing a "[blocked]" flash on
 // otherwise valid URLs. We control external opens through `MdAnchor` and gate
 // file/folder hrefs there too, so harden is redundant here.
-const REHYPE_PLUGINS: RehypePlugins = Object.entries(defaultRehypePlugins)
-  .filter(([key]) => key !== "harden")
-  .flatMap(([key, plugin]) =>
-    key === "sanitize" ? [rehypeLocalImageUrls, allowLocalImageProtocol(plugin)] : [plugin],
-  );
+function buildRehypePlugins(remoteLocalImageUrl?: (url: string) => string): RehypePlugins {
+  return Object.entries(defaultRehypePlugins)
+    .filter(([key]) => key !== "harden")
+    .flatMap(([key, plugin]) =>
+      key === "sanitize"
+        ? [[rehypeLocalImageUrls, { remoteLocalImageUrl }], allowLocalImageProtocol(plugin)]
+        : [plugin],
+    ) as RehypePlugins;
+}
 
 interface ItemMarkdownInnerProps {
   text: string;
@@ -66,6 +76,10 @@ interface ItemMarkdownInnerProps {
 export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
   const actions = useChatPaneActions();
   const rootNames = actions?.projectRootNames;
+  const rehypePlugins = useMemo(
+    () => buildRehypePlugins(actions?.remoteLocalImageUrl),
+    [actions?.remoteLocalImageUrl],
+  );
   // Escape the React Compiler: the plugin tuple captures `rootNames`, which
   // the compiler conservatively re-creates each render. Streaming chats
   // re-render on every chunk, so anchor the array to `rootNames` identity.
@@ -91,14 +105,24 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     ],
     [actions, rootNames],
   );
-  const markdownText = normalizeIncompleteProjectLinkTail(
-    normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(text)),
+  const projectRoot = actions?.projectLocation
+    ? getProjectFsPath(actions.projectLocation)
+    : undefined;
+  const extraRoots = actions?.markdownImageRoots;
+  const markdownText = rewriteMarkdownLocalImageUrls(
+    normalizeIncompleteProjectLinkTail(
+      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(text)),
+    ),
+    {
+      ...(projectRoot ? { projectRoot } : {}),
+      ...(extraRoots?.length ? { extraRoots } : {}),
+    },
   );
   return (
     <div className="lc-chat-markdown prose max-w-none text-[length:var(--lc-chat-font-size)] leading-snug text-foreground prose-headings:text-[length:var(--lc-chat-font-size)] prose-p:text-[length:var(--lc-chat-font-size)] prose-p:whitespace-pre-wrap prose-li:text-[length:var(--lc-chat-font-size)] prose-pre:my-2 prose-pre:rounded prose-pre:border-0 prose-pre:bg-foreground/10 prose-pre:px-[0.5em] prose-pre:py-[0.25em] prose-pre:font-mono prose-pre:text-[0.875em] prose-pre:leading-snug prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:overflow-x-hidden prose-code:before:content-none prose-code:after:content-none prose-a:text-foreground prose-a:no-underline prose-a:text-[length:inherit] hover:prose-a:underline hover:prose-a:decoration-1 prose-a:underline-offset-2">
       <Streamdown
         remarkPlugins={remarkPlugins}
-        rehypePlugins={REHYPE_PLUGINS}
+        rehypePlugins={rehypePlugins}
         components={MD_COMPONENTS}
         urlTransform={transformMarkdownUrl}
         parseIncompleteMarkdown
@@ -148,14 +172,19 @@ const MD_COMPONENTS: StreamdownComponents = {
   a({ href, children }) {
     return <MdAnchor href={href ?? ""}>{children}</MdAnchor>;
   },
-  img({ alt, className, ...rest }) {
+  img({ alt, className, src, width, height }) {
+    if (typeof src !== "string" || src.length === 0) return null;
     return (
-      <img
-        {...rest}
-        alt={alt ?? ""}
-        className={className ? `${markdownImageClass} ${className}` : markdownImageClass}
-        decoding="async"
-        draggable={false}
+      <ImageCard
+        source={imageViewSourceFromMarkdownImage({
+          src,
+          alt: alt ?? "",
+          width,
+          height,
+        })}
+        className="not-prose my-2"
+        isBlock
+        {...(className ? { imageClassName: className } : {})}
       />
     );
   },
@@ -197,8 +226,6 @@ const inlineCodeChipClass =
   "rounded border-0 bg-foreground/10 px-[0.35em] py-[0.1em] font-mono text-[0.875em] leading-none align-baseline text-foreground [overflow-wrap:anywhere]";
 const markdownCodeBlockClass =
   "not-prose my-2 min-w-0 overflow-x-hidden rounded bg-foreground/10 px-[0.5em] py-[0.25em] font-mono text-[0.875em] leading-snug text-foreground";
-const markdownImageClass = `not-prose my-2 rounded-lg border border-[color:var(--border)] bg-[var(--composer-surface)] ${chatInlineImageClass}`;
-
 const transformMarkdownUrl: UrlTransform = (url, key, node) =>
   key === "src" && node.tagName === "img" && url.startsWith("poracode-local://")
     ? url
@@ -210,18 +237,32 @@ interface MarkdownHastNode {
   children?: MarkdownHastNode[];
 }
 
-function rehypeLocalImageUrls() {
+function rehypeLocalImageUrls(options?: { remoteLocalImageUrl?: (url: string) => string }) {
   return (tree: MarkdownHastNode) => {
-    rewriteLocalImageUrls(tree);
+    rewriteLocalImageUrls(tree, options?.remoteLocalImageUrl);
   };
 }
 
-function rewriteLocalImageUrls(node: MarkdownHastNode): void {
+function rewriteLocalImageUrls(
+  node: MarkdownHastNode,
+  remoteLocalImageUrl?: (url: string) => string,
+): void {
   const src = node.properties?.src;
-  if (node.tagName === "img" && typeof src === "string" && /^[A-Za-z]:[\\/]/.test(src)) {
-    node.properties!.src = toLocalFileUrl(src);
+  // Fallback for absolute paths that skip the pre-parse rewrite (e.g. HTML
+  // <img>). Relative project paths need projectRoot and are handled only there.
+  if (node.tagName === "img" && typeof src === "string") {
+    const rewritten = resolveMarkdownImageUrl(src);
+    if (rewritten) node.properties!.src = rewritten;
+    // Remote PWA: swap poracode-local sources for the desktop's authenticated
+    // HTTP image endpoint. A no-op inside the desktop Electron app, which
+    // never installs a resolver (see shared/localImageDisplay.ts).
+    const localUrl = node.properties!.src as string;
+    node.properties!.src =
+      localUrl.startsWith("poracode-local://") && remoteLocalImageUrl
+        ? remoteLocalImageUrl(localUrl) || localUrl
+        : resolveLocalImageDisplayUrl(localUrl);
   }
-  node.children?.forEach(rewriteLocalImageUrls);
+  node.children?.forEach((child) => rewriteLocalImageUrls(child, remoteLocalImageUrl));
 }
 
 function allowLocalImageProtocol(plugin: RehypePlugins[number]): RehypePlugins[number] {
@@ -388,12 +429,14 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
         <button
           type="button"
           className="inline cursor-pointer rounded border-0 bg-foreground/10 px-[0.35em] py-[0.1em] font-mono text-[0.875em] leading-none align-baseline text-accent underline-offset-2 [overflow-wrap:anywhere] hover:bg-foreground/15 hover:underline"
-          onClick={() =>
-            actions.openProjectRelativePath(
-              normalizeChatProjectPath(ref.path, actions.projectLocation),
-              ref.line,
-            )
-          }
+          onClick={() => {
+            void actions
+              .openProjectRelativePath(
+                normalizeChatProjectPath(ref.path, actions.projectLocation),
+                ref.line,
+              )
+              .catch(() => {});
+          }}
         >
           {props.children}
         </button>

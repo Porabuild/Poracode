@@ -4,6 +4,7 @@ import {
   ArrowRightLeft,
   CircleCheck,
   Columns2,
+  FlaskConical,
   GitFork,
   Pencil,
   Play,
@@ -14,6 +15,7 @@ import {
 import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingThread, type DragSourceData } from "@/renderer/dnd";
@@ -78,6 +80,10 @@ export function SortableThreadItem(props: {
     sortDisabled = false,
   } = props;
   const { t } = useLingui();
+  const experiment = useExperimentStore((state) =>
+    thread.groupId ? state.experiments[thread.groupId] : undefined,
+  );
+  const isExperimentCandidate = experiment !== undefined;
   const isCurrentThread = useIsCurrentThread(thread.id);
   const hasDraft = useThreadHasDraft(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
@@ -98,8 +104,11 @@ export function SortableThreadItem(props: {
     id: `thread:${thread.id}`,
     index: props.threadIndex,
     type: "thread",
-    accept: sortDisabled ? [] : ["thread", "worktree-group"],
+    accept: sortDisabled || isExperimentCandidate ? [] : ["thread", "worktree-group"],
     group: props.group,
+    // Automatic sort modes only disable reordering within the sidebar. Keep
+    // ordinary threads draggable so they can still be dropped onto a pane.
+    disabled: isExperimentCandidate,
     data: {
       type: "thread",
       threadId: thread.id,
@@ -119,7 +128,7 @@ export function SortableThreadItem(props: {
     <div ref={ref} className="relative w-full pb-0.5">
       <ContextMenu
         items={[
-          ...(thread.worktreePath
+          ...(thread.worktreePath && !isExperimentCandidate
             ? [
                 {
                   id: "new-thread-in-worktree",
@@ -155,6 +164,15 @@ export function SortableThreadItem(props: {
             label: t`Rename`,
             icon: <Pencil className="size-3.5" />,
           },
+          ...(experiment
+            ? [
+                {
+                  id: "open-experiment",
+                  label: t`Open experiment board`,
+                  icon: <FlaskConical className="size-3.5" />,
+                },
+              ]
+            : []),
           {
             id: "unload",
             label: t`Unload Thread`,
@@ -162,33 +180,41 @@ export function SortableThreadItem(props: {
             isDisabled: unloadDisabledReason !== undefined,
             ...(unloadDisabledReason ? { disabledReason: unloadDisabledReason } : {}),
           },
-          {
-            id: "mark-done",
-            label: thread.done ? t`Unmark Done` : t`Mark Done`,
-            icon: <CircleCheck className="size-3.5" />,
-          },
+          ...(!isExperimentCandidate
+            ? [
+                {
+                  id: "mark-done",
+                  label: thread.done ? t`Unmark Done` : t`Mark Done`,
+                  icon: <CircleCheck className="size-3.5" />,
+                },
+              ]
+            : []),
           {
             id: "toggle-star",
             label: thread.starred ? t`Unpin` : t`Pin to top`,
             icon: <Star className="size-3.5" />,
           },
-          {
-            id: "continue-in",
-            label: t`Continue in...`,
-            icon: <ArrowRightLeft className="size-3.5" />,
-            isDisabled:
-              !thread.sessionRef ||
-              projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0,
-            ...(!thread.sessionRef ||
-            projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0
-              ? {
-                  disabledReason: !thread.sessionRef
-                    ? t`No active session`
-                    : t`No other agents installed`,
-                }
-              : {}),
-          },
-          ...(thread.groupId
+          ...(!isExperimentCandidate
+            ? [
+                {
+                  id: "continue-in",
+                  label: t`Continue in...`,
+                  icon: <ArrowRightLeft className="size-3.5" />,
+                  isDisabled:
+                    !thread.sessionRef ||
+                    projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0,
+                  ...(!thread.sessionRef ||
+                  projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0
+                    ? {
+                        disabledReason: !thread.sessionRef
+                          ? t`No active session`
+                          : t`No other agents installed`,
+                      }
+                    : {}),
+                },
+              ]
+            : []),
+          ...(thread.groupId && !isExperimentCandidate
             ? [
                 {
                   id: "ungroup",
@@ -205,19 +231,23 @@ export function SortableThreadItem(props: {
                 },
               ]
             : []),
-          { type: "separator" as const },
-          {
-            id: "archive",
-            label: t`Archive Thread`,
-            icon: <Archive className="size-3.5" />,
-            variant: "warning",
-          },
-          {
-            id: "delete",
-            label: t`Delete Thread`,
-            icon: <Trash2 className="size-3.5" />,
-            variant: "danger",
-          },
+          ...(!isExperimentCandidate
+            ? [
+                { type: "separator" as const },
+                {
+                  id: "archive",
+                  label: t`Archive Thread`,
+                  icon: <Archive className="size-3.5" />,
+                  variant: "warning" as const,
+                },
+                {
+                  id: "delete",
+                  label: t`Delete Thread`,
+                  icon: <Trash2 className="size-3.5" />,
+                  variant: "danger" as const,
+                },
+              ]
+            : []),
         ]}
         onAction={(key) => {
           if (key === "new-thread-in-worktree" && thread.worktreePath)
@@ -231,7 +261,7 @@ export function SortableThreadItem(props: {
                   thread.worktreeBranch,
                 ) ?? thread.worktreePath,
             });
-          if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath);
+          if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath, thread.id);
           if (key === "git-sync" && thread.worktreePath)
             gitSync(thread.projectId, thread.worktreePath);
           if (key === "git-push" && thread.worktreePath)
@@ -248,8 +278,10 @@ export function SortableThreadItem(props: {
             const pr = useGitStore.getState().prData[thread.worktreePath];
             if (pr?.url) void readBridge().openExternal(pr.url);
           }
-          if (key === "create-pr") openGitReview(thread.projectId, thread.worktreePath);
-          if (key === "continue-in") continueInProvider(thread.id);
+          if (key === "create-pr") openGitReview(thread.projectId, thread.worktreePath, thread.id);
+          if (key === "open-experiment" && experiment)
+            useAppStore.getState().openExperiment(experiment.id, experiment.projectId);
+          if (key === "continue-in" && !isExperimentCandidate) continueInProvider(thread.id);
           if (key === "group-open-threads") {
             const state = useAppStore.getState();
             if (state.view.kind !== "thread") return;
@@ -291,12 +323,13 @@ export function SortableThreadItem(props: {
               return { threads: updatedThreads, view };
             });
           }
-          if (key === "archive") archiveThread(thread.id);
+          if (key === "archive" && !isExperimentCandidate) archiveThread(thread.id);
           if (key === "rename") props.setEditingThreadId(thread.id);
           if (key === "unload") unloadThread(thread.id);
           if (key === "mark-done") toggleMarkThreadDone(thread.id);
           if (key === "toggle-star") toggleStarThread(thread.id);
-          if (key === "delete") deleteThread(thread.id, thread.worktreePath, thread.projectId);
+          if (key === "delete" && !isExperimentCandidate)
+            deleteThread(thread.id, thread.worktreePath, thread.projectId);
           if (key.startsWith("action:")) {
             runProjectAction(project.id, key.slice("action:".length), thread.worktreePath);
           }
@@ -341,6 +374,7 @@ export function SortableThreadItem(props: {
               thread={thread}
               showWorktreeBadge={showWorktreeBadge}
               showWorktreeFilesButton={showWorktreeFilesButton}
+              isExperimentCandidate={isExperimentCandidate}
             />
           }
         />

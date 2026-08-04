@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectScripts } from "@/shared/contracts";
-import { useAppStore } from "@/renderer/state/appStore";
+import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { useProject } from "@/renderer/state/useThread";
 import { TextArea } from "@/renderer/components/common";
 import { parseCopyPatterns } from "@/shared/worktree";
@@ -10,7 +10,6 @@ import { ProjectWorktreeLocation } from "./ProjectWorktreeLocation";
 export function ScriptsSection(props: { projectId: string }) {
   const { t } = useLingui();
   const project = useProject(props.projectId);
-  const updateProjectScripts = useAppStore((s) => s.updateProjectScripts);
 
   const scripts = project?.scripts ?? { actions: [] };
   const [setupScript, setSetupScript] = useState(scripts.setupScript ?? "");

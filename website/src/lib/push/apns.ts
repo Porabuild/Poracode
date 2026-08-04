@@ -2,7 +2,7 @@ import http2 from "node:http2";
 import type { ApnsConfig } from "./config";
 import { buildApnsHeaders, parseApnsReason } from "./headers";
 import { getProviderToken } from "./jwt";
-import type { PushRequest } from "./validate";
+import type { IosPushRequest } from "./validate";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -58,7 +58,7 @@ function getSession(host: string): http2.ClientHttp2Session {
  */
 export async function sendToApns(
   config: ApnsConfig,
-  req: PushRequest,
+  req: IosPushRequest,
   deps: {
     signToken?: (c: ApnsConfig) => string;
     getSessionFor?: (host: string) => http2.ClientHttp2Session;

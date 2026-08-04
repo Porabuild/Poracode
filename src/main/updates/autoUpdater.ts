@@ -2,6 +2,13 @@ import { autoUpdater } from "electron-updater";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { UpdateStatus } from "@/shared/ipc";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
+import {
+  buildUpdateDiagnosticTags,
+  classifyUpdateFailure,
+  UpdateDiagnosticError,
+  type UpdateFailureKind,
+  type UpdateOperation,
+} from "./updateErrorPolicy";
 
 /**
  * Delay before the first update check once the app is ready. Matches VS Code's
@@ -15,6 +22,8 @@ const INITIAL_CHECK_DELAY_MS = 30_000;
  * long-lived window still discovers releases without ever being restarted.
  */
 const PERIODIC_CHECK_INTERVAL_MS = 60 * 60 * 1_000;
+const TRANSIENT_RETRY_DELAYS_MS = [500, 1_000] as const;
+const TRANSIENT_REPORT_COOLDOWN_MS = 6 * 60 * 60 * 1_000;
 
 export interface AutoUpdaterController {
   initialize(): void;
@@ -38,6 +47,108 @@ export function createAutoUpdaterController(
   // until the user restarts to apply it.
   let updateReady = false;
   let periodicTimer: ReturnType<typeof setInterval> | null = null;
+  let checkPromise: Promise<void> | null = null;
+  let downloadPromise: Promise<void> | null = null;
+  let updateAvailable = false;
+  let activeAttempt: { operation: UpdateOperation; eventError: unknown | null } | null = null;
+  const transientReportTimes = new Map<string, number>();
+
+  function reportClassifiedFailure(operation: UpdateOperation, outcome: UpdateFailureKind): void {
+    if (outcome === "optional-manifest-missing") {
+      console.warn("[poracode] optional nightly update manifest is not available.");
+      return;
+    }
+    if (outcome === "transient-network") {
+      const key = `${operation}:${outcome}`;
+      const now = Date.now();
+      const lastReportAt = transientReportTimes.get(key);
+      if (lastReportAt !== undefined && now - lastReportAt < TRANSIENT_REPORT_COOLDOWN_MS) {
+        return;
+      }
+      transientReportTimes.set(key, now);
+      console.warn(`[poracode] updater ${operation} transient failure after retries.`);
+      return;
+    }
+    reportError(
+      new UpdateDiagnosticError(operation, outcome),
+      buildUpdateDiagnosticTags(channel, operation, outcome),
+    );
+  }
+
+  async function runOperation(
+    operation: UpdateOperation,
+    invoke: () => Promise<unknown>,
+  ): Promise<void> {
+    for (let attempt = 0; ; attempt += 1) {
+      const attemptState = { operation, eventError: null as unknown | null };
+      activeAttempt = attemptState;
+      try {
+        await invoke();
+        if (attemptState.eventError) {
+          throw attemptState.eventError instanceof Error
+            ? attemptState.eventError
+            : new Error("Updater emitted a non-Error failure.");
+        }
+        return;
+      } catch (error) {
+        const failure = classifyUpdateFailure(attemptState.eventError ?? error, operation, channel);
+        const retryDelay = TRANSIENT_RETRY_DELAYS_MS[attempt];
+        if (failure.retryable && retryDelay !== undefined) {
+          if (activeAttempt === attemptState) activeAttempt = null;
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          continue;
+        }
+        reportClassifiedFailure(operation, failure.kind);
+        if (failure.kind === "optional-manifest-missing") {
+          sendStatus({ type: "update-not-available" });
+          return;
+        }
+        sendStatus({
+          type: "error",
+          messageKey:
+            failure.kind === "transient-network"
+              ? "update.serviceUnavailable"
+              : "update.operationFailed",
+        });
+        throw error;
+      } finally {
+        if (activeAttempt === attemptState) {
+          activeAttempt = null;
+        }
+      }
+    }
+  }
+
+  function beginDownload(): Promise<void> {
+    if (downloadPromise) return downloadPromise;
+    checkInFlight = true;
+    downloadPromise = runOperation("download", () => autoUpdater.downloadUpdate()).finally(() => {
+      downloadPromise = null;
+      if (!updateReady) checkInFlight = false;
+    });
+    return downloadPromise;
+  }
+
+  function beginCheck(): Promise<void> {
+    if (checkPromise) return checkPromise;
+    checkInFlight = true;
+    updateAvailable = false;
+    checkPromise = runOperation("check", () => autoUpdater.checkForUpdates())
+      .then(() => {
+        if (updateAvailable && !updateReady) {
+          void beginDownload().catch(() => {});
+        } else {
+          checkInFlight = false;
+        }
+      })
+      .catch(() => {
+        checkInFlight = false;
+      })
+      .finally(() => {
+        checkPromise = null;
+      });
+    return checkPromise;
+  }
 
   // Fire a background check, but only when the updater is otherwise idle. Used
   // by both the initial launch check and the recurring interval.
@@ -45,11 +156,7 @@ export function createAutoUpdaterController(
     if (checkInFlight || updateReady) {
       return;
     }
-    checkInFlight = true;
-    void autoUpdater.checkForUpdates().catch((error: unknown) => {
-      checkInFlight = false;
-      reportError(error, { "poracode.feature_area": "updates" });
-    });
+    void beginCheck();
   }
 
   function initialize(): void {
@@ -58,8 +165,14 @@ export function createAutoUpdaterController(
     }
     initialized = true;
 
-    autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = false;
+    // Keep downloads automatic from the user's perspective, while invoking
+    // downloadUpdate ourselves so transient retries and final reporting belong
+    // to one typed operation instead of the updater's global error event.
+    autoUpdater.autoDownload = false;
+    // A renderer stuck during hydration cannot reach the normal install
+    // button. Once an update is downloaded, Cmd/Ctrl+Q still provides a
+    // main-process-owned recovery path that applies it on quit.
+    autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.forceDevUpdateConfig = Boolean(process.env.UPDATE_SERVER_URL);
 
     if (channel === "nightly") {
@@ -79,7 +192,7 @@ export function createAutoUpdaterController(
       sendStatus({ type: "checking" });
     });
     autoUpdater.on("update-available", (info) => {
-      // A download starts automatically (autoDownload), so stay "in flight".
+      updateAvailable = true;
       checkInFlight = true;
       sendStatus({ type: "update-available", version: info.version });
     });
@@ -103,9 +216,25 @@ export function createAutoUpdaterController(
       sendStatus({ type: "downloaded", version: info.version });
     });
     autoUpdater.on("error", (error) => {
+      if (activeAttempt) {
+        activeAttempt.eventError = error;
+        return;
+      }
+      const operation: UpdateOperation = downloadPromise ? "download" : "check";
+      const failure = classifyUpdateFailure(error, operation, channel);
+      reportClassifiedFailure(operation, failure.kind);
       checkInFlight = false;
-      reportError(error, { "poracode.feature_area": "updates" });
-      sendStatus({ type: "error", message: error.message });
+      if (failure.kind === "optional-manifest-missing") {
+        sendStatus({ type: "update-not-available" });
+      } else {
+        sendStatus({
+          type: "error",
+          messageKey:
+            failure.kind === "transient-network"
+              ? "update.serviceUnavailable"
+              : "update.operationFailed",
+        });
+      }
     });
 
     // First check ~30s after launch, then keep checking hourly so an app that
@@ -119,35 +248,19 @@ export function createAutoUpdaterController(
 
   async function checkForUpdate(): Promise<void> {
     if (isDev && !process.env.UPDATE_SERVER_URL) {
-      sendStatus({ type: "error", message: "Update check is not available in dev mode." });
+      sendStatus({ type: "error", messageKey: "update.devUnavailable" });
       return;
     }
     try {
-      await autoUpdater.checkForUpdates();
+      await beginCheck();
     } catch {
-      // checkForUpdates() rejects on any check failure — most commonly a
-      // freshly-published release whose channel manifest (e.g. nightly-mac.yml)
-      // hasn't finished uploading yet, which 404s and then falls back to a
-      // 404 on latest-mac.yml. electron-updater emits an "error" event before
-      // this promise rejects, and the listener registered in initialize()
-      // already reports it (reportError) and surfaces it to the UI (sendStatus
-      // error → toast). Swallow the rejection here so this IPC never rejects:
-      // the renderer invokes it fire-and-forget, where an unhandled rejection
-      // is escalated into a fatal full-screen crash. This mirrors the
-      // .catch() guard on the background runScheduledCheck path.
+      // beginCheck owns classification, reporting, and UI status. Keep this IPC
+      // resolved because the renderer invokes it fire-and-forget.
     }
   }
 
   async function startUpdateDownload(): Promise<void> {
-    try {
-      await autoUpdater.downloadUpdate();
-    } catch (error: unknown) {
-      if ((error as NodeJS.ErrnoException).code === "EPIPE") {
-        return;
-      }
-      reportError(error, { "poracode.feature_area": "updates" });
-      throw error;
-    }
+    await beginDownload();
   }
 
   function installUpdate(): void {

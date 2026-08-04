@@ -165,8 +165,6 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
           {
             id: "memory-id",
             name: "memory",
-            description: "",
-            enabled: true,
             timeoutMs: 30_000,
             transport: { type: "stdio", command: "memory-server", args: [], env: {} },
           },
@@ -259,5 +257,14 @@ describe("createGeminiAdapter hook plugin support", () => {
         attention: "none",
       }),
     ).toBe(false);
+  });
+});
+
+describe("createGeminiAdapter skill roots", () => {
+  it("declares Gemini's native shared .agents root", () => {
+    const support = createGeminiAdapter().skillSupport;
+
+    expect(support?.roots.map((root) => root.id)).toEqual(["gemini", "agents"]);
+    expect(support?.projectionRoots).toBeUndefined();
   });
 });

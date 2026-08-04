@@ -1,8 +1,9 @@
 import { createContext, useContext } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
+import type { RemoteImageRefValue } from "@/shared/remote";
 
 export type ChatPaneActions = {
-  openProjectRelativePath: (path: string, lineNumber?: number) => void;
+  openProjectRelativePath: (path: string, lineNumber?: number) => Promise<void>;
   /** Open the in-app file editor overlay and expand the project tree to the folder. */
   revealProjectFolderInTree: (path: string) => void;
   /** Reveal a file or folder in the OS file explorer (Finder/Explorer/Nautilus). */
@@ -27,6 +28,15 @@ export type ChatPaneActions = {
    * Omitted for remote chats where the desktop client has no local tree cache.
    */
   projectRootNames?: ReadonlySet<string> | undefined;
+  /**
+   * Extra filesystem roots for relative markdown images (e.g. Grok session
+   * dir so `images/1.jpg` from image_gen resolves under ~/.grok/sessions/…).
+   */
+  markdownImageRoots?: readonly string[] | undefined;
+  /** Resolve an image held on a remote project's host. */
+  remoteLocalImageUrl?: ((url: string) => string) | undefined;
+  /** Resolve an inline-image reference held in a remote host's transcript. */
+  remoteImageRefUrl?: ((ref: RemoteImageRefValue) => string) | undefined;
 };
 
 export const ChatPaneActionsContext = createContext<ChatPaneActions | null>(null);

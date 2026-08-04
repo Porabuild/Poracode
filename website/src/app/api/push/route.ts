@@ -1,9 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ApnsUnreachableError, sendToApns } from "@/lib/push/apns";
-import { getApnsConfig, getFcmConfig } from "@/lib/push/config";
+import { getApnsConfig, getFcmConfig, getWebPushConfig } from "@/lib/push/config";
 import { FcmUnreachableError, sendToFcm } from "@/lib/push/fcm";
 import { ipLimiter, tokenLimiter } from "@/lib/push/rateLimit";
-import { parsePushRequest, type PushRequest } from "@/lib/push/validate";
+import {
+  parsePushRequest,
+  type AndroidPushRequest,
+  type IosPushRequest,
+  type WebPushRequest,
+} from "@/lib/push/validate";
+import { sendToWebPush } from "@/lib/push/webPush";
 
 // http2 (node:http2) is unavailable on the edge runtime — force Node.js.
 export const runtime = "nodejs";
@@ -42,18 +48,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid_request", detail: parsed.error }, { status: 400 });
   }
 
-  if (!tokenLimiter.hit(parsed.value.token)) {
+  const deliveryKey =
+    parsed.value.platform === "web" ? parsed.value.subscription.endpoint : parsed.value.token;
+  if (!tokenLimiter.hit(deliveryKey)) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 
   // Config is resolved per-platform so an iOS-only (or Android-only) deployment
   // keeps serving its platform without the other provider's env being present.
-  return parsed.value.platform === "android"
-    ? handleAndroid(parsed.value)
-    : handleIos(parsed.value);
+  switch (parsed.value.platform) {
+    case "android":
+      return handleAndroid(parsed.value);
+    case "web":
+      return handleWeb(parsed.value);
+    case "ios":
+      return handleIos(parsed.value);
+  }
 }
 
-async function handleIos(req: PushRequest) {
+async function handleIos(req: IosPushRequest) {
   const config = getApnsConfig();
   if (!config) {
     return NextResponse.json({ error: "gateway_not_configured" }, { status: 503 });
@@ -78,7 +91,7 @@ async function handleIos(req: PushRequest) {
   }
 }
 
-async function handleAndroid(req: PushRequest) {
+async function handleAndroid(req: AndroidPushRequest) {
   const config = getFcmConfig();
   if (!config) {
     return NextResponse.json({ error: "gateway_not_configured" }, { status: 503 });
@@ -103,10 +116,43 @@ async function handleAndroid(req: PushRequest) {
   }
 }
 
-const methodNotAllowed = () =>
-  NextResponse.json({ error: "method_not_allowed" }, { status: 405, headers: { Allow: "POST" } });
+async function handleWeb(req: WebPushRequest) {
+  const config = getWebPushConfig();
+  if (!config) {
+    return NextResponse.json({ error: "gateway_not_configured" }, { status: 503 });
+  }
 
-export const GET = methodNotAllowed;
+  try {
+    const result = await sendToWebPush(config, req);
+    return NextResponse.json(
+      { status: result.status, ...(result.reason ? { reason: result.reason } : {}) },
+      { status: result.status || 502 },
+    );
+  } catch {
+    return NextResponse.json({ error: "web_push_unreachable" }, { status: 502 });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  if (!ipLimiter.hit(clientIp(request))) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
+  const config = getWebPushConfig();
+  if (!config) {
+    return NextResponse.json({ error: "gateway_not_configured" }, { status: 503 });
+  }
+  return NextResponse.json(
+    { publicKey: config.publicKey },
+    { headers: { "cache-control": "public, max-age=300" } },
+  );
+}
+
+const methodNotAllowed = () =>
+  NextResponse.json(
+    { error: "method_not_allowed" },
+    { status: 405, headers: { Allow: "GET, POST" } },
+  );
+
 export const PUT = methodNotAllowed;
 export const PATCH = methodNotAllowed;
 export const DELETE = methodNotAllowed;

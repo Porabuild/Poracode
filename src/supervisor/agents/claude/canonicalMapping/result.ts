@@ -59,21 +59,12 @@ export function extractResultErrorMessage(message: SDKMessage): string | undefin
   return undefined;
 }
 
-export function readClaudeResultUsage(
-  message: Extract<SDKMessage, { type: "result" }>,
-): number | undefined {
-  const usage = (message as { usage?: unknown }).usage;
-  return readClaudeUsageSpendTokens(usage, { fallbackToTotalTokens: true });
-}
-
+/**
+ * One API call's token spend: input + output + cache creation + cache read.
+ * Used for per-assistant-message usage — never for the turn `result`, whose
+ * usage the CLI reports as a session-cumulative counter.
+ */
 export function readClaudeApiUsageSpendTokens(usage: unknown): number | undefined {
-  return readClaudeUsageSpendTokens(usage, { fallbackToTotalTokens: false });
-}
-
-function readClaudeUsageSpendTokens(
-  usage: unknown,
-  options: { fallbackToTotalTokens: boolean },
-): number | undefined {
   if (!usage || typeof usage !== "object") return undefined;
   const record = usage as Record<string, unknown>;
   const input = readNonNegativeInteger(record.input_tokens) ?? 0;
@@ -81,8 +72,7 @@ function readClaudeUsageSpendTokens(
   const cacheCreation = readNonNegativeInteger(record.cache_creation_input_tokens) ?? 0;
   const cacheRead = readNonNegativeInteger(record.cache_read_input_tokens) ?? 0;
   const sum = input + output + cacheCreation + cacheRead;
-  if (sum > 0) return sum;
-  return options.fallbackToTotalTokens ? readNonNegativeInteger(record.total_tokens) : undefined;
+  return sum > 0 ? sum : undefined;
 }
 
 export function mapResultState(message: Extract<SDKMessage, { type: "result" }>): TurnState {

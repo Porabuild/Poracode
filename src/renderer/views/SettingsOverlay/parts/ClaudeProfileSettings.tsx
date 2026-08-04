@@ -35,7 +35,9 @@ import {
   defaultConfigDir,
   effortsConfigFromSelection,
   environmentFromRows,
+  modelEffortsFromRows,
   modelsFromConfig,
+  toggleEffortTier,
   profileUsesExternalProvider,
   PROFILE_PRESETS,
   rowsFromEnvironment,
@@ -55,6 +57,7 @@ const CLAUDE_PROFILE_BASE_MODEL_IDS = [
   "sonnet",
   "haiku",
 ];
+const EMPTY_EFFORT_SELECTION = new Set<string>();
 
 function refreshClaudeProfile(kind?: string): void {
   window.setTimeout(() => {
@@ -70,12 +73,21 @@ function refreshClaudeProfile(kind?: string): void {
 
 // ── Effort multiselect dropdown ──────────────────────────────────────────────
 
-function EffortMultiSelect(props: { selected: Set<string>; onToggle: (tier: string) => void }) {
+function EffortMultiSelect(props: {
+  selected: ReadonlySet<string>;
+  onToggle: (tier: string) => void;
+  tiers?: readonly string[];
+  inherited?: boolean;
+  onInherit?: () => void;
+  ariaLabel?: string;
+}) {
   const { t } = useLingui();
   const [isOpen, setIsOpen] = useState(false);
-  const selectedTiers = CLAUDE_EFFORT_TIERS.filter((tier) => props.selected.has(tier));
-  const summary =
-    selectedTiers.length === CLAUDE_EFFORT_TIERS.length
+  const tiers = props.tiers ?? CLAUDE_EFFORT_TIERS;
+  const selectedTiers = tiers.filter((tier) => props.selected.has(tier));
+  const summary = props.inherited
+    ? t`Inherit global`
+    : selectedTiers.length === tiers.length
       ? t`All efforts`
       : selectedTiers.length === 0
         ? t`None`
@@ -87,10 +99,10 @@ function EffortMultiSelect(props: { selected: Set<string>; onToggle: (tier: stri
         <Button
           variant="secondary"
           size="sm"
-          aria-label={t`Effort levels`}
+          aria-label={props.ariaLabel ?? t`Effort levels`}
           className="h-7 min-h-7 w-full justify-between gap-2 px-2 text-[11px] font-normal"
         >
-          <span className="truncate">{summary}</span>
+          <span className="truncate text-foreground">{summary}</span>
           <ChevronDown className="size-3.5 shrink-0 text-muted" />
         </Button>
       </Popover.Trigger>
@@ -102,7 +114,19 @@ function EffortMultiSelect(props: { selected: Set<string>; onToggle: (tier: stri
             aria-multiselectable="true"
             className="poracode-menu py-1"
           >
-            {CLAUDE_EFFORT_TIERS.map((tier) => {
+            {props.onInherit ? (
+              <button
+                type="button"
+                role="option"
+                aria-selected={props.inherited === true}
+                className="flex w-full items-center justify-between gap-2 border-b border-border/10 px-3 py-1.5 text-sm text-foreground hover:bg-surface-secondary/50"
+                onClick={props.onInherit}
+              >
+                <Trans>Inherit global</Trans>
+                {props.inherited ? <Check className="size-3.5" /> : null}
+              </button>
+            ) : null}
+            {tiers.map((tier) => {
               const active = props.selected.has(tier);
               const tierLabel = formatEffortLabel(tier);
               return (
@@ -112,7 +136,11 @@ function EffortMultiSelect(props: { selected: Set<string>; onToggle: (tier: stri
                   role="option"
                   aria-selected={active}
                   aria-label={
-                    active ? t`Disable ${tierLabel} effort` : t`Enable ${tierLabel} effort`
+                    props.onInherit
+                      ? tierLabel
+                      : active
+                        ? t`Disable ${tierLabel} effort`
+                        : t`Enable ${tierLabel} effort`
                   }
                   className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-surface-secondary/50"
                   onClick={() => props.onToggle(tier)}
@@ -166,7 +194,7 @@ function PresetMenu(props: { onApply: (preset: ProfilePreset) => void }) {
                   setIsOpen(false);
                 }}
               >
-                {preset.label}
+                {t(preset.label)}
               </button>
             ))}
           </div>
@@ -223,7 +251,7 @@ function ClaudeProfileEditor(props: {
     rowsFromEnvironment(props.instance.environment, nextRowId),
   );
   const [modelRows, setModelRows] = useState<ModelRow[]>(() =>
-    modelsFromConfig(props.config.models, nextRowId),
+    modelsFromConfig(props.config.models, props.config.modelEfforts, nextRowId),
   );
   const [selectedEfforts, setSelectedEfforts] = useState<Set<string>>(() =>
     selectedEffortsFromConfig(props.config.efforts),
@@ -234,6 +262,9 @@ function ClaudeProfileEditor(props: {
   const trimmedName = name.trim();
   const trimmedConfigDir = configDir.trim();
   const canSave = trimmedName.length > 0 && trimmedConfigDir.length > 0 && !saving;
+  // Per-model effort pickers only offer tiers enabled at the profile level. This
+  // is invariant across rows, so compute it once instead of inside the row map.
+  const allowedTiers = CLAUDE_EFFORT_TIERS.filter((tier) => selectedEfforts.has(tier));
 
   const updateEnvRow = (rowId: string, patch: Partial<EnvRow>) =>
     setEnvRows((rows) => rows.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row)));
@@ -247,13 +278,7 @@ function ClaudeProfileEditor(props: {
   // Applying a preset seeds the editor and persists picker models so the shared
   // "Visible models" section can refresh immediately.
   const applyPreset = (preset: ProfilePreset) => {
-    const nextModelRows = (() => {
-      const existing = new Set(modelRows.map((row) => row.id.trim()));
-      const additions = preset.models
-        .filter((model) => !existing.has(model.id))
-        .map((model) => ({ rowId: nextRowId(), id: model.id, label: model.label }));
-      return additions.length > 0 ? [...modelRows, ...additions] : modelRows;
-    })();
+    const nextModelRows = modelsFromConfig(preset.models, preset.modelEfforts, nextRowId);
     const nextEfforts = new Set(preset.efforts);
     const models = cleanModels(nextModelRows);
     const efforts = effortsConfigFromSelection(nextEfforts);
@@ -265,8 +290,20 @@ function ClaudeProfileEditor(props: {
     else delete config.models;
     if (efforts) config.efforts = efforts;
     else delete config.efforts;
+    config.defaultEffort = preset.defaultEffort;
+    const modelEfforts = modelEffortsFromRows(nextModelRows, nextEfforts);
+    if (modelEfforts) config.modelEfforts = modelEfforts;
+    else delete config.modelEfforts;
 
-    setEnvRows((rows) => applyPresetEnvRows(preset.envRows, rows, nextRowId));
+    setEnvRows((rows) =>
+      applyPresetEnvRows(
+        preset.envRows,
+        rows,
+        nextRowId,
+        preset.removeEnvKeys,
+        preset.credentialAliases,
+      ),
+    );
     setSelectedEfforts(nextEfforts);
     setModelRows(nextModelRows);
     setAgentInstance({ ...props.instance, config });
@@ -280,17 +317,18 @@ function ClaudeProfileEditor(props: {
   const updateModelRow = (rowId: string, patch: Partial<ModelRow>) =>
     setModelRows((rows) => rows.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row)));
 
+  const updateModelEfforts = (rowId: string, efforts?: Set<string>) =>
+    setModelRows((rows) =>
+      rows.map((row) => {
+        if (row.rowId !== rowId) return row;
+        if (efforts) return { ...row, efforts };
+        const { efforts: _efforts, ...inheritedRow } = row;
+        return inheritedRow;
+      }),
+    );
+
   const toggleEffort = (tier: string) =>
-    setSelectedEfforts((current) => {
-      const next = new Set(current);
-      // Keep at least one tier enabled so the picker always has a choice.
-      if (next.has(tier)) {
-        if (next.size > 1) next.delete(tier);
-      } else {
-        next.add(tier);
-      }
-      return next;
-    });
+    setSelectedEfforts((current) => toggleEffortTier(current, tier));
 
   const save = () => {
     if (!canSave) return;
@@ -298,10 +336,13 @@ function ClaudeProfileEditor(props: {
     const environment = environmentFromRows(envRows);
     const models = cleanModels(modelRows);
     const efforts = effortsConfigFromSelection(selectedEfforts);
+    const modelEfforts = modelEffortsFromRows(modelRows, selectedEfforts);
     const config: ClaudeProfileInstanceConfig = {
       configDir: trimmedConfigDir,
       ...(models ? { models } : {}),
       ...(efforts ? { efforts } : {}),
+      ...(props.config.defaultEffort ? { defaultEffort: props.config.defaultEffort } : {}),
+      ...(modelEfforts ? { modelEfforts } : {}),
     };
     // Seal sensitive env in main first (returns the instance with sealed env),
     // then persist the non-secret config through the store.
@@ -495,36 +536,55 @@ function ClaudeProfileEditor(props: {
             <Trans>Using the built-in Claude model list.</Trans>
           </p>
         ) : null}
-        {modelRows.map((row) => (
-          <div key={row.rowId} className="flex items-center gap-2">
-            <Input
-              aria-label={t`Model id`}
-              className="min-w-0 flex-1 font-mono text-xs"
-              placeholder="glm-5.2[1m]"
-              value={row.id}
-              onChange={(event) => updateModelRow(row.rowId, { id: event.target.value })}
-            />
-            <Input
-              aria-label={t`Model label`}
-              className="min-w-0 flex-1 text-xs"
-              placeholder={t`GLM 5.2 (optional label)`}
-              value={row.label}
-              onChange={(event) => updateModelRow(row.rowId, { label: event.target.value })}
-            />
-            <Button
-              isIconOnly
-              aria-label={t`Remove model`}
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 min-w-7 text-foreground/70"
-              onPress={() =>
-                setModelRows((rows) => rows.filter((entry) => entry.rowId !== row.rowId))
-              }
-            >
-              <X className="size-3.5" />
-            </Button>
-          </div>
-        ))}
+        {modelRows.map((row) => {
+          const modelName = row.label.trim() || row.id.trim() || t`new model`;
+          const inherited = row.efforts === undefined;
+          const modelEfforts = row.efforts ?? EMPTY_EFFORT_SELECTION;
+          return (
+            <div key={row.rowId} className="flex flex-wrap items-center gap-2">
+              <Input
+                aria-label={t`Model id`}
+                className="min-w-48 flex-[1_1_12rem] font-mono text-xs"
+                placeholder="glm-5.2[1m]"
+                value={row.id}
+                onChange={(event) => updateModelRow(row.rowId, { id: event.target.value })}
+              />
+              <Input
+                aria-label={t`Model label`}
+                className="min-w-48 flex-[1_1_12rem] text-xs"
+                placeholder={t`GLM 5.2 (optional label)`}
+                value={row.label}
+                onChange={(event) => updateModelRow(row.rowId, { label: event.target.value })}
+              />
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <div className="w-36">
+                  <EffortMultiSelect
+                    selected={modelEfforts}
+                    tiers={allowedTiers}
+                    inherited={inherited}
+                    ariaLabel={t`Effort levels for ${modelName}`}
+                    onInherit={() => updateModelEfforts(row.rowId)}
+                    onToggle={(tier) =>
+                      updateModelEfforts(row.rowId, toggleEffortTier(modelEfforts, tier))
+                    }
+                  />
+                </div>
+                <Button
+                  isIconOnly
+                  aria-label={t`Remove model`}
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 min-w-7 text-foreground/70"
+                  onPress={() =>
+                    setModelRows((rows) => rows.filter((entry) => entry.rowId !== row.rowId))
+                  }
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+          );
+        })}
       </section>
 
       {/* Effort levels */}

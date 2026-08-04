@@ -13,14 +13,18 @@ import {
   manualGates,
   productionRoots,
 } from "./smoke-scenarios.mjs";
+import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
+import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(scriptDir, "../../../../");
 const args = parseArgs(process.argv.slice(2));
 const command = args._[0] ?? "plan";
 const scope = String(args.scope ?? "changed");
 const mode = String(args.mode ?? "mock");
-const port = Number(args.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
-const appUrl = String(args.appUrl ?? "http://127.0.0.1:3100/");
+let port;
+let appUrl;
+let sessionFile;
 const timeoutMs = Number(args.timeoutMs ?? 12_000);
 const outDir = resolve(
   String(
@@ -36,6 +40,21 @@ try {
   } else if (command === "plan") {
     printPlan(buildPlan(scope));
   } else if (command === "run") {
+    const connection = await resolveDebugConnection({
+      session: args.session ?? process.env.PORACODE_DEBUG_SESSION,
+      port: args.port ?? process.env.PORACODE_CDP_PORT,
+      appUrl: args.appUrl ?? process.env.PORACODE_APP_URL,
+      repoRoot,
+      allowedPurposes: ["debug", "smoke"],
+    });
+    if (connection.mode && connection.mode !== mode) {
+      throw new Error(
+        `managed debug session mode is ${connection.mode}, but this run requested ${mode}; stop it and launch the matching mode`,
+      );
+    }
+    port = connection.port;
+    appUrl = connection.appUrl;
+    sessionFile = connection.sessionFile;
     await runSmoke(buildPlan(scope));
   } else {
     usage();
@@ -50,7 +69,9 @@ function usage() {
   console.error(`Usage:
   node poracode-integration-smoke.mjs audit
   node poracode-integration-smoke.mjs plan [--scope changed|full]
-  node poracode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--port 9222] [--outDir <dir>] [--ack-manual gate,gate]`);
+  node poracode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--session <session.json>] [--port <cdp port> --appUrl <dev server url>] [--outDir <dir>] [--ack-manual gate,gate]
+
+Run resolves --session / $PORACODE_DEBUG_SESSION, one active managed debug session for this repo, or a complete explicit port + URL pair. It never guesses ports.`);
 }
 
 function trackedFiles() {
@@ -66,7 +87,11 @@ function changedFiles() {
 }
 
 function runGit(argv) {
-  return execFileSync("git", argv, { cwd: process.cwd(), encoding: "utf8" });
+  return execFileSync("git", argv, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    windowsHide: process.platform === "win32",
+  });
 }
 
 function lines(value) {
@@ -176,6 +201,9 @@ async function runSmoke(plan) {
     }
     if (plan.automated.includes("schedules")) {
       await runScenario(report, "schedules", () => schedulesScenario(client));
+    }
+    if (plan.automated.includes("github-actions")) {
+      await runScenario(report, "github-actions", () => githubActionsScenario(client));
     }
     if (plan.automated.includes("thread-search")) {
       await runScenario(report, "thread-search", () => threadSearchScenario(client));
@@ -429,21 +457,25 @@ async function settingsScenario(client) {
               text: document.body.innerText,
             }))()`,
           ),
-        (result) => result.hasSearch && result.text.includes("smoke-global"),
+        (result) => result.hasSearch && (mode === "real" || result.text.includes("smoke-global")),
         "skills settings fixture",
       );
-      ({
-        skillsImportScreenshotPath,
-        skillsImportDestinationsScreenshotPath,
-        skillsMarketplaceScreenshotPath,
-        skillsTargetsScreenshotPath,
-      } = await skillsSectionDeepDive(client));
+      if (mode === "mock") {
+        ({
+          skillsImportScreenshotPath,
+          skillsImportDestinationsScreenshotPath,
+          skillsMarketplaceScreenshotPath,
+          skillsTargetsScreenshotPath,
+        } = await skillsSectionDeepDive(client));
+      }
       skillsScreenshotPath = join(outDir, "smoke-02-skills.png");
       await screenshot(client, skillsScreenshotPath);
     }
     if (section === "mcpServers") {
-      ({ mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath } =
-        await mcpServersSectionDeepDive(client, mcpFixture));
+      if (mode === "mock") {
+        ({ mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath } =
+          await mcpServersSectionDeepDive(client, mcpFixture));
+      }
     }
   }
   const screenshotPath = join(outDir, "smoke-02-settings.png");
@@ -656,12 +688,15 @@ async function skillsSectionDeepDive(client) {
 async function mcpServersSectionDeepDive(client, mcpFixture) {
   const mcpState = await evaluate(
     client,
-    `(() => ({
-      builtInsVisible: document.body.innerText.includes("Built-in MCP servers"),
-      builtInToolCount: document.body.innerText.includes("44 tools"),
-      addButton: Boolean([...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Add MCP server")),
-      browserSwitch: Boolean(document.querySelector('[role="switch"][aria-label="Disable Browser"]')),
-    }))()`,
+    `(() => {
+      const browserRow = document.querySelector('[data-built-in-mcp-server="browser"]');
+      return {
+        builtInsVisible: document.body.innerText.includes("Built-in MCP servers"),
+        builtInToolCount: /\\b\\d+ tools?\\b/.test(browserRow?.textContent ?? ""),
+        addButton: Boolean([...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Add MCP server")),
+        browserSwitch: Boolean(document.querySelector('[role="switch"][aria-label="Disable Browser"]')),
+      };
+    })()`,
   );
   assert(mcpState.builtInsVisible, "MCP settings did not render built-in servers");
   assert(mcpState.builtInToolCount, "MCP settings did not render built-in tool counts");
@@ -1025,6 +1060,72 @@ async function schedulesScenario(client) {
   }
 }
 
+async function githubActionsScenario(client) {
+  await evaluate(
+    client,
+    `window.__poracodeDev.openSettings("general"); new Promise((resolve) => setTimeout(resolve, 250))`,
+    true,
+  );
+  const settingsState = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const settings = window.__poracodeDev.stores.sharedSettings.getState();
+          const toggle = [...document.querySelectorAll('[role="option"]')].find(
+            (element) => element.textContent?.includes("GitHub Actions"),
+          );
+          if (!toggle) {
+            document.querySelector('button[aria-label="Sidebar shortcuts"]')?.click();
+          }
+          return {
+            hiddenByDefault: settings.sidebarHiddenShortcuts.includes("githubActions"),
+            toggleVisible: toggle instanceof HTMLElement,
+            toggleSelected: toggle?.getAttribute("aria-selected") === "true",
+          };
+        })()`,
+      ),
+    (state) => state.hiddenByDefault && state.toggleVisible,
+    "GitHub Actions shortcut setting",
+  );
+  assert(!settingsState.toggleSelected, "GitHub Actions shortcut should be off by default");
+
+  const opened = await evaluate(
+    client,
+    `(() => {
+      window.__poracodeDev.closeSettings();
+      const app = window.__poracodeDev.stores.app.getState();
+      const project = app.projects.find((candidate) => !candidate.disabled);
+      if (!project) return false;
+      app.openGitHubActions(project.id);
+      return true;
+    })()`,
+  );
+  assert(opened, "isolated fixture project was not available for GitHub Actions");
+  await evaluate(client, "new Promise((resolve) => setTimeout(resolve, 300))", true);
+  const actionsState = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => ({
+          overlayOpen:
+            window.__poracodeDev.stores.panel.getState().githubActionsContext !== null,
+          heading: [...document.querySelectorAll("[data-overlay-surface]")].some(
+            (element) => element.textContent?.includes("GitHub Actions"),
+          ),
+          projectPicker: Boolean(document.querySelector('[aria-label="Project"]')),
+          crash: /renderer crash|rendered more hooks/i.test(document.body?.innerText ?? ""),
+        }))()`,
+      ),
+    (state) => state.overlayOpen && state.heading && state.projectPicker,
+    "GitHub Actions overlay",
+  );
+  assert(!actionsState.crash, "GitHub Actions view rendered a crash state");
+  const screenshotPath = join(outDir, "smoke-02c-github-actions.png");
+  await screenshot(client, screenshotPath);
+  return { ...settingsState, ...actionsState, screenshotPath };
+}
+
 async function controlGeometryScenario(client) {
   await evaluate(
     client,
@@ -1138,16 +1239,17 @@ async function browserScenario(client) {
     process.execPath,
     [
       join(scriptDir, "poracode-browser-smoke.mjs"),
-      "--port",
-      String(port),
-      "--appUrl",
-      appUrl,
+      ...(sessionFile ? ["--session", sessionFile] : ["--port", String(port), "--appUrl", appUrl]),
       "--outDir",
       join(outDir, "browser"),
       "--commandTimeoutMs",
       "20000",
     ],
-    { cwd: process.cwd(), encoding: "utf8" },
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      windowsHide: process.platform === "win32",
+    },
   );
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
@@ -1220,6 +1322,18 @@ async function runMockGate(client, gate, fixture) {
       });
       assert(result && typeof result === "object", "git status bridge returned no result");
       return "fixture git status round-trip returned successfully";
+    }
+    case "github-actions-live": {
+      for (const key of [
+        "ghListWorkflows",
+        "ghListWorkflowRuns",
+        "ghGetWorkflowDefinition",
+        "ghRerunWorkflowRun",
+        "ghDeleteWorkflowRun",
+      ]) {
+        assert(fixture.bridgeKeys.includes(key), `GitHub Actions bridge is missing ${key}`);
+      }
+      return "GitHub Actions list, definition, rerun, and delete bridge contracts are exposed";
     }
     case "ipc-roundtrip": {
       const projects = await bridgeInvoke(client, "dbGetProjects");
@@ -1342,6 +1456,7 @@ async function runMockGate(client, gate, fixture) {
         cursor: "slash",
         grok: "slash",
         antigravity: "prompt",
+        pi: "skill",
       };
       for (const [agentKind, invocation] of Object.entries(expected)) {
         const result = await bridgeInvoke(client, "scanSkills", {
@@ -1485,14 +1600,7 @@ async function bridgeInvoke(client, method, payload) {
 }
 
 async function resetDrivenState(client) {
-  await evaluate(
-    client,
-    `(() => {
-      window.__poracodeDev?.closeSettings();
-      window.__poracodeDev?.stores?.panel?.setState({ threadSearchOpen: false });
-      window.__poracodeDev?.reset();
-    })()`,
-  );
+  await evaluate(client, "window.__poracodeDev?.reset()");
 }
 
 async function installWindowErrorCollector(client) {
@@ -1509,20 +1617,34 @@ async function installWindowErrorCollector(client) {
 
 async function waitForTarget() {
   const started = Date.now();
+  let cdpRespondedWithPages = false;
+  let lastPageUrls = [];
   while (Date.now() - started < timeoutMs) {
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
-      if (response.ok) {
-        const targets = await response.json();
-        const target = targets.find(
-          (candidate) => candidate.type === "page" && candidate.url === appUrl,
+      const inspection = await inspectCdpWindowTargets({ port, appUrl, windowKind: "main" });
+      if (inspection.ready.length === 1) return inspection.ready[0];
+      if (inspection.ready.length > 1) {
+        throw new Error(
+          `multiple ready main targets match ${appUrl}: ${inspection.ready.map((target) => target.id).join(", ")}`,
         );
-        if (target) return target;
+      }
+      if (inspection.candidates.length === 0 && inspection.pageTargets.length > 0) {
+        cdpRespondedWithPages = true;
+        lastPageUrls = inspection.pageTargets.map((target) => target.url);
       }
     } catch {
       // Electron is still starting.
     }
+    // Once CDP serves page targets that don't match, the URL won't change.
+    if (cdpRespondedWithPages) break;
     await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+  }
+  if (cdpRespondedWithPages) {
+    throw new Error(
+      `no Poracode CDP target matching ${appUrl} on port ${port}. ` +
+        `Available page targets: ${lastPageUrls.join(", ")}. ` +
+        `Check PORACODE_APP_URL / port allocation.`,
+    );
   }
   throw new Error(`no Poracode CDP target at ${appUrl} on port ${port}`);
 }

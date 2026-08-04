@@ -94,6 +94,7 @@ export function PrLayout() {
   const value: PrContextValue = {
     project,
     projectLocation,
+    ...(worktree ? { worktreePath: worktree } : {}),
     prNumber,
     prKey,
     cacheKey,

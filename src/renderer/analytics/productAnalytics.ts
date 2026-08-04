@@ -66,7 +66,7 @@ function buildBaseProperties(sessionId: string): ProductAnalyticsProperties {
     is_dev: bridge.isDev,
     node: bridge.nodeVersion,
     platform: bridge.platform,
-    session_id: sessionId,
+    $session_id: sessionId,
   };
 }
 
@@ -74,6 +74,7 @@ const client = createPostHogClient({
   resolveConfig: resolvePostHogConfig,
   resolveInstallId,
   buildBaseProperties,
+  createEventId: () => crypto.randomUUID(),
   createSessionId: () => crypto.randomUUID(),
   now: () => new Date().toISOString(),
   fetch: (input, init) => fetch(input, init),

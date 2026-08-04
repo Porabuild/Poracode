@@ -8,7 +8,7 @@ export function PrChecksPage() {
   const pr = usePr();
   return (
     <PrSubPage title={t`Checks`} className="m-pr-scroll">
-      <PrChecksTab cacheKey={pr.cacheKey} loading={pr.loading} />
+      <PrChecksTab cacheKey={pr.cacheKey} loading={pr.loading} projectId={pr.project.id} />
     </PrSubPage>
   );
 }

@@ -40,7 +40,7 @@ export function SortableTab(props: {
       // Roving tabindex: only the active tab sits in the tab order, matching
       // the sibling tablist container's expectations.
       tabIndex={isActive ? 0 : -1}
-      className={`group flex h-6 max-w-[220px] shrink-0 cursor-default items-center gap-1 rounded-md pl-3 pr-1 text-xs transition-colors ${
+      className={`poracode-content-over-drag-region group flex h-6 max-w-[220px] shrink-0 cursor-default items-center gap-1 rounded-md pl-3 pr-1 text-xs transition-colors ${
         isActive
           ? "bg-default/40 text-foreground"
           : "text-muted hover:bg-default/20 hover:text-foreground"

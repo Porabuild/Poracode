@@ -1,12 +1,22 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { PR_CHECK_FAILURE_CONCLUSIONS, type PrCheck, type PrState } from "@/shared/contracts";
+import {
+  PR_CHECK_FAILURE_CONCLUSIONS,
+  type PrCheck,
+  type PrData,
+  type PrState,
+} from "@/shared/contracts";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 
 export type PrStatusTone = "merged" | "draft" | "danger" | "warning" | "success";
 export type PrChecksStatus = "FAILURE" | "PENDING" | "SUCCESS";
 export type PrChecksTone = "danger" | "warning" | "success";
 export type PrCheckTone = PrChecksTone | "neutral";
+export interface PrMergeStatus {
+  reviewDecision?: PrData["reviewDecision"] | undefined;
+  mergeable?: PrData["mergeable"] | undefined;
+  mergeStateStatus?: PrData["mergeStateStatus"] | undefined;
+}
 export type PrCheckDisplayStatus =
   | "passed"
   | "failed"
@@ -75,6 +85,10 @@ export function countPassedPrChecks(checks: readonly PrCheck[]): number {
 export function isPrCheckActive(check: PrCheck): boolean {
   const status = getPrCheckPresentation(check).status;
   return status === "running" || status === "pending";
+}
+
+export function isPrActive(state: PrState | null | undefined): boolean {
+  return state === "open" || state === "draft";
 }
 
 export function formatPrCheckDuration(check: PrCheck, now = Date.now()): string | undefined {
@@ -149,12 +163,50 @@ export function combineChecksStatus(
 export function getPrStatusTone(
   state: PrState | undefined,
   checksStatus: string | undefined,
+  mergeStatus?: PrMergeStatus | null,
 ): PrStatusTone {
   if (state === "merged") return "merged";
   if (state === "draft") return "draft";
+  if (state === "closed") return "danger";
+  if (isPrBlockedOnlyByPendingChecks(checksStatus, mergeStatus)) return "warning";
+  if (isPrMergeBlocked(mergeStatus)) return "danger";
+  if (mergeStatus?.mergeStateStatus === "BEHIND") return "warning";
   const checksTone = getChecksStatusTone(normalizeChecksStatus(checksStatus));
   if (checksTone) return checksTone;
   return "success";
+}
+
+/**
+ * GitHub reports protected PRs as BLOCKED while required checks are running.
+ * Treat that otherwise-ambiguous merge state as pending unless GitHub also
+ * reports a concrete review or conflict blocker.
+ */
+export function isPrBlockedOnlyByPendingChecks(
+  checksStatus: string | undefined,
+  status: PrMergeStatus | null | undefined,
+): boolean {
+  if (normalizeChecksStatus(checksStatus) !== "PENDING" || status?.mergeStateStatus !== "BLOCKED") {
+    return false;
+  }
+
+  const reviewDecision = status.reviewDecision?.toUpperCase();
+  return (
+    reviewDecision !== "CHANGES_REQUESTED" &&
+    reviewDecision !== "REVIEW_REQUIRED" &&
+    status.mergeable !== "CONFLICTING"
+  );
+}
+
+export function isPrMergeBlocked(status: PrMergeStatus | null | undefined): boolean {
+  const reviewDecision = status?.reviewDecision?.toUpperCase();
+  return (
+    reviewDecision === "CHANGES_REQUESTED" ||
+    reviewDecision === "REVIEW_REQUIRED" ||
+    status?.mergeable === "CONFLICTING" ||
+    status?.mergeStateStatus === "DIRTY" ||
+    status?.mergeStateStatus === "BLOCKED" ||
+    status?.mergeStateStatus === "HAS_HOOKS"
+  );
 }
 
 export const PR_TONE_BG_CLASS: Record<PrStatusTone, string> = {

@@ -20,6 +20,7 @@ const COMPOSER_FILE_DRAG_TYPE = "application/poracode-composer-file";
 
 export function TreeEntryRow(props: {
   entry: ProjectTreeEntry;
+  canReveal: boolean;
   depth: number;
   draft: TreeDraftState | null;
   setDraft: React.Dispatch<React.SetStateAction<TreeDraftState | null>>;
@@ -48,11 +49,15 @@ export function TreeEntryRow(props: {
     <div>
       <ContextMenu
         items={[
-          {
-            id: "reveal",
-            label: t`Reveal in File Explorer`,
-            icon: <FolderOpen className="size-3.5" />,
-          },
+          ...(props.canReveal
+            ? [
+                {
+                  id: "reveal",
+                  label: t`Reveal in File Explorer`,
+                  icon: <FolderOpen className="size-3.5" />,
+                },
+              ]
+            : []),
           ...(isDirectory
             ? [
                 {
@@ -200,6 +205,7 @@ export function TreeEntryRow(props: {
       {props.renderChildren !== false && isDirectory && isExpanded ? (
         <TreeChildren
           parentPath={entry.path}
+          canReveal={props.canReveal}
           depth={depth + 1}
           isLoading={isLoadingChildren}
           draft={draft}
@@ -219,6 +225,7 @@ export function TreeEntryRow(props: {
 
 function TreeChildren(props: {
   parentPath: string;
+  canReveal: boolean;
   depth: number;
   isLoading: boolean;
   draft: TreeDraftState | null;
@@ -266,6 +273,7 @@ function TreeChildren(props: {
           <TreeEntryRow
             key={child.path}
             entry={child}
+            canReveal={props.canReveal}
             depth={depth}
             draft={draft}
             setDraft={setDraft}

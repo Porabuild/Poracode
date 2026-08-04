@@ -8,6 +8,7 @@ import { aiLanguageOptions, localeOptions } from "@/renderer/i18n/locales";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { newThreadModeOptions, useLocalizedOptions } from "./settingsOptions";
+import { SidebarShortcutsSelector } from "./SidebarShortcutsSelector";
 
 export function GeneralSettings() {
   const { t } = useLingui();
@@ -45,7 +46,6 @@ export function GeneralSettings() {
     id: option.id,
     label: typeof option.label === "string" ? option.label : t(option.label),
   }));
-
   return (
     <SettingsPage title={t`General`}>
       <SettingRow
@@ -156,6 +156,16 @@ export function GeneralSettings() {
               });
             }}
           />
+        </SettingRow>
+      )}
+
+      {!remote && (
+        <SettingRow
+          anchorId="general.sidebarShortcuts"
+          title={t`Sidebar shortcuts`}
+          description={<Trans>Choose which shortcuts appear in the sidebar footer.</Trans>}
+        >
+          <SidebarShortcutsSelector />
         </SettingRow>
       )}
 

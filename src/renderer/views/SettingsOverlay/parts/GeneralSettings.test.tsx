@@ -30,6 +30,33 @@ describe("GeneralSettings", () => {
     expect(screen.getByText("Launch at startup")).toBeInTheDocument();
     expect(screen.getByText("Start minimized")).toBeInTheDocument();
     expect(screen.getByText("Editor LSP")).toBeInTheDocument();
+    expect(screen.getByText("Sidebar shortcuts")).toBeInTheDocument();
+    expect(screen.queryByText("Pull requests shortcut")).not.toBeInTheDocument();
+  });
+
+  it("groups sidebar shortcuts in a reorderable visibility selector", () => {
+    useSharedSettings.setState({
+      sidebarHiddenShortcuts: ["githubActions"],
+      sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
+    });
+    render(<GeneralSettings />);
+
+    const trigger = screen.getByRole("button", { name: "Sidebar shortcuts" });
+    expect(trigger).toHaveTextContent("2 / 3");
+
+    fireEvent.click(trigger);
+
+    const pullRequests = screen.getByRole("option", { name: /Pull requests/ });
+    const githubActions = screen.getByRole("option", { name: /GitHub Actions/ });
+    const schedules = screen.getByRole("option", { name: /Schedules/ });
+    expect(pullRequests).toHaveAttribute("aria-selected", "true");
+    expect(githubActions).toHaveAttribute("aria-selected", "false");
+    expect(schedules).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByRole("button", { name: /Reorder/ })).toHaveLength(3);
+
+    fireEvent.click(githubActions);
+    expect(useSharedSettings.getState().sidebarHiddenShortcuts).toEqual([]);
+    expect(trigger).toHaveTextContent("3 / 3");
   });
 
   it("persists the Windows startup preferences", () => {
@@ -66,5 +93,6 @@ describe("GeneralSettings", () => {
     expect(screen.queryByText("Launch at startup")).not.toBeInTheDocument();
     expect(screen.queryByText("Start minimized")).not.toBeInTheDocument();
     expect(screen.queryByText("Editor LSP")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sidebar shortcuts")).not.toBeInTheDocument();
   });
 });

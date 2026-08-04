@@ -9,17 +9,11 @@ import { inputFingerprint } from "./helpers";
  * `isSubAgent` payload flag, and the background-subagent keep-alive registry so
  * they never drift.
  *
- * The subagents MCP server exposes commands that create or manage separate
- * synthetic Agent items. Its raw MCP calls are tools, never agents themselves.
+ * MCP calls are tools, never provider-native agent items.
  */
 export function isSubAgentToolName(toolName: string): boolean {
   const name = toolName.toLowerCase();
-  const mcp = parseMcpToolName(name);
-  if (mcp) {
-    const server = mcp.server.replace(/^claude_ai_/, "").replace(/^plugin_[^_]+_/, "");
-    if (server === "subagents") return false;
-    return mcp.tool.includes("subagent") || mcp.tool.includes("sub-agent");
-  }
+  if (parseMcpToolName(name)) return false;
   return (
     name === "task" ||
     name === "workflow" ||

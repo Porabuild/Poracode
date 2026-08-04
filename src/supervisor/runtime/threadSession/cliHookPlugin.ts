@@ -3,14 +3,10 @@ import type {
   AgentKind,
   ProjectLocation,
   ThreadAttention,
-  ThreadConfig,
   ThreadStatus,
-  McpLaunchSnapshot,
+  ResolvedMcpServer,
 } from "@/shared/contracts";
-import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
-import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
-import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
-import { type AgentAdapter, createKnownSessionRef } from "../../agents/base";
+import { createKnownSessionRef } from "../../agents/base";
 import { hookDebugSpawn } from "../hookDebug";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import type { SessionRuntime } from "../sessionTypes";
@@ -23,7 +19,6 @@ export interface CliHookPluginContext {
   options: Pick<ThreadSessionManagerOptions, "adapters" | "resolvePluginEnvForSpawn">;
   outputPipeline: ThreadOutputPipeline;
   indexSessionRef(session: SessionRuntime, prevId: string | undefined): void;
-  isBrowserMcpEnabledForLaunch(adapter: AgentAdapter | undefined, config: ThreadConfig): boolean;
 }
 
 /**
@@ -99,13 +94,8 @@ export class CliHookSessionCoordinator {
     threadId: string,
     agentKind: AgentKind,
     projectLocation: ProjectLocation,
-    config: ThreadConfig,
-    browserMcp: BrowserMcpHttpConfig | undefined,
-    computerUseMcp: ComputerUseMcpHttpConfig | undefined,
-    chromeMcp: ChromeMcpHttpConfig | undefined,
-    mcpLaunchSnapshot: McpLaunchSnapshot,
+    mcpServers: readonly ResolvedMcpServer[],
   ): Promise<{ env: Record<string, string>; extraArgs: string[] }> {
-    const { mcpServers, disabledBuiltInMcpServerIds } = mcpLaunchSnapshot;
     const adapter = this.ctx.options.adapters.get(agentKind);
     const liveInputMode = adapter?.capabilities.liveInputMode ?? "terminal";
 
@@ -125,16 +115,6 @@ export class CliHookSessionCoordinator {
         threadId,
         agentKind,
         projectLocation,
-        // Browser enablement can come from agent settings, not just the
-        // (already effective) thread config — gate the disable here too.
-        browserMcpEnabled:
-          !disabledBuiltInMcpServerIds.includes("browser") &&
-          this.ctx.isBrowserMcpEnabledForLaunch(adapter, config),
-        ...(browserMcp !== undefined ? { browserMcp } : {}),
-        computerUseMcpEnabled: config.computerUse === true,
-        ...(computerUseMcp !== undefined ? { computerUseMcp } : {}),
-        chromeMcpEnabled: config.chromeMcp === true,
-        ...(chromeMcp !== undefined ? { chromeMcp } : {}),
         ...(mcpServers.length > 0 ? { mcpServers } : {}),
       });
       const merged = resolved ?? { env: {}, extraArgs: [] };

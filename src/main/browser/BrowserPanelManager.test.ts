@@ -243,7 +243,6 @@ describe("BrowserPanelManager", () => {
       { settingsPath: "settings.json" } as never,
       "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
     );
-
     const first = await manager.openInternalPage("downloads");
     const second = await manager.openInternalPage("downloads");
 
@@ -418,6 +417,26 @@ describe("BrowserPanelManager", () => {
 
     expect(events.filter((event) => isCredentialsUpdatedEvent(event))).toHaveLength(3);
     expect(importData).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps automation active until every explicit session ends", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+    );
+    const activity: boolean[] = [];
+    manager.addEventListener((event) => {
+      if (event.type === "automation-active") activity.push(event.active);
+    });
+
+    expect(manager.setAutomationSession("thread-1", true)).toBe(false);
+    expect(manager.setAutomationSession("thread-2", true)).toBe(false);
+    expect(manager.setAutomationSession("thread-1", false)).toBe(false);
+    expect(activity).toEqual([true]);
+
+    expect(manager.setAutomationSession("thread-2", false)).toBe(true);
+    expect(activity).toEqual([true, false]);
   });
 
   it("moves ungrouped tabs into the target tab's group", async () => {

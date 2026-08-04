@@ -3,10 +3,12 @@
 // Capacitor native shells both default to serving `index.html` from the web
 // root, so mirror the entry to `index.html`. Asset URLs use a relative base
 // ("./"), so the copy resolves identically at the new filename.
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const mobileBasePath = readEnv("PORACODE_MOBILE_BASE_PATH");
+const mobileChannel = readEnv("PORACODE_MOBILE_CHANNEL") === "nightly" ? "nightly" : "stable";
 const outDir = resolve(
   process.cwd(),
   "dist/mobile",
@@ -14,6 +16,7 @@ const outDir = resolve(
 );
 const source = join(outDir, "mobile.html");
 const target = join(outDir, "index.html");
+const serviceWorkerPath = join(outDir, "service-worker.js");
 const wellKnownDir = join(outDir, ".well-known");
 const sshRuntimeSourceDir = resolve(process.cwd(), "resources/mobile-ssh-runtime");
 const sshRuntimeTargetDir = join(outDir, "poracode-ssh-runtime");
@@ -43,7 +46,83 @@ if (requireIosLinks && !appleTeamId) {
   process.exit(1);
 }
 
-copyFileSync(source, target);
+// public/ ships both channels' icon art. Nightly swaps every stable reference
+// over to its own set so an installed nightly PWA is distinguishable from
+// stable on a home screen or taskbar — the two only differ by origin
+// otherwise. Mapped explicitly (rather than by pattern) so a newly added icon
+// fails the build instead of silently staying on the stable art.
+const NIGHTLY_ICON_SOURCES = {
+  "icons/icon-192.png": "icons/icon-nightly-192.png",
+  "icons/icon-512.png": "icons/icon-nightly-512.png",
+  "icons/icon-maskable-512.png": "icons/icon-nightly-maskable-512.png",
+  "icons/apple-touch-icon.png": "icons/apple-touch-icon-nightly.png",
+  "app-icon.svg": "app-icon-nightly.svg",
+};
+
+// Rewrites a manifest/HTML icon reference, preserving any "./" or "/" prefix.
+function nightlyIconRef(ref) {
+  const match = /^(\.?\/)?(.*)$/.exec(ref);
+  const mapped = NIGHTLY_ICON_SOURCES[match[2]];
+  if (!mapped) {
+    console.error(`[finalize-mobile-build] no nightly icon mapped for ${ref}`);
+    process.exit(1);
+  }
+  return `${match[1] ?? ""}${mapped}`;
+}
+
+const isNightly = mobileChannel === "nightly";
+let html = readFileSync(source, "utf8");
+if (isNightly) {
+  // Vite has already resolved %BASE_URL%, so match the bare relative path and
+  // let whatever prefix precedes it ("./" or "/") stand.
+  for (const [stable, nightly] of Object.entries(NIGHTLY_ICON_SOURCES)) {
+    html = html.replaceAll(stable, nightly);
+  }
+  const missed = Object.keys(NIGHTLY_ICON_SOURCES).filter((stable) => html.includes(stable));
+  if (missed.length > 0) {
+    console.error(`[finalize-mobile-build] stable icon refs survived: ${missed.join(", ")}`);
+    process.exit(1);
+  }
+  html = html
+    .replaceAll("<title>Poracode</title>", "<title>Poracode Nightly</title>")
+    .replaceAll('web-app-title" content="Poracode"', 'web-app-title" content="Poracode Nightly"');
+  writeFileSync(source, html, "utf8");
+}
+writeFileSync(target, html, "utf8");
+
+// Hosted stable and nightly builds live on separate subdomains and both own
+// their origin root. The origin itself separates their PWA identities.
+const manifestPath = join(outDir, "manifest.webmanifest");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+manifest.id = "/";
+manifest.scope = "/";
+manifest.start_url = "/threads";
+if (isNightly) {
+  manifest.name = `${manifest.name} Nightly`;
+  manifest.short_name = `${manifest.short_name} Nightly`;
+  manifest.icons = manifest.icons.map((icon) => ({ ...icon, src: nightlyIconRef(icon.src) }));
+}
+writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+console.log(`[finalize-mobile-build] prepared the ${mobileChannel} root-scoped manifest`);
+
+const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
+const buildVersion = createHash("sha256").update(readFileSync(source)).digest("hex").slice(0, 12);
+const notificationIcon = isNightly
+  ? NIGHTLY_ICON_SOURCES["icons/icon-192.png"]
+  : "icons/icon-192.png";
+const tokens = {
+  __PORACODE_BUILD_VERSION__: buildVersion,
+  __PORACODE_NOTIFICATION_ICON__: notificationIcon,
+};
+let resolvedWorker = serviceWorker;
+for (const [token, value] of Object.entries(tokens)) {
+  if (!resolvedWorker.includes(token)) {
+    console.error(`[finalize-mobile-build] missing ${token} in ${serviceWorkerPath}`);
+    process.exit(1);
+  }
+  resolvedWorker = resolvedWorker.replaceAll(token, value);
+}
+writeFileSync(serviceWorkerPath, resolvedWorker, "utf8");
 mkdirSync(sshRuntimeTargetDir, { recursive: true });
 copyFileSync(
   join(sshRuntimeSourceDir, "manifest.json"),
@@ -54,6 +133,7 @@ mkdirSync(wellKnownDir, { recursive: true });
 writeJson(join(wellKnownDir, "assetlinks.json"), buildAssetLinks());
 writeJson(join(wellKnownDir, "apple-app-site-association"), buildAppleAppSiteAssociation());
 console.log(`[finalize-mobile-build] wrote ${target}`);
+console.log(`[finalize-mobile-build] versioned the service worker as ${buildVersion}`);
 console.log("[finalize-mobile-build] embedded the SSH runtime");
 console.log("[finalize-mobile-build] wrote .well-known association files");
 

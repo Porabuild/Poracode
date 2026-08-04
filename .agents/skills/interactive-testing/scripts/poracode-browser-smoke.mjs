@@ -1,11 +1,23 @@
 #!/usr/bin/env node
 import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { resolve as resolvePath } from "node:path";
+import { dirname, resolve as resolvePath } from "node:path";
+import { fileURLToPath } from "node:url";
+import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
+import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 
 const args = parseArgs(process.argv.slice(2));
-const port = Number(args.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
-const appUrl = args.appUrl ?? "http://127.0.0.1:3100/";
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolvePath(scriptDir, "../../../../");
+const connection = await resolveDebugConnection({
+  session: args.session ?? process.env.PORACODE_DEBUG_SESSION,
+  port: args.port ?? process.env.PORACODE_CDP_PORT,
+  appUrl: args.appUrl ?? process.env.PORACODE_APP_URL,
+  repoRoot,
+  allowedPurposes: ["debug", "smoke"],
+});
+const port = connection.port;
+const appUrl = connection.appUrl;
 const defaultOutDir = `${homedir()}\\.poracode-smoke\\artifacts\\browser-${Date.now()}`;
 const outDir = resolvePath(args.outDir ?? process.env.PORACODE_SMOKE_OUT_DIR ?? defaultOutDir);
 const waitMs = Number(args.waitMs ?? 10000);
@@ -21,6 +33,7 @@ const app = await connectTarget(appTarget);
 let externalTabId = null;
 let deviceEmulationEnabled = false;
 let findActive = false;
+let browserUi = app;
 
 try {
   step("connected to Poracode renderer");
@@ -32,15 +45,21 @@ try {
   const initial = await rendererSnapshot();
   assert(initial.url === appUrl, "App target", `expected ${appUrl}, got ${initial.url}`);
   assert(
-    initial.text.includes("Poracode") || initial.text.includes("Poracode"),
+    initial.text.trim().length > 0 && initial.buttons.length > 0,
     "App boot",
-    "renderer body contains the app shell text",
+    "renderer body contains rendered app controls",
   );
 
   step("opening Browser panel");
   await clickButton("Open browser", { optional: true });
   await wait(500);
-  await screenshot(app, "smoke-browser-01-panel.png");
+  browserUi = await connectBrowserUiTarget();
+  if (browserUi !== app) {
+    await send(browserUi, "Page.enable");
+    await send(browserUi, "Runtime.enable");
+    await installConsoleCollector(browserUi);
+  }
+  await screenshot(browserUi, "smoke-browser-01-panel.png");
 
   step("creating Browser tab");
   const runId = Date.now();
@@ -62,7 +81,7 @@ try {
   assert(activeTab(state)?.url === firstUrl, "Navigate", "active tab reached first smoke URL");
   const tabId = state.activeTabId;
   externalTabId = tabId;
-  await screenshot(app, "smoke-browser-02-tab.png");
+  await screenshot(browserUi, "smoke-browser-02-tab.png");
 
   await wait(500);
   step("reading first browser DOM");
@@ -80,6 +99,8 @@ try {
       const input = document.querySelector('input[placeholder="Search or enter address"]');
       return { exists: Boolean(input), disabled: input ? input.disabled : null, value: input ? input.value : null };
     })()`,
+    {},
+    browserUi,
   );
   assert(toolbar.exists === true, "Toolbar URL input", "URL input exists");
   assert(
@@ -118,7 +139,7 @@ try {
     "Forward navigation",
     "active tab returned to second URL",
   );
-  await screenshot(app, "smoke-browser-04-navigation.png");
+  await screenshot(browserUi, "smoke-browser-04-navigation.png");
 
   step("checking downloads internal page creation and reuse");
   await callBridge("browserOpenInternalPage", { page: "downloads" });
@@ -276,7 +297,10 @@ try {
     findings.push("Settings button was not found, so Browser settings was not exercised.");
   }
 
-  const errors = await collectedErrors();
+  const errors = [
+    ...(await collectedErrors(app)),
+    ...(browserUi === app ? [] : await collectedErrors(browserUi)),
+  ];
   assert(
     errors.length === 0,
     "Renderer console errors",
@@ -310,6 +334,7 @@ try {
       findings.push(`Device emulation cleanup failed: ${error.message}`);
     }
   }
+  if (browserUi !== app) browserUi.close();
   app.close();
 }
 
@@ -336,9 +361,33 @@ function step(message) {
 
 async function waitForAppTarget() {
   return waitFor(async () => {
-    const targets = await listTargets();
-    return targets.find((target) => target.type === "page" && target.url === appUrl);
+    const inspection = await inspectCdpWindowTargets({ port, appUrl, windowKind: "main" });
+    if (inspection.ready.length > 1) {
+      throw new Error(
+        `multiple ready main targets match ${appUrl}: ${inspection.ready.map((target) => target.id).join(", ")}`,
+      );
+    }
+    return inspection.ready[0];
   }, `Poracode page target at ${appUrl}`);
+}
+
+async function connectBrowserUiTarget() {
+  const state = await browserState();
+  if (state.extracted !== true) return app;
+  const target = await waitFor(async () => {
+    const inspection = await inspectCdpWindowTargets({
+      port,
+      appUrl,
+      windowKind: "browserExtract",
+    });
+    if (inspection.ready.length > 1) {
+      throw new Error(
+        `multiple ready browserExtract targets match ${appUrl}: ${inspection.ready.map((candidate) => candidate.id).join(", ")}`,
+      );
+    }
+    return inspection.ready[0];
+  }, "ready extracted Browser window");
+  return connectTarget(target);
 }
 
 async function listTargets() {
@@ -405,8 +454,8 @@ function send(client, method, params = {}) {
   return client.send(method, params);
 }
 
-async function evaluate(expression, options = {}) {
-  const result = await send(app, "Runtime.evaluate", {
+async function evaluate(expression, options = {}, client = app) {
+  const result = await send(client, "Runtime.evaluate", {
     expression,
     returnByValue: true,
     awaitPromise: options.awaitPromise === true,
@@ -417,7 +466,7 @@ async function evaluate(expression, options = {}) {
   return result.result.value;
 }
 
-async function installConsoleCollector() {
+async function installConsoleCollector(client = app) {
   await evaluate(
     `(() => {
       if (window.__smokeErrors) return "already-installed";
@@ -435,11 +484,13 @@ async function installConsoleCollector() {
       });
       return "installed";
     })()`,
+    {},
+    client,
   );
 }
 
-async function collectedErrors() {
-  return evaluate(`window.__smokeErrors ?? []`);
+async function collectedErrors(client = app) {
+  return evaluate(`window.__smokeErrors ?? []`, {}, client);
 }
 
 async function rendererSnapshot() {

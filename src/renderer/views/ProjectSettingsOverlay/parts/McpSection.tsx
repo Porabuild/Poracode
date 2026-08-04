@@ -1,5 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import type { McpServer } from "@/shared/contracts";
+import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -12,13 +13,13 @@ export function McpSection(props: { projectId: string }) {
     state.projects.find((item) => item.id === props.projectId),
   );
   const projects = useAppStore((state) => state.projects);
-  const updateProjectMcpServers = useAppStore((state) => state.updateProjectMcpServers);
   const userServers = useSharedSettings((state) => state.mcpServers);
   const setUserServers = useSharedSettings((state) => state.setMcpServers);
 
   if (!project) return null;
 
   const importProjects = projects
+    .filter((item) => item.remoteServerId === project.remoteServerId)
     .filter((item) => !isHomeProject(item))
     .map((item) => ({
       id: item.id,

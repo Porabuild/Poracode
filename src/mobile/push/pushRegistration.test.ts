@@ -46,7 +46,7 @@ vi.mock("@poracode/activity-bridge", () => ({
 
 import { ActivityBridge } from "@poracode/activity-bridge";
 import type { RemotePushRegistration } from "@/shared/remote";
-import type { RemoteDesktopClient } from "../remoteClient";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import {
   __resetPushRegistrationForTests,
   registerIfChanged,

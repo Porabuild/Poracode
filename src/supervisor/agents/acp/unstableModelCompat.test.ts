@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ClientSideConnection } from "@agentclientprotocol/sdk";
-import { readUnstableSessionModels, setUnstableSessionModel } from "./unstableModelCompat";
+import {
+  readUnstableInitializeModels,
+  readUnstableSessionModels,
+  setUnstableSessionModel,
+} from "./unstableModelCompat";
 
 describe("readUnstableSessionModels", () => {
   it("reads the pre-1.0 models field from a session response", () => {
@@ -49,6 +53,34 @@ describe("readUnstableSessionModels", () => {
     expect(readUnstableSessionModels({ models: { availableModels: "nope" } })).toBeUndefined();
     expect(readUnstableSessionModels(undefined)).toBeUndefined();
     expect(readUnstableSessionModels(null)).toBeUndefined();
+  });
+});
+
+describe("readUnstableInitializeModels", () => {
+  it("reads Grok's initialize._meta.modelState shape", () => {
+    expect(
+      readUnstableInitializeModels({
+        modelState: {
+          currentModelId: "grok-4.5",
+          availableModels: [
+            {
+              modelId: "grok-4.5",
+              name: "Grok 4.5",
+              _meta: { totalContextTokens: 500_000 },
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      currentModelId: "grok-4.5",
+      availableModels: [
+        {
+          modelId: "grok-4.5",
+          name: "Grok 4.5",
+          _meta: { totalContextTokens: 500_000 },
+        },
+      ],
+    });
   });
 });
 

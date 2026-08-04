@@ -11,7 +11,9 @@ export const projects = sqliteTable("projects", {
   lastDraftConfig: text("last_draft_config"), // JSON
   scripts: text("scripts"), // JSON
   searchSettings: text("search_settings"), // JSON
+  worktreeLocation: text("worktree_location"), // JSON
   mcpServers: text("mcp_servers"), // JSON
+  workspaceId: text("workspace_id"),
   disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: text("created_at").notNull(),
@@ -40,6 +42,8 @@ export const threads = sqliteTable("threads", {
   prNumber: integer("pr_number"),
   groupId: text("group_id"),
   groupName: text("group_name"),
+  /** Orchestrator thread that created this one via the Crossagents MCP. */
+  parentThreadId: text("parent_thread_id"),
   archived: integer("archived", { mode: "boolean" }).notNull().default(false),
   done: integer("done", { mode: "boolean" }).notNull().default(false),
   doneAt: text("done_at"),
@@ -67,6 +71,31 @@ export const remoteCommandReceipts = sqliteTable("remote_command_receipts", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+export const prWatches = sqliteTable(
+  "pr_watches",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    prNumber: integer("pr_number").notNull(),
+    headBranch: text("head_branch").notNull(),
+    worktreePath: text("worktree_path"),
+    watchEnabled: integer("watch_enabled", { mode: "boolean" }).notNull().default(true),
+    autoMerge: integer("auto_merge", { mode: "boolean" }).notNull().default(false),
+    agentKind: text("agent_kind"),
+    config: text("config"),
+    lastCommentCursor: text("last_comment_cursor"),
+    lastReviewCommentCursor: text("last_review_comment_cursor"),
+    lastReviewCursor: text("last_review_cursor"),
+    lastCheckKey: text("last_check_key"),
+    activeThreadId: text("active_thread_id"),
+    lastError: text("last_error"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.projectId, table.prNumber] }),
+  }),
+);
 
 /**
  * Per-project notes panel content. One row per project, keyed by project id.

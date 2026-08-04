@@ -55,8 +55,8 @@ function isLikelyInlineFilePath(path: string): boolean {
 
 /**
  * Walk a contentEditable container and produce structured prompt segments.
- * Text content becomes `{ kind: "text" }` segments, file mention chips
- * and inline `@path` tokens become `{ kind: "file", path }` segments.
+ * Text content becomes `{ kind: "text" }` segments, while file mentions,
+ * skills, and diff-comment chips retain their structured metadata.
  * Each adapter then formats these segments its own way (Claude: @path,
  * Codex: structured API, etc.).
  */
@@ -89,6 +89,31 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
     if (el.dataset.mentionPath) {
       flushText();
       segments.push({ kind: "file", path: el.dataset.mentionPath });
+      return;
+    }
+
+    if (
+      el.dataset.diffCommentPath &&
+      el.dataset.diffCommentLineNumber &&
+      (el.dataset.diffCommentSide === "old" || el.dataset.diffCommentSide === "new") &&
+      (el.dataset.diffCommentStaged === "true" || el.dataset.diffCommentStaged === "false") &&
+      el.dataset.diffCommentBody
+    ) {
+      flushText();
+      segments.push({
+        kind: "diff_comment",
+        path: el.dataset.diffCommentPath,
+        lineNumber: Number(el.dataset.diffCommentLineNumber),
+        side: el.dataset.diffCommentSide,
+        staged: el.dataset.diffCommentStaged === "true",
+        body: el.dataset.diffCommentBody,
+      });
+      return;
+    }
+
+    if (el.dataset.mcpId && el.dataset.mcpName) {
+      flushText();
+      segments.push({ kind: "mcp", id: el.dataset.mcpId, name: el.dataset.mcpName });
       return;
     }
 
@@ -138,6 +163,51 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
 export function flattenSegments(segments: PromptSegment[]): string {
   const rest = segments.filter((s) => s.kind !== "attachment");
   return rest.map(inlinePromptSegmentText).join("").trim();
+}
+
+function isStructuredTokenBoundary(content: string, start: number, length: number): boolean {
+  const before = content[start - 1];
+  const after = content[start + length];
+  const startsAtBoundary = before === undefined || /\s/u.test(before) || "([{'\"`".includes(before);
+  const continuesToken =
+    after !== undefined && (/\p{L}|\p{N}|[_.-]/u.test(after) || after === "/" || after === "\\");
+  const endsAtBoundary = !continuesToken;
+  return startsAtBoundary && endsAtBoundary;
+}
+
+/** Rebuild structured prompt content after editing its flattened display text. */
+export function rebuildEditedPromptSegments(
+  content: string,
+  originalSegments: readonly PromptSegment[],
+): PromptSegment[] {
+  const attachments = originalSegments.filter((segment) => segment.kind === "attachment");
+  const structured = originalSegments
+    .filter((segment) => segment.kind === "file" || segment.kind === "skill")
+    .map((segment) => ({ segment, token: inlinePromptSegmentText(segment) }))
+    .sort((a, b) => b.token.length - a.token.length);
+  const rebuilt: PromptSegment[] = [];
+  let textStart = 0;
+  let cursor = 0;
+
+  while (cursor < content.length) {
+    const match = structured.find(
+      (entry) =>
+        content.startsWith(entry.token, cursor) &&
+        isStructuredTokenBoundary(content, cursor, entry.token.length),
+    );
+    if (!match) {
+      cursor += 1;
+      continue;
+    }
+
+    pushTextBufferSegments(rebuilt, content.slice(textStart, cursor));
+    rebuilt.push(match.segment);
+    cursor += match.token.length;
+    textStart = cursor;
+  }
+
+  pushTextBufferSegments(rebuilt, content.slice(textStart));
+  return [...attachments, ...rebuilt];
 }
 
 /**

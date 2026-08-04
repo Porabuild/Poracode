@@ -10,6 +10,7 @@ import { useGitFile } from "@/renderer/state/gitSelectors";
 import { isLockFile } from "@/shared/gitUtils";
 import {
   ConfirmDialog,
+  DiffStat,
   FileIcon,
   FileStatusBadge,
   PathDisplay,
@@ -144,6 +145,7 @@ export function FileRow(props: {
         <FileIcon path={path} />
         <PathDisplay
           path={path}
+          measureOverflow={false}
           className="flex-1"
           trailing={
             <>
@@ -155,16 +157,18 @@ export function FileRow(props: {
           }
         />
         {touch ? (
-          <span className="flex shrink-0 items-center justify-end text-[11px] leading-4 font-medium tabular-nums">
-            {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
-            {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
-          </span>
+          <DiffStat
+            className="flex shrink-0 items-center justify-end gap-0.5 text-[11px] leading-4 font-medium tabular-nums"
+            insertions={file.insertions}
+            deletions={file.deletions}
+          />
         ) : (
           <span className="relative w-14 shrink-0">
-            <span className="flex items-center justify-end text-[10px] leading-4 font-medium transition-opacity group-hover:opacity-0">
-              {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
-              {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
-            </span>
+            <DiffStat
+              className="flex items-center justify-end gap-0.5 text-[10px] leading-4 font-medium transition-opacity group-hover:opacity-0"
+              insertions={file.insertions}
+              deletions={file.deletions}
+            />
             <span className="absolute inset-0 flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
               <div
                 role="button"
@@ -218,18 +222,20 @@ export function FileRow(props: {
         )}
       </button>
 
-      <ConfirmDialog
-        isOpen={revertOpen}
-        title={t`Revert changes`}
-        body={
-          <Trans>
-            Are you sure you want to revert <strong>{path}</strong>? This cannot be undone.
-          </Trans>
-        }
-        confirmLabel={t`Revert`}
-        onConfirm={() => void handleRevert()}
-        onClose={() => setRevertOpen(false)}
-      />
+      {revertOpen && (
+        <ConfirmDialog
+          isOpen
+          title={t`Revert changes`}
+          body={
+            <Trans>
+              Are you sure you want to revert <strong>{path}</strong>? This cannot be undone.
+            </Trans>
+          }
+          confirmLabel={t`Revert`}
+          onConfirm={() => void handleRevert()}
+          onClose={() => setRevertOpen(false)}
+        />
+      )}
     </>
   );
 }

@@ -30,7 +30,7 @@ vi.mock("./storeSync", () => ({
   dispatchRemoteSupervisorEvent: (event: unknown) => h.dispatchRemoteSupervisorEvent(event),
 }));
 
-import { RemoteClientError } from "./remoteClient";
+import { RemoteClientError } from "@/shared/remote/client";
 import {
   createRemoteSocketCoordinator,
   type RemoteSocketCoordinator,
@@ -39,8 +39,14 @@ import {
 } from "./remoteSocketCoordinator";
 
 interface ClientMock {
-  readonly websocketTicket: Mock<() => Promise<string>>;
-  readonly websocketUrl: Mock<(ticket: string, lastSeenSeq: number | null | undefined) => string>;
+  readonly websocketTicket: Mock<(timeoutMs?: number) => Promise<string>>;
+  readonly websocketUrl: Mock<
+    (
+      ticket: string,
+      lastSeenSeq: number | null | undefined,
+      options?: { readonly threadItemInterests?: readonly string[] },
+    ) => string
+  >;
   readonly parseSocketMessage: Mock<(raw: string) => RemoteWebSocketServerMessage>;
 }
 
@@ -114,9 +120,16 @@ interface Harness {
 
 function createClient(): ClientMock {
   return {
-    websocketTicket: vi.fn<() => Promise<string>>(async () => "ticket-1"),
-    websocketUrl: vi.fn<(ticket: string, lastSeenSeq: number | null | undefined) => string>(
-      (ticket, lastSeenSeq) => `ws://desktop/ws?ticket=${ticket}&lastSeenSeq=${lastSeenSeq}`,
+    websocketTicket: vi.fn<(timeoutMs?: number) => Promise<string>>(async () => "ticket-1"),
+    websocketUrl: vi.fn<
+      (
+        ticket: string,
+        lastSeenSeq: number | null | undefined,
+        options?: { readonly threadItemInterests?: readonly string[] },
+      ) => string
+    >(
+      (ticket: string, lastSeenSeq: number | null | undefined) =>
+        `ws://desktop/ws?ticket=${ticket}&lastSeenSeq=${lastSeenSeq}`,
     ),
     parseSocketMessage: vi.fn<(raw: string) => RemoteWebSocketServerMessage>(
       (raw) => JSON.parse(raw) as RemoteWebSocketServerMessage,
@@ -213,8 +226,10 @@ describe("remoteSocketCoordinator", () => {
     const harness = track(createHarness({ initialLastSeenSeq: 7 }));
     const socket = await start(harness);
 
-    expect(harness.client.websocketTicket).toHaveBeenCalledTimes(1);
-    expect(harness.client.websocketUrl).toHaveBeenCalledWith("ticket-1", 7);
+    expect(harness.client.websocketTicket).toHaveBeenCalledWith(15000);
+    expect(harness.client.websocketUrl).toHaveBeenCalledWith("ticket-1", 7, {
+      threadItemInterests: ["selected"],
+    });
     harness.coordinator.start();
     expect(FakeWebSocket.instances).toHaveLength(1);
 
@@ -229,6 +244,144 @@ describe("remoteSocketCoordinator", () => {
     expect(harness.requestRefresh).toHaveBeenCalledWith({
       refreshSelectedThread: true,
       includeAuxiliary: true,
+    });
+  });
+
+  it("publishes current Git interests on open and whenever they change", async () => {
+    const harness = track(createHarness());
+    const socket = await start(harness);
+    harness.coordinator.setGitStateInterests([
+      {
+        kind: "target",
+        projectId: "project-1",
+        worktreePath: "/repo/worktree",
+        includePrDetails: true,
+      },
+    ]);
+    expect(socket.sent).toEqual([]);
+
+    socket.open();
+    expect(socket.sent.map((message) => JSON.parse(message))).toContainEqual({
+      type: "git-state-interests",
+      interests: [
+        {
+          kind: "target",
+          projectId: "project-1",
+          worktreePath: "/repo/worktree",
+          includePrDetails: true,
+        },
+      ],
+    });
+
+    harness.coordinator.setGitStateInterests([
+      { kind: "project-pull-requests", projectId: "project-1" },
+    ]);
+    expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
+      type: "git-state-interests",
+      interests: [{ kind: "project-pull-requests", projectId: "project-1" }],
+    });
+
+    const sentCount = socket.sent.length;
+    harness.coordinator.setGitStateInterests([
+      { kind: "project-pull-requests", projectId: "project-1" },
+    ]);
+    expect(socket.sent).toHaveLength(sentCount);
+  });
+
+  it("only republishes thread interests changed after the handshake", async () => {
+    const harness = track(createHarness());
+    const socket = await start(harness);
+    expect(harness.client.websocketUrl).toHaveBeenCalledWith("ticket-1", 0, {
+      threadItemInterests: ["selected"],
+    });
+    harness.coordinator.setThreadItemInterests(["other"]);
+    socket.open();
+    expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
+      type: "thread-item-interests",
+      threadIds: ["other"],
+    });
+
+    const sentCount = socket.sent.length;
+    harness.coordinator.setThreadItemInterests(["other"]);
+    expect(socket.sent).toHaveLength(sentCount);
+
+    harness.coordinator.setThreadItemInterests(["selected"]);
+    expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
+      type: "thread-item-interests",
+      threadIds: ["selected"],
+    });
+  });
+
+  it.each(["windows-agent-statuses", "wsl-agent-statuses"] as const)(
+    "applies live %s without fetching an unrelated shell snapshot",
+    async (type) => {
+      const harness = track(createHarness());
+      const socket = await start(harness);
+      socket.open();
+      await vi.advanceTimersByTimeAsync(600);
+      harness.requestRefresh.mockClear();
+
+      socket.message({ type: "event", seq: 1, event: { type, statuses: [] } });
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(h.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith({ type, statuses: [] });
+      expect(harness.requestRefresh).not.toHaveBeenCalled();
+    },
+  );
+
+  it("advances to an authoritative snapshot sequence and ignores covered replay events", async () => {
+    const harness = track(createHarness({ initialLastSeenSeq: 2 }));
+    const socket = await start(harness);
+    socket.open();
+
+    harness.coordinator.advanceLastSeenSeq(8);
+    socket.message({
+      type: "event",
+      seq: 8,
+      event: { type: "thread-runtime-event", threadId: "covered" },
+    });
+    socket.message({
+      type: "event",
+      seq: 9,
+      event: { type: "thread-runtime-event", threadId: "new" },
+    });
+
+    expect(h.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(1);
+    expect(h.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith({
+      type: "thread-runtime-event",
+      threadId: "new",
+    });
+    expect(harness.coordinator.getLastSeenSeq()).toBe(9);
+  });
+
+  it("resets a stale cursor after a server restart and accepts the new event stream", async () => {
+    const harness = track(createHarness({ initialLastSeenSeq: 42 }));
+    const socket = await start(harness);
+    socket.open();
+
+    socket.message({
+      type: "resync-required",
+      seq: 0,
+      reason: "Server event stream reset; request a fresh snapshot.",
+    });
+    expect(harness.coordinator.getLastSeenSeq()).toBe(0);
+
+    socket.message({
+      type: "event",
+      seq: 1,
+      event: { type: "remote-threads-changed", threadIds: ["new-thread"] },
+    });
+    expect(h.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith({
+      type: "remote-threads-changed",
+      threadIds: ["new-thread"],
+    });
+    expect(harness.coordinator.getLastSeenSeq()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(600);
+    expect(harness.requestRefresh).toHaveBeenCalledWith({
+      refreshSelectedThread: true,
+      includeAuxiliary: true,
+      resetLastSeenSeq: true,
     });
   });
 
@@ -267,6 +420,7 @@ describe("remoteSocketCoordinator", () => {
       seq: 8,
       event: { type: "thread-state", threadId: "selected" },
     });
+    expect(harness.coordinator.getLastSeenSeq()).toBe(8);
     await vi.advanceTimersByTimeAsync(600);
     expect(harness.requestRefresh).toHaveBeenCalledWith({
       refreshSelectedThread: true,
@@ -279,7 +433,9 @@ describe("remoteSocketCoordinator", () => {
     await flushPromises();
 
     expect(FakeWebSocket.instances).toHaveLength(2);
-    expect(harness.client.websocketUrl).toHaveBeenLastCalledWith("ticket-1", 8);
+    expect(harness.client.websocketUrl).toHaveBeenLastCalledWith("ticket-1", 8, {
+      threadItemInterests: ["selected"],
+    });
   });
 
   it("probes a seemingly-open socket and closes it when no pong arrives", async () => {
@@ -298,6 +454,24 @@ describe("remoteSocketCoordinator", () => {
 
     await vi.advanceTimersByTimeAsync(5001);
     expect(socket.readyState).toBe(FakeWebSocket.CLOSED);
+  });
+
+  it("requests catch-up when Safari restores the page or window focus", async () => {
+    const harness = track(createHarness());
+    const socket = await start(harness);
+    socket.open();
+    await vi.advanceTimersByTimeAsync(600);
+    harness.requestRefresh.mockClear();
+
+    window.dispatchEvent(new Event("pageshow"));
+    window.dispatchEvent(new Event("focus"));
+    await vi.advanceTimersByTimeAsync(600);
+
+    expect(harness.requestRefresh).toHaveBeenCalledTimes(1);
+    expect(harness.requestRefresh).toHaveBeenCalledWith({
+      refreshSelectedThread: true,
+      includeAuxiliary: true,
+    });
   });
 
   it("clears a health timeout only for the correlated pong", async () => {
@@ -351,6 +525,21 @@ describe("remoteSocketCoordinator", () => {
     expect(harness.createClient).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a transport failure as offline while keeping reconnect scheduled", async () => {
+    const harness = track(createHarness());
+    harness.client.websocketTicket.mockRejectedValueOnce(
+      new RemoteClientError("desktop unreachable", 0, "offline"),
+    );
+    harness.coordinator.start();
+    await flushPromises();
+
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    expect(harness.onConnectionChange).toHaveBeenLastCalledWith("offline");
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+  });
+
   it("force-closes a handshake that remains connecting", async () => {
     const harness = track(createHarness());
     const socket = await start(harness);
@@ -385,7 +574,12 @@ describe("remoteSocketCoordinator", () => {
     const firstSocket = await start(harness);
     firstSocket.open();
     document.dispatchEvent(new Event("visibilitychange"));
-    expect(firstSocket.sent).toHaveLength(1);
+    // Transcript interests were already declared in the handshake URL; on open
+    // the coordinator sends Git interests, then visibility adds a health ping.
+    expect(firstSocket.sent.map((raw) => (JSON.parse(raw) as { type: string }).type)).toEqual([
+      "git-state-interests",
+      "ping",
+    ]);
     firstSocket.beginClosing();
 
     window.dispatchEvent(new Event("online"));
@@ -394,7 +588,10 @@ describe("remoteSocketCoordinator", () => {
     expect(secondSocket).not.toBe(firstSocket);
     secondSocket?.open();
     document.dispatchEvent(new Event("visibilitychange"));
-    expect(secondSocket?.sent).toHaveLength(1);
+    // Same as the first socket: Git interests, then the ping.
+    expect(
+      (secondSocket?.sent ?? []).map((raw) => (JSON.parse(raw) as { type: string }).type),
+    ).toEqual(["git-state-interests", "ping"]);
 
     harness.onConnectionChange.mockClear();
     harness.onMessageChange.mockClear();

@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemoteSettings, RemoteSettingsPatch } from "@/shared/remote";
 import type { SharedSettingsInput } from "@/shared/settings";
-import type { RemoteDesktopClient } from "./remoteClient";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 
 // applyDesktopSettings mirrors into the shared store; stub it so these tests
 // exercise only the push-ordering state machine.
-vi.mock("@/renderer/state/sharedSettingsStore", () => ({
+const h = vi.hoisted(() => ({
   applyExternalSharedSettings: vi.fn<() => void>(),
+}));
+
+vi.mock("@/renderer/state/sharedSettingsStore", () => ({
+  applyExternalSharedSettings: h.applyExternalSharedSettings,
 }));
 
 import {
@@ -37,6 +41,47 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 describe("pushDesktopSettingsDiff push ordering", () => {
   beforeEach(() => {
     resetDesktopSettings();
+    h.applyExternalSharedSettings.mockClear();
+  });
+
+  it("hydrates the desktop's persistent composer MCP toggles", () => {
+    const remote = {
+      ...settings("v0"),
+      enabledMcpServers: { browser: true, crossagents: false, "computer-use": true },
+      disabledBuiltInMcpServers: { chrome: true },
+    } as RemoteSettings;
+
+    applyDesktopSettings(remote);
+
+    expect(h.applyExternalSharedSettings).toHaveBeenCalledWith(remote);
+  });
+
+  it("forwards a persistent composer MCP toggle change to the desktop", async () => {
+    applyDesktopSettings({
+      ...settings("v0"),
+      enabledMcpServers: { browser: true, crossagents: false },
+      disabledBuiltInMcpServers: {},
+    } as RemoteSettings);
+    const committed = {
+      ...settings("v0"),
+      enabledMcpServers: { browser: true, crossagents: true },
+      disabledBuiltInMcpServers: {},
+    } as RemoteSettings;
+    const updateSettings = vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(
+      async () => committed,
+    );
+    const client = { updateSettings } as unknown as RemoteDesktopClient;
+
+    pushDesktopSettingsDiff(client, {
+      ...input("v0"),
+      enabledMcpServers: committed.enabledMcpServers,
+      disabledBuiltInMcpServers: committed.disabledBuiltInMcpServers,
+    } as SharedSettingsInput);
+    await flush();
+
+    expect(updateSettings).toHaveBeenCalledWith({
+      enabledMcpServers: { browser: true, crossagents: true },
+    });
   });
 
   it("an older push's failure does not discard a newer push's committed value", async () => {

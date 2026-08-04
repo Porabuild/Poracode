@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { PromptSegment } from "@/shared/contracts";
+import { formatDiffCommentPrompt } from "@/shared/promptContent";
 
 function isImageAttachment(segment: PromptSegment): boolean {
   return (
@@ -55,6 +56,10 @@ export async function buildSdkUserMessage(
       textParts.push(segment.content);
       continue;
     }
+    if (segment.kind === "diff_comment") {
+      textParts.push(formatDiffCommentPrompt(segment));
+      continue;
+    }
     if (segment.kind === "attachment" && isImageAttachment(segment)) {
       flushText();
       const bytes = await readFile(segment.path);
@@ -80,6 +85,11 @@ export async function buildSdkUserMessage(
           data: bytes.toString("base64"),
         },
       });
+      continue;
+    }
+    if (segment.kind === "mcp") {
+      // MCP mentions are a plain-text directive for the turn, not a file ref.
+      textParts.push(`@${segment.name}`);
       continue;
     }
     textParts.push(`@${segment.path}`);

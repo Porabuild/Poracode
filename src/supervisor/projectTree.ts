@@ -27,12 +27,32 @@ import type {
   WriteProjectFilePayload,
   WriteProjectFileResult,
 } from "@/shared/contracts";
+import { HOST_DRIVE_LIST_PATH } from "@/shared/contracts";
+import { isPdfPath } from "@/shared/promptContent";
 import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { ProjectSearchIndex } from "./ProjectSearchIndex";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
 const BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const MAX_HOST_BROWSE_ENTRIES = 4_000;
+
+/** Existing drive roots (C:\, D:\, …) as directory entries, for the picker. */
+async function listWindowsDriveRoots(): Promise<HostDirectoryEntry[]> {
+  const letters = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
+  const roots = await Promise.all(
+    letters.map(async (letter): Promise<HostDirectoryEntry | null> => {
+      const root = `${letter}:\\`;
+      try {
+        return (await stat(root)).isDirectory()
+          ? { name: `${letter}:`, path: root, type: "directory" }
+          : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return roots.filter((entry): entry is HostDirectoryEntry => entry !== null);
+}
 const MAX_EDITABLE_FILE_SIZE = 1_000_000;
 
 type RawFileRead =
@@ -194,7 +214,7 @@ export class ProjectTreeService {
    * List an arbitrary absolute directory on the host for the folder picker
    * (add-existing / clone parent). Not confined to a project root — this is the
    * one entry point that browses the wider filesystem, so it's gated behind the
-   * `projects:manage` remote scope (see gitProcedures.ts), the same capability
+   * `projects:manage` remote scope (see remote/procedures.ts), the same capability
    * that can already register any path as a project.
    *
    * Native FS only: paths are the host's own filesystem (POSIX or Windows).
@@ -207,6 +227,15 @@ export class ProjectTreeService {
   ): Promise<BrowseHostDirectoryResult> {
     const home = homedir();
     const requested = payload.path.trim();
+    if (requested === HOST_DRIVE_LIST_PATH) {
+      return {
+        path: HOST_DRIVE_LIST_PATH,
+        parentPath: null,
+        homePath: home,
+        entries: await listWindowsDriveRoots(),
+        truncated: false,
+      };
+    }
     const target = requested ? resolve(requested) : home;
 
     const targetStat = await stat(target);
@@ -245,9 +274,17 @@ export class ProjectTreeService {
     });
 
     const parent = dirname(target);
+    // At a Windows drive root, "up" surfaces the synthetic drive list so
+    // other drives are reachable (there is no real parent to walk to).
+    const atRoot = parent === target;
+    const parentPath = atRoot
+      ? process.platform === "win32"
+        ? HOST_DRIVE_LIST_PATH
+        : null
+      : parent;
     return {
       path: target,
-      parentPath: parent === target ? null : parent,
+      parentPath,
       homePath: home,
       entries: sortHostEntries(entries),
       truncated,
@@ -286,6 +323,14 @@ export class ProjectTreeService {
 
   async readProjectFile(payload: ReadProjectFilePayload): Promise<ReadProjectFileResult> {
     const path = normalizeRelativePath(payload.path);
+    // PDFs open in the in-app browser — only metadata is needed for the editor tab.
+    if (isPdfPath(path)) {
+      return {
+        path,
+        status: "binary",
+        modifiedAtMs: await this.statProjectRelativeMtimeMs(payload.projectLocation, path),
+      };
+    }
 
     const raw =
       payload.projectLocation.kind === "wsl"
@@ -293,8 +338,13 @@ export class ProjectTreeService {
             payload.projectLocation,
             path,
             this.requireWslClient(),
+            MAX_EDITABLE_FILE_SIZE,
           )
-        : await this.readProjectFileBufferNative(payload.projectLocation, path);
+        : await this.readProjectFileBufferNative(
+            payload.projectLocation,
+            path,
+            MAX_EDITABLE_FILE_SIZE,
+          );
 
     if (raw.kind === "tooLarge") {
       return { path, status: "too_large", modifiedAtMs: raw.modifiedAtMs };
@@ -392,6 +442,25 @@ export class ProjectTreeService {
     if (!isAbsolute(payload.absolutePath) && !payload.absolutePath.startsWith("/")) {
       throw new Error("Path must be absolute.");
     }
+
+    if (isPdfPath(payload.absolutePath)) {
+      try {
+        return {
+          path: payload.absolutePath,
+          status: "binary",
+          modifiedAtMs: await this.statAbsoluteMtimeMs(
+            payload.projectLocation,
+            payload.absolutePath,
+          ),
+        };
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          return { path: payload.absolutePath, status: "missing", modifiedAtMs: 0 };
+        }
+        throw err;
+      }
+    }
+
     let raw: RawFileRead;
     try {
       raw =
@@ -400,8 +469,9 @@ export class ProjectTreeService {
               this.externalWslLocation(payload.projectLocation, payload.absolutePath),
               payload.absolutePath,
               this.requireWslClient(),
+              MAX_EDITABLE_FILE_SIZE,
             )
-          : await this.readAbsoluteFileBufferNative(payload.absolutePath);
+          : await this.readAbsoluteFileBufferNative(payload.absolutePath, MAX_EDITABLE_FILE_SIZE);
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         return { path: payload.absolutePath, status: "missing", modifiedAtMs: 0 };
@@ -541,11 +611,40 @@ export class ProjectTreeService {
     return path.startsWith("/") ? posix.resolve(path) : posix.resolve(root, path);
   }
 
-  private async readAbsoluteFileBufferNative(absolutePath: string): Promise<RawFileRead> {
+  /** mtime only — used when PDFs skip body load for browser preview. */
+  private async statProjectRelativeMtimeMs(
+    location: ProjectLocation,
+    relativePath: string,
+  ): Promise<number> {
+    if (location.kind === "wsl") {
+      const { stats } = await this.requireWslClient().stat(location, [
+        joinProjectPosixPath(location, relativePath),
+      ]);
+      return stats[0]?.mtimeMs ?? 0;
+    }
+    return (await this.statFollowingWslSymlinks(location, relativePath)).fileStat.mtimeMs;
+  }
+
+  private async statAbsoluteMtimeMs(
+    location: ProjectLocation,
+    absolutePath: string,
+  ): Promise<number> {
+    if (location.kind === "wsl") {
+      const wslLocation = this.externalWslLocation(location, absolutePath);
+      const { stats } = await this.requireWslClient().stat(wslLocation, [absolutePath]);
+      return stats[0]?.mtimeMs ?? 0;
+    }
+    return (await stat(absolutePath)).mtimeMs;
+  }
+
+  private async readAbsoluteFileBufferNative(
+    absolutePath: string,
+    maxBytes = MAX_EDITABLE_FILE_SIZE,
+  ): Promise<RawFileRead> {
     if (!isAbsolute(absolutePath)) throw new Error("Path must be absolute.");
     const fileStat = await stat(absolutePath);
     if (!fileStat.isFile()) throw new Error("Only files can be read.");
-    if (fileStat.size > MAX_EDITABLE_FILE_SIZE) {
+    if (fileStat.size > maxBytes) {
       return { kind: "tooLarge", modifiedAtMs: fileStat.mtimeMs };
     }
     const buffer = await readFile(absolutePath);
@@ -556,9 +655,10 @@ export class ProjectTreeService {
     location: Extract<ProjectLocation, { kind: "wsl" }>,
     absolutePath: string,
     wslClient: WslBridgeClient,
+    maxBytes = MAX_EDITABLE_FILE_SIZE,
   ): Promise<RawFileRead> {
     const result = await wslClient.readFile(location, absolutePath, {
-      maxBytes: MAX_EDITABLE_FILE_SIZE,
+      maxBytes,
     });
     if (result.tooLarge) {
       return { kind: "tooLarge", modifiedAtMs: result.mtimeMs };
@@ -573,10 +673,11 @@ export class ProjectTreeService {
   private async readProjectFileBufferNative(
     location: ProjectLocation,
     relativePath: string,
+    maxBytes = MAX_EDITABLE_FILE_SIZE,
   ): Promise<RawFileRead> {
     const { fullPath, fileStat } = await this.statFollowingWslSymlinks(location, relativePath);
     if (!fileStat.isFile()) throw new Error("Only files can be opened in the editor.");
-    if (fileStat.size > MAX_EDITABLE_FILE_SIZE) {
+    if (fileStat.size > maxBytes) {
       return { kind: "tooLarge", modifiedAtMs: fileStat.mtimeMs };
     }
     const buffer = await readFile(fullPath);
@@ -587,10 +688,11 @@ export class ProjectTreeService {
     location: Extract<ProjectLocation, { kind: "wsl" }>,
     relativePath: string,
     wslClient: WslBridgeClient,
+    maxBytes = MAX_EDITABLE_FILE_SIZE,
   ): Promise<RawFileRead> {
     const absolute = joinProjectPosixPath(location, relativePath);
     const result = await wslClient.readFile(location, absolute, {
-      maxBytes: MAX_EDITABLE_FILE_SIZE,
+      maxBytes,
     });
     if (result.tooLarge) {
       return { kind: "tooLarge", modifiedAtMs: result.mtimeMs };

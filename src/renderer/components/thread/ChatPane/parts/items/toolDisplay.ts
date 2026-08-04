@@ -87,7 +87,11 @@ type AcpLocation = NonNullable<ToolCallPayload["locations"]>[number];
  * result on the parent), and by the chat row router to render the sub-agent
  * pill from the moment the call starts — even before any child events arrive.
  */
-export { isSubAgentTool } from "@/shared/toolCallClassification";
+export {
+  isCrossagentTool,
+  isDelegatedAgentTool,
+  isSubAgentTool,
+} from "@/shared/toolCallClassification";
 export { isWorkflowTool };
 
 export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
@@ -117,10 +121,11 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
   const claude = mapClaudeRawTool(payload.name, args);
   if (claude) return claude;
 
-  if (payload.isSubAgent === true) {
+  if (payload.isSubAgent === true || payload.isCrossagent === true) {
     return {
       title: formatAgentTitle(args, payload.title?.trim() || payload.name.trim(), {
         preferFallback: payload.title !== undefined,
+        isCrossagent: payload.isCrossagent === true,
       }),
       Icon: Bot,
     };
@@ -328,13 +333,21 @@ function formatGrepDisplay(args: Record<string, unknown> | undefined): ToolDispl
 function formatAgentTitle(
   args: Record<string, unknown> | undefined,
   fallbackDescription?: string,
-  options?: { preferFallback?: boolean },
+  options?: { preferFallback?: boolean; isCrossagent?: boolean },
 ): string {
   const argsDescription = readStr(args, "description");
   const description = options?.preferFallback
     ? (fallbackDescription ?? argsDescription)
     : (argsDescription ?? fallbackDescription);
   const subagent = readSubAgentType(args);
+  if (options?.isCrossagent) {
+    if (description) {
+      return subagent
+        ? i18n._(msg`Crossagent (${subagent}): ${description}`)
+        : i18n._(msg`Crossagent: ${description}`);
+    }
+    return subagent ? i18n._(msg`Crossagent: ${subagent}`) : i18n._(msg`Crossagent`);
+  }
   if (description) {
     return subagent
       ? i18n._(msg`Agent (${subagent}): ${description}`)

@@ -48,12 +48,19 @@ export async function copyIgnoredFilesIntoWorktree(
   ]);
   const entries = raw.split("\0").filter(Boolean);
   const matched = matchIgnoredCopyEntries(entries, patterns);
+  const safeMatches = matched.filter((entry) => {
+    const segments = entry.replace(/\\/gu, "/").replace(/\/+$/u, "").split("/");
+    return !segments.includes("node_modules");
+  });
+  if (safeMatches.length !== matched.length) {
+    console.warn("[supervisor] skipped copying node_modules into a worktree");
+  }
 
   const sourceRoot = getProjectFsPath(location);
   const destRoot = getProjectFsPath(buildWorktreeLocation(location, worktreePath));
 
   await Promise.all(
-    matched.map(async (entry) => {
+    safeMatches.map(async (entry) => {
       const relative = entry.replace(/\/+$/, "");
       const source = join(sourceRoot, relative);
       const dest = join(destRoot, relative);

@@ -1,14 +1,14 @@
 /* Poracode brand type — Geist (Vercel, SIL OFL), bundled for offline use. */
 @font-face {
   font-family: "Geist";
-  src: url("./fonts/Geist-Variable.woff2") format("woff2");
+  src: url("../renderer/fonts/Geist-Variable.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Geist Mono";
-  src: url("./fonts/GeistMono-Variable.woff2") format("woff2");
+  src: url("../renderer/fonts/GeistMono-Variable.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -21,6 +21,36 @@
 .modal__dialog:not(.modal__dialog--cover):not(.modal__dialog--full),
 .alert-dialog__dialog:not(.alert-dialog__dialog--cover) {
   border-radius: var(--poracode-modal-radius);
+}
+
+/* Icon + title on the same row for every Modal/AlertDialog header that leads
+   with an icon. HeroUI stacks the header as `flex flex-col`, which drops the
+   icon above the heading. Switch headers that contain an icon to a two-column
+   grid: the icon occupies the first column and spans the full block height
+   (vertically centered), while the heading and any following description stack
+   in the second column. This keeps single-line dialogs (icon + heading)
+   centered and lets multi-line headers (icon + heading + description) read as
+   one left-aligned text block beside the icon. Applied at the base level so all
+   Modal-based dialogs inherit the convention. */
+.modal__header:has(> .modal__icon),
+.alert-dialog__header:has(> .alert-dialog__icon) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+}
+
+.modal__header:has(> .modal__icon) > .modal__icon,
+.alert-dialog__header:has(> .alert-dialog__icon) > .alert-dialog__icon {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: center;
+}
+
+.modal__header:has(> .modal__icon) > :not(.modal__icon),
+.alert-dialog__header:has(> .alert-dialog__icon) > :not(.alert-dialog__icon) {
+  grid-column: 2;
 }
 
 /* In-content Find highlights (chat, git diff). Painted via the CSS Custom
@@ -583,21 +613,56 @@
   --tw-ring-offset-shadow: 0 0 #0000;
 }
 
-/* HeroUI toast: allow the close button (positioned at -top-1 -right-1) to
-   render outside the toast rect, and let long URLs/paths wrap inside. */
+/* Keep arbitrary toast content inside the viewport. HeroUI renders its Text
+   slots inline by default, so the description must be a block for max-height
+   and overflow scrolling to take effect. */
+.lc-toast-region {
+  width: min(32rem, calc(100vw - 2rem));
+  min-width: 0;
+  max-width: calc(100vw - 2rem);
+}
+
 .lc-toast {
+  --lc-toast-swipe-x: 0px;
+  --lc-toast-swipe-y: 0px;
+  --lc-toast-swipe-opacity: 1;
+
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
   box-shadow:
     0 0 1px rgba(0, 0, 0, 0.1),
     0 2px 4px rgba(0, 0, 0, 0.05),
     0 12px 24px -4px rgba(0, 0, 0, 0.2),
     0 20px 48px -8px rgba(0, 0, 0, 0.3);
+  filter: opacity(var(--lc-toast-swipe-opacity));
+  /* Preserve upward finger drags that scroll long descriptions down; downward
+     and horizontal finger drags belong to swipe dismissal. */
+  touch-action: pan-down;
+  transform: translate3d(var(--lc-toast-swipe-x), var(--lc-toast-swipe-y), 0);
   transition:
     transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 0.2s ease,
     box-shadow 0.2s ease;
 }
 
+.lc-toast[data-swipe-dragging="true"] {
+  transition: none;
+}
+
+.lc-toast[data-swipe-dismissing="true"] {
+  pointer-events: none;
+  transition:
+    transform 0.16s ease-in,
+    filter 0.16s ease-in;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lc-toast:hover {
+    transform: translate3d(var(--lc-toast-swipe-x), var(--lc-toast-swipe-y), 0) translateY(-2px);
+  }
+}
+
 .lc-toast:hover {
-  transform: translateY(-2px);
   box-shadow:
     0 0 1px rgba(0, 0, 0, 0.1),
     0 4px 8px rgba(0, 0, 0, 0.1),
@@ -612,8 +677,8 @@
 
 .toast__title,
 .toast__description {
-  overflow-wrap: anywhere;
-  word-break: break-all;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .lc-toast__title {
@@ -622,6 +687,12 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
   text-overflow: ellipsis;
+}
+
+.lc-toast__description {
+  display: block;
+  max-height: max(4rem, min(22rem, calc(100dvh - 12rem)));
+  overflow-y: auto;
 }
 
 /* Keep variant icons tinted, but render the title in the default
@@ -638,14 +709,19 @@
   cursor: default;
 }
 
-/* Primary actions use the neutral filled treatment across every app theme.
-   Keep the semantic `primary` variant for submit/save/create actions while the
-   foreground remains theme-derived instead of forcing white, so light themes
-   retain accessible dark text. */
+/* Buttons use neutral foregrounds across every app theme. HeroUI's stock
+   secondary variant uses --accent-soft-foreground, which makes ordinary
+   controls (including shared OptionMenu triggers) accent-colored by default.
+   Keep accent text opt-in and make all neutral action variants inherit the
+   theme foreground: off-white in dark themes and dark in light themes. */
 .button--primary {
   --button-bg: var(--default);
   --button-bg-hover: var(--default-hover);
   --button-bg-pressed: var(--default-hover);
+  --button-fg: var(--foreground);
+}
+
+.button--secondary {
   --button-fg: var(--foreground);
 }
 
@@ -658,6 +734,10 @@
    the panel's own luminance toward black is foreground-independent, so the fill
    lands at a uniform ~1.28:1 across every light preset. Dark keeps HeroUI's stock
    fill, so this is light-only. */
+.button--tertiary {
+  --button-fg: var(--foreground);
+}
+
 .light .button--tertiary,
 [data-theme="light"] .button--tertiary,
 .light .button--primary,
@@ -766,6 +846,13 @@
   background-color: var(--default);
 }
 
+/* Custom virtualized model rows do not inherit HeroUI's press state. Give
+   touch and pointer presses a stronger fill before the selected model closes
+   the responsive menu. */
+.poracode-model-menu-listbox .poracode-menu-item:active {
+  background-color: var(--row-active);
+}
+
 .poracode-menu .list-box-item:has(.list-box-item__indicator) {
   padding-right: 1.75rem;
 }
@@ -801,6 +888,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+/* Italic ink leans past the text advance on the inline-end side; `truncate`'s
+   hidden overflow clips at the padding box and shaves the last glyph's edge
+   (model-visibility sub-headers, file-editor preview tabs, reasoning previews,
+   agent pending messages). Keep a hair of inline-end padding wherever italic
+   text is or sits inside a truncate box so the overhang stays painted. */
+.italic.truncate,
+.italic .truncate {
+  padding-inline-end: 0.2em;
 }
 
 /* HeroUI Disclosure: drop the default expand/collapse height/opacity
@@ -855,13 +952,9 @@
     --link: var(--accent);
     --focus: var(--foreground);
 
-    /* Soft-accent text: HeroUI uses raw --accent for the label that sits on a
-       soft/neutral fill (secondary button labels, selected toggle labels,
-       badges, chips). Full --accent drops to ~2.4:1 on those fills in
-       lower-contrast palettes (Solarized, Monokai). Deepen it toward
-       --foreground so it stays accent-hued but clears the UI-text floor on
-       every preset; both inputs are themed, so it adapts per theme/mode.
-       Enforced by themePresets.test ("keeps interactive colors readable"). */
+    /* Soft-accent text remains available for explicitly accent-tinted controls
+       such as selected toggles, badges, and chips. Neutral buttons override
+       their foreground above instead of inheriting this accent treatment. */
     --color-accent-soft-foreground: color-mix(in oklab, var(--accent) 65%, var(--foreground));
     --surface-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
     --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
@@ -878,6 +971,18 @@
        wallpaper blur (more glassy, but tinted by whatever's on the desktop). */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 35%, transparent);
     --content-background: var(--background);
+    /* Floating chrome that hovers over the conversation — thread tool rail,
+       changes bubble, scroll-to-bottom. One shared surface so the three read as
+       a set, tinted like the sidebar (side chrome) rather than the pane beneath
+       it. Derived, so it follows --sidebar-background in every theme. */
+    --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 82%, transparent);
+    /* Selected floating chrome stays dark: make the glass denser with the
+       sidebar tone instead of brightening it with the foreground color. */
+    --floating-chrome-active-surface: color-mix(
+      in oklab,
+      var(--floating-chrome-surface) 84%,
+      var(--sidebar-background) 16%
+    );
     --window-header-background: var(--sidebar-background);
     --window-overlay-background: rgba(0, 0, 0, 0);
     --composer-surface: var(--surface);
@@ -950,7 +1055,10 @@
     /* Matches --composer-surface so chat bubbles (user message) and the
        composer read as one surface. */
     --surface-tertiary: #17171d;
-    --overlay: #19191c;
+    /* Floating chrome (modals, menus, popovers, tooltips) sits just above the
+       panel surfaces. Fields/controls are lighter than this, so they read as
+       raised cards on overlays instead of blending into them. */
+    --overlay: #121216;
     /* Neutral cool-grey for secondary text — deliberately low chroma so it
        reads as grey (not the old blue/violet cast). Kept a step below the
        bright foreground so idle/secondary rows recede clearly from active
@@ -1308,6 +1416,13 @@ html[data-native-material="on"] .poracode-shell {
 html[data-native-material="on"] .poracode-shell main {
   background: var(--content-background);
 }
+html[data-sidebar-glass="on"][data-theme="dark"]
+  .poracode-sidebar-aside:not(.poracode-sidebar-aside--overlay) {
+  /* The regular dark-theme active wash is intentionally strong on opaque
+     lists. On glass it reads as a bright solid slab, so let more of the
+     sidebar material show through while retaining separation from hover. */
+  --row-active: color-mix(in oklab, var(--foreground) 12%, transparent);
+}
 /* Faint tint so sidebar text/icons stay legible over the live OS blur. The
    sidebar header (shared .poracode-overlay-header class) is forced transparent
    so the aside's single tint layer shows through instead of stacking. */
@@ -1344,6 +1459,48 @@ html[data-platform="win32"][data-native-material="on"] {
 html[data-platform="win32"][data-native-material="on"].dark,
 html[data-platform="win32"][data-native-material="on"][data-theme="dark"] {
   --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 85%, transparent);
+}
+
+/* Platform frosting for the *floating chrome* (thread tool rail, changes bubble,
+   chat + terminal scroll-to-bottom). These pills sit over the opaque
+   conversation pane, not over the OS window material, so their glass is
+   entirely ours to author.
+
+   The dark treatment stays deliberately low-alpha with a short blur: underlying
+   transcript shapes remain perceptible instead of being homogenized into a
+   bright frosted patch. A faint edge and shallow shadow separate the control
+   without the specular gradients or inset highlights of a raised glossy button.
+   Windows remains slightly denser because Chromium's blur is visually weaker. */
+html[data-platform="darwin"] {
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 38%, transparent);
+  --floating-chrome-backdrop: blur(12px) saturate(140%);
+}
+html[data-platform="darwin"].dark,
+html[data-platform="darwin"][data-theme="dark"] {
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 24%, transparent);
+  --floating-chrome-backdrop: blur(10px) saturate(135%);
+}
+html[data-platform="win32"] {
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 44%, transparent);
+  --floating-chrome-backdrop: blur(12px) saturate(135%);
+}
+html[data-platform="win32"].dark,
+html[data-platform="win32"][data-theme="dark"] {
+  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 30%, transparent);
+  --floating-chrome-backdrop: blur(10px) saturate(130%);
+}
+html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-chrome {
+  border-color: color-mix(in oklab, var(--foreground) 8%, transparent);
+  background-image: none;
+  backdrop-filter: var(--floating-chrome-backdrop);
+  -webkit-backdrop-filter: var(--floating-chrome-backdrop);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+}
+.poracode-floating-chrome--active {
+  background-color: var(--floating-chrome-active-surface);
+}
+html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-chrome--active {
+  border-color: color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 
 /* 2. In-app fallback: opaque window, faux-translucent gradient sidebar. */
@@ -1415,6 +1572,15 @@ html[data-native-material="on"]
     backdrop-filter: none;
     box-shadow: none;
   }
+  /* Floating chrome leans hard on backdrop blur, so paint the pills solid when
+     reduced transparency is requested. Set this on the element rather than the
+     token so it wins over the platform-specific dark-theme overrides above. */
+  .poracode-floating-chrome {
+    background: var(--sidebar-background);
+    background-image: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* Counterpart to .poracode-content-over-drag-region: used on pane headers
@@ -1473,6 +1639,35 @@ html[data-platform="darwin"] .poracode-content-over-drag-region--drag {
   position: relative;
   z-index: 20;
   flex-shrink: 0;
+}
+
+/* Right / git panel floating as a right-edge overlay: the handle sits inside the
+   fixed aside (which clips its children), so it cannot straddle the shared
+   border with negative margins. Keep the hit area inside the panel's left
+   gutter and draw the hover accent over the border itself. */
+.poracode-resize-handle-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 20;
+}
+
+.poracode-resize-handle-overlay::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.poracode-resize-handle-overlay:hover::after,
+.poracode-resize-handle-overlay:focus-visible::after {
+  background: var(--accent);
 }
 
 /* Right / git / bottom terminal: [handle][aside] or [horizontal handle][aside] */
@@ -1851,11 +2046,22 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
    `background-position-x` only ~20×/s, letting the frame pipeline idle between
    ticks. `contain: paint` keeps each repaint scoped to the label box; the
    `background-position: 0% 0` below is the static fallback before the timer
-   runs. */
+   runs.
+
+   IMPORTANT: only apply this class to text that is STABLE while shimmering.
+   `background-clip: text` paints the glyphs as a cached text mask, and if the
+   text changes mid-shimmer Chromium can skip invalidating the old mask —
+   leaving the previous string ghosted under the new one (overlapping-text
+   corruption seen in tool-call rows whose file path swapped absolute →
+   project-relative). Tool rows therefore shimmer only their stable prefix
+   ("Edit · "), never the path. `will-change` additionally isolates the label
+   on its own composited layer, fully re-rastered each tick, so a stray text
+   change still cannot strand stale glyphs in the parent layer's tiles. */
 .poracode-thinking-text {
   position: relative;
   display: inline-block;
   contain: paint;
+  will-change: background-position;
   background-image: linear-gradient(
     90deg,
     var(--muted) 0%,
@@ -2025,7 +2231,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
    child disc — not by an `@property` CSS variable — so the conic gradient is
    rasterized once and the animation stays on the compositor. The disc is sized
    2× the shell's width as a square; that guarantees full coverage of the
-   wide-and-short shell shape under any rotation, so the ring never breaks. */
+   wide-and-short shell shape under any rotation, so the ring never breaks.
+   Keep the rotation finite: draft inputs are auto-focused, so an infinite
+   focus animation would keep Chromium's GPU process rendering forever while
+   an untouched new-thread page is otherwise idle. */
 .poracode-composer-border-glow {
   position: absolute;
   inset: 0;
@@ -2063,8 +2272,6 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
     var(--foreground) 85%,
     transparent 100%
   );
-  animation: poracode-composer-border-spin 6s linear infinite;
-  animation-play-state: paused;
   will-change: transform;
 }
 
@@ -2074,7 +2281,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-composer-shell--draft:focus-within .poracode-composer-border-glow::before {
-  animation-play-state: running;
+  animation: poracode-composer-border-spin 1.2s ease-out 1 both;
 }
 
 .poracode-composer-label-hideable.is-hidden {
@@ -2248,10 +2455,6 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   white-space: nowrap;
 }
 
-.poracode-composer-worktree {
-  font-size: 0.75rem;
-}
-
 .poracode-context-indicator {
   display: inline-flex;
   height: 2.25rem;
@@ -2272,8 +2475,8 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 .poracode-context-indicator__ring {
   --lc-context-ring: color-mix(in oklab, var(--foreground) 65%, transparent);
 
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
 }
 
@@ -2288,16 +2491,6 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
     stroke-dasharray 0.2s ease;
 }
 
-.poracode-context-indicator__ring-number {
-  fill: currentColor;
-  font-size: 0.375rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-anchor: middle;
-  dominant-baseline: central;
-  pointer-events: none;
-}
-
 .poracode-context-indicator[data-tone="unknown"] .poracode-context-indicator__ring {
   --lc-context-ring: color-mix(in oklab, var(--muted) 50%, transparent);
 }
@@ -2306,16 +2499,8 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   --lc-context-ring: oklch(0.86 0.16 86);
 }
 
-.poracode-context-indicator[data-tone="warning"] .poracode-context-indicator__ring-number {
-  color: oklch(0.86 0.16 86);
-}
-
 .poracode-context-indicator[data-tone="danger"] .poracode-context-indicator__ring {
   --lc-context-ring: oklch(0.62 0.22 28);
-}
-
-.poracode-context-indicator[data-tone="danger"] .poracode-context-indicator__ring-number {
-  color: oklch(0.62 0.22 28);
 }
 
 .poracode-context-dock__bar {
@@ -2526,7 +2711,8 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   cursor: default;
 }
 
-.poracode-slash-chip[data-skill-name] {
+.poracode-slash-chip[data-skill-name],
+.poracode-slash-chip[data-mcp-name] {
   gap: 0.25em;
 }
 
@@ -2553,12 +2739,45 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   white-space: nowrap;
 }
 
+.poracode-diff-comment-chip {
+  gap: 0.25em;
+}
+
+.poracode-diff-comment-chip__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0;
+  height: 1em;
+  overflow: hidden;
+  color: var(--muted);
+  opacity: 0;
+  transition:
+    width 120ms ease,
+    opacity 120ms ease;
+  cursor: var(--interactive-cursor, pointer);
+}
+
+.poracode-diff-comment-chip:hover .poracode-diff-comment-chip__delete {
+  width: 1em;
+  opacity: 1;
+}
+
+.poracode-diff-comment-chip__delete svg {
+  width: 0.8em;
+  height: 0.8em;
+}
+
 .poracode-user-message-inline-content .poracode-inline-path-chip {
   background: var(--surface-secondary);
 }
 
 .poracode-user-message-inline-content .poracode-inline-path-chip:hover {
   background: color-mix(in oklab, var(--surface-secondary) 86%, var(--foreground) 14%);
+}
+
+.poracode-user-message-inline-content .poracode-inline-path-chip--inert:hover {
+  background: var(--surface-secondary);
 }
 
 /* ── Inline File Path Chip (clickable, in chat markdown) ────── */
@@ -2583,6 +2802,15 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-inline-path-chip:hover {
   background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+}
+
+.poracode-inline-path-chip--inert {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.poracode-inline-path-chip--inert:hover {
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
 }
 
 .poracode-inline-path-chip__icon {
@@ -2738,6 +2966,17 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   contain: layout paint;
 }
 
+.poracode-image-action-toolbar {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.poracode-image-card:hover > .poracode-image-action-toolbar,
+.poracode-image-card:focus-within > .poracode-image-action-toolbar {
+  pointer-events: auto;
+  opacity: 1;
+}
+
 /* ── Image Lightbox ──────────────────────────────────────── */
 
 .poracode-image-lightbox {
@@ -2817,8 +3056,11 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-image-lightbox__close {
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+  top: calc(env(titlebar-area-height, 32px) + 1rem);
+  right: max(
+    1.5rem,
+    calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 1rem)
+  );
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3345,16 +3587,23 @@ html[data-platform="darwin"] .poracode-sidebar-project-nudge {
 .lc-chat-markdown ol {
   list-style: decimal outside;
   padding-left: 1.5em;
-  margin: 0.25em 0;
+  margin: 0.1em 0 0.75em;
 }
 .lc-chat-markdown ul {
   list-style: disc outside;
   padding-left: 1.5em;
-  margin: 0.25em 0;
+  margin: 0.1em 0 0.75em;
 }
 .lc-chat-markdown li {
+  /* Streamdown's default <li> ships a `py-1` utility; margins alone don't
+     remove that gap, so zero the vertical padding too. */
   margin: 0.1em 0;
+  padding-top: 0;
+  padding-bottom: 0;
   white-space: normal;
+}
+.lc-chat-markdown ol > li + li {
+  margin-top: 0.3em;
 }
 .lc-chat-markdown p {
   white-space: pre-wrap;
@@ -3372,7 +3621,7 @@ html[data-platform="darwin"] .poracode-sidebar-project-nudge {
 }
 .lc-chat-markdown p + ol,
 .lc-chat-markdown p + ul {
-  margin-top: 0.15em;
+  margin-top: 0.1em;
 }
 .lc-chat-markdown > :first-child,
 .lc-chat-markdown > :first-child > :first-child {
@@ -3613,4 +3862,11 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
   float: left;
   height: 0;
   pointer-events: none;
+}
+
+/* HeroUI's `.tooltip` base sets `word-break: break-all`, which splits words
+   mid-word ("lis t/paragraph"). Break only tokens that cannot fit otherwise. */
+.tooltip {
+  word-break: normal;
+  overflow-wrap: break-word;
 }

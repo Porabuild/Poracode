@@ -137,6 +137,16 @@ describe("SkillMarketplaceModal", () => {
                   official: true,
                   rank: 1,
                 },
+                {
+                  id: "example-another-review",
+                  marketplace,
+                  name: "Another review",
+                  source: "example/skills",
+                  skillId: "another-review",
+                  stars: 120,
+                  official: false,
+                  rank: 2,
+                },
               ]
             : [],
         total: marketplace === "skills-directory" ? 96_920 : 0,
@@ -159,6 +169,8 @@ describe("SkillMarketplaceModal", () => {
     fireEvent.click(screen.getByLabelText("Skill marketplace source"));
     fireEvent.click(await screen.findByRole("option", { name: "Skills Directory" }));
     expect(await screen.findByText("Secure review")).toBeInTheDocument();
+    const githubStarsLabel = screen.getByText("GitHub stars");
+    expect(githubStarsLabel.previousElementSibling).toHaveTextContent("120");
     fireEvent.change(screen.getByRole("textbox", { name: "Search marketplace skills" }), {
       target: { value: "review" },
     });

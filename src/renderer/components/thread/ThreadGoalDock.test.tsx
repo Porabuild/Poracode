@@ -1,11 +1,33 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ThreadGoalDock } from "./ThreadGoalDock";
 
+const bridgeMock = vi.hoisted(() => ({
+  controlThreadGoal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/renderer/bridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
+  readBridge: () => bridgeMock,
+}));
+
+// Render tooltip content inline — React Aria's hover machinery does not open
+// tooltips under jsdom.
+vi.mock("@heroui/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@heroui/react")>();
+  const Tooltip = Object.assign((props: { children: ReactNode }) => <>{props.children}</>, {
+    Trigger: (props: { children: ReactNode }) => <>{props.children}</>,
+    Content: (props: { children: ReactNode }) => <div>{props.children}</div>,
+  });
+  return { ...actual, Tooltip };
+});
+
 describe("ThreadGoalDock", () => {
   afterEach(() => {
     vi.useRealTimers();
+    bridgeMock.controlThreadGoal.mockClear();
   });
 
   it("renders goal details with the shared dock chrome", () => {
@@ -16,6 +38,7 @@ describe("ThreadGoalDock", () => {
     render(
       <AppProvider>
         <ThreadGoalDock
+          threadId="thread-1"
           state={{
             sourceItemId: "goal-1",
             itemState: "completed",
@@ -42,6 +65,81 @@ describe("ThreadGoalDock", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it("offers Codex edit, pause, and clear controls and sends direct goal actions", async () => {
+    render(
+      <AppProvider>
+        <ThreadGoalDock
+          threadId="thread-1"
+          state={{
+            sourceItemId: "goal-1",
+            itemState: "completed",
+            objective: "Ship goal dock",
+            status: "active",
+            action: "set",
+            availableActions: ["edit", "pause", "clear"],
+          }}
+          onDismiss={() => undefined}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Edit goal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pause goal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear goal" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close goal" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause goal" }));
+    await waitFor(() =>
+      expect(bridgeMock.controlThreadGoal).toHaveBeenCalledWith({
+        threadId: "thread-1",
+        action: "pause",
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit goal" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Goal objective" }), {
+      target: { value: "Ship edited goal" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(bridgeMock.controlThreadGoal).toHaveBeenCalledWith({
+        threadId: "thread-1",
+        action: "edit",
+        objective: "Ship edited goal",
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear goal" }));
+    await waitFor(() =>
+      expect(bridgeMock.controlThreadGoal).toHaveBeenCalledWith({
+        threadId: "thread-1",
+        action: "clear",
+      }),
+    );
+  });
+
+  it("offers resume for a paused Codex goal", () => {
+    render(
+      <AppProvider>
+        <ThreadGoalDock
+          threadId="thread-1"
+          state={{
+            sourceItemId: "goal-1",
+            itemState: "completed",
+            objective: "Ship goal dock",
+            status: "paused",
+            action: "updated",
+            availableActions: ["edit", "resume", "clear"],
+          }}
+          onDismiss={() => undefined}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Resume goal" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pause goal" })).not.toBeInTheDocument();
+  });
+
   it("abbreviates five-digit token counts", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-12T10:00:10Z"));
@@ -49,6 +147,7 @@ describe("ThreadGoalDock", () => {
     render(
       <AppProvider>
         <ThreadGoalDock
+          threadId="thread-1"
           state={{
             sourceItemId: "goal-1",
             itemState: "completed",
@@ -69,6 +168,36 @@ describe("ThreadGoalDock", () => {
     expect(screen.getByText("10m 21s")).toBeInTheDocument();
   });
 
+  it("shows evaluator check count and surfaces the last evaluation reason in the objective tooltip", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-12T10:00:10Z"));
+
+    render(
+      <AppProvider>
+        <ThreadGoalDock
+          threadId="thread-1"
+          state={{
+            sourceItemId: "goal-1",
+            itemState: "completed",
+            objective: "All auth tests pass",
+            status: "active",
+            action: "updated",
+            tokensUsed: 5000,
+            timeUsedSeconds: 60,
+            iterations: 3,
+            lastReason: "login.test.ts still failing",
+            updatedAt: Date.parse("2026-05-12T10:00:10Z") / 1000,
+          }}
+          onDismiss={() => undefined}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("3 checks")).toBeInTheDocument();
+
+    expect(screen.getByText(/login\.test\.ts still failing/)).toBeInTheDocument();
+  });
+
   it("swaps the dock icon to the achieved indicator when the goal completes", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-12T10:00:10Z"));
@@ -76,6 +205,7 @@ describe("ThreadGoalDock", () => {
     const { container, rerender } = render(
       <AppProvider>
         <ThreadGoalDock
+          threadId="thread-1"
           state={{
             sourceItemId: "goal-1",
             itemState: "completed",
@@ -96,6 +226,7 @@ describe("ThreadGoalDock", () => {
     rerender(
       <AppProvider>
         <ThreadGoalDock
+          threadId="thread-1"
           state={{
             sourceItemId: "goal-1",
             itemState: "completed",
@@ -116,6 +247,32 @@ describe("ThreadGoalDock", () => {
     expect(container.querySelector("svg.lucide-target")).toBeNull();
   });
 
+  it.each([
+    ["failed", "Failed", "lucide-circle-x"],
+    ["cancelled", "Cancelled", "lucide-circle-stop"],
+  ] as const)("renders a %s terminal goal outcome", (status, label, iconClass) => {
+    render(
+      <AppProvider>
+        <ThreadGoalDock
+          threadId="thread-1"
+          state={{
+            sourceItemId: `goal-${status}`,
+            itemState: "completed",
+            objective: "Ship goal dock",
+            status,
+            action: "updated",
+            lastReason: `${label} by provider`,
+          }}
+          onDismiss={() => undefined}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(document.querySelector(`svg.${iconClass}`)).not.toBeNull();
+    expect(screen.getByText(new RegExp(`${label} by provider`))).toBeInTheDocument();
+  });
+
   it("advances active goal elapsed time locally between server updates", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-12T10:00:10Z"));
@@ -123,6 +280,7 @@ describe("ThreadGoalDock", () => {
     render(
       <AppProvider>
         <ThreadGoalDock
+          threadId="thread-1"
           state={{
             sourceItemId: "goal-1",
             itemState: "completed",
@@ -160,7 +318,7 @@ describe("ThreadGoalDock", () => {
 
     const first = render(
       <AppProvider>
-        <ThreadGoalDock state={state} onDismiss={() => undefined} />
+        <ThreadGoalDock threadId="thread-1" state={state} onDismiss={() => undefined} />
       </AppProvider>,
     );
 
@@ -169,7 +327,7 @@ describe("ThreadGoalDock", () => {
 
     render(
       <AppProvider>
-        <ThreadGoalDock state={state} onDismiss={() => undefined} />
+        <ThreadGoalDock threadId="thread-1" state={state} onDismiss={() => undefined} />
       </AppProvider>,
     );
 

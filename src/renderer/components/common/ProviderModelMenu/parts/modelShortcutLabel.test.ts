@@ -36,6 +36,9 @@ describe("formatShortcutModelLabel", () => {
     expect(formatCursorBaseModelLabel("default")).toBe("Auto");
     expect(formatCursorBaseModelLabel("composer-2.5")).toBe("Composer 2.5");
     expect(formatCursorBaseModelLabel("claude-opus-4-1")).toBe("Opus 4.1");
+    expect(formatCursorBaseModelLabel("claude-sonnet-4-5-20250929")).toBe("Sonnet 4.5 (20250929)");
+    expect(formatCursorBaseModelLabel("gpt-5.4-mini")).toBe("GPT-5.4 Mini");
+    expect(formatCursorBaseModelLabel("gpt-5.6-luna")).toBe("GPT-5.6 Luna");
     expect(formatCursorBaseModelLabel("gemini-3-pro")).toBe("Gemini 3 Pro");
     expect(formatCursorBaseModelLabel("mystery-model")).toBe("Mystery Model");
     expect(formatCursorBaseModelLabel("mystery-model", "Mystery model")).toBe("Mystery model");

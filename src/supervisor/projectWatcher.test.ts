@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ProjectWatcher } from "./projectWatcher";
+import { isIgnoredWorkTreeFile, ProjectWatcher } from "./projectWatcher";
 import type { WslBridgeClient, WslLocation } from "./wsl/bridge/client";
 
 function makeLocation(linuxPath: string): WslLocation {
@@ -54,6 +54,20 @@ function createWatchHarness(subscriptionIdForCall: (callNumber: number) => strin
     watch,
   };
 }
+
+describe("isIgnoredWorkTreeFile", () => {
+  it("ignores project-relative managed worktrees and their dependency churn", () => {
+    expect(isIgnoredWorkTreeFile(".poracode/worktrees/feature/node_modules/react/index.js")).toBe(
+      true,
+    );
+    expect(isIgnoredWorkTreeFile(".poracode/worktrees/feature/src/app.ts")).toBe(true);
+  });
+
+  it("does not hide unrelated project files", () => {
+    expect(isIgnoredWorkTreeFile(".poracode/settings.json")).toBe(false);
+    expect(isIgnoredWorkTreeFile("src/worktrees/create.ts")).toBe(false);
+  });
+});
 
 describe("ProjectWatcher WSL worktrees", () => {
   afterEach(() => {
@@ -132,6 +146,37 @@ describe("ProjectWatcher WSL worktrees", () => {
 
     await vi.advanceTimersByTimeAsync(300);
     expect(onTreeChanged).toHaveBeenCalledWith("project-1");
+    await watcher.dispose();
+  });
+
+  it("ignores project-relative managed worktree churn", async () => {
+    vi.useFakeTimers();
+    const { watch, waitForSubscription } = createWatchHarness();
+    const client = {
+      readFile: vi.fn<WslBridgeClient["readFile"]>(async () => {
+        throw new Error("missing");
+      }),
+      stat: vi.fn<WslBridgeClient["stat"]>(async () => ({ stats: [] })),
+      watch,
+    } as unknown as WslBridgeClient;
+    const onTreeChanged = vi.fn<(projectId: string) => void>();
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onTreeChanged,
+    });
+    watcher.setWslClient(client);
+    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+
+    await waitForSubscription(1);
+    const onEvent = watch.mock.calls[0]![2];
+    onEvent({
+      subscriptionId: "sub",
+      scope: "worktree",
+      paths: [".poracode/worktrees/feature/node_modules/react/index.js"],
+    });
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(onTreeChanged).not.toHaveBeenCalled();
     await watcher.dispose();
   });
 
@@ -239,6 +284,30 @@ describe("ProjectWatcher WSL worktrees", () => {
     await vi.advanceTimersByTimeAsync(300);
 
     expect(onGitChanged).toHaveBeenCalledWith("project-1");
+    await watcher.dispose();
+  });
+});
+
+describe("ProjectWatcher.hasWslProjects", () => {
+  it("tracks whether any watched project lives in a WSL distro", async () => {
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onTreeChanged: vi.fn<(projectId: string) => void>(),
+    });
+    expect(watcher.hasWslProjects()).toBe(false);
+
+    // Native projects don't count. The path doesn't exist — both fs.watch
+    // calls fail into their try/catch, but the entry still registers.
+    watcher.watch("native", { kind: "windows", path: "C:\\poracode-test-does-not-exist" });
+    expect(watcher.hasWslProjects()).toBe(false);
+
+    // No wslClient is wired, so the WSL subscription itself is a no-op while
+    // the watcher entry registers synchronously.
+    watcher.watch("wsl", makeLocation("/home/u/repo"));
+    expect(watcher.hasWslProjects()).toBe(true);
+
+    await watcher.unwatch("wsl");
+    expect(watcher.hasWslProjects()).toBe(false);
     await watcher.dispose();
   });
 });

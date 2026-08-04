@@ -48,6 +48,26 @@ export interface FcmConfig {
   privateKey: string;
 }
 
+export interface WebPushConfig {
+  publicKey: string;
+  privateKey: string;
+  /** VAPID contact URI, normally `mailto:support@poracode.com`. */
+  subject: string;
+}
+
+export function getWebPushConfig(): WebPushConfig | null {
+  const publicKey = process.env.WEB_PUSH_VAPID_PUBLIC_KEY?.trim();
+  const privateKey = process.env.WEB_PUSH_VAPID_PRIVATE_KEY?.trim();
+  const subject = process.env.WEB_PUSH_VAPID_SUBJECT?.trim() || "mailto:support@poracode.com";
+  const base64Url = /^[A-Za-z0-9_-]+$/;
+
+  if (!publicKey || !privateKey || !base64Url.test(publicKey) || !base64Url.test(privateKey)) {
+    return null;
+  }
+  if (!subject.startsWith("mailto:") && !subject.startsWith("https://")) return null;
+  return { publicKey, privateKey, subject };
+}
+
 export function getFcmConfig(): FcmConfig | null {
   const projectId = process.env.FCM_PROJECT_ID?.trim();
   const clientEmail = process.env.FCM_CLIENT_EMAIL?.trim();

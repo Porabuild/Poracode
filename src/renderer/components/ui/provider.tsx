@@ -18,6 +18,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { i18n, dynamicActivate } from "@/renderer/i18n/i18n";
 import { detectOSLocale, resolveLocale } from "@/renderer/i18n/locales";
 import { getToastActionLabel, normalizeToastContent } from "./toastContent";
+import { SwipeDismissToast } from "./SwipeDismissToast";
 
 function systemPrefersReducedTransparency(): boolean {
   return (
@@ -30,7 +31,7 @@ function systemPrefersReducedTransparency(): boolean {
 const AppearanceContext = createContext<"light" | "dark">("dark");
 const toastContentClassName = "min-w-0 p-0 pr-1";
 const toastDescriptionClassName =
-  "max-h-[min(22rem,calc(100vh-12rem))] overflow-y-auto overscroll-contain whitespace-pre-wrap pr-1";
+  "lc-toast__description overscroll-contain whitespace-pre-wrap pr-1";
 const toastTitleClassName = "lc-toast__title";
 
 export function useResolvedAppearance(): "light" | "dark" {
@@ -149,6 +150,7 @@ export function AppProvider(props: {
     root.classList.remove("light", "dark");
     root.classList.add(appearance);
     root.dataset.theme = appearance;
+    root.dataset.themePreset = themePreset;
     applyAppTheme(root, appearance, themePreset);
     persistThemeBoot(appearance, themePreset);
   }, [appearance, themePreset]);
@@ -208,7 +210,12 @@ export function AppProvider(props: {
   return (
     <I18nProvider i18n={i18n}>
       <AppearanceContext.Provider value={appearance}>
-        <Toast.Provider placement="bottom end" maxVisibleToasts={5}>
+        <Toast.Provider
+          className="lc-toast-region"
+          placement="bottom end"
+          maxVisibleToasts={5}
+          width="min(32rem, calc(100vw - 2rem))"
+        >
           {({ toast: toastItem }) => {
             const content = toastItem.content;
             const isObject = typeof content === "object" && content !== null;
@@ -236,10 +243,10 @@ export function AppProvider(props: {
             const isCopyAction = actionLabel?.toLowerCase().startsWith("copy") ?? false;
 
             return (
-              <Toast
+              <SwipeDismissToast
                 toast={toastItem}
                 variant={variant}
-                className={`lc-toast relative w-[min(24rem,calc(100vw-2rem))] border border-border/40 ${isToastPressable ? "cursor-pointer" : ""}`}
+                className={`lc-toast relative w-full border border-border/40 ${isToastPressable ? "cursor-pointer" : ""}`}
               >
                 {isToastPressable ? (
                   <div
@@ -293,7 +300,7 @@ export function AppProvider(props: {
                   </div>
                 )}
                 <Toast.CloseButton className="absolute top-3 right-3" />
-              </Toast>
+              </SwipeDismissToast>
             );
           }}
         </Toast.Provider>

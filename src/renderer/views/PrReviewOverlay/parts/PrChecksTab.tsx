@@ -1,8 +1,11 @@
-import { CheckCircle2, Clock, ExternalLink, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Workflow, XCircle } from "lucide-react";
 import { Link } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { PixelLoader, PrCheckStatusText } from "@/renderer/components/common";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import { parseGitHubActionsRunId } from "@/renderer/utils/githubActions";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import {
   countPassedPrChecks,
@@ -17,9 +20,11 @@ const TONE_ICON = {
   neutral: Clock,
 } as const;
 
-export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
-  const { cacheKey, loading } = props;
+export function PrChecksTab(props: { cacheKey: string; loading: boolean; projectId: string }) {
+  const { cacheKey, loading, projectId } = props;
   const { t } = useLingui();
+  const openGitHubActions = useAppStore((state) => state.openGitHubActions);
+  const closePrReview = usePanelStore((state) => state.setPrReviewContext);
   const details = useGitStore((s) => s.prDetails[cacheKey]);
   const checks = details?.checks;
 
@@ -54,6 +59,7 @@ export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
         {checks.map((check, idx) => {
           const tone = getPrCheckPresentation(check).tone;
           const Icon = TONE_ICON[tone];
+          const runId = check.url ? parseGitHubActionsRunId(check.url) : null;
           return (
             <li
               key={`${check.name}-${idx}`}
@@ -67,6 +73,18 @@ export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
                 )}
               </div>
               <PrCheckStatusText check={check} className="shrink-0 text-[11px]" />
+              {runId ? (
+                <Link
+                  aria-label={t`Open run in GitHub Actions`}
+                  className="shrink-0 text-muted hover:text-foreground"
+                  onPress={() => {
+                    closePrReview(null);
+                    openGitHubActions(projectId, runId);
+                  }}
+                >
+                  <Workflow className="size-3.5" />
+                </Link>
+              ) : null}
               {check.url ? (
                 <Link
                   aria-label={t`Open check`}

@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { Tooltip, toast } from "@heroui/react";
+import { toast } from "@heroui/react";
 import { Download, Monitor, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
@@ -10,11 +10,13 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { MAX_EXPERIMENT_CANDIDATES } from "@/shared/contracts";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { friendlyError } from "@/shared/messages";
+import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   AttachmentBar,
   ComputerUseChip,
@@ -30,17 +32,23 @@ import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
   mcpTogglePatch,
+  providerOwnsMcpConfig,
 } from "@/renderer/components/composer/composerMcpServers";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import { openPdfPreview } from "@/renderer/components/pdf/openPdfPreview";
 import {
   MentionInput,
   type McpMentionItem,
   type MentionInputHandle,
 } from "@/renderer/components/composer/MentionInput";
-import { useAttachments } from "@/renderer/components/composer/useAttachments";
+import {
+  useAttachments,
+  type SaveClipboardImage,
+} from "@/renderer/components/composer/useAttachments";
 import type { VoiceInputHandle } from "@/renderer/components/composer/VoiceInputButton";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
   BranchSelector,
@@ -49,6 +57,13 @@ import {
 } from "@/renderer/components/common/BranchSelector/BranchSelector";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { resolveModelLabel } from "@/renderer/components/providers/modelDisplay";
+import { launchExperiment } from "@/renderer/actions/experimentActions";
+import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
+import {
+  ExperimentDraftTargets,
+  type ExperimentDraftCandidate,
+} from "@/renderer/components/experiment/ExperimentDraftTargets";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -56,8 +71,9 @@ import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import { useSkillSlashCommandState } from "@/renderer/components/skills/useSkills";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
+import { RemoteHostUpdateDock } from "./RemoteHostUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
-import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
+import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
@@ -178,21 +194,14 @@ function HookInstallProposal(props: {
               {pending ? <PixelLoader size="xs" /> : <Download className="size-3.5" />}
               <Trans>Install</Trans>
             </Button>
-            <Tooltip delay={0}>
-              <Tooltip.Trigger>
-                <button
-                  aria-label={t`Don't show hook install proposal`}
-                  className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-                  type="button"
-                  onClick={() => dismissHookInstallProposal(proposalKey)}
-                >
-                  <X className="size-3.5" />
-                </button>
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <Trans>Dismiss</Trans>
-              </Tooltip.Content>
-            </Tooltip>
+            <ThreadDockIconButton
+              label={t`Don't show hook install proposal`}
+              tooltip={t`Dismiss`}
+              danger
+              onPress={() => dismissHookInstallProposal(proposalKey)}
+            >
+              <X className="size-3.5" />
+            </ThreadDockIconButton>
           </div>
         }
       >
@@ -207,10 +216,14 @@ function HookInstallProposal(props: {
 function DraftComposerAfterControls(props: {
   mcpServers: readonly ComposerMcpMenuItem[];
   customMcpServers: readonly ComposerCustomMcpItem[];
-  isRemote: boolean;
   onPickFiles: () => void;
   showVoiceInputButton: boolean;
   isDisabled: boolean;
+  experiment?: {
+    enabled: boolean;
+    disabled: boolean;
+    onToggle: (next: boolean) => void;
+  };
   mentionRef: RefObject<MentionInputHandle | null>;
   voiceInputRef: RefObject<VoiceInputHandle | null>;
   computerUse: {
@@ -224,9 +237,10 @@ function DraftComposerAfterControls(props: {
       <ComposerAddMenu
         mcpServers={props.mcpServers}
         customMcpServers={props.customMcpServers}
-        showFileOption={!props.isRemote}
+        showFileOption
         onPickFiles={props.onPickFiles}
         computerUse={props.computerUse}
+        {...(props.experiment ? { experiment: props.experiment } : {})}
       />
       <ComposerVoiceInput
         show={props.showVoiceInputButton}
@@ -240,6 +254,7 @@ function DraftComposerAfterControls(props: {
 
 export function ThreadDraftComposerArea(props: {
   project: Project;
+  isRemote?: boolean;
   paneId?: string;
   selectedAgent: AgentStatus;
   controls: ComposerControl[];
@@ -251,7 +266,12 @@ export function ThreadDraftComposerArea(props: {
   supportsModePicker: boolean;
   presentationMode: ThreadPresentationMode;
   placeholder?: string;
+  /** Restores the selection replaced by a one-shot worktree target when this token changes. */
+  restoreWorktreeSelectionToken?: number;
+  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  submitOnEnter?: boolean;
   pickFiles?: () => Promise<string[] | null>;
+  saveClipboardImage?: SaveClipboardImage;
   onConfigChange: (patch: Partial<ThreadConfig>) => void;
   onWorktreeModeChange: (worktreeMode: boolean) => void;
   onSwitchBranch: (branch: string, createNew: boolean) => void;
@@ -267,21 +287,33 @@ export function ThreadDraftComposerArea(props: {
   // either binary, which is a confusing state to debug.
   const [agentUpdating, setAgentUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isRemote = isRemoteSession();
-  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
+  const [experimentMode, setExperimentMode] = useState(false);
+  const [experimentCandidates, setExperimentCandidates] = useState<ExperimentDraftCandidate[]>([]);
+  const [experimentBaseBranch, setExperimentBaseBranch] = useState<string | null>(null);
+  const isRemoteSurface = isRemoteSession();
+  const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
+  const isQuickComposer = window.poracode ? isQuickComposerWindow() : false;
+  const showVoiceInputButton =
+    useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const setMcpServerEnabled = useSharedSettings((s) => s.setMcpServerEnabled);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
   const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
-  const updateProjectMcpServers = useAppStore((s) => s.updateProjectMcpServers);
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
-  const attachments = useAttachments();
+  const attachments = useAttachments({
+    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+  });
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
+  const fallbackInboxKey = `draft:${props.project.id}`;
   const pendingPickedAttachments = useBrowserAttachInbox((s) =>
     inboxKey ? s.itemsByThread[inboxKey] : undefined,
+  );
+  const pendingComposerInputs = useComposerInputInbox((s) => s.itemsByComposer[inboxKey]);
+  const pendingFallbackComposerInputs = useComposerInputInbox((s) =>
+    inboxKey === fallbackInboxKey ? undefined : s.itemsByComposer[fallbackInboxKey],
   );
   const addPickedRef = useRef(attachments.addPicked);
   addPickedRef.current = attachments.addPicked;
@@ -299,9 +331,20 @@ export function ThreadDraftComposerArea(props: {
       });
     }
   }, [pendingPickedAttachments, inboxKey]);
+  const initialPendingWorktreeSelection =
+    useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null;
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(
-    () => useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null,
+    initialPendingWorktreeSelection,
   );
+  const worktreeSelectionRestoreRef = useRef<{
+    branchSelection: BranchSelection | null;
+    worktreeMode: boolean;
+  } | null>(
+    initialPendingWorktreeSelection
+      ? { branchSelection: null, worktreeMode: props.worktreeMode }
+      : null,
+  );
+  const previousRestoreTokenRef = useRef(props.restoreWorktreeSelectionToken);
   const pendingWorktreeSelection = useAppStore(
     (s) => s.pendingDraftWorktreeSelections[props.project.id],
   );
@@ -368,13 +411,15 @@ export function ThreadDraftComposerArea(props: {
   // the MCP Servers settings page — because custom servers bind at launch from
   // settings, not from per-thread config. The launch-time merge helper decides
   // which workspace entries override global ones, so the menu can't drift from
-  // what actually launches.
+  // what actually launches. Providers whose MCP set lives on their settings
+  // page show no rows here at all.
+  const hideCustomMcpRows = providerOwnsMcpConfig(props.selectedAgent.capabilities);
   const projectCustomMcpServers = props.project.mcpServers ?? [];
   const projectCustomMcpIds = new Set(projectCustomMcpServers.map((server) => server.id));
-  const customMcpServers: ComposerCustomMcpItem[] = mergeMcpServers(
-    userCustomMcpServers,
-    projectCustomMcpServers,
-  ).map((server) => {
+  const mergedCustomMcpServers = hideCustomMcpRows
+    ? []
+    : mergeMcpServers(userCustomMcpServers, projectCustomMcpServers);
+  const customMcpServers: ComposerCustomMcpItem[] = mergedCustomMcpServers.map((server) => {
     const isProject = projectCustomMcpIds.has(server.id);
     const scopedServers = isProject ? projectCustomMcpServers : userCustomMcpServers;
     return {
@@ -523,6 +568,7 @@ export function ThreadDraftComposerArea(props: {
     branchSelection?.baseBranch ?? "",
     branchSelection?.isWorktree ? "selection-worktree" : "selection-branch",
     canTransferUncommitted ? "can-transfer" : "no-transfer",
+    experimentMode ? "experiment" : "thread",
     controlKinds,
   ].join("|");
 
@@ -538,6 +584,10 @@ export function ThreadDraftComposerArea(props: {
   }
 
   function submitSegments(allSegments: PromptSegment[], fallbackPrompt = "") {
+    if (experimentMode) {
+      void runExperiment(allSegments, fallbackPrompt);
+      return;
+    }
     const boundSegments = bindLeadingSkillUnlessLocalAction(allSegments, availableCommands, {
       agentKind: props.selectedAgent.kind,
       presentationMode: props.presentationMode,
@@ -633,6 +683,61 @@ export function ThreadDraftComposerArea(props: {
     });
   }
 
+  function resolveExperimentInput(allSegments: PromptSegment[], fallbackPrompt = "") {
+    const boundSegments = bindLeadingSkillUnlessLocalAction(allSegments, availableCommands, {
+      agentKind: props.selectedAgent.kind,
+      presentationMode: props.presentationMode,
+    });
+    const segments = rebindSkillSegments(
+      boundSegments,
+      availableCommands,
+      (name) => t`Use the ${name} skill.`,
+    );
+    const experimentPrompt = flattenSegments(segments) || fallbackPrompt.trim();
+    return experimentPrompt ? { prompt: experimentPrompt, segments } : null;
+  }
+
+  function addExperimentCandidate() {
+    if (authRequired || isSubmitting || experimentCandidates.length >= MAX_EXPERIMENT_CANDIDATES) {
+      return;
+    }
+    const modelLabel = resolveModelLabel(props.selectedAgent, props.config.model) ?? "";
+    setExperimentCandidates((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        agentKind: props.selectedAgent.kind,
+        agentLabel: props.selectedAgent.label,
+        ...(props.selectedAgent.icon ? { icon: props.selectedAgent.icon } : {}),
+        config: { ...props.config },
+        presentationMode: props.presentationMode,
+        modelLabel,
+      },
+    ]);
+  }
+
+  async function runExperiment(allSegments: PromptSegment[], fallbackPrompt = "") {
+    const input = resolveExperimentInput(allSegments, fallbackPrompt);
+    const baseBranch = experimentBaseBranch ?? props.gitBranch;
+    if (!input || !baseBranch || experimentCandidates.length < 2 || isSubmitting) return;
+    setIsSubmitting(true);
+    const experimentId = await launchExperiment({
+      projectId: props.project.id,
+      baseBranch,
+      prompt: input.prompt,
+      segments: input.segments,
+      candidates: experimentCandidates.map(
+        ({ id: _id, icon: _icon, modelLabel: _modelLabel, ...candidate }) => candidate,
+      ),
+    });
+    if (experimentId) {
+      submittedRef.current = true;
+      clearDraftContent(props.project.id);
+      return;
+    }
+    setIsSubmitting(false);
+  }
+
   useLayoutEffect(() => {
     const saved = initialDraftRef.current;
     if (!saved) {
@@ -660,10 +765,39 @@ export function ThreadDraftComposerArea(props: {
   const onWorktreeModeChange = props.onWorktreeModeChange;
   useEffect(() => {
     if (!pendingWorktreeSelection) return;
+    worktreeSelectionRestoreRef.current ??= {
+      branchSelection,
+      worktreeMode: props.worktreeMode,
+    };
     setBranchSelection(pendingWorktreeSelection);
     onWorktreeModeChange(!pendingWorktreeSelection.worktreePath);
     useAppStore.getState().clearPendingDraftWorktreeSelection(projectId);
-  }, [pendingWorktreeSelection, projectId, onWorktreeModeChange]);
+  }, [
+    pendingWorktreeSelection,
+    projectId,
+    onWorktreeModeChange,
+    branchSelection,
+    props.worktreeMode,
+  ]);
+
+  // The mobile inline composer stays mounted when it collapses. Restore the
+  // selection that the context-menu worktree target temporarily replaced, so
+  // reopening behaves like dismissing and reopening Electron's draft composer.
+  const restoreWorktreeSelectionToken = props.restoreWorktreeSelectionToken;
+  useEffect(() => {
+    if (
+      restoreWorktreeSelectionToken === undefined ||
+      restoreWorktreeSelectionToken === previousRestoreTokenRef.current
+    ) {
+      return;
+    }
+    previousRestoreTokenRef.current = restoreWorktreeSelectionToken;
+    const previousSelection = worktreeSelectionRestoreRef.current;
+    if (!previousSelection) return;
+    worktreeSelectionRestoreRef.current = null;
+    setBranchSelection(previousSelection.branchSelection);
+    onWorktreeModeChange(previousSelection.worktreeMode);
+  }, [restoreWorktreeSelectionToken, onWorktreeModeChange]);
 
   // A composer seed (e.g. "New thread from a to-do / selected note text") inserts
   // its text into the input at the caret, preserving anything the user already
@@ -692,6 +826,35 @@ export function ThreadDraftComposerArea(props: {
     mentionRef.current?.insertText(pendingComposerSeed.text);
     useAppStore.getState().clearComposerSeed(projectId);
   }, [pendingComposerSeed, projectId, skillCommands, skillCommandsResolved]);
+
+  useEffect(() => {
+    const composer = mentionRef.current;
+    if (
+      isSubmitting ||
+      !composer ||
+      (!pendingComposerInputs?.length && !pendingFallbackComposerInputs?.length)
+    ) {
+      return;
+    }
+    const keys = inboxKey === fallbackInboxKey ? [inboxKey] : [fallbackInboxKey, inboxKey];
+    let composerHasContent = composer.serializeSegments().length > 0;
+    for (const key of keys) {
+      const items = useComposerInputInbox.getState().drain(key);
+      for (const segments of items) {
+        const separator: PromptSegment[] = composerHasContent
+          ? [{ kind: "text", content: "\n\n" }]
+          : [];
+        composer.insertSegments([...separator, ...segments], { atEnd: true, focus: false });
+        composerHasContent = true;
+      }
+    }
+  }, [
+    fallbackInboxKey,
+    inboxKey,
+    isSubmitting,
+    pendingComposerInputs,
+    pendingFallbackComposerInputs,
+  ]);
 
   useEffect(() => {
     const pid = props.project.id;
@@ -730,20 +893,24 @@ export function ThreadDraftComposerArea(props: {
   return (
     <>
       <ThreadComposer
-        autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
+        autoFocus={(props.paneCount ?? 1) === 1 && !isRemoteSurface} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
         compact={props.compact ?? false}
         variant="draft"
         controls={controls}
         toolbarLayoutKey={toolbarLayoutKey}
         fixedContent={
           <>
+            {props.project.remoteServerId ? (
+              <RemoteHostUpdateDock desktopId={props.project.remoteServerId} />
+            ) : null}
             {authRequired ? (
               <ThreadAuthRequiredDock agentStatus={props.selectedAgent} project={props.project} />
             ) : null}
-            {!isRemote ? (
+            {!usesRemoteTransport ? (
               <>
                 <ThreadAgentUpdateDock
                   agentStatus={props.selectedAgent}
+                  project={props.project}
                   onUpdatingChange={setAgentUpdating}
                 />
                 <HookInstallProposal
@@ -765,6 +932,29 @@ export function ThreadDraftComposerArea(props: {
                 }}
               />
             ) : null}
+            {experimentMode && props.gitBranch ? (
+              <ExperimentDraftTargets
+                candidates={experimentCandidates}
+                isSubmitting={isSubmitting}
+                isAddDisabled={
+                  authRequired ||
+                  agentUpdating ||
+                  isSubmitting ||
+                  experimentCandidates.length >= MAX_EXPERIMENT_CANDIDATES
+                }
+                onRemove={(id) =>
+                  setExperimentCandidates((current) =>
+                    current.filter((candidate) => candidate.id !== id),
+                  )
+                }
+                onCancel={() => {
+                  setExperimentMode(false);
+                  setExperimentCandidates([]);
+                  setExperimentBaseBranch(null);
+                }}
+                onAdd={addExperimentCandidate}
+              />
+            ) : null}
           </>
         }
         attachmentBar={
@@ -776,6 +966,7 @@ export function ThreadDraftComposerArea(props: {
               const idx = imageAttachments.findIndex((a) => a.id === att.id);
               if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
             }}
+            onPreviewPdf={(att) => openPdfPreview(att.path)}
             leading={
               mentionedMcpServers.length > 0 || showComputerUseChip ? (
                 <>
@@ -801,14 +992,15 @@ export function ThreadDraftComposerArea(props: {
         inputContent={
           <MentionInput
             ref={mentionRef}
-            autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
+            autoFocus={(props.paneCount ?? 1) === 1 && !isRemoteSurface} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
             compact={props.compact ?? false}
             // The PWA surfaces this draft as the home screen's compact composer
             // pill, where an invitation reads better than the generic prompt.
             placeholder={
-              props.placeholder ?? (isRemote ? t`Plan, ask, build…` : t`Send a message...`)
+              props.placeholder ?? (isRemoteSurface ? t`Plan, ask, build…` : t`Send a message...`)
             }
             projectLocation={isHomeScope ? undefined : props.project.location}
+            submitOnEnter={props.submitOnEnter ?? !isRemoteSurface}
             {...(showCommandPanel
               ? {
                   commandListId,
@@ -823,13 +1015,11 @@ export function ThreadDraftComposerArea(props: {
             }}
             mcpMentions={mcpMentions}
             onMcpMentionSelect={onMcpMentionSelect}
-            {...(!isRemote
-              ? {
-                  onPasteImage: (file: File) => {
-                    void attachments.addClipboardImage(file, `draft:${props.project.id}`);
-                  },
-                }
-              : {})}
+            onPasteImage={(file: File) => {
+              void attachments
+                .addClipboardImage(file, `draft:${props.project.id}`)
+                .catch((error: unknown) => toast.danger(friendlyError(error)));
+            }}
             onSubmit={(segments) => {
               submitSegments([...attachments.toSegments(), ...segments]);
             }}
@@ -871,12 +1061,13 @@ export function ThreadDraftComposerArea(props: {
           authRequired ||
           agentUpdating ||
           isSubmitting ||
-          !(hasContent || attachments.attachments.length > 0)
+          !(hasContent || attachments.attachments.length > 0) ||
+          (experimentMode && experimentCandidates.length < 2)
         }
         submitPending={isSubmitting}
-        submitLabel={t`Launch thread`}
+        submitLabel={experimentMode ? t`Run experiment` : t`Launch thread`}
         onPromptChange={setPrompt}
-        {...(!isRemote ? { onAttachFiles: attachments.addFiles } : {})}
+        {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
         onSubmit={() => {
           const segments = mentionRef.current?.serializeSegments() ?? [];
           submitSegments([...attachments.toSegments(), ...segments], prompt);
@@ -884,17 +1075,42 @@ export function ThreadDraftComposerArea(props: {
         afterControls={
           <DraftComposerAfterControls
             mcpServers={mcpServers}
-            isRemote={isRemote}
             onPickFiles={() => {
-              void (props.pickFiles ? props.pickFiles() : readBridge().pickFiles()).then(
-                (paths) => {
+              void (
+                props.pickFiles
+                  ? props.pickFiles()
+                  : readBridge().pickFiles({ attachmentThreadId: `draft:${props.project.id}` })
+              )
+                .then((paths) => {
                   if (paths) attachments.addFiles(paths);
-                },
-              );
+                })
+                .catch((error: unknown) => toast.danger(friendlyError(error)));
             }}
             customMcpServers={customMcpServers}
             showVoiceInputButton={showVoiceInputButton}
             isDisabled={authRequired || agentUpdating || isSubmitting}
+            {...(!isHomeScope && !usesRemoteTransport && !isQuickComposer && props.gitBranch
+              ? {
+                  experiment: {
+                    enabled: experimentMode,
+                    disabled: authRequired || agentUpdating || isSubmitting,
+                    onToggle: (next: boolean) => {
+                      setExperimentMode(next);
+                      if (next) {
+                        setExperimentBaseBranch(
+                          branchSelection?.baseBranch ??
+                            branchSelection?.branch ??
+                            props.gitBranch ??
+                            null,
+                        );
+                      } else {
+                        setExperimentCandidates([]);
+                        setExperimentBaseBranch(null);
+                      }
+                    },
+                  },
+                }
+              : {})}
             mentionRef={mentionRef}
             voiceInputRef={voiceInputRef}
             computerUse={{
@@ -908,25 +1124,38 @@ export function ThreadDraftComposerArea(props: {
       {props.gitBranch ? (
         <div data-draft-worktree-row="" className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
           <WorktreeModeSelect
-            mode={worktreeMode}
-            canBringChanges={canBringChanges}
+            mode={experimentMode ? "new" : worktreeMode}
+            canBringChanges={experimentMode ? false : canBringChanges}
             onChange={handleWorktreeModeChange}
+            isDisabled={experimentMode}
             compact
           />
           <BranchSelector
             projectId={props.project.id}
             currentBranch={props.gitBranch}
-            value={branchSelection?.branch ?? props.gitBranch}
-            isWorktree={branchSelection?.isWorktree}
-            baseBranch={branchSelection?.baseBranch}
-            worktreeMode={props.worktreeMode}
-            onWorktreeModeChange={props.onWorktreeModeChange}
-            onSelect={setBranchSelection}
+            value={
+              experimentMode
+                ? (experimentBaseBranch ?? props.gitBranch)
+                : (branchSelection?.branch ?? props.gitBranch)
+            }
+            isWorktree={experimentMode ? true : branchSelection?.isWorktree}
+            baseBranch={
+              experimentMode
+                ? (experimentBaseBranch ?? props.gitBranch)
+                : branchSelection?.baseBranch
+            }
+            worktreeMode={experimentMode || props.worktreeMode}
+            {...(!experimentMode ? { onWorktreeModeChange: props.onWorktreeModeChange } : {})}
+            onSelect={
+              experimentMode
+                ? (selection) => setExperimentBaseBranch(selection.baseBranch ?? selection.branch)
+                : setBranchSelection
+            }
             onSwitchBranch={props.onSwitchBranch}
             hideWorktreeToggle
             hideTriggerIcon
             compact
-            showMoveBranchAction
+            showMoveBranchAction={!experimentMode}
             {...(props.project.scripts?.worktreeCopyPatterns
               ? {
                   moveBranchCopyIgnoredPatterns: props.project.scripts.worktreeCopyPatterns,

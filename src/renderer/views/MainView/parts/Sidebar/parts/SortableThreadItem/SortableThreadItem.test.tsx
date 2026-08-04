@@ -12,12 +12,14 @@ type MockContextMenuItem = {
 
 const {
   sortableRefMock,
+  sortableOptionsMock,
   contextMenuItemsMock,
   getStatusToneMock,
   useThreadHasBackgroundActivityMock,
   useThreadHasDraftMock,
 } = vi.hoisted(() => ({
   sortableRefMock: vi.fn<(element: HTMLElement | null) => void>(),
+  sortableOptionsMock: vi.fn<(options: unknown) => void>(),
   contextMenuItemsMock: vi.fn<(items: MockContextMenuItem[]) => void>(),
   getStatusToneMock:
     vi.fn<(thread: Thread, opts?: { hasBackgroundActivity?: boolean }) => string>(),
@@ -26,7 +28,10 @@ const {
 }));
 
 vi.mock("@dnd-kit/react/sortable", () => ({
-  useSortable: () => ({ ref: sortableRefMock }),
+  useSortable: (options: unknown) => {
+    sortableOptionsMock(options);
+    return { ref: sortableRefMock };
+  },
 }));
 
 vi.mock("@/renderer/dnd", () => ({
@@ -134,6 +139,7 @@ const project: Project = {
 describe("SortableThreadItem", () => {
   beforeEach(() => {
     sortableRefMock.mockClear();
+    sortableOptionsMock.mockClear();
     contextMenuItemsMock.mockClear();
     getStatusToneMock.mockReset();
     getStatusToneMock.mockReturnValue("default");
@@ -213,6 +219,29 @@ describe("SortableThreadItem", () => {
 
     expect(row).toBeInstanceOf(HTMLElement);
     expect(sortableRefMock).toHaveBeenCalledWith(row);
+  });
+
+  it("keeps automatic-sort rows draggable into panes while disabling sidebar reordering", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+        sortDisabled
+      />,
+    );
+
+    expect(sortableOptionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread",
+        accept: [],
+        disabled: false,
+      }),
+    );
   });
 
   it("enables unload for a loaded thread without a session ref", () => {

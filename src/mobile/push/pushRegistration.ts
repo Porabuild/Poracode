@@ -1,8 +1,7 @@
 import { registerPlugin } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { ActivityBridge } from "@poracode/activity-bridge";
-import type { RemotePushRegistration } from "@/shared/remote";
-import type { RemoteDesktopClient } from "../remoteClient";
+import type { RemotePushClient, RemotePushRegistration } from "@/shared/remote";
 
 /**
  * Push token registration for the native app.
@@ -114,7 +113,7 @@ function sameState(a: SentState, b: SentState): boolean {
  * re-POSTing the same tokens over and over. Returns whether a call was made.
  */
 export async function registerIfChanged(
-  client: RemoteDesktopClient,
+  client: RemotePushClient,
   reg: RemotePushRegistration,
 ): Promise<boolean> {
   const prev = sentByDevice.get(reg.deviceId) ?? emptyState();
@@ -139,7 +138,7 @@ export async function registerIfChanged(
  * fingerprint guard suppresses duplicate upserts.
  */
 export async function syncPushRegistration(
-  client: RemoteDesktopClient,
+  client: RemotePushClient,
   opts: SyncPushOptions,
 ): Promise<void> {
   const { deviceId } = opts;
@@ -239,7 +238,7 @@ export async function syncPushRegistration(
 }
 
 /** Drop this device's push registration on the desktop (disable / unpair). */
-export async function unregisterPush(client: RemoteDesktopClient, deviceId: string): Promise<void> {
+export async function unregisterPush(client: RemotePushClient, deviceId: string): Promise<void> {
   sentByDevice.delete(deviceId);
   try {
     await client.unregisterPush(deviceId);

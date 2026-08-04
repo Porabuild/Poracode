@@ -2,7 +2,6 @@ import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { SupervisorEvent } from "@/shared/ipc";
-
 // ── Hoisted state shared between mock factories and test code ────
 const { state } = vi.hoisted(() => ({
   state: {
@@ -50,6 +49,8 @@ vi.mock("@xterm/xterm", () => ({
     hasSelection = vi.fn<() => boolean>(() => false);
     getSelection = vi.fn<() => string>(() => "");
     clearSelection = vi.fn<() => void>();
+    scrollToBottom = vi.fn<() => void>();
+    refresh = vi.fn<(start: number, end: number) => void>();
     registerLinkProvider = vi
       .fn<() => { dispose: () => void }>()
       .mockReturnValue({ dispose: vi.fn<() => void>() });
@@ -124,6 +125,7 @@ state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent
 vi.mock("../../bridge", () => ({ readBridge: () => state.bridge, isMac: () => state.isMac }));
 vi.mock("../ui/provider", () => ({ useResolvedAppearance: () => "dark" }));
 
+import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { XTermSurface } from "./XTermSurface";
 
 function emitEvent(event: SupervisorEvent) {
@@ -157,6 +159,8 @@ interface MockTerminalShape {
   hasSelection: MockFn;
   getSelection: MockFn;
   clearSelection: MockFn;
+  scrollToBottom: MockFn;
+  refresh: MockFn;
   attachCustomKeyEventHandler: MockFn;
 }
 
@@ -173,6 +177,7 @@ describe("XTermSurface", () => {
     state.eventListeners = [];
     state.isMac = false;
     vi.clearAllMocks();
+    useThreadOutputStore.setState({ buffers: {} });
     state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent) => void) => {
       state.eventListeners.push(listener);
       return () => {
@@ -228,6 +233,18 @@ describe("XTermSurface", () => {
     expect(terminal().write).toHaveBeenCalledWith("existing output");
   });
 
+  it("hydrates from the renderer accumulator when present and skips the bridge replay", async () => {
+    useThreadOutputStore.getState().appendOutput("test-1", "accumulated history\nframe2");
+
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+
+    expect(terminal().write).toHaveBeenCalledWith("accumulated history\nframe2");
+    // The accumulator is the source of truth; the stale bridge transcript must
+    // not be replayed on top of it.
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+  });
+
   it("nudges the live agent to repaint after restoring scrollback on reopen", async () => {
     // Reopen restores a non-empty transcript. A no-alt-screen repaint-in-place
     // agent (Claude no-flicker) won't redraw from a same-size resize (no
@@ -257,6 +274,30 @@ describe("XTermSurface", () => {
     await flushFrame();
 
     expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
+  });
+
+  it("refits and repaints a keep-alive terminal when it becomes visible again", async () => {
+    state.bridge.readTerminalScrollback.mockResolvedValueOnce("");
+    const { rerender } = render(<XTermSurface terminalId="test-1" visible={false} />);
+    await flushFrame();
+    state.bridge.resizeTerminal.mockClear();
+
+    rerender(<XTermSurface terminalId="test-1" visible />);
+    await flushFrame();
+    await flushFrame();
+
+    expect(terminal().scrollToBottom).not.toHaveBeenCalled();
+    expect(terminal().refresh).toHaveBeenCalledWith(0, 23);
+    expect(state.bridge.resizeTerminal).toHaveBeenCalledWith({
+      threadId: "test-1",
+      cols: 80,
+      rows: 23,
+    });
+    expect(state.bridge.resizeTerminal).toHaveBeenCalledWith({
+      threadId: "test-1",
+      cols: 80,
+      rows: 24,
+    });
   });
 
   it("disposes terminal and unsubscribes on unmount", () => {

@@ -40,7 +40,13 @@ function inferMimeType(name: string): string | undefined {
   return MIME_BY_EXT[getExtension(name)];
 }
 
-export function useAttachments() {
+export type SaveClipboardImage = (input: {
+  threadId: string;
+  data: Uint8Array;
+  extension: string;
+}) => Promise<string>;
+
+export function useAttachments(options: { saveClipboardImage?: SaveClipboardImage } = {}) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   function addFiles(paths: string[]) {
@@ -61,7 +67,7 @@ export function useAttachments() {
   async function addClipboardImage(file: File, threadId: string) {
     const buffer = await file.arrayBuffer();
     const ext = file.type.split("/")[1]?.replace("svg+xml", "svg") ?? "png";
-    const path = await readBridge().saveClipboardImage({
+    const path = await (options.saveClipboardImage ?? readBridge().saveClipboardImage)({
       threadId,
       data: new Uint8Array(buffer),
       extension: ext,

@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { join } from "node:path";
+import { resolveDevServerPort } from "./dev-server-port.mjs";
 
 function parsePort(value) {
   const port = Number.parseInt(value, 10);
@@ -11,8 +13,9 @@ function parsePort(value) {
 }
 
 function parsePorts(values) {
+  // No arguments: free the dev-server port (PORACODE_DEV_SERVER_PORT or 3100).
   if (values.length === 0) {
-    throw new Error("Expected a TCP port or port range");
+    return [resolveDevServerPort()];
   }
 
   return values.flatMap((value) => {
@@ -38,6 +41,7 @@ function run(command, args, errorMessage) {
   const result = spawnSync(command, args, {
     encoding: "utf8",
     env: process.env,
+    windowsHide: process.platform === "win32",
   });
 
   if (result.error) {
@@ -61,9 +65,17 @@ function findListeningPidsWindows(ports) {
     "$connections | Select-Object -ExpandProperty OwningProcess -Unique",
   ].join("; ");
 
+  const systemRoot = process.env.SystemRoot ?? process.env.windir ?? "C:\\Windows";
+  const where = spawnSync(join(systemRoot, "System32", "where.exe"), ["pwsh.exe"], {
+    encoding: "utf8",
+    env: process.env,
+    windowsHide: true,
+  });
+  const pwsh = where.status === 0 ? where.stdout.trim().split(/\r?\n/)[0] : undefined;
+  const shell = pwsh || join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   const output = run(
-    "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-Command", script],
+    shell,
+    ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
     "Failed to inspect ports",
   );
 
@@ -147,13 +159,18 @@ async function waitForPortsFree(ports, timeoutMs = 5000) {
 try {
   const ports = parsePorts(process.argv.slice(2));
   const pids = findListeningPids(ports);
-  const portLabel =
-    ports.length === 1 ? `Port ${ports[0]}` : `Ports ${process.argv.slice(2).join(", ")}`;
+  const portLabel = ports.length === 1 ? `Port ${ports[0]}` : `Ports ${ports.join(", ")}`;
   const verb = ports.length === 1 ? "is" : "are";
 
   if (pids.length === 0) {
     console.log(`[poracode] ${portLabel} ${verb} already free`);
     process.exit(0);
+  }
+
+  if (process.env.PORACODE_DEV_SERVER_REQUIRE_FREE === "1") {
+    throw new Error(
+      `[poracode] Refusing to reclaim ${portLabel.toLowerCase()} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}; the managed debug session will not terminate another process`,
+    );
   }
 
   console.log(

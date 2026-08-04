@@ -24,6 +24,8 @@ import {
 } from "@/renderer/state/sidebarOverlayStore";
 import {
   CONTENT_MIN_WIDTH,
+  type ResizeLimits,
+  type ResizeTarget,
   SIDEBAR_MIN_WIDTH,
   useResizablePanels,
 } from "./parts/useResizablePanels";
@@ -363,6 +365,9 @@ export function AppShell(props: {
   contentHeader?: ReactNode;
   rightPanel?: ReactNode;
   gitPanel?: ReactNode;
+  rightPanelOpen?: boolean;
+  rightPanelPlacement?: "right" | "bottom";
+  rightPanelResizeLabel?: string;
   forceSidebarExpanded?: boolean;
   onRequestClosePanels?: () => void;
   onDismissRightOverlay?: () => void;
@@ -396,15 +401,20 @@ export function AppShell(props: {
     handlePanelResizeKeyDown,
     handlePanelBottomResizeKeyDown,
     handleGitPanelResizeKeyDown,
-  } = useResizablePanels({
-    sidebarRef,
-    panelRef,
-    panelInnerRef,
-    gitPanelRef,
-    gitPanelInnerRef,
-    mainRef,
-    overlayRef: resizeOverlayRef,
-  });
+  } = useResizablePanels(
+    {
+      sidebarRef,
+      panelRef,
+      panelInnerRef,
+      gitPanelRef,
+      gitPanelInnerRef,
+      mainRef,
+      overlayRef: resizeOverlayRef,
+    },
+    // Hoisted so it can read the overlay geometry computed further down; only
+    // ever called during a drag/nudge, never while rendering.
+    { getResizeLimits },
+  );
 
   const onRequestClosePanels = props.onRequestClosePanels;
   const onDismissRightOverlay = props.onDismissRightOverlay ?? onRequestClosePanels;
@@ -434,8 +444,15 @@ export function AppShell(props: {
   }, []);
   const layoutMetricsReady = shellWidth > 0;
 
-  const { rightPanelOpen, gitPanelOpen } = usePanelVisibility();
-  const isBottom = terminalPosition === "bottom";
+  const panelVisibility = usePanelVisibility();
+  const rightPanelOpen = props.rightPanelOpen ?? panelVisibility.rightPanelOpen;
+  const gitPanelOpen = props.rightPanelOpen === undefined ? panelVisibility.gitPanelOpen : false;
+  const sidePanelOpen =
+    props.rightPanelOpen === undefined ? panelVisibility.sidePanelOpen : rightPanelOpen;
+  const isBottom =
+    props.rightPanelPlacement !== undefined
+      ? props.rightPanelPlacement === "bottom"
+      : terminalPosition === "bottom";
   const hasHeaders = sidebarHeader != null || contentHeader != null;
   const hasContentHeader = contentHeader != null;
 
@@ -443,7 +460,7 @@ export function AppShell(props: {
   // CONTENT_MIN_WIDTH, render them as a fixed overlay anchored to the right
   // edge (mirroring the sidebar's narrow overlay).
   const dockedRightPanelOpen = !isBottom && rightPanelOpen;
-  const wantsRightOverlay = dockedRightPanelOpen || gitPanelOpen;
+  const wantsRightOverlay = sidePanelOpen;
   // Compute the docked main width even when panels are currently overlaid, so
   // the transition between modes is driven by a stable signal.
   const wouldBeMainWidth = layoutMetricsReady
@@ -536,6 +553,20 @@ export function AppShell(props: {
   const rightOverlayTop = hasContentHeader ? "env(titlebar-area-height, 32px)" : "0px";
   const rightPanelAsOverlay = rightOverlayDisplayed && displayedRightOverlaySlot === "right";
   const gitPanelAsOverlay = rightOverlayDisplayed && displayedRightOverlaySlot === "git";
+
+  // Overlay panels are resizable too, but with their own bounds: capped by the
+  // gutter (above) and floored just above the width at which the panel would
+  // dock again. Re-docking mid-drag would swap the docked/overlay <aside> under
+  // the cursor and drop the drag, so a resize must never flip the mode. The
+  // floor ignores a second open panel's width, which only makes it stricter.
+  const overlayDockFloor = shellWidth - observedSidebarWidth - CONTENT_MIN_WIDTH + 1;
+  function getResizeLimits(target: ResizeTarget): ResizeLimits | null {
+    if (!rightOverlayActive || overlayMaxWidth === undefined) return null;
+    const isOverlaySlot =
+      (target === "panel" && rightPanelAsOverlay) || (target === "git-panel" && gitPanelAsOverlay);
+    if (!isOverlaySlot) return null;
+    return { min: overlayDockFloor, max: overlayMaxWidth };
+  }
 
   return (
     <div
@@ -631,7 +662,7 @@ export function AppShell(props: {
                 }
                 panelRef={panelRef}
                 panelInnerRef={panelInnerRef}
-                ariaLabel={t`Resize terminal panel`}
+                ariaLabel={props.rightPanelResizeLabel ?? t`Resize terminal panel`}
                 overlay={rightPanelAsOverlay}
                 overlayReady={rightOverlayReadyForDisplay}
                 overlayTop={rightOverlayTop}

@@ -3,17 +3,18 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { stripAnsi } from "@/shared/ansi";
 import {
-  OPENCODE_BROWSER_MCP_DEFAULT,
-  OPENCODE_BROWSER_MCP_SETTING_KEY,
-} from "@/shared/opencodeSettings";
-import {
   type AgentSlashCommand,
   compactAgentProviderMetadata,
   type AgentCapability,
   type AgentConnectedProvider,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { configFileAuthProbe, readAgentCommandOutput, type DetectionSpec } from "../base";
+import {
+  configFileAuthProbe,
+  readAgentCommandOutput,
+  type DetectionSpec,
+  type StatusProbeResult,
+} from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { getAgentProbeCwd } from "../probeCwd";
 import { probeOpenCodeInventoryViaSdk, type OpenCodeSdkInventory } from "./sdkProbe";
@@ -63,40 +64,19 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
-  // Browser MCP: no per-thread gating point in either presentation — the TUI
-  // reads install-time global config, and the GUI shares pooled `opencode
-  // serve` processes.
-  //
-  // Subagents GUI is "launch": the structured session hosts the subagents MCP
-  // by acquiring a DEDICATED per-thread `opencode serve` (pool key includes
-  // the thread id) and registering the server dynamically via `client.mcp.add`
-  // (mirroring the browser MCP), so the per-thread bearer token never touches
-  // the GLOBAL `~/.config/opencode/opencode.json` (where it would be clobbered
-  // by the next launch) nor a POOLED server shared by sibling threads (where
-  // it would misattribute their spawns). The dedicated server dies with the
-  // thread. See `opencode/sdkClient.ts` (`dedicatedKey` + `syncSubagentMcp`).
-  //
-  // Subagents TUI stays "none": the terminal TUI reads the same global config,
-  // and an always-present `{env:...}` template entry (the only
-  // per-process-gatable shape, since OpenCode rejects a templated `enabled`)
-  // would pollute the GUI shared-pool servers with a broken empty-URL
-  // `subagents` entry. OpenCode can still be SPAWNED as a subagent — children
-  // run through the SDK session and the run manager's recursion guard never
-  // sets `subagentMcp`.
-  browserMcpScope: { terminal: "none", gui: "none" },
-  subagentMcpScope: { terminal: "none", gui: "launch" },
-  computerUseMcpScope: { terminal: "none", gui: "none" },
-  chromeMcpScope: { terminal: "none", gui: "launch" },
-  settingDefs: [
-    {
-      key: OPENCODE_BROWSER_MCP_SETTING_KEY,
-      type: "toggle",
-      env: {},
-      label: "Use Browser",
-      description: "Expose Poracode's internal browser to OpenCode via MCP.",
-      default: OPENCODE_BROWSER_MCP_DEFAULT,
-    },
-  ],
+  // MCP is provider-level for OpenCode: the composer shows no MCP controls;
+  // built-in server flags come from the OpenCode settings page
+  // (`agentSettings.opencode`) at launch. OpenCode applies that set to each
+  // project directory inside the shared runtime server instead of hosting
+  // per-thread MCP credentials.
+  mcpScope: { terminal: "none", gui: "none" },
+  mcpConfigSource: "agentSettings",
+  agentSettingsDefaults: { crossagentMcp: true },
+  // The installed OpenCode plugin injects the trusted provider session id
+  // into Crossagents calls, allowing every directory/session in the pooled
+  // server to share one MCP credential without losing parent-thread routing.
+  crossagentMcpRouting: "provider-session",
+  settingDefs: [],
 };
 
 /**
@@ -383,7 +363,9 @@ export function attachOpenCodeProviderIds(
   });
 }
 
-async function probeOpenCodeStatus(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
+async function probeOpenCodeStatusViaCli(
+  ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
+): Promise<StatusProbeResult | undefined> {
   if (!ctx.executablePath) return undefined;
   const result = await readAgentCommandOutput(
     ctx.location,
@@ -414,6 +396,90 @@ async function probeOpenCodeStatus(ctx: Parameters<NonNullable<DetectionSpec["st
   };
 }
 
+export function buildOpenCodeStatusFromSdkInventory(
+  inventory: OpenCodeSdkInventory,
+): StatusProbeResult {
+  const providersById = new Map(inventory.providers.map((provider) => [provider.id, provider]));
+  const connectedProviders = inventory.connected.map((id) => {
+    const label = providersById.get(id)?.name.trim();
+    return { id, label: label || humanizeOpenCodeSubProviderId(id) };
+  });
+  const providerMetadata = compactAgentProviderMetadata({
+    ...(connectedProviders.length > 0 ? { connectedProviders } : {}),
+  });
+  return {
+    authState: connectedProviders.length > 0 ? "authenticated" : "missing",
+    ...(providerMetadata ? { providerMetadata } : {}),
+  };
+}
+
+interface OpenCodeDetectionProbeResult {
+  capabilities?: Partial<AgentCapability>;
+  status?: StatusProbeResult;
+}
+
+type OpenCodeDetectionProbeContext = Parameters<NonNullable<DetectionSpec["capabilitiesProbe"]>>[0];
+
+const pendingOpenCodeDetectionProbes = new Map<string, Promise<OpenCodeDetectionProbeResult>>();
+
+function openCodeDetectionProbeKey(ctx: OpenCodeDetectionProbeContext): string {
+  return JSON.stringify([ctx.location, ctx.executablePath, ctx.version, ctx.probeEnv]);
+}
+
+async function runOpenCodeDetectionProbe(
+  ctx: OpenCodeDetectionProbeContext,
+): Promise<OpenCodeDetectionProbeResult> {
+  if (!ctx.executablePath) return {};
+
+  if (ctx.version && compareOpencodeSemver(ctx.version, OPENCODE_MIN_VERSION) < 0) {
+    const status = await probeOpenCodeStatusViaCli(ctx);
+    return status ? { status } : {};
+  }
+
+  const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location).catch((cause) => {
+    console.warn(
+      `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
+        cause instanceof Error ? cause.message : String(cause)
+      }`,
+    );
+    return undefined;
+  });
+  if (sdkInventory) {
+    return {
+      capabilities: buildCapabilityPartialFromSdkInventory(sdkInventory),
+      status: buildOpenCodeStatusFromSdkInventory(sdkInventory),
+    };
+  }
+
+  // OpenCode's CLI and server share a SQLite database. Keep the two fallback
+  // commands serial so startup never races `models --verbose` against
+  // `providers list` and surfaces a spurious "database is locked" failure.
+  const probedModels = await probeOpenCodeModels(ctx.location, ctx.executablePath);
+  const status = await probeOpenCodeStatusViaCli(ctx);
+  return {
+    ...(probedModels ? { capabilities: buildCapabilityPartialFromProbedModels(probedModels) } : {}),
+    ...(status ? { status } : {}),
+  };
+}
+
+function probeOpenCodeDetection(
+  ctx: OpenCodeDetectionProbeContext,
+): Promise<OpenCodeDetectionProbeResult> {
+  const key = openCodeDetectionProbeKey(ctx);
+  const existing = pendingOpenCodeDetectionProbes.get(key);
+  if (existing) return existing;
+
+  const pending = runOpenCodeDetectionProbe(ctx);
+  pendingOpenCodeDetectionProbes.set(key, pending);
+  const clearPending = () => {
+    if (pendingOpenCodeDetectionProbes.get(key) === pending) {
+      pendingOpenCodeDetectionProbes.delete(key);
+    }
+  };
+  void pending.then(clearPending, clearPending);
+  return pending;
+}
+
 export function humanizeOpenCodeModelId(id: string): string {
   return titleizeOpenCodeName(openCodeModelNamePart(id));
 }
@@ -433,7 +499,7 @@ export const opencodeDetectionSpec: DetectionSpec = {
     builtIn: { binary: "opencode", args: ["upgrade"] },
     npm: "opencode-ai",
   },
-  statusProbe: probeOpenCodeStatus,
+  statusProbe: async (ctx) => (await probeOpenCodeDetection(ctx)).status,
   authProbes: [
     // Auth file lives on the host; for WSL projects we report "unknown"
     // (`undefined` skips the probe) because the WSL distro has its own
@@ -454,28 +520,7 @@ export const opencodeDetectionSpec: DetectionSpec = {
       return undefined;
     }
 
-    // Prefer SDK-driven inventory (richer model/agent data straight from
-    // `opencode serve`). If the server fails to come up — corporate firewall,
-    // sandboxed binary, missing libc — fall back to the CLI `models --verbose`
-    // parser so the user still sees a usable model list.
-    const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location, ctx.executablePath).catch(
-      (cause) => {
-        console.warn(
-          `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
-            cause instanceof Error ? cause.message : String(cause)
-          }`,
-        );
-        return undefined;
-      },
-    );
-
-    if (sdkInventory) {
-      return buildCapabilityPartialFromSdkInventory(sdkInventory);
-    }
-
-    const probed = await probeOpenCodeModels(ctx.location, ctx.executablePath);
-    if (!probed) return undefined;
-    return buildCapabilityPartialFromProbedModels(probed);
+    return (await probeOpenCodeDetection(ctx)).capabilities;
   },
 };
 
@@ -569,8 +614,7 @@ export function buildCapabilityPartialFromSdkInventory(
   for (const provider of inventory.providers) {
     // OpenCode reports both authenticated and pseudo "available" providers in
     // `all`. The renderer's picker should only show models the user can
-    // actually call right now, so filter to the `connected` set — same gate
-    // t3code applies to its model list.
+    // actually call right now, so filter to the `connected` set.
     if (!connected.has(provider.id)) continue;
     subProviderIds.add(provider.id);
     for (const model of provider.models) {

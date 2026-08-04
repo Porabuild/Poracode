@@ -20,6 +20,7 @@ import {
   resetKeyboardHeightMemoryForTests,
 } from "./keyboardFocusShared";
 import { isAndroidRuntime } from "./mobilePlatform";
+import { isTouchCapableDevice, isTouchLikePointerEvent } from "./pointerModality";
 import { suppressNextGhostTap } from "./suppressGhostTap";
 import { useKeyboardGeometry } from "./useKeyboardOffset";
 
@@ -57,12 +58,37 @@ export function resetComposerKeyboardMemoryForTests(): void {
 }
 
 /** Focus the composer's input (a contenteditable) inside `root`. */
-function getComposerInput(root: HTMLElement | null): HTMLElement | null {
+export function getComposerInput(root: HTMLElement | null): HTMLElement | null {
   return (
     root?.querySelector<HTMLElement>(
       '[data-composer-input-anchor] [contenteditable="true"], textarea:not(:disabled)',
     ) ?? null
   );
+}
+
+/** Programmatic compact-composer focus has no native tap location for WebKit
+ * to turn into a selection, so explicitly continue the draft at its end. */
+function placeComposerCaretAtEnd(input: HTMLElement): void {
+  if (input.getAttribute("contenteditable") !== "true") return;
+  const selection = input.ownerDocument.defaultView?.getSelection();
+  if (!selection) return;
+  const range = input.ownerDocument.createRange();
+  range.selectNodeContents(input);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  // Selection placement alone does not make WebKit reveal that selection in
+  // a previously scrolled contenteditable. Push its internal viewport to the
+  // bottom now, then reassert after the expanded layout paints because focus
+  // can restore the old compact scroll position asynchronously.
+  const scrollToEnd = () => {
+    input.scrollTop = input.scrollHeight;
+  };
+  scrollToEnd();
+  input.ownerDocument.defaultView?.requestAnimationFrame(() => {
+    if (input.isConnected && input.ownerDocument.activeElement === input) scrollToEnd();
+  });
 }
 
 /** Focus through a fixed non-editable target so iOS does not pan before edit focus. */
@@ -72,6 +98,7 @@ function focusComposerInputFromNeutralTarget(root: HTMLElement | null): void {
   if (!input) return;
   focusWithoutScroll(getFocusSentinel(root));
   focusWithoutScroll(input);
+  placeComposerCaretAtEnd(input);
 }
 
 interface ComposerKeyboardOptions {
@@ -112,7 +139,7 @@ export function useComposerKeyboard(
   key: string | null | undefined,
   options: ComposerKeyboardOptions = {},
 ): {
-  readonly focusComposer: (source?: string) => void;
+  readonly focusComposer: (source?: string, pointerType?: string) => void;
   readonly inputFocused: boolean;
   readonly liftOffset: number;
   readonly measuringKeyboard: boolean;
@@ -124,6 +151,7 @@ export function useComposerKeyboard(
   const keyboardLiftOffset =
     rawKeyboardLiftOffset > KEYBOARD_OPEN_THRESHOLD_PX ? rawKeyboardLiftOffset : 0;
   const useColdKeyboardPrimer = !isAndroidRuntime();
+  const touchCapable = isTouchCapableDevice();
   const keyboardOffsetRef = useRef(keyboardOffset);
   const keyboardLiftOffsetRef = useRef(keyboardLiftOffset);
   const [inputFocused, setInputFocused] = useState(false);
@@ -365,13 +393,47 @@ export function useComposerKeyboard(
     return true;
   };
 
-  const focusComposer = (source = "programmatic") => {
+  // Mouse input needs none of the software-keyboard choreography — no primer
+  // probe, no scroll lock, no ghost-tap guard. The unfocused-input tap shield
+  // (present on touch-capable devices) blocks native focus, so focus
+  // programmatically and fire the expand callback synchronously like the
+  // guarded path does. The keyboard-probe expand variant is preferred: with no
+  // software keyboard rising there is nothing to pan for, so the expansion can
+  // animate.
+  const runDirectFocus = (root: HTMLElement, source: string, event?: PointerEvent): boolean => {
+    if (event && !isKeyboardTarget(event.target)) return false;
+    const composerInput = getComposerInput(root);
+    if (!composerInput) return false;
+    // Already focused → native caret placement.
+    if (isKeyboardTarget(document.activeElement)) return false;
+    event?.preventDefault();
+    keyboardDebug("direct-focus-run", { source, input: describeElement(composerInput) });
+    flushSync(() => {
+      (onKeyboardProbeExpandRef.current ?? onBeforeGuardedFocusRef.current)?.();
+      setColdKeyboardProbeActive(false);
+      setInputFocused(true);
+    });
+    composerInput.focus({ preventScroll: true });
+    placeComposerCaretAtEnd(composerInput);
+    return true;
+  };
+
+  const focusComposer = (source = "programmatic", pointerType?: string) => {
     const root = ref.current;
     keyboardDebug("programmatic-focus-request", {
       source,
+      pointerType,
       rootConnected: root?.isConnected ?? false,
     });
     if (!root) return;
+    // An explicit touch/pen pointer always takes the guarded path (even if
+    // device detection failed); an explicit mouse pointer always bypasses it.
+    // Without a pointer, fall back to the device classification.
+    const touchPointer = pointerType === "touch" || pointerType === "pen";
+    if (pointerType === "mouse" || (!touchPointer && !touchCapable)) {
+      runDirectFocus(root, source);
+      return;
+    }
     runGuardedFocus(root, source);
   };
 
@@ -450,6 +512,13 @@ export function useComposerKeyboard(
       runGuardedFocus(root, "touchstart", event);
     };
     const handlePointerDown = (event: PointerEvent) => {
+      // Pure mouse devices carry no tap shield (see pointerModality), so the
+      // click focuses natively; hybrids keep the shield for touch and need the
+      // programmatic direct focus for mouse clicks.
+      if (!isTouchLikePointerEvent(event)) {
+        if (touchCapable) runDirectFocus(root, "pointerdown-mouse", event);
+        return;
+      }
       if (lastTouchStartAt > 0 && Date.now() - lastTouchStartAt < MIRRORED_POINTER_WINDOW_MS) {
         if (isKeyboardTarget(event.target)) {
           keyboardDebug("pointerdown-skip-after-touchstart", {
@@ -467,7 +536,8 @@ export function useComposerKeyboard(
       keyboardDebug("focusin-composer", {
         target: describeElement(event.target instanceof Element ? event.target : null),
       });
-      lockComposeScroll(root);
+      // No software keyboard means no post-focus viewport churn to fight.
+      if (touchCapable) lockComposeScroll(root);
       setInputFocused(true);
     };
     const handleFocusOut = (event: FocusEvent) => {

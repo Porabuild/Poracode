@@ -42,6 +42,7 @@ export function createFactoryAdapter(): AgentAdapter {
           label: factoryDetectionSpec.label,
           globalPath: ".factory/skills",
           projectPath: ".factory/skills",
+          linkProjectionFromVersion: "0.56.0",
         },
       ],
       invocation: "slash",

@@ -1,22 +1,29 @@
 import { z } from "zod";
+import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_COMMAND_ID_HEADER,
+  REMOTE_PROCEDURE_SPECS,
   REMOTE_STANDARD_SCOPES,
   filterKnownRemoteAccessScopes,
+  isRemoteProcedure,
   remoteAgentStatusesSchema,
   remoteAccessTokenResultSchema,
   remoteBrowserStateSchema,
   remoteEnvironmentDescriptorSchema,
   remoteHttpErrorSchema,
+  remoteHostUpdateStateSchema,
   remotePortEnterResultSchema,
   remotePortForwardResultSchema,
   remotePortUnforwardResultSchema,
   remotePortsStateSchema,
   remotePushRegistrationResultSchema,
+  remoteWebPushConfigResultSchema,
   remoteSettingsSchema,
   remoteSchedulesResponseSchema,
   remoteProjectCommandResultSchema,
+  remoteProjectSettingsSchema,
+  remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
   remoteWebSocketServerMessageSchema,
@@ -29,12 +36,16 @@ import {
   type RemoteBrowserState,
   type RemoteClientMetadata,
   type RemoteEnvironmentDescriptor,
+  type RemoteHostUpdateState,
   type RemotePortEnterResult,
   type RemotePortForwardResult,
   type RemotePortsState,
   type RemoteProjectCommand,
   type RemoteProjectCommandResult,
+  type RemoteProjectSettings,
   type RemotePushRegistration,
+  type RemoteRuntimeItemsPage,
+  type RemoteRuntimeItemsPageRequest,
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteScheduleCommand,
@@ -44,14 +55,22 @@ import {
 } from "@/shared/remote";
 import {
   DEFAULT_TERMINAL_SIZE,
+  controlThreadGoalPayloadSchema,
   profileIdentitySchema,
+  prWatchSchema,
+  projectNotesSchema,
   sendThreadInputPayloadSchema,
   type ProfileCoreStats,
+  type ControlThreadGoalPayload,
   type ProfileDevicesResponse,
   type ProfileIdentity,
   type ProfileIdentityResponse,
   type ProfileStatsRequest,
   type ProfileTokenStats,
+  type PrWatch,
+  type PrWatchInput,
+  type PrWatchKey,
+  type ProjectNotes,
   type ProjectLocation,
   type PromptSegment,
   type ProviderUsageResponse,
@@ -81,6 +100,27 @@ export class RemoteClientError extends Error {
     super(message, options);
     this.name = "RemoteClientError";
   }
+}
+
+export function isUnauthorizedRemoteError(error: unknown): error is RemoteClientError {
+  return error instanceof RemoteClientError && (error.status === 401 || error.status === 403);
+}
+
+export function isRemoteTransportFailure(error: unknown): boolean {
+  if (error instanceof TypeError && /fetch|network|load failed/i.test(error.message)) return true;
+  if (
+    error instanceof RemoteClientError &&
+    (error.status === 0 || error.status === 502 || error.status === 504)
+  ) {
+    return true;
+  }
+  return error instanceof Error && error.cause !== undefined
+    ? isRemoteTransportFailure(error.cause)
+    : false;
+}
+
+export interface ThreadHistoryOptions {
+  readonly targetTimelineEntryCount?: number;
 }
 
 function parseJsonResponse(text: string, response: Response): unknown {
@@ -171,12 +211,19 @@ export interface StartRemoteNewThreadInput extends StartRemoteThreadCommon {
  */
 export type RemoteFetch = (
   url: string | URL,
-  init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal },
+  init?: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string | Uint8Array;
+    signal?: AbortSignal;
+  },
 ) => Promise<Response>;
 
 export interface RemoteDesktopClientOptions {
   readonly requestTimeoutMs?: number;
   readonly maxResponseBodyBytes?: number;
+  readonly onRequestSuccess?: () => void;
+  readonly onRequestError?: (error: unknown) => void;
 }
 
 const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 60_000;
@@ -190,40 +237,18 @@ const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
  */
 const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
 
-/**
- * Git-call procedures that mutate remote state and can run long (network I/O
- * against a remote or GitHub). These use {@link LONG_REMOTE_REQUEST_TIMEOUT_MS}.
- * Kept in sync loosely with GIT_REMOTE_PROCEDURE_SCOPES' `session:operate`
- * network operations — the point is to avoid false timeouts on slow ops, so
- * over-inclusion here is harmless.
- */
-const LONG_RUNNING_GIT_PROCEDURES: ReadonlySet<string> = new Set([
-  "gitFetch",
-  "gitPull",
-  "gitPullRebase",
-  "gitPush",
-  "gitSync",
-  "gitSyncRebase",
-  "gitCommit",
-  "gitMergeToSource",
-  "gitPullFromSource",
-  "gitFinishMerge",
-  "ghCreatePr",
-  "ghMergePr",
-  "ghUpdatePrBranch",
-  "ghSubmitPrReview",
-  "generateCommitMessage",
-  "generateTitle",
-  "generatePrSummary",
-]);
-
 const settingsResponseSchema = z.object({ settings: remoteSettingsSchema });
 const browserStateResponseSchema = z.object({ state: remoteBrowserStateSchema });
+const attachmentUploadResponseSchema = z.object({ path: z.string().min(1) });
+const projectNotesResponseSchema = z.object({ notes: projectNotesSchema.nullable() });
+const prWatchResponseSchema = z.object({ watch: prWatchSchema.nullable() });
 
 export class RemoteDesktopClient {
   private readonly fetchImpl: RemoteFetch;
   private readonly requestTimeoutMs: number;
   private readonly maxResponseBodyBytes: number;
+  private readonly onRequestSuccess: (() => void) | undefined;
+  private readonly onRequestError: ((error: unknown) => void) | undefined;
 
   constructor(
     readonly endpoint: string,
@@ -231,9 +256,19 @@ export class RemoteDesktopClient {
     fetchImpl?: RemoteFetch,
     options: RemoteDesktopClientOptions = {},
   ) {
-    this.fetchImpl = fetchImpl ?? ((url, init) => fetch(url, init));
+    this.fetchImpl =
+      fetchImpl ??
+      ((url, init) =>
+        fetch(url, {
+          ...(init?.method ? { method: init.method } : {}),
+          ...(init?.headers ? { headers: init.headers } : {}),
+          ...(init?.body !== undefined ? { body: init.body as BodyInit } : {}),
+          ...(init?.signal ? { signal: init.signal } : {}),
+        }));
     this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REMOTE_REQUEST_TIMEOUT_MS;
     this.maxResponseBodyBytes = options.maxResponseBodyBytes ?? DEFAULT_REMOTE_RESPONSE_MAX_BYTES;
+    this.onRequestSuccess = options.onRequestSuccess;
+    this.onRequestError = options.onRequestError;
   }
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
@@ -312,6 +347,26 @@ export class RemoteDesktopClient {
     );
   }
 
+  async hostUpdateState(): Promise<RemoteHostUpdateState> {
+    return parseResponse(
+      remoteHostUpdateStateSchema,
+      await this.requestJson("/api/host-update"),
+      "host update",
+    );
+  }
+
+  async checkHostUpdate(): Promise<RemoteHostUpdateState> {
+    return parseResponse(
+      remoteHostUpdateStateSchema,
+      await this.requestJson("/api/host-update/check", { method: "POST", body: {} }),
+      "host update",
+    );
+  }
+
+  async installHostUpdate(): Promise<void> {
+    await this.requestJson("/api/host-update/install", { method: "POST", body: {} });
+  }
+
   /** Provider usage snapshots; the response shape is a typed contract with no
    * runtime schema (see `ProviderUsageResponse`), so a light shape check only. */
   async providerUsage(): Promise<ProviderUsageResponse> {
@@ -321,6 +376,22 @@ export class RemoteDesktopClient {
       "provider usage",
     );
     return result as ProviderUsageResponse;
+  }
+
+  async projectNotes(projectId: string): Promise<ProjectNotes | null> {
+    const result = parseResponse(
+      projectNotesResponseSchema,
+      await this.requestJson(`/api/projects/${encodeURIComponent(projectId)}/notes`),
+      "project notes",
+    );
+    return result.notes;
+  }
+
+  async setProjectNotes(notes: ProjectNotes): Promise<void> {
+    await this.requestJson(`/api/projects/${encodeURIComponent(notes.projectId)}/notes`, {
+      method: "POST",
+      body: notes,
+    });
   }
 
   /** Remote-editable desktop settings (the AI helpers). */
@@ -340,6 +411,26 @@ export class RemoteDesktopClient {
       "settings",
     );
     return result.settings;
+  }
+
+  async uploadAttachment(input: {
+    readonly threadId: string;
+    readonly fileName: string;
+    readonly data: Uint8Array;
+  }): Promise<string> {
+    const url = new URL("/api/files/attachment", "http://poracode.invalid");
+    url.searchParams.set("threadId", input.threadId);
+    url.searchParams.set("name", input.fileName);
+    const result = parseResponse(
+      attachmentUploadResponseSchema,
+      await this.requestJson(`${url.pathname}${url.search}`, {
+        method: "POST",
+        headers: { "content-type": "application/octet-stream" },
+        rawBody: input.data,
+      }),
+      "attachment upload",
+    );
+    return result.path;
   }
 
   async schedules(): Promise<ScheduledTask[]> {
@@ -382,6 +473,37 @@ export class RemoteDesktopClient {
     const schedule = await this.scheduleCommand({ kind: "run", id });
     if (!schedule) throw new Error("The desktop did not return the running schedule.");
     return schedule;
+  }
+
+  async getPrWatch(input: PrWatchKey): Promise<PrWatch | null> {
+    const query = new URLSearchParams({
+      projectId: input.projectId,
+      prNumber: String(input.prNumber),
+    });
+    const result = parseResponse(
+      prWatchResponseSchema,
+      await this.requestJson(`/api/pr-watches?${query.toString()}`),
+      "PR automation",
+    );
+    return result.watch;
+  }
+
+  async checkPrWatch(input: PrWatchKey): Promise<void> {
+    await this.requestJson("/api/pr-watches/check", { method: "POST", body: input });
+  }
+
+  async upsertPrWatch(input: PrWatchInput): Promise<PrWatch> {
+    const result = parseResponse(
+      prWatchResponseSchema,
+      await this.requestJson("/api/pr-watches", { method: "POST", body: input }),
+      "PR automation",
+    );
+    if (!result.watch) throw new Error("The desktop did not return the PR automation state.");
+    return result.watch;
+  }
+
+  async deletePrWatch(input: PrWatchKey): Promise<void> {
+    await this.requestJson("/api/pr-watches", { method: "DELETE", body: input });
   }
 
   /**
@@ -446,9 +568,37 @@ export class RemoteDesktopClient {
     return result.state;
   }
 
-  async threadHistory(threadId: string): Promise<RemoteThreadSnapshot> {
+  async threadHistory(
+    threadId: string,
+    options: ThreadHistoryOptions = {},
+  ): Promise<RemoteThreadSnapshot> {
+    const search = new URLSearchParams({
+      runtimePage: "1",
+      ...(options.targetTimelineEntryCount !== undefined
+        ? { targetTimelineEntryCount: String(options.targetTimelineEntryCount) }
+        : {}),
+    });
     return remoteThreadSnapshotSchema.parse(
-      await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/history`),
+      await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/history?${search}`),
+    );
+  }
+
+  async threadRuntimeItemsPage(
+    input: RemoteRuntimeItemsPageRequest,
+  ): Promise<RemoteRuntimeItemsPage> {
+    const search = new URLSearchParams({
+      limit: String(input.limit),
+      ...(input.beforePosition !== undefined
+        ? { beforePosition: String(input.beforePosition) }
+        : {}),
+      ...(input.targetTimelineEntryCount !== undefined
+        ? { targetTimelineEntryCount: String(input.targetTimelineEntryCount) }
+        : {}),
+    });
+    return remoteRuntimeItemsPageSchema.parse(
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(input.threadId)}/history/items?${search}`,
+      ),
     );
   }
 
@@ -516,9 +666,27 @@ export class RemoteDesktopClient {
     });
   }
 
+  async controlThreadGoal(input: ControlThreadGoalPayload): Promise<void> {
+    const { threadId, ...body } = controlThreadGoalPayloadSchema.parse(input);
+    await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/goal`, {
+      method: "POST",
+      body,
+    });
+  }
+
   async closeThread(threadId: string): Promise<void> {
     await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/close`, {
       method: "POST",
+    });
+  }
+
+  async truncateThreadRuntimeAfter(input: {
+    readonly threadId: string;
+    readonly itemId: string;
+  }): Promise<void> {
+    await this.requestJson(`/api/threads/${encodeURIComponent(input.threadId)}/runtime/truncate`, {
+      method: "POST",
+      body: { itemId: input.itemId },
     });
   }
 
@@ -597,17 +765,17 @@ export class RemoteDesktopClient {
 
   /**
    * Generic supervisor passthrough to the paired desktop. The reused desktop
-   * git-review components and the mobile file tree call bridge methods, which
+   * project controls call bridge methods, which
    * the remote bridge shim forwards here (see bridge.ts). `procedure` is one of
-   * the allowlisted names in GIT_REMOTE_PROCEDURE_SCOPES; the server validates
+   * the allowlisted names in REMOTE_PROCEDURE_SPECS; the server validates
    * it.
    */
-  async gitCall(procedure: string, payload: unknown): Promise<unknown> {
+  async callRemoteProcedure(procedure: string, payload: unknown): Promise<unknown> {
+    const spec = isRemoteProcedure(procedure) ? REMOTE_PROCEDURE_SPECS[procedure] : undefined;
     const result = (await this.requestJson("/api/git/call", {
       method: "POST",
       body: { procedure, payload },
-      // push / PR creation / commit / sync run long; don't false-timeout them.
-      ...(LONG_RUNNING_GIT_PROCEDURES.has(procedure)
+      ...(spec && "timeout" in spec && spec.timeout === "long"
         ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
         : {}),
     })) as { result: unknown };
@@ -622,7 +790,17 @@ export class RemoteDesktopClient {
    */
   async projectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult> {
     return remoteProjectCommandResultSchema.parse(
-      await this.requestJson("/api/projects/command", { method: "POST", body: command }),
+      await this.requestJson("/api/projects/command", {
+        method: "POST",
+        body: command,
+        ...(command.kind === "clone" ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS } : {}),
+      }),
+    );
+  }
+
+  async projectSettings(projectId: string): Promise<RemoteProjectSettings> {
+    return remoteProjectSettingsSchema.parse(
+      await this.requestJson(`/api/projects/${encodeURIComponent(projectId)}/settings`),
     );
   }
 
@@ -681,14 +859,22 @@ export class RemoteDesktopClient {
     );
   }
 
+  /** Resolve the VAPID application-server key used by installed web apps. */
+  async webPushConfig(): Promise<{ publicKey: string }> {
+    return remoteWebPushConfigResultSchema.parse(await this.requestJson("/api/push/config"));
+  }
+
   /** Drop all push registrations for a device (sign-out / unpair). */
   async unregisterPush(deviceId: string): Promise<void> {
     await this.requestJson("/api/push/unregister", { method: "POST", body: { deviceId } });
   }
 
-  async websocketTicket(): Promise<string> {
+  async websocketTicket(timeoutMs?: number): Promise<string> {
     const result = remoteWebSocketTicketResultSchema.parse(
-      await this.requestJson("/api/auth/websocket-ticket", { method: "POST" }),
+      await this.requestJson("/api/auth/websocket-ticket", {
+        method: "POST",
+        ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      }),
     );
     return result.ticket;
   }
@@ -703,12 +889,47 @@ export class RemoteDesktopClient {
    * "no replay". A client at snapshotSeq=0 that omitted the param would
    * otherwise silently miss events.
    */
-  websocketUrl(ticket: string, lastSeenSeq: number | null | undefined): string {
+  websocketUrl(
+    ticket: string,
+    lastSeenSeq: number | null | undefined,
+    options: { readonly threadItemInterests?: readonly string[] } = {},
+  ): string {
     const url = toWebSocketUrl(endpointUrl(this.endpoint, "/ws"));
     url.searchParams.set("ticket", ticket);
     if (typeof lastSeenSeq === "number" && Number.isInteger(lastSeenSeq) && lastSeenSeq >= 0) {
       url.searchParams.set("lastSeenSeq", String(lastSeenSeq));
     }
+    if (options.threadItemInterests) {
+      url.searchParams.set("threadItemInterests", JSON.stringify(options.threadItemInterests));
+    }
+    return url.toString();
+  }
+
+  /**
+   * Absolute URL of the authenticated image endpoint used for poracode-local
+   * sources. The access token rides in the query string because <img> tags
+   * can't send Authorization headers. Returns "" without a token — callers
+   * fall back to the original (unrenderable in a browser) URL then.
+   */
+  localImageUrl(absolutePath: string): string {
+    if (!this.accessToken) return "";
+    const url = endpointUrl(this.endpoint, "/api/files/image");
+    url.searchParams.set("path", absolutePath);
+    url.searchParams.set("access_token", this.accessToken);
+    return url.toString();
+  }
+
+  /**
+   * Absolute URL for a host-minted image reference. Like {@link localImageUrl}
+   * the token rides in the query string because <img> tags can't send an
+   * Authorization header — but unlike it, the location is addressed inside the
+   * host's own stored payload rather than by a filesystem path, so nothing the
+   * agent wrote can influence what gets served. Returns "" without a token.
+   */
+  imageRefUrl(ref: RemoteImageRefValue): string {
+    if (!this.accessToken) return "";
+    const url = endpointUrl(this.endpoint, remoteImageRefPath(ref));
+    url.searchParams.set("access_token", this.accessToken);
     return url.toString();
   }
 
@@ -719,8 +940,9 @@ export class RemoteDesktopClient {
   private async requestJson(
     path: string,
     init: {
-      readonly method?: "GET" | "POST";
+      readonly method?: "GET" | "POST" | "DELETE";
       readonly body?: unknown;
+      readonly rawBody?: Uint8Array;
       readonly headers?: Readonly<Record<string, string>>;
       /** Per-call deadline override; defaults to the client's requestTimeoutMs.
        * Long-running ops (clone, push, PR creation) pass a larger value. */
@@ -755,10 +977,28 @@ export class RemoteDesktopClient {
           method: init.method ?? "GET",
           headers,
           signal: controller.signal,
-          ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+          ...(init.body !== undefined
+            ? { body: JSON.stringify(init.body) }
+            : init.rawBody
+              ? { body: init.rawBody }
+              : {}),
         }),
         timeoutPromise,
       ]);
+      // The large read endpoints send a revalidating `ETag`. Browser clients
+      // (PWA, Electron renderer) resolve `304` against their own HTTP cache and
+      // surface it as a `200` with the stored body, so this is unreachable
+      // there. A non-browser `fetchImpl` — or an intermediary that revalidates
+      // on its own — could still surface a bare `304`, whose empty body would
+      // otherwise parse to `{}` and fail schema validation with a confusing
+      // error. Fail loudly instead.
+      if (response.status === 304) {
+        throw new RemoteClientError(
+          "Remote request returned 304 without a cached body.",
+          304,
+          "not_modified",
+        );
+      }
       const body = await Promise.race([
         readBoundedResponseBody(response, this.maxResponseBodyBytes),
         timeoutPromise,
@@ -773,17 +1013,20 @@ export class RemoteDesktopClient {
           error.success ? error.data.error.code : "request_failed",
         );
       }
+      this.onRequestSuccess?.();
       return parsed;
     } catch (error) {
-      if (controller.signal.aborted && error !== timeoutError) {
-        throw new RemoteClientError(
-          `Remote request timed out after ${effectiveTimeoutMs}ms.`,
-          0,
-          "timeout",
-          { cause: error },
-        );
-      }
-      throw error;
+      const requestError =
+        controller.signal.aborted && error !== timeoutError
+          ? new RemoteClientError(
+              `Remote request timed out after ${effectiveTimeoutMs}ms.`,
+              0,
+              "timeout",
+              { cause: error },
+            )
+          : error;
+      this.onRequestError?.(requestError);
+      throw requestError;
     } finally {
       if (timeout) clearTimeout(timeout);
     }

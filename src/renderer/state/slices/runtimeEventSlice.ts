@@ -11,7 +11,7 @@ import type {
   ToolCallPayload,
 } from "@/shared/contracts";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
-import { isSubAgentTool } from "@/shared/toolCallClassification";
+import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { SliceCreator } from "./shared";
 import {
@@ -44,6 +44,9 @@ export interface RuntimeChatItem {
   type: CanonicalItemType;
   /** "started" / "updated" land on items that haven't ended yet; "completed" → final. */
   state: "started" | "updated" | "completed";
+  /** Local wall-clock timing for delegated-agent parents. Not persisted; provider duration is the reload fallback. */
+  startedAt?: number;
+  completedAt?: number;
   /** Last payload object reported via `item.started` or `item.updated`. */
   payload?: unknown;
   /** Streamed content buckets (markdown text, command output, etc.). */
@@ -497,7 +500,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 function isStaleSubAgentItem(item: RuntimeChatItem): boolean {
   if (item.type !== "tool_call") return false;
   const payload = item.payload as ToolCallPayload | undefined;
-  if (!isSubAgentTool(payload)) return false;
+  if (!isDelegatedAgentTool(payload)) return false;
   return item.state !== "completed" || payload?.status === "running";
 }
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RuntimeEvent, Thread, UsageEventInputPayload } from "@/shared/contracts";
+import type { Thread, UsageEventInputPayload } from "@/shared/contracts";
 
 const bridgeMock = vi.hoisted(() => ({
   appendUsageEvents: vi.fn<(payload: { events: UsageEventInputPayload[] }) => Promise<void>>(),
@@ -9,7 +9,7 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridgeMock,
 }));
 
-import { recordRuntimeUsage, recordThreadStarted } from "./usageRecorder";
+import { recordRuntimeUsage } from "./usageRecorder";
 
 function makeThread(id: string, agentKind: string): Thread {
   return {
@@ -20,21 +20,10 @@ function makeThread(id: string, agentKind: string): Thread {
   } as unknown as Thread;
 }
 
-function contextUpdated(threadId: string, usedTokens: number): RuntimeEvent {
-  return { type: "context.updated", threadId, usage: { usedTokens } };
-}
-
 // The recorder flushes its buffer synchronously on `pagehide`; dispatch it to
 // drain without waiting on the idle/timeout debounce.
 function flushNow(): void {
   window.dispatchEvent(new Event("pagehide"));
-}
-
-function emittedTokenValues(provider: string): number[] {
-  return bridgeMock.appendUsageEvents.mock.calls
-    .flatMap((call) => call[0].events)
-    .filter((event) => event.kind === "tokens" && event.provider === provider)
-    .map((event) => event.value ?? 0);
 }
 
 function emittedEvents(kind?: string): UsageEventInputPayload[] {
@@ -42,7 +31,7 @@ function emittedEvents(kind?: string): UsageEventInputPayload[] {
   return kind === undefined ? events : events.filter((event) => event.kind === kind);
 }
 
-describe("usageRecorder token baseline", () => {
+describe("usageRecorder item hit refinement", () => {
   beforeEach(() => {
     flushNow(); // drain anything a prior test left buffered
     bridgeMock.appendUsageEvents.mockReset();
@@ -50,33 +39,6 @@ describe("usageRecorder token baseline", () => {
   });
   afterEach(() => {
     flushNow();
-  });
-
-  it("does not re-count a resumed thread's restored context, but counts later growth", () => {
-    const provider = "resumed-provider";
-    const thread = makeThread("resumed-thread", provider);
-    // Resumed thread: recordThreadStarted was NOT called this session, so there
-    // is no seeded baseline. Its first context.updated reports the restored
-    // context (already counted in a prior session) and must emit nothing.
-    recordRuntimeUsage("resumed-thread", [contextUpdated("resumed-thread", 50_000)], [thread]);
-    flushNow();
-    expect(emittedTokenValues(provider)).toEqual([]);
-
-    // A later context.updated reflects genuine growth and IS counted.
-    recordRuntimeUsage("resumed-thread", [contextUpdated("resumed-thread", 50_500)], [thread]);
-    flushNow();
-    expect(emittedTokenValues(provider)).toEqual([500]);
-  });
-
-  it("counts the full initial context for a thread started this session", () => {
-    const provider = "new-provider";
-    const thread = makeThread("new-thread", provider);
-    // recordThreadStarted seeds the baseline to 0, so the first context.updated
-    // counts the whole new context as a delta from zero.
-    recordThreadStarted(thread);
-    recordRuntimeUsage("new-thread", [contextUpdated("new-thread", 1_200)], [thread]);
-    flushNow();
-    expect(emittedTokenValues(provider)).toEqual([1_200]);
   });
 
   it("records a skill name from the completed payload when the start was generic", () => {
@@ -275,19 +237,19 @@ describe("usageRecorder item classification", () => {
     );
   });
 
-  it("records raw subagents MCP calls as MCP usage even with a stale subagent flag", () => {
-    const thread = makeThread("subagents-mcp-thread", "claude");
+  it("records raw Crossagents MCP calls as MCP usage even with a stale subagent flag", () => {
+    const thread = makeThread("crossagents-mcp-thread", "claude");
     recordRuntimeUsage(
-      "subagents-mcp-thread",
+      "crossagents-mcp-thread",
       [
         {
           type: "item.started",
-          threadId: "subagents-mcp-thread",
+          threadId: "crossagents-mcp-thread",
           itemId: "raw-spawn",
           itemType: "tool_call",
           payload: {
             name: "spawn_agent",
-            serverId: "subagents",
+            serverId: "crossagents",
             isSubAgent: true,
             status: "running",
           },
@@ -298,7 +260,7 @@ describe("usageRecorder item classification", () => {
 
     flushNow();
     expect(emittedEvents()).toContainEqual(
-      expect.objectContaining({ kind: "mcp", provider: "claude", name: "subagents" }),
+      expect.objectContaining({ kind: "mcp", provider: "claude", name: "crossagents" }),
     );
     expect(emittedEvents("subagent")).toEqual([]);
   });

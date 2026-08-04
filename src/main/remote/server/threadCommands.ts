@@ -1,8 +1,8 @@
 import { mkdirSync } from "node:fs";
 import type { IncomingMessage } from "node:http";
 import {
-  GIT_REMOTE_PROCEDURE_SCOPES,
-  isGitRemoteProcedure,
+  REMOTE_PROCEDURE_SPECS,
+  isRemoteProcedure,
   remoteGitCallPayloadSchema,
   remoteProjectCommandResultSchema,
   type RemoteProjectCommand,
@@ -11,22 +11,29 @@ import {
 import {
   DEFAULT_TERMINAL_SIZE,
   emptyMcpLaunchSnapshot,
+  type Project,
   type RemoteThreadCommand,
   type Thread,
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap } from "@/shared/ipc";
+import { msg } from "@/shared/messages";
 import {
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjects,
   dbGetThreads,
+  dbUpdateProject,
   dbUpsertProject,
   dbUpsertThread,
 } from "../../db";
 import { RemoteHttpError } from "../auth";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
+import {
+  assertRemoteGitMutationExperimentSafe,
+  discardPersistedProjectExperiments,
+} from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
 import { readJsonBody } from "./requestBody";
@@ -39,7 +46,10 @@ import { sortOrderForThread } from "./snapshots";
  * procedures are accepted, each gated by its required scope and validated
  * against its own payload schema before reaching the supervisor.
  */
-export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage): Promise<unknown> {
+export async function runRemoteProcedure(
+  ctx: RemoteServerContext,
+  req: IncomingMessage,
+): Promise<unknown> {
   // Reject unauthenticated callers BEFORE reading/parsing the body or revealing
   // whether a procedure is allowlisted. Otherwise an unauthenticated request can
   // distinguish a known-but-invalid procedure (403) from a known one (401) — a
@@ -48,18 +58,19 @@ export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage)
   // the per-procedure scope is still enforced below once the procedure is known.
   ctx.security.requireBearer(req, []);
   const { procedure, payload } = remoteGitCallPayloadSchema.parse(await readJsonBody(req));
-  if (!isGitRemoteProcedure(procedure)) {
+  if (!isRemoteProcedure(procedure)) {
     throw new RemoteHttpError(
       "git_procedure_not_allowed",
-      `Git procedure "${procedure}" is not available to remote clients.`,
+      `Procedure "${procedure}" is not available to remote clients.`,
       403,
     );
   }
-  ctx.security.requireBearer(req, [GIT_REMOTE_PROCEDURE_SCOPES[procedure]]);
+  ctx.security.requireBearer(req, [REMOTE_PROCEDURE_SPECS[procedure].scope]);
   const name = procedure as SupervisorProcedureName;
   const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
     typeof name
   >;
+  assertRemoteGitMutationExperimentSafe(procedure, parsedPayload);
   return ctx.options.callSupervisor(name, parsedPayload);
 }
 
@@ -73,14 +84,26 @@ export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage)
 export function runProjectCommand(
   ctx: RemoteServerContext,
   command: RemoteProjectCommand,
-): Promise<RemoteProjectCommandResult> {
+): Promise<{
+  readonly projects: readonly Project[];
+  readonly response: RemoteProjectCommandResult;
+}> {
   return applyRemoteProjectCommand(command, {
     getProjects: () => dbGetProjects(),
+    removeProjectExperiments: (project) =>
+      discardPersistedProjectExperiments(project, (payload) =>
+        ctx.options.callSupervisor("removeExperimentWorktrees", payload),
+      ),
+    hasRunningProjectThread: (projectId) =>
+      dbGetThreads().some(
+        (thread) => thread.projectId === projectId && thread.status === "working",
+      ),
     listProjectThreadIds: (projectId) =>
       dbGetThreads()
         .filter((thread) => thread.projectId === projectId)
         .map((thread) => thread.id),
     upsertProject: (project, sortOrder) => dbUpsertProject(project, sortOrder),
+    updateProject: (project) => dbUpdateProject(project),
     deleteProject: (projectId) => dbDeleteProject(projectId),
     closeThread: (threadId) => closeThreadBestEffort(ctx, threadId),
     cloneRepo: (input) => ctx.options.callSupervisor("cloneRepo", input),
@@ -89,7 +112,10 @@ export function runProjectCommand(
     },
     platform: process.platform,
     now: () => new Date().toISOString(),
-  }).then((result) => remoteProjectCommandResultSchema.parse(result));
+  }).then((result) => ({
+    projects: result.projects,
+    response: remoteProjectCommandResultSchema.parse(result),
+  }));
 }
 
 /**
@@ -102,6 +128,8 @@ export async function applyRemoteThreadCommand(
   command: RemoteThreadCommand,
 ): Promise<boolean> {
   switch (command.kind) {
+    case "prepare-worktree":
+      return true;
     case "start":
       await startRemoteThread(ctx, command);
       return false;
@@ -111,6 +139,11 @@ export async function applyRemoteThreadCommand(
         title: command.title,
         updatedAt: new Date().toISOString(),
       }));
+      return false;
+    case "acknowledge":
+      updateRemoteThread(command.threadId, (thread) =>
+        thread.status === "finished" ? { ...thread, status: "idle" } : thread,
+      );
       return false;
     case "set-done":
       if (command.done) {
@@ -144,6 +177,13 @@ export async function applyRemoteThreadCommand(
         updatedAt: new Date().toISOString(),
       }));
       return false;
+    case "set-group":
+      updateRemoteThread(command.threadId, (thread) => ({
+        ...thread,
+        groupId: command.groupId,
+        groupName: command.groupName,
+      }));
+      return false;
     case "archive":
       await closeThreadBestEffort(ctx, command.threadId);
       updateRemoteThread(command.threadId, (thread) => ({
@@ -164,6 +204,8 @@ export async function applyRemoteThreadCommand(
       dbDeleteThread(command.threadId);
       return false;
     case "delete-worktree-group":
+      await Promise.all(command.threadIds.map((threadId) => closeThreadBestEffort(ctx, threadId)));
+      for (const threadId of command.threadIds) dbDeleteThread(threadId);
       return true;
   }
 }
@@ -174,7 +216,7 @@ async function startRemoteThread(
 ): Promise<void> {
   const project = dbGetProjects().find((entry) => entry.id === command.projectId);
   if (!project) {
-    throw new RemoteHttpError("project_not_found", "Project not found.", 404);
+    throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
   }
 
   const threads = dbGetThreads();

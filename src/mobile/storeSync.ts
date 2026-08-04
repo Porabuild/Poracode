@@ -1,14 +1,29 @@
-import type { Thread } from "@/shared/contracts";
-import type { RemoteAgentStatuses, RemoteShellSnapshot } from "@/shared/remote";
+import type { ProviderUsageResponse, Thread } from "@/shared/contracts";
+import {
+  remoteThreadsChangedEventSchema,
+  type RemoteAgentStatuses,
+  type RemoteShellSnapshot,
+} from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { resetDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { resetGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
+import { useGitReadModelStore } from "@/renderer/state/gitReadModelStore";
+import { projectGitReadModelIntoLegacyStore } from "@/renderer/state/gitReadModelLegacyProjection";
+import { resetGitStoreCache } from "@/renderer/state/gitStore";
+import { useNotesStore } from "@/renderer/state/notesStore";
+import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import { resetProjectTreeStore } from "@/renderer/state/projectTreeStore";
 import { useGitSummariesStore } from "./gitSummaries";
+import { useDesktopPanelStore } from "./desktopPanelStore";
 import { emitTerminalExited, emitTerminalReset } from "./terminalFeed";
 import { notifyLiveActivityThreadState } from "./push/liveActivityController";
 import {
   applyThreadSnapshot,
   clearPendingRuntimeEvents,
   dispatchRemoteSupervisorEvent as dispatchRemoteSupervisorEventCore,
+  isThreadVisible,
   type RemoteDispatchHooks,
 } from "@/renderer/state/remote";
 import { createInitialRuntimeEventState } from "@/renderer/state/slices/runtimeEventSlice";
@@ -32,36 +47,83 @@ import { createInitialPendingSteerState } from "@/renderer/state/slices/pendingS
 
 export { applyThreadSnapshot };
 
+function reuseSnapshotRows<T extends { readonly id: string }>(current: T[], incoming: T[]): T[] {
+  if (current.length === 0) return incoming.length === 0 ? current : incoming;
+  const currentById = new Map(current.map((row) => [row.id, row]));
+  let changed = current.length !== incoming.length;
+  const next = incoming.map((row, index) => {
+    const existing = currentById.get(row.id);
+    const resolved = existing && JSON.stringify(existing) === JSON.stringify(row) ? existing : row;
+    if (resolved !== current[index]) changed = true;
+    return resolved;
+  });
+  return changed ? next : current;
+}
+
 export function applyShellSnapshot(snapshot: RemoteShellSnapshot): void {
+  const projectIds = new Set(snapshot.projects.map((project) => project.id));
+  for (const project of useAppStore.getState().projects) {
+    if (!projectIds.has(project.id)) useAppStore.getState().deleteProject(project.id);
+  }
+  const threadIds = new Set(snapshot.threads.map((thread) => thread.id));
+  for (const thread of useAppStore.getState().threads) {
+    if (!threadIds.has(thread.id)) useAppStore.getState().deleteThread(thread.id);
+  }
   useAppStore.setState((current) => {
     const currentById = new Map(current.threads.map((thread) => [thread.id, thread]));
-    return {
-      projects: snapshot.projects,
-      // "finished" is a client-side derivation (an unwatched turn completed —
-      // the badge that clears when the user opens the thread); the server only
-      // ever persists "idle". A raw replace would strip the badge on the very
-      // next shell refresh, so keep the local "finished" until the thread is
-      // opened or genuinely changes state.
-      threads: snapshot.threads.map((incoming) => {
-        if (incoming.status !== "idle") return incoming;
-        return currentById.get(incoming.id)?.status === "finished"
-          ? { ...incoming, status: "finished" as const }
-          : incoming;
-      }),
-    };
+    // "finished" is a client-side derivation (an unwatched turn completed —
+    // the badge that clears when the user opens the thread); the server only
+    // ever persists "idle". A raw replace would strip the badge on the very
+    // next shell refresh, so keep the local "finished" until the thread is
+    // opened or genuinely changes state.
+    const incomingThreads = snapshot.threads.map((incoming) => {
+      // Some hosts can persist `finished` long enough for a shell/history
+      // refresh to race the open action. A visible thread has already been
+      // acknowledged on this client, so do not resurrect its unread badge.
+      if (incoming.status === "finished" && isThreadVisible(current.view, incoming.id)) {
+        return { ...incoming, status: "idle" as const };
+      }
+      if (incoming.status !== "idle") return incoming;
+      return currentById.get(incoming.id)?.status === "finished"
+        ? { ...incoming, status: "finished" as const }
+        : incoming;
+    });
+    const projects = reuseSnapshotRows(current.projects, snapshot.projects);
+    const threads = reuseSnapshotRows(current.threads, incomingThreads);
+    return projects === current.projects && threads === current.threads
+      ? current
+      : { projects, threads };
   });
   if (snapshot.gitSummariesByThread) {
     useGitSummariesStore.getState().setAll(snapshot.gitSummariesByThread);
+  }
+  if (snapshot.gitState) {
+    useGitReadModelStore.getState().replaceSnapshot(snapshot.gitState);
+    projectGitReadModelIntoLegacyStore(snapshot.gitState);
   }
 }
 
 /** Drop everything tied to the previous desktop when switching/unpairing. */
 export function resetRemoteStores(): void {
   clearPendingRuntimeEvents();
+  // Renderer workspace stores are process-global because Electron has one
+  // local desktop. The PWA can switch among several desktops, so none of their
+  // cached notes, files, Git state, drafts, or terminal tabs may cross that
+  // identity boundary.
+  useNotesStore.getState().resetSession();
+  useFileEditorStore.getState().clearSession();
+  resetProjectTreeStore();
+  resetGitStoreCache();
+  resetGitReviewActionStore();
+  resetDevTerminalStore();
+  useDesktopPanelStore.getState().reset();
   useGitSummariesStore.getState().reset();
+  useGitReadModelStore.getState().reset();
+  useProviderUsageStore.getState().setSnapshots([]);
   useAppStore.setState({
     projects: [],
     threads: [],
+    view: { kind: "home" },
     // Spread the slices' own initial state so every per-thread runtime map is
     // cleared — a hand-listed subset here previously leaked runtimeOpenTurn,
     // fileCheckpoint(s|Turns) and openSubAgent maps across desktop switches
@@ -70,6 +132,10 @@ export function resetRemoteStores(): void {
     ...createInitialSubAgentOverlayState(),
     ...createInitialPendingSteerState(),
   });
+}
+
+export function applyProviderUsage(response: ProviderUsageResponse): void {
+  useProviderUsageStore.getState().setSnapshots(response.snapshots);
 }
 
 export function applyAgentStatuses(statuses: RemoteAgentStatuses): void {
@@ -108,8 +174,27 @@ const mobileDispatchHooks: RemoteDispatchHooks = {
   onThreadReset: (threadId) => emitTerminalReset(threadId),
   onThreadExited: ({ threadId, exitCode }) => emitTerminalExited(threadId, exitCode),
   onGitSummaries: (summaries) => useGitSummariesStore.getState().setAll(summaries),
+  onGitState: (patch) => {
+    const store = useGitReadModelStore.getState();
+    store.applyPatch(patch);
+    projectGitReadModelIntoLegacyStore(useGitReadModelStore.getState());
+  },
 };
 
 export function dispatchRemoteSupervisorEvent(value: unknown): void {
+  const threadMetadataEvent = remoteThreadsChangedEventSchema.safeParse(value);
+  if (threadMetadataEvent.success && threadMetadataEvent.data.viewedThreadIds) {
+    const viewed = new Set(threadMetadataEvent.data.viewedThreadIds);
+    useAppStore.setState((current) => {
+      let changed = false;
+      const threads = current.threads.map((thread) => {
+        if (!viewed.has(thread.id) || thread.status !== "finished") return thread;
+        changed = true;
+        return { ...thread, status: "idle" as const };
+      });
+      return changed ? { threads } : {};
+    });
+    return;
+  }
   dispatchRemoteSupervisorEventCore(value, mobileDispatchHooks);
 }

@@ -253,6 +253,9 @@ function mergeAcpProbeCapabilities(
     ...(probeResult.efforts ? { efforts: probeResult.efforts } : {}),
     ...(probeResult.defaultEffort ? { defaultEffort: probeResult.defaultEffort } : {}),
     ...(probeResult.modelEfforts ? { modelEfforts: probeResult.modelEfforts } : {}),
+    ...(probeResult.modelDefaultEfforts
+      ? { modelDefaultEfforts: probeResult.modelDefaultEfforts }
+      : {}),
     ...(probeResult.modes ? { modes: probeResult.modes } : {}),
     ...(probeResult.approvalPolicies ? { approvalPolicies: probeResult.approvalPolicies } : {}),
     ...(probeResult.slashCommands ? { slashCommands: probeResult.slashCommands } : {}),
@@ -274,9 +277,7 @@ function mergeAcpProbeCapabilities(
       { id: "default", label: "Supervised" },
       { id: "never", label: "Auto Approve" },
     ];
-    // Synthetic UI: start in the conservative "Supervised" tier; user can flip
-    // to Auto Approve via the composer toggle.
-    merged.defaultApprovalPolicy = "default";
+    merged.defaultApprovalPolicy = "never";
   }
   return merged;
 }

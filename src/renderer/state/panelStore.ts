@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ProjectLocation } from "@/shared/contracts";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
 import type { ThreadSortMode } from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
 import { useFileEditorStore } from "./fileEditorStore";
@@ -6,6 +7,7 @@ import { useFileEditorStore } from "./fileEditorStore";
 export interface GitReviewContext {
   projectId: string;
   worktreePath?: string;
+  originComposerId?: string;
 }
 
 export interface PrReviewContext {
@@ -23,6 +25,11 @@ export interface PrReviewContext {
   prKey?: string;
 }
 
+export interface GitHubActionsContext {
+  projectId?: string;
+  runId?: number;
+}
+
 export interface FilesPanelContext {
   projectId: string;
   projectName: string;
@@ -30,15 +37,41 @@ export interface FilesPanelContext {
   rootLabel: string;
 }
 
-export type RightPanelTab = "git" | "files" | "terminal" | "browser" | "usage" | "notes";
+export interface SubAgentPanelContext {
+  threadId: string;
+  parentItemId: string;
+  projectLocation?: ProjectLocation;
+}
+
+export type RightPanelTab =
+  | "git"
+  | "files"
+  | "terminal"
+  | "browser"
+  | "usage"
+  | "notes"
+  | "ports"
+  | "plan"
+  | "subagent";
 
 interface PanelState {
   gitReviewContext: GitReviewContext | null;
   gitReviewAsPanel: boolean;
   gitOverlayOpen: boolean;
   prReviewContext: PrReviewContext | null;
+  githubActionsContext: GitHubActionsContext | null;
   filesPanelContext: FilesPanelContext | null;
+  subAgentPanelContext: SubAgentPanelContext | null;
+  subAgentPanelOpen: boolean;
   rightPanelTab: RightPanelTab;
+  /**
+   * When true, the open right-panel tools re-scope to whichever thread is
+   * focused instead of staying on the project/worktree they were opened from.
+   * Persisted — single-thread users leave it on permanently.
+   */
+  rightPanelFollowsThread: boolean;
+  /** Vertical offset (px from the pane's top) of the per-thread tool rail. */
+  threadToolRailOffset: number;
   browserPanelOpen: boolean;
   usagePanelOpen: boolean;
   notesPanelOpen: boolean;
@@ -60,8 +93,12 @@ interface PanelState {
   setGitReviewAsPanel: (v: boolean) => void;
   setGitOverlayOpen: (v: boolean) => void;
   setPrReviewContext: (ctx: PrReviewContext | null) => void;
+  setGitHubActionsContext: (ctx: GitHubActionsContext | null) => void;
   setFilesPanelContext: (ctx: FilesPanelContext | null) => void;
+  setSubAgentPanelContext: (ctx: SubAgentPanelContext | null) => void;
   setRightPanelTab: (tab: RightPanelTab) => void;
+  toggleRightPanelFollowsThread: () => void;
+  setThreadToolRailOffset: (offset: number) => void;
   setBrowserPanelOpen: (v: boolean) => void;
   setUsagePanelOpen: (v: boolean) => void;
   openUsagePanel: () => void;
@@ -98,6 +135,18 @@ const DEFAULT_DRAWER_WIDTH = 640;
 const MIN_DRAWER_WIDTH = 420;
 const MAX_DRAWER_WIDTH = 1400;
 
+function projectLocationsEqual(
+  a: ProjectLocation | undefined,
+  b: ProjectLocation | undefined,
+): boolean {
+  if (!a || !b) return a === b;
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "wsl" && b.kind === "wsl") {
+    return a.distro === b.distro && a.linuxPath === b.linuxPath && a.uncPath === b.uncPath;
+  }
+  return a.kind !== "wsl" && b.kind !== "wsl" && a.path === b.path;
+}
+
 function loadInitialGitContext(): GitReviewContext | null {
   try {
     const raw = localStorage.getItem(LEGACY_GIT_CONTEXT_KEY);
@@ -126,7 +175,17 @@ function loadInitialDrawerWidth(): number {
 const initialPersisted = readPersistedSlice<{
   gitReviewContext: GitReviewContext | null;
   browserOverlayDrawerWidth: number;
+  rightPanelFollowsThread?: boolean;
+  threadToolRailOffset?: number;
 }>(PERSIST_KEY);
+
+/** Default rail offset: below the pane header, near the top of the conversation. */
+const DEFAULT_THREAD_TOOL_RAIL_OFFSET = 56;
+
+function sanitizeRailOffset(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_THREAD_TOOL_RAIL_OFFSET;
+  return Math.max(0, Math.round(value));
+}
 
 export const usePanelStore = create<PanelState>()((set) => ({
   gitReviewContext: initialPersisted
@@ -135,8 +194,15 @@ export const usePanelStore = create<PanelState>()((set) => ({
   gitReviewAsPanel: false,
   gitOverlayOpen: false,
   prReviewContext: null,
+  githubActionsContext: null,
   filesPanelContext: null,
+  subAgentPanelContext: null,
+  subAgentPanelOpen: false,
   rightPanelTab: "git",
+  rightPanelFollowsThread: initialPersisted?.rightPanelFollowsThread ?? false,
+  threadToolRailOffset: sanitizeRailOffset(
+    initialPersisted?.threadToolRailOffset ?? DEFAULT_THREAD_TOOL_RAIL_OFFSET,
+  ),
   browserPanelOpen: false,
   usagePanelOpen: false,
   notesPanelOpen: false,
@@ -160,7 +226,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
       (prev !== null &&
         ctx !== null &&
         prev.projectId === ctx.projectId &&
-        prev.worktreePath === ctx.worktreePath)
+        prev.worktreePath === ctx.worktreePath &&
+        prev.originComposerId === ctx.originComposerId)
     ) {
       return;
     }
@@ -187,6 +254,20 @@ export const usePanelStore = create<PanelState>()((set) => ({
       }
       return { prReviewContext: ctx };
     }),
+  setGitHubActionsContext: (ctx) =>
+    set((state) => {
+      const prev = state.githubActionsContext;
+      if (
+        (prev === null && ctx === null) ||
+        (prev !== null &&
+          ctx !== null &&
+          prev.projectId === ctx.projectId &&
+          prev.runId === ctx.runId)
+      ) {
+        return {};
+      }
+      return { githubActionsContext: ctx };
+    }),
   setFilesPanelContext: (ctx) =>
     set((state) => {
       const prev = state.filesPanelContext;
@@ -203,8 +284,40 @@ export const usePanelStore = create<PanelState>()((set) => ({
       }
       return { filesPanelContext: ctx };
     }),
+  setSubAgentPanelContext: (ctx) =>
+    set((state) => {
+      const prev = state.subAgentPanelContext;
+      if (
+        (prev === null && ctx === null) ||
+        (prev !== null &&
+          ctx !== null &&
+          prev.threadId === ctx.threadId &&
+          prev.parentItemId === ctx.parentItemId &&
+          projectLocationsEqual(prev.projectLocation, ctx.projectLocation))
+      ) {
+        return ctx && !state.subAgentPanelOpen ? { subAgentPanelOpen: true } : {};
+      }
+      return { subAgentPanelContext: ctx, subAgentPanelOpen: ctx !== null };
+    }),
   setRightPanelTab: (tab) =>
-    set((state) => (state.rightPanelTab === tab ? {} : { rightPanelTab: tab })),
+    set((state) => {
+      const reopenSubAgent =
+        tab === "subagent" && state.subAgentPanelContext !== null && !state.subAgentPanelOpen;
+      if (state.rightPanelTab === tab && !reopenSubAgent) return {};
+      return {
+        rightPanelTab: tab,
+        ...(reopenSubAgent ? { subAgentPanelOpen: true } : {}),
+      };
+    }),
+  toggleRightPanelFollowsThread: () =>
+    set((state) => ({ rightPanelFollowsThread: !state.rightPanelFollowsThread })),
+  setThreadToolRailOffset: (offset) =>
+    set((state) => {
+      const clamped = sanitizeRailOffset(offset);
+      // Return `state` (not `{}`) so Zustand's Object.is bailout actually skips
+      // listener notification — this fires on every pointermove frame during drag.
+      return state.threadToolRailOffset === clamped ? state : { threadToolRailOffset: clamped };
+    }),
   // Toggling the docked right-panel browser is independent of the floating
   // overlay (drawer/fullscreen): hiding the panel must NOT tear down an active
   // overlay, otherwise maximizing the browser and then hiding the right panel
@@ -289,11 +402,13 @@ export const usePanelStore = create<PanelState>()((set) => ({
       // The floating browser overlay (drawer/fullscreen) is intentionally NOT
       // touched here: it is a standalone surface with its own close controls.
       // Closing the docked right panel — including the narrow-viewport auto-hide
-      // that fires when the window shrinks — must not tear it down, otherwise a
-      // maximized browser vanishes the moment the right panel auto-closes.
+      // that fires when the window shrinks — must not tear down a standalone
+      // browser overlay or the temporary subagent target. The latter has its own
+      // explicit close control in the panel header.
       if (
         state.gitReviewContext === null &&
         state.filesPanelContext === null &&
+        !state.subAgentPanelOpen &&
         !state.browserPanelOpen &&
         !state.usagePanelOpen &&
         !state.notesPanelOpen
@@ -303,6 +418,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
       return {
         gitReviewContext: null,
         filesPanelContext: null,
+        subAgentPanelOpen: false,
         browserPanelOpen: false,
         usagePanelOpen: false,
         notesPanelOpen: false,
@@ -319,8 +435,17 @@ export const usePanelStore = create<PanelState>()((set) => ({
 // readPersistedSlice so the restored git panel and drawer width are present
 // before first paint.
 persistStoreSlice(usePanelStore, PERSIST_KEY, (state) => ({
-  gitReviewContext: state.gitReviewContext,
+  gitReviewContext: state.gitReviewContext
+    ? {
+        projectId: state.gitReviewContext.projectId,
+        ...(state.gitReviewContext.worktreePath
+          ? { worktreePath: state.gitReviewContext.worktreePath }
+          : {}),
+      }
+    : null,
   browserOverlayDrawerWidth: state.browserOverlayDrawerWidth,
+  rightPanelFollowsThread: state.rightPanelFollowsThread,
+  threadToolRailOffset: state.threadToolRailOffset,
 }));
 
 // Returns true when any full-window overlay (z-50) is currently rendered above
@@ -335,11 +460,14 @@ export function selectAnyObstructingOverlayOpen(): boolean {
     p.projectSettingsId !== null ||
     p.gitOverlayOpen ||
     p.prReviewContext !== null ||
+    p.githubActionsContext !== null ||
     p.threadSearchOpen
   ) {
     return true;
   }
-  return useFileEditorStore.getState().overlayMode === "fullscreen";
+  // File editor modal and fullscreen both cover the right panel — including
+  // modal (not only fullscreen) so PDF/browser preview isn't hidden behind it.
+  return useFileEditorStore.getState().overlayMode !== null;
 }
 
 // Narrow selectors — primitive returns, stable under Object.is.

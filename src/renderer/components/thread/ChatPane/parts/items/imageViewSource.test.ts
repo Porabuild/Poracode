@@ -1,8 +1,9 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { remoteImageRef } from "@/shared/remote";
+import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import {
-  imageViewHasRenderableImage,
   imageViewRendersInline,
   imageViewSourceFromImageBlock,
   resolveImageViewSource,
@@ -121,16 +122,6 @@ describe("resolveImageViewSource", () => {
   });
 });
 
-describe("imageViewHasRenderableImage", () => {
-  it("agrees with resolveImageViewSource on image presence", () => {
-    expect(imageViewHasRenderableImage({ name: "imageGeneration", result: PNG_BASE64 })).toBe(true);
-    expect(imageViewHasRenderableImage({ name: "imageGeneration", result: "just text" })).toBe(
-      false,
-    );
-    expect(imageViewHasRenderableImage(undefined)).toBe(false);
-  });
-});
-
 describe("imageViewSourceFromImageBlock", () => {
   it("builds a source from a canonical assistant-message image block", () => {
     const source = imageViewSourceFromImageBlock({
@@ -167,5 +158,86 @@ describe("imageViewRendersInline", () => {
     expect(
       imageViewRendersInline({ name: "imageGeneration", status: "error", result: PNG_BASE64 }),
     ).toBe(false);
+  });
+});
+
+describe("host-minted image references", () => {
+  const ref = remoteImageRef({
+    threadId: "t1",
+    itemId: "i1",
+    path: ["images", 0],
+    mime: "image/jpeg",
+    bytes: 4096,
+    width: 800,
+    height: 600,
+  });
+
+  afterEach(() => {
+    setRemoteImageRefResolver(null);
+  });
+
+  it("resolves a reference through the installed resolver", () => {
+    setRemoteImageRefResolver((value) => `https://desktop.test/img/${value.itemId}`);
+    const source = resolveImageViewSource({
+      name: "imageView",
+      status: "success",
+      images: [ref],
+      args: { prompt: "a cat" },
+    });
+    expect(source).toMatchObject({
+      src: "https://desktop.test/img/i1",
+      mime: "image/jpeg",
+      extension: "jpg",
+      alt: "a cat",
+      // Carried on the reference so the row reserves layout before loading.
+      width: 800,
+      height: 600,
+    });
+    expect(source?.fileName).toBe("a-cat.jpg");
+  });
+
+  it("resolves a reference through the current remote pane", () => {
+    const source = resolveImageViewSource(
+      { status: "success", images: [ref] },
+      (value) => `https://remote.test/img/${value.itemId}`,
+    );
+    expect(source?.src).toBe("https://remote.test/img/i1");
+  });
+
+  it("resolves a referenced assistant image block through the current remote pane", () => {
+    const source = imageViewSourceFromImageBlock(
+      { dataUrl: ref, name: "result" },
+      (value) => `https://remote.test/img/${value.itemId}`,
+    );
+    expect(source).toMatchObject({
+      src: "https://remote.test/img/i1",
+      alt: "result",
+      width: 800,
+      height: 600,
+    });
+  });
+
+  it("groups as an inline image so the timeline does not demote the row", () => {
+    setRemoteImageRefResolver(() => "https://desktop.test/img/i1");
+    expect(imageViewRendersInline({ status: "success", images: [ref] })).toBe(true);
+  });
+
+  it("falls back to the accordion when nothing can resolve the reference", () => {
+    // The desktop shell installs no resolver: better an inert accordion than a
+    // broken <img>.
+    expect(resolveImageViewSource({ status: "success", images: [ref] })).toBeNull();
+    setRemoteImageRefResolver(() => "");
+    expect(resolveImageViewSource({ status: "success", images: [ref] })).toBeNull();
+  });
+
+  it("shows the accordion for an errored payload even with a reference", () => {
+    setRemoteImageRefResolver(() => "https://desktop.test/img/i1");
+    expect(imageViewRendersInline({ status: "error", images: [ref] })).toBe(false);
+    expect(resolveImageViewSource({ status: "error", images: [ref] })).toBeNull();
+  });
+
+  it("still renders payloads that kept their inline bytes", () => {
+    setRemoteImageRefResolver(() => "https://desktop.test/img/i1");
+    expect(resolveImageViewSource({ result: PNG_BASE64 })?.src).toContain("data:image/png;base64,");
   });
 });

@@ -7,10 +7,16 @@
  * word-splitting traps. Pairs with the DEV bridge (`window.__poracodeDev`,
  * see src/renderer/devBridge.ts) for instant state/navigation.
  *
- * Port defaults to $PORACODE_CDP_PORT or 9222.
+ * Connection settings come from --session / $PORACODE_DEBUG_SESSION, a single
+ * active managed debug session for this repository, or an explicit complete
+ * PORACODE_CDP_PORT + PORACODE_APP_URL pair. Missing values are never guessed.
  *
  *   node poracode-cdp.mjs wait [--timeout 90]        # block until the app CDP target is up
- *   node poracode-cdp.mjs eval '<js>' [--await]      # Runtime.evaluate, prints JSON result
+ *   node poracode-cdp.mjs launch --new [--root path] # detached isolated app; prints READY manifest
+ *   node poracode-cdp.mjs info                       # print the exact resolved session + target
+ *   node poracode-cdp.mjs sessions                   # list managed sessions for this checkout
+ *   node poracode-cdp.mjs stop                       # request verified teardown of the managed session
+ *   node poracode-cdp.mjs eval '<js>|-' [--await]    # Runtime.evaluate; - reads JS from stdin
  *   node poracode-cdp.mjs shot <selector|-> <out>    # element (CSS selector) or full-viewport (-) PNG
  *   node poracode-cdp.mjs click <selector>            # click an element through CDP input
  *   node poracode-cdp.mjs type <selector> <text>      # focus and insert text
@@ -29,39 +35,142 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
+import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
+import { fileURLToPath } from "node:url";
+import { closeWebSocket, inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
+import { launchDetachedSession } from "./poracode-cdp-launch.mjs";
+import {
+  listDebugSessions,
+  readDebugSession,
+  resolveDebugConnection,
+} from "./poracode-debug-session.mjs";
 
 const { flags, pos } = parse(process.argv.slice(2));
 const cmd = pos[0];
-const port = Number(flags.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
-const appUrl = String(flags.appUrl ?? "http://127.0.0.1:3100/");
-const windowKind = flags.windowKind ? String(flags.windowKind) : null;
+const scriptDir = fileURLToPath(new URL(".", import.meta.url));
+const repoRoot = resolvePath(scriptDir, "../../../../");
+const windowKind = String(flags.windowKind ?? "main");
 const commandTimeoutMs = Number(flags.commandTimeoutMs ?? 8000);
+let connection;
+let port;
+let appUrl;
 
 try {
+  if (cmd !== "sessions" && cmd !== "launch") {
+    connection = await resolveDebugConnection({
+      session: flags.session ?? process.env.PORACODE_DEBUG_SESSION,
+      port: flags.port ?? process.env.PORACODE_CDP_PORT,
+      appUrl: flags.appUrl ?? process.env.PORACODE_APP_URL,
+      repoRoot,
+      ...(cmd === "wait" ? { allowedPurposes: ["debug", "smoke"] } : {}),
+    });
+    port = connection.port;
+    appUrl = connection.appUrl;
+  }
   await main();
 } catch (error) {
   console.error(`ERROR: ${error?.message ?? error}`);
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 async function main() {
   switch (cmd) {
+    case "sessions": {
+      const sessions = await listDebugSessions({ repoRoot });
+      console.log(
+        JSON.stringify(
+          sessions.map(
+            ({
+              sessionFile,
+              id,
+              purpose,
+              state,
+              active,
+              cdpPort,
+              appUrl: sessionAppUrl,
+              ownerPid,
+            }) => ({
+              sessionFile,
+              id,
+              purpose,
+              state,
+              active,
+              cdpPort,
+              appUrl: sessionAppUrl,
+              ownerPid,
+            }),
+          ),
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    case "launch": {
+      await launchDetachedSession({ flags, repoRoot, scriptDir });
+      return;
+    }
     case "wait": {
       const timeoutS = Number(flags.timeout ?? 90);
       const target = await waitForTarget(timeoutS * 1000);
       console.log(target ? "READY" : "TIMEOUT");
-      if (!target) process.exit(1);
+      if (!target) process.exitCode = 1;
+      return;
+    }
+    case "stop": {
+      if (!connection.sessionFile || !connection.root) {
+        throw new Error("stop requires a managed debug session, not an explicit port and URL");
+      }
+      await writeFile(
+        join(connection.root, "stop-request.json"),
+        `${JSON.stringify({ requestedAt: new Date().toISOString(), requesterPid: process.pid })}\n`,
+      );
+      const started = Date.now();
+      while (Date.now() - started < 15_000) {
+        const session = await readDebugSession(connection.sessionFile);
+        if (session.state === "stopped") {
+          console.log("stop:ok");
+          return;
+        }
+        if (session.state === "failed") {
+          throw new Error(`managed debug teardown failed: ${session.error ?? "unknown error"}`);
+        }
+        await new Promise((done) => setTimeout(done, 100));
+      }
+      throw new Error(`timed out waiting for managed debug teardown: ${connection.sessionFile}`);
+    }
+    case "info": {
+      const target = await waitForTarget(10000);
+      if (!target) throw new Error(`no ready app CDP target at ${appUrl} on port ${port}`);
+      console.log(
+        JSON.stringify(
+          {
+            sessionFile: connection.sessionFile,
+            sessionId: connection.sessionId,
+            sessionToken: connection.sessionToken,
+            repoRoot: connection.repoRoot,
+            cdpPort: port,
+            appUrl,
+            windowKind,
+            targetId: target.id,
+            title: target.title,
+            url: target.url,
+          },
+          null,
+          2,
+        ),
+      );
       return;
     }
     case "eval": {
-      const expr = required(pos[1], "eval needs a <js> expression");
+      const rawExpr = required(pos[1], "eval needs a <js> expression or - for stdin");
+      const expr = rawExpr === "-" ? await readStdinExpression() : rawExpr;
       const client = await connect();
       try {
         const value = await evaluate(client, expr, flags.await === true);
         console.log(JSON.stringify(value));
       } finally {
-        client.close();
+        await client.close();
       }
       return;
     }
@@ -73,7 +182,7 @@ async function main() {
         await screenshot(client, selector, out);
         console.log(out);
       } finally {
-        client.close();
+        await client.close();
       }
       return;
     }
@@ -84,7 +193,7 @@ async function main() {
         await click(client, selector);
         console.log(`click:${selector}`);
       } finally {
-        client.close();
+        await client.close();
       }
       return;
     }
@@ -93,16 +202,29 @@ async function main() {
       const value = required(pos[2], "type needs a <text>");
       const client = await connect();
       try {
-        const focused = await evaluate(
+        const focusResult = await evaluate(
           client,
-          `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
-            ` if (!el) return false; el.focus(); return true; })()`,
+          `(() => { const matches = document.querySelectorAll(${JSON.stringify(selector)});` +
+            ` if (matches.length === 0) return "missing";` +
+            ` if (matches.length > 1) return "ambiguous:" + matches.length;` +
+            ` const el = matches[0]; if (!(el instanceof HTMLElement)) return "not-html";` +
+            ` if (el.matches(":disabled") || el.getAttribute("aria-disabled") === "true") return "disabled";` +
+            ` if ("readOnly" in el && el.readOnly) return "read-only";` +
+            ` if (!(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement) && !el.isContentEditable) return "not-editable";` +
+            ` el.scrollIntoView({ block: "center", inline: "center" }); el.focus();` +
+            ` const style = getComputedStyle(el); const r = el.getBoundingClientRect();` +
+            ` if (r.width <= 0 || r.height <= 0 || style.display === "none" || style.visibility !== "visible" || style.opacity === "0" || style.pointerEvents === "none") return "not-visible";` +
+            ` const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);` +
+            ` if (!hit || (hit !== el && !el.contains(hit))) return "occluded";` +
+            ` return document.activeElement === el ? "focused" : "not-focusable"; })()`,
         );
-        if (!focused) throw new Error(`selector not found: ${selector}`);
+        if (focusResult !== "focused") {
+          throw new Error(`cannot type into ${selector}: ${focusResult}`);
+        }
         await client.send("Input.insertText", { text: value });
         console.log(`type:${value.length}`);
       } finally {
-        client.close();
+        await client.close();
       }
       return;
     }
@@ -125,37 +247,82 @@ async function main() {
       return;
     }
     case "reset": {
-      await bridgeCall(`window.__poracodeDev.reset()`);
+      const client = await connect();
+      let remaining;
+      try {
+        await assertDevBridge(client);
+        await evaluate(client, `(window.__poracodeDev.reset(), "ok")`);
+        await new Promise((done) => setTimeout(done, 50));
+        await clearComposer(client);
+        await new Promise((done) => setTimeout(done, 50));
+        remaining = await evaluate(
+          client,
+          `(() => { const panel = window.__poracodeDev.stores.panel.getState();` +
+            ` return {` +
+            ` composerText: [...document.querySelectorAll('[data-composer-input-anchor] [contenteditable="true"]')].map((el) => el.textContent ?? "").join("").trim(),` +
+            ` panelsOpen: Boolean(panel.settingsOpen || panel.projectSettingsId || panel.gitReviewContext || panel.gitOverlayOpen || panel.prReviewContext || panel.filesPanelContext || panel.subAgentPanelOpen || panel.browserPanelOpen || panel.usagePanelOpen || panel.notesPanelOpen || panel.browserOverlayOpen || panel.threadSearchOpen || panel.createProjectModalOpen || panel.cloneProjectModalOpen)` +
+            ` }; })()`,
+        );
+      } finally {
+        await client.close();
+      }
+      if (remaining.composerText || remaining.panelsOpen) {
+        throw new Error(`reset did not reach baseline: ${JSON.stringify(remaining)}`);
+      }
       console.log("reset:ok");
       return;
     }
     default:
       console.error(
-        "Usage: node poracode-cdp.mjs <wait|eval|shot|click|type|nav|back|update|reset> ...\n" +
+        "Usage: node poracode-cdp.mjs <launch|sessions|wait|info|stop|eval|shot|click|type|nav|back|update|reset> ...\n" +
           "See the header of this file for examples.",
       );
-      process.exit(2);
+      process.exitCode = 2;
   }
+}
+
+async function readStdinExpression() {
+  let expression = "";
+  for await (const chunk of process.stdin) expression += String(chunk);
+  if (!expression.trim()) throw new Error("eval received an empty expression on stdin");
+  return expression;
+}
+
+async function clearComposer(client) {
+  const state = await evaluate(
+    client,
+    `(() => { const matches = document.querySelectorAll('[data-composer-input-anchor] [contenteditable="true"]');` +
+      ` if (matches.length === 0) return { count: 0, text: "" };` +
+      ` if (matches.length > 1) return { count: matches.length, text: "" };` +
+      ` const el = matches[0]; const text = (el.textContent ?? "").trim();` +
+      ` if (text) { el.focus(); getSelection()?.selectAllChildren(el); document.execCommand("delete"); }` +
+      ` return { count: 1, text }; })()`,
+  );
+  if (state.count > 1) throw new Error(`reset found ${state.count} composer inputs`);
 }
 
 /** Eval a dev-bridge call, asserting the bridge exists (clearer error than a TypeError). */
 async function bridgeCall(expr) {
   const client = await connect();
   try {
-    const present = await evaluate(client, "typeof window.__poracodeDev");
-    if (present !== "object") {
-      throw new Error(
-        "window.__poracodeDev is missing — is the app a DEV build with installDevBridge() wired in main.tsx?",
-      );
-    }
+    await assertDevBridge(client);
     return await evaluate(client, `(${expr}, "ok")`);
   } finally {
-    client.close();
+    await client.close();
+  }
+}
+
+async function assertDevBridge(client) {
+  const present = await evaluate(client, "typeof window.__poracodeDev");
+  if (present !== "object") {
+    throw new Error(
+      "window.__poracodeDev is missing — is the app a DEV build with installDevBridge() wired in main.tsx?",
+    );
   }
 }
 
 async function connect() {
-  const target = await waitForTarget(10000);
+  const target = await waitForTarget(connection.sessionFile ? 10000 : 1500);
   if (!target) throw new Error(`no app CDP target at ${appUrl} on port ${port}`);
   return connectTarget(target);
 }
@@ -165,8 +332,18 @@ async function connectTarget(target) {
   const pending = new Map();
   let id = 0;
   await new Promise((done, reject) => {
-    ws.onopen = done;
-    ws.onerror = () => reject(new Error("WebSocket error connecting to CDP target"));
+    const timeout = setTimeout(
+      () => reject(new Error(`timed out opening CDP WebSocket for target ${target.id}`)),
+      Math.min(commandTimeoutMs, 3000),
+    );
+    ws.onopen = () => {
+      clearTimeout(timeout);
+      done();
+    };
+    ws.onerror = () => {
+      clearTimeout(timeout);
+      reject(new Error(`WebSocket error connecting to CDP target ${target.id}`));
+    };
   });
   ws.addEventListener("message", (message) => {
     const payload = JSON.parse(message.data);
@@ -194,7 +371,7 @@ async function connectTarget(target) {
         });
       });
     },
-    close: () => ws.close(),
+    close: () => closeWebSocket(ws),
   };
 }
 
@@ -241,11 +418,22 @@ async function screenshot(client, selector, out) {
 async function click(client, selector) {
   const point = await evaluate(
     client,
-    `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
-      ` if (!el) return null; const r = el.getBoundingClientRect();` +
-      ` return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`,
+    `(() => { const matches = document.querySelectorAll(${JSON.stringify(selector)});` +
+      ` if (matches.length === 0) return { error: "missing" };` +
+      ` if (matches.length > 1) return { error: "ambiguous:" + matches.length };` +
+      ` const el = matches[0]; if (!(el instanceof HTMLElement)) return { error: "not-html" };` +
+      ` if (el.matches(":disabled") || el.getAttribute("aria-disabled") === "true") return { error: "disabled" };` +
+      ` if (el.closest("[inert]")) return { error: "inert" };` +
+      ` el.scrollIntoView({ block: "center", inline: "center" });` +
+      ` const r = el.getBoundingClientRect(); const style = getComputedStyle(el);` +
+      ` if (r.width <= 0 || r.height <= 0 || style.display === "none" || style.visibility !== "visible" || style.opacity === "0" || style.pointerEvents === "none") return { error: "not-visible" };` +
+      ` const x = r.x + r.width / 2; const y = r.y + r.height / 2;` +
+      ` if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return { error: "outside-viewport" };` +
+      ` const hit = document.elementFromPoint(x, y);` +
+      ` if (!hit || (hit !== el && !el.contains(hit))) return { error: "occluded" };` +
+      ` return { x, y }; })()`,
   );
-  if (!point) throw new Error(`selector not found: ${selector}`);
+  if (point?.error) throw new Error(`cannot click ${selector}: ${point.error}`);
   await client.send("Input.dispatchMouseEvent", {
     type: "mouseMoved",
     x: point.x,
@@ -271,36 +459,107 @@ async function click(client, selector) {
 
 async function waitForTarget(timeoutMs) {
   const start = Date.now();
-  // A window's kind never changes, so remember each probed target across poll
-  // iterations instead of re-opening a WebSocket to it every second.
-  const probedKindsByTargetId = new Map();
+  let lastTargets = null;
+  let lastCandidateStates = [];
+  let mismatchSince = null;
+  let unhealthySince = null;
+  let lastConnectionError = null;
   while (Date.now() - start < timeoutMs) {
+    let inspection;
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/json/list`);
-      if (res.ok) {
-        const targets = await res.json();
-        const candidates = targets.filter((t) => t.type === "page" && t.url === appUrl);
-        if (!windowKind && candidates[0]) return candidates[0];
-        for (const target of candidates) {
-          let kind = probedKindsByTargetId.get(target.id);
-          if (kind === undefined) {
-            const client = await connectTarget(target);
-            try {
-              kind = await evaluate(client, "document.documentElement.dataset.windowKind");
-              probedKindsByTargetId.set(target.id, kind ?? null);
-            } finally {
-              client.close();
-            }
-          }
-          if (kind === windowKind) return target;
-        }
-      }
-    } catch {
-      // CDP endpoint not up yet — keep polling.
+      inspection = await inspectCdpWindowTargets({ port, appUrl, windowKind });
+    } catch (error) {
+      if (error?.code === "PORACODE_NOT_CDP") throw error;
+      lastConnectionError = error;
+      await new Promise((done) => setTimeout(done, 250));
+      continue;
     }
-    await new Promise((r) => setTimeout(r, 1000));
+
+    lastTargets = inspection.targets;
+    lastConnectionError = null;
+    const { pageTargets, candidates, ready } = inspection;
+    if (candidates.length === 0) {
+      lastCandidateStates = [];
+      unhealthySince = null;
+      const stableMismatch = pageTargets.some(
+        (target) => !target.url.startsWith("about:") && !target.url.startsWith("devtools:"),
+      );
+      if (stableMismatch) {
+        mismatchSince ??= Date.now();
+        if (Date.now() - mismatchSince >= 500) throw targetMismatchError(pageTargets);
+      } else {
+        mismatchSince = null;
+      }
+    } else {
+      mismatchSince = null;
+      lastCandidateStates = inspection.candidateStates;
+      if (ready.length === 1) return ready[0];
+      if (ready.length > 1) {
+        throw new Error(
+          `multiple ready ${windowKind} targets match debug session ${connection.sessionId ?? "explicit"} on CDP port ${port}: ${ready.map((target) => target.id).join(", ")}`,
+        );
+      }
+
+      const viteError = lastCandidateStates.find((state) => state.viteError)?.viteError;
+      if (viteError) throw new Error(`renderer Vite error: ${viteError}`);
+      if (lastCandidateStates.some((state) => state.crashScreen)) {
+        throw new Error("renderer crash screen is mounted");
+      }
+
+      const clearlyBroken = lastCandidateStates.some(
+        (state) =>
+          state.readyState === "complete" &&
+          state.loadEventEnd > 0 &&
+          state.title.length > 0 &&
+          state.windowKind === null &&
+          state.rootChildren === 0 &&
+          state.bodyTextLength === 0,
+      );
+      if (clearlyBroken) {
+        unhealthySince ??= Date.now();
+        if (Date.now() - unhealthySince >= 3000) {
+          throw new Error(
+            readinessError("renderer stayed blank after document load", lastCandidateStates),
+          );
+        }
+      } else {
+        unhealthySince = null;
+      }
+    }
+    await new Promise((done) => setTimeout(done, 250));
+  }
+
+  if (lastTargets) {
+    const pageTargets = lastTargets.filter((t) => t.type === "page");
+    if (pageTargets.length > 0 && lastCandidateStates.length === 0)
+      throw targetMismatchError(pageTargets);
+    if (lastCandidateStates.length > 0) {
+      throw new Error(readinessError("renderer did not become ready", lastCandidateStates));
+    }
+  }
+  if (lastConnectionError) {
+    throw new Error(
+      `CDP endpoint on port ${port} did not become reachable within ${timeoutMs}ms: ${lastConnectionError.message ?? lastConnectionError}`,
+    );
   }
   return null;
+}
+
+function targetMismatchError(pageTargets) {
+  const error = new Error(
+    `no app CDP target matching ${appUrl} on port ${port}. ` +
+      `Available page targets: ${pageTargets.map((target) => `${target.id}:${target.url}`).join(", ")}. ` +
+      "Use the session.json from the launch output; do not substitute a Vite or stale CDP port.",
+  );
+  error.code = "PORACODE_TARGET_MISMATCH";
+  return error;
+}
+
+function readinessError(reason, candidateStates) {
+  return (
+    `${reason} for ${windowKind} at ${appUrl} on CDP port ${port}. ` +
+    `Candidate health: ${JSON.stringify(candidateStates)}`
+  );
 }
 
 function absOut(p) {

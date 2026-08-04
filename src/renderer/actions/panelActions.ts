@@ -1,12 +1,22 @@
-import type { Thread } from "@/shared/contracts";
+import type { ProjectLocation, Thread } from "@/shared/contracts";
+import { toast } from "@heroui/react";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  useThreadTodoDockStore,
+  type ThreadTodoDockPlacement,
+} from "@/renderer/state/threadTodoDockStore";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
+import { resolveActivePaneId } from "./currentProject";
 
 function panelContextMatchesThread(
   projectId: string,
@@ -49,6 +59,10 @@ export function closePanelsForUnloadedThread(thread: Thread): void {
     panelStore.setFilesPanelContext(null);
   }
 
+  if (panelStore.subAgentPanelContext?.threadId === thread.id) {
+    panelStore.setSubAgentPanelContext(null);
+  }
+
   const fileRoot = useFileEditorStore.getState().rootContext;
   if (
     fileRoot &&
@@ -79,6 +93,10 @@ export function openRemoteAccessSettings(): void {
 
 export function openChangelogSettings(): void {
   usePanelStore.getState().openSettingsSection("changelog");
+}
+
+export function openWorkspaceSettings(): void {
+  usePanelStore.getState().openSettingsSection("workspaces");
 }
 
 /** Open the docked usage panel, or close all right-side panels if it is already active. */
@@ -118,17 +136,54 @@ export function toggleBrowserPanel(): void {
 }
 
 export function openProjectSettings(projectId: string): void {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  const owner = remoteOwner(project);
+  if (owner) {
+    void useRemoteServersStore
+      .getState()
+      .loadProjectSettings(owner.desktopId, owner.remoteId)
+      .catch((error) => toast.danger(friendlyError(error)));
+  }
   usePanelStore.getState().openProjectSettings(projectId);
 }
 
-/** Closes git/files side and right-panel content only. Does not hide the dev terminal (bottom or right). */
+export function moveThreadTodoDock(threadId: string, placement: ThreadTodoDockPlacement): void {
+  useThreadTodoDockStore.getState().setPlacement(threadId, placement);
+  if (placement === "right") {
+    usePanelStore.getState().setRightPanelTab("plan");
+  }
+}
+
+/** Close right-panel content and return its focused Plan to the composer. */
 export function closeAllPanels(): void {
+  const appState = useAppStore.getState();
+  if (appState.view.kind === "thread") {
+    moveThreadTodoDock(
+      resolveActivePaneId(appState.view.panes, appState.focusedPaneId),
+      "composer",
+    );
+  }
   usePanelStore.getState().closeAllPanels();
+}
+
+/** Show one subagent as a temporary right-panel tab beside its parent thread. */
+export function showSubAgentPanel(
+  threadId: string,
+  parentItemId: string,
+  projectLocation?: ProjectLocation,
+): void {
+  const panelStore = usePanelStore.getState();
+  panelStore.setSubAgentPanelContext({
+    threadId,
+    parentItemId,
+    ...(projectLocation ? { projectLocation } : {}),
+  });
+  panelStore.setRightPanelTab("subagent");
 }
 
 /** Dismiss every panel that can occupy the right edge — used by the overlay backdrop. */
 export function dismissRightOverlay(): void {
-  usePanelStore.getState().closeAllPanels();
+  closeAllPanels();
   useDevTerminalStore.getState().closePanel();
 }
 
@@ -148,14 +203,15 @@ function applyFilesPanel(
 
   const fileEditor = useFileEditorStore.getState();
   const currentRoot = fileEditor.rootContext;
-  const hasDirtyBuffers = Object.values(fileEditor.buffers).some(
-    (buffer) => buffer.status === "ready" && buffer.isDirty,
-  );
   const isSameContext =
     currentRoot?.projectId === context.projectId &&
     currentRoot?.worktreePath === context.worktreePath;
 
-  if (!isSameContext && hasDirtyBuffers && !window.confirm("Discard unsaved editor changes?")) {
+  if (
+    !isSameContext &&
+    hasDirtyEditorBuffers() &&
+    !window.confirm("Discard unsaved editor changes?")
+  ) {
     return;
   }
 
@@ -191,12 +247,21 @@ export function showFilesPanel(projectId: string, worktreePath?: string): void {
   applyFilesPanel(projectId, worktreePath, { toggleCloseIfActive: false });
 }
 
-export function openGitReview(projectId: string, worktreePath?: string): void {
+export function openGitReview(
+  projectId: string,
+  worktreePath?: string,
+  originComposerId?: string,
+): void {
   const mode = useSharedSettings.getState().gitReviewMode;
   const panelStore = usePanelStore.getState();
   const gitReviewContext = panelStore.gitReviewContext;
   const gitPanelOpen = !!gitReviewContext && panelStore.gitReviewAsPanel;
   const rightPanelTab = panelStore.rightPanelTab;
+  const nextContext = {
+    projectId,
+    ...(worktreePath ? { worktreePath } : {}),
+    ...(originComposerId ? { originComposerId } : {}),
+  };
 
   if (mode === "panel") {
     const isSameContext =
@@ -208,11 +273,13 @@ export function openGitReview(projectId: string, worktreePath?: string): void {
       closeAllPanels();
       return;
     }
-    panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
+  }
+
+  panelStore.setGitReviewContext(nextContext);
+  if (mode === "panel") {
     panelStore.setGitReviewAsPanel(true);
     panelStore.setRightPanelTab("git");
   } else {
-    panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
     panelStore.setGitReviewAsPanel(false);
     panelStore.setGitOverlayOpen(true);
   }

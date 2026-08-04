@@ -29,7 +29,7 @@ import {
   hasSubAgentProgressMeta,
   readSubAgentLiveLabel,
 } from "./subAgentProgressMeta";
-import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
+import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import { WorkflowResultGroup } from "./WorkflowResultGroup";
 import { useShimmer } from "@/renderer/thinkingAnimator";
@@ -83,6 +83,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   const titleRef = useShimmer<HTMLElement>(isRunning);
   if (!payload?.name) return null;
   const display = deriveToolDisplay(payload);
+  const isCrossagent = isCrossagentTool(payload);
   const displayTitle = normalizeCallTitleSeparator(display.title);
   const displayPrefix = display.parts
     ? normalizeCallTitleSeparator(display.parts.prefix)
@@ -114,18 +115,25 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
         type="button"
         onClick={() => openSubAgent(threadId, item.id)}
         className={`group ${chatRowClass} gap-1.5 text-[length:var(--lc-chat-font-size-command)] leading-tight ${chatRowHoverClass}`}
-        aria-label={t`Open subagent: ${display.title}`}
+        aria-label={
+          isCrossagent ? t`Open Crossagent: ${display.title}` : t`Open subagent: ${display.title}`
+        }
       >
         <span className="size-3 shrink-0 text-[color:var(--muted)]">
           <Icon className="size-3" />
         </span>
         {display.parts ? (
-          <code
-            ref={titleRef}
-            className={`flex min-w-0 items-baseline overflow-hidden font-mono text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text !flex" : ""}`}
-            {...(isRunning ? { "data-poracode-shimmer-text": displayTitle } : {})}
-          >
-            <span className="shrink-0 whitespace-pre">{displayPrefix}</span>
+          // Shimmer only the stable prefix — the path segment can change while
+          // running, and mutating text under `background-clip: text` ghosts old
+          // glyphs (see .poracode-thinking-text in styles.css).
+          <code className="flex min-w-0 items-baseline overflow-hidden font-mono text-[color:var(--muted)]">
+            <span
+              ref={titleRef}
+              className={`shrink-0 whitespace-pre ${isRunning ? "poracode-thinking-text" : ""}`}
+              {...(isRunning ? { "data-poracode-shimmer-text": displayPrefix } : {})}
+            >
+              {displayPrefix}
+            </span>
             {display.parts.filePath ? (
               <ChatFilePath
                 className="flex-1"
@@ -154,7 +162,9 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
         <ChevronRight className={chatRowIndicatorClass} />
       </button>
       {workflowResultText ? <WorkflowResultGroup resultText={workflowResultText} /> : null}
-      {resultText ? <SubAgentResultDisclosure text={resultText} /> : null}
+      {resultText ? (
+        <SubAgentResultDisclosure text={resultText} isCrossagent={isCrossagent} />
+      ) : null}
     </div>
   );
 });
@@ -166,7 +176,7 @@ function extractToolUseErrorText(text: string): string | null {
   return inner.length > 0 ? inner : null;
 }
 
-function SubAgentResultDisclosure({ text }: { text: string }) {
+function SubAgentResultDisclosure({ text, isCrossagent }: { text: string; isCrossagent: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const actions = useChatPaneActions();
   return (
@@ -182,7 +192,7 @@ function SubAgentResultDisclosure({ text }: { text: string }) {
       >
         <Bot className="size-3 shrink-0" />
         <span>
-          <Trans>Subagent Result</Trans>
+          {isCrossagent ? <Trans>Crossagent Result</Trans> : <Trans>Subagent Result</Trans>}
         </span>
         <ChevronDown
           className={`size-3 shrink-0 opacity-100 transition-[transform,opacity] [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-visible:opacity-100 ${isOpen ? "rotate-180" : ""}`}

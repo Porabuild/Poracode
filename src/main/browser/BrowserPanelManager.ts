@@ -93,6 +93,7 @@ export class BrowserPanelManager {
   private readonly internalPages = new Map<string, BrowserInternalPage>();
   private restored = false;
   private automationActive = false;
+  private readonly automationSessions = new Set<string>();
   private automationTimer: ReturnType<typeof setTimeout> | null = null;
   private pickerKeyCleanup: (() => void) | null = null;
   private readonly loginCoordinator = new BrowserLoginCaptureCoordinator({
@@ -210,6 +211,8 @@ export class BrowserPanelManager {
       clearTimeout(this.automationTimer);
       this.automationTimer = null;
     }
+    this.automationSessions.clear();
+    this.automationActive = false;
     this.clearPickerShortcut();
     this.loginCoordinator.cancelLoginConfirmations();
     this.downloads?.dispose();
@@ -277,12 +280,20 @@ export class BrowserPanelManager {
     this.emitState();
   }
 
-  revealPanel(): void {
+  revealPanel(mode?: BrowserLinkPresentationMode): void {
     if (this.options.isExtracted?.()) {
       this.options.focusExtractedWindow?.();
       return;
     }
-    this.emit({ type: "open-panel" });
+    this.emit({
+      type: "open-panel",
+      ...(mode !== undefined ? { mode } : {}),
+    });
+  }
+
+  /** Reveal using the user's Browser "Show opened links in" preference. */
+  revealForUserOpen(): void {
+    this.revealPanel(this.readLinkSettings().linkPresentationMode);
   }
 
   /**
@@ -298,11 +309,34 @@ export class BrowserPanelManager {
       this.emit({ type: "automation-active", active: true });
     }
     if (this.automationTimer) clearTimeout(this.automationTimer);
+    if (this.automationSessions.size > 0) {
+      this.automationTimer = null;
+      return;
+    }
     this.automationTimer = setTimeout(() => {
       this.automationTimer = null;
       this.automationActive = false;
       this.emit({ type: "automation-active", active: false });
     }, AUTOMATION_GRACE_MS);
+  }
+
+  setAutomationSession(sessionId: string, active: boolean): boolean {
+    if (active) {
+      this.automationSessions.add(sessionId);
+      this.markAutomationActivity();
+      return false;
+    }
+
+    this.automationSessions.delete(sessionId);
+    if (this.automationSessions.size > 0) return false;
+    if (!this.automationActive) return true;
+    if (this.automationTimer) {
+      clearTimeout(this.automationTimer);
+      this.automationTimer = null;
+    }
+    this.automationActive = false;
+    this.emit({ type: "automation-active", active: false });
+    return true;
   }
 
   /**
@@ -372,12 +406,7 @@ export class BrowserPanelManager {
       return this.openSystemBrowser(url.toString());
     }
 
-    if (this.options.isExtracted?.()) {
-      this.options.focusExtractedWindow?.();
-    } else {
-      this.emit({ type: "open-panel", mode: settings.linkPresentationMode });
-    }
-    void this.createTab({ url: url.toString(), activate: true }).catch(() => {});
+    void this.createTab({ url: url.toString(), activate: true, reveal: true }).catch(() => {});
     return true;
   }
 
@@ -491,7 +520,7 @@ export class BrowserPanelManager {
   }
 
   async createTab(
-    payload: { url?: string; activate?: boolean },
+    payload: { url?: string; activate?: boolean; reveal?: boolean },
     opts: {
       markActivity?: boolean;
       awaitAttach?: boolean;
@@ -503,6 +532,12 @@ export class BrowserPanelManager {
     // Creating a tab is agent activity (mounts the headless host). Restore
     // passes markActivity:false so reopening the app doesn't wake dormant tabs.
     if (opts.markActivity !== false) this.markAutomationActivity();
+    // Same presentation path as openLink / openExternal: emit open-panel so
+    // useBrowserSync places the browser in panel or overlay (and above the
+    // file editor when that is open).
+    if (payload.reveal) {
+      this.revealForUserOpen();
+    }
     const tabId = `tab-${randomUUID()}`;
     const internalPage = payload.url ? internalPageForUrl(payload.url) : undefined;
     if (internalPage) this.internalPages.set(tabId, internalPage);
@@ -963,7 +998,6 @@ export class BrowserPanelManager {
   ): Promise<BrowserStartPickerResult> {
     const tab = this.findTab(tabId);
     if (!tab || !tab.isAttached()) return { ok: false, error: `No browser tab: ${tabId}` };
-    const wc = tab.webContents;
 
     // The user clicked the element in the picker, so it's already inside the
     // viewport. Capture from the renderer's painted bitmap via
@@ -977,12 +1011,12 @@ export class BrowserPanelManager {
       width: Math.max(1, Math.ceil(rect.width)),
       height: Math.max(1, Math.ceil(rect.height)),
     };
-    const img = await wc.capturePage(clip);
-    const bytes = img.toPNG();
+    const bytes = await tab.capturePng(clip);
 
+    const data = new Uint8Array(bytes);
     const path = saveClipboardImageFile(this.paths, {
       threadId,
-      data: new Uint8Array(bytes),
+      data,
       extension: "png",
     });
     const baseName = path.split(/[\\/]/).pop() ?? "Selection.png";

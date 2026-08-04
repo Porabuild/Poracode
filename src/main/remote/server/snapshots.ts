@@ -3,10 +3,13 @@ import {
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
+  remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
   type RemoteAgentStatuses,
   type RemoteEnvironmentDescriptor,
+  type RemoteRuntimeItemsPage,
+  type RemoteRuntimeItemsPageRequest,
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
@@ -17,11 +20,15 @@ import {
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeItemsPage,
   dbGetThreadRuntimeSummaries,
   dbGetThreads,
 } from "../../db";
 import { RemoteHttpError } from "../auth";
 import type { RemoteServerContext } from "./context";
+import { withStableUpdatedAt } from "./stableUpdatedAt";
+import { projectRuntimeItemsImageRefs } from "./imageRefProjection";
+import { projectGitStateSnapshotForRemote } from "./gitStateProjection";
 
 /** Sort order for a thread already known to the DB; remote-created rows that
  * aren't present yet sort to the top via a descending timestamp. */
@@ -38,6 +45,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       : undefined;
   return remoteEnvironmentDescriptorSchema.parse({
     protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+    hostMode: ctx.options.hostMode ?? "desktop",
     desktopId: ctx.options.identity.desktopId,
     label: ctx.options.identity.label,
     appVersion: ctx.options.appVersion,
@@ -70,14 +78,18 @@ export function buildShellSnapshot(ctx: RemoteServerContext): RemoteShellSnapsho
       ...(summary.contextUsage ? { contextUsage: summary.contextUsage } : {}),
     };
   }
-  return remoteShellSnapshotSchema.parse({
-    snapshotSeq: ctx.seq,
-    projects: dbGetProjects(),
-    threads,
-    runtimeSummariesByThread,
-    gitSummariesByThread: ctx.options.gitSummaries?.() ?? {},
-    updatedAt: new Date().toISOString(),
-  });
+  return remoteShellSnapshotSchema.parse(
+    withStableUpdatedAt("shell", {
+      snapshotSeq: ctx.seq,
+      projects: dbGetProjects(),
+      threads,
+      runtimeSummariesByThread,
+      gitSummariesByThread: ctx.options.gitSummaries?.() ?? {},
+      ...(ctx.options.gitState
+        ? { gitState: projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot()) }
+        : {}),
+    }),
+  );
 }
 
 export async function buildAgentStatuses(ctx: RemoteServerContext): Promise<RemoteAgentStatuses> {
@@ -89,19 +101,24 @@ export async function buildAgentStatuses(ctx: RemoteServerContext): Promise<Remo
     ),
   ];
   const statuses = await ctx.options.callSupervisor("getAgentStatuses", { wslDistros });
-  return remoteAgentStatusesSchema.parse({
-    windows: statuses.windows,
-    wsl: statuses.wsl,
-    updatedAt: new Date().toISOString(),
-  });
+  return remoteAgentStatusesSchema.parse(
+    withStableUpdatedAt("agent-statuses", {
+      windows: statuses.windows,
+      wsl: statuses.wsl,
+    }),
+  );
 }
 
 export async function buildThreadSnapshot(
   ctx: RemoteServerContext,
   threadId: string,
+  options: {
+    readonly runtimePage?: boolean;
+    readonly targetTimelineEntryCount?: number;
+  } = {},
 ): Promise<RemoteThreadSnapshot> {
-  const thread = dbGetThread(threadId);
-  if (!thread) {
+  const initialThread = dbGetThread(threadId);
+  if (!initialThread) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
 
@@ -119,14 +136,51 @@ export async function buildThreadSnapshot(
     terminalSize = undefined;
   }
 
-  return remoteThreadSnapshotSchema.parse({
-    snapshotSeq: ctx.seq,
-    thread,
-    runtimeItems: dbGetThreadRuntimeItems(threadId),
-    completedTurns: dbGetThreadCompletedTurns(threadId),
-    contextUsage: dbGetThreadContextUsage(threadId),
-    ...(terminalScrollback ? { terminalScrollback } : {}),
-    ...(terminalSize ? { terminalSize } : {}),
-    updatedAt: new Date().toISOString(),
+  // The terminal reads above cross an async supervisor boundary. Runtime and
+  // thread-state events can persist while they are in flight, so re-read the
+  // row before taking the synchronous runtime snapshot; otherwise a completed
+  // transcript can be returned with an older `working` status and the client
+  // will conservatively treat the history as non-authoritative.
+  const thread = dbGetThread(threadId);
+  if (!thread) {
+    throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+  }
+  const runtimePage = options.runtimePage
+    ? dbGetThreadRuntimeItemsPage(threadId, undefined, 500, options.targetTimelineEntryCount ?? 40)
+    : null;
+  return remoteThreadSnapshotSchema.parse(
+    withStableUpdatedAt(`thread:${threadId}`, {
+      snapshotSeq: ctx.seq,
+      thread,
+      // Inline image bytes are replaced by host-minted references: they are ~89%
+      // of runtime payload bytes and the client fetches each one on demand.
+      runtimeItems: projectRuntimeItemsImageRefs(
+        threadId,
+        runtimePage?.items ?? dbGetThreadRuntimeItems(threadId),
+      ),
+      ...(runtimePage ? { runtimeNextCursor: runtimePage.nextCursor } : {}),
+      completedTurns: dbGetThreadCompletedTurns(threadId),
+      contextUsage: dbGetThreadContextUsage(threadId),
+      ...(terminalScrollback ? { terminalScrollback } : {}),
+      ...(terminalSize ? { terminalSize } : {}),
+    }),
+  );
+}
+
+export function buildThreadRuntimeItemsPage(
+  input: RemoteRuntimeItemsPageRequest,
+): RemoteRuntimeItemsPage {
+  if (!dbGetThread(input.threadId)) {
+    throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+  }
+  const page = dbGetThreadRuntimeItemsPage(
+    input.threadId,
+    input.beforePosition,
+    input.limit,
+    input.targetTimelineEntryCount,
+  );
+  return remoteRuntimeItemsPageSchema.parse({
+    ...page,
+    items: projectRuntimeItemsImageRefs(input.threadId, page.items),
   });
 }

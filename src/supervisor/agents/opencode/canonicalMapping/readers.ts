@@ -5,7 +5,7 @@
  * normalise/extract strings from loosely-typed OpenCode SDK payloads.
  */
 
-import type { ToolState } from "@opencode-ai/sdk/v2";
+import type { ToolState } from "../legacySdk";
 import { readStringField } from "../../fileChangeSummary";
 
 /** Longest suffix of `emitted` that is a prefix of `full`. */

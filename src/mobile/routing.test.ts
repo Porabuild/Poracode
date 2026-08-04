@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { legacyBrowserRouteUrl, mobileRouterBasePath } from "./routing";
+import { legacyBrowserRouteUrl, mobileRouterBasePath, mobileServiceWorkerScope } from "./routing";
 
 describe("mobileRouterBasePath", () => {
   it("resolves hosted, desktop-served, and development bases", () => {
     expect(mobileRouterBasePath("/pwa/settings/appearance", "/pwa/")).toBe("/pwa");
+    expect(mobileRouterBasePath("/app/settings/appearance", "/app/")).toBe("/app");
+    expect(mobileRouterBasePath("/app-nightly/settings/appearance", "/app-nightly/")).toBe(
+      "/app-nightly",
+    );
     expect(mobileRouterBasePath("/app/settings/appearance", "/")).toBe("/app");
     expect(mobileRouterBasePath("/settings/appearance", "/")).toBe("/");
+  });
+});
+
+describe("mobileServiceWorkerScope", () => {
+  it("owns the origin for desktop-served builds and stays inside a channel base", () => {
+    expect(mobileServiceWorkerScope("./")).toBe("/");
+    expect(mobileServiceWorkerScope("/")).toBe("/");
+    expect(mobileServiceWorkerScope("/app/")).toBe("/app/");
+    expect(mobileServiceWorkerScope("/app-nightly/")).toBe("/app-nightly/");
   });
 });
 

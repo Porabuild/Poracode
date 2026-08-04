@@ -56,8 +56,8 @@ interface CommandCodeHookSpec {
 }
 
 /**
- * The three events Command Code validates. `Stop` is the authoritative
- * turn-finished (idle) edge; the tool events corroborate `working`.
+ * The three v1 events Poracode needs. `Stop` is the authoritative turn-finished
+ * (idle) edge; the tool events corroborate `working`.
  */
 const COMMANDCODE_HOOK_SPECS: ReadonlyArray<CommandCodeHookSpec> = [
   { event: "PreToolUse" },

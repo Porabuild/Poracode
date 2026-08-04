@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -12,15 +12,25 @@ import {
 } from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
+import type {
+  GitBranchInfo,
+  GitStatusResult,
+  PrCreateMode,
+  Project,
+  ProjectLocation,
+} from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
+import { gitReviewActionStoreKey } from "@/renderer/state/gitReviewActionStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import {
   buildBranchPrKey,
   useCommitsAhead,
   useHasPr,
   usePrBaseBranch,
+  usePrHeadSha,
+  usePrNumber,
   usePrState,
   useSourceAhead,
   useSourceBranch,
@@ -28,6 +38,7 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
+import { isPrActive } from "@/renderer/utils/prStatus";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { getCommitGenCandidates } from "@/renderer/components/providers/commitGen";
 import {
@@ -54,6 +65,7 @@ const EMPTY_BRANCHES: readonly GitBranchInfo[] = [];
 
 export function GitReviewSidebar(props: {
   project: Project;
+  mergeSyncLocation?: ProjectLocation | undefined;
   gitStatus: GitStatusResult | undefined;
   selectedFile: string | null;
   selectedStaged: boolean;
@@ -79,6 +91,7 @@ export function GitReviewSidebar(props: {
 }) {
   const {
     project,
+    mergeSyncLocation,
     gitStatus,
     selectedFile,
     selectedStaged,
@@ -98,11 +111,13 @@ export function GitReviewSidebar(props: {
     onLaunchConflictResolverThread,
   } = props;
   const { t } = useLingui();
-  const storeKey = statusKey ?? project.id;
+  const storeKey = gitReviewActionStoreKey(project.id, statusKey);
   const isWorktreeStatus = Boolean(statusKey);
   const { isCollapsed, collapse, expand } = useSidebar();
   const diffTheme = useDiffTheme();
-  const { setScrollContainer, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
+  const scrollContentRef = useRef<HTMLDivElement>(null);
+  const { setScrollContainer, scrollEl, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
+    contentRef: scrollContentRef,
     maxFadePx: 10,
   });
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
@@ -126,7 +141,9 @@ export function GitReviewSidebar(props: {
   const effectivePrKey =
     worktreePath ?? (gitStatus?.branch ? buildBranchPrKey(project.id) : undefined);
   const hasPr = useHasPr(effectivePrKey);
+  const prNumber = usePrNumber(effectivePrKey);
   const prState = usePrState(effectivePrKey);
+  const prHeadSha = usePrHeadSha(effectivePrKey);
   const prBaseBranch = usePrBaseBranch(effectivePrKey);
   const sourceBranch = useSourceBranch(effectivePrKey) ?? null;
   const commitsAhead = useCommitsAhead(effectivePrKey);
@@ -140,7 +157,6 @@ export function GitReviewSidebar(props: {
     project,
     effectiveBranch,
     effectivePrKey,
-    worktreePath,
     isGitHub,
     ghAvailable,
     preferredSourceBranch: prBaseBranch,
@@ -156,12 +172,15 @@ export function GitReviewSidebar(props: {
     isMerging,
     isPullingFromSource,
     isAbortingMerge,
+    pullStashCommit,
     prTitle,
     setPrTitle,
     prBody,
     setPrBody,
     prTargetBranch,
     setPrTargetBranch,
+    createdPrWatch,
+    clearCreatedPrWatch,
     prLoading,
     prPendingAction,
     isGeneratingPr,
@@ -184,6 +203,7 @@ export function GitReviewSidebar(props: {
     handleGeneratePrSummary,
   } = useGitReviewActions({
     project,
+    mergeSyncLocation,
     gitStatus,
     worktreeBranch,
     worktreePath,
@@ -221,14 +241,31 @@ export function GitReviewSidebar(props: {
   const behind = gitStatus?.behind ?? 0;
   const needsPush = hasTracking ? ahead > 0 && behind === 0 : hasRemote;
 
-  const showMergeActions = Boolean(
-    worktreeBranch && worktreePath && !hasAnyChanges && sourceBranch && commitsAhead > 0,
+  // Experiment candidate worktrees merge/pull through the experiment crown
+  // flow only — the review surface is view/commit-only for them.
+  const isExperimentWorktree = Boolean(
+    worktreePath && findExperimentByWorktree(project.id, worktreePath),
   );
-  const showPullFromSource = Boolean(effectiveBranch && sourceBranch && sourceAhead > 0);
+  const showMergeActions = Boolean(
+    worktreeBranch &&
+    worktreePath &&
+    !hasAnyChanges &&
+    sourceBranch &&
+    commitsAhead > 0 &&
+    !isExperimentWorktree,
+  );
+  const showPullFromSource = Boolean(
+    effectiveBranch && sourceBranch && sourceAhead > 0 && !isExperimentWorktree,
+  );
   const isPushed = hasTracking && ahead === 0;
-  // Shared PR eligibility: a GitHub repo with a target branch and no open PR.
+  // A merged PR only becomes eligible for a follow-up PR after the branch moves
+  // past the commit that was last included in that PR. Comparing commit IDs is
+  // important here: ahead/behind counts are misleading after squash merges.
+  const hasCommitsAfterMergedPr = Boolean(
+    prState !== "merged" || (gitStatus?.headSha && prHeadSha && gitStatus.headSha !== prHeadSha),
+  );
   const prEligible = Boolean(
-    showPrSection && ghAvailable && sourceBranch && (!prState || prState === "closed"),
+    showPrSection && ghAvailable && sourceBranch && !isPrActive(prState) && hasCommitsAfterMergedPr,
   );
   const showCreatePrButton = prEligible && isPushed;
   // Whether the one-click "Commit & Create PR" action is offered. Unlike
@@ -263,6 +300,7 @@ export function GitReviewSidebar(props: {
       {isAutoPrMode ? <Trans>Create PR (Auto)</Trans> : <Trans>Create PR</Trans>}
     </>
   );
+  const initialPrWatch = createdPrWatch?.prNumber === prNumber ? createdPrWatch : undefined;
   const [isInitializingRepo, setIsInitializingRepo] = useState(false);
   const [addRemoteOpen, setAddRemoteOpen] = useState(false);
   const [remoteName, setRemoteName] = useState("origin");
@@ -342,121 +380,129 @@ export function GitReviewSidebar(props: {
             className={gitReviewSidebarListScrollClass()}
             style={scrollFadeStyle}
           >
-            {mergeConflicting && mergeConflictFiles.length > 0 && (
-              <ConflictGroup
-                files={mergeConflictFiles}
-                project={project}
-                selectedFile={selectedFile}
-                worktreePath={worktreePath}
-                worktreeBranch={worktreeBranch}
-                onSelectFile={onSelectFile}
-                onRefresh={onRefresh}
-                storeKey={storeKey}
-                isWorktree={isWorktreeStatus}
-                mode={mode}
-                diffTheme={diffTheme}
-                wrapLines={wrapLines}
-              />
-            )}
-            {gitStatus && gitStatus.staged.length > 0 && (
-              <FileGroup
-                title={t`Staged`}
-                count={gitStatus.staged.length}
-                staged
-                files={gitStatus.staged}
-                project={project}
-                selectedFile={selectedStaged ? selectedFile : null}
-                onSelectFile={onSelectFile}
-                onRefresh={onRefresh}
-                storeKey={storeKey}
-                isWorktree={isWorktreeStatus}
-                worktreePath={worktreePath}
-                worktreeBranch={worktreeBranch}
-                mode={mode}
-                diffTheme={diffTheme}
-                wrapLines={wrapLines}
-              />
-            )}
-            {gitStatus && gitStatus.unstaged.length > 0 && (
-              <FileGroup
-                title={t`Changes`}
-                count={gitStatus.unstaged.length}
-                staged={false}
-                files={gitStatus.unstaged}
-                project={project}
-                selectedFile={!selectedStaged ? selectedFile : null}
-                onSelectFile={onSelectFile}
-                onRefresh={onRefresh}
-                storeKey={storeKey}
-                isWorktree={isWorktreeStatus}
-                worktreePath={worktreePath}
-                worktreeBranch={worktreeBranch}
-                mode={mode}
-                diffTheme={diffTheme}
-                wrapLines={wrapLines}
-              />
-            )}
-            {gitStatus && !gitStatus.isRepo && (
-              <div
-                className={`flex min-h-full flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
-              >
-                <span>
-                  <Trans>Not a git repository</Trans>
-                </span>
-                {onInitRepository && (
-                  <Button
-                    size="sm"
-                    variant="tertiary"
-                    className="justify-center text-white [&_svg]:text-white"
-                    isDisabled={isInitializingRepo}
-                    isPending={isInitializingRepo}
-                    onPress={() => void handleInitRepository()}
-                  >
-                    {({ isPending }) =>
-                      isPending ? (
-                        <PixelLoader size="xs" />
-                      ) : (
-                        <>
-                          <GitBranchPlus className="size-3.5" />
-                          <Trans>Initialize Repository</Trans>
-                        </>
-                      )
-                    }
-                  </Button>
-                )}
-              </div>
-            )}
-            {gitStatus &&
-              gitStatus.isRepo &&
-              gitStatus.staged.length === 0 &&
-              gitStatus.unstaged.length === 0 &&
-              !mergeConflicting && (
+            <div ref={scrollContentRef} className="relative min-h-full space-y-2">
+              {mergeConflicting && mergeConflictFiles.length > 0 && (
+                <ConflictGroup
+                  files={mergeConflictFiles}
+                  project={project}
+                  selectedFile={selectedFile}
+                  worktreePath={worktreePath}
+                  worktreeBranch={worktreeBranch}
+                  onSelectFile={onSelectFile}
+                  onRefresh={onRefresh}
+                  storeKey={storeKey}
+                  isWorktree={isWorktreeStatus}
+                  mode={mode}
+                  diffTheme={diffTheme}
+                  wrapLines={wrapLines}
+                  scrollElement={scrollEl}
+                  scrollContentElement={scrollContentRef.current}
+                />
+              )}
+              {gitStatus && gitStatus.staged.length > 0 && (
+                <FileGroup
+                  title={t`Staged`}
+                  count={gitStatus.staged.length}
+                  staged
+                  files={gitStatus.staged}
+                  project={project}
+                  selectedFile={selectedStaged ? selectedFile : null}
+                  onSelectFile={onSelectFile}
+                  onRefresh={onRefresh}
+                  storeKey={storeKey}
+                  isWorktree={isWorktreeStatus}
+                  worktreePath={worktreePath}
+                  worktreeBranch={worktreeBranch}
+                  mode={mode}
+                  diffTheme={diffTheme}
+                  wrapLines={wrapLines}
+                  scrollElement={scrollEl}
+                  scrollContentElement={scrollContentRef.current}
+                />
+              )}
+              {gitStatus && gitStatus.unstaged.length > 0 && (
+                <FileGroup
+                  title={t`Changes`}
+                  count={gitStatus.unstaged.length}
+                  staged={false}
+                  files={gitStatus.unstaged}
+                  project={project}
+                  selectedFile={!selectedStaged ? selectedFile : null}
+                  onSelectFile={onSelectFile}
+                  onRefresh={onRefresh}
+                  storeKey={storeKey}
+                  isWorktree={isWorktreeStatus}
+                  worktreePath={worktreePath}
+                  worktreeBranch={worktreeBranch}
+                  mode={mode}
+                  diffTheme={diffTheme}
+                  wrapLines={wrapLines}
+                  scrollElement={scrollEl}
+                  scrollContentElement={scrollContentRef.current}
+                />
+              )}
+              {gitStatus && !gitStatus.isRepo && (
                 <div
-                  className={`flex min-h-full flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
+                  className={`absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
                 >
-                  <span className="text-foreground/80">
-                    <Trans>Working tree clean</Trans>
-                  </span>
                   <span>
-                    {hasRemote ? (
-                      <Trans>File changes will appear here.</Trans>
-                    ) : (
-                      <Trans>No remote configured. Add a remote to enable push and pull.</Trans>
-                    )}
+                    <Trans>Not a git repository</Trans>
                   </span>
-                  {!hasRemote && onAddRemote && (
+                  {onInitRepository && (
                     <Button
                       size="sm"
                       variant="tertiary"
-                      className="mt-2 justify-center text-white [&_svg]:text-white"
-                      onPress={() => setAddRemoteOpen(true)}
+                      className="justify-center text-white [&_svg]:text-white"
+                      isDisabled={isInitializingRepo}
+                      isPending={isInitializingRepo}
+                      onPress={() => void handleInitRepository()}
                     >
-                      <Link2 className="size-3.5" />
-                      <Trans>Add Remote</Trans>
+                      {({ isPending }) =>
+                        isPending ? (
+                          <PixelLoader size="xs" />
+                        ) : (
+                          <>
+                            <GitBranchPlus className="size-3.5" />
+                            <Trans>Initialize Repository</Trans>
+                          </>
+                        )
+                      }
                     </Button>
                   )}
                 </div>
               )}
+              {gitStatus &&
+                gitStatus.isRepo &&
+                gitStatus.staged.length === 0 &&
+                gitStatus.unstaged.length === 0 &&
+                !mergeConflicting && (
+                  <div
+                    className={`absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
+                  >
+                    <span className="text-foreground/80">
+                      <Trans>Working tree clean</Trans>
+                    </span>
+                    <span>
+                      {hasRemote ? (
+                        <Trans>File changes will appear here.</Trans>
+                      ) : (
+                        <Trans>No remote configured. Add a remote to enable push and pull.</Trans>
+                      )}
+                    </span>
+                    {!hasRemote && onAddRemote && (
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        className="mt-2 justify-center text-white [&_svg]:text-white"
+                        onPress={() => setAddRemoteOpen(true)}
+                      >
+                        <Link2 className="size-3.5" />
+                        <Trans>Add Remote</Trans>
+                      </Button>
+                    )}
+                  </div>
+                )}
+            </div>
           </div>
 
           {mergeConflicting && mergeConflictFiles.length > 0 && (
@@ -471,6 +517,7 @@ export function GitReviewSidebar(props: {
           {(hasAnyChanges || hasRemote) && (
             <CommitSyncPanel
               hasAnyChanges={hasAnyChanges}
+              hasPendingPullStash={Boolean(pullStashCommit)}
               hasStagedChanges={hasStagedChanges}
               hasRemote={hasRemote}
               needsPush={needsPush}
@@ -501,7 +548,7 @@ export function GitReviewSidebar(props: {
             />
           )}
 
-          {showPrSection && ghAvailable && hasPr && prState !== "closed" && effectivePrKey && (
+          {showPrSection && ghAvailable && hasPr && effectivePrKey && (
             <PrSection
               prKey={effectivePrKey}
               projectId={project.id}
@@ -514,6 +561,12 @@ export function GitReviewSidebar(props: {
               handleUpdatePrBranch={handleUpdatePrBranch}
               onRefreshPr={handleRefreshPr}
               isRefreshingPr={isRefreshingPr}
+              {...(initialPrWatch
+                ? {
+                    initialWatch: initialPrWatch.watch,
+                    onInitialWatchUsed: clearCreatedPrWatch,
+                  }
+                : {})}
             />
           )}
 

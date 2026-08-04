@@ -4,6 +4,7 @@ import type { DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { TerminalSize } from "@/shared/contracts";
+import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 
 const SPLIT_MIN_PERCENT = 15;
 const SPLIT_DEFAULT_PERCENT = 50;
@@ -37,6 +38,7 @@ export function TerminalSurfaces(props: {
   markTabActive: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
+  watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
 }) {
   const { t } = useLingui();
   const {
@@ -47,6 +49,7 @@ export function TerminalSurfaces(props: {
     markTabActive,
     updateTabTitle,
     onTerminalResize,
+    watchTerminal,
   } = props;
   const fontSize = useSharedSettings((state) => state.terminalPanelFontSize);
   const [splitPercent, setSplitPercent] = useState(readSplitPercent);
@@ -144,6 +147,16 @@ export function TerminalSurfaces(props: {
     setSplitPercent(clamped);
   }
 
+  function remoteSurfaceProps(terminalId: string) {
+    return watchTerminal
+      ? {
+          outputSource: (listener: TerminalFeedListener) => watchTerminal(terminalId, listener),
+          initialScrollback: "",
+          preferDomRenderer: true,
+        }
+      : {};
+  }
+
   function handleResizeKeyDown(e: React.KeyboardEvent) {
     switch (e.key) {
       case "ArrowLeft":
@@ -190,6 +203,7 @@ export function TerminalSurfaces(props: {
                 onActivity={() => markTabActive(tab.id)}
                 onBell={() => markTabActive(tab.id)}
                 onTitleChange={(title) => updateTabTitle(tab.id, title)}
+                {...remoteSurfaceProps(tab.id)}
                 {...(onTerminalResize
                   ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
                   : {})}
@@ -227,6 +241,7 @@ export function TerminalSurfaces(props: {
                   onActivity={() => markTabActive(tab.id)}
                   onBell={() => markTabActive(tab.id)}
                   onTitleChange={(title) => updateTabTitle(tab.splitId!, title)}
+                  {...remoteSurfaceProps(tab.splitId!)}
                   {...(onTerminalResize
                     ? { onTerminalResize: (size) => onTerminalResize(tab.splitId!, size) }
                     : {})}
@@ -261,6 +276,7 @@ export function TerminalSurfaces(props: {
             onActivity={() => markTabActive(tab.id)}
             onBell={() => markTabActive(tab.id)}
             onTitleChange={(title) => updateTabTitle(tab.id, title)}
+            {...remoteSurfaceProps(tab.id)}
             {...(onTerminalResize
               ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
               : {})}

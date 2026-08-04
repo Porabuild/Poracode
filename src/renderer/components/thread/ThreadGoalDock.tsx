@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
-import { CircleCheckBig, Target, X } from "lucide-react";
+import { CircleCheckBig, CircleStop, CircleX, Target } from "lucide-react";
 import { msg } from "@lingui/core/macro";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import { ThreadDockSection } from "./ThreadDockUI";
+import { ThreadGoalControls } from "./ThreadGoalControls";
 import { formatTokenCount } from "./formatTokenCount";
 
 interface ThreadGoalDockProps {
+  threadId: string;
   state: ThreadGoalDockState;
   onDismiss: () => void;
 }
@@ -19,7 +21,7 @@ const localGoalTimingByItemId = new Map<
   { timeUsedSeconds: number; anchorSeconds: number }
 >();
 
-export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
+export function ThreadGoalDock({ threadId, state, onDismiss }: ThreadGoalDockProps) {
   const { t } = useLingui();
   const [localAnchorSeconds, setLocalAnchorSeconds] = useState(() =>
     resolveLocalGoalAnchorSeconds(state, Date.now() / 1000),
@@ -27,6 +29,8 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
   const [nowSeconds, setNowSeconds] = useState(() => Date.now() / 1000);
   const isActive = state.status === "active";
   const isComplete = state.status === "complete";
+  const isFailed = state.status === "failed";
+  const isCancelled = state.status === "cancelled";
 
   useEffect(() => {
     const now = Date.now() / 1000;
@@ -43,14 +47,22 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
   const elapsedSeconds = resolveGoalElapsedSeconds(state, nowSeconds, localAnchorSeconds);
   const meta = goalMeta(state, t);
   const elapsedLabel = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : null;
+  const evaluationChecks = state.iterations !== undefined && state.iterations > 0;
   const hasMeta = meta.length > 0;
-  const StatusIcon = isComplete ? CircleCheckBig : Target;
+  const StatusIcon = isComplete
+    ? CircleCheckBig
+    : isFailed
+      ? CircleX
+      : isCancelled
+        ? CircleStop
+        : Target;
   const statusIconClass = isComplete
     ? "text-success"
-    : isActive
-      ? "text-white"
-      : "text-foreground-muted";
-
+    : isFailed
+      ? "text-danger"
+      : isActive
+        ? "text-white"
+        : "text-foreground-muted";
   return (
     <ThreadDockSection ariaLabel={t`Thread goal dock`} className="px-2 py-1">
       <div className="flex min-w-0 items-center gap-2 leading-5">
@@ -65,10 +77,18 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
         <span className="shrink-0 font-semibold text-foreground">
           <Trans>Goal</Trans>
         </span>
-        {hasMeta || elapsedLabel ? (
+        {hasMeta || evaluationChecks || elapsedLabel ? (
           <span className="flex min-w-0 shrink items-center gap-1 text-[0.85em] text-[color:var(--muted)] [font-variant-numeric:tabular-nums]">
             {hasMeta ? <span className="truncate">{meta.join(" · ")}</span> : null}
-            {hasMeta && elapsedLabel ? <span aria-hidden="true">·</span> : null}
+            {hasMeta && evaluationChecks ? <span aria-hidden="true">·</span> : null}
+            {evaluationChecks ? (
+              <span className="shrink-0">
+                <Plural value={state.iterations ?? 0} one="# check" other="# checks" />
+              </span>
+            ) : null}
+            {(hasMeta || evaluationChecks) && elapsedLabel ? (
+              <span aria-hidden="true">·</span>
+            ) : null}
             {elapsedLabel ? (
               <span className="inline-block shrink-0 text-center" style={{ minWidth: "7ch" }}>
                 {elapsedLabel}
@@ -77,28 +97,20 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
           </span>
         ) : null}
         <span className="h-3 w-px shrink-0 bg-[color:var(--border)]" />
-        <GoalObjectiveText objective={state.objective} />
-        <Tooltip delay={0}>
-          <Tooltip.Trigger>
-            <button
-              aria-label={t`Close goal`}
-              className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-              type="button"
-              onClick={onDismiss}
-            >
-              <X className="size-3.5" />
-            </button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <Trans>Close goal</Trans>
-          </Tooltip.Content>
-        </Tooltip>
+        <GoalObjectiveText objective={state.objective} lastReason={state.lastReason} />
+        <ThreadGoalControls threadId={threadId} state={state} onDismiss={onDismiss} />
       </div>
     </ThreadDockSection>
   );
 }
 
-function GoalObjectiveText({ objective }: { objective: string }) {
+function GoalObjectiveText({
+  objective,
+  lastReason,
+}: {
+  objective: string;
+  lastReason?: string | undefined;
+}) {
   const textRef = useRef<HTMLSpanElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -123,13 +135,18 @@ function GoalObjectiveText({ objective }: { objective: string }) {
     </span>
   );
 
-  if (!isOverflowing) return <div className="min-w-0 flex-1">{text}</div>;
+  if (!isOverflowing && !lastReason) return <div className="min-w-0 flex-1">{text}</div>;
   return (
     <div className="min-w-0 flex-1">
       <Tooltip delay={0}>
-        <Tooltip.Trigger>{text}</Tooltip.Trigger>
+        <Tooltip.Trigger className="block w-full min-w-0 overflow-hidden">{text}</Tooltip.Trigger>
         <Tooltip.Content className="max-w-[32rem] whitespace-normal break-words">
-          {objective}
+          <span className="block">{objective}</span>
+          {lastReason ? (
+            <span className="mt-1 block text-muted">
+              <Trans>Last evaluation:</Trans> {lastReason}
+            </span>
+          ) : null}
         </Tooltip.Content>
       </Tooltip>
     </div>
@@ -160,6 +177,10 @@ function goalStatusLabel(status: ThreadGoalDockState["status"], t: TranslateFn):
       return t(msg`Budget limit reached`);
     case "complete":
       return t(msg`Complete`);
+    case "failed":
+      return t(msg`Failed`);
+    case "cancelled":
+      return t(msg`Cancelled`);
   }
 }
 

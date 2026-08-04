@@ -1,6 +1,6 @@
 import { antigravityWindowId } from "@poracode/agents-usage/antigravity";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
-import type { UsageWindow } from "@poracode/agents-usage/types";
+import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
 import {
   baseAgentKind,
   claudeProfileKind,
@@ -34,8 +34,6 @@ export type UsageProvider = {
   label: string;
   /** Offers an in-app browser login (web-session cookie or OAuth device flow). */
   supportsBrowserLogin?: boolean;
-  /** Offers an in-app API-key paste sign-in (no browser step, e.g. z.ai). */
-  supportsApiKeyLogin?: boolean;
   /**
    * All windows reset on one shared clock, so the UI shows a single reset
    * countdown in the header instead of one per window (e.g. Cursor).
@@ -55,6 +53,11 @@ export type UsageProvider = {
    */
   ringGroups?: readonly UsageRingGroup[];
 };
+
+const USAGE_PROVIDER_DESCRIPTORS = allUsageProviderDescriptors();
+const USAGE_PROVIDER_BY_ID = new Map(
+  USAGE_PROVIDER_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
+);
 
 /** Renderer-only presentation, keyed by provider id; merged onto the catalog. */
 const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
@@ -87,9 +90,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   codex: {
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
   },
-  // Copilot uses GitHub's OAuth device flow, the others a captured web-session
-  // cookie — both surface as the in-app browser login.
-  commandcode: { supportsBrowserLogin: true },
+  // Copilot uses GitHub's OAuth device flow through the in-app browser.
   copilot: { supportsBrowserLogin: true },
   cursor: { sharedWindowReset: true, rings: { outer: ["cursor-auto"], inner: ["cursor-api"] } },
   // Droid signs in via the in-app app.factory.ai browser session. The standard
@@ -108,12 +109,22 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   // when the plan returns one. The monthly MCP-tools quota is a different kind of
   // limit, so it's deliberately omitted from the ring (it still shows as a card bar).
   zai: {
-    supportsApiKeyLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly"] },
+  },
+  // Kimi For Coding reads the Kimi Code CLI credential automatically; the
+  // API-key paste is the fallback for users without a CLI sign-in. The 5h
+  // request rate limit is the fast outer ring, the weekly membership quota the
+  // slower inner one.
+  kimi: {
+    rings: { outer: ["session-5h"], inner: ["weekly"] },
+  },
+  qwen: {
+    supportsBrowserLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
   },
 };
 
-const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = allUsageProviderDescriptors().map(
+const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = USAGE_PROVIDER_DESCRIPTORS.map(
   (d) => ({ id: d.id, label: d.label, ...RENDERER_META[d.id] }),
 );
 
@@ -170,9 +181,13 @@ export function supportsBrowserLogin(providerId: string): boolean {
   return rendererMeta(providerId)?.supportsBrowserLogin === true;
 }
 
-/** Providers that sign in by pasting an API key (no browser step, e.g. z.ai). */
+/** Providers that accept a pasted API key, including hybrid browser providers. */
 export function supportsApiKeyLogin(providerId: string): boolean {
-  return rendererMeta(providerId)?.supportsApiKeyLogin === true;
+  const descriptor = USAGE_PROVIDER_BY_ID.get(baseAgentKind(providerId));
+  return (
+    descriptor?.needsLogin === true &&
+    (descriptor.mechanism === "api-key" || descriptor.apiKeyFallback === true)
+  );
 }
 
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */
@@ -241,6 +256,31 @@ export function pickUsageRings(
   }
   const worst = [...windows].sort((a, b) => b.usedPercent - a.usedPercent)[0];
   return worst ? { outer: worst } : {};
+}
+
+/**
+ * Whether a provider earns a circle in the sidebar rail. A signed-out provider
+ * (`auth-missing`) or one with no usage API (`unsupported`) has nothing a ring
+ * can show, so the rail leaves it out — Settings → Usage still lists it with its
+ * status and login action. Everything else stays: snapshots that haven't arrived
+ * yet (so a cold start isn't an empty rail) and signed-in-but-unreadable states
+ * like `app-not-running` or `rate-limited`, which do recover on their own.
+ */
+export function hasRailUsage(snapshot: UsageSnapshot | undefined): boolean {
+  if (!snapshot) return true;
+  // Exhaustive on purpose: a status added upstream should fail the typecheck
+  // here rather than silently defaulting into (or out of) the rail.
+  switch (snapshot.status) {
+    case "auth-missing":
+    case "unsupported":
+      return false;
+    case "ok":
+    case "app-not-running":
+    case "rate-limited":
+    case "quota-hit":
+    case "error":
+      return true;
+  }
 }
 
 /**

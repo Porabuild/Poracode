@@ -18,7 +18,7 @@ vi.mock("../agents/base", async (importActual) => {
 });
 
 import { ThreadSessionManager } from "./threadSessionManager";
-import { STRUCTURED_INTERRUPT_STALE_KILL_MS } from "./threadSession/userInterrupt";
+import { STRUCTURED_INTERRUPT_FORCE_STOP_MS } from "./threadSession/userInterrupt";
 
 vi.mock("node-pty", () => ({
   spawn: vi.fn<() => unknown>(() => ({
@@ -32,10 +32,9 @@ vi.mock("node-pty", () => ({
 
 /**
  * Covers the structured force-stop watchdog (`ThreadSessionManager`): a GUI
- * thread only leaves `working` once the agent acks the cancel, so a stale or
- * disconnected session would otherwise spin on "waiting for agent to stop"
- * forever. The watchdog disposes the dead session and forces `error` after the
- * grace window, and bails if the turn already ended (the cancel was honored).
+ * thread only leaves `working` once the agent acks the cancel. The watchdog's
+ * fixed deadline disposes an agent that ignores Stop, closes the turn locally,
+ * and bails if the turn already ended (the cancel was honored).
  */
 
 const AGENT_KIND: AgentKind = "grok";
@@ -68,6 +67,7 @@ function createStructuredSession(
     interruptTurn: vi.fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>(
       async () => undefined,
     ),
+    forceCompleteTurn: vi.fn<NonNullable<StructuredSessionHandle["forceCompleteTurn"]>>(),
     setListener: vi.fn<StructuredSessionHandle["setListener"]>(),
     dispose: vi.fn<StructuredSessionHandle["dispose"]>(async () => undefined),
     ...overrides,
@@ -163,7 +163,7 @@ function createWorkingSession(
 }
 
 describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
-  it("force-stops a stale session after the grace window: disposes it and forces error", async () => {
+  it("force-stops an unacknowledged interrupt after the fixed deadline", async () => {
     const structuredSession = createStructuredSession();
     const adapter = createAdapter(structuredSession);
     const { manager, events } = createManager(adapter);
@@ -175,19 +175,25 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     expect(session.structuredTurnInterruptRequested).toBe(true);
     expect(session.structuredInterruptWatchdog).toBeDefined();
 
-    // No status update arrives (stale/disconnected) — almost expire, still stuck.
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS - 1);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS - 1);
     expect(session.status).toBe("working");
     expect(structuredSession.dispose).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);
     expect(structuredSession.dispose).toHaveBeenCalledTimes(1);
+    expect(structuredSession.forceCompleteTurn).toHaveBeenCalledTimes(1);
     expect(session.structuredSession).toBeUndefined();
-    expect(session.status).toBe("error");
+    expect(session.status).toBe("idle");
+    expect(session.ignoreExit).toBe(true);
     expect(session.structuredTurnInterruptRequested).toBe(false);
     expect(session.structuredInterruptWatchdog).toBeUndefined();
     expect(events).toContainEqual(
-      expect.objectContaining({ type: "thread-state", threadId: THREAD_ID, status: "error" }),
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: THREAD_ID,
+        status: "idle",
+        forceCloseActiveTurn: true,
+      }),
     );
   });
 
@@ -202,10 +208,50 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     // Agent acknowledged the cancel: the turn ended before the watchdog fired.
     session.status = "idle";
 
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS + 1);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS + 1);
     expect(structuredSession.dispose).not.toHaveBeenCalled();
     expect(session.structuredSession).toBe(structuredSession);
     expect(session.status).toBe("idle");
+  });
+
+  it("treats an exact no-active-turn response as an acknowledged late Stop", async () => {
+    const interruptTurn = vi
+      .fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>()
+      .mockRejectedValue(new Error("no active turn to interrupt"));
+    const structuredSession = createStructuredSession({ interruptTurn });
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await expect(manager.interruptThread({ threadId: THREAD_ID })).resolves.toBeUndefined();
+
+    expect(session.structuredTurnInterruptRequested).toBe(false);
+    expect(session.structuredInterruptWatchdog).toBeUndefined();
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
+    expect(structuredSession.dispose).not.toHaveBeenCalled();
+  });
+
+  it("still rejects other and near-miss interrupt failures", async () => {
+    const errors = [
+      new Error("provider interrupt failed"),
+      new Error("no active turn to interrupt because the provider disconnected"),
+    ];
+
+    for (const error of errors) {
+      const interruptTurn = vi
+        .fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>()
+        .mockRejectedValue(error);
+      const structuredSession = createStructuredSession({ interruptTurn });
+      const adapter = createAdapter(structuredSession);
+      const { manager } = createManager(adapter);
+      const session = createWorkingSession(adapter, structuredSession);
+      manager.sessions.set(THREAD_ID, session);
+
+      await expect(manager.interruptThread({ threadId: THREAD_ID })).rejects.toBe(error);
+      expect(session.structuredTurnInterruptRequested).toBe(false);
+      expect(session.structuredInterruptWatchdog).toBeUndefined();
+    }
   });
 
   it("ignores a stale session whose interrupt is no longer pending", async () => {
@@ -218,7 +264,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     await manager.interruptThread({ threadId: THREAD_ID });
     session.structuredTurnInterruptRequested = false;
 
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS + 1);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS + 1);
     expect(structuredSession.dispose).not.toHaveBeenCalled();
     expect(session.status).toBe("working");
   });
@@ -231,7 +277,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     manager.sessions.set(THREAD_ID, session);
 
     await manager.interruptThread({ threadId: THREAD_ID });
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
 
     const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
       async () => undefined,
@@ -239,19 +285,105 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     const replacementSession = createStructuredSession({ startTurn });
     vi.mocked(adapter.createStructuredSession).mockResolvedValue(replacementSession);
 
+    const segments = [
+      { kind: "text" as const, content: "after force stop" },
+      { kind: "attachment" as const, path: "/tmp/reference.png", mimeType: "image/png" },
+    ];
     await manager.sendThreadInput({
       threadId: THREAD_ID,
       prompt: "after force stop",
+      segments,
       config: { model: `${AGENT_KIND}/model` },
+      userMessageItemId: "user-after-force-stop",
     });
 
     expect(startTurn).toHaveBeenCalledTimes(1);
     expect(startTurn).toHaveBeenCalledWith(
-      "after force stop",
+      "after force stop\n\n@/tmp/reference.png ",
       { model: `${AGENT_KIND}/model` },
-      undefined,
-      expect.objectContaining({ userMessageItemId: expect.any(String) }),
+      segments,
+      { userMessageItemId: "user-after-force-stop" },
     );
+    expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacementSession);
+  });
+
+  it("preserves and immediately resumes a pending steer when force-stop recovery replaces the provider", async () => {
+    const structuredSession = createStructuredSession();
+    const adapter = createAdapter(structuredSession);
+    const { manager, events } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    const segments = [
+      { kind: "attachment" as const, path: "/tmp/reference.png", mimeType: "image/png" },
+      { kind: "text" as const, content: "redirect with this image" },
+    ];
+    session.pendingSteer = {
+      id: "steer-pending",
+      stagedAt: 123,
+      prompt: "redirect with this image\n\n@/tmp/reference.png",
+      config: { model: `${AGENT_KIND}/model` },
+      segments,
+    };
+    manager.sessions.set(THREAD_ID, session);
+
+    const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    const replacementSession = createStructuredSession({ startTurn });
+    vi.mocked(adapter.createStructuredSession).mockResolvedValue(replacementSession);
+
+    await manager.interruptThread({ threadId: THREAD_ID });
+    await vi.advanceTimersByTimeAsync(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const optimisticStart = events.find(
+      (event) =>
+        event.type === "thread-runtime-event" &&
+        event.event.type === "item.started" &&
+        event.event.itemType === "user_message",
+    );
+    expect(optimisticStart).toMatchObject({
+      event: {
+        payload: {
+          content: [
+            expect.objectContaining({ kind: "image", path: "/tmp/reference.png" }),
+            { kind: "text", text: "redirect with this image" },
+          ],
+        },
+      },
+    });
+    if (
+      !optimisticStart ||
+      optimisticStart.type !== "thread-runtime-event" ||
+      optimisticStart.event.type !== "item.started"
+    ) {
+      throw new Error("Expected an optimistic steer user message.");
+    }
+    const optimisticItemId = optimisticStart.event.itemId;
+
+    expect(
+      events.filter(
+        (event) =>
+          event.type === "thread-runtime-event" &&
+          event.event.type === "item.started" &&
+          event.event.itemType === "user_message" &&
+          event.event.itemId === optimisticItemId,
+      ),
+    ).toHaveLength(1);
+
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(startTurn).toHaveBeenCalledWith(
+      "redirect with this image\n\n@/tmp/reference.png",
+      { model: `${AGENT_KIND}/model` },
+      segments,
+      { userMessageItemId: optimisticItemId },
+    );
+    expect(session.pendingSteer).toBeUndefined();
+    expect(events).toContainEqual({
+      type: "thread-pending-steer",
+      threadId: THREAD_ID,
+      pending: null,
+    });
     expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacementSession);
   });
 
@@ -269,7 +401,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     expect(session.structuredInterruptWatchdog).toBeUndefined();
 
     events.length = 0;
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
     expect(events).toEqual([]);
   });
 });

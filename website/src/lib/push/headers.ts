@@ -1,11 +1,11 @@
 import type { ApnsConfig } from "./config";
-import type { PushRequest } from "./validate";
+import type { IosPushRequest } from "./validate";
 
 /**
  * Build the APNs request headers for a push. Pure — no auth token here; the
  * transport adds `authorization` so the signed JWT stays out of this seam.
  */
-export function buildApnsHeaders(config: ApnsConfig, req: PushRequest): Record<string, string> {
+export function buildApnsHeaders(config: ApnsConfig, req: IosPushRequest): Record<string, string> {
   const topic =
     req.pushType === "liveactivity" ? `${config.topic}.push-type.liveactivity` : config.topic;
 

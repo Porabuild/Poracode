@@ -5,6 +5,7 @@ import {
   applyAcpModeUpdateToConfig,
   findSelectConfigOption,
   findThoughtLevelConfig,
+  listSelectConfigOptionValues,
   resolveAcpMode,
   resolveModelConfigValue,
 } from "./sessionConfig";
@@ -46,7 +47,8 @@ export class AcpSessionConfigSync {
   }
 
   rememberOptions(availableModeIds: string[], configOptions: unknown): void {
-    this.rememberAvailableModes(availableModeIds);
+    const configModeIds = listSelectConfigOptionValues(configOptions, "mode");
+    this.rememberAvailableModes(configModeIds.length > 0 ? configModeIds : availableModeIds);
     this.currentConfigOptions = Array.isArray(configOptions) ? configOptions : [];
     this.modeConfigId = findSelectConfigOption(configOptions, "mode")?.id;
     const modelConfig = findSelectConfigOption(configOptions, "model");

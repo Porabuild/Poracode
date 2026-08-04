@@ -1,4 +1,3 @@
-import type { VirtualItem } from "@tanstack/react-virtual";
 import { CHAT_FONT_SIZE_VAR } from "../chatFontVars";
 
 const MAX_TIMELINE_CACHE_ENTRIES = 16;
@@ -6,7 +5,13 @@ const MAX_TIMELINE_WIDTH_PX = 920;
 
 type TimelineMeasurementCacheEntry = {
   signature: string;
-  measurements: VirtualItem[];
+  measurements: TimelineMeasurement[];
+};
+
+export type TimelineMeasurement = {
+  key: string;
+  index: number;
+  size: number;
 };
 
 const timelineMeasurementCache = new Map<string, TimelineMeasurementCacheEntry>();
@@ -33,7 +38,7 @@ export function readTimelineMeasurements(threadId: string, signature: string | n
 export function writeTimelineMeasurements(
   threadId: string,
   signature: string | null,
-  measurements: VirtualItem[],
+  measurements: TimelineMeasurement[],
 ): void {
   if (!signature || measurements.length === 0) return;
 

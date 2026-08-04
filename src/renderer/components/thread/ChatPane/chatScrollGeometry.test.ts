@@ -121,11 +121,10 @@ describe("chatScrollGeometry", () => {
     ).toBe(false);
   });
 
-  it("releases sticky on upward scroll unless height shrunk or scroll is programmatic", () => {
+  it("releases sticky on upward user scroll but ignores layout-driven height changes", () => {
     // Native scrollbar thumbs often never fire pointerdown — only scroll — so
-    // release must not require a prior user-scroll-intent flag. Layout clamps
-    // that shrink scrollHeight and lower scrollTop must still keep sticky.
-    // Height growth (live stream) must not block a thumb-drag release.
+    // stable-height movement must not require a prior user-scroll-intent flag.
+    // Layout clamps and virtualizer anchor adjustments keep sticky.
     expect(
       shouldReleaseStickToBottom({
         prevScrollTop: 200,
@@ -133,6 +132,10 @@ describe("chatScrollGeometry", () => {
         isAtBottom: false,
         isProgrammaticScroll: false,
         scrollHeightShrunk: false,
+        scrollHeightGrew: false,
+        viewportHeightChanged: false,
+        isVirtualizerLayoutChange: false,
+        hasRecentUserScrollIntent: false,
       }),
     ).toBe(true);
     expect(
@@ -142,6 +145,10 @@ describe("chatScrollGeometry", () => {
         isAtBottom: false,
         isProgrammaticScroll: true,
         scrollHeightShrunk: false,
+        scrollHeightGrew: false,
+        viewportHeightChanged: false,
+        isVirtualizerLayoutChange: false,
+        hasRecentUserScrollIntent: false,
       }),
     ).toBe(false);
     expect(
@@ -151,6 +158,10 @@ describe("chatScrollGeometry", () => {
         isAtBottom: false,
         isProgrammaticScroll: false,
         scrollHeightShrunk: true,
+        scrollHeightGrew: false,
+        viewportHeightChanged: false,
+        isVirtualizerLayoutChange: false,
+        hasRecentUserScrollIntent: false,
       }),
     ).toBe(false);
     expect(
@@ -160,6 +171,75 @@ describe("chatScrollGeometry", () => {
         isAtBottom: true,
         isProgrammaticScroll: false,
         scrollHeightShrunk: false,
+        scrollHeightGrew: false,
+        viewportHeightChanged: false,
+        isVirtualizerLayoutChange: false,
+        hasRecentUserScrollIntent: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldReleaseStickToBottom({
+        prevScrollTop: 200,
+        nextScrollTop: 150,
+        isAtBottom: false,
+        isProgrammaticScroll: false,
+        scrollHeightShrunk: false,
+        scrollHeightGrew: true,
+        viewportHeightChanged: false,
+        isVirtualizerLayoutChange: false,
+        hasRecentUserScrollIntent: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldReleaseStickToBottom({
+        prevScrollTop: 200,
+        nextScrollTop: 150,
+        isAtBottom: false,
+        isProgrammaticScroll: false,
+        scrollHeightShrunk: false,
+        scrollHeightGrew: true,
+        viewportHeightChanged: false,
+        isVirtualizerLayoutChange: false,
+        hasRecentUserScrollIntent: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldReleaseStickToBottom({
+        prevScrollTop: 200,
+        nextScrollTop: 150,
+        isAtBottom: false,
+        isProgrammaticScroll: false,
+        scrollHeightShrunk: false,
+        scrollHeightGrew: false,
+        viewportHeightChanged: false,
+        isVirtualizerLayoutChange: true,
+        hasRecentUserScrollIntent: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldReleaseStickToBottom({
+        prevScrollTop: 200,
+        nextScrollTop: 150,
+        isAtBottom: false,
+        isProgrammaticScroll: false,
+        scrollHeightShrunk: false,
+        scrollHeightGrew: false,
+        viewportHeightChanged: false,
+        isVirtualizerLayoutChange: true,
+        hasRecentUserScrollIntent: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldReleaseStickToBottom({
+        prevScrollTop: 200,
+        nextScrollTop: 150,
+        isAtBottom: false,
+        isProgrammaticScroll: false,
+        scrollHeightShrunk: false,
+        scrollHeightGrew: false,
+        viewportHeightChanged: true,
+        isVirtualizerLayoutChange: false,
+        hasRecentUserScrollIntent: false,
       }),
     ).toBe(false);
   });
@@ -251,6 +331,8 @@ describe("chatScrollGeometry", () => {
         cachedUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(true);
     expect(
@@ -259,6 +341,8 @@ describe("chatScrollGeometry", () => {
         cachedUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(false);
     expect(
@@ -267,6 +351,8 @@ describe("chatScrollGeometry", () => {
         cachedUntil: 400,
         scrollHeight: 1200,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(false);
     expect(
@@ -275,7 +361,19 @@ describe("chatScrollGeometry", () => {
         cachedUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
         reconcileVirtualizer: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldTrustCachedAtBottom({
+        now: 100,
+        cachedUntil: 400,
+        scrollHeight: 1000,
+        lastPinnedScrollHeight: 1000,
+        clientHeight: 240,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(false);
   });
@@ -285,7 +383,7 @@ describe("chatScrollGeometry", () => {
     expect(nextAtBottomCacheUntil({ now: 100, frameCacheMs: 16, coalesceUntil: 50 })).toBe(116);
   });
 
-  it("only re-pins during open storm when scrollHeight grows", () => {
+  it("only re-pins during open storm when content or viewport height changes", () => {
     expect(
       shouldRepinForContentGrowth({
         stickToBottom: true,
@@ -293,6 +391,8 @@ describe("chatScrollGeometry", () => {
         coalesceUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(false);
     expect(
@@ -302,6 +402,19 @@ describe("chatScrollGeometry", () => {
         coalesceUntil: 400,
         scrollHeight: 1100,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRepinForContentGrowth({
+        stickToBottom: true,
+        now: 100,
+        coalesceUntil: 400,
+        scrollHeight: 1000,
+        lastPinnedScrollHeight: 1000,
+        clientHeight: 240,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(true);
     expect(
@@ -311,6 +424,8 @@ describe("chatScrollGeometry", () => {
         coalesceUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(true);
     expect(
@@ -320,6 +435,8 @@ describe("chatScrollGeometry", () => {
         coalesceUntil: 400,
         scrollHeight: 1000,
         lastPinnedScrollHeight: 1000,
+        clientHeight: 200,
+        lastPinnedClientHeight: 200,
       }),
     ).toBe(true);
   });

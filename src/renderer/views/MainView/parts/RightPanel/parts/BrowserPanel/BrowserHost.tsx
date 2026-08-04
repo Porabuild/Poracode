@@ -11,25 +11,17 @@ import { createPortal } from "react-dom";
 import { useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
-import { useBrowserDockStore } from "@/renderer/state/browserDockStore";
 import { pushEscapeHandler } from "@/renderer/components/layout/overlayEscapeStack";
 import { BrowserPanel } from "./BrowserPanel";
+import {
+  HEADLESS_HEIGHT,
+  HEADLESS_WIDTH,
+  HEADLESS_Z,
+  type BrowserHostMode,
+  useBrowserHostPositioning,
+} from "./useBrowserHostPositioning";
 
 const MemoBrowserPanel = memo(BrowserPanel);
-
-type BrowserHostMode = "hidden" | "background" | "docked" | "drawer" | "fullscreen";
-
-// Box the browser lives in while the panel/overlay are closed but tabs are alive
-// (headless agent work). It sits IN-window (top-left) at `opacity:0` so the
-// <webview> keeps a live, painting guest surface — a fully off-screen webview
-// never paints, which breaks screenshots — while being completely invisible to
-// the user (opacity:0 composites transparently, unlike display:none which
-// suspends paint). Capture works because `webContents.capturePage()` reads the
-// guest's OWN surface, not the composited-at-0-opacity result. A negative
-// z-index keeps it under the app too; pointer-events are disabled regardless.
-const HEADLESS_Z = "-1";
-const HEADLESS_WIDTH = 1280;
-const HEADLESS_HEIGHT = 800;
 
 // Step used when the drawer's resize handle is nudged via arrow keys.
 const DRAWER_RESIZE_STEP_PX = 24;
@@ -80,92 +72,7 @@ export function BrowserHost() {
   const [isResizing, setIsResizing] = useState(false);
 
   const dockedVisible = rightPanelTab === "browser";
-
-  // Position imperatively for every mode so leftover inline styles never fight
-  // the next mode's layout. While docked, track the panel slot's rect each
-  // frame — sidebar collapse / panel resize can move it without a React render.
-  useLayoutEffect(() => {
-    const w = wrapperRef.current;
-    if (!w) return;
-    if (mode === "fullscreen") {
-      Object.assign(w.style, { top: "0px", left: "0px", right: "0px", bottom: "0px" });
-      w.style.width = "";
-      w.style.height = "";
-      w.style.maxWidth = "";
-      // Clear the docked z-index override so the fullscreen class (z-80) wins.
-      w.style.zIndex = "";
-      return;
-    }
-    if (mode === "drawer") {
-      Object.assign(w.style, {
-        top: "2rem",
-        right: "2rem",
-        bottom: "2rem",
-        left: "auto",
-        width: `${drawerWidth}px`,
-        maxWidth: "calc(100vw - 4rem)",
-      });
-      w.style.height = "";
-      // Clear the docked z-index override so the drawer class (z-60) wins.
-      w.style.zIndex = "";
-      return;
-    }
-    if (mode === "background") {
-      Object.assign(w.style, {
-        top: "0px",
-        left: "0px",
-        right: "auto",
-        bottom: "auto",
-        width: `${HEADLESS_WIDTH}px`,
-        height: `${HEADLESS_HEIGHT}px`,
-        maxWidth: "",
-      });
-      // Behind the opaque app UI: painting (so screenshots work) but unseen.
-      w.style.zIndex = HEADLESS_Z;
-      return;
-    }
-    // docked
-    if (!dockedVisible) return;
-    let raf = 0;
-    let last = "";
-    let lastOverlay: boolean | null = null;
-    const measure = () => {
-      const el = useBrowserDockStore.getState().slotEl;
-      if (!el) return;
-      // On narrow viewports the right panel that hosts the slot floats as a
-      // fixed, opaque overlay (z-50). The webview is body-portaled at z-30, so
-      // it would paint *behind* that panel. Detect the overlay from the slot's
-      // own ancestry — its containing panel <aside> switches from `relative`
-      // (docked) to `fixed` (overlay) — and lift the webview above it (z-55,
-      // matching the drawer's intent of riding over panel/settings chrome).
-      const panelAside = el.closest("aside");
-      const overlay = !!panelAside && getComputedStyle(panelAside).position === "fixed";
-      if (overlay !== lastOverlay) {
-        lastOverlay = overlay;
-        w.style.zIndex = overlay ? "55" : "";
-      }
-      const r = el.getBoundingClientRect();
-      const key = `${r.top}|${r.left}|${r.width}|${r.height}`;
-      if (key === last) return;
-      last = key;
-      Object.assign(w.style, {
-        top: `${r.top}px`,
-        left: `${r.left}px`,
-        width: `${r.width}px`,
-        height: `${r.height}px`,
-        right: "auto",
-        bottom: "auto",
-        maxWidth: "",
-      });
-    };
-    measure();
-    const tick = () => {
-      measure();
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [mode, drawerWidth, dockedVisible]);
+  useBrowserHostPositioning({ wrapperRef, mode, drawerWidth, dockedVisible });
 
   useLayoutEffect(() => {
     if (mode !== "drawer" && mode !== "fullscreen") return;

@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Brain, ChevronDown } from "lucide-react";
+import { useSmoothStreamedText } from "@/renderer/hooks/useSmoothStreamedText";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { useBrainThinking, useShimmer } from "@/renderer/thinkingAnimator";
@@ -17,6 +18,7 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
   const hasText = rawText.trim().length > 0;
   const isStreaming = item.state !== "completed";
   const [isOpen, setIsOpen] = useState(false);
+  const smoothedText = useSmoothStreamedText(rawText, isStreaming && !isOpen);
   const actions = useChatPaneActions();
 
   const thinkingTextRef = useShimmer<HTMLSpanElement>(isStreaming);
@@ -29,7 +31,7 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
   const preview = isOpen
     ? ""
     : isStreaming
-      ? getReasoningLastLine(rawText)
+      ? getReasoningLastLine(smoothedText)
       : getReasoningPreview(rawText);
 
   // Compact toggle — visually distinct from tool-call accordions: no border

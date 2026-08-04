@@ -12,8 +12,8 @@ import type {
   ThreadStatus,
   McpLaunchSnapshot,
 } from "@/shared/contracts";
+import type { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import type { AgentAdapter, StructuredSessionHandle, TerminalStatusHint } from "../agents/base";
-import type { TranscriptBuffer } from "./transcriptBuffer";
 
 export interface QueuedStructuredTurn {
   prompt: string;

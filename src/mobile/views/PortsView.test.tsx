@@ -9,7 +9,7 @@ import type {
 } from "@/shared/remote";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { StoredDesktop } from "../storage";
-import { RemoteClientError } from "../remoteClient";
+import { RemoteClientError } from "@/shared/remote/client";
 import { PortsView } from "./PortsView";
 
 const client = vi.hoisted(() => ({
@@ -17,10 +17,6 @@ const client = vi.hoisted(() => ({
   startPortForward: vi.fn<(targetPort: number) => Promise<RemotePortForwardResult>>(),
   stopPortForward: vi.fn<(id: string) => Promise<void>>(),
   enterPortForward: vi.fn<(id: string) => Promise<RemotePortEnterResult>>(),
-}));
-
-vi.mock("../bridge", () => ({
-  getRemoteBridgeClient: () => client,
 }));
 
 const activeDesktop = vi.hoisted(
@@ -40,7 +36,17 @@ const activeDesktop = vi.hoisted(
 );
 
 vi.mock("../remoteContext", () => ({
-  useRemote: () => ({ activeDesktop }),
+  useRemote: () => ({
+    activeDesktop,
+    actions: {
+      ports: {
+        list: client.listPorts,
+        start: client.startPortForward,
+        stop: client.stopPortForward,
+        enter: client.enterPortForward,
+      },
+    },
+  }),
 }));
 
 const openExternal = vi.hoisted(() => vi.fn<(url: string) => Promise<void>>(async () => {}));

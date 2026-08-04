@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RuntimeEvent } from "@/shared/contracts";
+import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import type { SessionRuntime } from "./runtime/sessionTypes";
 
 const taskkillSpawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
@@ -331,7 +331,12 @@ describe("SupervisorRuntime thread input", () => {
   it("rolls back provider conversation through the structured session", async () => {
     const runtime = makeRuntime(() => undefined);
     const rollbackThread = vi
-      .fn<(numTurns: number) => Promise<{ providerSessionId: string; messages: [] }>>()
+      .fn<
+        (
+          numTurns: number,
+          config?: ThreadConfig,
+        ) => Promise<{ providerSessionId: string; messages: [] }>
+      >()
       .mockResolvedValue({ providerSessionId: "provider-session-1", messages: [] });
     const session = createRuntimeSession({
       sessionRef: { providerSessionId: "provider-session-1" },
@@ -351,12 +356,18 @@ describe("SupervisorRuntime thread input", () => {
       session,
     );
 
+    const config: ThreadConfig = {
+      model: "gpt-5.6-terra",
+      approvalPolicy: "on-request",
+      sandboxMode: "workspace-write",
+    };
     await runtime.threadSessionManager.rollbackThreadConversation({
       threadId: session.threadId,
       numTurns: 2,
+      config,
     });
 
-    expect(rollbackThread).toHaveBeenCalledWith(2);
+    expect(rollbackThread).toHaveBeenCalledWith(2, config);
   });
 
   it("rejects checkpoint rollback when the provider does not support it", async () => {
@@ -682,7 +693,8 @@ describe("SupervisorRuntime thread input", () => {
   });
 
   it("drains a steer staged after the turn already errored", async () => {
-    const runtime = makeRuntime(() => undefined);
+    const emitted: Array<Record<string, unknown>> = [];
+    const runtime = makeRuntime((event) => emitted.push(event as Record<string, unknown>));
     const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const interruptTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
@@ -744,6 +756,17 @@ describe("SupervisorRuntime thread input", () => {
     expect(startTurn).toHaveBeenCalledWith("retry this", { model: "gpt-5.4" }, undefined, {
       userMessageItemId: "user-retry",
     });
+    expect(emitted).toContainEqual(
+      expect.objectContaining({
+        type: "thread-runtime-event",
+        threadId: "thread-gui-post-error",
+        event: expect.objectContaining({
+          type: "item.started",
+          itemId: "user-retry",
+          itemType: "user_message",
+        }),
+      }),
+    );
   });
 
   it("does not emit runtime status updates for raw terminal writes", async () => {

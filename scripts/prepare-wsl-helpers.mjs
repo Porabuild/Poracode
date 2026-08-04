@@ -1,7 +1,7 @@
 /**
  * Stages every Node helper that we run *inside* a WSL distro into
  * `resources/wsl-helpers/` so electron-builder can bundle them as
- * extraResources. Two artefacts ride this pipeline:
+ * extraResources. Five artefacts ride this pipeline:
  *
  *   1. `watcher.node` — @parcel/watcher Linux x64 native binding,
  *      downloaded via `npm pack`. Loaded by `bridge.mjs` for watch
@@ -11,11 +11,13 @@
  *   3. `mcp-probe.mjs` — self-contained MCP client used to verify workspace
  *      servers in the same distro where providers run.
  *   4. `mcp-filter.mjs` — same-environment MCP proxy that removes disabled tools.
+ *   5. `cursor-sdk-worker.mjs` — isolated transport shell that dynamically
+ *      imports a Cursor SDK installed inside the target distro.
  *
  * Idempotency: presence + non-zero size on `watcher.node` skips the
- * `npm pack` download. `bridge.mjs` is always copied — the copy is <1ms
- * and avoids the stale-resources trap where a preserved-size edit would
- * otherwise be silently skipped.
+ * `npm pack` download. Other helpers are compared byte-for-byte before copy,
+ * avoiding redundant writes without the stale-resource risk of size/mtime
+ * heuristics.
  */
 
 import { execSync } from "node:child_process";
@@ -45,6 +47,7 @@ stageWatcherBinary();
 stageHookBridge();
 stageMcpProbe();
 stageMcpFilter();
+stageCursorSdkWorker();
 
 function stageWatcherBinary() {
   const dest = join(destDir, "watcher.node");
@@ -87,12 +90,7 @@ function stageHookBridge() {
     throw new Error(`hook bridge source missing: ${src}`);
   }
   const dest = join(destDir, "bridge.mjs");
-  // Always copy. The previous size+mtime heuristic wrongly reported "up to
-  // date" after partial restages or after edits that preserved file size,
-  // leaving a stale bridge in `resources/` that then deploys into distros.
-  // File copy is <1ms and idempotent — the simpler rule is correct.
-  copyFileSync(src, dest);
-  console.log(`[prepare-wsl-helpers] bridge.mjs -> ${dest}`);
+  copyIfChanged(src, dest, "bridge.mjs");
 }
 
 function stageMcpProbe() {
@@ -102,8 +100,7 @@ function stageMcpProbe() {
   }
   assertSelfContainedWorker(src);
   const dest = join(destDir, "mcp-probe.mjs");
-  copyFileSync(src, dest);
-  console.log(`[prepare-wsl-helpers] mcpProbeWorker.mjs -> ${dest}`);
+  copyIfChanged(src, dest, "mcpProbeWorker.mjs");
 }
 
 function stageMcpFilter() {
@@ -113,16 +110,34 @@ function stageMcpFilter() {
   }
   assertSelfContainedWorker(src);
   const dest = join(destDir, "mcp-filter.mjs");
-  copyFileSync(src, dest);
-  console.log(`[prepare-wsl-helpers] mcpToolFilterWorker.mjs -> ${dest}`);
+  copyIfChanged(src, dest, "mcpToolFilterWorker.mjs");
 }
 
-function assertSelfContainedWorker(path) {
+function stageCursorSdkWorker() {
+  const src = join(repoRoot, "dist", "main", "cursorSdkWorker.mjs");
+  if (!existsSync(src)) {
+    throw new Error(`Cursor SDK worker missing; run build:electron first: ${src}`);
+  }
+  assertSelfContainedWorker(src, "Cursor SDK worker");
+  const dest = join(destDir, "cursor-sdk-worker.mjs");
+  copyIfChanged(src, dest, "cursorSdkWorker.mjs");
+}
+
+function copyIfChanged(src, dest, label) {
+  if (existsSync(dest) && readFileSync(src).equals(readFileSync(dest))) {
+    console.log(`[prepare-wsl-helpers] ${label} already current, skipping`);
+    return;
+  }
+  copyFileSync(src, dest);
+  console.log(`[prepare-wsl-helpers] ${label} -> ${dest}`);
+}
+
+function assertSelfContainedWorker(path, label = "MCP probe worker") {
   const source = readFileSync(path, "utf8");
   const imports = source.matchAll(/^import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["'];?$/gm);
   const builtins = new Set([...builtinModules, ...builtinModules.map((name) => `node:${name}`)]);
   const external = [...imports].map((match) => match[1]).filter((name) => !builtins.has(name));
   if (external.length > 0) {
-    throw new Error(`MCP probe worker is not self-contained: ${[...new Set(external)].join(", ")}`);
+    throw new Error(`${label} is not self-contained: ${[...new Set(external)].join(", ")}`);
   }
 }

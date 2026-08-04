@@ -2,8 +2,10 @@ import { create } from "zustand";
 import { readBridge } from "../bridge";
 import {
   defaultSharedSettings,
+  normalizeSidebarShortcutOrder,
   normalizeSharedSettings,
   type CliPickerTarget,
+  type SidebarShortcutId,
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
@@ -15,7 +17,9 @@ import type {
   InstalledAcpRegistryAgent,
   NewThreadMode,
   NotificationFilter,
+  PrAutomationMode,
   PrCreateMode,
+  PrMergeMethod,
   ProviderDraftConfig,
   TerminalPosition,
   ThemeMode,
@@ -24,7 +28,10 @@ import type {
   WorktreeStorageMode,
   BuiltInMcpServerId,
   McpServer,
+  Workspace,
 } from "@/shared/contracts";
+import { nextWorkspaceIconId } from "@/shared/contracts";
+import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
 
 const STORAGE_KEY = "poracode-shared-settings";
 
@@ -43,6 +50,12 @@ interface SharedSettingsState extends SharedSettings {
     effort: string,
     fast: boolean,
   ) => void;
+  setExperimentJudgeConfig: (
+    provider: string,
+    model: string,
+    effort: string,
+    fast: boolean,
+  ) => void;
   setConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
   setWslCommitGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
   setWslTitleGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
@@ -54,9 +67,12 @@ interface SharedSettingsState extends SharedSettings {
   ) => void;
   setWslConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
   setAgentSetting: (agentKind: string, key: string, value: boolean | string) => void;
+  setAgentSecretSetting: (agentKind: string, key: string, value: string) => Promise<boolean>;
   setModelHidden: (agentKind: string, modelId: string, hidden: boolean) => void;
   setHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setAgentDisabled: (agentKind: string, disabled: boolean) => void;
+  setCrossagentProviderPaused: (agentKind: string, paused: boolean) => void;
+  setCrossagentHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setProviderOrder: (order: string[]) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
   setCliPickerTarget: (value: CliPickerTarget) => void;
@@ -67,12 +83,16 @@ interface SharedSettingsState extends SharedSettings {
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
   setPreventSleepWhileWorking: (value: boolean) => void;
+  setRemoteAccessPreventSleep: (value: boolean) => void;
   setLaunchAtStartup: (value: boolean) => void;
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
   setThreadRemoveAction: (value: ThreadRemoveAction) => void;
+  setAutoMarkDoneOnPrMerge: (value: boolean) => void;
   setNewThreadMode: (value: NewThreadMode) => void;
   setHomeScopeEnabled: (value: boolean) => void;
+  setSidebarShortcutVisible: (id: SidebarShortcutId, visible: boolean) => void;
+  setSidebarShortcutOrder: (order: SidebarShortcutId[]) => void;
   setSidebarTranslucency: (value: boolean) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
@@ -81,6 +101,8 @@ interface SharedSettingsState extends SharedSettings {
   setWslWorktreeBasePath: (value: string) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
+  setPrAutomationDefault: (value: PrAutomationMode) => void;
+  setPrMergeMethod: (value: PrMergeMethod) => void;
   setCommitDefaultAction: (value: CommitDefaultAction) => void;
   setEditorLspEnabled: (value: boolean) => void;
   setSearchUseIgnoreFiles: (value: boolean) => void;
@@ -89,7 +111,7 @@ interface SharedSettingsState extends SharedSettings {
   dismissHookInstallProposal: (key: string) => void;
   /**
    * Turn a composer MCP server on/off persistently, keyed by composer MCP id
-   * (`"browser"`, `"subagents"`, `"computer-use"`). Persisted like the other
+   * (`"browser"`, `"crossagents"`, `"computer-use"`). Persisted like the other
    * setters; consumed as the standing default for every new thread.
    */
   setMcpServerEnabled: (id: string, enabled: boolean) => void;
@@ -125,6 +147,13 @@ interface SharedSettingsState extends SharedSettings {
     error?: boolean;
   }) => void;
   setNotifyL2Cli: (value: boolean) => void;
+  /** Append a workspace and return it, so callers can activate the new entry. */
+  addWorkspace: (name: string) => Workspace;
+  renameWorkspace: (workspaceId: string, name: string) => void;
+  /** Remove a workspace. No-op on the last remaining one — a project must always have a home. */
+  removeWorkspace: (workspaceId: string) => void;
+  /** Replace the whole list in one persist write (used to seed the defaults). */
+  setWorkspaces: (workspaces: Workspace[]) => void;
   toggleFavoriteModel: (
     agentKind: string,
     modelId: string,
@@ -142,16 +171,17 @@ interface SharedSettingsState extends SharedSettings {
     modelId: string,
     fallbackMode: ThreadPresentationMode,
   ) => boolean;
-  setSubagentRoutingGuide: (value: string) => void;
+  setCrossagentRoutingGuide: (value: string) => void;
   pushRecentModel: (
     agentKind: string,
     modelId: string,
     presentationMode: ThreadPresentationMode,
+    effort?: string,
+    fast?: boolean,
   ) => void;
 }
 
 const RECENT_MODELS_LIMIT = 16;
-
 function hasBridge(): boolean {
   return typeof window !== "undefined" && window.poracode !== undefined;
 }
@@ -186,6 +216,20 @@ function persistSettings(settings: SharedSettingsInput): void {
   if (hasBridge() && initialLoadDone) {
     void readBridge().setSharedSettings(settings);
   }
+}
+
+/**
+ * Awaitable counterpart to `persistSettings`'s fire-and-forget bridge write.
+ * Callers that need a guarantee the settings file reflects the latest store
+ * state before triggering IPC that re-reads it from disk (e.g. reloading a
+ * provider's live MCP servers) should `await` this first — otherwise a fast
+ * follow-up call can race the write above and observe stale settings.
+ */
+export async function flushSharedSettings(): Promise<void> {
+  if (!hasBridge() || !initialLoadDone) {
+    return;
+  }
+  await readBridge().setSharedSettings(selectSharedSettings(useSharedSettings.getState()));
 }
 
 function cacheSettingsSnapshot(settings: SharedSettingsInput): void {
@@ -264,6 +308,20 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     });
     persistSettings(selectSharedSettings(get()));
   },
+  setExperimentJudgeConfig: (
+    experimentJudgeProvider,
+    experimentJudgeModel,
+    experimentJudgeEffort,
+    experimentJudgeFast,
+  ) => {
+    set({
+      experimentJudgeProvider,
+      experimentJudgeModel,
+      experimentJudgeEffort,
+      experimentJudgeFast,
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
   setConflictResolverPresentationMode: (conflictResolverPresentationMode) => {
     if (get().conflictResolverPresentationMode === conflictResolverPresentationMode) return;
     set({ conflictResolverPresentationMode });
@@ -312,6 +370,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ agentSettings: { ...current, [agentKind]: agentValues } });
     persistSettings(selectSharedSettings(get()));
   },
+  setAgentSecretSetting: async (agentKind, key, value) => {
+    const { storedValue } = await readBridge().setAgentSecretSetting({ agentKind, key, value });
+    const current = get().agentSettings;
+    const agentValues = { ...current[agentKind] };
+    if (storedValue === null) delete agentValues[key];
+    else agentValues[key] = storedValue;
+    set({ agentSettings: { ...current, [agentKind]: agentValues } });
+    cacheSettingsSnapshot(selectSharedSettings(get()));
+    return storedValue !== null;
+  },
   setModelHidden: (agentKind, modelId, hidden) => {
     const current = get().hiddenModels;
     const list = current[agentKind] ?? [];
@@ -330,6 +398,19 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       ? [...new Set([...current, agentKind])]
       : current.filter((k) => k !== agentKind);
     set({ disabledAgents: next });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCrossagentProviderPaused: (agentKind, paused) => {
+    const current = get().crossagentPausedProviders;
+    const next = paused
+      ? [...new Set([...current, agentKind])]
+      : current.filter((k) => k !== agentKind);
+    set({ crossagentPausedProviders: next });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCrossagentHiddenModels: (agentKind, hiddenIds) => {
+    const current = get().crossagentHiddenModels;
+    set({ crossagentHiddenModels: { ...current, [agentKind]: hiddenIds } });
     persistSettings(selectSharedSettings(get()));
   },
   setProviderOrder: (order) => {
@@ -375,6 +456,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ preventSleepWhileWorking });
     persistSettings(selectSharedSettings(get()));
   },
+  setRemoteAccessPreventSleep: (remoteAccessPreventSleep) => {
+    set({ remoteAccessPreventSleep });
+    persistSettings(selectSharedSettings(get()));
+  },
   setLaunchAtStartup: (launchAtStartup) => {
     if (get().launchAtStartup === launchAtStartup) return;
     set({ launchAtStartup });
@@ -394,6 +479,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ threadRemoveAction });
     persistSettings(selectSharedSettings(get()));
   },
+  setAutoMarkDoneOnPrMerge: (autoMarkDoneOnPrMerge) => {
+    if (get().autoMarkDoneOnPrMerge === autoMarkDoneOnPrMerge) return;
+    set({ autoMarkDoneOnPrMerge });
+    persistSettings(selectSharedSettings(get()));
+  },
   setNewThreadMode: (newThreadMode) => {
     set({ newThreadMode });
     persistSettings(selectSharedSettings(get()));
@@ -401,6 +491,24 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   setHomeScopeEnabled: (homeScopeEnabled) => {
     if (get().homeScopeEnabled === homeScopeEnabled) return;
     set({ homeScopeEnabled });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setSidebarShortcutVisible: (id, visible) => {
+    const current = get().sidebarHiddenShortcuts;
+    const hidden = current.includes(id);
+    if (hidden === !visible) return;
+    set({
+      sidebarHiddenShortcuts: visible
+        ? current.filter((shortcutId) => shortcutId !== id)
+        : [...current, id],
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setSidebarShortcutOrder: (order) => {
+    const next = normalizeSidebarShortcutOrder(order);
+    const current = get().sidebarShortcutOrder;
+    if (current.length === next.length && current.every((id, index) => id === next[index])) return;
+    set({ sidebarShortcutOrder: next });
     persistSettings(selectSharedSettings(get()));
   },
   setSidebarTranslucency: (sidebarTranslucency) => {
@@ -440,6 +548,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   setPrCreateMode: (prCreateMode) => {
     if (get().prCreateMode === prCreateMode) return;
     set({ prCreateMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrAutomationDefault: (prAutomationDefault) => {
+    if (get().prAutomationDefault === prAutomationDefault) return;
+    set({ prAutomationDefault });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrMergeMethod: (prMergeMethod) => {
+    if (get().prMergeMethod === prMergeMethod) return;
+    set({ prMergeMethod });
     persistSettings(selectSharedSettings(get()));
   },
   setCommitDefaultAction: (commitDefaultAction) => {
@@ -635,6 +753,36 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ notifyL2Cli });
     persistSettings(selectSharedSettings(get()));
   },
+  addWorkspace: (name) => {
+    const current = get().workspaces;
+    const workspace: Workspace = {
+      id: crypto.randomUUID(),
+      name,
+      createdAt: new Date().toISOString(),
+      icon: nextWorkspaceIconId(current),
+    };
+    set({ workspaces: [...current, workspace] });
+    persistSettings(selectSharedSettings(get()));
+    return workspace;
+  },
+  renameWorkspace: (workspaceId, name) => {
+    const current = get().workspaces;
+    if (!current.some((w) => w.id === workspaceId && w.name !== name)) return;
+    set({ workspaces: current.map((w) => (w.id === workspaceId ? { ...w, name } : w)) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  removeWorkspace: (workspaceId) => {
+    const current = get().workspaces;
+    // Refuse to drop the last workspace: with none left there is no valid
+    // active id, and every project would render as unfiled.
+    if (current.length <= 1 || !current.some((w) => w.id === workspaceId)) return;
+    set({ workspaces: current.filter((w) => w.id !== workspaceId) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWorkspaces: (workspaces) => {
+    set({ workspaces });
+    persistSettings(selectSharedSettings(get()));
+  },
   toggleFavoriteModel: (agentKind, modelId, presentationMode) => {
     const current = get().favoriteModels;
     const idx = current.findIndex(
@@ -662,12 +810,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     persistSettings(selectSharedSettings(get()));
     return !isFavorite;
   },
-  setSubagentRoutingGuide: (subagentRoutingGuide) => {
-    if (get().subagentRoutingGuide === subagentRoutingGuide) return;
-    set({ subagentRoutingGuide });
+  setCrossagentRoutingGuide: (crossagentRoutingGuide) => {
+    if (get().crossagentRoutingGuide === crossagentRoutingGuide) return;
+    set({ crossagentRoutingGuide });
     persistSettings(selectSharedSettings(get()));
   },
-  pushRecentModel: (agentKind, modelId, presentationMode) => {
+  pushRecentModel: (agentKind, modelId, presentationMode, effort, fast) => {
     const current = get().recentModels;
     const samePresentation = current.filter((m) => m.presentationMode === presentationMode);
     const otherPresentations = current.filter((m) => m.presentationMode !== presentationMode);
@@ -679,18 +827,26 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       RECENT_MODELS_LIMIT,
     );
     const next = [...nextForPresentation, ...otherPresentations].slice(0, RECENT_MODELS_LIMIT * 2);
-    if (
+    const agentSelectionUsage = incrementAgentSelectionUsage(get().agentSelectionUsage, [
+      {
+        agentKind,
+        modelId,
+        ...(effort ? { effort } : {}),
+        fast: fast === true,
+      },
+    ]);
+    const recentsUnchanged =
       current.length === next.length &&
       current.every(
         (m, i) =>
           m.agentKind === next[i]!.agentKind &&
           m.modelId === next[i]!.modelId &&
           m.presentationMode === next[i]!.presentationMode,
-      )
-    ) {
-      return;
-    }
-    set({ recentModels: next });
+      );
+    set({
+      ...(recentsUnchanged ? {} : { recentModels: next }),
+      agentSelectionUsage,
+    });
     persistSettings(selectSharedSettings(get()));
   },
 }));
@@ -714,6 +870,10 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     conflictResolverModel: state.conflictResolverModel,
     conflictResolverEffort: state.conflictResolverEffort,
     conflictResolverFast: state.conflictResolverFast,
+    experimentJudgeProvider: state.experimentJudgeProvider,
+    experimentJudgeModel: state.experimentJudgeModel,
+    experimentJudgeEffort: state.experimentJudgeEffort,
+    experimentJudgeFast: state.experimentJudgeFast,
     conflictResolverPresentationMode: state.conflictResolverPresentationMode,
     wslCommitGenProvider: state.wslCommitGenProvider,
     wslCommitGenModel: state.wslCommitGenModel,
@@ -743,6 +903,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
     preventSleepWhileWorking: state.preventSleepWhileWorking,
+    remoteAccessPreventSleep: state.remoteAccessPreventSleep,
     launchAtStartup: state.launchAtStartup,
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,
@@ -750,8 +911,11 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     remoteAccessTailscaleHttps: state.remoteAccessTailscaleHttps,
     remoteAccessAdvertisedUrl: state.remoteAccessAdvertisedUrl,
     threadRemoveAction: state.threadRemoveAction,
+    autoMarkDoneOnPrMerge: state.autoMarkDoneOnPrMerge,
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,
+    sidebarHiddenShortcuts: state.sidebarHiddenShortcuts,
+    sidebarShortcutOrder: state.sidebarShortcutOrder,
     sidebarTranslucency: state.sidebarTranslucency,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
@@ -760,6 +924,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     wslWorktreeBasePath: state.wslWorktreeBasePath,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,
+    prAutomationDefault: state.prAutomationDefault,
+    prMergeMethod: state.prMergeMethod,
     commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
@@ -780,12 +946,16 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     notifyL2Cli: state.notifyL2Cli,
     remotePushEnabled: state.remotePushEnabled,
     remotePushRedactContent: state.remotePushRedactContent,
+    workspaces: state.workspaces,
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
+    agentSelectionUsage: state.agentSelectionUsage,
+    crossagentPausedProviders: state.crossagentPausedProviders,
+    crossagentHiddenModels: state.crossagentHiddenModels,
     browser: state.browser,
     audio: state.audio,
     usage: state.usage,
-    subagentRoutingGuide: state.subagentRoutingGuide,
+    crossagentRoutingGuide: state.crossagentRoutingGuide,
   };
 }
 
@@ -795,6 +965,24 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
  * values arriving over the remote API. Updates the store and the local cache
  * WITHOUT writing back through the bridge, so external updates never echo.
  */
+/**
+ * Resolves once the authoritative settings have been loaded from the main
+ * process (or immediately when there is no bridge). Callers making a
+ * settings-dependent decision right after app launch — before hydration —
+ * should await this instead of reading defaults or a stale cache.
+ */
+export function whenSharedSettingsHydrated(): Promise<void> {
+  if (useSharedSettings.getState().sharedSettingsHydrated) return Promise.resolve();
+  return new Promise((resolve) => {
+    const unsubscribe = useSharedSettings.subscribe((state) => {
+      if (state.sharedSettingsHydrated) {
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+}
+
 export function applyExternalSharedSettings(partial: Partial<SharedSettings>): void {
   useSharedSettings.setState((state) => ({ ...state, ...partial }));
   cacheSettingsSnapshot(selectSharedSettings(useSharedSettings.getState()));

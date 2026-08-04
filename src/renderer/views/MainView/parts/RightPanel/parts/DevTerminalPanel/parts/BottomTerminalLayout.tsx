@@ -1,7 +1,8 @@
 import { Columns2, PanelBottomClose, Plus, Trash2 } from "lucide-react";
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import type { Project, TerminalSize } from "@/shared/contracts";
+import type { TerminalSize } from "@/shared/contracts";
+import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
@@ -10,11 +11,16 @@ import {
   panelHeaderRowClass,
 } from "@/renderer/components/layout/sidebarChrome";
 import { TerminalSurfaces } from "./TerminalSurfaces";
+import {
+  BOTTOM_TERMINAL_SIDEBAR_MAX_WIDTH,
+  BOTTOM_TERMINAL_SIDEBAR_MIN_WIDTH,
+  useBottomTerminalSidebarResize,
+} from "./useBottomTerminalSidebarResize";
 
 export function BottomTerminalLayout(props: {
   tabs: DevTerminalTab[];
   projectTabs: DevTerminalTab[];
-  activeProject: Project | undefined;
+  activeScopeLabel: string | undefined;
   selectedTabId: string;
   activeTab: DevTerminalTab | undefined;
   focusRequestId: number;
@@ -30,12 +36,13 @@ export function BottomTerminalLayout(props: {
   ) => { id: string; label: string; icon: React.ReactNode }[];
   handleTabContextAction: (tab: DevTerminalTab, key: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
+  watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
 }) {
   const { t } = useLingui();
   const {
     tabs,
     projectTabs,
-    activeProject,
+    activeScopeLabel,
     selectedTabId,
     activeTab,
     focusRequestId,
@@ -49,7 +56,10 @@ export function BottomTerminalLayout(props: {
     getTabContextItems,
     handleTabContextAction,
     onTerminalResize,
+    watchTerminal,
   } = props;
+  const { sidebarRef, sidebarWidth, handleResizeStart, handleResizeKeyDown } =
+    useBottomTerminalSidebarResize();
 
   // Build flat entries: primary tabs + their split children
   type TabRow = { id: string; tab: DevTerminalTab; isSplit: boolean };
@@ -61,10 +71,17 @@ export function BottomTerminalLayout(props: {
 
   return (
     <div className="flex h-full min-h-0 bg-[var(--content-background)]" style={fadeStyle}>
-      <div className="flex w-[140px] shrink-0 flex-col overflow-hidden border-r border-[color:var(--border)]">
-        {activeProject && (
+      <div
+        ref={sidebarRef}
+        className="flex shrink-0 flex-col overflow-hidden"
+        style={{ width: sidebarWidth, minWidth: sidebarWidth }}
+      >
+        {activeScopeLabel && (
           <div className={panelHeaderRowClass}>
-            <PanelHeaderProjectName name={activeProject.name} maxWidthClass="max-w-[80px]" />
+            <PanelHeaderProjectName
+              name={activeScopeLabel}
+              maxWidthClass="max-w-[calc(100%-1.75rem)]"
+            />
             <div className="flex-1" />
             <button
               type="button"
@@ -136,6 +153,19 @@ export function BottomTerminalLayout(props: {
         </div>
       </div>
 
+      <div
+        className="poracode-pane-divider"
+        onPointerDown={handleResizeStart}
+        onKeyDown={handleResizeKeyDown}
+        role="separator"
+        tabIndex={0}
+        aria-label={t`Resize sidebar`}
+        aria-orientation="vertical"
+        aria-valuemin={BOTTOM_TERMINAL_SIDEBAR_MIN_WIDTH}
+        aria-valuemax={BOTTOM_TERMINAL_SIDEBAR_MAX_WIDTH}
+        aria-valuenow={sidebarWidth}
+      />
+
       <div className="relative min-h-0 min-w-0 flex-1 px-2 pt-2">
         <TerminalSurfaces
           tabs={tabs}
@@ -144,6 +174,7 @@ export function BottomTerminalLayout(props: {
           focusRequestId={focusRequestId}
           markTabActive={markTabActive}
           updateTabTitle={updateTabTitle}
+          {...(watchTerminal ? { watchTerminal } : {})}
           {...(onTerminalResize ? { onTerminalResize } : {})}
         />
         {emptyState}

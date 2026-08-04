@@ -26,11 +26,13 @@ import {
 } from "./buildModelPickerControls";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
+import { openPdfPreview } from "../pdf/openPdfPreview";
 import { MentionInput, type MentionInputHandle } from "../composer/MentionInput";
 import { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import {
+  agentStatusForPresentation,
   capabilitiesForPresentation,
   filterHiddenModels,
   resolveModelSelection,
@@ -266,6 +268,9 @@ export function ContinueInProviderDialog(props: {
   const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
   const sourcePresentationMode =
     thread.presentationMode ?? sourceAgent?.capabilities.presentationMode ?? "terminal";
+  const sourceRuntimeStatus = sourceAgent
+    ? agentStatusForPresentation(sourceAgent, sourcePresentationMode, thread.sessionRef)
+    : undefined;
   const lastPresentationModeByAgent = useSharedSettings((s) => s.lastPresentationModeByAgent);
   const setLastPresentationMode = useSharedSettings((s) => s.setLastPresentationMode);
   const [targetPresentationMode, setTargetPresentationMode] = useState<ThreadPresentationMode>(() =>
@@ -387,11 +392,8 @@ export function ContinueInProviderDialog(props: {
   const hiddenModelIds = useSharedSettings(
     (s) => s.hiddenModels[modelVisibilityKey(thread.agentKind, sourcePresentationMode)],
   );
-  const filteredSourceCaps = sourceAgent
-    ? filterHiddenModels(
-        capabilitiesForPresentation(sourceAgent.capabilities, sourcePresentationMode),
-        hiddenModelIds,
-      )
+  const filteredSourceCaps = sourceRuntimeStatus
+    ? filterHiddenModels(sourceRuntimeStatus.capabilities, hiddenModelIds)
     : undefined;
   const models = filteredSourceCaps?.models ?? [];
   const extractModel = thread.config.model || models[0]?.id || "";
@@ -584,6 +586,7 @@ export function ContinueInProviderDialog(props: {
                             const idx = imageAttachments.findIndex((a) => a.id === att.id);
                             if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                           }}
+                          onPreviewPdf={(att) => openPdfPreview(att.path)}
                         />
                       }
                       inputContent={

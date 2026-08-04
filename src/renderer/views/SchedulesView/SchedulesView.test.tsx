@@ -60,7 +60,11 @@ const appState = vi.hoisted(() => ({
     projectId: string;
     config: { model: string; effort?: string };
   }[],
-  projects: [] as { id: string; name: string }[],
+  projects: [] as { id: string; name: string; remoteServerId?: string }[],
+}));
+
+const agentState = vi.hoisted(() => ({
+  statuses: [] as AgentStatus[],
 }));
 
 const status: AgentStatus = {
@@ -81,9 +85,25 @@ const status: AgentStatus = {
     supportsOneShot: true,
     liveInputMode: "terminal",
     presentationMode: "terminal",
+    presentationModes: ["terminal", "gui"],
     settingDefs: [],
   },
 };
+
+function makeStatus(
+  overrides: Partial<Omit<AgentStatus, "capabilities">> & {
+    capabilities?: Partial<AgentStatus["capabilities"]>;
+  },
+): AgentStatus {
+  return {
+    ...status,
+    ...overrides,
+    capabilities: {
+      ...status.capabilities,
+      ...overrides.capabilities,
+    },
+  };
+}
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
@@ -91,7 +111,7 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
   useAgentStatusesStore: (selector: (state: { agentStatuses: AgentStatus[] }) => unknown) =>
-    selector({ agentStatuses: [status] }),
+    selector({ agentStatuses: agentState.statuses }),
 }));
 vi.mock("@/renderer/actions/projectActions", () => ({
   ensureHomeScopeProject: agentCreation.ensureHomeScopeProject,
@@ -124,6 +144,7 @@ import { SchedulesView } from "./SchedulesView";
 
 describe("SchedulesView", () => {
   beforeEach(() => {
+    agentState.statuses = [status];
     bridge.getSchedules.mockReset().mockResolvedValue([task]);
     bridge.createSchedule.mockReset().mockResolvedValue(task);
     bridge.updateSchedule.mockReset().mockImplementation(async ({ task: input }) => ({
@@ -147,6 +168,80 @@ describe("SchedulesView", () => {
       },
     ];
     appState.projects = [];
+  });
+
+  it("excludes Cursor when its GUI SDK authentication is missing", async () => {
+    agentState.statuses = [
+      makeStatus({
+        kind: "cursor",
+        label: "Cursor",
+        authState: "authenticated",
+        presentationAuthStates: {
+          terminal: "authenticated",
+          gui: "missing",
+        },
+        capabilities: {
+          presentationMode: "terminal",
+          presentationModes: ["terminal", "gui"],
+          presentationCapabilities: {
+            gui: {
+              models: [{ id: "sdk-model", label: "SDK Model" }],
+              presentationMode: "gui",
+            },
+          },
+        },
+      }),
+    ];
+
+    render(<SchedulesView />);
+
+    expect(await screen.findByText("Connect an agent to create schedules.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New schedule" })).toBeDisabled();
+  });
+
+  it("excludes terminal-only agents, including Cursor when its GUI SDK is unavailable", async () => {
+    agentState.statuses = [
+      makeStatus({
+        kind: "cursor",
+        label: "Cursor",
+        authState: "authenticated",
+        presentationAuthStates: { terminal: "authenticated" },
+        capabilities: {
+          presentationMode: "terminal",
+          presentationModes: ["terminal"],
+        },
+      }),
+      makeStatus({
+        kind: "qoder",
+        label: "Terminal only",
+        capabilities: {
+          presentationMode: "terminal",
+          presentationModes: ["terminal"],
+        },
+      }),
+    ];
+
+    render(<SchedulesView />);
+
+    expect(await screen.findByText("Connect an agent to create schedules.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New schedule" })).toBeDisabled();
+  });
+
+  it("keeps the one-shot capability gate for GUI agents", async () => {
+    agentState.statuses = [
+      makeStatus({
+        capabilities: {
+          presentationMode: "gui",
+          presentationModes: ["gui"],
+          supportsOneShot: false,
+        },
+      }),
+    ];
+
+    render(<SchedulesView />);
+
+    expect(await screen.findByText("Connect an agent to create schedules.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New schedule" })).toBeDisabled();
   });
 
   it("loads a device schedule and exposes run and pause actions", async () => {
@@ -189,6 +284,22 @@ describe("SchedulesView", () => {
         projectId: null,
       }),
     );
+  });
+
+  it("does not offer remote projects to device-owned schedules", async () => {
+    appState.projects = [
+      { id: "local-project", name: "Local project" },
+      { id: "remote-project", name: "Remote project", remoteServerId: "d1" },
+    ];
+    bridge.getSchedules.mockResolvedValueOnce([]);
+    render(<SchedulesView />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "More schedule options" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create schedule" }));
+    fireEvent.click(screen.getByLabelText("Project"));
+
+    expect((await screen.findAllByText("Local project")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Remote project")).not.toBeInTheDocument();
   });
 
   it("creates a preset with one click", async () => {

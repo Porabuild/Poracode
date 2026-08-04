@@ -16,15 +16,11 @@ import type {
   ThreadPresentationMode,
   ThreadServerRequestId,
   ThreadStatus,
-  McpServer,
+  ThreadGoalControl,
+  ResolvedMcpServer,
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
-import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
-import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
-import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
-import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
-import type { AppControlsMcpHttpConfig } from "@/supervisor/agents/appControlsMcp";
 
 export interface CommandSpec {
   command: string;
@@ -45,32 +41,26 @@ export interface AgentEnvContext {
   envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
   /**
+   * Provider-global settings for this adapter. Detection receives the same
+   * snapshot launch receives, allowing a provider with multiple structured
+   * runtimes to probe only the selected runtime.
+   */
+  agentSettings?: Record<string, boolean | string>;
+  /**
    * Poracode data base dir for native (non-WSL) plugin staging. Populated by
    * the supervisor so dev runs (`~/.poracode-dev`) stage plugins separately
    * from prod (`~/.poracode`). WSL plugin installs ignore this and stage
    * into the distro's `$HOME/.poracode/` via `resolveWslHomeDirectoryAsync`.
    */
   baseDir?: string;
-  browserMcpEnabled?: boolean;
-  browserMcp?: BrowserMcpHttpConfig;
-  computerUseMcpEnabled?: boolean;
-  computerUseMcp?: ComputerUseMcpHttpConfig;
-  chromeMcpEnabled?: boolean;
-  chromeMcp?: ChromeMcpHttpConfig;
-  appControlsMcp?: AppControlsMcpHttpConfig;
-  mcpServers?: McpServer[];
+  mcpServers?: readonly ResolvedMcpServer[];
 }
 
 export interface AgentLaunchOptions {
   suppressResumeConfigOverrides?: boolean;
   resumeThreadId?: string;
   agentSettings?: Record<string, boolean | string>;
-  browserMcp?: BrowserMcpHttpConfig;
-  subagentMcp?: SubagentMcpHttpConfig;
-  computerUseMcp?: ComputerUseMcpHttpConfig;
-  chromeMcp?: ChromeMcpHttpConfig;
-  appControlsMcp?: AppControlsMcpHttpConfig;
-  mcpServers?: McpServer[];
+  mcpServers?: readonly ResolvedMcpServer[];
 }
 
 export interface StructuredSessionUpdate {
@@ -113,6 +103,8 @@ export interface ThreadHistory {
 
 export interface StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
+  /** Whether a provider-native root or child session belongs to this thread. */
+  ownsProviderSession?(providerSessionId: string): boolean;
   activate?(): Promise<void>;
   openThread?(config: ThreadConfig, sessionRef?: SessionRef): Promise<string>;
   ensureResumeArtifacts?(): Promise<void>;
@@ -137,10 +129,31 @@ export interface StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void>;
+  /**
+   * Best-effort provider preparation immediately before the shared runtime
+   * interrupts an in-flight turn for steering. Providers can preserve work
+   * that should survive the turn boundary (for example, by backgrounding
+   * foreground tasks). The runtime still owns the interrupt, watchdog, staged
+   * prompt, and fresh `startTurn` accounting.
+   */
+  prepareSteerInterrupt?(): Promise<void>;
   interruptTurn?(): Promise<void>;
+  controlGoal?(control: ThreadGoalControl): Promise<void>;
+  /**
+   * Close the provider's current canonical turn locally before a forced
+   * process disposal. Implementations should complete any open items and mark
+   * the turn cancelled without waiting for the provider transport.
+   */
+  forceCompleteTurn?(): void;
   resolveServerRequest?(requestId: ThreadServerRequestId, response: unknown): Promise<void>;
+  /**
+   * Swap the live session onto a new resolved MCP set (provider-level MCP
+   * settings changed). Implementations restart or re-sync their backing
+   * server; sessions without this hook pick the new set up on next launch.
+   */
+  updateMcpServers?(mcpServers: readonly ResolvedMcpServer[]): Promise<void>;
   readThread?(): Promise<ThreadHistory>;
-  rollbackThread?(numTurns: number): Promise<ThreadHistory>;
+  rollbackThread?(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory>;
   setListener(listener: StructuredSessionListener): void;
   dispose(): Promise<void>;
 }
@@ -154,15 +167,15 @@ export interface CreateStructuredSessionInput {
   agentSettings?: Record<string, boolean | string>;
   env?: Record<string, string>;
   mcpIdentity?: McpThreadIdentity;
-  browserMcp?: BrowserMcpHttpConfig;
-  subagentMcp?: SubagentMcpHttpConfig;
-  computerUseMcp?: ComputerUseMcpHttpConfig;
-  chromeMcp?: ChromeMcpHttpConfig;
-  appControlsMcp?: AppControlsMcpHttpConfig;
-  mcpServers?: McpServer[];
+  mcpServers?: readonly ResolvedMcpServer[];
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;
+  /**
+   * Provider-boundary guard for ACP agents that can incorrectly return a
+   * successful `end_turn` without emitting any agent activity.
+   */
+  acpEmptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
   /**
    * Per-adapter hook to normalize a provider's ACP `session/update` wire
    * payload before the shared generic mapper consumes it. Use only to bridge
@@ -171,15 +184,37 @@ export interface CreateStructuredSessionInput {
    */
   acpSessionUpdateTransform?: AcpSessionUpdateTransform;
   /**
+   * Enable canonical goal lifecycle events for providers whose ACP server
+   * implements the `/goal` command family. Kept opt-in so unsupported ACP
+   * providers do not paint an optimistic goal dock for an unknown command.
+   */
+  acpGoalCommands?: boolean;
+  /**
+   * Translate a vendor ACP extension notification into a standard
+   * `session/update` before canonical mapping. This is for providers that put
+   * lifecycle boundaries on an extension method instead of the ACP stream.
+   */
+  acpExtensionSessionUpdateTransform?: AcpExtensionSessionUpdateTransform;
+  /**
    * Handle vendor ACP extension notifications (e.g. Cursor's `cursor/task`)
    * that carry metadata absent from the standard `session/update` stream.
    */
   acpExtensionNotificationHandler?: AcpExtensionNotificationHandler;
 }
 
+export type AcpEmptyResponseErrorResolver = (input: {
+  stopReason: string;
+  stderr: readonly string[];
+}) => Error | undefined;
+
 export type AcpSessionUpdateTransform = (
   notification: import("@agentclientprotocol/sdk").SessionNotification,
 ) => import("@agentclientprotocol/sdk").SessionNotification;
+
+export type AcpExtensionSessionUpdateTransform = (
+  method: string,
+  params: Record<string, unknown>,
+) => import("@agentclientprotocol/sdk").SessionNotification | undefined;
 
 export type AcpExtensionNotificationHandler = (
   method: string,
@@ -203,6 +238,7 @@ export interface DetectProbeCtx {
   location: ProjectLocation;
   executablePath: string | undefined;
   version?: string | undefined;
+  agentSettings?: Record<string, boolean | string>;
   /** {@link DetectionSpec.probeEnv}, so `capabilitiesProbe`/`statusProbe` can forward it. */
   probeEnv?: Record<string, string> | undefined;
 }
@@ -241,6 +277,15 @@ export interface DetectionSpec {
   kind: AgentKind;
   label: string;
   binary: string;
+  /**
+   * Optional WSL home used by providers whose official installer does not put
+   * the binary on PATH. Detection checks `<home>/bin/<binary>` after
+   * `command -v`, honoring the provider's distro-side home override.
+   */
+  wslBinaryHome?: {
+    env: string;
+    defaultSubpath: string;
+  };
   loginCommand?: string | ((ctx: DetectProbeCtx) => string | undefined);
   capabilities: AgentCapability;
   update?: AgentUpdateInfo;
@@ -254,6 +299,8 @@ export interface DetectionSpec {
    * so they can forward it to their own `readAgentCommandOutput` calls.
    */
   probeEnv?: Record<string, string>;
+  /** Provider-specific version probe for CLIs whose Windows shim cannot be spawned safely. */
+  versionProbe?: (ctx: DetectProbeCtx) => Promise<string | undefined>;
   statusProbe?: StatusProbe;
   authProbes?: AuthProbe[];
   capabilitiesProbe?: (ctx: DetectProbeCtx) => Promise<CapabilitiesProbeResult | undefined>;
@@ -338,6 +385,8 @@ export interface AgentAcpAuth {
 export interface AgentPromptFormatter {
   shouldDeferPromptToTerminal?(config: ThreadConfig): boolean;
   buildTerminalPreInputs?(config: ThreadConfig): string[][] | undefined;
+  /** Translate a canonical goal control into the provider's native prompt command. */
+  buildGoalControlPrompt?(control: ThreadGoalControl): string | undefined;
   buildDirectInput?(
     prompt: string,
     segments?: PromptSegment[],
@@ -395,6 +444,8 @@ export interface RunOneShotInput {
   effort?: string | undefined;
   /** Opus-only fast-mode session flag. Adapters that don't support it ignore it. */
   fast?: boolean | undefined;
+  /** Allow only filesystem read/search/list tools inside the supplied workspace. */
+  readOnlyWorkspace?: boolean | undefined;
   prompt: string;
   signal?: AbortSignal | undefined;
 }
@@ -408,6 +459,14 @@ export interface SubagentOneShotCommandInput {
   location: ProjectLocation;
 }
 
+export interface OneShotCommand {
+  command: string;
+  args: string[];
+  stdin?: string;
+  pty?: boolean;
+  env?: Record<string, string>;
+}
+
 /**
  * A CLI invocation for a one-shot subagent child. Deliberately omits
  * `isolateCwd` (used by title/commit generation to avoid clobbering the session
@@ -416,12 +475,15 @@ export interface SubagentOneShotCommandInput {
  * child has no interactive approval channel — it must never block waiting for
  * input).
  */
-export interface OneShotChildCommand {
-  command: string;
-  args: string[];
-  stdin?: string;
-  pty?: boolean;
-  env?: Record<string, string>;
+export type OneShotChildCommand = OneShotCommand;
+
+export interface OneShotGenerationCommand extends OneShotCommand {
+  isolateCwd?: boolean;
+}
+
+export interface OneShotGenerationOptions {
+  /** The cwd is an isolated artifact workspace that must remain read-only. */
+  readOnlyWorkspace?: boolean | undefined;
 }
 
 export interface AgentOneShotRunner {
@@ -441,17 +503,23 @@ export interface AgentOneShotRunner {
     prompt?: string,
     location?: ProjectLocation,
     fast?: boolean,
-  ):
-    | {
-        command: string;
-        args: string[];
-        stdin?: string;
-        isolateCwd?: boolean;
-        pty?: boolean;
-        env?: Record<string, string>;
-      }
-    | undefined;
+    options?: OneShotGenerationOptions,
+  ): OneShotGenerationCommand | undefined;
   runOneShot?(input: RunOneShotInput): Promise<string>;
+  /**
+   * Build a provider-enforced text-only one-shot invocation. Unlike the
+   * general one-shot lane, this must disable every tool, MCP, plugin, and hook
+   * surface rather than relying on prompt instructions or approval policy.
+   */
+  buildTextOnlyOneShotCommand?(
+    model: string,
+    effort?: string,
+    prompt?: string,
+    location?: ProjectLocation,
+    fast?: boolean,
+  ): OneShotGenerationCommand | undefined;
+  /** Run a provider-enforced text-only one-shot through a structured runtime. */
+  runTextOnlyOneShot?(input: RunOneShotInput): Promise<string>;
   buildContextExtractionCommand?(
     sessionRef: SessionRef,
     location: ProjectLocation,
@@ -528,6 +596,11 @@ export interface AgentSkillRootSpec {
     readonly env: string;
     readonly path: string;
   };
+  /**
+   * Minimum provider version that can follow a linked skill directory at this
+   * projection root. Older or unknown versions receive a copied projection.
+   */
+  readonly linkProjectionFromVersion?: string;
 }
 
 export interface AgentSkillSupport {
@@ -535,7 +608,8 @@ export interface AgentSkillSupport {
   readonly roots: readonly AgentSkillRootSpec[];
   /** Provider roots that need a Poracode-owned copy of canonical skills. */
   readonly projectionRoots?: readonly AgentSkillRootSpec[];
-  readonly invocation: "slash" | "dollar" | "prompt";
+  /** How the provider invokes a named skill from its composer. */
+  readonly invocation: "slash" | "dollar" | "prompt" | "skill";
   /** Provider-native duplicate resolution, using root ids plus canonical `agents`. */
   readonly precedence?: {
     readonly scopeOrder?: readonly ("global" | "project")[];

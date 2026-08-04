@@ -10,11 +10,19 @@ import { readBridge } from "@/renderer/bridge";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { getPrStatusTone, PR_TONE_BG_CLASS, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
+import {
+  getPrStatusTone,
+  isPrBlockedOnlyByPendingChecks,
+  isPrMergeBlocked,
+  PR_TONE_BG_CLASS,
+  PR_TONE_TEXT_CLASS,
+} from "@/renderer/utils/prStatus";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
+import { dedupePrProjects, repoIdentityKey } from "./prProjectDedupe";
 
 type FilterMode = "all" | "reviewing" | "authored";
 
@@ -36,9 +44,24 @@ interface PullRequestEntry {
 
 export function PullRequestsView() {
   const { t } = useLingui();
+  // Scoped to the active workspace, so this view agrees with the sidebar about
+  // which projects exist right now.
+  const isInWorkspace = useWorkspaceProjectFilter();
   const activeProjects = useAppStore(
     useShallow((state) =>
-      state.projects.filter((project) => !project.disabled && !isHomeProject(project)),
+      state.projects.filter(
+        (project) => !project.disabled && !isHomeProject(project) && isInWorkspace(project),
+      ),
+    ),
+  );
+  // Two checkouts of the same origin (typically a local clone plus the same
+  // clone mirrored from a remote desktop) return identical `gh pr list` rows, so
+  // only one of them is queried — the local one when there is one.
+  const prProjects = useGitStore(
+    useShallow((state) =>
+      dedupePrProjects(activeProjects, (project) =>
+        repoIdentityKey(state.statuses[project.id]?.remoteInfo),
+      ),
     ),
   );
   const prReviewOpen = usePanelStore((state) => state.prReviewContext !== null);
@@ -57,9 +80,9 @@ export function PullRequestsView() {
     let cancelled = false;
     setLoadedProjects([]);
     setFailures([]);
-    setLoading(activeProjects.length > 0);
+    setLoading(prProjects.length > 0);
 
-    const requests = activeProjects.map((project) =>
+    const requests = prProjects.map((project) =>
       readBridge()
         .ghListPullRequests({ projectLocation: project.location })
         .then(
@@ -88,7 +111,7 @@ export function PullRequestsView() {
     return () => {
       cancelled = true;
     };
-  }, [activeProjects, prReviewOpen, refreshVersion]);
+  }, [prProjects, prReviewOpen, refreshVersion]);
 
   const accountLogins = [
     ...new Set(
@@ -244,7 +267,7 @@ export function PullRequestsView() {
                 </div>
                 <div className="max-h-80 space-y-3 overflow-y-auto px-3 py-3">
                   <FilterGroup title={<Trans>Projects</Trans>}>
-                    {activeProjects.map((project) => (
+                    {prProjects.map((project) => (
                       <Checkbox
                         key={project.id}
                         className="block"
@@ -345,7 +368,7 @@ export function PullRequestsView() {
         <div className="py-12 text-center text-muted">
           <GitPullRequest className="mx-auto mb-3 size-8" />
           <p className="text-sm font-medium text-foreground">
-            {activeProjects.length === 0 ? (
+            {prProjects.length === 0 ? (
               <Trans>Add a project to see pull requests.</Trans>
             ) : totalPullRequests === 0 && failures.length === 0 ? (
               <Trans>No pull requests found.</Trans>
@@ -393,7 +416,11 @@ function PullRequestRows(props: {
     <div className="overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-secondary/30">
       {props.entries.map((entry) => {
         const { project, summary } = entry;
-        const tone = getPrStatusTone(summary.pr.state, summary.pr.checksStatus);
+        const tone = getPrStatusTone(summary.pr.state, summary.pr.checksStatus, summary.pr);
+        const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(
+          summary.pr.checksStatus,
+          summary.pr,
+        );
         const statusLabel =
           summary.pr.state === "draft"
             ? t`Draft`
@@ -401,13 +428,17 @@ function PullRequestRows(props: {
               ? t`Merged`
               : summary.pr.state === "closed"
                 ? t`Closed`
-                : tone === "danger"
-                  ? t`Checks failed`
-                  : tone === "warning"
-                    ? t`Checks pending`
-                    : summary.pr.checksStatus
-                      ? t`Checks passed`
-                      : t`Open`;
+                : isPendingChecksBlock
+                  ? t`Checks pending`
+                  : isPrMergeBlocked(summary.pr)
+                    ? t`Merging is blocked`
+                    : tone === "danger"
+                      ? t`Checks failed`
+                      : tone === "warning"
+                        ? t`Checks pending`
+                        : summary.pr.checksStatus
+                          ? t`Checks passed`
+                          : t`Open`;
         return (
           <button
             key={`${project.id}:${summary.pr.number}`}

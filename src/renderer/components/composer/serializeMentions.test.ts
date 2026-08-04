@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { PromptSegment } from "@/shared/contracts";
+import { createDiffCommentChipElement } from "./DiffCommentChip";
+import { createMcpMentionChipElement } from "./McpMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
-import { serializeComposerContent, serializeToSegments } from "./serializeMentions";
+import {
+  rebuildEditedPromptSegments,
+  serializeComposerContent,
+  serializeToSegments,
+} from "./serializeMentions";
 
 describe("serializeComposerContent", () => {
   let container: HTMLDivElement;
@@ -59,6 +66,17 @@ describe("serializeComposerContent", () => {
     container.appendChild(document.createTextNode(" please"));
 
     expect(serializeComposerContent(container)).toBe("check @src/main.ts please");
+  });
+
+  it("serializes an MCP mention chip as an mcp segment that flattens to @name", () => {
+    container.appendChild(createMcpMentionChipElement({ id: "browser", name: "Browser" }));
+    container.appendChild(document.createTextNode(" open the page"));
+
+    expect(serializeToSegments(container)).toEqual([
+      { kind: "mcp", id: "browser", name: "Browser" },
+      { kind: "text", content: " open the page" },
+    ]);
+    expect(serializeComposerContent(container)).toBe("@Browser open the page");
   });
 
   it("serializes BR as newline", () => {
@@ -131,6 +149,50 @@ describe("serializeComposerContent", () => {
     expect(serializeComposerContent(container)).toBe("$review-code");
   });
 
+  it("preserves multiple diff comments and flattens them for the agent", () => {
+    const comments = [
+      {
+        kind: "diff_comment" as const,
+        path: "src/a.ts",
+        lineNumber: 12,
+        side: "new" as const,
+        staged: false,
+        body: "Keep this guard.",
+      },
+      {
+        kind: "diff_comment" as const,
+        path: "src/b.ts",
+        lineNumber: 7,
+        side: "old" as const,
+        staged: true,
+        body: "Why was this removed?",
+      },
+    ];
+    container.appendChild(createDiffCommentChipElement(comments[0]!));
+    container.appendChild(document.createTextNode("\n\n"));
+    container.appendChild(createDiffCommentChipElement(comments[1]!));
+
+    expect(serializeToSegments(container)).toEqual([
+      comments[0],
+      { kind: "text", content: "\n\n" },
+      comments[1],
+    ]);
+    expect(serializeComposerContent(container)).toBe(
+      "Review comment on src/a.ts:+12 (unstaged):\nKeep this guard.\n\nReview comment on src/b.ts:-7 (staged):\nWhy was this removed?",
+    );
+  });
+
+  it("displays a short skill name while serializing the ACP-native command id", () => {
+    const chip = createSlashCommandChipElement({
+      id: "skill:simplify",
+      skillName: "simplify",
+    });
+    container.appendChild(chip);
+
+    expect(chip.textContent).toBe("/simplify");
+    expect(serializeComposerContent(container)).toBe("/skill:simplify");
+  });
+
   it("excludes attachment segments from serialization", () => {
     // Note: serializeComposerContent uses serializeToSegments which walks DOM nodes.
     // The AttachmentBar logic is what puts attachments in the segments array.
@@ -143,5 +205,47 @@ describe("serializeComposerContent", () => {
       ];
       expect(m.flattenSegments(segments)).toBe("hello");
     });
+  });
+});
+
+describe("rebuildEditedPromptSegments", () => {
+  const skill: Extract<PromptSegment, { kind: "skill" }> = {
+    kind: "skill",
+    name: "review-code",
+    path: "C:\\Users\\me\\.agents\\skills\\review-code\\SKILL.md",
+    invocation: "$review-code",
+    provider: "Codex",
+    scope: "global",
+  };
+  const attachment: Extract<PromptSegment, { kind: "attachment" }> = {
+    kind: "attachment",
+    path: "C:\\tmp\\context.txt",
+  };
+  const original: PromptSegment[] = [
+    attachment,
+    skill,
+    { kind: "text", content: " inspect " },
+    { kind: "file", path: "src/main.ts" },
+    { kind: "text", content: " now" },
+  ];
+
+  it("preserves visible structured tokens without duplicating their flattened text", () => {
+    expect(
+      rebuildEditedPromptSegments("$review-code inspect @src/main.ts, then @src/new.ts", original),
+    ).toEqual([
+      attachment,
+      skill,
+      { kind: "text", content: " inspect " },
+      { kind: "file", path: "src/main.ts" },
+      { kind: "text", content: ", then " },
+      { kind: "file", path: "src/new.ts" },
+    ]);
+  });
+
+  it("drops removed visible tokens while retaining invisible attachments", () => {
+    expect(rebuildEditedPromptSegments("Inspect the implementation", original)).toEqual([
+      attachment,
+      { kind: "text", content: "Inspect the implementation" },
+    ]);
   });
 });

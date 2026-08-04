@@ -2,7 +2,12 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PaneLayout } from "@/shared/paneLayout";
-import { computeLayout, resolvePaneDomKey, SplitPaneContainer } from "./SplitPaneContainer";
+import {
+  computeLayout,
+  resolvePaneDomKey,
+  SplitPaneContainer,
+  type Rect,
+} from "./SplitPaneContainer";
 import { splitStorageKey, writeStoredSizes } from "./paneSizeStorage";
 
 vi.mock("@dnd-kit/react", () => ({
@@ -174,6 +179,52 @@ describe("SplitPaneContainer", () => {
     HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
   });
 
+  it("does not render outer drop zones as resize handles or reserve space for them", () => {
+    const renderPane = (paneId: string) => React.createElement("div", { "data-pane-id": paneId });
+    const { container, rerender } = render(
+      React.createElement(SplitPaneContainer, {
+        layout: {
+          kind: "split",
+          axis: "vertical",
+          children: [
+            { kind: "leaf", paneId: "first" },
+            { kind: "leaf", paneId: "second" },
+          ],
+        },
+        renderPane,
+      }),
+    );
+    expect(
+      container.querySelectorAll('[class*="cursor-row-resize"], [class*="cursor-col-resize"]'),
+    ).toHaveLength(0);
+    expect(container.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    const secondPane =
+      container.querySelector<HTMLElement>("[data-pane-id='second']")?.parentElement;
+    expect(secondPane?.style.top).toBe("0px");
+    expect(secondPane?.style.height).toBe("600px");
+    expect(Number(secondPane?.style.left.replace("px", ""))).toBe(504);
+    expect(
+      Number(secondPane?.style.left.replace("px", "")) +
+        Number(secondPane?.style.width.replace("px", "")),
+    ).toBe(1000);
+
+    rerender(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "only" },
+        renderPane,
+      }),
+    );
+
+    expect(
+      container.querySelectorAll('[class*="cursor-row-resize"], [class*="cursor-col-resize"]'),
+    ).toHaveLength(0);
+    const pane = container.querySelector<HTMLElement>("[data-pane-id='only']")?.parentElement;
+    expect(pane?.style.left).toBe("0px");
+    expect(pane?.style.top).toBe("0px");
+    expect(pane?.style.width).toBe("1000px");
+    expect(pane?.style.height).toBe("600px");
+  });
+
   it("updates an existing divider position when panes are added at the same container size", () => {
     const twoPanes: PaneLayout = {
       kind: "split",
@@ -201,12 +252,12 @@ describe("SplitPaneContainer", () => {
       '[role="separator"][aria-orientation="vertical"]',
     );
     expect(divider).not.toBeNull();
-    expect(parseFloat(divider!.style.left)).toBeCloseTo(492);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(496);
 
     rerender(React.createElement(SplitPaneContainer, { layout: threePanes, renderPane }));
 
     expect(container.querySelector<HTMLElement>('[role="separator"]')).toBe(divider);
-    expect(parseFloat(divider!.style.left)).toBeCloseTo(976 / 3);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(984 / 3);
   });
 
   it("keeps a pane shell mounted when its caller-provided DOM key stays stable", () => {
@@ -273,6 +324,82 @@ describe("SplitPaneContainer", () => {
     ).not.toBe(guiKey);
   });
 
+  it("renders hidden keep-alive panes invisible and keeps them mounted", () => {
+    const renderPane = (paneId: string, _rect: Rect, hidden = false) =>
+      React.createElement("div", {
+        [hidden ? "data-hidden-pane-id" : "data-pane-id"]: paneId,
+      });
+    const { container, rerender } = render(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "visible" },
+        renderPane,
+        hiddenPaneIds: ["hidden-a", "hidden-b"],
+      }),
+    );
+
+    const visible = container.querySelector("[data-pane-id='visible']");
+    expect(visible).not.toBeNull();
+    const hiddenA = container.querySelector("[data-hidden-pane-id='hidden-a']");
+    const hiddenB = container.querySelector("[data-hidden-pane-id='hidden-b']");
+    expect(hiddenA).not.toBeNull();
+    expect(hiddenB).not.toBeNull();
+    // Hidden panes are inside an invisible, aria-hidden wrapper.
+    const hiddenWrapperA = hiddenA!.closest(".invisible");
+    expect(hiddenWrapperA).not.toBeNull();
+    expect(hiddenWrapperA?.getAttribute("aria-hidden")).toBe("true");
+
+    // Re-render with the same hidden ids: the same DOM nodes stay (keep-alive).
+    const firstHiddenA = hiddenA;
+    rerender(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "visible" },
+        renderPane,
+        hiddenPaneIds: ["hidden-a", "hidden-b"],
+      }),
+    );
+    expect(container.querySelector("[data-hidden-pane-id='hidden-a']")).toBe(firstHiddenA);
+
+    // Removing a hidden id unmounts it.
+    rerender(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "visible" },
+        renderPane,
+        hiddenPaneIds: ["hidden-b"],
+      }),
+    );
+    expect(container.querySelector("[data-hidden-pane-id='hidden-a']")).toBeNull();
+    expect(container.querySelector("[data-hidden-pane-id='hidden-b']")).not.toBeNull();
+  });
+
+  it("reuses the same DOM node when a hidden pane becomes visible (keep-alive)", () => {
+    // Same render fn for visible and hidden so the mounted content is
+    // identical; the wrapper must keep the node alive across the transition.
+    const renderPane = (paneId: string) =>
+      React.createElement("div", { "data-pane-id": paneId, "data-mounted": "true" });
+    const { container, rerender } = render(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "visible" },
+        renderPane,
+        hiddenPaneIds: ["hidden-a"],
+      }),
+    );
+    const hiddenA = container.querySelector("[data-pane-id='hidden-a']");
+    expect(hiddenA).not.toBeNull();
+
+    // hidden-a becomes visible: it leaves hiddenPaneIds and enters the layout.
+    rerender(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "hidden-a" },
+        renderPane,
+        hiddenPaneIds: [],
+      }),
+    );
+    const visibleA = container.querySelector("[data-pane-id='hidden-a']");
+    expect(visibleA).not.toBeNull();
+    // Same DOM node — the component did NOT unmount/remount.
+    expect(visibleA).toBe(hiddenA);
+  });
+
   it("rereads projected sizes when returning to a previously cached layout key", () => {
     const twoPanes: PaneLayout = {
       kind: "split",
@@ -314,13 +441,13 @@ describe("SplitPaneContainer", () => {
       '[role="separator"][aria-orientation="vertical"]',
     );
     expect(divider).not.toBeNull();
-    expect(parseFloat(divider!.style.left)).toBeCloseTo(492);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(496);
 
     rerender(React.createElement(SplitPaneContainer, { layout: twoPanes, renderPane }));
     writeStoredSizes(splitStorageKey(fourPanes, "vertical"), [35, 65]);
 
     rerender(React.createElement(SplitPaneContainer, { layout: fourPanes, renderPane }));
 
-    expect(parseFloat(divider!.style.left)).toBeCloseTo(344.4);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(347.2);
   });
 });

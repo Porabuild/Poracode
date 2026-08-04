@@ -25,7 +25,13 @@ function blocksToText(payload: unknown): string {
   let out = "";
   for (const block of blocks) {
     if (!block || typeof block !== "object") continue;
-    const record = block as { kind?: unknown; text?: unknown; path?: unknown; source?: unknown };
+    const record = block as {
+      kind?: unknown;
+      text?: unknown;
+      path?: unknown;
+      source?: unknown;
+      name?: unknown;
+    };
     if (record.kind === "text" && typeof record.text === "string") {
       out += record.text;
     } else if (
@@ -34,6 +40,9 @@ function blocksToText(payload: unknown): string {
       record.source !== "attachment"
     ) {
       out += record.path;
+    } else if (record.kind === "mcp" && typeof record.name === "string") {
+      // Keep the badge's `@Name` directive findable in the transcript.
+      out += `@${record.name}`;
     }
   }
   return out;

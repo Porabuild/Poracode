@@ -1,4 +1,5 @@
 import {
+  type GitAbortMergeResult,
   type GitFinishMergeResult,
   type GitMergeToSourceResult,
   type GitPullFromSourceResult,
@@ -19,13 +20,35 @@ export class GitMergeService {
 
   async mergeToSource(
     repoLocation: ProjectLocation,
-    _worktreeLocation: ProjectLocation,
+    worktreeLocation: ProjectLocation,
     worktreeBranch: string,
     sourceBranch: string,
+    expectedWorktreeCommit?: string,
   ): Promise<GitMergeToSourceResult> {
+    const mergeTarget = expectedWorktreeCommit?.toLowerCase() ?? worktreeBranch;
+    if (expectedWorktreeCommit) {
+      await this.validateExpectedWorktreeCommit(
+        worktreeLocation,
+        worktreeBranch,
+        expectedWorktreeCommit,
+      );
+    }
+
+    let sourceTip: string | undefined;
+    let worktreeTip: string | undefined;
     let canFastForward = false;
     try {
-      await execGit(repoLocation, ["merge-base", "--is-ancestor", sourceBranch, worktreeBranch]);
+      [sourceTip, worktreeTip] = await Promise.all([
+        execGit(repoLocation, [
+          "rev-parse",
+          "--verify",
+          `refs/heads/${sourceBranch}^{commit}`,
+        ]).then((value) => value.trim()),
+        execGit(repoLocation, ["rev-parse", "--verify", `${mergeTarget}^{commit}`]).then((value) =>
+          value.trim(),
+        ),
+      ]);
+      await execGit(repoLocation, ["merge-base", "--is-ancestor", sourceTip, worktreeTip]);
       canFastForward = true;
     } catch {
       // not an ancestor
@@ -34,13 +57,21 @@ export class GitMergeService {
     if (canFastForward) {
       const sourceLocation = await this.findWorktreeForBranch(repoLocation, sourceBranch);
       if (sourceLocation) {
-        await execGit(sourceLocation, ["merge", "--ff-only", worktreeBranch]);
+        await this.ensureWorktreeCleanForMerge(sourceLocation, sourceBranch);
+        await execGit(sourceLocation, ["merge", "--ff-only", mergeTarget]);
         const newCommit = (await execGit(sourceLocation, ["rev-parse", "HEAD"])).trim();
         return { merged: true, fastForward: true, newSourceCommit: newCommit };
       }
 
-      const worktreeTip = (await execGit(repoLocation, ["rev-parse", worktreeBranch])).trim();
-      await execGit(repoLocation, ["update-ref", `refs/heads/${sourceBranch}`, worktreeTip]);
+      if (!sourceTip || !worktreeTip) {
+        throw new Error(msg("experiment.merge.branchTipsFailed"));
+      }
+      await execGit(repoLocation, [
+        "update-ref",
+        `refs/heads/${sourceBranch}`,
+        worktreeTip,
+        sourceTip,
+      ]);
       return { merged: true, fastForward: true, newSourceCommit: worktreeTip };
     }
 
@@ -48,7 +79,7 @@ export class GitMergeService {
     if (sourceLocation) {
       try {
         await this.ensureWorktreeCleanForMerge(sourceLocation, sourceBranch);
-        return await this.mergeBranchIntoSourceLocation(sourceLocation, worktreeBranch);
+        return await this.mergeBranchIntoSourceLocation(sourceLocation, mergeTarget);
       } catch (error) {
         return {
           merged: false,
@@ -68,7 +99,7 @@ export class GitMergeService {
         repoLocation.kind === "wsl"
           ? { ...repoLocation, linuxPath: tempPath, uncPath: tempPath }
           : { ...repoLocation, path: tempPath };
-      return await this.mergeBranchIntoSourceLocation(tempLocation, worktreeBranch);
+      return await this.mergeBranchIntoSourceLocation(tempLocation, mergeTarget);
     } catch (error: unknown) {
       return {
         merged: false,
@@ -170,12 +201,16 @@ export class GitMergeService {
       "-m",
       `Poracode: before pull from ${sourceBranch}`,
     ]);
+    const stashCommit = (await execGit(worktreeLocation, ["rev-parse", "refs/stash"]))
+      .trim()
+      .toLowerCase();
 
     const result = await this.pullFromSourceClean(worktreeLocation, sourceBranch);
     if (!result.merged) {
       return {
         ...result,
         stashPreserved: true,
+        stashCommit,
         error: result.error ?? msg("git.pull.stashPreserved"),
       };
     }
@@ -189,6 +224,7 @@ export class GitMergeService {
         conflicting: true,
         reapplyConflicting: true,
         stashPreserved: true,
+        stashCommit,
         error: msg("git.pull.reapplyConflicts"),
         conflictFiles: this.extractConflictFiles(errorDetail(stashPopError)),
       };
@@ -197,19 +233,71 @@ export class GitMergeService {
     return result;
   }
 
-  async abortMerge(worktreeLocation: ProjectLocation): Promise<void> {
-    await execGit(worktreeLocation, ["merge", "--abort"]);
+  async reapplyPullStash(
+    location: ProjectLocation,
+    stashCommit: string,
+  ): Promise<
+    | { outcome: "reapplied" }
+    | { outcome: "conflict"; conflictFiles: string[] }
+    | { outcome: "missing" }
+    | { outcome: "failed" }
+  > {
+    const stashList = await execGit(location, ["stash", "list", "--format=%H"]);
+    const index = stashList
+      .split("\n")
+      .map((line) => line.trim().toLowerCase())
+      .indexOf(stashCommit.toLowerCase());
+    if (index < 0) return { outcome: "missing" };
+
+    try {
+      await execGit(location, ["stash", "pop", `stash@{${index}}`], { timeout: GIT_HOOK_TIMEOUT });
+    } catch (stashPopError: unknown) {
+      const detail = errorDetail(stashPopError);
+      if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
+        return { outcome: "conflict", conflictFiles: this.extractConflictFiles(detail) };
+      }
+      return { outcome: "failed" };
+    }
+    return { outcome: "reapplied" };
   }
 
-  async finishMerge(worktreeLocation: ProjectLocation): Promise<GitFinishMergeResult> {
+  async abortMerge(
+    worktreeLocation: ProjectLocation,
+    reapplyStashCommit?: string,
+  ): Promise<GitAbortMergeResult> {
+    await execGit(worktreeLocation, ["merge", "--abort"]);
+    if (!reapplyStashCommit) return {};
+
+    const reapply = await this.reapplyPullStash(worktreeLocation, reapplyStashCommit);
+    if (reapply.outcome === "reapplied") return { stashReapplied: true };
+    return { stashPreserved: true };
+  }
+
+  async finishMerge(
+    worktreeLocation: ProjectLocation,
+    reapplyStashCommit?: string,
+  ): Promise<GitFinishMergeResult> {
     try {
       await execGit(worktreeLocation, ["commit", "--no-edit"], {
         timeout: GIT_HOOK_TIMEOUT,
       });
-      return { success: true };
     } catch (error: unknown) {
       return { success: false, error: errorDetail(error) };
     }
+
+    if (!reapplyStashCommit) return { success: true };
+
+    const reapply = await this.reapplyPullStash(worktreeLocation, reapplyStashCommit);
+    if (reapply.outcome === "reapplied") return { success: true, stashReapplied: true };
+    if (reapply.outcome === "conflict") {
+      return {
+        success: true,
+        reapplyConflicting: true,
+        stashPreserved: true,
+        conflictFiles: reapply.conflictFiles,
+      };
+    }
+    return { success: true, stashPreserved: true };
   }
 
   private async findWorktreeForBranch(
@@ -229,11 +317,71 @@ export class GitMergeService {
     location: ProjectLocation,
     sourceBranch: string,
   ): Promise<void> {
+    const currentBranch = (await execGit(location, ["branch", "--show-current"])).trim();
+    if (currentBranch !== sourceBranch) {
+      throw new Error(
+        msg("experiment.merge.sourceBranchMismatch", {
+          expected: sourceBranch,
+          actual: currentBranch || msg("git.detachedHead"),
+        }),
+      );
+    }
     const status = await execGit(location, ["status", "--porcelain"]);
     if (!status.trim()) return;
     throw new Error(
       msg("git.worktree.dirtySource", { branch: sourceBranch, path: getProjectFsPath(location) }),
     );
+  }
+
+  private async validateExpectedWorktreeCommit(
+    worktreeLocation: ProjectLocation,
+    worktreeBranch: string,
+    expectedCommit: string,
+  ): Promise<void> {
+    if (await this.hasLocalChanges(worktreeLocation)) {
+      throw new Error(
+        msg("experiment.merge.worktreeDirty", { path: getProjectFsPath(worktreeLocation) }),
+      );
+    }
+
+    const currentBranch = (await execGit(worktreeLocation, ["branch", "--show-current"])).trim();
+    if (currentBranch !== worktreeBranch) {
+      throw new Error(
+        msg("experiment.merge.worktreeBranchMismatch", {
+          expected: worktreeBranch,
+          actual: currentBranch || msg("git.detachedHead"),
+        }),
+      );
+    }
+
+    const expected = expectedCommit.toLowerCase();
+    const headCommit = (await execGit(worktreeLocation, ["rev-parse", "--verify", "HEAD^{commit}"]))
+      .trim()
+      .toLowerCase();
+    if (headCommit !== expected) {
+      throw new Error(
+        msg("experiment.merge.worktreeHeadMismatch", { expected, actual: headCommit }),
+      );
+    }
+
+    const branchCommit = (
+      await execGit(worktreeLocation, [
+        "rev-parse",
+        "--verify",
+        `refs/heads/${worktreeBranch}^{commit}`,
+      ])
+    )
+      .trim()
+      .toLowerCase();
+    if (branchCommit !== expected) {
+      throw new Error(
+        msg("experiment.merge.branchHeadMismatch", {
+          branch: worktreeBranch,
+          expected,
+          actual: branchCommit,
+        }),
+      );
+    }
   }
 
   private async hasLocalChanges(location: ProjectLocation): Promise<boolean> {
@@ -251,10 +399,10 @@ export class GitMergeService {
 
   private async mergeBranchIntoSourceLocation(
     location: ProjectLocation,
-    worktreeBranch: string,
+    mergeTarget: string,
   ): Promise<GitMergeToSourceResult> {
     try {
-      await execGit(location, ["merge", worktreeBranch, "--no-edit", "--no-ff"], {
+      await execGit(location, ["merge", mergeTarget, "--no-edit", "--no-ff"], {
         timeout: GIT_HOOK_TIMEOUT,
       });
     } catch (mergeError: unknown) {

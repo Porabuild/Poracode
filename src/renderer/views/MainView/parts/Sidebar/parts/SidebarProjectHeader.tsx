@@ -1,18 +1,27 @@
 import {
   ChevronRight,
+  EyeOff,
   FileDiff,
   FolderOpen,
   GitFork,
+  Layers,
   Play,
   Power,
   PowerOff,
   RefreshCw,
+  Server,
   Settings2,
   Trash2,
+  Workflow,
 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
+import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import {
+  RemoteServerStatusDot,
+  useRemoteServerStatusLabel,
+} from "@/renderer/components/common/RemoteServerStatusDot";
 import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { setProjectDisabled, deleteProject } from "@/renderer/actions/projectActions";
@@ -22,6 +31,14 @@ import {
   openProjectSettings,
 } from "@/renderer/actions/panelActions";
 import { gitSync } from "@/renderer/actions/gitActions";
+import {
+  WORKSPACE_UNFILED_KEY,
+  parseWorkspaceMenuKey,
+  workspaceMenuKey,
+} from "@/renderer/components/workspace/workspaceMenuKeys";
+import { WorkspaceIcon } from "@/renderer/components/workspace/WorkspaceIcon";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { openTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
 import {
   useIsProjectFilesPanelActive,
@@ -37,15 +54,20 @@ import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTermi
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteServerStatus } from "@/renderer/state/remoteServers/types";
 
 export function SidebarProjectHeader(props: {
   project: Project;
   isCollapsed: boolean;
   isDragging: boolean;
+  remoteStatus: RemoteServerStatus | undefined;
+  isUnreachable: boolean;
 }) {
-  const { project, isCollapsed, isDragging } = props;
+  const { project, isCollapsed, isDragging, remoteStatus, isUnreachable } = props;
   const { t } = useLingui();
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
+  const workspaces = useSharedSettings((s) => s.workspaces);
   const hasTerminal = useIsProjectTerminalOpen(project.id);
   const isActiveTerminal = useIsProjectTerminalActive(project.id);
   const isBusyTerminal = useIsProjectTerminalBusy(project.id);
@@ -53,7 +75,20 @@ export function SidebarProjectHeader(props: {
   const isActiveFilesPanel = useIsProjectFilesPanelActive(project.id);
   const projectLocation = formatProjectLocation(project);
   const isDisabled = !!project.disabled;
-  const showBody = !isCollapsed && !isDisabled;
+  const remoteServer = useRemoteServersStore((state) =>
+    project.remoteServerId
+      ? state.servers.find((server) => server.desktopId === project.remoteServerId)
+      : undefined,
+  );
+  const setRemoteProjectSynced = useRemoteServersStore((state) => state.setRemoteProjectSynced);
+  const remoteServerName = remoteServer ? desktopTitle(remoteServer.label) : undefined;
+  const remoteStatusLabel = useRemoteServerStatusLabel(remoteStatus ?? "offline");
+  const isRemote = project.remoteServerId !== undefined && project.remoteId !== undefined;
+  // Git, run-scripts and removal all execute on the project's host, so they are
+  // unavailable while a mirrored project's server is unreachable. The row
+  // tooltip carries the status, so the greyed-out items read as explained.
+  const isUnavailable = isDisabled || isUnreachable;
+  const showBody = !isCollapsed && !isUnavailable;
 
   return (
     <ContextMenu
@@ -76,11 +111,19 @@ export function SidebarProjectHeader(props: {
                     id: "git-review",
                     label: t`Review Changes`,
                     icon: <FileDiff className="size-3.5" />,
+                    isDisabled: isUnreachable,
+                  },
+                  {
+                    id: "github-actions",
+                    label: t`GitHub Actions`,
+                    icon: <Workflow className="size-3.5" />,
+                    isDisabled: isUnreachable,
                   },
                   {
                     id: "git-sync",
                     label: t`Sync`,
                     icon: <RefreshCw className="size-3.5" />,
+                    isDisabled: isUnreachable,
                   },
                 ],
               },
@@ -95,31 +138,81 @@ export function SidebarProjectHeader(props: {
                         id: `action:${action.id}`,
                         label: action.name,
                         icon: resolveActionIcon(action.icon),
+                        isDisabled: isUnreachable,
                       })),
                     },
                   ]
                 : []),
             ]),
+        ...(workspaces.length > 1
+          ? [
+              {
+                type: "submenu" as const,
+                id: "move-to-workspace",
+                label: t`Move to Workspace`,
+                icon: <Layers className="size-3.5" />,
+                items: [
+                  ...workspaces.map((workspace) => ({
+                    id: workspaceMenuKey(workspace.id),
+                    label: workspace.name,
+                    icon: <WorkspaceIcon icon={workspace.icon} className="size-3.5" />,
+                    isDisabled: workspace.id === project.workspaceId,
+                  })),
+                  {
+                    id: WORKSPACE_UNFILED_KEY,
+                    label: t`All workspaces`,
+                    icon: <Layers className="size-3.5" />,
+                    isDisabled: !project.workspaceId,
+                  },
+                ],
+              },
+            ]
+          : []),
         {
           id: "toggle-disabled",
           label: isDisabled ? t`Enable Project` : t`Disable Project`,
           icon: isDisabled ? <Power className="size-3.5" /> : <PowerOff className="size-3.5" />,
         },
+        // Dropping a mirrored project from this client is local state, so it
+        // stays available while the server is offline — unlike Remove Project,
+        // which deletes it on the host.
+        ...(isRemote
+          ? [
+              {
+                id: "stop-syncing",
+                label: t`Stop syncing`,
+                icon: <EyeOff className="size-3.5" />,
+              },
+            ]
+          : []),
         {
           id: "remove-project",
           label: t`Remove Project`,
           icon: <Trash2 className="size-3.5" />,
           variant: "danger" as const,
+          isDisabled: isUnreachable,
         },
       ]}
       onAction={(key) => {
         if (key === "project-settings") openProjectSettings(project.id);
+        if (key === "stop-syncing" && project.remoteServerId && project.remoteId) {
+          setRemoteProjectSynced(project.remoteServerId, project.remoteId, false);
+        }
         if (key === "remove-project") deleteProject(project.id);
         if (key === "toggle-disabled") setProjectDisabled(project.id, !isDisabled);
         if (key === "git-review") openGitReview(project.id);
+        if (key === "github-actions") {
+          useAppStore.getState().openGitHubActions(project.id);
+        }
         if (key === "git-sync") gitSync(project.id);
         if (key.startsWith("action:")) {
           runProjectAction(project.id, key.slice("action:".length));
+        }
+        const workspaceChoice = parseWorkspaceMenuKey(key);
+        if (workspaceChoice?.kind === "unfiled") {
+          useAppStore.getState().setProjectWorkspace(project.id, undefined);
+        } else if (workspaceChoice?.kind === "workspace") {
+          useAppStore.getState().setProjectWorkspace(project.id, workspaceChoice.workspaceId);
         }
       }}
     >
@@ -134,22 +227,44 @@ export function SidebarProjectHeader(props: {
         label={
           <span className="flex items-center gap-1.5">
             <span className="truncate text-xs font-semibold text-foreground">{project.name}</span>
+            {isRemote || remoteServerName ? (
+              <span className="relative flex shrink-0">
+                <Server className="size-3 text-muted/60" />
+                {remoteServerName ? (
+                  <RemoteServerStatusDot
+                    status={remoteStatus ?? "offline"}
+                    className="absolute -right-0.5 -bottom-0.5"
+                  />
+                ) : null}
+              </span>
+            ) : null}
+            {remoteServerName ? (
+              <span className="max-w-24 truncate text-[10px] font-normal text-muted/60">
+                {remoteServerName}
+              </span>
+            ) : null}
             {project.location.kind === "wsl" && (
               <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
             )}
           </span>
         }
-        tooltip={isDisabled ? t`${projectLocation} (disabled)` : projectLocation}
+        tooltip={
+          isDisabled
+            ? t`${projectLocation} (disabled)`
+            : remoteServerName
+              ? `${projectLocation} · ${remoteServerName} · ${remoteStatusLabel}`
+              : projectLocation
+        }
         className={`poracode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${
-          isDisabled ? " opacity-50" : ""
+          isUnavailable ? " opacity-50" : ""
         }`}
         onPress={() => {
-          if (isDisabled) return;
+          if (isUnavailable) return;
           toggleProjectCollapsed(project.id);
         }}
         isDragging={isDragging}
         suffix={
-          isDisabled ? null : (
+          isUnavailable ? null : (
             <>
               <SidebarPanelDragButton
                 panel="files"

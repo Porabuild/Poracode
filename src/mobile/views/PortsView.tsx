@@ -6,10 +6,9 @@ import type { ActivePortForward, DetectedPort } from "@/shared/remote";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
-import { getRemoteBridgeClient } from "../bridge";
 import { BottomSheet, EmptyState, Fab, SheetMenu, useSheet } from "../components";
 import { buildEnterUrl, buildForwardUrl, isDirectEndpoint } from "../portForward";
-import { RemoteClientError } from "../remoteClient";
+import { RemoteClientError } from "@/shared/remote/client";
 import { useRemote } from "../remoteContext";
 
 function openForwardUrl(url: string): void {
@@ -241,13 +240,12 @@ export function PortsView() {
   }
 
   function load() {
-    const client = getRemoteBridgeClient();
-    if (!client || !canUse) return;
+    if (!canUse) return;
     const generation = ++loadGeneration.current;
     setLoading(true);
     setNotice(null);
-    client
-      .listPorts()
+    remote.actions.ports
+      .list()
       .then((next) => {
         if (loadGeneration.current !== generation) return;
         setDetected(next.detected);
@@ -277,11 +275,9 @@ export function PortsView() {
   }, [activeDesktop?.desktopId, canUse]);
 
   function startForward(targetPort: number) {
-    const client = getRemoteBridgeClient();
-    if (!client) return;
     setBusyPort(targetPort);
-    client
-      .startPortForward(targetPort)
+    remote.actions.ports
+      .start(targetPort)
       .then((result) => {
         // Invalidate any in-flight load() so its (possibly stale) response
         // can't overwrite this optimistic update once it resolves.
@@ -304,11 +300,9 @@ export function PortsView() {
   }
 
   function stopForward(forward: ActivePortForward) {
-    const client = getRemoteBridgeClient();
-    if (!client) return;
     setStoppingForwardId(forward.id);
-    client
-      .stopPortForward(forward.id)
+    remote.actions.ports
+      .stop(forward.id)
       .then(() => {
         loadGeneration.current++;
         setForwards((current) => current.filter((entry) => entry.id !== forward.id));
@@ -326,11 +320,9 @@ export function PortsView() {
    * dead link.
    */
   function openActiveForward(forward: ActivePortForward) {
-    const client = getRemoteBridgeClient();
-    if (!client) return;
     setOpeningForwardId(forward.id);
-    client
-      .enterPortForward(forward.id)
+    remote.actions.ports
+      .enter(forward.id)
       .then((result) => openForwardTarget(result.enterPath, forward.listenPort))
       .catch((error: unknown) => {
         if (error instanceof RemoteClientError && error.code === "forward_not_found") {
@@ -359,11 +351,10 @@ export function PortsView() {
         .catch((error: unknown) => toast.danger(friendlyError(error)));
       return;
     }
-    const client = getRemoteBridgeClient();
-    if (!client || !activeDesktop) return;
+    if (!activeDesktop) return;
     setCopyingForwardId(forward.id);
-    client
-      .enterPortForward(forward.id)
+    remote.actions.ports
+      .enter(forward.id)
       .then((result) =>
         navigator.clipboard.writeText(buildEnterUrl(activeDesktop.endpoint, result.enterPath)),
       )

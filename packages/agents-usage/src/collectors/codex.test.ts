@@ -47,6 +47,76 @@ describe("parseCodexUsage", () => {
     ]);
   });
 
+  it("keeps omitted windows absent while exposing the separate credit balance", () => {
+    const snap = parseCodexUsage(
+      { plan_type: "team", credits: { has_credits: true, balance: "796" } },
+      {},
+      FAKE_NOW_MS,
+    );
+    expect(snap.windows).toEqual([]);
+    expect(snap.credits?.balance).toBe(796);
+    expect(snap.plan).toBe("ChatGPT Team");
+  });
+
+  it("maps a session-only primary window without adding a weekly bar", () => {
+    const snap = parseCodexUsage(
+      { rate_limit: { primary_window: { used_percent: 3 }, secondary_window: null } },
+      {},
+      FAKE_NOW_MS,
+    );
+    expect(snap.windows).toEqual([
+      expect.objectContaining({ id: "session-5h", label: "Session (5h)", usedPercent: 3 }),
+    ]);
+  });
+
+  it("reads a zero credit balance when credits are unavailable", () => {
+    const snap = parseCodexUsage({ credits: { has_credits: false } }, {}, FAKE_NOW_MS);
+    expect(snap.credits?.balance).toBe(0);
+  });
+
+  it("falls back to the credit balance response header", () => {
+    const snap = parseCodexUsage(
+      { credits: { has_credits: true } },
+      { "X-Codex-Credits-Balance": "128" },
+      FAKE_NOW_MS,
+    );
+    expect(snap.credits?.balance).toBe(128);
+  });
+
+  it("surfaces unlimited credits without a balance", () => {
+    const snap = parseCodexUsage({ credits: { unlimited: true } }, {}, FAKE_NOW_MS);
+    expect(snap.credits).toEqual({ balance: 0, unlimited: true });
+  });
+
+  it("coerces numeric-string window fields", () => {
+    const snap = parseCodexUsage(
+      {
+        rate_limit: {
+          primary_window: {
+            used_percent: "42",
+            reset_after_seconds: "3600",
+            limit_window_seconds: "18000",
+          },
+        },
+      },
+      {},
+      FAKE_NOW_MS,
+    );
+    expect(snap.windows).toEqual([expect.objectContaining({ id: "session-5h", usedPercent: 42 })]);
+    expect(snap.windows[0]?.resetsAt).toBe(FAKE_NOW_MS + 3600 * 1000);
+  });
+
+  it("maps a numeric-string weekly cadence from window_minutes", () => {
+    const snap = parseCodexUsage(
+      { rate_limit: { primary_window: { used_percent: 1, window_minutes: "10080" } } },
+      {},
+      FAKE_NOW_MS,
+    );
+    expect(snap.windows).toEqual([
+      expect.objectContaining({ id: "weekly", label: "Weekly", usedPercent: 1 }),
+    ]);
+  });
+
   it("maps additional model-specific Codex limits", () => {
     const snap = parseCodexUsage(
       {

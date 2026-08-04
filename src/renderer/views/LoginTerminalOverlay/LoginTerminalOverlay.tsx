@@ -7,6 +7,8 @@ import {
   useLoginTerminalStore,
   type LoginTerminalSession,
 } from "@/renderer/state/loginTerminalStore";
+import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { disposeRoutedShellSession } from "@/renderer/utils/shellUtils";
 import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
 
 /**
@@ -63,6 +65,7 @@ export function LoginTerminalOverlay() {
     const id = renderedSession?.shellId;
     if (!id) return;
     return () => {
+      disposeRoutedShellSession(id);
       void readBridge()
         .closeThread({ threadId: id })
         .catch(() => undefined);
@@ -72,6 +75,7 @@ export function LoginTerminalOverlay() {
   const closeSession = () => {
     if (!active) return;
     const session = active;
+    disposeRoutedShellSession(session.shellId);
     void readBridge()
       .closeThread({ threadId: session.shellId })
       .catch(() => undefined);
@@ -97,7 +101,8 @@ export function LoginTerminalOverlay() {
   if (!renderedSession) return null;
 
   const isInstall = renderedSession.purpose === "install";
-  const purposeNoun = isInstall ? t`install` : t`login`;
+  const isUpdate = renderedSession.purpose === "update";
+  const purposeNoun = isInstall ? t`install` : isUpdate ? t`update` : t`login`;
 
   return (
     <div className="fixed inset-0 z-[60]">
@@ -134,7 +139,9 @@ export function LoginTerminalOverlay() {
                 ? t`Exited with code ${renderedSession.failedExitCode}. Close to retry.`
                 : isInstall
                   ? t`Installing in this terminal. Closes when finished.`
-                  : t`Complete the prompts in this terminal. Closes when finished.`}
+                  : isUpdate
+                    ? t`Updating in this terminal. Closes when finished.`
+                    : t`Complete the prompts in this terminal. Closes when finished.`}
             </p>
           </div>
           <Button
@@ -154,6 +161,13 @@ export function LoginTerminalOverlay() {
             terminalId={renderedSession.shellId}
             className="h-full"
             openLinksInNativeBrowser
+            outputSource={(listener) =>
+              watchRoutedTerminal(
+                renderedSession.shellId,
+                listener,
+                renderedSession.projectLocation.remoteServerId,
+              )
+            }
           />
         </div>
       </div>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveSharedUpdateCommand } from "./updateResolver";
+import {
+  isVersionInWindow,
+  pickLatestVersionInWindow,
+  resolveSharedUpdateCommand,
+} from "./updateResolver";
 
 const claudeUpdate = {
   builtIn: { binary: "claude", args: ["update"] },
@@ -21,6 +25,26 @@ const geminiUpdate = {
 const cursorUpdate = {
   builtIn: { binary: "cursor-agent", args: ["update"] },
   homebrewCask: "cursor-cli",
+};
+
+const kimiUpdate = {
+  npm: "@moonshot-ai/kimi-code",
+  installer: {
+    posix: {
+      binary: "sh",
+      args: ["-c", "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash"],
+    },
+    windows: {
+      binary: "powershell.exe",
+      args: [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
+      ],
+    },
+  },
 };
 
 describe("resolveSharedUpdateCommand", () => {
@@ -57,6 +81,67 @@ describe("resolveSharedUpdateCommand", () => {
       args: ["add", "-g", "@openai/codex@latest"],
       strategy: "pnpm-global",
     });
+  });
+
+  it("re-runs the provider install script (installer strategy) for posix and WSL", () => {
+    for (const envKind of ["posix", "wsl"] as const) {
+      expect(
+        resolveSharedUpdateCommand({
+          update: kimiUpdate,
+          executablePath: "/home/user/.kimi-code/bin/kimi",
+          envKind,
+        }),
+      ).toEqual({
+        binary: "sh",
+        args: ["-c", "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash"],
+        strategy: "installer",
+      });
+    }
+  });
+
+  it("uses the Windows install script for the installer strategy on Windows", () => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: kimiUpdate,
+        executablePath: "C:\\Users\\demo\\.kimi-code\\bin\\kimi.exe",
+        envKind: "windows",
+      }),
+    ).toEqual({
+      binary: "powershell.exe",
+      args: [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
+      ],
+      strategy: "installer",
+    });
+  });
+
+  it("prefers a package manager over the installer when the binary lives in one", () => {
+    // Installed via pnpm global → update through pnpm, not the curl installer.
+    expect(
+      resolveSharedUpdateCommand({
+        update: kimiUpdate,
+        executablePath: "/home/user/.local/share/pnpm/kimi",
+        envKind: "posix",
+      }),
+    ).toEqual({
+      binary: "pnpm",
+      args: ["add", "-g", "@moonshot-ai/kimi-code@latest"],
+      strategy: "pnpm-global",
+    });
+  });
+
+  it("prefers the installer over the npm last-resort for unrecognised install paths", () => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: kimiUpdate,
+        executablePath: "/opt/custom/kimi",
+        envKind: "posix",
+      })?.strategy,
+    ).toBe("installer");
   });
 
   it("uses pnpm-global when the executable lives under ~/.local/share/pnpm", () => {
@@ -163,5 +248,39 @@ describe("resolveSharedUpdateCommand", () => {
         envKind: "posix",
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("supported version windows", () => {
+  const cursorSdkWindow = { minVersion: "1.0.24", maxExclusiveMajor: 2 };
+
+  it("accepts stable versions inside the window and rejects the rest", () => {
+    expect(isVersionInWindow("1.0.24", cursorSdkWindow)).toBe(true);
+    expect(isVersionInWindow("1.99.4", cursorSdkWindow)).toBe(true);
+    expect(isVersionInWindow("1.0.23", cursorSdkWindow)).toBe(false);
+    expect(isVersionInWindow("0.99.0", cursorSdkWindow)).toBe(false);
+    expect(isVersionInWindow("2.0.0", cursorSdkWindow)).toBe(false);
+    expect(isVersionInWindow("1.1.0-beta.1", cursorSdkWindow)).toBe(false);
+    expect(isVersionInWindow("nightly", cursorSdkWindow)).toBe(false);
+  });
+
+  it("picks the greatest published version inside the window", () => {
+    expect(
+      pickLatestVersionInWindow(
+        ["1.0.24", "1.0.31", "1.0.9", "1.2.0-rc.1", "2.1.0"],
+        cursorSdkWindow,
+      ),
+    ).toBe("1.0.31");
+  });
+
+  it("returns undefined when only unsupported versions are published", () => {
+    expect(
+      pickLatestVersionInWindow(["2.0.0", "3.1.4", "1.0.23"], cursorSdkWindow),
+    ).toBeUndefined();
+    expect(pickLatestVersionInWindow([], cursorSdkWindow)).toBeUndefined();
+  });
+
+  it("treats an omitted window as any stable version", () => {
+    expect(pickLatestVersionInWindow(["0.1.0", "9.9.9", "10.0.0-rc.1"], {})).toBe("9.9.9");
   });
 });

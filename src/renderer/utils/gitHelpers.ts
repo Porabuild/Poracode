@@ -2,6 +2,7 @@ import { toast } from "@heroui/react";
 import type { Project } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
+import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -55,6 +56,7 @@ export function buildFileEditorContext(
       projectName: project.name,
       projectLocation: project.location,
       rootLabel: project.name,
+      ...(project.remoteServerId ? { remoteServerId: project.remoteServerId } : {}),
     };
   }
 
@@ -64,6 +66,7 @@ export function buildFileEditorContext(
     projectLocation: buildWorktreeLocation(project.location, worktreePath),
     rootLabel: worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? project.name,
     worktreePath,
+    ...(project.remoteServerId ? { remoteServerId: project.remoteServerId } : {}),
   };
 }
 
@@ -90,6 +93,7 @@ export async function openFileInEditor(
   path: string,
   options?: OpenFileInEditorOptions,
 ): Promise<void> {
+  if (project.remoteServerId && (path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path))) return;
   const fileEditor = useFileEditorStore.getState();
   const targetContext = buildFileEditorContext(project, worktreePath, worktreeBranch);
   const currentRoot = fileEditor.rootContext;
@@ -133,7 +137,7 @@ export function autoDetectSetupScript(project: Project) {
     .detectSetupScript({ projectLocation: project.location })
     .then((result) => {
       if (result.setupScript) {
-        useAppStore.getState().updateProjectScripts(project.id, {
+        updateProjectScripts(project.id, {
           setupScript: result.setupScript,
           actions: [],
         });

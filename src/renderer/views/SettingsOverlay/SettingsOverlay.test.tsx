@@ -17,6 +17,10 @@ const appState = {
   projects: [] as Project[],
 };
 
+const bridgeState = {
+  remote: false,
+};
+
 vi.mock("@/renderer/state/agentStatusesStore", () => {
   const useAgentStatusesStore = (
     selector: (state: {
@@ -88,7 +92,7 @@ vi.mock("@/renderer/views/MainView/parts/AppShell/AppShell", () => ({
 
 vi.mock("@/renderer/bridge", () => ({
   isDevApp: () => false,
-  isRemoteSession: () => false,
+  isRemoteSession: () => bridgeState.remote,
   isWindows: () => false,
   readBridge: () => ({
     refreshAgentStatuses: refreshAgentStatusesMock,
@@ -133,7 +137,7 @@ vi.mock("./parts/NotificationSettings", () => ({
 }));
 
 vi.mock("./parts/AISettings", () => ({
-  AISettings: () => <div>AI</div>,
+  AISettings: () => <div>AI Helpers</div>,
 }));
 
 vi.mock("./parts/AcpRegistrySettings", () => ({
@@ -153,7 +157,7 @@ vi.mock("./parts/ShortcutsSettings", () => ({
 }));
 
 vi.mock("./parts/UsageSettings", () => ({
-  UsageSettings: () => <div>Usage</div>,
+  UsageSettings: () => <div>Provider Usage</div>,
 }));
 
 vi.mock("./parts/ArchivedThreadsSettings", () => ({
@@ -173,7 +177,7 @@ vi.mock("./parts/SingleAgentSettings", () => ({
   SingleAgentSettings: (props: { agentKind: string }) => <div>Agent {props.agentKind}</div>,
 }));
 
-import { SettingsOverlay } from "./SettingsOverlay";
+import { SettingsOverlay, settingsSectionProductProperties } from "./SettingsOverlay";
 
 const baseCapabilities = {
   models: [],
@@ -205,10 +209,50 @@ describe("SettingsOverlay", () => {
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
     appState.projects = [];
+    bridgeState.remote = false;
     beginFirstLaunchDiscoveryMock.mockReset();
     resetDiscoveredAgentsMock.mockReset();
     refreshAgentStatusesMock.mockReset();
     refreshAgentStatusesMock.mockResolvedValue(undefined);
+  });
+
+  it("uses bounded analytics properties for regular and agent settings", () => {
+    expect(settingsSectionProductProperties("general")).toEqual({
+      key: "settings:general",
+      properties: { settings_section: "general", settings_scope: "application" },
+    });
+    expect(settingsSectionProductProperties("agents:claude:private-profile")).toEqual({
+      key: "settings:agent:claude",
+      properties: {
+        provider: "claude",
+        settings_section: "agent",
+        settings_scope: "application",
+      },
+    });
+  });
+
+  it("groups sidebar sections under labeled headers", () => {
+    const { container } = render(<SettingsOverlay onClose={() => undefined} />);
+
+    const headers = [...container.querySelectorAll("aside p")].map((el) => el.textContent);
+    expect(headers).toEqual(["Personal", "Workspace", "Agents", "Remote", "About"]);
+
+    const labels = screen.getAllByRole("button").map((button) => button.textContent);
+    expect(labels.indexOf("Notifications")).toBeLessThan(labels.indexOf("Terminal"));
+    expect(labels.indexOf("Archived Threads")).toBeLessThan(labels.indexOf("Agents"));
+    expect(labels.indexOf("Provider Usage")).toBeGreaterThan(labels.indexOf("MCP Servers"));
+    expect(labels.indexOf("Changelog")).toBeGreaterThan(labels.indexOf("Remote Environments"));
+  });
+
+  it("hides groups whose sections are all desktop-only on remote sessions", () => {
+    bridgeState.remote = true;
+    const { container } = render(<SettingsOverlay onClose={() => undefined} />);
+
+    const headers = [...container.querySelectorAll("aside p")].map((el) => el.textContent);
+    expect(headers).toEqual(["Personal", "Workspace", "Agents", "About"]);
+    expect(screen.getByRole("button", { name: "Models" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remote Access" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Browser" })).not.toBeInTheDocument();
   });
 
   it("keeps WSL-only installed agents reachable from the sidebar", () => {
@@ -330,13 +374,13 @@ describe("SettingsOverlay", () => {
     expect(firstScroller).not.toBeNull();
     firstScroller!.scrollTop = 240;
 
-    fireEvent.click(screen.getByRole("button", { name: "Usage" }));
+    fireEvent.click(screen.getByRole("button", { name: "Provider Usage" }));
 
     const nextScroller = container.querySelector<HTMLElement>("[data-settings-scroll-area]");
     expect(nextScroller).not.toBeNull();
     expect(nextScroller).not.toBe(firstScroller);
     expect(nextScroller!.scrollTop).toBe(0);
-    expect(within(screen.getByRole("main")).getByText("Usage")).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).getByText("Provider Usage")).toBeInTheDocument();
   });
 
   it("marks agents that need attention in the sidebar", () => {

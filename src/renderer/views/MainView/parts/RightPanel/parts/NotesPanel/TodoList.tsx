@@ -2,7 +2,7 @@ import { useState } from "react";
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, KeyboardSensor, PointerSensor, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
-import { Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { useNotesStore } from "@/renderer/state/notesStore";
@@ -84,11 +84,12 @@ export function TodoList(props: { projectId: string }) {
           </div>
         </DragDropProvider>
         {/* The add-to-do field is the final row of the list, styled like a to-do. */}
-        <div className="mt-0.5 flex items-center gap-2 rounded pl-1 pr-2 py-1">
+        <div className="lc-notes-todo-add-row mt-0.5 flex items-center gap-2 rounded pl-1 pr-2 py-1">
           <Plus className="size-3.5 shrink-0 text-muted/70" />
           <input
             className="m-0 h-5 min-w-0 flex-1 border-0 bg-transparent p-0 text-xs leading-5 text-foreground placeholder:text-muted/60 outline-none"
             placeholder={t`Add a to-do…`}
+            enterKeyHint="done"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -98,6 +99,16 @@ export function TodoList(props: { projectId: string }) {
               }
             }}
           />
+          <button
+            type="button"
+            className="flex size-7 shrink-0 items-center justify-center rounded text-muted transition-colors enabled:hover:bg-foreground/5 enabled:hover:text-foreground disabled:opacity-30"
+            aria-label={t`Add to-do`}
+            title={t`Add to-do`}
+            disabled={!draft.trim()}
+            onClick={submitNew}
+          >
+            <Check className="size-3.5" />
+          </button>
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { createOpenCodeAdapter } from ".";
 import { buildOpenCodeArgs } from "./argv";
 import {
   attachOpenCodeProviderIds,
+  buildOpenCodeStatusFromSdkInventory,
   humanizeOpenCodeModelId,
   mapOpenCodeSlashCommands,
   parseOpenCodeProvidersList,
@@ -190,6 +191,35 @@ describe("attachOpenCodeProviderIds", () => {
 
   it("returns a fresh array for an empty provider list", () => {
     expect(attachOpenCodeProviderIds([], ["opencode"])).toEqual([]);
+  });
+});
+
+describe("buildOpenCodeStatusFromSdkInventory", () => {
+  it("derives connected-provider status without launching a second OpenCode process", () => {
+    expect(
+      buildOpenCodeStatusFromSdkInventory({
+        providers: [
+          { id: "opencode", name: "OpenCode Zen", models: [] },
+          { id: "github-copilot", name: "", models: [] },
+        ],
+        connected: ["opencode", "github-copilot"],
+        agents: [],
+      }),
+    ).toEqual({
+      authState: "authenticated",
+      providerMetadata: {
+        connectedProviders: [
+          { id: "opencode", label: "OpenCode Zen" },
+          { id: "github-copilot", label: "Copilot" },
+        ],
+      },
+    });
+  });
+
+  it("reports missing auth when the SDK has no connected providers", () => {
+    expect(
+      buildOpenCodeStatusFromSdkInventory({ providers: [], connected: [], agents: [] }),
+    ).toEqual({ authState: "missing" });
   });
 });
 
@@ -379,6 +409,8 @@ describe("createOpenCodeAdapter", () => {
     expect(adapter.label).toBe("OpenCode");
     expect(adapter.pluginId).toBe("poracode-status@opencode");
     expect(adapter.minProtocolVersion).toBe(1);
+    expect(adapter.capabilities.crossagentMcpRouting).toBe("provider-session");
+    expect(adapter.capabilities.agentSettingsDefaults?.crossagentMcp).toBe(true);
   });
 
   it("returns no extra args/env from pluginLaunchExtras (in-process plugin)", async () => {
@@ -503,8 +535,6 @@ describe("createOpenCodeAdapter", () => {
           {
             id: "vercel-id",
             name: "vercel",
-            description: "",
-            enabled: true,
             timeoutMs: 30_000,
             transport: {
               type: "http",
@@ -520,6 +550,32 @@ describe("createOpenCodeAdapter", () => {
     expect(argv.env?.OPENCODE_CONFIG_CONTENT).not.toContain("Bearer secret");
     expect(argv.env?.OPENCODE_CONFIG_CONTENT).toContain("{env:PORACODE_MCP_OPENCODE_");
     expect(Object.values(argv.env ?? {})).toContain("Bearer secret");
+  });
+
+  it("enables trusted session routing when a terminal launch hosts Crossagents", () => {
+    const adapter = createOpenCodeAdapter();
+    const argv = adapter.buildLaunchArgv(
+      { kind: "windows", path: "C:\\repo" },
+      { model: "" },
+      "",
+      undefined,
+      {
+        mcpServers: [
+          {
+            id: "crossagents",
+            name: "crossagents",
+            timeoutMs: 300_000,
+            transport: {
+              type: "http",
+              url: "http://127.0.0.1:43123/mcp",
+              headers: { Authorization: "Bearer shared" },
+            },
+          },
+        ],
+      },
+    );
+
+    expect(argv.env?.PORACODE_OPENCODE_SESSION_ROUTING).toBe("1");
   });
 
   it("does not override OpenCode config when no custom MCP is selected", () => {

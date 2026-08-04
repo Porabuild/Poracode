@@ -11,10 +11,12 @@ import {
   Search,
   Settings2,
   Smartphone,
+  Workflow,
 } from "lucide-react";
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useLayoutEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { getAppName } from "@/shared/appName";
 import type { Thread } from "@/shared/contracts";
@@ -31,7 +33,6 @@ import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
-import { SidebarRemoteServers } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { readBridge } from "@/renderer/bridge";
 import { openRemoteAccessSettings, openSettings } from "@/renderer/actions/panelActions";
@@ -51,7 +52,12 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  useProjectIdsHiddenByWorkspace,
+  useWorkspaceProjectIds,
+} from "@/renderer/state/workspaceSelectors";
 import { useUpdateStore } from "@/renderer/state/updateStore";
+import { SidebarWorkspaceSwitcher } from "./parts/SidebarWorkspaceSwitcher";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
 import { WhatsNewButton } from "./parts/WhatsNewButton";
 import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
@@ -104,7 +110,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex min-w-0 items-center justify-between gap-2 text-xs tabular-nums">
             <span className="truncate">{byteLine ?? <Trans>Downloading update</Trans>}</span>
-            <span className="shrink-0">{percent}%</span>
+            <AnimatedNumber className="shrink-0" value={percent} suffix="%" />
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--row-active)]">
             <div
@@ -216,13 +222,14 @@ function CollapsedThreadRail() {
 
 export function Sidebar() {
   const { t } = useLingui();
-  const projectIds = useAppStore(
-    useShallow((state) =>
-      state.projects.filter((project) => !isHomeProject(project)).map((project) => project.id),
-    ),
-  );
+  // Only the active workspace's projects; Home is handled separately below and
+  // belongs to every workspace.
+  const projectIds = useWorkspaceProjectIds();
+  const hiddenProjectCount = useProjectIdsHiddenByWorkspace().size;
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
+  const sidebarHiddenShortcuts = useSharedSettings((s) => s.sidebarHiddenShortcuts);
+  const sidebarShortcutOrder = useSharedSettings((s) => s.sidebarShortcutOrder);
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
@@ -234,6 +241,7 @@ export function Sidebar() {
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
+  const githubActionsOpen = usePanelStore((s) => s.githubActionsContext !== null);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
@@ -244,6 +252,7 @@ export function Sidebar() {
   const { isCollapsed, collapse, expand } = useSidebar();
   const openHome = useAppStore((s) => s.openHome);
   const openPullRequests = useAppStore((s) => s.openPullRequests);
+  const openGitHubActions = useAppStore((s) => s.openGitHubActions);
   const openSchedules = useAppStore((s) => s.openSchedules);
   const appView = useAppStore((s) => s.view);
   const appNameForHome = getAppName(readBridge().channel, import.meta.env.DEV);
@@ -268,6 +277,41 @@ export function Sidebar() {
       </span>
     </span>
   );
+  const sidebarShortcutsById = new Map([
+    [
+      "pullRequests" as const,
+      {
+        id: "pullRequests" as const,
+        icon: <GitPullRequest className="size-4" />,
+        label: t`Pull requests`,
+        onPress: () => startTransition(() => openPullRequests()),
+      },
+    ],
+    [
+      "githubActions" as const,
+      {
+        id: "githubActions" as const,
+        icon: <Workflow className="size-4" />,
+        label: t`GitHub Actions`,
+        onPress: () => startTransition(() => openGitHubActions(currentProjectId)),
+      },
+    ],
+    [
+      "schedules" as const,
+      {
+        id: "schedules" as const,
+        icon: <CalendarClock className="size-4" />,
+        label: t`Schedules`,
+        onPress: () => startTransition(() => openSchedules()),
+      },
+    ],
+  ]);
+  const sidebarShortcuts = sidebarShortcutOrder
+    .map((id) => sidebarShortcutsById.get(id))
+    .filter(
+      (shortcut): shortcut is NonNullable<typeof shortcut> =>
+        shortcut !== undefined && !sidebarHiddenShortcuts.includes(shortcut.id),
+    );
 
   useEffect(() => {
     if (currentProjectId) {
@@ -277,7 +321,7 @@ export function Sidebar() {
 
   // Reconnect any persisted remote servers once on mount so their projects show
   // in the sidebar without opening Settings → Remote Servers.
-  useEffect(() => {
+  useLayoutEffect(() => {
     void useRemoteServersStore.getState().connectAll();
   }, []);
 
@@ -346,20 +390,18 @@ export function Sidebar() {
             <ProviderUsageRail orientation="column" />
             <UpdateButtons iconOnly />
             <WhatsNewButton iconOnly />
-            <SidebarButton
-              iconOnly
-              icon={<GitPullRequest className="size-4" />}
-              label={t`Pull requests`}
-              isActive={appView.kind === "pullRequests"}
-              onPress={() => startTransition(() => openPullRequests())}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<CalendarClock className="size-4" />}
-              label={t`Schedules`}
-              isActive={appView.kind === "schedules"}
-              onPress={() => startTransition(() => openSchedules())}
-            />
+            {sidebarShortcuts.map((shortcut) => (
+              <SidebarButton
+                key={shortcut.id}
+                iconOnly
+                icon={shortcut.icon}
+                label={shortcut.label}
+                isActive={
+                  shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id
+                }
+                onPress={shortcut.onPress}
+              />
+            ))}
             <SidebarButton
               iconOnly
               icon={<Settings2 className="size-4" />}
@@ -395,7 +437,13 @@ export function Sidebar() {
           {projectIds.length === 0 && !(homeScopeEnabled && homeProject) ? (
             <div className="pt-4">
               <p className="text-center text-sm text-muted">
-                <Trans>Add a project to start</Trans>
+                {hiddenProjectCount > 0 ? (
+                  // Distinguish "you own no projects" from "this workspace is
+                  // empty but others aren't" — otherwise the sidebar looks broken.
+                  <Trans>No projects in this workspace</Trans>
+                ) : (
+                  <Trans>Add a project to start</Trans>
+                )}
               </p>
             </div>
           ) : (
@@ -440,27 +488,26 @@ export function Sidebar() {
                   sortMode={sortMode}
                 />
               ))}
-              <SidebarRemoteServers />
             </div>
           )}
         </div>
 
         <ProviderUsageRail orientation="row" />
         <div className={sidebarFooterNavClass}>
+          <SidebarWorkspaceSwitcher />
           <UpdateButtons />
           <WhatsNewButton />
-          <SidebarButton
-            icon={<GitPullRequest className="size-4" />}
-            label={t`Pull requests`}
-            isActive={appView.kind === "pullRequests"}
-            onPress={() => startTransition(() => openPullRequests())}
-          />
-          <SidebarButton
-            icon={<CalendarClock className="size-4" />}
-            label={t`Schedules`}
-            isActive={appView.kind === "schedules"}
-            onPress={() => startTransition(() => openSchedules())}
-          />
+          {sidebarShortcuts.map((shortcut) => (
+            <SidebarButton
+              key={shortcut.id}
+              icon={shortcut.icon}
+              label={shortcut.label}
+              isActive={
+                shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id
+              }
+              onPress={shortcut.onPress}
+            />
+          ))}
           <div className="flex items-center gap-1">
             <div className="min-w-0 flex-1">
               <SidebarButton

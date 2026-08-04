@@ -78,6 +78,7 @@ export function createTerminalFeed(): TerminalFeed {
       if (set) for (const listener of set) listener.onExited(exitCode);
     },
     reset() {
+      for (const id of listeners.keys()) sender?.({ type: "terminal-unwatch", id });
       listeners.clear();
     },
   };

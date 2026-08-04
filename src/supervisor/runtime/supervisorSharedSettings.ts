@@ -29,6 +29,8 @@ export class SupervisorSharedSettingsCache {
   }
 
   invalidate(): void {
+    this.watcher?.close();
+    this.watcher = undefined;
     this.cached = undefined;
   }
 
@@ -42,12 +44,12 @@ export class SupervisorSharedSettingsCache {
     if (this.watcher) return;
     try {
       this.watcher = watch(this.settingsPath, () => {
-        this.cached = undefined;
+        // Atomic settings writes replace the watched inode. Close this stale
+        // watcher so the next read attaches to the replacement file.
+        this.invalidate();
       });
       this.watcher.on("error", () => {
-        this.watcher?.close();
-        this.watcher = undefined;
-        this.cached = undefined;
+        this.invalidate();
       });
     } catch {
       // Settings may not exist on first boot; the next read will retry.

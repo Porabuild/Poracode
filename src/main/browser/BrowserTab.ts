@@ -3,6 +3,7 @@ import type { BrowserDeviceEmulation, BrowserFindResult, BrowserPrintResult } fr
 import { CdpClient } from "./cdp/cdpClient";
 import { DialogController } from "./cdp/dialogController";
 import { NetworkCapture } from "./cdp/networkCapture";
+import { withCursorOverlayHidden } from "./cursorOverlay";
 import {
   installNavigationGuards,
   installSessionPermissions,
@@ -563,9 +564,14 @@ export class BrowserTab {
     await this.webContents.session.clearCache();
   }
 
-  async capturePng(): Promise<Buffer> {
-    const image = await this.webContents.capturePage();
-    return image.toPNG();
+  async capturePng(clip?: Electron.Rectangle): Promise<Buffer> {
+    await this.cdp.attach();
+    return await withCursorOverlayHidden(this.cdp, async () => {
+      const image = await (clip
+        ? this.webContents.capturePage(clip)
+        : this.webContents.capturePage());
+      return image.toPNG();
+    });
   }
 
   async destroy(): Promise<void> {

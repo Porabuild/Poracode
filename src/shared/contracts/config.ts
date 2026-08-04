@@ -12,7 +12,7 @@ const threadConfigShape = {
   approvalsReviewer: z.string().optional(),
   sandboxMode: z.string().optional(),
   browserMcp: z.boolean().optional(),
-  subagentMcp: z.boolean().optional(),
+  crossagentMcp: z.boolean().optional(),
   computerUse: z.boolean().optional(),
   chromeMcp: z.boolean().optional(),
 } as const;
@@ -57,7 +57,7 @@ export function isThreadConfigEqual(
     left.approvalsReviewer === right.approvalsReviewer &&
     left.sandboxMode === right.sandboxMode &&
     left.browserMcp === right.browserMcp &&
-    left.subagentMcp === right.subagentMcp &&
+    left.crossagentMcp === right.crossagentMcp &&
     left.computerUse === right.computerUse &&
     left.chromeMcp === right.chromeMcp
   );

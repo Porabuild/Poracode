@@ -16,9 +16,23 @@ const BLOCKED_NAVIGATION_PROTOCOLS = new Set<string>([
   "view-source:",
 ]);
 
+/** Local PDF preview in the in-app browser uses Chromium's built-in viewer. */
+export function isLocalPdfFileUrl(url: URL): boolean {
+  if (url.protocol !== "file:") return false;
+  try {
+    const path = decodeURIComponent(url.pathname).toLowerCase();
+    return path.endsWith(".pdf");
+  } catch {
+    return false;
+  }
+}
+
 export function isNavigationUrlAllowed(url: string): boolean {
   try {
     const parsed = new URL(url);
+    // Allow only PDF file:// navigations so attachment preview can open in the
+    // in-app browser tab (Chrome PDF viewer). Other file:// stays blocked.
+    if (parsed.protocol === "file:") return isLocalPdfFileUrl(parsed);
     return !BLOCKED_NAVIGATION_PROTOCOLS.has(parsed.protocol);
   } catch {
     return false;

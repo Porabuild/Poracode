@@ -1,4 +1,8 @@
 import type { PromptSegment, ThreadConfig } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
+import type { CodexClientRequestMap } from "./protocol";
+
+type TurnStartParams = CodexClientRequestMap["turn/start"]["params"];
 
 // Codex's `turn/start` requires a non-empty `developer_instructions` string
 // inside `collaborationMode.settings`. We send these on every turn so that
@@ -34,8 +38,8 @@ export function buildCodexTurnInput(
   prompt: string,
   segments: PromptSegment[] | undefined,
   inlineInstructions?: string,
-): Record<string, unknown>[] {
-  const input: Record<string, unknown>[] = [];
+): TurnStartParams["input"] {
+  const input: TurnStartParams["input"] = [];
   const hasSkillSegment = segments?.some((segment) => segment.kind === "skill") === true;
 
   for (const seg of segments ?? []) {
@@ -60,9 +64,17 @@ export function buildCodexTurnInput(
     }
   }
 
+  // When a skill segment is present the outgoing text is rebuilt from segments
+  // (skills/files/attachments already went into `input` structurally). MCP
+  // mentions have no Codex input type, so their `@Name` directive must ride
+  // along here as text — otherwise it would be silently dropped.
   const text = hasSkillSegment
     ? (segments ?? [])
-        .flatMap((segment) => (segment.kind === "text" ? [segment.content] : []))
+        .flatMap((segment) =>
+          segment.kind === "text" || segment.kind === "diff_comment" || segment.kind === "mcp"
+            ? [inlinePromptSegmentText(segment)]
+            : [],
+        )
         .join("")
         .trim()
     : prompt;
@@ -73,7 +85,9 @@ export function buildCodexTurnInput(
   return input;
 }
 
-export function buildCodexCollaborationMode(config: ThreadConfig): Record<string, unknown> {
+export function buildCodexCollaborationMode(
+  config: ThreadConfig,
+): NonNullable<TurnStartParams["collaborationMode"]> {
   return {
     mode: config.mode === "plan" ? "plan" : "default",
     settings: {

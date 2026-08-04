@@ -1,5 +1,6 @@
-import type { CanonicalItemType, ToolCallProgress } from "@/shared/contracts";
+import type { CanonicalItemType, ToolCallProgress, ToolCallWorkflow } from "@/shared/contracts";
 import type { PlanAggregatorState } from "../planAggregator";
+import type { ClaudeUsageScopeTracker } from "./canonicalMapping/usageSpent";
 
 export interface TextItemState {
   itemId: string;
@@ -46,10 +47,24 @@ export interface ToolItemState {
    * line numbers instead of a synthetic `@@ -1 +1 @@` header.
    */
   fileChangeMetadata?: FileChangeMetadata;
+  /**
+   * Structured launch metadata from a `Workflow` tool's `tool_use_result`
+   * (SDK `WorkflowOutput`). Kept on the tool state so every later payload —
+   * task_progress updates and the closing task_notification — still carries
+   * the run's manifest/transcript location after the launch tool_result
+   * (which is otherwise swallowed by the subagent keepalive) is gone.
+   */
+  workflow?: ToolCallWorkflow;
 }
 
 export interface ClaudeMapperState {
   threadId: string;
+  /**
+   * Per-call usage scope (SDK session id + epoch) for `usage.spent` emission.
+   * Owned by the session layer (sdkSession.ts); undefined in tests/terminal
+   * mode, where no spend events are emitted.
+   */
+  usageScope?: ClaudeUsageScopeTracker;
   currentTurnId?: string;
   assistantTextItems: Map<number, TextItemState>;
   reasoningItems: Map<number, TextItemState>;
@@ -61,9 +76,35 @@ export interface ClaudeMapperState {
   activeGoalItemId?: string;
   activeGoalObjective?: string;
   activeGoalStartedAtMs?: number;
-  activeGoalCompletedTurnTokensUsed?: number;
-  activeGoalLiveApiTokensUsed?: number;
-  activeGoalTaskTokensByKey?: Map<string, number>;
+  activeGoalIterations?: number;
+  activeGoalLastReason?: string;
+  /**
+   * True once the SDK has emitted any `active_goal` message this session —
+   * i.e. the CLI's native /goal Stop-hook evaluator is live. While true, goal
+   * completion is driven exclusively by `active_goal` with `value: null` (the
+   * evaluator's "met" verdict); a turn `result` no longer completes the goal.
+   */
+  sawActiveGoalMessage?: boolean;
+  /**
+   * Legacy (no native `active_goal` frames) only: a clean turn `result`
+   * arrived while background subagent tasks were still live, so the goal was
+   * held active instead of completed. The goal completes after the last live
+   * task drains and the session's resume grace expires — unless a new turn
+   * starts first.
+   */
+  pendingGoalCompletionOnTaskDrain?: boolean;
+  /**
+   * Exact token spend accumulated while the goal is active: input + output +
+   * cache creation + cache read of every assistant API message (main thread
+   * and subagent sidechains alike) observed since the goal was armed. This is
+   * the same per-call definition the Profile token ledger sums from
+   * `usage.spent` events — never derived from the turn `result.usage` (which
+   * the CLI reports as a session-cumulative counter, including pre-goal and
+   * sidechain spend).
+   */
+  activeGoalTokensUsed?: number;
+  /** Per-call sample ids already folded into {@link activeGoalTokensUsed}. */
+  activeGoalUsageSampleIds?: Set<string>;
   planAggregator?: PlanAggregatorState;
   /**
    * Live background subagent tasks, keyed by the SDK `task_id`, mapping to the

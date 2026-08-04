@@ -6,6 +6,7 @@ import type { GitStatusResult, PrData, ProjectLocation } from "@/shared/contract
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import { getWorktreeActionVisibility } from "./useWorktreeActions";
 import { GitBadge } from "./GitBadge";
 
 const ghGetPrForBranchMock = vi.hoisted(() =>
@@ -93,6 +94,26 @@ describe("GitBadge", () => {
     expect(icon).not.toBeNull();
     expect(icon).toHaveClass("text-[color:var(--git-branch-tone)]");
     expect(icon).toHaveClass("lucide-git-pull-request");
+  });
+
+  it("keeps the latest merged PR status visible while allowing another PR", () => {
+    useGitStore.setState({
+      worktreeStatuses: { "/wt/feature": makeStatus() },
+      ghAvailable: { "project-1": true },
+      prData: {
+        "/wt/feature": { ...basePr, number: 2, state: "merged" },
+      },
+    });
+
+    render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
+
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const icon = badge.querySelector(".lucide-git-pull-request");
+    const actions = getWorktreeActionVisibility("project-1", "/wt/feature");
+
+    expect(icon).toHaveClass("text-[color:var(--pr-merged)]");
+    expect(actions.showCreatePr).toBe(true);
+    expect(actions.showOpenPr).toBe(false);
   });
 
   it("falls back to a worktree fork icon when a clean worktree has no PR", () => {

@@ -7,7 +7,7 @@ import type {
   PermissionRequestDetails,
   UserInputOption,
 } from "@/shared/contracts";
-import type { PermissionRequest } from "@opencode-ai/sdk/v2";
+import type { PermissionRequest } from "../legacySdk";
 import { readStringMetadata } from "./readers";
 
 export function classifyPermissionRequestType(req: PermissionRequest): CanonicalRequestType {

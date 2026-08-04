@@ -1,15 +1,54 @@
+import { randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket } from "ws";
-import { remoteWebSocketClientMessageSchema } from "@/shared/remote";
+import {
+  remoteThreadItemInterestsSchema,
+  remoteWebSocketClientMessageSchema,
+} from "@/shared/remote";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import type { RemoteBrowserFrame } from "../RemoteBrowserGateway";
 import type { RemoteServerContext } from "./context";
 import { isReservedForwardProxyPath, proxyForwardedWebSocketUpgrade } from "./portForwardProxy";
 import { MAX_JSON_BODY_BYTES } from "./requestBody";
+import { projectGitStatePatchForInterests } from "./gitStateProjection";
+import { filterEventForItemInterests } from "./itemInterestFilter";
 
 export const DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES = MAX_JSON_BODY_BYTES;
 export const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
+
+/**
+ * permessage-deflate settings for the remote event socket.
+ *
+ * Compression is worth it here — runtime transcript frames are highly redundant
+ * JSON — but `ws` warns that it carries real CPU/memory cost, and this server
+ * runs on the Electron **main** process, so every knob below is deliberate:
+ *
+ * - Context takeover is DISABLED in both directions. With it on, every
+ *   connection retains a persistent zlib context (hundreds of KB each way) for
+ *   the life of the socket. Per-message contexts cost some ratio but keep memory
+ *   flat and predictable across many paired devices.
+ * - `concurrencyLimit` bounds simultaneous zlib jobs so a burst of large frames
+ *   cannot starve the main process's event loop.
+ * - `level: 3` favors throughput over ratio; transcript JSON is already
+ *   redundant enough that higher levels buy little.
+ * - `threshold` skips small frames, which is most of the stream (status
+ *   transitions, `content.delta` chunks) — those are cheaper sent as-is.
+ *
+ * Note the interaction with `sendRaw`'s backpressure guard: `bufferedAmount`
+ * does not account for frames queued inside the deflate pipeline, so the guard
+ * is checked against uncompressed size. That is intentionally conservative — it
+ * can only drop a client earlier than strictly necessary, never later, and the
+ * publish-time size cap (`eventSizeGuard`) keeps single events well clear of it.
+ */
+export const REMOTE_PER_MESSAGE_DEFLATE = {
+  serverNoContextTakeover: true,
+  clientNoContextTakeover: true,
+  serverMaxWindowBits: 10,
+  concurrencyLimit: 4,
+  threshold: 1024,
+  zlibDeflateOptions: { level: 3 },
+} as const;
 export const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 30_000;
 const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 
@@ -31,13 +70,23 @@ export function serializeBrowserFrame(frame: RemoteBrowserFrame): string {
   return serialized;
 }
 
-export function parseLastSeenSeq(req: IncomingMessage, httpBaseUrl: string): number | null {
+function parseLastSeenSeq(searchParams: URLSearchParams): number | null {
   try {
-    const url = new URL(req.url ?? "/", httpBaseUrl);
-    const raw = url.searchParams.get("lastSeenSeq");
+    const raw = searchParams.get("lastSeenSeq");
     if (raw === null) return null;
     const seq = Number(raw);
     return Number.isSafeInteger(seq) && seq >= 0 ? seq : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseThreadItemInterests(searchParams: URLSearchParams): ReadonlySet<string> | null {
+  try {
+    const raw = searchParams.get("threadItemInterests");
+    if (raw === null) return null;
+    const parsed = remoteThreadItemInterestsSchema.safeParse(JSON.parse(raw) as unknown);
+    return parsed.success ? new Set(parsed.data) : null;
   } catch {
     return null;
   }
@@ -82,8 +131,10 @@ export async function handleUpgrade(
     // gate and treat the short-lived, one-use ticket as the WS capability.
     const ticket = url.searchParams.get("ticket") ?? "";
     const session = ctx.auth.consumeWebSocketTicket(ticket);
+    const lastSeenSeq = parseLastSeenSeq(url.searchParams);
+    const initialItemInterests = parseThreadItemInterests(url.searchParams);
     ctx.wss.handleUpgrade(req, socket, head, (ws) => {
-      handleConnection(ctx, ws, req, session);
+      handleConnection(ctx, ws, session, lastSeenSeq, initialItemInterests);
     });
   } catch (error) {
     if (error instanceof RemoteHttpError) {
@@ -97,12 +148,17 @@ export async function handleUpgrade(
 function handleConnection(
   ctx: RemoteServerContext,
   ws: WebSocket,
-  req: IncomingMessage,
   session: AuthenticatedRemoteSession,
+  lastSeenSeq: number | null,
+  initialItemInterests: ReadonlySet<string> | null,
 ): void {
   ctx.clients.set(ws, session);
   ctx.clientLiveness.set(ws, true);
   ctx.terminalWatches.set(ws, new Set());
+  if (initialItemInterests && session.scopes.includes("session:read")) {
+    ctx.itemInterests.set(ws, initialItemInterests);
+  }
+  const gitStateInterestOwnerId = `${session.sessionId}:${randomUUID()}`;
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
   let browserWatch: (() => void) | null = null;
@@ -127,6 +183,9 @@ function handleConnection(
     }
     browserWatch?.();
     browserWatch = null;
+    ctx.gitStateInterests.delete(ws);
+    ctx.itemInterests.delete(ws);
+    ctx.options.gitState?.clearInterests(gitStateInterestOwnerId);
     ctx.terminalWatches.delete(ws);
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
@@ -193,13 +252,23 @@ function handleConnection(
       if (message.type === "terminal-unwatch") {
         ctx.terminalWatches.get(ws)?.delete(message.id);
       }
+      if (message.type === "thread-item-interests") {
+        if (!session.scopes.includes("session:read")) return;
+        ctx.itemInterests.set(ws, new Set(message.threadIds));
+      }
+      if (message.type === "git-state-interests") {
+        if (!session.scopes.includes("session:read")) return;
+        // Remembered per connection so `remote-git-state` patches only carry
+        // pull-request bodies to the client that asked for them.
+        ctx.gitStateInterests.set(ws, message.interests);
+        ctx.options.gitState?.setInterests(gitStateInterestOwnerId, message.interests);
+      }
     } catch {
       // Ignore invalid client messages; all state changes go through HTTP in this slice.
     }
   });
   scheduleSessionExpiry();
 
-  const lastSeenSeq = parseLastSeenSeq(req, ctx.requireInfo().httpBaseUrl);
   ctx.send(ws, { type: "ready", seq: ctx.seq });
   if (lastSeenSeq === null || lastSeenSeq === ctx.seq) {
     // No client cursor, or the client is already current — nothing to replay.
@@ -228,10 +297,25 @@ function handleConnection(
     return;
   }
   for (const entry of replay) {
+    // A reconnecting client has not re-declared its Git interests yet, so a
+    // replayed patch is scoped to "nothing requested" and drops pull-request
+    // bodies. The client re-declares on open, which triggers a fresh fetch of
+    // whatever review it is actually looking at.
+    const itemScoped = filterEventForItemInterests(entry.event, ctx.itemInterests.get(ws) ?? null);
+    const event =
+      itemScoped.type === "remote-git-state"
+        ? {
+            ...itemScoped,
+            patch: projectGitStatePatchForInterests(
+              itemScoped.patch,
+              ctx.gitStateInterests.get(ws) ?? [],
+            ),
+          }
+        : itemScoped;
     ctx.send(ws, {
       type: "event",
       seq: entry.seq,
-      event: entry.event,
+      event,
     });
   }
 }
