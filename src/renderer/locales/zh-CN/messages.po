@@ -4759,6 +4759,10 @@ msgstr "在代理中修复"
 msgid "Fixed"
 msgstr "已修复"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "扁平列表"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "聚焦浏览器地址栏"
@@ -5115,6 +5119,10 @@ msgstr "对打开的线程进行分组"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "将项目分组，使侧边栏、计划和拉取请求一次只显示一组。在侧边栏底部切换工作区。"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "按项目分组"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5811,6 +5819,10 @@ msgstr "已链接"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "列表"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "列表选项"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9756,7 +9768,7 @@ msgstr "正在搜索…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "注重安全并提供已验证技能元数据的目录。"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "查看更多"
 
@@ -10311,8 +10323,8 @@ msgid "Sort marketplace skills"
 msgstr "对市场技能排序"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "对线程进行排序"
+#~ msgid "Sort threads"
+#~ msgstr "对线程进行排序"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11350,6 +11362,10 @@ msgstr "线程目标停靠栏"
 msgid "Thread is already unloaded."
 msgstr "线程已经卸载。"
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "线程列表选项"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "线程模式"
@@ -11360,8 +11376,8 @@ msgid "Thread Only"
 msgstr "仅线程"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "线程排序顺序"
+#~ msgid "Thread sort order"
+#~ msgstr "线程排序顺序"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

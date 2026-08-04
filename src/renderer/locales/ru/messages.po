@@ -4759,6 +4759,10 @@ msgstr "Исправить в агенте"
 msgid "Fixed"
 msgstr "Исправлено"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Плоский список"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Перейти на адресную строку браузера"
@@ -5115,6 +5119,10 @@ msgstr "Группировать открытые треды"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Группируйте проекты, чтобы боковая панель, расписания и pull request показывали только один набор за раз. Переключайтесь между ними внизу боковой панели."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Группировка по проектам"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5811,6 +5819,10 @@ msgstr "Связан"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "Список"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Параметры списка"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9757,7 +9769,7 @@ msgstr "Поиск…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Каталог с акцентом на безопасность и проверенными метаданными навыков."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Показать больше"
 
@@ -10312,8 +10324,8 @@ msgid "Sort marketplace skills"
 msgstr "Сортировать навыки маркетплейса"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Сортировать треды"
+#~ msgid "Sort threads"
+#~ msgstr "Сортировать треды"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11351,6 +11363,10 @@ msgstr "Панель цели треда"
 msgid "Thread is already unloaded."
 msgstr "Тред уже выгружен."
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Параметры списка тредов"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Режим треда"
@@ -11361,8 +11377,8 @@ msgid "Thread Only"
 msgstr "Только тред"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Порядок сортировки тредов"
+#~ msgid "Thread sort order"
+#~ msgstr "Порядок сортировки тредов"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

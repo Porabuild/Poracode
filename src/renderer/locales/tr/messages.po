@@ -4759,6 +4759,10 @@ msgstr "Aracıda Düzelt"
 msgid "Fixed"
 msgstr "Düzeltildi"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Düz liste"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Tarayıcı adres çubuğuna odakla"
@@ -5115,6 +5119,10 @@ msgstr "Açık konuları gruplandır"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Projeleri gruplayın; böylece kenar çubuğu, zamanlamalar ve çekme istekleri her seferinde yalnızca bir grubu gösterir. Kenar çubuğunun altından geçiş yapabilirsiniz."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Projeye göre gruplandır"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5811,6 +5819,10 @@ msgstr "Bağlı"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "Liste"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Liste seçenekleri"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9757,7 +9769,7 @@ msgstr "Aranıyor…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Doğrulanmış beceri meta verileri sunan güvenlik odaklı dizin."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Daha fazlasını gör"
 
@@ -10312,8 +10324,8 @@ msgid "Sort marketplace skills"
 msgstr "Marketplace becerilerini sırala"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Konuları sırala"
+#~ msgid "Sort threads"
+#~ msgstr "Konuları sırala"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11351,6 +11363,10 @@ msgstr "Konu hedefi yuvası"
 msgid "Thread is already unloaded."
 msgstr "Konu zaten kaldırıldı."
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Konu listesi seçenekleri"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Konu modu"
@@ -11361,8 +11377,8 @@ msgid "Thread Only"
 msgstr "Yalnızca Konu"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Konu sıralama düzeni"
+#~ msgid "Thread sort order"
+#~ msgstr "Konu sıralama düzeni"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

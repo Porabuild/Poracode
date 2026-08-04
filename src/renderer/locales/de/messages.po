@@ -4759,6 +4759,10 @@ msgstr "Im Agenten beheben"
 msgid "Fixed"
 msgstr "Behoben"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Flache Liste"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Browseradressleiste fokussieren"
@@ -5115,6 +5119,10 @@ msgstr "Offene Threads gruppieren"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Gruppiere Projekte, damit Seitenleiste, Zeitpläne und Pull Requests jeweils nur eine Gruppe zeigen. Wechsle unten in der Seitenleiste zwischen ihnen."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Nach Projekt gruppiert"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5811,6 +5819,10 @@ msgstr "Verknüpft"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "Liste"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Listenoptionen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9757,7 +9769,7 @@ msgstr "Suche..."
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Sicherheitsorientiertes Verzeichnis mit verifizierten Skill-Metadaten."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Mehr anzeigen"
 
@@ -10312,8 +10324,8 @@ msgid "Sort marketplace skills"
 msgstr "Marketplace-Skills sortieren"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Threads sortieren"
+#~ msgid "Sort threads"
+#~ msgstr "Threads sortieren"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11351,6 +11363,10 @@ msgstr "Thread-Zieldock"
 msgid "Thread is already unloaded."
 msgstr "Thread ist bereits entladen."
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Optionen der Thread-Liste"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Thread-Modus"
@@ -11361,8 +11377,8 @@ msgid "Thread Only"
 msgstr "Nur Thread"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Sortierreihenfolge der Threads"
+#~ msgid "Thread sort order"
+#~ msgstr "Sortierreihenfolge der Threads"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

@@ -4758,6 +4758,10 @@ msgstr "エージェントで修正する"
 msgid "Fixed"
 msgstr "修正"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "フラットリスト"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "ブラウザのアドレスバーをフォーカス"
@@ -5114,6 +5118,10 @@ msgstr "開いているスレッドをグループ化する"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "プロジェクトをグループ化して、サイドバー・スケジュール・プルリクエストに一度に1組だけ表示します。サイドバー下部で切り替えられます。"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "プロジェクト別にグループ化"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5810,6 +5818,10 @@ msgstr "リンク済み"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "リスト"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "リストオプション"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9755,7 +9767,7 @@ msgstr "検索中…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "検証済みのスキルメタデータを備えたセキュリティ重視のディレクトリ。"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "もっと見る"
 
@@ -10310,8 +10322,8 @@ msgid "Sort marketplace skills"
 msgstr "マーケットプレイススキルを並べ替え"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "スレッドを並べ替える"
+#~ msgid "Sort threads"
+#~ msgstr "スレッドを並べ替える"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11349,6 +11361,10 @@ msgstr "スレッドゴールドック"
 msgid "Thread is already unloaded."
 msgstr "スレッドはすでにアンロードされています。"
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "スレッドリストのオプション"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "スレッドモード"
@@ -11359,8 +11375,8 @@ msgid "Thread Only"
 msgstr "スレッドのみ"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "スレッドのソート順"
+#~ msgid "Thread sort order"
+#~ msgstr "スレッドのソート順"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

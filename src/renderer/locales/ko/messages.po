@@ -4759,6 +4759,10 @@ msgstr "에이전트에서 수정"
 msgid "Fixed"
 msgstr "수정됨"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "플랫 목록"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "브라우저 주소 표시줄에 포커스"
@@ -5115,6 +5119,10 @@ msgstr "열린 스레드 그룹화"
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "프로젝트를 그룹으로 묶어 사이드바, 일정, 풀 리퀘스트에 한 번에 한 묶음만 표시합니다. 사이드바 하단에서 전환할 수 있습니다."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "프로젝트별 그룹화"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5811,6 +5819,10 @@ msgstr "연결됨"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
 msgstr "목록"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "목록 옵션"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
@@ -9757,7 +9769,7 @@ msgstr "검색 중…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "검증된 스킬 메타데이터를 제공하는 보안 중심 디렉터리입니다."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "자세히 보기"
 
@@ -10312,8 +10324,8 @@ msgid "Sort marketplace skills"
 msgstr "마켓플레이스 스킬 정렬"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "스레드 정렬"
+#~ msgid "Sort threads"
+#~ msgstr "스레드 정렬"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11351,6 +11363,10 @@ msgstr "스레드 목표 도크"
 msgid "Thread is already unloaded."
 msgstr "스레드가 이미 언로드되었습니다."
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "스레드 목록 옵션"
+
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "스레드 모드"
@@ -11361,8 +11377,8 @@ msgid "Thread Only"
 msgstr "스레드만"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "스레드 정렬 순서"
+#~ msgid "Thread sort order"
+#~ msgstr "스레드 정렬 순서"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"

@@ -65,6 +65,7 @@ import {
 } from "@/renderer/state/workspaceSelectors";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { SidebarWorkspaceSwitcher } from "./parts/SidebarWorkspaceSwitcher";
+import { SidebarFlatThreadList } from "./parts/SidebarFlatThreadList";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
 import { WhatsNewButton } from "./parts/WhatsNewButton";
 import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
@@ -181,17 +182,30 @@ function RemoteAccessSidebarIcon(props: { status: RemoteAccessSidebarStatus }) {
   );
 }
 
-function CollapsedThreadRailButton(props: { thread: Thread }) {
-  const { thread } = props;
+function CollapsedThreadRailButton(props: { thread: Thread; projectName?: string }) {
+  const { thread, projectName } = props;
   const isActive = useIsCurrentThread(thread.id);
   const project = useAppStore((s) => s.projects.find((p) => p.id === thread.projectId));
+  const title = thread.done ? (
+    <span className="opacity-50 line-through">{thread.title}</span>
+  ) : (
+    thread.title
+  );
   const button = (
     <SidebarButton
       iconOnly
       icon={<ThreadIcon thread={thread} />}
-      label={
-        thread.done ? <span className="opacity-50 line-through">{thread.title}</span> : thread.title
-      }
+      label={title}
+      {...(projectName
+        ? {
+            tooltip: (
+              <span>
+                {title}
+                <span className="text-muted"> — {projectName}</span>
+              </span>
+            ),
+          }
+        : {})}
       isActive={isActive}
       onPress={() => openThread(thread.id)}
     />
@@ -207,6 +221,9 @@ function CollapsedThreadRailButton(props: { thread: Thread }) {
 
 function CollapsedThreadRail() {
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
+  const showProjectName = usePanelStore((s) => s.threadListLayout === "flat");
+  const projects = useAppStore((s) => s.projects);
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
   const activeThreads = useAppStore(
     useShallow((state) =>
       state.threads.filter(
@@ -228,9 +245,16 @@ function CollapsedThreadRail() {
       className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto"
       style={scrollFadeStyle}
     >
-      {activeThreads.map((thread) => (
-        <CollapsedThreadRailButton key={thread.id} thread={thread} />
-      ))}
+      {activeThreads.map((thread) => {
+        const projectName = showProjectName ? projectsById.get(thread.projectId)?.name : undefined;
+        return (
+          <CollapsedThreadRailButton
+            key={thread.id}
+            thread={thread}
+            {...(projectName ? { projectName } : {})}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -249,6 +273,7 @@ export function Sidebar() {
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
   const sortMode = usePanelStore((s) => s.threadSortMode);
+  const listLayout = usePanelStore((s) => s.threadListLayout);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const settingsSection = usePanelStore((s) => s.settingsSection);
   // Remote Access has its own sidebar entry, so the generic Settings button
@@ -483,6 +508,8 @@ export function Sidebar() {
                 )}
               </p>
             </div>
+          ) : listLayout === "flat" ? (
+            <SidebarFlatThreadList sortMode={sortMode} />
           ) : (
             <div className="space-y-4">
               {homeScopeEnabled && homeProject ? (
