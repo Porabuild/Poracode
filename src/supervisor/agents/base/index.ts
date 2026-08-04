@@ -25,6 +25,7 @@ import {
 } from "./processRuntime";
 import {
   buildPosixExportPrefix,
+  buildWindowsCommandLine,
   getPosixLoginShellArgs,
   getWslCommand,
   quotePosixShellArg,
@@ -124,6 +125,28 @@ export function injectWslEnv(
   return { ...spec, args };
 }
 
+export function buildWslLoginShellCommand(
+  distro: string,
+  cwd: string,
+  script: string,
+): CommandSpec {
+  return {
+    command: getWslCommand(),
+    args: [
+      "-d",
+      distro,
+      "--cd",
+      cwd,
+      "--exec",
+      resolveWslShellPath(distro),
+      "-l",
+      "-i",
+      "-c",
+      script,
+    ],
+  };
+}
+
 /**
  * Drop `undefined` values so an `env` record matches the `Record<string, string>`
  * shape that `buildAgentCommand` expects (the SDK's `SpawnOptions.env` allows
@@ -145,18 +168,74 @@ function isWindowsDirectExecutable(command: string): boolean {
   return /^(?:[a-zA-Z]:[\\/]|\\\\)/.test(command) && /\.(?:exe|com)$/i.test(command);
 }
 
-/** Detect the best available shell. Returns a shell path on Windows (pwsh > powershell > cmd), or `true` on Unix (default shell). */
+/** A resolved Windows PowerShell host: modern pwsh 7+ or legacy 5.1. */
+export interface DetectedPowerShell {
+  path: string;
+  kind: "pwsh" | "powershell";
+}
+
+/**
+ * Detect the best available PowerShell host, preserving which one matched
+ * (pwsh > powershell). Callers fall back to the platform shell when none resolves.
+ */
 export function detectShell(
   resolvePath: ResolveExecutablePath = resolveExecutablePath,
-): string | true {
-  if (process.platform !== "win32") return true;
-  return (
-    resolvePath("pwsh.exe") ??
-    resolvePath("pwsh") ??
-    resolvePath("powershell.exe") ??
-    resolvePath("powershell") ??
-    true
-  );
+): DetectedPowerShell | undefined {
+  if (process.platform !== "win32") return undefined;
+  const pwsh = resolvePath("pwsh.exe") ?? resolvePath("pwsh");
+  if (pwsh) return { path: pwsh, kind: "pwsh" };
+  const powershell = resolvePath("powershell.exe") ?? resolvePath("powershell");
+  if (powershell) return { path: powershell, kind: "powershell" };
+  return undefined;
+}
+
+/**
+ * Windows PowerShell 5.1 rebuilds the native command line from `@args`
+ * naively (quotes only around whitespace, embedded quotes not escaped), so
+ * `& $cmd @args` corrupts args containing quotes or newlines — e.g. a diff
+ * embedded in a one-shot prompt. pwsh 7.3+ passes native args correctly and
+ * keeps the simple splatting script. For 5.1 we pre-build the child command
+ * line in Node with exact MSVC quoting and hand it to `ProcessStartInfo`,
+ * which forwards the string to `CreateProcess` untouched.
+ */
+function buildLegacyPowerShellScript(command: string, args: string[]): string {
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    // 5.1 serializes its progress stream ("Preparing modules for first use.")
+    // to stderr as CLIXML when redirected; silence it so callers that surface
+    // stderr in error messages see only the child's real output.
+    "$ProgressPreference = 'SilentlyContinue'",
+    `$cmd = ${quotePowerShellLiteral(command)}`,
+    "$exe = (Get-Command $cmd).Source",
+    "if (-not $exe) { $exe = $cmd }",
+    "$psi = New-Object System.Diagnostics.ProcessStartInfo",
+    "$psi.FileName = $exe",
+    `$psi.Arguments = ${quotePowerShellLiteral(buildWindowsCommandLine(args))}`,
+    "$psi.UseShellExecute = $false",
+    "$psi.WorkingDirectory = (Get-Location).Path",
+    "$p = [System.Diagnostics.Process]::Start($psi)",
+    "$p.WaitForExit()",
+    "exit $p.ExitCode",
+  ].join("; ");
+}
+
+/**
+ * Build the PowerShell script that invokes a native command with args,
+ * picking the arg-passing strategy that is faithful for the resolved host:
+ * plain splatting on pwsh 7+, the `ProcessStartInfo` bypass on legacy 5.1.
+ */
+export function buildPowerShellInvocationScript(
+  shell: DetectedPowerShell,
+  command: string,
+  args: string[],
+): string {
+  if (shell.kind === "powershell") return buildLegacyPowerShellScript(command, args);
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    `$cmd = ${quotePowerShellLiteral(command)}`,
+    `$args = @(${args.map(quotePowerShellLiteral).join(", ")})`,
+    "& $cmd @args",
+  ].join("; ");
 }
 
 export function buildWindowsCommand(
@@ -170,16 +249,10 @@ export function buildWindowsCommand(
   }
 
   const shell = detectShell(resolvePath);
-  if (typeof shell === "string") {
-    const script = [
-      "$ErrorActionPreference = 'Stop'",
-      `$cmd = ${quotePowerShellLiteral(command)}`,
-      `$args = @(${args.map(quotePowerShellLiteral).join(", ")})`,
-      "& $cmd @args",
-    ].join("; ");
-
+  if (shell) {
+    const script = buildPowerShellInvocationScript(shell, command, args);
     return {
-      command: shell,
+      command: shell.path,
       args: ["-NoLogo", "-NoProfile", "-EncodedCommand", encodePowerShellCommand(script)],
       cwd,
     };
@@ -284,25 +357,16 @@ export function buildAgentCommand(
     // tooling reachable via `/mnt/c` interop can shadow Linux node from a
     // version manager and break things like `npx` (e.g. fnm shims that exec a
     // node not on PATH).
-    const shellPath = resolveWslShellPath(location.distro);
     const execCommand = resolvedExecPath ?? command;
     const exports = buildPosixExportPrefix(env);
     const script = `${exports}exec ${[execCommand, ...args].map(quotePosixShellArg).join(" ")}`;
-    return {
-      command: getWslCommand(),
-      args: [
-        "-d",
-        location.distro,
-        "--cd",
-        location.linuxPath,
-        "--",
-        shellPath,
-        "-l",
-        "-i",
-        "-c",
-        script,
-      ],
-    };
+    // `--exec` (not `--`) is required: `--` routes the command line through the
+    // user's default WSL shell, which re-parses the already-quoted script. Any
+    // `$(`, backtick, or unbalanced quote inside `args` (e.g. a diff embedded
+    // in a one-shot prompt) then breaks bash parsing ("unexpected EOF while
+    // looking for matching …") or, worse, executes as command substitution.
+    // `--exec` passes argv straight to execvp, so the script arrives verbatim.
+    return buildWslLoginShellCommand(location.distro, location.linuxPath, script);
   }
 
   if (location.kind === "windows") {
