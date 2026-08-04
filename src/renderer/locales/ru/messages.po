@@ -8178,6 +8178,14 @@ msgstr "Действия PR"
 msgid "PR automation"
 msgstr "Автоматизация PR"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Fix"
+msgstr "Автоматизация PR: Автоисправление"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Merge"
+msgstr "Автоматизация PR: Автослияние"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "Параметры PR"

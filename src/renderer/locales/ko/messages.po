@@ -8178,6 +8178,14 @@ msgstr "PR 작업"
 msgid "PR automation"
 msgstr "PR 자동화"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Fix"
+msgstr "PR 자동화: 자동 수정"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Merge"
+msgstr "PR 자동화: 자동 병합"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "PR 옵션"
