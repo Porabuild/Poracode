@@ -151,9 +151,12 @@ export function ModelVisibilityPopover(props: {
           </span>
         </Button>
       </Popover.Trigger>
-      <Popover.Content placement="bottom end" className="w-80 p-0">
-        <Popover.Dialog className="flex max-h-[28rem] flex-col overflow-hidden !p-0">
-          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+      <Popover.Content placement="bottom end" maxHeight={448} className="w-80 p-0">
+        {/* max-h-[inherit] tracks the available-height cap React Aria sets on the
+            popover element, so the list shrinks near screen edges instead of
+            overflowing the window. */}
+        <Popover.Dialog className="flex max-h-[inherit] flex-col overflow-hidden !p-0">
+          <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
             <Search className="size-3.5 shrink-0 text-muted" />
             <Input
               aria-label={t`Search models`}
@@ -164,7 +167,7 @@ export function ModelVisibilityPopover(props: {
               onKeyDown={(event) => event.stopPropagation()}
             />
           </div>
-          <div className="flex items-center justify-between gap-2 border-b border-border/40 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted/80">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted/80">
             <span className="tabular-nums">
               {props.summaryKind === "usable" ? (
                 <Trans>
@@ -205,7 +208,7 @@ export function ModelVisibilityPopover(props: {
               aria-label={props.listAriaLabel}
               selectionMode="none"
               onAction={activateItem}
-              className="poracode-menu no-scrollbar max-h-[22rem] overflow-y-auto py-1.5"
+              className="poracode-menu no-scrollbar min-h-0 overflow-y-auto py-1.5"
             >
               {items.map((item) => (
                 <ModelVisibilityRow
@@ -227,7 +230,7 @@ export function ModelVisibilityPopover(props: {
             </ListBox>
           )}
           {props.footer ? (
-            <p className="border-t border-border/40 px-3 py-1.5 text-[10px] text-muted">
+            <p className="shrink-0 border-t border-border/40 px-3 py-1.5 text-[10px] text-muted">
               {props.footer}
             </p>
           ) : null}
