@@ -151,8 +151,14 @@ describe("agent command builders", () => {
     () => {
       const spec = launch(createCodexAdapter(), wslProject, config, "hello");
       expect(spec.command.toLowerCase()).toBe(getWslCommand().toLowerCase());
-      expect(spec.args.slice(0, 5)).toEqual(["-d", "Ubuntu", "--cd", "/home/demo/project", "--"]);
-      // After "--", the next args are: shellPath, "-l", "-i", "-c", script
+      expect(spec.args.slice(0, 5)).toEqual([
+        "-d",
+        "Ubuntu",
+        "--cd",
+        "/home/demo/project",
+        "--exec",
+      ]);
+      // After "--exec", the next args are: shellPath, "-l", "-i", "-c", script
       expect(spec.args[6]).toBe("-l");
       expect(spec.args[7]).toBe("-i");
       expect(spec.args[8]).toBe("-c");
