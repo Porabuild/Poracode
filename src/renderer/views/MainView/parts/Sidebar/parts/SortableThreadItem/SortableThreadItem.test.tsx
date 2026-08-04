@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
@@ -46,11 +47,22 @@ vi.mock("@/renderer/components/common/ContextMenu", () => ({
 }));
 
 vi.mock("@/renderer/components/common/SidebarButton", () => ({
-  SidebarButton: (props: { label: ReactNode }) => <button type="button">{props.label}</button>,
+  SidebarButton: (props: { label: ReactNode; suffix?: ReactNode }) => (
+    <button type="button">
+      {props.label}
+      {props.suffix}
+    </button>
+  ),
 }));
 
 vi.mock("@/renderer/components/providers/ThreadProviderIcon", () => ({
   ThreadProviderIcon: () => null,
+}));
+
+vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/GitBadge", () => ({
+  GitBadge: (props: { projectName: string }) => (
+    <button type="button" aria-label={`Git status for ${props.projectName}`} />
+  ),
 }));
 
 vi.mock("@/renderer/components/providers/statusTone", () => ({
@@ -64,6 +76,7 @@ vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useThreadHasBackgroundActivity: (threadId: string) =>
     useThreadHasBackgroundActivityMock(threadId),
   useThreadHasDraft: (threadId: string) => useThreadHasDraftMock(threadId),
+  useIsProjectGitPanelActive: () => false,
   useIsWorktreeFilesPanelActive: () => false,
   useIsWorktreeGitPanelActive: () => false,
   useIsWorktreeTerminalActive: () => false,
@@ -107,9 +120,14 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({ openExternal: vi.fn<(url: string) => void>() }),
 }));
 
-vi.mock("@/renderer/state/gitStore", () => ({
-  useGitStore: { getState: () => ({ prData: {} }) },
-}));
+vi.mock("@/renderer/state/gitStore", () => {
+  const state = { prData: {} };
+  return {
+    useGitStore: Object.assign((selector: (value: typeof state) => unknown) => selector(state), {
+      getState: () => state,
+    }),
+  };
+});
 
 function makeThread(): Thread {
   return {
@@ -288,5 +306,40 @@ describe("SortableThreadItem", () => {
       isDisabled: true,
       disabledReason: "Thread is already unloaded.",
     });
+  });
+
+  it("shows the project git badge on a flat-list main-branch thread row", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+  });
+
+  it("omits the project git badge in grouped lists, where the project header carries it", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Git status for Project" }),
+    ).not.toBeInTheDocument();
   });
 });

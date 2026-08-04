@@ -8,6 +8,7 @@ import { DiffStat } from "@/renderer/components/common/DiffStat";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import { coalesceByKey } from "@/shared/coalesce";
 import { useShallow } from "zustand/shallow";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import {
@@ -42,6 +43,15 @@ const gitBadgeTextPaddingClass = "px-1 py-0.5";
 const activeGitBadgeClass = "bg-accent/15 hover:bg-accent/25";
 const hiddenGitBadgeClass =
   "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto";
+
+/**
+ * In-flight project-branch PR verifications, keyed by project PR key + branch. Every
+ * mounted project badge verifies on mount, and a flat thread list mounts one
+ * badge per main-branch thread of the same project — without sharing, each
+ * would clear the shared prData entry and fire its own `gh` lookup. Followers
+ * for the same branch await the leader's lookup instead of starting another.
+ */
+const projectPrVerifications = new Map<string, Promise<void>>();
 
 export function GitBadge(props: {
   projectId: string;
@@ -138,17 +148,20 @@ export function GitBadge(props: {
     if (remotePlatform !== "github" && remotePlatform !== "unknown") return;
 
     let isActive = true;
-    readBridge()
-      .ghGetPrForBranch({ projectLocation, branch })
-      .then((pr) => {
-        if (!isActive) return;
-        if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
-        useGitStore.getState().setPrData(projectPrKey, pr);
-        setVerifiedProjectPrBranch(branch);
-      })
-      .catch(() => {
-        if (isActive) setVerifiedProjectPrBranch(branch);
-      });
+    const markVerified = () => {
+      if (!isActive) return;
+      if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
+      setVerifiedProjectPrBranch(branch);
+    };
+    void coalesceByKey(projectPrVerifications, `${projectPrKey}\0${branch}`, () =>
+      readBridge()
+        .ghGetPrForBranch({ projectLocation, branch })
+        .then((pr) => {
+          if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
+          useGitStore.getState().setPrData(projectPrKey, pr);
+        })
+        .catch(() => undefined),
+    ).then(markVerified);
     return () => {
       isActive = false;
     };
