@@ -168,6 +168,75 @@ describe("dispatchAcpLogout", () => {
     });
   });
 
+  describe("preferAcpLogoutRpc", () => {
+    function makeRpcFirstAdapter(): AgentAdapter {
+      return makeAdapter(
+        { command: "kimi", args: ["acp"] },
+        {
+          preferAcpLogoutRpc: true,
+          async buildAcpLogoutCommand() {
+            return { command: "sh", args: ["-c", "rm -f -- creds.json"] };
+          },
+        },
+      );
+    }
+
+    it("runs the ACP logout RPC before the adapter's logout command", async () => {
+      const order: string[] = [];
+      logoutAcpAgentMock.mockImplementationOnce(async () => {
+        order.push("rpc");
+      });
+      readCommandOutputAsyncMock.mockImplementationOnce(async () => {
+        order.push("command");
+        return { ok: true, stdout: "", stderr: "" };
+      });
+
+      await dispatchAcpLogout({ adapter: makeRpcFirstAdapter(), envKind: "posix" });
+
+      expect(order).toEqual(["rpc", "command"]);
+      expect(logoutAcpAgentMock.mock.calls[0]?.[0]).toBe("kimi");
+      expect(logoutAcpAgentMock.mock.calls[0]?.[1]).toEqual(["acp"]);
+    });
+
+    it("skips the RPC for adapters that do not opt in", async () => {
+      await dispatchAcpLogout({
+        adapter: makeAdapter(
+          { command: "cursor-agent", args: ["acp"] },
+          {
+            async buildAcpLogoutCommand() {
+              return { command: "cursor-agent", args: ["logout"] };
+            },
+          },
+        ),
+        envKind: "posix",
+      });
+
+      expect(logoutAcpAgentMock).not.toHaveBeenCalled();
+      expect(readCommandOutputAsyncMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("still runs the logout command when the agent has no logout RPC", async () => {
+      logoutAcpAgentMock.mockRejectedValueOnce(
+        new Error("ACP logout is not supported by this agent."),
+      );
+
+      await dispatchAcpLogout({ adapter: makeRpcFirstAdapter(), envKind: "posix" });
+
+      expect(readCommandOutputAsyncMock).toHaveBeenCalledTimes(1);
+    });
+
+    // A stalled or unspawnable ACP server must not strand the user signed in:
+    // the credential-file command is what the adapter relied on before the RPC
+    // existed, so it runs regardless of why the RPC failed.
+    it("still runs the logout command when the RPC fails unexpectedly", async () => {
+      logoutAcpAgentMock.mockRejectedValueOnce(new Error("ACP logout timed out"));
+
+      await dispatchAcpLogout({ adapter: makeRpcFirstAdapter(), envKind: "posix" });
+
+      expect(readCommandOutputAsyncMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("throws when the adapter returns no logout command", async () => {
     await expect(
       dispatchAcpLogout({

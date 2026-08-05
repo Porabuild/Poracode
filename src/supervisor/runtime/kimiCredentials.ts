@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { OAuthToken } from "@poracode/agents-usage";
-import { nativeKimiHomePath, nativeKimiOAuthCredentialPath } from "../agents/kimi/detection";
+import { nativeKimiHomePath, nativeKimiOAuthCredentialPath } from "../agents/kimi/paths";
 
 /**
  * Kimi For Coding credential resolution, mirroring CodexBar: an explicit API

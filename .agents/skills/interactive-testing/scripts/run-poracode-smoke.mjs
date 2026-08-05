@@ -317,6 +317,52 @@ async function createFixture() {
   await writeFile(join(projectDir, "README.md"), "# Poracode smoke fixture\n");
   await writeFile(join(projectDir, "hello.txt"), "fixture data\n");
   await writeFile(
+    join(projectDir, "smoke-mcp-server.mjs"),
+    String.raw`let buffer = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+  buffer += chunk;
+  for (;;) {
+    const newline = buffer.indexOf("\n");
+    if (newline < 0) break;
+    const line = buffer.slice(0, newline);
+    buffer = buffer.slice(newline + 1);
+    if (!line.trim()) continue;
+    const request = JSON.parse(line);
+    let result;
+    if (request.method === "initialize") {
+      result = {
+        protocolVersion: request.params?.protocolVersion ?? "2025-06-18",
+        capabilities: { tools: {} },
+        serverInfo: { name: "poracode-smoke", version: "1.0.0" },
+      };
+    } else if (request.method === "tools/list") {
+      result = {
+        tools: [
+          {
+            name: "smoke_echo",
+            description: "Return the supplied smoke-test text.",
+            inputSchema: {
+              type: "object",
+              properties: { text: { type: "string" } },
+              required: ["text"],
+            },
+          },
+        ],
+      };
+    } else if (request.method === "tools/call") {
+      result = {
+        content: [{ type: "text", text: String(request.params?.arguments?.text ?? "") }],
+      };
+    }
+    if (request.id !== undefined && result !== undefined) {
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }) + "\n");
+    }
+  }
+});
+`,
+  );
+  await writeFile(
     join(managedSkillDir, "SKILL.md"),
     "---\nname: smoke-review\ndescription: Deterministic managed smoke skill\n---\n\n# Smoke review\n",
   );

@@ -2499,6 +2499,57 @@ describe("mapAcpPermissionRequest", () => {
     });
   });
 
+  it("echoes Kimi v2 plan_review option ids (plan_opt_*) verbatim", () => {
+    const state = createAcpMapperState("t-perm-plan-opts");
+
+    const event = mapAcpPermissionRequest(
+      {
+        sessionId: "s1",
+        toolCall: {
+          toolCallId: "3:tool-plan",
+          title: "ExitPlanMode",
+          content: [
+            {
+              type: "content",
+              content: {
+                type: "text",
+                text: "Plan saved to: /repo/.kimi-code/plans/p.md\n\n# Plan\n\n1. Step one",
+              },
+            },
+            {
+              type: "content",
+              content: {
+                type: "text",
+                text: "Requesting approval to Presenting plan and exiting plan mode",
+              },
+            },
+          ],
+        },
+        options: [
+          { optionId: "plan_opt_0", name: "Use REST", kind: "allow_once" },
+          { optionId: "plan_opt_1", name: "Use GraphQL", kind: "allow_once" },
+          { optionId: "plan_revise", name: "Revise", kind: "reject_once" },
+          { optionId: "plan_reject_and_exit", name: "Reject and Exit", kind: "reject_once" },
+        ],
+      } as Parameters<typeof mapAcpPermissionRequest>[0],
+      state,
+      "acp-perm-plan-2",
+    );
+
+    expect(event.type).toBe("request.opened");
+    if (event.type !== "request.opened") return;
+    expect(event.payload.details).toEqual({
+      toolName: "ExitPlanMode",
+      input: { plan: "# Plan\n\n1. Step one", planFilePath: "/repo/.kimi-code/plans/p.md" },
+    });
+    expect(event.payload.options).toEqual([
+      { optionId: "plan_opt_0", label: "Use REST", description: undefined },
+      { optionId: "plan_opt_1", label: "Use GraphQL", description: undefined },
+      { optionId: "plan_revise", label: "Revise", description: undefined },
+      { optionId: "plan_reject_and_exit", label: "Reject and Exit", description: undefined },
+    ]);
+  });
+
   it("unwraps command approval input instead of surfacing raw JSON details", () => {
     const state = createAcpMapperState("t-perm-command");
 

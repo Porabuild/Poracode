@@ -9,24 +9,20 @@ import {
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
-  quotePowerShellLiteral,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { createKimiAcpSessionUpdateTransform } from "./acpTransform";
 import { buildKimiAcpArgs, buildKimiArgs, buildKimiContinueArgs } from "./argv";
 import { createKimiBackgroundBridge } from "./backgroundBridge";
-import {
-  buildKimiCommand,
-  kimiDefaultCapabilities,
-  kimiDetectionSpec,
-  nativeKimiOAuthCredentialPath,
-} from "./detection";
+import { buildKimiCommand, kimiDefaultCapabilities, kimiDetectionSpec } from "./detection";
+import { buildKimiLogoutCommand } from "./kimiLogout";
+import { ensureKimiWorkspaceTrust } from "./kimiTrust";
 import {
   makeKimiDiscoverSessionRef,
   makeKimiWatchSessionRef,
   snapshotKimiPreSpawnSessions,
 } from "./sessionFiles";
-import { detectKimiTerminalStatus } from "./terminal";
+import { detectKimiTerminalStatus, KIMI_TRUST_PROMPT_PATTERN } from "./terminal";
 
 // Kimi Code provider implementation (Moonshot AI).
 // Docs: https://www.kimi.com/code/docs/en/
@@ -118,7 +114,17 @@ export function createKimiAdapter(): AgentAdapter {
       return { binary: "kimi", args };
     },
 
+    // The only async hook that runs ahead of every PTY spawn — used to
+    // pre-write Kimi 0.33's workspace-trust marker so the TUI's interactive
+    // "Trust this folder?" dialog never blocks a launch (the args pass
+    // through untouched).
+    async rewriteLaunchArgsForConfig(args, _config, projectLocation) {
+      await ensureKimiWorkspaceTrust(projectLocation);
+      return args;
+    },
+
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await ensureKimiWorkspaceTrust(input.projectLocation);
       const acpArgs = buildKimiAcpArgs(input.config);
       const command = buildKimiCommand(
         input.projectLocation,
@@ -158,37 +164,22 @@ export function createKimiAdapter(): AgentAdapter {
       return session;
     },
 
-    // Kimi ACP advertises a single "login" auth method; the auth command is the
-    // same `kimi acp` stdio process.
+    // The `kimi acp` stdio process that dispatch uses for the ACP
+    // `authenticate`/`logout` handshake. On 0.33.0's v2 server `authenticate`
+    // only re-validates auth state (interactive sign-in is the terminal
+    // `kimi acp --login` flow), while `logout` drives the real RPC logout.
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
       return buildKimiCommand(location, ["acp"], resolveAgentBinaryPath(location, "kimi"));
     },
 
-    // Kimi has no `kimi logout` subcommand and ACP logout is unimplemented.
-    // Its own `/logout` handler removes this managed OAuth token through
-    // FileTokenStorage, so do the same here without launching an interactive
-    // TUI provider picker.
+    // Logout is ACP-RPC-first (v2 advertises `agentCapabilities.auth.logout`)
+    // with the managed-OAuth credential file as the legacy fallback. dispatch
+    // runs the RPC; this builder only describes the file cleanup, so asking
+    // the adapter for its logout spec never signs anyone out.
+    preferAcpLogoutRpc: true,
     async buildAcpLogoutCommand(ctx?: AgentEnvContext) {
-      const location = detectProbeLocation(ctx);
-      if (location.kind === "windows") {
-        return {
-          command: "powershell.exe",
-          args: [
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            `Remove-Item -LiteralPath ${quotePowerShellLiteral(nativeKimiOAuthCredentialPath())} -Force -ErrorAction SilentlyContinue`,
-          ],
-          cwd: location.path,
-        };
-      }
-      return buildKimiCommand(
-        location,
-        ["-c", 'rm -f -- "${KIMI_CODE_HOME:-$HOME/.kimi-code}/credentials/kimi-code.json"'],
-        "sh",
-      );
+      return buildKimiLogoutCommand(ctx);
     },
 
     createInitialSessionRef() {
@@ -209,6 +200,9 @@ export function createKimiAdapter(): AgentAdapter {
     },
 
     isReadyForInitialPrompt(text) {
+      // The trust dialog (shown if the pre-written marker ever misses) is not
+      // a composer — typing the prompt into it would just corrupt the choice.
+      if (KIMI_TRUST_PROMPT_PATTERN.test(text)) return false;
       const t = text.toLowerCase();
       if (t.includes("kimi")) return true;
       if (/\?\s+for shortcuts|\/\s+for commands/i.test(text)) return true;

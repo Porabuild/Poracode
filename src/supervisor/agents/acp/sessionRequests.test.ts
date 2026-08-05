@@ -306,6 +306,38 @@ describe("AcpSessionRequests permissions", () => {
     });
   });
 
+  it("echoes Kimi v2 plan-review option ids back to the server verbatim", async () => {
+    const { requests } = makeRequests();
+    const response = requests.requestPermission({
+      sessionId: "session-1",
+      toolCall: {
+        toolCallId: "3:tool-plan",
+        title: "ExitPlanMode",
+        content: [
+          {
+            type: "content",
+            content: { type: "text", text: "Plan saved to: /p.md\n\n# Plan" },
+          },
+          {
+            type: "content",
+            content: { type: "text", text: "Requesting approval to Presenting plan" },
+          },
+        ],
+      },
+      options: [
+        { optionId: "plan_opt_0", name: "Use REST", kind: "allow_once" },
+        { optionId: "plan_opt_1", name: "Use GraphQL", kind: "allow_once" },
+        { optionId: "plan_revise", name: "Revise", kind: "reject_once" },
+        { optionId: "plan_reject_and_exit", name: "Reject and Exit", kind: "reject_once" },
+      ],
+    });
+
+    requests.resolve("acp-perm-0", { optionId: "plan_opt_1" });
+    await expect(response).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "plan_opt_1" },
+    });
+  });
+
   it("reports when a permission request is no longer pending", () => {
     const { emitRuntimeEvents, requests } = makeRequests();
 

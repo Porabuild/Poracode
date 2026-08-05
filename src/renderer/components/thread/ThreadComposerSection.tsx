@@ -12,7 +12,7 @@ import { ChevronDown, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { agentStatusForPresentation } from "@/shared/agentSelection";
+import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -289,12 +289,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       agentKind: thread.agentKind,
       presentationMode,
       runtimeLabel: effectiveAgentStatus?.capabilities.runtimeLabel,
-      hasEffort:
-        ((
-          effectiveAgentStatus?.capabilities.modelEfforts?.[thread.config?.model ?? ""] ??
-          effectiveAgentStatus?.capabilities.efforts ??
-          []
-        ).length ?? 0) > 0,
+      hasEffort: hasSelectableReasoning(
+        effectiveAgentStatus?.capabilities,
+        thread.config?.model ?? "",
+      ),
       supportsFast: effectiveAgentStatus
         ? supportsUsableFastMode(effectiveAgentStatus.capabilities, thread.config?.model ?? "")
         : false,
