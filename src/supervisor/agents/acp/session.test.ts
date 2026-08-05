@@ -2,7 +2,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RequestError, type RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import {
+  RequestError,
+  type RequestPermissionRequest,
+  type SessionNotification,
+} from "@agentclientprotocol/sdk";
 import type { CreateStructuredSessionInput } from "../base";
 import type { ThreadConfig } from "@/shared/contracts";
 import {
@@ -44,6 +48,11 @@ type TestableAcpSession = {
   resolveServerRequest(requestId: string, response: unknown): Promise<void>;
   handlePermissionRequest(params: RequestPermissionRequest): Promise<unknown>;
   handleSessionUpdate(params: { update: unknown }): void;
+  ingestExternalSessionUpdate(notification: SessionNotification): void;
+  attachExternalSessionUpdateSource(source: {
+    onSessionUpdate(notification: SessionNotification): boolean | void;
+    dispose(): void;
+  }): void;
   setListener(listener: unknown): void;
 };
 
@@ -218,6 +227,34 @@ describe("shouldSpawnAcpSession — shared resume/presentation gate for all ACP 
     expect(shouldSpawnAcpSession(makeInput({ presentationMode: "gui" }))).toBe(true);
     expect(shouldSpawnAcpSession(makeInput({ presentationMode: "terminal" }))).toBe(true);
     expect(shouldSpawnAcpSession(makeInput())).toBe(true);
+  });
+});
+
+describe("ACP external session update sources", () => {
+  it("allows a source to defer a provider update and re-ingest it without recursion", () => {
+    const { listener, session } = makeConfigSyncSession();
+    const notification = {
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Recovered child output" },
+      },
+    } as SessionNotification;
+    const onSessionUpdate = vi.fn<(notification: SessionNotification) => boolean>(() => true);
+    session.attachExternalSessionUpdateSource({
+      onSessionUpdate,
+      dispose: vi.fn<() => void>(),
+    });
+
+    session.handleSessionUpdate(notification);
+    expect(onSessionUpdate).toHaveBeenCalledOnce();
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalled();
+
+    session.ingestExternalSessionUpdate(notification);
+    expect(onSessionUpdate).toHaveBeenCalledOnce();
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "content.delta", delta: "Recovered child output" }),
+    );
   });
 });
 

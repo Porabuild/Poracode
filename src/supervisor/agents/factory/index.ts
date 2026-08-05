@@ -14,6 +14,7 @@ import {
   factoryDefaultCapabilities,
   factoryDetectionSpec,
 } from "./detection";
+import { attachFactorySubagentTranscripts } from "./subagentTranscripts";
 
 export function createFactoryAdapter(): AgentAdapter {
   let capabilities = factoryDefaultCapabilities;
@@ -87,9 +88,11 @@ export function createFactoryAdapter(): AgentAdapter {
       // droid 0.188.0, `exec --output-format acp`). Left to the advertised
       // capabilities alone it would receive none of Poracode's built-in MCP
       // servers, which are all HTTP.
-      return createAcpStructuredSession(command, input, {
+      const session = createAcpStructuredSession(command, input, {
         assumedMcpCapabilities: { http: true },
       });
+      if (session) attachFactorySubagentTranscripts(session, input.projectLocation);
+      return session;
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
