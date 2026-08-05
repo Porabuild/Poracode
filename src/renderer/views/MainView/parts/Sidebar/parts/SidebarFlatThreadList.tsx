@@ -16,6 +16,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
 import { useWorkspaceProjectIds } from "@/renderer/state/workspaceSelectors";
 import { NewThreadButton } from "./NewThreadButton";
+import { SidebarProjectFilter } from "./SidebarProjectFilter";
 import { buildSidebarProjectRows, type SidebarRow } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
@@ -52,6 +53,8 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);
   const setEditingThreadId = useSidebarUiStore((s) => s.setEditingThreadId);
   const revealMoreThreads = useSidebarUiStore((s) => s.revealMoreThreads);
+  const flatListProjectFilter = useSidebarUiStore((s) => s.flatListProjectFilter);
+  const setFlatListProjectFilter = useSidebarUiStore((s) => s.setFlatListProjectFilter);
   const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE);
   const currentThreadCount = useCurrentThreadIdsCount();
   const source = useDragSource();
@@ -75,14 +78,33 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   });
   const projectsById = new Map(visibleProjects.map((project) => [project.id, project]));
 
+  // The persisted filter can name projects that are gone or currently hidden
+  // (workspace switch, home scope off, dead remote server); only ids
+  // intersecting the visible set can match, and a selection covering every
+  // visible project reads — and behaves — the same as no filter.
+  const filteredVisibleIds = flatListProjectFilter?.filter((id) => projectsById.has(id)) ?? [];
+  const activeProjectFilter: ReadonlySet<string> | null =
+    filteredVisibleIds.length === 0 || filteredVisibleIds.length >= visibleProjects.length
+      ? null
+      : new Set(filteredVisibleIds);
+
   const allThreads = useAppStore((s) => s.threads);
-  const threads = allThreads.filter(
+  const visibleThreads = allThreads.filter(
     (thread) => !thread.archived && projectsById.has(thread.projectId),
   );
+  const threadCounts = new Map<string, number>();
+  for (const thread of visibleThreads) {
+    threadCounts.set(thread.projectId, (threadCounts.get(thread.projectId) ?? 0) + 1);
+  }
+  const threads =
+    activeProjectFilter === null
+      ? visibleThreads
+      : visibleThreads.filter((thread) => activeProjectFilter.has(thread.projectId));
   const liveBackgroundThreadIds = useLiveBackgroundThreadIds(threads);
 
   // "New thread" targets the most recently active project (latest thread
-  // update), falling back to the first visible project on a fresh workspace.
+  // update), falling back to the first project in the filter — or the first
+  // visible project when unfiltered — on a fresh workspace.
   let latestProjectId: string | undefined;
   let latestUpdatedAt = "";
   for (const thread of threads) {
@@ -91,7 +113,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
       latestProjectId = thread.projectId;
     }
   }
-  latestProjectId ??= visibleProjects[0]?.id;
+  latestProjectId ??= activeProjectFilter
+    ? visibleProjects.find((project) => activeProjectFilter.has(project.id))?.id
+    : visibleProjects[0]?.id;
   const hasDraft = useHasDraft(latestProjectId ?? "");
   const isDraftActive = useIsCurrentProjectDraft(latestProjectId ?? "");
 
@@ -105,19 +129,39 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
 
+  const renderNewThreadButton = (inline: boolean) =>
+    latestProjectId ? (
+      <NewThreadButton
+        {...(inline ? { inline: true } : {})}
+        projectId={latestProjectId}
+        hasDraft={hasDraft}
+        isActive={isDraftActive}
+        isDraggingAnything={!!source}
+        canOpenAsPanel={currentThreadCount > 0 && currentThreadCount < 3}
+        onPress={() => openNewThread(latestProjectId)}
+        onOpenAsPanel={() => openNewThreadSideBySide(latestProjectId)}
+      />
+    ) : null;
+
   return (
     <div className="space-y-0.5">
-      {latestProjectId ? (
-        <NewThreadButton
-          projectId={latestProjectId}
-          hasDraft={hasDraft}
-          isActive={isDraftActive}
-          isDraggingAnything={!!source}
-          canOpenAsPanel={currentThreadCount > 0 && currentThreadCount < 3}
-          onPress={() => openNewThread(latestProjectId)}
-          onOpenAsPanel={() => openNewThreadSideBySide(latestProjectId)}
-        />
-      ) : null}
+      {visibleProjects.length > 1 ? (
+        // Filter and new-thread share one head row; the new-thread control
+        // collapses to an icon button (tooltip) when the row is narrow.
+        <div className="poracode-flat-list-head flex items-center gap-1">
+          <div className="min-w-0 flex-1">
+            <SidebarProjectFilter
+              projects={visibleProjects}
+              threadCounts={threadCounts}
+              value={activeProjectFilter}
+              onChange={setFlatListProjectFilter}
+            />
+          </div>
+          {renderNewThreadButton(true)}
+        </div>
+      ) : (
+        renderNewThreadButton(false)
+      )}
 
       <div>
         {rows.map((row) => {

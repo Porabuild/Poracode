@@ -2321,6 +2321,36 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   display: none;
 }
 
+/* Clickaway layer for a context menu stacked over another overlay. HeroUI
+   popovers render at z-index 100000, so the backdrop joins that layer: it comes
+   later in the portal order than the surface below it, and the menu it belongs
+   to is portaled later still, so the paint order is surface → backdrop → menu. */
+.poracode-menu-backdrop {
+  z-index: 100000;
+}
+
+/* Flat-list head row (project filter + new-thread control): when the row is
+   too narrow for the labelled new-thread button, swap it for the icon-only
+   button whose tooltip carries the name. The selectors nest under the head
+   row so they outrank the buttons' Tailwind display utilities. */
+.poracode-flat-list-head {
+  container-type: inline-size;
+}
+
+.poracode-flat-list-head .poracode-flat-new-thread-icon {
+  display: none;
+}
+
+@container (max-width: 260px) {
+  .poracode-flat-list-head .poracode-flat-new-thread-full {
+    display: none;
+  }
+
+  .poracode-flat-list-head .poracode-flat-new-thread-icon {
+    display: flex;
+  }
+}
+
 .poracode-composer-shell:focus-within {
   border-color: color-mix(in oklab, var(--focus) 70%, transparent);
   outline: none !important;

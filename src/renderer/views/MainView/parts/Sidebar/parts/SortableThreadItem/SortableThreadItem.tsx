@@ -95,6 +95,7 @@ export function SortableThreadItem(props: {
         thread={thread}
         project={project}
         onRename={() => props.setEditingThreadId(thread.id)}
+        showProjectActions={stacked}
       >
         <SidebarButton
           size="xs"

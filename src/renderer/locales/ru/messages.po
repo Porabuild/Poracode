@@ -82,7 +82,9 @@ msgstr "{0, plural, one {# связанный десктоп} few {# связа�
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
 #. placeholder {0}: props.projects.length
+#. placeholder {0}: selectedProjects.size
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
 msgstr "{0, plural, one {# проект} few {# проекта} many {# проектов} other {# проекта}}"
@@ -1150,6 +1152,7 @@ msgid "All files"
 msgstr "Все файлы"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "Все проекты"
 
@@ -1157,7 +1160,7 @@ msgstr "Все проекты"
 msgid "All sources"
 msgstr "Все источники"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Все рабочие области"
@@ -3811,7 +3814,7 @@ msgstr "Отключить управление компьютером"
 msgid "Disable Crossagents"
 msgstr "Отключить Crossagents"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "Отключить проект"
 
@@ -4137,7 +4140,7 @@ msgstr "Включите доступ к микрофону в настройк�
 msgid "Enable notifications"
 msgstr "Включить уведомления"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Enable Project"
 msgstr "Включить проект"
 
@@ -4642,6 +4645,7 @@ msgid "Fill in all required workflow inputs."
 msgstr "Заполните все обязательные параметры workflow."
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "Фильтр по проекту"
 
@@ -4975,9 +4979,9 @@ msgstr "Получить задачу"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5011,7 +5015,8 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "Состояние Git для {0}: не репозиторий Git"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
@@ -6603,7 +6608,7 @@ msgstr "Переместить браузер в окно"
 msgid "Move changes to a new worktree"
 msgstr "Переместить изменения в новый worktree"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Переместить в рабочую область"
 
@@ -8347,6 +8352,11 @@ msgstr "Профили"
 msgid "Project"
 msgstr "Проект"
 
+#. placeholder {0}: props.project.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Project actions for {0}"
+msgstr "Действия проекта для {0}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Project folder"
 msgstr "Папка проекта"
@@ -8372,7 +8382,7 @@ msgstr "Проект не найден."
 msgid "Project notes"
 msgstr "Заметки проекта"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
 msgstr "Настройки проекта"
 
@@ -8393,6 +8403,7 @@ msgstr "Переопределения для конкретного проек�
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -8981,7 +8992,7 @@ msgstr "Удалить закреплённый маршрут для {tagLabel}
 msgid "Remove project"
 msgstr "Удалить проект"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Remove Project"
 msgstr "Удалить проект"
 
@@ -9322,7 +9333,8 @@ msgstr "Просмотреть изменения кандидата {0} ({label
 msgid "Review changes"
 msgstr "Просмотреть изменения"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
 msgstr "Просмотреть изменения"
@@ -9386,9 +9398,9 @@ msgstr "Щелкните правой кнопкой, чтобы переклю�
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Run"
 msgstr "Запустить"
 
@@ -10648,7 +10660,7 @@ msgstr "Остановить перенаправление"
 msgid "Stop response"
 msgstr "Остановить ответ"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Stop syncing"
 msgstr "Остановить синхронизацию"
 
@@ -10834,7 +10846,8 @@ msgid "Switch workspace"
 msgstr "Сменить рабочую область"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Sync"
 msgstr "Синхронизировать"

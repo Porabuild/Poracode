@@ -82,7 +82,9 @@ msgstr "{0, plural, one {# 台のペアリング済みデスクトップ} other 
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
 #. placeholder {0}: props.projects.length
+#. placeholder {0}: selectedProjects.size
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
 msgstr "{0, plural, one {#件のプロジェクト} other {#件のプロジェクト}}"
@@ -1149,6 +1151,7 @@ msgid "All files"
 msgstr "すべてのファイル"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "すべてのプロジェクト"
 
@@ -1156,7 +1159,7 @@ msgstr "すべてのプロジェクト"
 msgid "All sources"
 msgstr "すべてのソース"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "すべてのワークスペース"
@@ -3810,7 +3813,7 @@ msgstr "コンピュータ操作を無効にする"
 msgid "Disable Crossagents"
 msgstr "Crossagents を無効にする"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "プロジェクトを無効にする"
 
@@ -4136,7 +4139,7 @@ msgstr "システム設定でマイクへのアクセスを有効にしてから
 msgid "Enable notifications"
 msgstr "通知を有効にする"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Enable Project"
 msgstr "プロジェクトを有効にする"
 
@@ -4641,6 +4644,7 @@ msgid "Fill in all required workflow inputs."
 msgstr "必須のワークフロー入力をすべて入力してください。"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "プロジェクトで絞り込み"
 
@@ -4974,9 +4978,9 @@ msgstr "タスクの取得"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5010,7 +5014,8 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "{0}の Git ステータス: Git リポジトリではありません"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
@@ -6601,7 +6606,7 @@ msgstr "ブラウザーをウィンドウに移動"
 msgid "Move changes to a new worktree"
 msgstr "変更を新しいワークツリーに移動する"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "ワークスペースへ移動"
 
@@ -8345,6 +8350,11 @@ msgstr "プロファイル"
 msgid "Project"
 msgstr "プロジェクト"
 
+#. placeholder {0}: props.project.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Project actions for {0}"
+msgstr "{0}のプロジェクトアクション"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Project folder"
 msgstr "プロジェクトフォルダー"
@@ -8370,7 +8380,7 @@ msgstr "プロジェクトが見つかりません。"
 msgid "Project notes"
 msgstr "プロジェクトノート"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
 msgstr "プロジェクト設定"
 
@@ -8391,6 +8401,7 @@ msgstr "グローバル検索設定に加えてプロジェクト固有のオー
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -8979,7 +8990,7 @@ msgstr "{tagLabel} の固定ルートを削除"
 msgid "Remove project"
 msgstr "プロジェクトを削除"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Remove Project"
 msgstr "プロジェクトの削除"
 
@@ -9320,7 +9331,8 @@ msgstr "候補 {0}（{label}）の変更を確認"
 msgid "Review changes"
 msgstr "変更点をレビューする"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
 msgstr "変更の確認"
@@ -9384,9 +9396,9 @@ msgstr "右クリックでリングを切り替え"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Run"
 msgstr "実行"
 
@@ -10646,7 +10658,7 @@ msgstr "転送を停止"
 msgid "Stop response"
 msgstr "応答停止"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Stop syncing"
 msgstr "同期を停止"
 
@@ -10832,7 +10844,8 @@ msgid "Switch workspace"
 msgstr "ワークスペースを切り替え"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Sync"
 msgstr "同期"

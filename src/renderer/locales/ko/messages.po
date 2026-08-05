@@ -82,7 +82,9 @@ msgstr "{0, plural, one {#개의 페어링된 데스크톱} other {#개의 페�
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
 #. placeholder {0}: props.projects.length
+#. placeholder {0}: selectedProjects.size
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
 msgstr "{0, plural, one {#개 프로젝트} other {#개 프로젝트}}"
@@ -1150,6 +1152,7 @@ msgid "All files"
 msgstr "모든 파일"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "모든 프로젝트"
 
@@ -1157,7 +1160,7 @@ msgstr "모든 프로젝트"
 msgid "All sources"
 msgstr "모든 소스"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "모든 작업 영역"
@@ -3811,7 +3814,7 @@ msgstr "컴퓨터 사용 비활성화"
 msgid "Disable Crossagents"
 msgstr "Crossagents 비활성화"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "프로젝트 비활성화"
 
@@ -4137,7 +4140,7 @@ msgstr "시스템 설정에서 마이크 액세스를 활성화한 후 다시 �
 msgid "Enable notifications"
 msgstr "알림 활성화"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Enable Project"
 msgstr "프로젝트 활성화"
 
@@ -4642,6 +4645,7 @@ msgid "Fill in all required workflow inputs."
 msgstr "필수 워크플로 입력을 모두 작성하세요."
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "프로젝트별 필터"
 
@@ -4975,9 +4979,9 @@ msgstr "작업 가져오기"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5011,7 +5015,8 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "{0}에 대한 Git 상태: Git 저장소가 아닙니다."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
@@ -6603,7 +6608,7 @@ msgstr "브라우저를 창으로 이동"
 msgid "Move changes to a new worktree"
 msgstr "변경 사항을 새 작업 트리로 이동"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "작업 영역으로 이동"
 
@@ -8347,6 +8352,11 @@ msgstr "프로필"
 msgid "Project"
 msgstr "프로젝트"
 
+#. placeholder {0}: props.project.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Project actions for {0}"
+msgstr "{0}의 프로젝트 액션"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Project folder"
 msgstr "프로젝트 폴더"
@@ -8372,7 +8382,7 @@ msgstr "프로젝트를 찾을 수 없습니다."
 msgid "Project notes"
 msgstr "프로젝트 노트"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
 msgstr "프로젝트 설정"
 
@@ -8393,6 +8403,7 @@ msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -8981,7 +8992,7 @@ msgstr "{tagLabel}의 고정 경로 제거"
 msgid "Remove project"
 msgstr "프로젝트 제거"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Remove Project"
 msgstr "프로젝트 제거"
 
@@ -9322,7 +9333,8 @@ msgstr "후보 {0}({label})의 변경 사항 검토"
 msgid "Review changes"
 msgstr "변경 사항 검토"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
 msgstr "변경사항 검토"
@@ -9386,9 +9398,9 @@ msgstr "마우스 오른쪽 버튼을 클릭해 링 전환"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Run"
 msgstr "실행"
 
@@ -10648,7 +10660,7 @@ msgstr "전달 중지"
 msgid "Stop response"
 msgstr "응답 중지"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Stop syncing"
 msgstr "동기화 중지"
 
@@ -10834,7 +10846,8 @@ msgid "Switch workspace"
 msgstr "작업 영역 전환"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Sync"
 msgstr "동기화"
