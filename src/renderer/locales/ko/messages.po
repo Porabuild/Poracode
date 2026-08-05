@@ -610,8 +610,12 @@ msgstr "@cursor/sdk가 설치되지 않았습니다."
 #~ msgstr "/skill-creator {destination}에 사용할 새로운 관리형 스킬을 만드세요."
 
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "/skill-creator Create a new managed skill for {destinationLabel}."
-msgstr "/skill-creator {destinationLabel}에 사용할 새 관리 스킬을 만드세요."
+#~ msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+#~ msgstr "/skill-creator {destinationLabel}에 사용할 새 관리 스킬을 만드세요."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator-poracode Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator-poracode {destinationLabel}에 사용할 새 관리 스킬을 만드세요."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
@@ -8415,6 +8419,7 @@ msgid "Prompts"
 msgstr "프롬프트"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "제안된 계획"
 
