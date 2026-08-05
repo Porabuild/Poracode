@@ -33,7 +33,7 @@ interface SidebarUiState {
   togglePinnedGitHubWorkflow: (projectId: string, workflowId: number) => void;
   setWorktreeCollapsed: (key: string, collapsed: boolean) => void;
   toggleWorktreeCollapsed: (key: string) => void;
-  revealMoreThreads: (projectId: string) => void;
+  revealMoreThreads: (projectId: string, pageSize?: number) => void;
   setFlatListProjectFilter: (projectIds: string[] | null) => void;
   setEditingThreadId: (id: string | null) => void;
 }
@@ -109,13 +109,13 @@ export const useSidebarUiStore = create<SidebarUiState>()(
             },
           };
         }),
-      revealMoreThreads: (projectId) =>
+      revealMoreThreads: (projectId, pageSize = SIDEBAR_THREAD_LIST_PAGE_SIZE) =>
         set((state) => {
-          const current = state.threadListLimits[projectId] ?? SIDEBAR_THREAD_LIST_PAGE_SIZE;
+          const current = state.threadListLimits[projectId] ?? pageSize;
           return {
             threadListLimits: {
               ...state.threadListLimits,
-              [projectId]: current + SIDEBAR_THREAD_LIST_PAGE_SIZE,
+              [projectId]: current + pageSize,
             },
           };
         }),
@@ -158,8 +158,11 @@ export function useIsProjectCollapsed(projectId: string): boolean {
   return useSidebarUiStore((s) => s.collapsedProjects[projectId] ?? false);
 }
 
-export function useThreadListLimit(projectId: string): number {
-  return useSidebarUiStore((s) => s.threadListLimits[projectId] ?? SIDEBAR_THREAD_LIST_PAGE_SIZE);
+export function useThreadListLimit(
+  projectId: string,
+  pageSize: number = SIDEBAR_THREAD_LIST_PAGE_SIZE,
+): number {
+  return useSidebarUiStore((s) => s.threadListLimits[projectId] ?? pageSize);
 }
 
 export function useIsWorktreeCollapsed(key: string): boolean {
