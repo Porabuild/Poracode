@@ -7804,6 +7804,10 @@ msgstr "Або напишіть власну відповідь"
 msgid "Other"
 msgstr "Інші"
 
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Other workspaces"
+msgstr "Інші робочі області"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "Результат"

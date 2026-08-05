@@ -7804,6 +7804,10 @@ msgstr "Hoặc viết một câu trả lời tùy chỉnh"
 msgid "Other"
 msgstr "Khác"
 
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Other workspaces"
+msgstr "Không gian làm việc khác"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "Kết quả"

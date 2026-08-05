@@ -3,7 +3,13 @@ import { DEFAULT_WORKSPACE_ICONS, DEFAULT_WORKSPACE_NAMES } from "@/shared/contr
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "./appStore";
 import { useSharedSettings } from "./sharedSettingsStore";
-import { bootstrapWorkspaces, resolveActiveWorkspaceId, useWorkspaceStore } from "./workspaceStore";
+import {
+  bootstrapWorkspaces,
+  getLastWorkspaceProjectId,
+  rememberWorkspaceProject,
+  resolveActiveWorkspaceId,
+  useWorkspaceStore,
+} from "./workspaceStore";
 
 function addProject(name: string) {
   return useAppStore.getState().addProject({ kind: "posix", path: `/repos/${name}` }, name);
@@ -21,6 +27,48 @@ describe("resolveActiveWorkspaceId", () => {
 
   it("returns null when there are no workspaces at all", () => {
     expect(resolveActiveWorkspaceId([], "a")).toBeNull();
+  });
+});
+
+describe("last project per workspace", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useSharedSettings.setState({
+      workspaces: [
+        { id: "w1", name: "Work", createdAt: "2026-07-29T00:00:00.000Z", icon: "briefcase" },
+        { id: "w2", name: "Side", createdAt: "2026-07-29T00:00:00.000Z", icon: "rocket" },
+      ],
+    });
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", lastProjectIdByWorkspace: {} });
+  });
+
+  it("keeps a pick per workspace", () => {
+    rememberWorkspaceProject("p1");
+    useWorkspaceStore.setState({ activeWorkspaceId: "w2" });
+    rememberWorkspaceProject("p2");
+
+    expect(getLastWorkspaceProjectId()).toBe("p2");
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
+    expect(getLastWorkspaceProjectId()).toBe("p1");
+  });
+
+  it("reads nothing for a workspace with no pick yet", () => {
+    expect(getLastWorkspaceProjectId()).toBeUndefined();
+  });
+
+  it("rehydrates a payload written before the field existed", async () => {
+    // Regression for the released v1 shape: `lastProjectIdByWorkspace` is
+    // additive, so the stored active workspace must survive rather than reset.
+    localStorage.setItem(
+      "poracode-active-workspace",
+      JSON.stringify({ state: { activeWorkspaceId: "w2" }, version: 1 }),
+    );
+
+    await useWorkspaceStore.persist.rehydrate();
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("w2");
+    expect(useWorkspaceStore.getState().lastProjectIdByWorkspace).toEqual({});
+    expect(typeof useWorkspaceStore.getState().rememberProjectForWorkspace).toBe("function");
   });
 });
 
