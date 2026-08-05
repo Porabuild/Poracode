@@ -21,6 +21,7 @@ import {
   hydrateThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { getActiveWorkspaceId, getLastWorkspaceProjectId } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { readWorktreeDeletePref } from "@/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog";
@@ -427,9 +428,10 @@ export function unloadThread(threadId: string): void {
 
 /**
  * Marks a thread done: unloads its runtime, drops the worktree's terminal tabs
- * once no live thread is left there, and flips the store flag. Shared by the
- * manual affordances (context menu, sidebar Done button) and the PR-merge
- * automation.
+ * once no live thread is left there, and flips the store flag. When this was
+ * the worktree's last open thread, the sidebar worktree group is now fully
+ * done and gets collapsed. Shared by the manual affordances (context menu,
+ * sidebar Done button) and the PR-merge automation.
  */
 export function markThreadDone(threadId: string): void {
   if (findExperimentByThreadId(threadId)) return;
@@ -453,6 +455,7 @@ export function markThreadDone(threadId: string): void {
       (t) => t.id === threadId || t.worktreePath !== worktreePath || t.done || t.archived,
     );
   if (worktreePath && isLastOpenWorktreeThread) {
+    useSidebarUiStore.getState().setWorktreeCollapsed(worktreePath, true);
     const termStore = useDevTerminalStore.getState();
     const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
     void closeThreads(removedTabIds);
