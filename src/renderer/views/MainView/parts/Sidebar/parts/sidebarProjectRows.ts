@@ -43,6 +43,12 @@ export type SidebarRow =
 /** Default number of list items shown per project before the "See more" row. */
 export const SIDEBAR_THREAD_LIST_PAGE_SIZE = 10;
 
+/**
+ * Page size for the flat (cross-project) list. It is the sidebar's only list,
+ * so it affords a taller first page than a per-project section.
+ */
+export const SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE = 20;
+
 const EMPTY_THREAD_ID_SET: ReadonlySet<string> = new Set();
 
 /**

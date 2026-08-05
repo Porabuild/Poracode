@@ -17,7 +17,11 @@ import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarU
 import { useWorkspaceProjectIds } from "@/renderer/state/workspaceSelectors";
 import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
-import { buildSidebarProjectRows, type SidebarRow } from "./sidebarProjectRows";
+import {
+  buildSidebarProjectRows,
+  SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE,
+  type SidebarRow,
+} from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
 
@@ -55,7 +59,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const revealMoreThreads = useSidebarUiStore((s) => s.revealMoreThreads);
   const flatListProjectFilter = useSidebarUiStore((s) => s.flatListProjectFilter);
   const setFlatListProjectFilter = useSidebarUiStore((s) => s.setFlatListProjectFilter);
-  const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE);
+  const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
   const currentThreadCount = useCurrentThreadIdsCount();
   const source = useDragSource();
 
@@ -169,7 +173,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
             return (
               <SeeMoreThreadsButton
                 key={row.key}
-                onPress={() => revealMoreThreads(FLAT_LIST_SCOPE)}
+                onPress={() =>
+                  revealMoreThreads(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE)
+                }
               />
             );
           }
