@@ -82,7 +82,14 @@ export function createFactoryAdapter(): AgentAdapter {
         input.projectLocation,
         resolveAgentBinaryPath(input.projectLocation, "droid"),
       );
-      return createAcpStructuredSession(command, input);
+      // Droid answers `initialize` without an `mcpCapabilities` block even
+      // though `session/new` connects HTTP MCP servers fine (verified against
+      // droid 0.188.0, `exec --output-format acp`). Left to the advertised
+      // capabilities alone it would receive none of Poracode's built-in MCP
+      // servers, which are all HTTP.
+      return createAcpStructuredSession(command, input, {
+        assumedMcpCapabilities: { http: true },
+      });
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
