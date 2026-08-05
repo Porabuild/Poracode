@@ -78,12 +78,13 @@ export function AsideSlot(props: {
     // `box-sizing: border-box`, a 0-width aside with a 1px border still occupies
     // 1px of the flex row, so `main` gained/lost that pixel whenever the panel
     // flipped to the fixed right overlay (which leaves the flow entirely) and
-    // the centered content column shifted by half a pixel.
+    // the centered content column shifted by half a pixel. The transparent
+    // closed color is kept alongside the 0 width so the hairline still fades in
+    // and out with `border-color` (see the transition list below) instead of
+    // popping to full strength the moment the border exists.
     const borderClass = isOpen
       ? `${isHorizontal ? "border-t" : "border-l"} border-[color:var(--border)]`
-      : isHorizontal
-        ? "border-t-0"
-        : "border-l-0";
+      : `${isHorizontal ? "border-t-0" : "border-l-0"} border-transparent`;
     asideClassName = `relative overflow-hidden bg-[var(--content-background)] ${
       isHorizontal ? "min-w-0" : "min-h-0"
     } ${borderClass}`;
