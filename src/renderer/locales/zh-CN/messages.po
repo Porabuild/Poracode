@@ -7803,6 +7803,10 @@ msgstr "或者写一个自定义答案"
 msgid "Other"
 msgstr "其他"
 
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Other workspaces"
+msgstr "其他工作区"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "结果"

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
-import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
+import type { Project, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -96,7 +96,7 @@ describe("threadActions", () => {
       newThreadMode: "page",
       workspaces: [],
     });
-    useWorkspaceStore.setState({ activeWorkspaceId: null });
+    useWorkspaceStore.setState({ activeWorkspaceId: null, lastProjectIdByWorkspace: {} });
   });
 
   it("does not restart an inactive thread before startup snapshots reconcile", async () => {
@@ -160,6 +160,48 @@ describe("threadActions", () => {
     expect(view.kind).toBe("thread");
     expect(view.kind === "thread" && view.panes).toContain(draftPaneId);
     expect(useAppStore.getState().draftContentDiscardRequests[firstProject.id]).toBeUndefined();
+  });
+
+  it("starts an untargeted new thread in the active workspace's last project", async () => {
+    const { alpha } = configureTwoWorkspaceProjects();
+    useWorkspaceStore.setState({
+      activeWorkspaceId: "workspace-alpha",
+      lastProjectIdByWorkspace: { "workspace-alpha": alpha.id },
+    });
+
+    openNewThread();
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: alpha.id });
+    });
+  });
+
+  it("ignores a remembered project that the active workspace hides", async () => {
+    const { alpha, beta } = configureTwoWorkspaceProjects();
+    // Remembered while another workspace was active: the fresh draft must land
+    // in a project this workspace actually shows.
+    useWorkspaceStore.setState({
+      activeWorkspaceId: "workspace-beta",
+      lastProjectIdByWorkspace: { "workspace-beta": alpha.id },
+    });
+
+    openNewThread();
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: beta.id });
+    });
+  });
+
+  it("leaves the on-screen project behind when it belongs to another workspace", async () => {
+    const { alpha, beta } = configureTwoWorkspaceProjects();
+    useWorkspaceStore.setState({ activeWorkspaceId: "workspace-beta" });
+    useAppStore.setState((state) => ({ ...state, view: { kind: "draft", projectId: alpha.id } }));
+
+    openNewThread();
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: beta.id });
+    });
   });
 
   it("hydrates a persisted GUI thread before opening the pane", async () => {
@@ -717,6 +759,28 @@ function makeThread(input: Partial<Thread> = {}): Thread {
     updatedAt: now,
     ...input,
   };
+}
+
+/** One project per workspace, so workspace scoping decides which one is picked. */
+function configureTwoWorkspaceProjects(): { alpha: Project; beta: Project } {
+  useSharedSettings.setState({
+    workspaces: [
+      {
+        id: "workspace-alpha",
+        name: "Alpha",
+        createdAt: "2026-07-29T00:00:00.000Z",
+        icon: "briefcase",
+      },
+      { id: "workspace-beta", name: "Beta", createdAt: "2026-07-29T00:00:00.000Z", icon: "rocket" },
+    ],
+  });
+  const alpha = useAppStore
+    .getState()
+    .addProject({ kind: "posix", path: "/repo-alpha" }, undefined, "workspace-alpha");
+  const beta = useAppStore
+    .getState()
+    .addProject({ kind: "posix", path: "/repo-beta" }, undefined, "workspace-beta");
+  return { alpha, beta };
 }
 
 function configureCrossWorkspaceThread(): {

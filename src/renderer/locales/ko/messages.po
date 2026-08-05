@@ -7804,6 +7804,10 @@ msgstr "또는 맞춤 답변을 작성하세요."
 msgid "Other"
 msgstr "기타"
 
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Other workspaces"
+msgstr "다른 작업 영역"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "결과"

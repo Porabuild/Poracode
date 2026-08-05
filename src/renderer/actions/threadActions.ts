@@ -1,6 +1,11 @@
 import { startTransition } from "react";
 import { toast } from "@heroui/react";
-import { isProjectInWorkspace, type RemoteThreadCommand, type Thread } from "@/shared/contracts";
+import {
+  isProjectInWorkspace,
+  type Project,
+  type RemoteThreadCommand,
+  type Thread,
+} from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
@@ -16,7 +21,7 @@ import {
   hydrateThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { getActiveWorkspaceId, useWorkspaceStore } from "@/renderer/state/workspaceStore";
+import { getActiveWorkspaceId, getLastWorkspaceProjectId } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { readWorktreeDeletePref } from "@/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog";
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
@@ -24,6 +29,7 @@ import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
 import { closePanelsForUnloadedThread } from "./panelActions";
 import { getCurrentProjectId } from "./currentProject";
+import { switchWorkspaceForProject } from "./workspaceActions";
 import { deleteWorktreeGroup } from "./worktreeActions";
 
 let openThreadRequestId = 0;
@@ -64,16 +70,42 @@ function discardReplacedDraftContents(targetProjectId: string): void {
   }
 }
 
-export function openNewThread(projectId?: string): void {
-  openThreadRequestId += 1;
+/**
+ * Which project a new thread starts in when the caller names none. Every
+ * candidate is checked against the active workspace: a workspace switch has to
+ * change what "new thread" means, or the fresh draft lands in work the user just
+ * navigated away from. The remembered pick comes second so returning to a
+ * workspace resumes its last project, while the project currently on screen
+ * still wins when it belongs to this workspace.
+ */
+function resolveNewThreadProjectId(): string | undefined {
   const store = useAppStore.getState();
-  const targetProjectId =
-    projectId ??
-    getCurrentProjectId() ??
+  const knownWorkspaceIds = new Set(
+    (useSharedSettings.getState().workspaces ?? []).map((workspace) => workspace.id),
+  );
+  const activeWorkspaceId = getActiveWorkspaceId();
+  const isVisible = (project: Project) =>
+    (isHomeProject(project) || !project.disabled) &&
+    isProjectInWorkspace(project, activeWorkspaceId, knownWorkspaceIds);
+  const visibleId = (projectId: string | undefined) =>
+    store.projects.find((project) => project.id === projectId && isVisible(project))?.id;
+
+  return (
+    visibleId(getCurrentProjectId()) ??
+    visibleId(getLastWorkspaceProjectId()) ??
     (useSharedSettings.getState().homeScopeEnabled
       ? store.projects.find(isHomeProject)?.id
       : undefined) ??
-    store.projects.find((project) => !project.disabled && !isHomeProject(project))?.id;
+    store.projects.find((project) => !isHomeProject(project) && isVisible(project))?.id ??
+    // Nothing in this workspace: better a draft in another workspace's project
+    // than dropping the user back on Home with no way to type.
+    store.projects.find((project) => !project.disabled && !isHomeProject(project))?.id
+  );
+}
+
+export function openNewThread(projectId?: string): void {
+  openThreadRequestId += 1;
+  const targetProjectId = projectId ?? resolveNewThreadProjectId();
   startTransition(() => {
     if (!targetProjectId) {
       useAppStore.getState().openHome();
@@ -129,18 +161,7 @@ export function openThread(
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
   if (thread && options?.switchWorkspace) {
-    const project = store.projects.find((item) => item.id === thread.projectId);
-    const targetWorkspaceId = project?.workspaceId;
-    const knownWorkspaceIds = new Set(
-      (useSharedSettings.getState().workspaces ?? []).map((workspace) => workspace.id),
-    );
-    if (
-      project &&
-      targetWorkspaceId &&
-      !isProjectInWorkspace(project, getActiveWorkspaceId(), knownWorkspaceIds)
-    ) {
-      useWorkspaceStore.getState().setActiveWorkspaceId(targetWorkspaceId);
-    }
+    switchWorkspaceForProject(thread.projectId);
   }
   const owner = remoteOwner(thread);
   if (owner) {

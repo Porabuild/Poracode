@@ -7804,6 +7804,10 @@ msgstr "Ou escreva uma resposta personalizada"
 msgid "Other"
 msgstr "Outros"
 
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Other workspaces"
+msgstr "Outros espaços de trabalho"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "Resultado"

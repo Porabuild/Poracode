@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
-import { createWorkspace, deleteWorkspace, renameWorkspace } from "./workspaceActions";
+import {
+  createWorkspace,
+  deleteWorkspace,
+  renameWorkspace,
+  switchWorkspaceForProject,
+} from "./workspaceActions";
 
 vi.mock("@heroui/react", () => ({
   toast: {
@@ -53,6 +58,30 @@ describe("workspaceActions", () => {
 
     renameWorkspace(workspace.id, "  Client  ");
     expect(useSharedSettings.getState().workspaces[0]!.name).toBe("Client");
+  });
+
+  it("follows a project filed in another workspace", () => {
+    const work = createWorkspace("Work")!;
+    const side = createWorkspace("Side Hustle")!;
+    const project = addProject("beta", side.id);
+    useWorkspaceStore.setState({ activeWorkspaceId: work.id });
+
+    switchWorkspaceForProject(project.id);
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe(side.id);
+  });
+
+  it("stays put for projects the active workspace already shows", () => {
+    const work = createWorkspace("Work")!;
+    const filed = addProject("alpha", work.id);
+    const unfiled = addProject("gamma");
+    useWorkspaceStore.setState({ activeWorkspaceId: work.id });
+
+    switchWorkspaceForProject(filed.id);
+    switchWorkspaceForProject(unfiled.id);
+    switchWorkspaceForProject("missing-project");
+
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe(work.id);
   });
 
   it("moves projects to another workspace when one is deleted", () => {

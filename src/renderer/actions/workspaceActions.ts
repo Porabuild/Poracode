@@ -1,6 +1,6 @@
 import { toast } from "@heroui/react";
 import { msg, plural } from "@lingui/core/macro";
-import type { Workspace } from "@/shared/contracts";
+import { isProjectInWorkspace, type Workspace } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -13,6 +13,24 @@ export function createWorkspace(name: string): Workspace | null {
   const workspace = useSharedSettings.getState().addWorkspace(trimmed);
   useWorkspaceStore.getState().setActiveWorkspaceId(workspace.id);
   return workspace;
+}
+
+/**
+ * Follow a project into its own workspace when it lives outside the active one.
+ * Opening work the current workspace hides would otherwise leave the user
+ * staring at a sidebar that does not contain the thread they just started, so
+ * the view moves to where the work is. No-op for projects the active workspace
+ * already shows (including unfiled ones and Home).
+ */
+export function switchWorkspaceForProject(projectId: string): void {
+  const project = useAppStore.getState().projects.find((item) => item.id === projectId);
+  const targetWorkspaceId = project?.workspaceId;
+  if (!project || !targetWorkspaceId) return;
+  const knownWorkspaceIds = new Set(
+    (useSharedSettings.getState().workspaces ?? []).map((workspace) => workspace.id),
+  );
+  if (isProjectInWorkspace(project, getActiveWorkspaceId(), knownWorkspaceIds)) return;
+  useWorkspaceStore.getState().setActiveWorkspaceId(targetWorkspaceId);
 }
 
 export function renameWorkspace(workspaceId: string, name: string): void {
