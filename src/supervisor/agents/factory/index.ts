@@ -14,6 +14,7 @@ import {
   factoryDefaultCapabilities,
   factoryDetectionSpec,
 } from "./detection";
+import { attachFactorySubagentTranscripts } from "./subagentTranscripts";
 
 export function createFactoryAdapter(): AgentAdapter {
   let capabilities = factoryDefaultCapabilities;
@@ -82,7 +83,9 @@ export function createFactoryAdapter(): AgentAdapter {
         input.projectLocation,
         resolveAgentBinaryPath(input.projectLocation, "droid"),
       );
-      return createAcpStructuredSession(command, input);
+      const session = createAcpStructuredSession(command, input);
+      if (session) attachFactorySubagentTranscripts(session, input.projectLocation);
+      return session;
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);

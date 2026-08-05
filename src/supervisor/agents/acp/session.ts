@@ -203,6 +203,12 @@ export interface AcpStructuredSessionOptions {
   fsAgentHomeDirs?: readonly string[];
 }
 
+export interface AcpExternalSessionUpdateSource {
+  /** Return true when the source will re-ingest this notification after deferred work. */
+  onSessionUpdate(notification: SessionNotification): boolean | void;
+  dispose(): void;
+}
+
 export class AcpStructuredSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
 
@@ -217,6 +223,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly goalCommands: boolean;
 
   private extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
+
+  private externalSessionUpdateSources?: Set<AcpExternalSessionUpdateSource>;
 
   private readonly acpToolCallIdToItemId = new Map<string, string>();
   private readonly child: ChildProcess;
@@ -1002,6 +1010,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (this.isDisposed) return;
     this.isDisposed = true;
 
+    for (const source of this.externalSessionUpdateSources ?? []) source.dispose();
+    this.externalSessionUpdateSources?.clear();
+
     if (this.orphanTurnIdleTimer) {
       clearTimeout(this.orphanTurnIdleTimer);
       this.orphanTurnIdleTimer = undefined;
@@ -1221,7 +1232,21 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * These are the real-time updates the agent sends while processing
    * a turn: text chunks, tool calls, plan updates, etc.
    */
-  private handleSessionUpdate(rawParams: SessionNotification): void {
+  private handleSessionUpdate(rawParams: SessionNotification, notifyExternalSources = true): void {
+    let deferredByExternalSource = false;
+    if (notifyExternalSources) {
+      for (const source of this.externalSessionUpdateSources ?? []) {
+        try {
+          if (source.onSessionUpdate(rawParams) === true) deferredByExternalSource = true;
+        } catch (error) {
+          console.warn(
+            "[acp] external session update source failed:",
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+      }
+    }
+    if (deferredByExternalSource) return;
     maybeCaptureAcpUpdate(rawParams, this.threadId, this.sessionId, this.cwd);
 
     const params = this.applySessionUpdateTransform(rawParams);
@@ -1379,7 +1404,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    */
   ingestExternalSessionUpdate(notification: SessionNotification): void {
     if (this.isDisposed) return;
-    this.handleSessionUpdate(notification);
+    this.handleSessionUpdate(notification, false);
+  }
+
+  attachExternalSessionUpdateSource(source: AcpExternalSessionUpdateSource): void {
+    this.externalSessionUpdateSources ??= new Set();
+    this.externalSessionUpdateSources.add(source);
   }
 
   private recordAgentSurfacedError(events: RuntimeEvent[]): void {
