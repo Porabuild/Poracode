@@ -211,6 +211,83 @@ describe("collectQwen", () => {
     });
   });
 
+  it("persists the console's rotated session ticket and replays it on later requests", async () => {
+    // Alibaba issues its `login_*` cookies as session cookies, so the browser jar
+    // loses them on quit and this sealed copy is all that survives a restart. If
+    // the rotation is dropped, the next launch replays a ticket the console has
+    // already retired and the provider reads as signed out.
+    const requests: HttpRequest[] = [];
+    const writes: { key: string; value: string }[] = [];
+    const rpcRoute = { body: TOKEN_PLAN_BODY, setCookies: ["login_aliyunid_ticket=rotated-2"] };
+    const host = createFakeHost({
+      secrets: {
+        qwen: { cookie: "login_aliyunid_ticket=captured; cna=anon" },
+      },
+      routes: {
+        [ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL]: {
+          body: '<html><script>window.config={SEC_TOKEN:"sec"}</script></html>',
+          setCookies: ["login_aliyunid_ticket=rotated-1; Path=/; HttpOnly"],
+        },
+        [ALIBABA_CODING_PLAN_INTL_CONSOLE_RPC_URL]: rpcRoute,
+      },
+      onRequest: (request) => {
+        requests.push(request);
+        if (request.url !== ALIBABA_CODING_PLAN_INTL_CONSOLE_RPC_URL) return;
+        const api = JSON.parse(new URLSearchParams(request.body).get("params") ?? "{}").Api;
+        rpcRoute.body =
+          api === "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/subscription"
+            ? TOKEN_PLAN_SUBSCRIPTION_BODY
+            : TOKEN_PLAN_BODY;
+      },
+      onSetSecret: (providerId, key, value) => {
+        expect(providerId).toBe("qwen");
+        writes.push({ key, value });
+      },
+    });
+
+    expect(await collectQwen(host)).toMatchObject({ status: "ok" });
+    // The dashboard's rotation is replayed on the RPC call, as a browser would.
+    expect(requests[1]?.headers?.Cookie).toBe("login_aliyunid_ticket=rotated-1; cna=anon");
+    expect(writes).toEqual([{ key: "cookie", value: "login_aliyunid_ticket=rotated-2; cna=anon" }]);
+  });
+
+  it("does not persist cookies when the console rejects the captured session", async () => {
+    // A rejected session's `Set-Cookie` lines are logout instructions, and a
+    // transient failure must not clobber a still-usable ticket.
+    const writes: string[] = [];
+    const host = createFakeHost({
+      secrets: { qwen: { cookie: "login_aliyunid_ticket=captured" } },
+      routes: {
+        [ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL]: {
+          status: 403,
+          setCookies: ["login_aliyunid_ticket=; Max-Age=0"],
+        },
+        "https://modelstudio.console.alibabacloud.com/tool/user/info.json": { status: 403 },
+      },
+      onSetSecret: (_providerId, key) => writes.push(key),
+    });
+
+    expect((await collectQwen(host)).status).toBe("auth-missing");
+    expect(writes).toEqual([]);
+  });
+
+  it("leaves the stored cookie untouched when the console rotates nothing", async () => {
+    const writes: string[] = [];
+    const host = createFakeHost({
+      secrets: { qwen: { cookie: "login_aliyunid_ticket=captured" } },
+      routes: {
+        [ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL]: {
+          body: '<html><script>window.config={SEC_TOKEN:"sec"}</script></html>',
+        },
+        [ALIBABA_CODING_PLAN_INTL_CONSOLE_RPC_URL]: { body: TOKEN_PLAN_BODY },
+      },
+      onSetSecret: (_providerId, key) => writes.push(key),
+    });
+
+    expect((await collectQwen(host)).status).toBe("ok");
+    expect(writes).toEqual([]);
+  });
+
   it("falls back to the API key when a captured console session is stale", async () => {
     const requests: string[] = [];
     const host = createFakeHost({

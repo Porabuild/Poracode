@@ -1,3 +1,4 @@
+import { CookieJar } from "../cookieJar";
 import type { CollectOptions, HostPort, HttpResponse, OAuthToken } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
 
@@ -528,7 +529,7 @@ function requestQuota(
 
 async function resolveConsoleSecToken(
   host: HostPort,
-  cookieHeader: string,
+  jar: CookieJar,
   region: AlibabaCodingPlanRegion,
 ): Promise<string | undefined> {
   const config = REGION_CONFIG[region];
@@ -536,12 +537,15 @@ async function resolveConsoleSecToken(
     method: "GET",
     url: config.dashboardUrl,
     headers: {
-      Cookie: cookieHeader,
+      Cookie: jar.header,
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "User-Agent": BROWSER_USER_AGENT,
     },
     timeoutMs: 15_000,
   });
+  // The console rotates its session ticket on the dashboard load, so absorb
+  // before issuing the next request — exactly what a browser would send.
+  jar.absorb(dashboard);
   if (dashboard.status === 200) {
     const fromHtml = consoleSecTokenFromHtml(dashboard.body);
     if (fromHtml) return fromHtml;
@@ -551,13 +555,14 @@ async function resolveConsoleSecToken(
     method: "GET",
     url: `${config.baseUrl}/tool/user/info.json`,
     headers: {
-      Cookie: cookieHeader,
+      Cookie: jar.header,
       Accept: "application/json, text/plain, */*",
       Referer: `${config.baseUrl}/`,
       "User-Agent": BROWSER_USER_AGENT,
     },
     timeoutMs: 15_000,
   });
+  jar.absorb(userInfo);
   if (userInfo.status === 200) {
     try {
       const fromUserInfo = firstString(expandEmbeddedJson(JSON.parse(userInfo.body)), [
@@ -569,7 +574,7 @@ async function resolveConsoleSecToken(
       // Continue to the cookie fallback.
     }
   }
-  return cookieValue(cookieHeader, "sec_token");
+  return cookieValue(jar.header, "sec_token");
 }
 
 function consoleRequestBody(
@@ -714,18 +719,41 @@ export async function collectQwen(host: HostPort, _opts?: CollectOptions): Promi
   const cookie = (await host.credentials.getSecret(QWEN_PROVIDER_ID, "cookie"))?.trim();
   let cookieSnapshot: UsageSnapshot | undefined;
   if (cookie) {
+    const jar = new CookieJar(cookie);
+    // Alibaba issues its `login_*` console cookies as session cookies, so the
+    // browser's own jar drops them when the app quits — this sealed copy is the
+    // only thing that survives a restart. Persist the rotated ticket the console
+    // just handed back, or the captured value goes stale and the provider reads
+    // as signed out until the user runs browser sign-in again. Only persist on a
+    // successful pass: a rejected session's `Set-Cookie` lines are logout
+    // instructions, and a transient failure must not clobber a good ticket.
+    const persistRotation = async (): Promise<void> => {
+      if (!jar.rotated || !host.credentials.setSecret) return;
+      try {
+        await host.credentials.setSecret(QWEN_PROVIDER_ID, "cookie", jar.header);
+      } catch {
+        // A failed write only costs freshness; never fail collection over it.
+      }
+    };
+
     // The in-app login captures cookies scoped to the international console.
     // Never replay those cookies to the China-mainland domain; API-key fallback
     // below may still try both official regions when no region is configured.
-    const secToken = await resolveConsoleSecToken(host, cookie, "intl");
+    const secToken = await resolveConsoleSecToken(host, jar, "intl");
     const [tokenPlanResponse, tokenPlanSubscriptionResponse] = secToken
       ? await Promise.all([
-          requestConsoleApi(host, cookie, "intl", secToken, TOKEN_PLAN_USAGE_ACTION),
-          requestConsoleApi(host, cookie, "intl", secToken, TOKEN_PLAN_SUBSCRIPTION_ACTION).catch(
-            () => undefined,
-          ),
+          requestConsoleApi(host, jar.header, "intl", secToken, TOKEN_PLAN_USAGE_ACTION),
+          requestConsoleApi(
+            host,
+            jar.header,
+            "intl",
+            secToken,
+            TOKEN_PLAN_SUBSCRIPTION_ACTION,
+          ).catch(() => undefined),
         ])
       : [undefined, undefined];
+    jar.absorb(tokenPlanResponse);
+    jar.absorb(tokenPlanSubscriptionResponse);
     const tokenPlanSnapshot = tokenPlanResponse
       ? responseSnapshot(tokenPlanResponse, now, "web-session")
       : {
@@ -736,14 +764,20 @@ export async function collectQwen(host: HostPort, _opts?: CollectOptions): Promi
           error: "Alibaba console session expired",
         };
     if (tokenPlanSnapshot.status === "ok" || tokenPlanSnapshot.status === "rate-limited") {
+      await persistRotation();
       const plan = tokenPlanSnapshot.plan ?? planFromResponse(tokenPlanSubscriptionResponse);
       return plan ? { ...tokenPlanSnapshot, plan } : tokenPlanSnapshot;
     }
 
-    const response = secToken ? await requestConsoleApi(host, cookie, "intl", secToken) : undefined;
+    const response = secToken
+      ? await requestConsoleApi(host, jar.header, "intl", secToken)
+      : undefined;
+    jar.absorb(response);
     cookieSnapshot = response ? responseSnapshot(response, now, "web-session") : tokenPlanSnapshot;
-    if (cookieSnapshot.status === "ok" || cookieSnapshot.status === "rate-limited")
+    if (cookieSnapshot.status === "ok" || cookieSnapshot.status === "rate-limited") {
+      await persistRotation();
       return cookieSnapshot;
+    }
   }
 
   const [pastedValue, token] = await Promise.all([

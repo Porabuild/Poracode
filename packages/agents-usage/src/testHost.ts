@@ -10,6 +10,8 @@ export interface FakeRoute {
   body?: string;
   bodyBytes?: Uint8Array;
   headers?: Record<string, string>;
+  /** Raw `Set-Cookie` lines, for collectors that rotate a stored session cookie. */
+  setCookies?: string[];
 }
 
 export interface FakeHostConfig {
@@ -53,6 +55,7 @@ export function createFakeHost(config: FakeHostConfig = {}): HostPort {
           headers: route?.headers ?? {},
           body: route?.body ?? "{}",
           ...(route?.bodyBytes ? { bodyBytes: route.bodyBytes } : {}),
+          ...(route?.setCookies ? { setCookies: route.setCookies } : {}),
         });
       },
     },
