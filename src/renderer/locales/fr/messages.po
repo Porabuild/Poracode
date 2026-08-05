@@ -610,8 +610,12 @@ msgstr "@cursor/sdk n'est pas installé."
 #~ msgstr "/skill-creator Créez une nouvelle compétence gérée pour {destination}."
 
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "/skill-creator Create a new managed skill for {destinationLabel}."
-msgstr "/skill-creator Créez une nouvelle compétence gérée pour {destinationLabel}."
+#~ msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+#~ msgstr "/skill-creator Créez une nouvelle compétence gérée pour {destinationLabel}."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator-poracode Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator-poracode Créez une nouvelle compétence gérée pour {destinationLabel}."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
@@ -8414,6 +8418,7 @@ msgid "Prompts"
 msgstr "Prompts"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "Plan proposé"
 

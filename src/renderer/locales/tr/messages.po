@@ -610,8 +610,12 @@ msgstr "@cursor/sdk kurulu değil."
 #~ msgstr "/skill-creator {destination} için yeni bir yönetilen beceri oluştur."
 
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "/skill-creator Create a new managed skill for {destinationLabel}."
-msgstr "/skill-creator {destinationLabel} için yeni bir yönetilen beceri oluştur."
+#~ msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+#~ msgstr "/skill-creator {destinationLabel} için yeni bir yönetilen beceri oluştur."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator-poracode Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator-poracode {destinationLabel} için yeni bir yönetilen beceri oluştur."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
@@ -8415,6 +8419,7 @@ msgid "Prompts"
 msgstr "İstemler"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "Önerilen plan"
 

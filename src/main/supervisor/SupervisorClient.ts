@@ -56,7 +56,7 @@ export interface SupervisorClientOptions {
   wslHelpersDir: string;
   /**
    * Directory containing the read-only skills shipped with the app
-   * (`skill-creator`, …). Forwarded to the supervisor via
+   * (`skill-creator-poracode`, …). Forwarded to the supervisor via
    * `PORACODE_BUNDLED_SKILLS_DIR` so the skills service can surface them.
    */
   bundledSkillsDir?: string;
