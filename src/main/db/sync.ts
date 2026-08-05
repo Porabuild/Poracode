@@ -7,6 +7,7 @@ import {
 } from "@/shared/contracts";
 import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
 import { getSqlite } from "./connection";
+import { acknowledgeMirroredThreadIds, isMainCreatedThreadUnmirrored } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { projectMutableRow } from "./rowMappers";
 
@@ -44,13 +45,20 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
     const upsertThread = prepareThreadSyncStatement(sqlite);
 
     for (const tid of existingThreadIds) {
-      if (!incomingThreadIds.has(tid)) {
-        deleteThread.run(tid);
-      }
+      if (incomingThreadIds.has(tid)) continue;
+      // A thread main just created (remote `start`, schedule, orchestrator) is
+      // absent from this snapshot only because the renderer has not applied the
+      // forwarded command yet. Deleting it would cascade away the launch turn's
+      // runtime items — most visibly the initial `user_message`.
+      if (isMainCreatedThreadUnmirrored(tid)) continue;
+      deleteThread.run(tid);
     }
     for (let i = 0; i < threadsData.length; i++) {
       runThreadSync(upsertThread, threadsData[i]!, i);
     }
+    // Anything in this snapshot is renderer-owned from here on, so a later
+    // snapshot that drops it is a real deletion.
+    acknowledgeMirroredThreadIds(incomingThreadIds);
 
     sqlite
       .prepare(

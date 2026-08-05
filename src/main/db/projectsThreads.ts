@@ -2,6 +2,7 @@ import { asc, eq, notInArray } from "drizzle-orm";
 import type { Project, Thread } from "@/shared/contracts";
 import * as schema from "../db.schema";
 import { getDb } from "./connection";
+import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { projectMutableRow, rowToProject, rowToThread } from "./rowMappers";
 
@@ -84,6 +85,15 @@ export function dbUpdateProject(project: Project): void {
 
 export function dbUpsertThread(thread: Thread, sortOrder: number): void {
   const db = getDb();
+  // A row main inserts on its own is invisible to the renderer's store until the
+  // forwarded command reaches it, so shield it from `dbSyncAll`'s delete pass
+  // (see mainCreatedThreads).
+  const isNewRow =
+    db
+      .select({ id: schema.threads.id })
+      .from(schema.threads)
+      .where(eq(schema.threads.id, thread.id))
+      .get() === undefined;
   db.insert(schema.threads)
     .values({
       id: thread.id,
@@ -147,6 +157,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       },
     })
     .run();
+  if (isNewRow) noteMainCreatedThread(thread.id);
   notifyProjectThreadDataChanged();
 }
 
@@ -182,6 +193,7 @@ export function dbMarkLiveThreadsInactive(): void {
 export function dbDeleteThread(threadId: string): void {
   const db = getDb();
   db.delete(schema.threads).where(eq(schema.threads.id, threadId)).run();
+  forgetMainCreatedThread(threadId);
   notifyProjectThreadDataChanged();
 }
 
