@@ -11,6 +11,7 @@ import {
   session as electronSession,
   type RenderProcessGoneDetails,
 } from "electron";
+import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { isThreadTurnActive, type RemoteThreadCommand } from "@/shared/contracts";
 import {
@@ -46,6 +47,7 @@ import {
   registerPickerProtocolScheme,
 } from "./browser";
 import { buildBrowserUserAgent } from "./browser/userAgent";
+import { startUsageLoginCookieMirror } from "./usageLogin/UsageLoginCookieMirror";
 import {
   ComputerUseDesktopOverlay,
   ComputerUseMcpIngress,
@@ -669,9 +671,14 @@ if (!hasSingleInstanceLock) {
       installLocalFileProtocolHandler();
       installPickerProtocolHandler();
       // Keep the pre-rebrand partition so browser cookies and sign-ins survive.
-      electronSession.fromPartition("persist:lightcode-browser").setUserAgent(browserUserAgent);
+      const browserSession = electronSession.fromPartition(BROWSER_SESSION_PARTITION);
+      browserSession.setUserAgent(browserUserAgent);
 
       const paths = requirePoracodePaths();
+      // Re-seal an already-signed-in provider's cookie whenever the live jar
+      // refreshes it, so providers with session-scoped auth cookies (Alibaba's
+      // console) don't age out of the one snapshot taken at sign-in.
+      startUsageLoginCookieMirror({ cacheDir: paths.cacheDir, session: browserSession });
       const initialSettings = readSharedSettingsFile(paths.settingsPath);
       syncStartupSettings(initialSettings);
       const showMainWindowOnReady = !shouldStartMinimized(

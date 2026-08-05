@@ -10,6 +10,7 @@ import {
   PictureInPicture2,
   X,
 } from "lucide-react";
+import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -379,7 +380,7 @@ function BrowserTabWebview(props: { tabId: string; initialSrc: string; visible: 
     <webview
       ref={ref}
       data-tab-id={props.tabId}
-      partition="persist:lightcode-browser"
+      partition={BROWSER_SESSION_PARTITION}
       src={initialSrcRef.current || "about:blank"}
       // Electron's React type says boolean, but React warns unless this custom
       // element attribute is serialized as a string.
