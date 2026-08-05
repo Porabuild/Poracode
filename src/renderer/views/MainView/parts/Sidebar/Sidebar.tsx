@@ -4,9 +4,11 @@ import {
   ChevronRight,
   Download,
   GitPullRequest,
+  Globe,
   House,
   PanelLeft,
   PanelLeftClose,
+  Plus,
   RefreshCw,
   Search,
   Settings2,
@@ -33,12 +35,17 @@ import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
+import { ThreadContextMenu } from "@/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { readBridge } from "@/renderer/bridge";
-import { openRemoteAccessSettings, openSettings } from "@/renderer/actions/panelActions";
+import { isMac, readBridge } from "@/renderer/bridge";
+import {
+  openRemoteAccessSettings,
+  openSettings,
+  toggleBrowserPanel,
+} from "@/renderer/actions/panelActions";
 import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
 import { openTerminal } from "@/renderer/actions/terminalActions";
-import { openThread } from "@/renderer/actions/threadActions";
+import { openNewThread, openThread } from "@/renderer/actions/threadActions";
 import {
   useCurrentProjectId,
   useIsCurrentThread,
@@ -58,6 +65,7 @@ import {
 } from "@/renderer/state/workspaceSelectors";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { SidebarWorkspaceSwitcher } from "./parts/SidebarWorkspaceSwitcher";
+import { SidebarFlatThreadList } from "./parts/SidebarFlatThreadList";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
 import { WhatsNewButton } from "./parts/WhatsNewButton";
 import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
@@ -174,24 +182,48 @@ function RemoteAccessSidebarIcon(props: { status: RemoteAccessSidebarStatus }) {
   );
 }
 
-function CollapsedThreadRailButton(props: { thread: Thread }) {
-  const { thread } = props;
+function CollapsedThreadRailButton(props: { thread: Thread; projectName?: string }) {
+  const { thread, projectName } = props;
   const isActive = useIsCurrentThread(thread.id);
-  return (
+  const project = useAppStore((s) => s.projects.find((p) => p.id === thread.projectId));
+  const title = thread.done ? (
+    <span className="opacity-50 line-through">{thread.title}</span>
+  ) : (
+    thread.title
+  );
+  const button = (
     <SidebarButton
       iconOnly
       icon={<ThreadIcon thread={thread} />}
-      label={
-        thread.done ? <span className="opacity-50 line-through">{thread.title}</span> : thread.title
-      }
+      label={title}
+      {...(projectName
+        ? {
+            tooltip: (
+              <span>
+                {title}
+                <span className="text-muted"> — {projectName}</span>
+              </span>
+            ),
+          }
+        : {})}
       isActive={isActive}
       onPress={() => openThread(thread.id)}
     />
+  );
+  if (!project) return button;
+  // No `onRename`: the icon rail has no inline rename affordance.
+  return (
+    <ThreadContextMenu thread={thread} project={project}>
+      {button}
+    </ThreadContextMenu>
   );
 }
 
 function CollapsedThreadRail() {
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
+  const showProjectName = usePanelStore((s) => s.threadListLayout === "flat");
+  const projects = useAppStore((s) => s.projects);
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
   const activeThreads = useAppStore(
     useShallow((state) =>
       state.threads.filter(
@@ -213,9 +245,16 @@ function CollapsedThreadRail() {
       className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto"
       style={scrollFadeStyle}
     >
-      {activeThreads.map((thread) => (
-        <CollapsedThreadRailButton key={thread.id} thread={thread} />
-      ))}
+      {activeThreads.map((thread) => {
+        const projectName = showProjectName ? projectsById.get(thread.projectId)?.name : undefined;
+        return (
+          <CollapsedThreadRailButton
+            key={thread.id}
+            thread={thread}
+            {...(projectName ? { projectName } : {})}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -234,6 +273,7 @@ export function Sidebar() {
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
   const sortMode = usePanelStore((s) => s.threadSortMode);
+  const listLayout = usePanelStore((s) => s.threadListLayout);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const settingsSection = usePanelStore((s) => s.settingsSection);
   // Remote Access has its own sidebar entry, so the generic Settings button
@@ -241,6 +281,7 @@ export function Sidebar() {
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
+  const browserVisible = usePanelStore((s) => s.browserPanelOpen && s.rightPanelTab === "browser");
   const githubActionsOpen = usePanelStore((s) => s.githubActionsContext !== null);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
@@ -367,7 +408,14 @@ export function Sidebar() {
   return (
     <div className="relative h-full">
       {isCollapsed && (
-        <div className="absolute inset-y-0 left-0 z-10 flex h-full min-h-0 w-12 flex-col items-start gap-3 pl-2 pb-0 pt-0">
+        <div
+          className={`absolute inset-y-0 left-0 z-10 flex h-full min-h-0 w-12 flex-col items-start gap-3 pl-2 pb-0 ${
+            // macOS keeps the rail below the hidden-inset titlebar (traffic
+            // lights); elsewhere the header spacer is dropped when collapsed,
+            // so the rail starts at the window top with its own inset.
+            isMac() ? "pt-0" : "pt-2"
+          }`}
+        >
           <div className="flex shrink-0 flex-col gap-0.5">
             <SidebarButton
               iconOnly
@@ -382,6 +430,20 @@ export function Sidebar() {
               label={t`Search`}
               isActive={threadSearchOpen}
               onPress={openThreadSearch}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Globe className="size-3.5" />}
+              label={t`Browser`}
+              isActive={browserVisible}
+              onPress={toggleBrowserPanel}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Plus className="size-3.5" />}
+              label={t`New thread`}
+              isActive={appView.kind === "draft"}
+              onPress={() => openNewThread()}
             />
           </div>
           <CollapsedThreadRail />
@@ -446,6 +508,8 @@ export function Sidebar() {
                 )}
               </p>
             </div>
+          ) : listLayout === "flat" ? (
+            <SidebarFlatThreadList sortMode={sortMode} />
           ) : (
             <div className="space-y-4">
               {homeScopeEnabled && homeProject ? (

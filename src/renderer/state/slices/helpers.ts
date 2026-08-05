@@ -54,18 +54,18 @@ export function normalizeStoredThreadStatus(thread: Thread): Thread {
 /**
  * Transition any "finished" threads that are now visible in panes back to "idle".
  * Returns updated array if any thread changed, or null if nothing changed.
+ *
+ * Deliberately does NOT clear `done`: opening a thread is not an undone action.
+ * `done` only flips back on an explicit unmark or on real activity (status
+ * transitions to "working" in updateThreadRuntime).
  */
-export function clearFinishedAndDone(threads: Thread[], panes: string[]): Thread[] | null {
+export function clearFinished(threads: Thread[], panes: string[]): Thread[] | null {
   let changed = false;
   const result = threads.map((t) => {
     if (!panes.includes(t.id)) return t;
-    if (t.status === "finished" || t.done) {
+    if (t.status === "finished") {
       changed = true;
-      return {
-        ...t,
-        ...(t.status === "finished" ? { status: "idle" as ThreadStatus } : {}),
-        ...(t.done ? { done: false, doneAt: undefined } : {}),
-      };
+      return { ...t, status: "idle" as ThreadStatus };
     }
     return t;
   });

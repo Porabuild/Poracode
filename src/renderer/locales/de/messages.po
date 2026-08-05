@@ -1341,7 +1341,7 @@ msgstr "Thread archivieren"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Archive Thread"
 msgstr "Thread archivieren"
 
@@ -1701,6 +1701,10 @@ msgstr "Branch {branch}: {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "Branch <0>{0}</0> weist nicht zusammengeführte Änderungen auf:"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "Zweigname"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Branch nicht vollständig zusammengeführt"
@@ -1729,6 +1733,10 @@ msgstr "Holen Sie ihn zurück in dieses Panel oder wechseln Sie zum Fenster, in 
 msgid "Bring saved passwords and cookies over from an installed browser."
 msgstr "Gespeicherte Passwörter und Cookies aus einem installierten Browser übernehmen."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "Nicht festgeschriebene Änderungen mitbringen"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "Durchsuchen"
@@ -1752,6 +1760,7 @@ msgstr "Durchsuchen Sie Ihre GitHub-Repositorys oder fügen Sie eine Klon-URL ei
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -2233,6 +2242,10 @@ msgstr "Claude-Profilname"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Claude-Profil entfernt."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "Sauberer Arbeitsbaum"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -2953,7 +2966,7 @@ msgstr "Weiter"
 msgid "Continue in another provider"
 msgstr "In einem anderen Anbieter fortfahren"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Weiter in..."
 
@@ -3301,6 +3314,7 @@ msgstr "Mit Agent erstellen"
 #~ msgid "Create:"
 #~ msgstr "Erstellen:"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Es wurde ein Arbeitsbaum für „{newBranch}“ erstellt, aber die Änderungen widersprachen und verbleiben in einem Git-Stash – lösen Sie sie im Arbeitsbaum auf."
@@ -3666,7 +3680,7 @@ msgstr "Thread löschen"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Delete Thread"
 msgstr "Thread löschen"
 
@@ -4875,6 +4889,10 @@ msgstr "Im Agenten beheben"
 msgid "Fixed"
 msgstr "Behoben"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Flache Liste"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Browseradressleiste fokussieren"
@@ -5076,7 +5094,7 @@ msgstr "Aufgabe abrufen"
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5228,13 +5246,17 @@ msgstr "Gruppe"
 msgid "Group name"
 msgstr "Gruppenname"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Group open threads"
 msgstr "Offene Threads gruppieren"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Gruppiere Projekte, damit Seitenleiste, Zeitpläne und Pull Requests jeweils nur eine Gruppe zeigen. Wechsle unten in der Seitenleiste zwischen ihnen."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Nach Projekt gruppiert"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6013,6 +6035,10 @@ msgstr "Verknüpft"
 msgid "List"
 msgstr "Liste"
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Listenoptionen"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
 msgstr "Pakete auflisten"
@@ -6339,7 +6365,7 @@ msgstr "Als erledigt markieren"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Mark Done"
 msgstr "Als erledigt markieren"
 
@@ -6791,6 +6817,14 @@ msgstr "Änderungen in einen neuen Arbeitsbaum verschieben"
 msgid "Move to Workspace"
 msgstr "In Arbeitsbereich verschieben"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "In Arbeitsbaum verschieben"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "In Arbeitsbaum verschieben…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Verschieben Sie das ToDo-Dock in den rechten Bereich"
@@ -6804,6 +6838,18 @@ msgstr "Verschieben Sie das ToDo-Dock in den rechten Bereich"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "1 Projekt nach {0} verschoben."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "Der Thread und Ihre Änderungen wurden in einen neuen Arbeitsbaum unter „{newBranch}“ verschoben."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "Der Thread und Ihre Änderungen wurden in einen neuen Arbeitsbaum unter „{newBranch}“ verschoben. „{currentBranch}“ ist jetzt sauber."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "Der Thread wurde in einen neuen Arbeitsbaum unter „{branch}“ verschoben."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -6987,6 +7033,7 @@ msgstr "Neuer Tab in Gruppe"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Neuer Thread"
@@ -7014,7 +7061,7 @@ msgid "New thread in worktree"
 msgstr "Neuer Thread im Worktree"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "New Thread in Worktree"
 msgstr "Neuer Thread im Arbeitsbaum"
 
@@ -7059,7 +7106,7 @@ msgstr "Nächster Tab"
 msgid "No active browser tab"
 msgstr "Kein aktiver Browser-Tab"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No active session"
 msgstr "Keine aktive Sitzung"
 
@@ -7323,7 +7370,7 @@ msgstr "Kein Mikrofon gefunden."
 msgid "No models found"
 msgstr "Keine Modelle gefunden"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
 msgstr "Keine anderen Agenten installiert"
 
@@ -7751,7 +7798,7 @@ msgid "Open experiment"
 msgstr "Experiment öffnen"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Open experiment board"
 msgstr "Experiment-Board öffnen"
 
@@ -7924,11 +7971,11 @@ msgstr "Terminal öffnen"
 msgid "Open terminal in worktree"
 msgstr "Terminal im Worktree öffnen"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "Aufwandsauswahl öffnen"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "Modellauswahl öffnen"
 
@@ -8288,7 +8335,7 @@ msgstr "Die Auswahl hat keinen Anhang zurückgegeben"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
 msgstr "Oben anheften"
 
@@ -8394,6 +8441,10 @@ msgstr "Poracode wird neu gestartet, sichert seine aktuellen Daten und ersetzt s
 msgid "Poracode's built-in browser tools."
 msgstr "Die integrierten Browser-Tools von Poracode."
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
 msgid "Port"
@@ -8433,6 +8484,14 @@ msgstr "PR-Aktionen"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "PR-Automatisierung"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Fix"
+msgstr "PR-Automatisierung: Automatisch beheben"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Merge"
+msgstr "PR-Automatisierung: Automatisch mergen"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
@@ -8630,6 +8689,7 @@ msgid "Prompts"
 msgstr "Prompts"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "Vorgeschlagener Plan"
 
@@ -9175,7 +9235,7 @@ msgstr "Aus Downloadverlauf entfernen"
 msgid "Remove from favorites"
 msgstr "Aus Favoriten entfernen"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Remove from group"
 msgstr "Aus der Gruppe entfernen"
 
@@ -9233,7 +9293,7 @@ msgstr "Worktree entfernen?"
 #: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "Umbenennen"
@@ -9639,7 +9699,7 @@ msgstr "Ansichtsbereich drehen"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Run"
 msgstr "Ausführen"
 
@@ -10083,7 +10143,7 @@ msgstr "Suche..."
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Sicherheitsorientiertes Verzeichnis mit verifizierten Skill-Metadaten."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Mehr anzeigen"
 
@@ -10655,8 +10715,8 @@ msgid "Sort marketplace skills"
 msgstr "Marketplace-Skills sortieren"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Threads sortieren"
+#~ msgid "Sort threads"
+#~ msgstr "Threads sortieren"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11094,11 +11154,11 @@ msgstr "Modus wechseln: {title}"
 msgid "Switch project"
 msgstr "Projekt wechseln"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Diesen Chat in den Agentenmodus schalten"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "Diesen Chat in den Planmodus schalten"
 
@@ -11476,6 +11536,10 @@ msgstr "Der SSH-Tunnel hat einen inkompatiblen Poracode-Server erreicht."
 msgid "the target provider"
 msgstr "der Zielanbieter"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "Der Thread wird in einem separaten Arbeitsbaum auf einem neuen Zweig ausgeführt."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "Der Update-Vorgang ist fehlgeschlagen."
@@ -11703,9 +11767,13 @@ msgstr "Der Thread ist beendet oder wartet auf Ihre Eingabe."
 msgid "Thread goal dock"
 msgstr "Thread-Zieldock"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
 msgstr "Thread ist bereits entladen."
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Optionen der Thread-Liste"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -11717,8 +11785,8 @@ msgid "Thread Only"
 msgstr "Nur Thread"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Sortierreihenfolge der Threads"
+#~ msgid "Thread sort order"
+#~ msgstr "Sortierreihenfolge der Threads"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"
@@ -11774,7 +11842,7 @@ msgid "Toggle browser panel"
 msgstr "Browser-Panel umschalten"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "Schnellmodus umschalten"
 
@@ -12312,7 +12380,7 @@ msgstr "Inaktive Threads entladen nach"
 msgid "Unload idle threads after (minutes)"
 msgstr "Inaktive Threads entladen nach (Minuten)"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unload Thread"
 msgstr "Thread entladen"
 
@@ -12332,7 +12400,7 @@ msgstr "Markierung „Fertig“ aufheben"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Markierung „Fertig“ aufheben"
 
@@ -12347,7 +12415,7 @@ msgstr "Ohne Phase:"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "Lösen"
 
@@ -12751,7 +12819,11 @@ msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie einen Gewinner zu
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie einen Pull Request öffnen."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "Warten Sie, bis der Thread vollständig gestartet ist, bevor Sie ihn in einen Arbeitsbaum verschieben."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Warten Sie, bis der Thread gestartet ist."
 

@@ -1341,7 +1341,7 @@ msgstr "Архівувати тред"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Archive Thread"
 msgstr "Архівувати тред"
 
@@ -1701,6 +1701,10 @@ msgstr "гілка {branch}: {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "У гілці <0>{0}</0> є незмерджені зміни:"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "Ім'я гілки"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Гілку не повністю змерджено"
@@ -1729,6 +1733,10 @@ msgstr "Поверніть його на цю панель або перейді
 msgid "Bring saved passwords and cookies over from an installed browser."
 msgstr "Перенесіть збережені паролі та файли cookie зі встановленого браузера."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "Перенести незакомічені зміни"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "Огляд"
@@ -1752,6 +1760,7 @@ msgstr "Перегляньте свої репозиторії GitHub або в�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -2233,6 +2242,10 @@ msgstr "Ім'я профілю Claude"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Профіль Claude видалено."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "Чистий worktree"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -2953,7 +2966,7 @@ msgstr "Продовжити"
 msgid "Continue in another provider"
 msgstr "Продовжити в іншому провайдері"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Продовжити в..."
 
@@ -3301,6 +3314,7 @@ msgstr "Створити з агентом"
 #~ msgid "Create:"
 #~ msgstr "Створити:"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Worktree створено на \"{newBranch}\", але зміни спричинили конфлікт і залишаються в git stash — вирішіть їх у worktree."
@@ -3666,7 +3680,7 @@ msgstr "Видалити тред"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Delete Thread"
 msgstr "Видалити тред"
 
@@ -4875,6 +4889,10 @@ msgstr "Виправити в агенті"
 msgid "Fixed"
 msgstr "Виправлено"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Плоский список"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Встановити фокус на адресний рядок браузера"
@@ -5076,7 +5094,7 @@ msgstr "Отримати завдання"
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5228,13 +5246,17 @@ msgstr "Група"
 msgid "Group name"
 msgstr "Назва групи"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Group open threads"
 msgstr "Групувати відкриті треди"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Групуйте проєкти, щоб бічна панель, розклади та pull request показували лише один набір водночас. Перемикайтеся між ними внизу бічної панелі."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Групування за проєктами"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6013,6 +6035,10 @@ msgstr "Зв’язано"
 msgid "List"
 msgstr "Список"
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Параметри списку"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
 msgstr "Список пакетів"
@@ -6339,7 +6365,7 @@ msgstr "Позначити виконаним"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Mark Done"
 msgstr "Позначити виконаним"
 
@@ -6791,6 +6817,14 @@ msgstr "Перемістити зміни в новий worktree"
 msgid "Move to Workspace"
 msgstr "Перемістити до робочої області"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "Перемістити в worktree"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "Перемістити в worktree…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Перемістити панель завдань у праву панель"
@@ -6804,6 +6838,18 @@ msgstr "Перемістити панель завдань у праву пан�
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "1 проєкт переміщено до {0}."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "Тред і ваші зміни переміщено в новий worktree на \"{newBranch}\"."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "Тред і ваші зміни переміщено в новий worktree на \"{newBranch}\". \"{currentBranch}\" тепер чистий."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "Тред переміщено в новий worktree на \"{branch}\"."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -6987,6 +7033,7 @@ msgstr "Нова вкладка в групі"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Новий тред"
@@ -7014,7 +7061,7 @@ msgid "New thread in worktree"
 msgstr "Новий потік у worktree"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "New Thread in Worktree"
 msgstr "Новий тред у worktree"
 
@@ -7059,7 +7106,7 @@ msgstr "Наступна вкладка"
 msgid "No active browser tab"
 msgstr "Немає активної вкладки браузера"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No active session"
 msgstr "Немає активної сесії"
 
@@ -7323,7 +7370,7 @@ msgstr "Мікрофон не знайдено."
 msgid "No models found"
 msgstr "Моделі не знайдено"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
 msgstr "Інших встановлених агентів немає"
 
@@ -7751,7 +7798,7 @@ msgid "Open experiment"
 msgstr "Відкрити експеримент"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Open experiment board"
 msgstr "Відкрити дошку експерименту"
 
@@ -7924,11 +7971,11 @@ msgstr "Открыть терминал"
 msgid "Open terminal in worktree"
 msgstr "Открыть терминал в worktree"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "Відкрити вибір зусилля"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "Відкрити вибір моделі"
 
@@ -8288,7 +8335,7 @@ msgstr "Вибір не повернув вкладення"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
 msgstr "Закріпити вгорі"
 
@@ -8394,6 +8441,10 @@ msgstr "Poracode перезапуститься, створить резервн
 msgid "Poracode's built-in browser tools."
 msgstr "Вбудовані інструменти браузера Poracode."
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
 msgid "Port"
@@ -8433,6 +8484,14 @@ msgstr "Дії PR"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "Автоматизація PR"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Fix"
+msgstr "Автоматизація PR: Автовиправлення"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Merge"
+msgstr "Автоматизація PR: Автозлиття"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
@@ -8630,6 +8689,7 @@ msgid "Prompts"
 msgstr "Запити"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "Запропонований план"
 
@@ -9175,7 +9235,7 @@ msgstr "Видалити з історії завантажень"
 msgid "Remove from favorites"
 msgstr "Видалити з обраного"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Remove from group"
 msgstr "Видалити з групи"
 
@@ -9233,7 +9293,7 @@ msgstr "Видалити worktree?"
 #: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "Перейменувати"
@@ -9639,7 +9699,7 @@ msgstr "Повернути область перегляду"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Run"
 msgstr "Запустити"
 
@@ -10083,7 +10143,7 @@ msgstr "Пошук…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Каталог із фокусом на безпеці та перевіреними метаданими навичок."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Показати більше"
 
@@ -10655,8 +10715,8 @@ msgid "Sort marketplace skills"
 msgstr "Сортувати навички маркетплейсу"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Сортувати треди"
+#~ msgid "Sort threads"
+#~ msgstr "Сортувати треди"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11094,11 +11154,11 @@ msgstr "Перемкнути режим: {title}"
 msgid "Switch project"
 msgstr "Перемкнути проєкт"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Перемкнути цей чат у режим агента"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "Перемкнути цей чат у режим плану"
 
@@ -11476,6 +11536,10 @@ msgstr "SSH-тунель підключився до несумісного се
 msgid "the target provider"
 msgstr "цільовий провайдер"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "Тред працюватиме в окремому worktree на новій гілці."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "Не вдалося виконати операцію оновлення."
@@ -11703,9 +11767,13 @@ msgstr "Тред завершено або він очікує на ваш вв�
 msgid "Thread goal dock"
 msgstr "Панель мети треда"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
 msgstr "Тред уже вивантажено."
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Параметри списку тредів"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -11717,8 +11785,8 @@ msgid "Thread Only"
 msgstr "Лише тред"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Порядок сортування тредів"
+#~ msgid "Thread sort order"
+#~ msgstr "Порядок сортування тредів"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"
@@ -11774,7 +11842,7 @@ msgid "Toggle browser panel"
 msgstr "Перемкнути панель браузера"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "Перемкнути швидкий режим"
 
@@ -12312,7 +12380,7 @@ msgstr "Вивантажувати неактивні треди через"
 msgid "Unload idle threads after (minutes)"
 msgstr "Вивантажувати неактивні треди через (хвилин)"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unload Thread"
 msgstr "Вивантажити тред"
 
@@ -12332,7 +12400,7 @@ msgstr "Зняти позначку «готово»"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Зняти позначку «готово»"
 
@@ -12347,7 +12415,7 @@ msgstr "Без фази:"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "Відкріпити"
 
@@ -12751,7 +12819,11 @@ msgstr "Зачекайте, доки всі кандидати завершат�
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Зачекайте, доки всі кандидати завершать роботу, перш ніж відкривати pull request."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "Дочекайтеся завершення запуску треда, перш ніж переміщувати його в worktree."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Зачекайте, поки тред завершить запуск."
 

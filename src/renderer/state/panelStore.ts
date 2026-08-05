@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import type { ProjectLocation } from "@/shared/contracts";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
-import type { ThreadSortMode } from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
+import type {
+  ThreadListLayout,
+  ThreadSortMode,
+} from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
 import { useFileEditorStore } from "./fileEditorStore";
 
 export interface GitReviewContext {
@@ -83,6 +86,7 @@ interface PanelState {
   settingsSection: string | null;
   projectSettingsId: string | null;
   threadSortMode: ThreadSortMode;
+  threadListLayout: ThreadListLayout;
   threadSearchOpen: boolean;
   /** Whether the "Start from scratch" create-project modal is open. */
   createProjectModalOpen: boolean;
@@ -90,6 +94,7 @@ interface PanelState {
   cloneProjectModalOpen: boolean;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
   setThreadSortMode: (mode: ThreadSortMode) => void;
+  setThreadListLayout: (layout: ThreadListLayout) => void;
   setGitReviewAsPanel: (v: boolean) => void;
   setGitOverlayOpen: (v: boolean) => void;
   setPrReviewContext: (ctx: PrReviewContext | null) => void;
@@ -177,7 +182,21 @@ const initialPersisted = readPersistedSlice<{
   browserOverlayDrawerWidth: number;
   rightPanelFollowsThread?: boolean;
   threadToolRailOffset?: number;
+  threadSortMode?: ThreadSortMode;
+  threadListLayout?: ThreadListLayout;
 }>(PERSIST_KEY);
+
+// Kept in sync with `ThreadSortMode`/`ThreadListLayout` manually — importing
+// the option tables would pull the icon module (lucide) into the store.
+// Unknown persisted values (e.g. written by a newer app version) fall back to
+// the defaults.
+function sanitizeThreadSortMode(value: unknown): ThreadSortMode {
+  return value === "updated" || value === "created" || value === "manual" ? value : "updated";
+}
+
+function sanitizeThreadListLayout(value: unknown): ThreadListLayout {
+  return value === "grouped" || value === "flat" ? value : "grouped";
+}
 
 /** Default rail offset: below the pane header, near the top of the conversation. */
 const DEFAULT_THREAD_TOOL_RAIL_OFFSET = 56;
@@ -214,7 +233,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
   settingsOpen: false,
   settingsSection: null,
   projectSettingsId: null,
-  threadSortMode: "updated",
+  threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
+  threadListLayout: sanitizeThreadListLayout(initialPersisted?.threadListLayout),
   threadSearchOpen: false,
   createProjectModalOpen: false,
   cloneProjectModalOpen: false,
@@ -371,6 +391,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
     ),
   setThreadSortMode: (mode) =>
     set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
+  setThreadListLayout: (layout) =>
+    set((state) => (state.threadListLayout === layout ? {} : { threadListLayout: layout })),
   openSettings: () =>
     set((state) =>
       state.settingsOpen && state.settingsSection === null
@@ -427,13 +449,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
   },
 }));
 
-// Only the two cross-launch slices persist; every other panel/overlay flag is
+// Only the cross-launch slices persist; every other panel/overlay flag is
 // session-scoped and resets on launch. Persisting just this slice keeps the
 // frequent session-only toggles (right-panel tab, settings/search/modal open,
-// sort mode, …) off localStorage — they change the store constantly but never
-// the persisted value. Initial hydration is synchronous, seeded above from
-// readPersistedSlice so the restored git panel and drawer width are present
-// before first paint.
+// …) off localStorage — they change the store constantly but never the
+// persisted value. The thread sort/layout mode persists so a flat-list user
+// isn't reset to project grouping on relaunch. Initial hydration is
+// synchronous, seeded above from readPersistedSlice so the restored git panel
+// and drawer width are present before first paint.
 persistStoreSlice(usePanelStore, PERSIST_KEY, (state) => ({
   gitReviewContext: state.gitReviewContext
     ? {
@@ -446,6 +469,8 @@ persistStoreSlice(usePanelStore, PERSIST_KEY, (state) => ({
   browserOverlayDrawerWidth: state.browserOverlayDrawerWidth,
   rightPanelFollowsThread: state.rightPanelFollowsThread,
   threadToolRailOffset: state.threadToolRailOffset,
+  threadSortMode: state.threadSortMode,
+  threadListLayout: state.threadListLayout,
 }));
 
 // Returns true when any full-window overlay (z-50) is currently rendered above

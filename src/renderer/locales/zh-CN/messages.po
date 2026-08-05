@@ -1341,7 +1341,7 @@ msgstr "归档线程"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Archive Thread"
 msgstr "存档线程"
 
@@ -1701,6 +1701,10 @@ msgstr "分支 {branch}：{detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "分支 <0>{0}</0> 具有未合并的更改："
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "分支名称"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "分支未完全合并"
@@ -1729,6 +1733,10 @@ msgstr "将其移回此面板，或跳转到正在运行它的窗口。"
 msgid "Bring saved passwords and cookies over from an installed browser."
 msgstr "从已安装的浏览器导入已保存的密码和 Cookie。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "带上未提交的更改"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "浏览"
@@ -1752,6 +1760,7 @@ msgstr "浏览您的 GitHub 存储库或粘贴克隆 URL。"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -2233,6 +2242,10 @@ msgstr "Claude 配置文件名称"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Claude 配置文件已删除。"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "干净的工作树"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -2953,7 +2966,7 @@ msgstr "继续"
 msgid "Continue in another provider"
 msgstr "继续使用另一个提供商"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "在其他工具中继续..."
 
@@ -3301,6 +3314,7 @@ msgstr "使用代理创建"
 #~ msgid "Create:"
 #~ msgstr "创建："
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "在“{newBranch}”上创建了一个工作树，但更改发生冲突并保留在 git 存储中 - 在工作树中解决它们。"
@@ -3666,7 +3680,7 @@ msgstr "删除线程"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Delete Thread"
 msgstr "删除线程"
 
@@ -4875,6 +4889,10 @@ msgstr "在代理中修复"
 msgid "Fixed"
 msgstr "已修复"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "扁平列表"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "聚焦浏览器地址栏"
@@ -5076,7 +5094,7 @@ msgstr "获取任务"
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5228,13 +5246,17 @@ msgstr "分组"
 msgid "Group name"
 msgstr "分组名称"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Group open threads"
 msgstr "对打开的线程进行分组"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "将项目分组，使侧边栏、计划和拉取请求一次只显示一组。在侧边栏底部切换工作区。"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "按项目分组"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6013,6 +6035,10 @@ msgstr "已链接"
 msgid "List"
 msgstr "列表"
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "列表选项"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
 msgstr "列出包"
@@ -6339,7 +6365,7 @@ msgstr "标记完成"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Mark Done"
 msgstr "标记完成"
 
@@ -6790,6 +6816,14 @@ msgstr "将更改移至新工作树"
 msgid "Move to Workspace"
 msgstr "移动到工作区"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "移至工作树"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "移至工作树…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "将待办事项停靠栏移至右侧面板"
@@ -6803,6 +6837,18 @@ msgstr "将待办事项停靠栏移至右侧面板"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "已将 1 个项目移动到 {0}。"
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "已将线程和您的更改移至“{newBranch}”上的新工作树中。"
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "已将线程和您的更改移至“{newBranch}”上的新工作树中。“{currentBranch}”现在是干净的。"
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "已将线程移至“{branch}”上的新工作树中。"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -6986,6 +7032,7 @@ msgstr "在分组中新建标签页"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "新线程"
@@ -7013,7 +7060,7 @@ msgid "New thread in worktree"
 msgstr "在 worktree 中新建线程"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "New Thread in Worktree"
 msgstr "工作树中的新线程"
 
@@ -7058,7 +7105,7 @@ msgstr "下一个选项卡"
 msgid "No active browser tab"
 msgstr "没有活动的浏览器选项卡"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No active session"
 msgstr "没有活动会话"
 
@@ -7322,7 +7369,7 @@ msgstr "找不到麦克风。"
 msgid "No models found"
 msgstr "未找到模型"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
 msgstr "没有安装其他代理"
 
@@ -7750,7 +7797,7 @@ msgid "Open experiment"
 msgstr "打开实验"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Open experiment board"
 msgstr "打开实验面板"
 
@@ -7923,11 +7970,11 @@ msgstr "打开终端"
 msgid "Open terminal in worktree"
 msgstr "在 worktree 中打开终端"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "打开工作量选择器"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "打开模型选择器"
 
@@ -8287,7 +8334,7 @@ msgstr "选择器未返回任何附件"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
 msgstr "固定到顶部"
 
@@ -8393,6 +8440,10 @@ msgstr "Poracode 将重新启动，备份当前数据，并用 Lightcode 数据�
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode 内置的浏览器工具。"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
 msgid "Port"
@@ -8432,6 +8483,14 @@ msgstr "PR 操作"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "PR 自动化"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Fix"
+msgstr "PR 自动化: 自动修复"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Merge"
+msgstr "PR 自动化: 自动合并"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
@@ -8629,6 +8688,7 @@ msgid "Prompts"
 msgstr "提示"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "拟议计划"
 
@@ -9174,7 +9234,7 @@ msgstr "从下载记录中移除"
 msgid "Remove from favorites"
 msgstr "从收藏夹中删除"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Remove from group"
 msgstr "从组中删除"
 
@@ -9232,7 +9292,7 @@ msgstr "删除工作树？"
 #: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "重命名"
@@ -9638,7 +9698,7 @@ msgstr "旋转视口"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Run"
 msgstr "运行"
 
@@ -10082,7 +10142,7 @@ msgstr "正在搜索…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "注重安全并提供已验证技能元数据的目录。"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "查看更多"
 
@@ -10654,8 +10714,8 @@ msgid "Sort marketplace skills"
 msgstr "对市场技能排序"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "对线程进行排序"
+#~ msgid "Sort threads"
+#~ msgstr "对线程进行排序"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11093,11 +11153,11 @@ msgstr "切换模式：{title}"
 msgid "Switch project"
 msgstr "切换项目"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "将此聊天切换到代理模式"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "将此聊天切换到计划模式"
 
@@ -11475,6 +11535,10 @@ msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
 msgid "the target provider"
 msgstr "目标提供商"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "线程将在新分支上的独立工作树中运行。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "更新操作失败。"
@@ -11702,9 +11766,13 @@ msgstr "线程已完成或正在等待您的输入。"
 msgid "Thread goal dock"
 msgstr "线程目标停靠栏"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
 msgstr "线程已经卸载。"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "线程列表选项"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -11716,8 +11784,8 @@ msgid "Thread Only"
 msgstr "仅线程"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "线程排序顺序"
+#~ msgid "Thread sort order"
+#~ msgstr "线程排序顺序"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"
@@ -11773,7 +11841,7 @@ msgid "Toggle browser panel"
 msgstr "切换浏览器面板"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "切换快速模式"
 
@@ -12311,7 +12379,7 @@ msgstr "在以下时间后卸载空闲线程"
 msgid "Unload idle threads after (minutes)"
 msgstr "在以下分钟数后卸载空闲线程"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unload Thread"
 msgstr "卸载线程"
 
@@ -12331,7 +12399,7 @@ msgstr "取消标记完成"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "取消标记完成"
 
@@ -12346,7 +12414,7 @@ msgstr "未分阶段："
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "取消固定"
 
@@ -12750,7 +12818,11 @@ msgstr "请等待所有候选项完成后再合并优胜者。"
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "请等待所有候选项完成后再创建拉取请求。"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "请等待线程启动完成，然后再将其移至工作树。"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "等待线程完成启动。"
 

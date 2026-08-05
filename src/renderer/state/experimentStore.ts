@@ -135,12 +135,12 @@ export const useExperimentStore = create<ExperimentStore>()(
   ),
 );
 
-export function useProjectExperimentCandidateOrder(projectId: string): ReadonlyMap<string, number> {
+export function useExperimentCandidateOrder(projectId?: string): ReadonlyMap<string, number> {
   return useExperimentStore(
     useShallow((state) => {
       const order = new Map<string, number>();
       for (const experiment of Object.values(state.experiments)) {
-        if (experiment.projectId !== projectId) continue;
+        if (projectId !== undefined && experiment.projectId !== projectId) continue;
         experiment.candidates.forEach((candidate, index) => order.set(candidate.threadId, index));
       }
       return order;

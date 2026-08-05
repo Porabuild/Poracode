@@ -288,6 +288,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     {
       agentKind: thread.agentKind,
       presentationMode,
+      runtimeLabel: effectiveAgentStatus?.capabilities.runtimeLabel,
       hasEffort:
         ((
           effectiveAgentStatus?.capabilities.modelEfforts?.[thread.config?.model ?? ""] ??

@@ -212,6 +212,10 @@ function TabStripHeader(props: {
         className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
         role="tablist"
         aria-label={t`Editor tabs`}
+        onWheel={(event) => {
+          // Map vertical wheel to horizontal scrolling so overflowed tabs are reachable.
+          if (event.deltaY !== 0) event.currentTarget.scrollLeft += event.deltaY;
+        }}
       >
         {paths.map((path, index) => (
           <SortableTab
@@ -225,7 +229,6 @@ function TabStripHeader(props: {
         ))}
       </div>
 
-      <div className="flex-1" />
       <div className="poracode-content-over-drag-region flex items-center gap-1.5">
         <EditorToolbar
           isMarkdown={props.isMarkdown}

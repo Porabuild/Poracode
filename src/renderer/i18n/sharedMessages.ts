@@ -174,6 +174,7 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "supervisor.restarted": msg({ message: "Background process restarted" }),
   "supervisor.exited": msg({ message: "Background process exited unexpectedly" }),
   "supervisor.notRunning": msg({ message: "Background process is not running" }),
+  "supervisor.proposedPlan": msg({ message: "Proposed plan" }),
   "kimi.credentialsLocked": msg({
     message:
       "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",

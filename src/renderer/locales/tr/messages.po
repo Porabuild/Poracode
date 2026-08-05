@@ -1341,7 +1341,7 @@ msgstr "Konuyu arşivle"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Archive Thread"
 msgstr "İleti Dizisini Arşivle"
 
@@ -1701,6 +1701,10 @@ msgstr "şube {branch}: {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "<0>{0}</0> şubesinde birleştirilmemiş değişiklikler var:"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "Şube adı"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Şube tam olarak birleştirilmedi"
@@ -1729,6 +1733,10 @@ msgstr "Bu panele geri getirin veya çalıştığı pencereye geçin."
 msgid "Bring saved passwords and cookies over from an installed browser."
 msgstr "Kayıtlı parolaları ve çerezleri yüklü bir tarayıcıdan aktarın."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "Kaydedilmemiş değişiklikleri getir"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "Gözat"
@@ -1752,6 +1760,7 @@ msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -2233,6 +2242,10 @@ msgstr "Claude profil adı"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Claude profili kaldırıldı."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "Temiz çalışma ağacı"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -2953,7 +2966,7 @@ msgstr "Devam et"
 msgid "Continue in another provider"
 msgstr "Başka bir sağlayıcıda devam et"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Şurada devam et..."
 
@@ -3301,6 +3314,7 @@ msgstr "Ajanla oluştur"
 #~ msgid "Create:"
 #~ msgstr "Oluştur:"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "\"{newBranch}\" üzerinde bir çalışma ağacı oluşturuldu, ancak değişiklikler çakıştı ve bir git stash'inde kaldı; bunları çalışma ağacında çözün."
@@ -3666,7 +3680,7 @@ msgstr "Konuyu sil"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Delete Thread"
 msgstr "Konuyu Sil"
 
@@ -4875,6 +4889,10 @@ msgstr "Aracıda Düzelt"
 msgid "Fixed"
 msgstr "Düzeltildi"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Düz liste"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Tarayıcı adres çubuğuna odakla"
@@ -5076,7 +5094,7 @@ msgstr "Görev al"
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5228,13 +5246,17 @@ msgstr "Grup"
 msgid "Group name"
 msgstr "Grup adı"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Group open threads"
 msgstr "Açık konuları gruplandır"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Projeleri gruplayın; böylece kenar çubuğu, zamanlamalar ve çekme istekleri her seferinde yalnızca bir grubu gösterir. Kenar çubuğunun altından geçiş yapabilirsiniz."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Projeye göre gruplandır"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6013,6 +6035,10 @@ msgstr "Bağlı"
 msgid "List"
 msgstr "Liste"
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Liste seçenekleri"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
 msgstr "Paketleri listele"
@@ -6339,7 +6365,7 @@ msgstr "Tamamlandı olarak işaretle"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Mark Done"
 msgstr "Tamamlandı Olarak İşaretle"
 
@@ -6791,6 +6817,14 @@ msgstr "Değişiklikleri yeni bir çalışma ağacına taşı"
 msgid "Move to Workspace"
 msgstr "Çalışma alanına taşı"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "Çalışma ağacına taşı"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "Çalışma ağacına taşı…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Yapılacaklar panelini sağ panele taşı"
@@ -6804,6 +6838,18 @@ msgstr "Yapılacaklar panelini sağ panele taşı"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "1 proje {0} alanına taşındı."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "Konu ve değişiklikleriniz \"{newBranch}\" üzerindeki yeni bir çalışma ağacına taşındı."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "Konu ve değişiklikleriniz \"{newBranch}\" üzerindeki yeni bir çalışma ağacına taşındı. \"{currentBranch}\" artık temiz."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "Konu \"{branch}\" üzerindeki yeni bir çalışma ağacına taşındı."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -6987,6 +7033,7 @@ msgstr "Grupta yeni sekme"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Yeni konu"
@@ -7014,7 +7061,7 @@ msgid "New thread in worktree"
 msgstr "Worktree'de yeni iş parçacığı"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "New Thread in Worktree"
 msgstr "Worktree'de Yeni Konu"
 
@@ -7059,7 +7106,7 @@ msgstr "Sonraki sekme"
 msgid "No active browser tab"
 msgstr "Etkin tarayıcı sekmesi yok"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No active session"
 msgstr "Aktif oturum yok"
 
@@ -7323,7 +7370,7 @@ msgstr "Mikrofon bulunamadı."
 msgid "No models found"
 msgstr "Hiçbir model bulunamadı"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
 msgstr "Başka aracı yüklü değil"
 
@@ -7751,7 +7798,7 @@ msgid "Open experiment"
 msgstr "Deneyi aç"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Open experiment board"
 msgstr "Deney panosunu aç"
 
@@ -7924,11 +7971,11 @@ msgstr "Terminali aç"
 msgid "Open terminal in worktree"
 msgstr "Terminali worktree'de aç"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "Çaba seçiciyi aç"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "Model seçiciyi açın"
 
@@ -8288,7 +8335,7 @@ msgstr "Seçici hiçbir ek döndürmedi"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
 msgstr "En üste sabitle"
 
@@ -8394,6 +8441,10 @@ msgstr "Poracode yeniden başlatılacak, mevcut verilerini yedekleyecek ve bunla
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode'un yerleşik tarayıcı araçları."
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
 msgid "Port"
@@ -8433,6 +8484,14 @@ msgstr "PR eylemleri"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "PR otomasyonu"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Fix"
+msgstr "PR otomasyonu: Otomatik düzelt"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Merge"
+msgstr "PR otomasyonu: Otomatik birleştir"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
@@ -8630,6 +8689,7 @@ msgid "Prompts"
 msgstr "İstemler"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "Önerilen plan"
 
@@ -9175,7 +9235,7 @@ msgstr "İndirme geçmişinden kaldır"
 msgid "Remove from favorites"
 msgstr "Favorilerden kaldır"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Remove from group"
 msgstr "Gruptan kaldır"
 
@@ -9233,7 +9293,7 @@ msgstr "Çalışma ağacı kaldırılsın mı?"
 #: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "Yeniden adlandır"
@@ -9639,7 +9699,7 @@ msgstr "Görüntü alanını döndür"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Run"
 msgstr "Çalıştır"
 
@@ -10083,7 +10143,7 @@ msgstr "Aranıyor…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Doğrulanmış beceri meta verileri sunan güvenlik odaklı dizin."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Daha fazlasını gör"
 
@@ -10655,8 +10715,8 @@ msgid "Sort marketplace skills"
 msgstr "Marketplace becerilerini sırala"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Konuları sırala"
+#~ msgid "Sort threads"
+#~ msgstr "Konuları sırala"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11094,11 +11154,11 @@ msgstr "Mod değiştir: {title}"
 msgid "Switch project"
 msgstr "Projeyi değiştir"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Bu sohbeti temsilci moduna geçir"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "Bu sohbeti plan moduna geçir"
 
@@ -11476,6 +11536,10 @@ msgstr "SSH tüneli uyumsuz bir Poracode sunucusuna ulaştı."
 msgid "the target provider"
 msgstr "hedef sağlayıcı"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "Konu, yeni bir şubede ayrı bir çalışma ağacında çalışacak."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "Güncelleme işlemi başarısız oldu."
@@ -11703,9 +11767,13 @@ msgstr "Konu bitti veya girişinizi bekliyor."
 msgid "Thread goal dock"
 msgstr "Konu hedefi yuvası"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
 msgstr "Konu zaten kaldırıldı."
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Konu listesi seçenekleri"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -11717,8 +11785,8 @@ msgid "Thread Only"
 msgstr "Yalnızca Konu"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Konu sıralama düzeni"
+#~ msgid "Thread sort order"
+#~ msgstr "Konu sıralama düzeni"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"
@@ -11774,7 +11842,7 @@ msgid "Toggle browser panel"
 msgstr "Tarayıcı panelini aç/kapat"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "Hızlı modu aç/kapat"
 
@@ -12312,7 +12380,7 @@ msgstr "Boşta kalan konuları şu süreden sonra kaldır"
 msgid "Unload idle threads after (minutes)"
 msgstr "Boşta kalan konuları şu süreden sonra kaldır (dakika)"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unload Thread"
 msgstr "Konuyu Kaldır"
 
@@ -12332,7 +12400,7 @@ msgstr "Tamamlandı işaretini kaldır"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Bitti işaretini kaldır"
 
@@ -12347,7 +12415,7 @@ msgstr "Aşamasız:"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "Sabitlemeyi kaldır"
 
@@ -12751,7 +12819,11 @@ msgstr "Kazananı birleştirmeden önce tüm adayların çalışmasını tamamla
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Pull request açmadan önce tüm adayların çalışmasını tamamlamasını bekleyin."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "Çalışma ağacına taşımadan önce konunun başlamasının bitmesini bekleyin."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Konunun başlatılmasının bitmesini bekleyin."
 

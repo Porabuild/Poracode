@@ -1257,13 +1257,67 @@ describe("markThreadDone / unmarkThreadDone", () => {
     expect(useAppStore.getState().threads[0]?.updatedAt).toBe(before);
   });
 
-  it("openThread clears done when thread becomes visible in a pane", () => {
+  it("openThread preserves done when thread becomes visible in a pane", () => {
     const thread = createTestThread();
     useAppStore.getState().markThreadDone(thread.id);
     expect(useAppStore.getState().threads[0]?.done).toBe(true);
 
     useAppStore.getState().openThread(thread.id);
-    expect(useAppStore.getState().threads[0]?.done).toBe(false);
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
+  });
+
+  it("updateThreadRuntime clears done when the thread starts working", () => {
+    const thread = createTestThread();
+    useAppStore.getState().markThreadDone(thread.id);
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    const stored = useAppStore.getState().threads[0];
+    expect(stored?.done).toBe(false);
+    expect(stored?.doneAt).toBeUndefined();
+  });
+
+  it("updateThreadRuntime preserves done on non-working status updates", () => {
+    const thread = createTestThread();
+    useAppStore.getState().markThreadDone(thread.id);
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
+  });
+
+  it("updateThreadRuntime preserves done on working rebroadcasts (not a turn start)", () => {
+    const thread = createTestThread();
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    // markThreadDone removes the pane; leave status working and mark done.
+    useAppStore.setState((state) => ({
+      threads: state.threads.map((t) =>
+        t.id === thread.id
+          ? { ...t, done: true, doneAt: "2026-05-01T00:00:00.000Z", status: "working" as const }
+          : t,
+      ),
+    }));
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
   });
 
   it("markThreadExited preserves done flag", () => {

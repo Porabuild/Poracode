@@ -589,12 +589,12 @@ export function useRemoteDesktop() {
     // Mirror the desktop sidebar click: the shared store action marks the
     // thread as the visible pane (so live "idle" events apply as idle instead
     // of being downgraded to the unwatched "finished" state) and clears any
-    // stale finished/done flags on the way in. Without it the PWA never
+    // stale finished flag on the way in. Without it the PWA never
     // populates state.view, and a finished thread stays "Finished" forever.
     // ThreadsRoute resets the view to home on the way back so unwatched
-    // completions keep earning their badge.
+    // completions keep earning their badge. `done` is intentionally preserved:
+    // only an explicit unmark or real activity (status -> working) undoes it.
     const wasFinished = thread.status === "finished";
-    const wasDone = thread.done === true;
     useAppStore.getState().openThread(thread.id);
     setSelectedThreadId(thread.id);
     // Keep the ref in sync immediately: loadThreadSnapshot's stale-paint guard
@@ -621,19 +621,8 @@ export function useRemoteDesktop() {
         .sendThreadCommand({ kind: "acknowledge", threadId: thread.id })
         .catch(() => undefined);
     }
-    // The store clear above only touches this PWA's in-memory mirror. Unlike
-    // the desktop — whose renderer store is authoritative and persisted — it
-    // never reaches the desktop DB, so the next snapshot would revert `done`
-    // back to true. Propagate the un-done to the desktop (best-effort, the same
-    // command the explicit "Unmark done" menu sends) so opening a done thread
-    // actually clears it there too, matching desktop behaviour.
-    if (wasDone) {
-      void clientFor(desktop)
-        .sendThreadCommand({ kind: "set-done", done: false, threadId: thread.id })
-        .catch(() => undefined);
-    }
     // A concurrent open for this thread is already loading its history — the
-    // view/done state above still applied, but a second fetch would race it.
+    // view state above still applied, but a second fetch would race it.
     if (openInFlightRef.current === thread.id) return;
     openInFlightRef.current = thread.id;
     try {

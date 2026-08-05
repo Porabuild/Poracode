@@ -363,6 +363,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         const slashCommandsChanged =
           input.slashCommands !== undefined &&
           !areAgentSlashCommandsEqual(thread.slashCommands, input.slashCommands);
+        // Implicit unmark only on a real turn start (same predicate as updatedAt),
+        // not on working rebroadcasts after the user marks done mid-turn.
+        const turnStarted = input.status === "working" && thread.status !== "working";
+        const activityClearsDone = turnStarted && thread.done;
 
         if (
           thread.status === effectiveStatus &&
@@ -398,9 +402,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             : {}),
           ...(nextSessionRef ? { sessionRef: nextSessionRef } : {}),
           ...(input.slashCommands !== undefined ? { slashCommands: input.slashCommands } : {}),
-          ...(input.status === "working" && thread.status !== "working"
-            ? { updatedAt: nowIso }
-            : {}),
+          ...(turnStarted ? { updatedAt: nowIso } : {}),
+          ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,
         };
       });

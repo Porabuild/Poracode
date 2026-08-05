@@ -82,16 +82,21 @@ import { AcpSessionConfigSync } from "./sessionConfigSync";
 // ── Helpers ──────────────────────────────────────────────────────
 
 import {
-  resolveAcpHostFsPath,
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
+  resolveAcpWritableHostFsPath,
   resolveSessionCwd,
   resolveSpawnCwd,
   sliceTextFileContent,
   toAcpResourceUri,
 } from "./sessionPaths";
 
-export { resolveAcpReadableHostFsPath, resolveAcpResourcePath, toAcpResourceUri };
+export {
+  resolveAcpReadableHostFsPath,
+  resolveAcpResourcePath,
+  resolveAcpWritableHostFsPath,
+  toAcpResourceUri,
+};
 
 import { segmentsToContentBlocks } from "./sessionContentBlocks";
 import {
@@ -189,6 +194,13 @@ export interface AcpStructuredSessionOptions {
    */
   extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
   mcpServers?: readonly ResolvedMcpServer[];
+  /**
+   * Home-relative directories (posix-style, e.g. ".kimi-code") the agent may
+   * read and write through the ACP fs bridge even though they sit outside the
+   * project root. For providers that keep internal session state (plan files,
+   * profiles) under their own home dir and proxy all text IO to the client.
+   */
+  fsAgentHomeDirs?: readonly string[];
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
@@ -212,6 +224,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly cwd: string;
   private readonly projectLocation: ProjectLocation;
   private readonly mcpServers: readonly ResolvedMcpServer[];
+  private readonly fsAgentHomeDirs: readonly string[];
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[];
@@ -376,6 +389,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
     this.mcpServers = options?.mcpServers ?? [];
+    this.fsAgentHomeDirs = options?.fsAgentHomeDirs ?? [];
   }
 
   /** Initialize the canonical mapper once we have a stable thread id. */
@@ -1072,7 +1086,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private async handleReadTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
     this.assertRequestSession(params.sessionId);
-    const path = resolveAcpReadableHostFsPath(this.projectLocation, params.path);
+    const path = resolveAcpReadableHostFsPath(
+      this.projectLocation,
+      params.path,
+      this.fsAgentHomeDirs,
+    );
     const fullContent = await readFile(path, "utf8");
     const content = sliceTextFileContent(fullContent, params.line, params.limit);
     return { content };
@@ -1080,7 +1098,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private async handleWriteTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
     this.assertRequestSession(params.sessionId);
-    const path = resolveAcpHostFsPath(this.projectLocation, params.path);
+    const path = resolveAcpWritableHostFsPath(
+      this.projectLocation,
+      params.path,
+      this.fsAgentHomeDirs,
+    );
     await writeFile(path, params.content, "utf8");
     return {};
   }

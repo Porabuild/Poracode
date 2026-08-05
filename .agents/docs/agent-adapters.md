@@ -181,7 +181,7 @@ The codebase is provider-agnostic by design (targeting 5-10 providers). Each pro
 ## WSL Routing
 
 - WSL projects are detected via `ProjectLocation.kind === "wsl"`.
-- Commands are wrapped: `wsl.exe -d <distro> --cd <linuxPath> -- <command>`.
+- Agent commands are wrapped: `wsl.exe -d <distro> --cd <linuxPath> --exec <command>`.
 - `batchWslCommandsAsync()` combines multiple commands into one `wsl.exe` invocation to avoid ~800-1000ms per-spawn overhead.
 - Shell detection (`resolveWslShellPath`) is cached per distro with a `/bin/bash` fallback (chosen over `/bin/sh` so rc files — nvm/fnm/asdf — still get sourced).
 - Agent install detection runs per-environment (Windows and each active WSL distro independently).

@@ -1341,7 +1341,7 @@ msgstr "Lưu trữ luồng"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Archive Thread"
 msgstr "Lưu trữ luồng"
 
@@ -1701,6 +1701,10 @@ msgstr "nhánh {branch}: {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "Nhánh <0>{0}</0> có các thay đổi chưa được hợp nhất:"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "Tên nhánh"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Nhánh chưa được hợp nhất hoàn toàn"
@@ -1729,6 +1733,10 @@ msgstr "Đưa trở lại bảng điều khiển này, hoặc chuyển đến c�
 msgid "Bring saved passwords and cookies over from an installed browser."
 msgstr "Chuyển mật khẩu và cookie đã lưu từ một trình duyệt đã cài đặt."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "Mang theo các thay đổi chưa được cam kết"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "Duyệt"
@@ -1752,6 +1760,7 @@ msgstr "Duyệt qua kho GitHub của bạn hoặc dán URL nhân bản."
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -2233,6 +2242,10 @@ msgstr "Tên hồ sơ Claude"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Hồ sơ Claude đã bị xóa."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "Cây làm việc sạch"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -2953,7 +2966,7 @@ msgstr "Tiếp tục"
 msgid "Continue in another provider"
 msgstr "Tiếp tục ở nhà cung cấp khác"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "Tiếp tục trong..."
 
@@ -3301,6 +3314,7 @@ msgstr "Tạo bằng tác nhân"
 #~ msgid "Create:"
 #~ msgstr "Tạo:"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Đã tạo một cây làm việc trên \"{newBranch}\", nhưng những thay đổi này xung đột và vẫn nằm trong kho lưu trữ git — hãy giải quyết chúng trong cây làm việc."
@@ -3666,7 +3680,7 @@ msgstr "Xóa chủ đề"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Delete Thread"
 msgstr "Xóa chủ đề"
 
@@ -4875,6 +4889,10 @@ msgstr "Sửa trong Tác nhân"
 msgid "Fixed"
 msgstr "Đã sửa"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "Danh sách phẳng"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Tập trung vào thanh địa chỉ trình duyệt"
@@ -5076,7 +5094,7 @@ msgstr "Nhận nhiệm vụ"
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5228,13 +5246,17 @@ msgstr "Nhóm"
 msgid "Group name"
 msgstr "Tên nhóm"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Group open threads"
 msgstr "Nhóm chủ đề mở"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Nhóm các dự án để thanh bên, lịch biểu và pull request chỉ hiển thị một nhóm mỗi lần. Chuyển giữa chúng ở cuối thanh bên."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "Nhóm theo dự án"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6013,6 +6035,10 @@ msgstr "Đã liên kết"
 msgid "List"
 msgstr "Danh sách"
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "Tùy chọn danh sách"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
 msgstr "Liệt kê các gói"
@@ -6339,7 +6365,7 @@ msgstr "Đánh dấu là xong"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Mark Done"
 msgstr "Đánh dấu xong"
 
@@ -6791,6 +6817,14 @@ msgstr "Di chuyển các thay đổi sang một cây làm việc mới"
 msgid "Move to Workspace"
 msgstr "Chuyển tới không gian làm việc"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "Chuyển sang cây làm việc"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "Chuyển sang cây làm việc…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "Di chuyển khay việc cần làm sang bảng bên phải"
@@ -6804,6 +6838,18 @@ msgstr "Di chuyển khay việc cần làm sang bảng bên phải"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "Đã chuyển 1 dự án sang {0}."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "Đã chuyển luồng và các thay đổi của bạn sang một cây làm việc mới trên \"{newBranch}\"."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "Đã chuyển luồng và các thay đổi của bạn sang một cây làm việc mới trên \"{newBranch}\". \"{currentBranch}\" hiện đã sạch."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "Đã chuyển luồng sang một cây làm việc mới trên \"{branch}\"."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -6987,6 +7033,7 @@ msgstr "Tab mới trong nhóm"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Luồng mới"
@@ -7014,7 +7061,7 @@ msgid "New thread in worktree"
 msgstr "Luồng mới trong worktree"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "New Thread in Worktree"
 msgstr "Luồng mới trong Worktree"
 
@@ -7059,7 +7106,7 @@ msgstr "Tab tiếp theo"
 msgid "No active browser tab"
 msgstr "Không có tab trình duyệt đang hoạt động"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No active session"
 msgstr "Không có phiên hoạt động"
 
@@ -7323,7 +7370,7 @@ msgstr "Không tìm thấy micrô."
 msgid "No models found"
 msgstr "Không tìm thấy mô hình nào"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
 msgstr "Không có tác nhân nào khác được cài đặt"
 
@@ -7751,7 +7798,7 @@ msgid "Open experiment"
 msgstr "Mở thử nghiệm"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Open experiment board"
 msgstr "Mở bảng thử nghiệm"
 
@@ -7924,11 +7971,11 @@ msgstr "Mở terminal"
 msgid "Open terminal in worktree"
 msgstr "Mở terminal trong worktree"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "Mở bộ chọn nỗ lực"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "Mở bộ chọn mô hình"
 
@@ -8288,7 +8335,7 @@ msgstr "Bộ chọn không trả về tệp đính kèm nào"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
 msgstr "Ghim lên đầu"
 
@@ -8394,6 +8441,10 @@ msgstr "Poracode sẽ khởi động lại, sao lưu dữ liệu hiện tại v�
 msgid "Poracode's built-in browser tools."
 msgstr "Công cụ trình duyệt tích hợp sẵn của Poracode."
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
 msgid "Port"
@@ -8433,6 +8484,14 @@ msgstr "hoạt động PR"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "Tự động hóa PR"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Fix"
+msgstr "Tự động hóa PR: Tự động sửa"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Merge"
+msgstr "Tự động hóa PR: Tự động hợp nhất"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
@@ -8630,6 +8689,7 @@ msgid "Prompts"
 msgstr "Prompt"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "Kế hoạch đề xuất"
 
@@ -9175,7 +9235,7 @@ msgstr "Xóa khỏi lịch sử tải xuống"
 msgid "Remove from favorites"
 msgstr "Xóa khỏi mục yêu thích"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Remove from group"
 msgstr "Xóa khỏi nhóm"
 
@@ -9233,7 +9293,7 @@ msgstr "Xóa worktree?"
 #: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "Đổi tên"
@@ -9639,7 +9699,7 @@ msgstr "Xoay khung nhìn"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Run"
 msgstr "Chạy"
 
@@ -10083,7 +10143,7 @@ msgstr "Đang tìm kiếm…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Danh mục tập trung vào bảo mật với siêu dữ liệu skill đã được xác minh."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Xem thêm"
 
@@ -10655,8 +10715,8 @@ msgid "Sort marketplace skills"
 msgstr "Sắp xếp skill trên marketplace"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "Sắp xếp luồng"
+#~ msgid "Sort threads"
+#~ msgstr "Sắp xếp luồng"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11094,11 +11154,11 @@ msgstr "Chuyển đổi chế độ: {title}"
 msgid "Switch project"
 msgstr "Chuyển đổi dự án"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Chuyển cuộc trò chuyện này sang chế độ tác nhân"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "Chuyển cuộc trò chuyện này sang chế độ lập kế hoạch"
 
@@ -11476,6 +11536,10 @@ msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode kh
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "Luồng sẽ chạy trong một cây làm việc riêng trên một nhánh mới."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "Thao tác cập nhật không thành công."
@@ -11703,9 +11767,13 @@ msgstr "Luồng đã kết thúc hoặc đang chờ bạn nhập."
 msgid "Thread goal dock"
 msgstr "Dock mục tiêu luồng"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
 msgstr "Luồng đã được dỡ bỏ."
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "Tùy chọn danh sách luồng"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -11717,8 +11785,8 @@ msgid "Thread Only"
 msgstr "Chỉ luồng"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "Thứ tự sắp xếp luồng"
+#~ msgid "Thread sort order"
+#~ msgstr "Thứ tự sắp xếp luồng"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"
@@ -11774,7 +11842,7 @@ msgid "Toggle browser panel"
 msgstr "Bật/tắt bảng điều khiển trình duyệt"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "Chuyển đổi chế độ Nhanh"
 
@@ -12312,7 +12380,7 @@ msgstr "Dỡ bỏ các luồng nhàn rỗi sau"
 msgid "Unload idle threads after (minutes)"
 msgstr "Gỡ bỏ các chủ đề không hoạt động sau (phút)"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unload Thread"
 msgstr "Dỡ bỏ chủ đề"
 
@@ -12332,7 +12400,7 @@ msgstr "Bỏ đánh dấu xong"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Bỏ đánh dấu xong"
 
@@ -12347,7 +12415,7 @@ msgstr "Không phân giai đoạn:"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "Bỏ ghim"
 
@@ -12751,7 +12819,11 @@ msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi hợp nhất
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi mở pull request."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "Đợi luồng khởi động xong trước khi chuyển nó sang cây làm việc."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Chờ cho luồng khởi động xong."
 

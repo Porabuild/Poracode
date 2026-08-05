@@ -26,9 +26,13 @@ export function QuestionAnswer({ item, checkpointRevert }: QuestionAnswerProps) 
             key={`${entry.header}-${index}`}
             className={`min-w-0 space-y-1 ${index > 0 ? "border-t border-[color:var(--border)] pt-2" : ""}`}
           >
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted">
-              {entry.header}
-            </div>
+            {/* Providers without a distinct header (Kimi) repeat the question as
+                the header; render it once instead of duplicating the same line. */}
+            {entry.header.length > 0 && entry.header !== entry.question ? (
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                {entry.header}
+              </div>
+            ) : null}
             {entry.question.length > 0 ? (
               <div className="text-[11px] text-[color:var(--muted)]">{entry.question}</div>
             ) : null}

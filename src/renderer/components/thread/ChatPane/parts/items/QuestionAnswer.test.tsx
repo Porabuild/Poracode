@@ -40,6 +40,28 @@ describe("QuestionAnswer", () => {
     expect(revertButton.closest(".poracode-message-action-strip")).not.toBeNull();
   });
 
+  it("renders the question only once when the header repeats it (Kimi ACP shape)", () => {
+    const item: RuntimeChatItem = {
+      id: "qa-1",
+      type: "question_answer",
+      state: "completed",
+      payload: {
+        questions: [
+          {
+            header: "Which scope should be implemented?",
+            question: "Which scope should be implemented?",
+            selected: [{ label: "Focused" }],
+          },
+        ],
+      },
+      streams: {},
+    };
+
+    render(<QuestionAnswer item={item} checkpointRevert={null} />);
+
+    expect(screen.getAllByText("Which scope should be implemented?")).toHaveLength(1);
+  });
+
   it("renders nothing when the payload has no questions", () => {
     const item: RuntimeChatItem = {
       id: "qa-1",

@@ -88,10 +88,16 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
             attachmentName: a.name,
           }),
     }));
-  const boundSegments = bindLeadingSkillUnlessLocalAction(segments, ctx.availableCommands, {
+  const slashLookupContext = {
     agentKind: thread.agentKind,
     presentationMode: ctx.presentationMode,
-  });
+    runtimeLabel: agentStatus?.capabilities.runtimeLabel,
+  };
+  const boundSegments = bindLeadingSkillUnlessLocalAction(
+    segments,
+    ctx.availableCommands,
+    slashLookupContext,
+  );
   const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
   if (flat.length === 0 || !ctx.canSubmit) return;
@@ -100,10 +106,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     ctx.setHasContent(false);
     ctx.latestSegmentsRef.current = [];
   };
-  const localAction = resolveLocalActionUnlessSkill(allSegments, flat, {
-    agentKind: thread.agentKind,
-    presentationMode: ctx.presentationMode,
-  });
+  const localAction = resolveLocalActionUnlessSkill(allSegments, flat, slashLookupContext);
   if (localAction?.kind === "set-mode") {
     changeThreadConfig(thread.id, { ...thread.config, mode: localAction.mode });
     mentionRef.current?.clear();

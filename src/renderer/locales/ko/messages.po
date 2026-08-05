@@ -1341,7 +1341,7 @@ msgstr "스레드 보관"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Archive Thread"
 msgstr "아카이브 스레드"
 
@@ -1701,6 +1701,10 @@ msgstr "브랜치 {branch}: {detail}"
 msgid "Branch <0>{0}</0> has unmerged changes:"
 msgstr "<0>{0}</0> 분기에 병합되지 않은 변경 사항이 있습니다:"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "Branch name"
+#~ msgstr "브랜치 이름"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "완전히 병합되지 않은 분기"
@@ -1729,6 +1733,10 @@ msgstr "이 패널로 되돌리거나 실행 중인 창으로 이동하세요."
 msgid "Bring saved passwords and cookies over from an installed browser."
 msgstr "설치된 브라우저에서 저장된 암호와 쿠키를 가져옵니다."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Bring Uncommitted Changes"
+msgstr "커밋되지 않은 변경 사항 가져오기"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "찾아보기"
@@ -1752,6 +1760,7 @@ msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -2233,6 +2242,10 @@ msgstr "Claude 프로필 이름"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude profile removed."
 msgstr "Claude 프로필이 삭제되었습니다."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Clean Worktree"
+msgstr "클린 작업 트리"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
@@ -2953,7 +2966,7 @@ msgstr "계속"
 msgid "Continue in another provider"
 msgstr "다른 제공업체에서 계속"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Continue in..."
 msgstr "다음에서 계속..."
 
@@ -3301,6 +3314,7 @@ msgstr "에이전트로 만들기"
 #~ msgid "Create:"
 #~ msgstr "생성:"
 
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "\"{newBranch}\"에 작업 트리를 만들었지만 변경 사항이 충돌하여 git stash에 남아 있습니다. 작업 트리에서 해결하세요."
@@ -3666,7 +3680,7 @@ msgstr "스레드 삭제"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Delete Thread"
 msgstr "스레드 삭제"
 
@@ -4875,6 +4889,10 @@ msgstr "에이전트에서 수정"
 msgid "Fixed"
 msgstr "수정됨"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Flat list"
+msgstr "플랫 목록"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "브라우저 주소 표시줄에 포커스"
@@ -5076,7 +5094,7 @@ msgstr "작업 가져오기"
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5228,13 +5246,17 @@ msgstr "그룹"
 msgid "Group name"
 msgstr "그룹 이름"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Group open threads"
 msgstr "열린 스레드 그룹화"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "프로젝트를 그룹으로 묶어 사이드바, 일정, 풀 리퀘스트에 한 번에 한 묶음만 표시합니다. 사이드바 하단에서 전환할 수 있습니다."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Grouped by project"
+msgstr "프로젝트별 그룹화"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6013,6 +6035,10 @@ msgstr "연결됨"
 msgid "List"
 msgstr "목록"
 
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "List options"
+msgstr "목록 옵션"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "List packages"
 msgstr "패키지 나열"
@@ -6339,7 +6365,7 @@ msgstr "완료로 표시"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Mark Done"
 msgstr "완료로 표시"
 
@@ -6791,6 +6817,14 @@ msgstr "변경 사항을 새 작업 트리로 이동"
 msgid "Move to Workspace"
 msgstr "작업 영역으로 이동"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Worktree"
+msgstr "작업 트리로 이동"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Move to Worktree…"
+#~ msgstr "작업 트리로 이동…"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Move todo dock to right panel"
 msgstr "할 일 도크를 오른쪽 패널로 이동"
@@ -6804,6 +6838,18 @@ msgstr "할 일 도크를 오른쪽 패널로 이동"
 #: src/renderer/actions/workspaceActions.ts
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "프로젝트 1개를 {0}(으)로 옮겼습니다."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
+msgstr "스레드와 변경 사항을 \"{newBranch}\"의 새 작업 트리로 옮겼습니다."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "스레드와 변경 사항을 \"{newBranch}\"의 새 작업 트리로 옮겼습니다. \"{currentBranch}\"은 이제 깨끗합니다."
+
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Moved the thread to a new worktree on \"{branch}\"."
+msgstr "스레드를 \"{branch}\"의 새 작업 트리로 옮겼습니다."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -6987,6 +7033,7 @@ msgstr "그룹에 새 탭"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "새 스레드"
@@ -7014,7 +7061,7 @@ msgid "New thread in worktree"
 msgstr "worktree에서 새 스레드"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "New Thread in Worktree"
 msgstr "작업 트리의 새 스레드"
 
@@ -7059,7 +7106,7 @@ msgstr "다음 탭"
 msgid "No active browser tab"
 msgstr "활성 브라우저 탭이 없습니다."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No active session"
 msgstr "활성 세션 없음"
 
@@ -7323,7 +7370,7 @@ msgstr "마이크를 찾을 수 없습니다."
 msgid "No models found"
 msgstr "모델을 찾을 수 없습니다."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
 msgstr "다른 에이전트가 설치되어 있지 않습니다."
 
@@ -7751,7 +7798,7 @@ msgid "Open experiment"
 msgstr "실험 열기"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Open experiment board"
 msgstr "실험 보드 열기"
 
@@ -7924,11 +7971,11 @@ msgstr "터미널 열기"
 msgid "Open terminal in worktree"
 msgstr "worktree에서 터미널 열기"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
 msgstr "노력 선택 도구 열기"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the model picker"
 msgstr "모델 선택기 열기"
 
@@ -8288,7 +8335,7 @@ msgstr "선택 도구가 첨부파일을 반환하지 않았습니다."
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
 msgstr "상단에 고정"
 
@@ -8394,6 +8441,10 @@ msgstr "Poracode가 다시 시작되어 현재 데이터를 백업한 다음 Lig
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode의 기본 제공 브라우저 도구."
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "poracode/my-branch"
+#~ msgstr "poracode/my-branch"
+
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
 msgid "Port"
@@ -8433,6 +8484,14 @@ msgstr "PR 작업"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation"
 msgstr "PR 자동화"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Fix"
+msgstr "PR 자동화: 자동 수정"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation: Auto Merge"
+msgstr "PR 자동화: 자동 병합"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
@@ -8630,6 +8689,7 @@ msgid "Prompts"
 msgstr "프롬프트"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "제안된 계획"
 
@@ -9175,7 +9235,7 @@ msgstr "다운로드 기록에서 제거"
 msgid "Remove from favorites"
 msgstr "즐겨찾기에서 제거"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Remove from group"
 msgstr "그룹에서 제거"
 
@@ -9233,7 +9293,7 @@ msgstr "작업 트리를 삭제하시겠습니까?"
 #: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Rename"
 msgstr "이름 바꾸기"
@@ -9639,7 +9699,7 @@ msgstr "뷰포트 회전"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Run"
 msgstr "실행"
 
@@ -10083,7 +10143,7 @@ msgstr "검색 중…"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "검증된 스킬 메타데이터를 제공하는 보안 중심 디렉터리입니다."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "자세히 보기"
 
@@ -10655,8 +10715,8 @@ msgid "Sort marketplace skills"
 msgstr "마켓플레이스 스킬 정렬"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Sort threads"
-msgstr "스레드 정렬"
+#~ msgid "Sort threads"
+#~ msgstr "스레드 정렬"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -11094,11 +11154,11 @@ msgstr "모드 전환: {title}"
 msgid "Switch project"
 msgstr "프로젝트 전환"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "이 채팅을 에이전트 모드로 전환하세요"
 
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to plan mode"
 msgstr "이 채팅을 계획 모드로 전환하세요"
 
@@ -11476,6 +11536,10 @@ msgstr "SSH 터널이 호환되지 않는 Poracode 서버에 연결되었습니�
 msgid "the target provider"
 msgstr "대상 공급자"
 
+#: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
+#~ msgid "The thread will run in a separate worktree on a new branch."
+#~ msgstr "스레드가 새 브랜치의 별도 작업 트리에서 실행됩니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
 msgstr "업데이트 작업에 실패했습니다."
@@ -11703,9 +11767,13 @@ msgstr "스레드가 완료되었거나 입력을 기다리는 중입니다."
 msgid "Thread goal dock"
 msgstr "스레드 목표 도크"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Thread is already unloaded."
 msgstr "스레드가 이미 언로드되었습니다."
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread list options"
+msgstr "스레드 목록 옵션"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -11717,8 +11785,8 @@ msgid "Thread Only"
 msgstr "스레드만"
 
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
-msgid "Thread sort order"
-msgstr "스레드 정렬 순서"
+#~ msgid "Thread sort order"
+#~ msgstr "스레드 정렬 순서"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Thread todo dock"
@@ -11774,7 +11842,7 @@ msgid "Toggle browser panel"
 msgstr "브라우저 패널 표시 전환"
 
 #: src/renderer/commands/composerCommands.ts
-#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Toggle Fast mode"
 msgstr "빠른 모드 전환"
 
@@ -12312,7 +12380,7 @@ msgstr "다음 이후에 유휴 스레드 언로드"
 msgid "Unload idle threads after (minutes)"
 msgstr "다음 시간 이후 유휴 스레드 언로드(분)"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unload Thread"
 msgstr "스레드 언로드"
 
@@ -12332,7 +12400,7 @@ msgstr "완료 표시 해제"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "완료 표시 해제"
 
@@ -12347,7 +12415,7 @@ msgstr "단계 미지정:"
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/threadActionSurfaces.tsx
 #: src/mobile/views/threadContextMenus.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "고정 해제"
 
@@ -12751,7 +12819,11 @@ msgstr "우승자를 병합하기 전에 모든 후보가 완료될 때까지 �
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "풀 리퀘스트를 열기 전에 모든 후보가 완료될 때까지 기다리세요."
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/actions/moveThreadToWorktreeActions.ts
+msgid "Wait for the thread to finish starting before moving it to a worktree."
+msgstr "작업 트리로 이동하기 전에 스레드 시작이 완료될 때까지 기다리세요."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "스레드 시작이 완료될 때까지 기다리세요."
 

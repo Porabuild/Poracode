@@ -10,6 +10,7 @@ import {
 import { friendlyError } from "@/shared/messages";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
+import { ItemMarkdown } from "../ChatPane/parts/items/ItemMarkdown";
 import { ThreadDockSection } from "../ThreadDockUI";
 import {
   asOpenCodePermissionDetails,
@@ -125,6 +126,10 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
     isPlanApproval && permissionDetails
       ? readInputString(permissionDetails.input, "planFilePath", "plan_filename")
       : undefined;
+  const planText =
+    isPlanApproval && permissionDetails
+      ? readInputString(permissionDetails.input, "plan")
+      : undefined;
   const opencodePermission =
     !permissionDetails && !isCustomForm
       ? asOpenCodePermissionDetails(request.payload.details)
@@ -223,12 +228,13 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           ) : contextLine ? (
             <div className="text-[11px] text-[color:var(--muted)]">{contextLine}</div>
           ) : null}
-          {requestDetails || planFilePath ? (
+          {requestDetails || planFilePath || planText ? (
             <div
               role="region"
               aria-label={t`Request details`}
               className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable]"
             >
+              {planText ? <ItemMarkdown text={planText} /> : null}
               {requestDetails}
               {planFilePath ? <PlanFileLine path={planFilePath} /> : null}
             </div>
