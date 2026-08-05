@@ -79,13 +79,68 @@ Then collect, for the target version:
   git diff --name-status <previousTag>..<target>
   git diff <previousTag>..<target>
   ```
-  Reconcile every commit with the diff: include user-facing behavior, merge related work,
-  and intentionally omit implementation-only, test-only, merge-only, build, or chore noise.
-  Do not infer behavior from commit titles alone.
+  Do not infer behavior from commit titles alone — open the patch when the subject is
+  ambiguous (especially `feat`/`fix` that touch UI, settings, i18n, or provider adapters).
 - **An unpublished target boundary**, when no target tag exists. Use the intended release
   commit (usually `HEAD`), confirm its package version matches the requested version, and
   state this boundary in the handoff rather than pretending the tag exists.
 - **The maintainer's highlight notes**, if they pasted any (Telegram/X-style bullets, "now with: …"). These are authoritative for _what matters most_ — lead with them. If the user didn't provide notes and the release is large, ask once whether they have highlights; otherwise proceed from the collected release metadata and git evidence.
+
+### Step 1b — Commit disposition ledger (mandatory)
+
+Before drafting prose, walk **every** non-merge commit in `<previousTag>..<target>` and
+assign one disposition. Keep this ledger in your working notes (it does not ship in
+`changelog.json`, but you must not skip it):
+
+| Disposition              | When                                                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **include**              | User-facing on its own — gets its own bullet (or is the seed of one).                                                                                  |
+| **fold into \<bullet\>** | Related to a larger change already included; note which bullet absorbs it.                                                                             |
+| **omit**                 | Implementation-only, test-only, merge-only, build, chore, pure rename, or internal refactors with no visible behavior change. Write a one-line reason. |
+
+**Always-include signals** (treat as `include` or `fold`, never silent `omit`):
+
+- New or changed **user-visible copy** — especially commits that add msgids / touch
+  `src/renderer/locales/**/messages.po` (or mobile/website locale catalogs). New
+  strings almost always mean a user can see something new.
+- **Discoverability / selection-state UI**: mode-specific icons, badges, trigger labels,
+  selected-state highlights, status chips, empty states, onboarding hints. These stay
+  even when the underlying feature shipped in an earlier release — users notice the
+  clarity, and "polish on an existing feature" is still `improved`, not noise.
+- Settings, menus, tooltips, toasts, dialogs, composer controls, sidebar chrome,
+  Git/PR controls, provider pickers — anything the user clicks or reads in the app.
+- Behavior fixes the user would have hit (done-state, wrong window size, broken launch).
+
+**Safe to omit** (with an explicit reason):
+
+- Tests, type-only refactors, CI, lockfile-only, version bumps, pure renames without
+  product behavior, dependency upgrades with no user-visible effect.
+- Micro-animation / fade / layout-pixel tweaks that do not change what the control
+  _means_ or how the user finds it.
+- Marketing-site-only changes (`website/**` that do not affect the shared
+  `changelog.json` data or in-app surfaces) — mention only when they are a real
+  product surface (e.g. a new About page, pairing flow). Sticky nav on the public
+  changelog page is optional; prefer app-facing notes when distilling.
+
+**Anti-pattern that caused a real miss (1.6.1):** a small `feat(pr-watch)` that only
+swapped the PR automation trigger icon/label per Auto Fix vs Auto Merge was dropped
+while larger sidebar/workspace bullets dominated. It touched every locale catalog and
+changed what users see on every automated PR — that is `include` as `improved`, not
+"too small to list."
+
+**Reconciliation gate:** every `feat/*` and `fix/*` commit that touches
+`src/renderer/**`, `src/mobile/**`, `src/shared/messages.ts`, or locale catalogs must
+end as `include` or `fold into …`. If you cannot fold it cleanly, give it a bullet.
+
+Quick helpers when auditing:
+
+```bash
+# Commits that added/changed localized strings (strong user-facing signal)
+git log --pretty='%h %s' --name-only <previousTag>..<target> -- 'src/renderer/locales/**'
+# UI / settings / PR surfaces in the range
+git log --pretty='%h %s' --name-only <previousTag>..<target> -- \
+  'src/renderer/**' 'src/mobile/**' 'website/src/**'
+```
 
 ## Step 2 — Distill into ONE curated entry (house style)
 
@@ -108,24 +163,33 @@ This is the consistency contract. Match the voice of the existing entries (read 
 - `label`: optional short feature/product prefix. Add it only when the whole sentence belongs
   to one obvious surface such as `Remote`, `Claude`, or `Security`. Omit it for mixed-scope
   sentences or whenever the right label is uncertain; never force every change to have one.
-- **Distill, don't dump.** Merge related PRs into one bullet. A 70-PR release yields ~6–9 bullets, never 70. Patches: ~2–4.
+- **Distill, don't dump.** Merge related work into one bullet when it serves the same
+  user outcome. A 70-PR major may land ~6–12 bullets; a busy patch may land ~6–14.
+  Tiny hotfixes stay short (~2–5). Distillation means folding related commits, **not**
+  dropping discoverability improvements or new user-visible labels/icons because a
+  larger headline feature is already listed.
 - Lead the `added` bullets with the maintainer's highlights when present.
+- After drafting, re-read the disposition ledger: every `include` must map to a bullet
+  (alone or folded); every `omit` must still look like noise on a second look.
 
 **Hard rules (what makes it look hand-written)**
 
 - ❌ No PR numbers, no `by @handle`, no `dependabot`/CI/chore/`build(deps)` items, no raw PR-title phrasing.
 - ❌ No version number inside `title`.
+- ❌ Do not drop mode icons, selection labels, badges, or status presentation just because the capability already existed — those are user-facing `improved` items.
 - ✅ Vary sentence openings — don't write "Added X. Added Y. Added Z." Describe the _benefit_, not the implementation or the commit.
 - ✅ Mix labeled and unlabeled changes when that best represents the release.
 - ✅ Keep product nouns literal: `Poracode, Claude, Codex, Gemini, Grok, Command Code, WSL, ACP, Opus 4.8, Ultracode, Fable 5, Git, GitHub, macOS, Windows, Linux`.
-- ✅ Each feature appears in the release that introduced it — don't repeat it in a later patch.
+- ✅ Each feature appears in the release that introduced it — don't repeat it in a later patch. **Refinements** of an earlier feature (clearer labels, icons, defaults) still belong in the release that shipped the refinement.
 
 ### Good vs bad
 
 ```
 ✅ { kind: "added", text: "Start a new project by cloning any GitHub repository directly from Poracode." }
+✅ { kind: "improved", label: "Pull requests", text: "The PR automation control now shows a distinct icon and label for Auto Fix and Auto Merge so the selected mode is clear at a glance." }
 ❌ { kind: "added", text: "Add GitHub repository clone flow by @SDSLeon in #167" }   // raw PR title + noise
 ❌ { kind: "added", text: "Added clone." }                                            // too thin, no benefit
+❌ omit "PR automation mode icons" as "too small / polish"                            // discoverability is user-facing
 ```
 
 ### Template
@@ -151,6 +215,10 @@ Prepend the new entry to the `releases` array in **`website/public/changelog.jso
 (newest first; the app re-sorts defensively, but keep the source tidy). Keep valid JSON —
 double-quoted keys/strings, no trailing commas.
 
+When _amending_ an already-published entry (missed bullet, wrong wording), edit that
+release in place — do not invent a new version. Changelog data deploys with the site;
+the app refetches it without an app rebuild.
+
 ## Step 4 — Verify
 
 ```bash
@@ -168,7 +236,9 @@ new notes on its own (no app release needed for a notes-only change).
 
 - [ ] `title` has no version number; `summary` is 1–2 sentences.
 - [ ] Changes are distilled (not one-per-PR), grouped added→improved→fixed, each a full benefit sentence.
-- [ ] Every commit and the complete previous-release diff were audited; omissions are intentional noise, not missing PR coverage.
+- [ ] **Disposition ledger complete:** every non-merge commit is `include`, `fold into …`, or `omit` with a reason.
+- [ ] Every `feat`/`fix` that touches renderer/mobile UI, settings, messages, or locale catalogs is `include` or `fold` — none silently omitted.
+- [ ] Discoverability work (icons, selection labels, badges, status chips for existing features) is covered as `improved` when present in the range.
 - [ ] Labels appear only where the category is clear; mixed or uncertain changes remain unlabeled.
 - [ ] No PR numbers / author handles / dependabot / CI / chore noise.
 - [ ] `version` (no `v`) and `date` (release date, ISO) are correct.

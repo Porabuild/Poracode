@@ -38,6 +38,11 @@
         },
         {
           "kind": "improved",
+          "label": "Pull requests",
+          "text": "The PR automation control now shows a distinct icon and label for Auto Fix and Auto Merge so the selected mode is clear at a glance."
+        },
+        {
+          "kind": "improved",
           "label": "Kimi",
           "text": "Kimi Code handles workspace trust, signing out, thinking levels, question dialogs, and background tasks much more reliably."
         },
