@@ -180,6 +180,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
           if (!project) return null;
           // Children under a group header omit the tag — the header carries it.
           const tagged = !(row.kind === "thread" && row.inGroup) && row.kind !== "section-label";
+          // Thread rows and worktree headers stack the tag on a second line;
+          // provider/experiment group headers keep the inline trailing form.
+          const stackedTag = row.kind === "thread" || row.kind === "worktree-group";
           return (
             <SidebarThreadRow
               key={row.key}
@@ -190,10 +193,8 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
               {...(tagged
                 ? {
                     projectTag: (
-                      // Fixed-height group headers keep the inline form; plain
-                      // thread rows carry the tag on a second line.
                       <span
-                        className={`${row.kind !== "thread" ? "ml-auto max-w-[9rem] shrink-0 pl-1" : "min-w-0 flex-1"} truncate text-[10px] leading-4 text-muted/70`}
+                        className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} truncate text-[10px] leading-4 text-muted/70`}
                       >
                         {project.name}
                       </span>
