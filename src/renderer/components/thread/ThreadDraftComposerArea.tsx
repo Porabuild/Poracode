@@ -66,6 +66,7 @@ import {
   type ExperimentDraftCandidate,
 } from "@/renderer/components/experiment/ExperimentDraftTargets";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
@@ -307,6 +308,12 @@ export function ThreadDraftComposerArea(props: {
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
+  // Remote-project attachments are stored on the paired desktop; resolve
+  // previews through its image endpoint instead of the local-file protocol.
+  const remoteDesktopId = props.project.remoteServerId;
+  const attachmentImageUrlForPath = remoteDesktopId
+    ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
+    : undefined;
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
   const pendingPickedAttachments = useBrowserAttachInbox((s) =>
@@ -967,9 +974,11 @@ export function ThreadDraftComposerArea(props: {
             onPreviewImage={(att) => {
               const imageAttachments = attachments.attachments.filter((a) => a.isImage);
               const idx = imageAttachments.findIndex((a) => a.id === att.id);
-              if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
+              if (idx >= 0)
+                openAttachmentLightbox(imageAttachments, idx, attachmentImageUrlForPath);
             }}
             onPreviewPdf={(att) => openPdfPreview(att.path)}
+            {...(attachmentImageUrlForPath ? { imageUrlForPath: attachmentImageUrlForPath } : {})}
             leading={
               mentionedMcpServers.length > 0 || showComputerUseChip ? (
                 <>

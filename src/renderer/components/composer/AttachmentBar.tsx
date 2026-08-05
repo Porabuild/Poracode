@@ -5,10 +5,9 @@ import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
-import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
-import { isPdfPath, toLocalFileUrl } from "@/shared/promptContent";
+import { isPdfPath } from "@/shared/promptContent";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
-import type { Attachment } from "./useAttachments";
+import { attachmentImageUrl, type Attachment } from "./useAttachments";
 
 /**
  * Enabled-MCP indicator, parameterized by a {@link ComposerMcpServerDescriptor}
@@ -149,7 +148,7 @@ function AttachmentChip(props: {
       {att.isImage ? (
         <img
           className="poracode-attachment-chip__thumb"
-          src={imageUrlForPath?.(att.path) ?? resolveLocalImageDisplayUrl(toLocalFileUrl(att.path))}
+          src={attachmentImageUrl(att, imageUrlForPath)}
           alt={att.name}
           decoding="async"
           draggable={false}
@@ -221,7 +220,7 @@ function ImagePreview(props: {
   const { attachment: att, onPreviewImage, imageUrlForPath } = props;
   const img = (
     <img
-      src={imageUrlForPath?.(att.path) ?? resolveLocalImageDisplayUrl(toLocalFileUrl(att.path))}
+      src={attachmentImageUrl(att, imageUrlForPath)}
       alt={att.name}
       decoding="async"
       draggable={false}
