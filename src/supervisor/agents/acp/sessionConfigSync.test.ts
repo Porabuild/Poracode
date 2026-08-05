@@ -518,6 +518,101 @@ describe("AcpSessionConfigSync", () => {
     ).toEqual({ ...currentConfig, approvalPolicy: "auto-high" });
   });
 
+  it("skips the mode push when the agent already reported that mode", async () => {
+    // `SessionModeState.currentModeId` from session/new|load|resume is the
+    // agent's own statement of its mode. Re-asserting it is not a no-op for
+    // every agent (Kimi records a `plan_mode.cancel`), so a resumed session
+    // must not have its restored mode pushed back at it.
+    const { connection, sync } = makeConfigSync();
+    sync.rememberCurrentMode("plan");
+
+    await sync.applyTurnConfig("session-1", { ...previousConfig, mode: "plan" }, undefined);
+
+    expect(connection.setSessionMode).not.toHaveBeenCalled();
+  });
+
+  it("still pushes when the agent reports a different mode", async () => {
+    const { connection, sync } = makeConfigSync();
+    sync.rememberCurrentMode("default");
+
+    await sync.applyTurnConfig("session-1", { ...previousConfig, mode: "plan" }, undefined);
+
+    expect(connection.setSessionMode).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      modeId: "plan",
+    });
+  });
+
+  it("compares the reported mode by its normalized id", async () => {
+    // Agents may report a mode as a spec URI (…/session-modes#plan).
+    const { connection, sync } = makeConfigSync();
+    sync.rememberCurrentMode("https://agentclientprotocol.com/protocol/session-modes#plan");
+
+    await sync.applyTurnConfig("session-1", { ...previousConfig, mode: "plan" }, undefined);
+
+    expect(connection.setSessionMode).not.toHaveBeenCalled();
+  });
+
+  it("does not re-push a mode it just pushed on the following turn", async () => {
+    const { connection, sync } = makeConfigSync();
+    const planConfig: ThreadConfig = { ...previousConfig, mode: "plan" };
+
+    await sync.applyTurnConfig("session-1", planConfig, previousConfig);
+    await sync.applyTurnConfig("session-1", planConfig, previousConfig);
+
+    expect(connection.setSessionMode).toHaveBeenCalledTimes(1);
+  });
+
+  it("folds an agent-reported mode change into the config and remembers it", async () => {
+    const { connection, sync } = makeConfigSync();
+
+    expect(sync.reduceModeChange(previousConfig, "plan")).toEqual({
+      ...previousConfig,
+      mode: "plan",
+    });
+    // Learning the mode this way must also suppress a redundant push.
+    await sync.applyTurnConfig("session-1", { ...previousConfig, mode: "plan" }, previousConfig);
+    expect(connection.setSessionMode).not.toHaveBeenCalled();
+  });
+
+  it("leaves plan mode without rewriting the approval policy", () => {
+    // Mapping the exit through a mode id would turn `auto` into `default`;
+    // leaving plan mode says nothing about which approvals the user picked.
+    const { sync } = makeConfigSync();
+
+    expect(
+      sync.reduceLeavePlanMode({ ...previousConfig, mode: "plan", approvalPolicy: "auto" }),
+    ).toEqual({ ...previousConfig, mode: "agent", approvalPolicy: "auto" });
+    expect(sync.reduceLeavePlanMode({ ...previousConfig, mode: "agent" })).toBeUndefined();
+  });
+
+  it("stops suppressing pushes once the agent leaves plan mode", async () => {
+    const { connection, sync } = makeConfigSync();
+    sync.rememberCurrentMode("plan");
+    sync.reduceLeavePlanMode({ ...previousConfig, mode: "plan" });
+
+    await sync.applyTurnConfig("session-1", { ...previousConfig, mode: "plan" }, undefined);
+
+    expect(connection.setSessionMode).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      modeId: "plan",
+    });
+  });
+
+  it("returns undefined from reduceModeChange when the config is already in that mode", () => {
+    const { sync } = makeConfigSync();
+
+    expect(sync.reduceModeChange({ ...previousConfig, mode: "plan" }, "plan")).toBeUndefined();
+  });
+
+  it('resolves the agent\'s own id for plan mode, falling back to "plan"', () => {
+    expect(makeConfigSync().sync.resolvePlanModeId()).toBe("plan");
+    expect(
+      makeConfigSync({ availableModeIds: ["default", "architect"] }).sync.resolvePlanModeId(),
+    ).toBe("architect");
+    expect(makeConfigSync({ availableModeIds: ["default"] }).sync.resolvePlanModeId()).toBe("plan");
+  });
+
   it("remembers config option updates and returns effort changes", async () => {
     const { connection, sync } = makeConfigSync();
     const updatedOptions = [thoughtLevelOption("thought-new", "high")];

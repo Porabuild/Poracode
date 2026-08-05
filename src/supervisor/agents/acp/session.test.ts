@@ -75,9 +75,13 @@ function makeConfigSyncSession(
       timeoutMs: number;
       transport: { type: "http"; url: string; headers: Record<string, string> };
     }>;
+    fsTextCapability?: boolean;
   } = {},
 ) {
   const connection = {
+    initialize: vi
+      .fn<(args: { clientCapabilities: unknown }) => Promise<{ protocolVersion: number }>>()
+      .mockResolvedValue({ protocolVersion: 1 }),
     setSessionMode: vi
       .fn<(args: { sessionId: string; modeId: string }) => Promise<void>>()
       .mockResolvedValue(undefined),
@@ -113,7 +117,7 @@ function makeConfigSyncSession(
     resumeSession: vi
       .fn<
         (args: { sessionId: string; cwd: string; mcpServers: unknown[] }) => Promise<{
-          modes?: { availableModes: Array<{ id: string }> };
+          modes?: { currentModeId?: string; availableModes: Array<{ id: string }> };
           configOptions?: unknown[];
         }>
       >()
@@ -187,6 +191,10 @@ function makeConfigSyncSession(
   session["launchOptions"] = {};
   session["mcpServers"] = overrides.mcpServers ?? [];
   session["loadSessionErrorRewriter"] = rewriteLoadSessionError;
+  // Mirrors the constructor's `options?.fsTextCapability !== false` default.
+  session["fsTextCapability"] = overrides.fsTextCapability !== false;
+  session["fsAgentHomeDirs"] = [];
+  session["spawnReady"] = Promise.resolve();
   return { connection, listener, session: session as unknown as TestableAcpSession };
 }
 
@@ -732,6 +740,83 @@ describe("ACP client protocol helpers", () => {
     );
 
     await expect(read({ sessionId: "session-1", path: outside })).rejects.toThrow("Invalid params");
+  });
+
+  it("advertises the fs text capabilities by default", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    await (session as unknown as { activate(): Promise<void> }).activate();
+    expect(connection.initialize.mock.calls[0]?.[0]).toMatchObject({
+      clientCapabilities: { fs: { readTextFile: true, writeTextFile: true } },
+    });
+  });
+
+  it("withholds the fs text capabilities when the adapter opts out", async () => {
+    // Providers that proxy their own internal state files through the client and
+    // then mis-classify the JSON-RPC errors it returns opt out; they fall back
+    // to their local filesystem, which Poracode shares.
+    const { connection, session } = makeConfigSyncSession({ fsTextCapability: false });
+    await (session as unknown as { activate(): Promise<void> }).activate();
+    expect(connection.initialize.mock.calls[0]?.[0]).toMatchObject({
+      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+    });
+  });
+
+  it("answers a read for a missing file with resource-not-found, not an internal error", async () => {
+    // A plain Node `ENOENT` escapes as JSON-RPC `-32603 Internal error`, which
+    // reads as a broken client rather than a missing file. Agents that probe
+    // for a not-yet-created file (plan files, per-session config) then treat
+    // the answer as fatal.
+    const projectRoot = makePosixProject();
+    const { session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    const read = (session as unknown as { handleReadTextFile: Function }).handleReadTextFile.bind(
+      session,
+    );
+
+    const missing = join(projectRoot, "nope.md");
+    await expect(read({ sessionId: "session-1", path: missing })).rejects.toMatchObject({
+      code: -32002,
+    });
+  });
+
+  it("reports other fs failures as internal errors carrying the errno", async () => {
+    const projectRoot = makePosixProject();
+    const { session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    const read = (session as unknown as { handleReadTextFile: Function }).handleReadTextFile.bind(
+      session,
+    );
+
+    // Reading a directory fails with EISDIR — a real failure, not a missing file.
+    await expect(read({ sessionId: "session-1", path: projectRoot })).rejects.toMatchObject({
+      code: -32603,
+      data: { code: "EISDIR" },
+    });
+  });
+
+  it("answers a write into a missing directory with resource-not-found", async () => {
+    const projectRoot = makePosixProject();
+    const { session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    const write = (
+      session as unknown as { handleWriteTextFile: Function }
+    ).handleWriteTextFile.bind(session);
+
+    await expect(
+      write({ sessionId: "session-1", path: join(projectRoot, "gone", "out.txt"), content: "x" }),
+    ).rejects.toMatchObject({ code: -32002 });
   });
 
   it("serves fs/write_text_file only inside the project root", async () => {
@@ -1556,6 +1641,172 @@ describe("ACP turn config sync", () => {
         attention: "working",
         config: expect.objectContaining({ effort: "high" }),
       }),
+    );
+  });
+
+  it("does not re-push a resumed session's mode back at the agent", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["agentSessionCapabilities"] = { resume: {} };
+    connection.resumeSession.mockResolvedValueOnce({
+      modes: { currentModeId: "plan", availableModes: [{ id: "default" }, { id: "plan" }] },
+      configOptions: [],
+    });
+
+    await session.openThread(
+      { model: "model-a", mode: "plan" },
+      { providerSessionId: "session-1", discoveredAt: new Date().toISOString() },
+    );
+
+    expect(connection.setSessionMode).not.toHaveBeenCalled();
+  });
+
+  it("adopts plan mode from a completed EnterPlanMode tool call", () => {
+    // ACP only says an agent "can" announce its own mode change via
+    // current_mode_update, and offers no way to read the mode mid-session.
+    // Kimi Code's EnterPlanMode skips the notification, so the mode is
+    // inferred from the tool stream instead — otherwise the composer would
+    // keep showing Work for the rest of a session spent planning.
+    const { listener, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["currentStatus"] = "working";
+    (session as unknown as Record<string, unknown>)["currentAttention"] = "working";
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "0:tool_x",
+        title: "EnterPlanMode",
+        kind: "other",
+        status: "pending",
+      },
+    });
+    expect(listener.onUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ config: expect.objectContaining({ mode: "plan" }) }),
+    );
+
+    // The completed update carries no title — correlation is by tool call id.
+    session.handleSessionUpdate({
+      update: { sessionUpdate: "tool_call_update", toolCallId: "0:tool_x", status: "completed" },
+    });
+
+    expect(listener.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "working",
+        attention: "working",
+        config: expect.objectContaining({ mode: "plan" }),
+      }),
+    );
+  });
+
+  it("returns to agent mode when the agent leaves plan mode, keeping the approval policy", () => {
+    // Adopting the entry without the exit would leave the thread claiming plan
+    // mode after the agent left it — and because the config would already read
+    // `plan`, nothing would re-assert it, so an edit could land while the
+    // composer still showed Plan.
+    const { listener, session } = makeConfigSyncSession({
+      currentConfig: { model: "model-a", effort: "high", mode: "plan", approvalPolicy: "auto" },
+    });
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "0:tool_exit",
+        title: "ExitPlanMode",
+        status: "pending",
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "0:tool_exit",
+        status: "completed",
+        content: [
+          {
+            type: "content",
+            content: { type: "text", text: "Exited plan mode. Plan mode deactivated." },
+          },
+        ],
+      },
+    });
+
+    expect(listener.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ mode: "agent", approvalPolicy: "auto" }),
+      }),
+    );
+  });
+
+  it("stays in plan mode when the plan review only asks for revisions", () => {
+    const { listener, session } = makeConfigSyncSession({
+      currentConfig: { model: "model-a", effort: "high", mode: "plan", approvalPolicy: "default" },
+    });
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "0:tool_exit",
+        title: "ExitPlanMode",
+        status: "pending",
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "0:tool_exit",
+        status: "failed",
+        content: [
+          {
+            type: "content",
+            content: { type: "text", text: "User requested revisions. Plan mode remains active." },
+          },
+        ],
+      },
+    });
+
+    expect(listener.onUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ config: expect.objectContaining({ mode: "agent" }) }),
+    );
+  });
+
+  it("keeps the mode unchanged when EnterPlanMode fails", () => {
+    const { listener, session } = makeConfigSyncSession();
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "0:tool_x",
+        title: "EnterPlanMode",
+        status: "pending",
+      },
+    });
+    session.handleSessionUpdate({
+      update: { sessionUpdate: "tool_call_update", toolCallId: "0:tool_x", status: "failed" },
+    });
+
+    expect(listener.onUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ config: expect.objectContaining({ mode: "plan" }) }),
+    );
+  });
+
+  it("ignores EnterPlanMode tool calls replayed from a loaded session's history", () => {
+    // On load/resume the agent's SessionModeState.currentModeId is authoritative;
+    // a historical entry may since have been exited.
+    const { listener, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["isReplayingHistory"] = true;
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "0:tool_x",
+        title: "EnterPlanMode",
+        status: "pending",
+      },
+    });
+    session.handleSessionUpdate({
+      update: { sessionUpdate: "tool_call_update", toolCallId: "0:tool_x", status: "completed" },
+    });
+
+    expect(listener.onUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ config: expect.objectContaining({ mode: "plan" }) }),
     );
   });
 

@@ -140,12 +140,19 @@ export function createKimiAdapter(): AgentAdapter {
       );
       session = createAcpStructuredSession(command, {
         ...input,
-        // Kimi keeps per-session state (plan-mode plan files, profiles) under
-        // ~/.kimi-code and, once fs capability is advertised, routes those
-        // reads/writes through the ACP client too. Without this carve-out the
-        // bridge rejects them as outside-project and plan mode breaks
-        // (Write/Read of the plan file and ExitPlanMode all fail).
-        acpFsAgentHomeDirs: [".kimi-code"],
+        // Kimi's ACP host filesystem routes *every* text read/write through
+        // the client once fs capability is advertised — including its own
+        // per-session state under ~/.kimi-code — and rethrows the client's
+        // JSON-RPC error verbatim. Its "file does not exist" check only
+        // recognizes an errno-shaped `ENOENT` reached through `Error.cause`,
+        // so no JSON-RPC code (not even `-32002` resource-not-found) reads as
+        // missing. Plan mode reads the plan file before creating it, so the
+        // read of that not-yet-existing file killed every plan-mode turn:
+        // `EnterPlanMode` returned `Tool "EnterPlanMode" failed: Internal
+        // error`, and threads started in Plan mode ended with no response at
+        // all. Keeping the capability unadvertised makes Kimi read and write
+        // through its own local filesystem, where the errno survives.
+        acpFsTextCapability: false,
         acpEmptyResponseErrorResolver: resolveKimiEmptyResponseError,
         acpSessionUpdateTransform: createKimiAcpSessionUpdateTransform({
           subagents,

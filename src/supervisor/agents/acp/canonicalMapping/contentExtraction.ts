@@ -214,6 +214,24 @@ export function isAcpExitPlanModeTool(
   );
 }
 
+/**
+ * Detect ACP tool calls that represent the cross-provider `EnterPlanMode`
+ * convention — the counterpart of {@link isAcpExitPlanModeTool}.
+ */
+export function isAcpEnterPlanModeTool(
+  title: string | null | undefined,
+  kind: string | null | undefined,
+): boolean {
+  const t = (title ?? "").trim().toLowerCase();
+  const k = (kind ?? "").trim().toLowerCase();
+  return (
+    t === "enterplanmode" ||
+    t === "enter_plan_mode" ||
+    k === "enterplanmode" ||
+    k === "enter_plan_mode"
+  );
+}
+
 export interface AcpPlanReviewContent {
   plan: string;
   planFilePath?: string;

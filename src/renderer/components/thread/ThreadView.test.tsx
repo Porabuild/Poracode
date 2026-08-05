@@ -905,6 +905,116 @@ describe("ThreadView", () => {
     });
   });
 
+  it("keeps plan mode when a plan review asks for revisions", async () => {
+    const now = new Date().toISOString();
+
+    useAppStore.setState({
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: { kind: "windows", path: "C:\\repo" },
+          createdAt: now,
+        },
+      ],
+      runtimeRequestsByThread: {
+        "thread-kimi-revise": [
+          {
+            requestId: "perm-plan",
+            threadId: "thread-kimi-revise",
+            requestType: "tool_user_input",
+            receivedAt: now,
+            payload: {
+              summary: "Proposed plan",
+              details: {
+                toolName: "ExitPlanMode",
+                input: {
+                  planFilePath: "C:\\Users\\sdsle\\.claude\\plans\\plan.md",
+                },
+              },
+              options: [
+                { optionId: "plan_approve", label: "Approve" },
+                { optionId: "plan_revise", label: "Revise" },
+                { optionId: "plan_reject_and_exit", label: "Reject and Exit" },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    renderThreadView({
+      thread: {
+        id: "thread-kimi-revise",
+        projectId: "project-1",
+        title: "Claude plan thread",
+        agentKind: "claude",
+        config: {
+          model: "opus",
+          mode: "plan",
+        },
+        status: "needs_reply",
+        attention: "needs_reply",
+        canResumeWithConfig: true,
+        archived: false,
+        done: false,
+        starred: false,
+        presentationMode: "gui",
+        sessionRef: {
+          providerSessionId: "session-claude-plan",
+          discoveredAt: now,
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+      agentStatus: {
+        kind: "claude",
+        label: "Claude Code",
+        installed: true,
+        authState: "authenticated",
+        capabilities: {
+          models: [{ id: "opus", label: "Opus" }],
+          efforts: ["low"],
+          modelEfforts: {},
+          modes: ["agent", "plan"],
+          approvalPolicies: [
+            { id: "auto", label: "Auto" },
+            { id: "bypassPermissions", label: "Bypass Permissions" },
+          ],
+          sandboxModes: [],
+          supportsResume: true,
+          supportsDirectInput: true,
+          liveInputMode: "server",
+          presentationMode: "gui",
+          settingDefs: [],
+        },
+      },
+      projectLocation: {
+        kind: "windows",
+        path: "C:\\repo",
+      },
+    });
+
+    expect(screen.getByText("Proposed plan")).toBeInTheDocument();
+
+    // "Revise" reads as positive to the negative-option pattern, but Kimi keeps
+    // plan mode active for it — the composer must not drop out of plan mode.
+    fireEvent.click(screen.getByRole("button", { name: "Revise" }));
+
+    await waitFor(() => {
+      expect(runtimeActions.resolveThreadServerRequest).toHaveBeenCalledWith("thread-kimi-revise", {
+        requestId: "perm-plan",
+        method: "requestPermission",
+        response: { optionId: "plan_revise" },
+        analytics: {
+          outcome: "accepted",
+          requestType: "tool_user_input",
+        },
+      });
+    });
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
+  });
+
   it("uses the ACP composer controls for per-thread GUI presentation", () => {
     useSharedSettings.setState({ collapseTerminalComposer: true });
 
