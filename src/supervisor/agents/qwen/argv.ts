@@ -1,6 +1,7 @@
 import type { ThreadConfig } from "@/shared/contracts";
+import { QWEN_DEFAULT_MODEL_ID } from "@/shared/agents/qwenModels";
 
-export const QWEN_DEFAULT_MODEL_ID = "qwen3.8-max-preview";
+export { QWEN_DEFAULT_MODEL_ID } from "@/shared/agents/qwenModels";
 
 function approvalModeFor(config: ThreadConfig): string {
   if (config.mode === "plan") return "plan";

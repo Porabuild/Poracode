@@ -23,6 +23,7 @@ import {
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
+import { QWEN_DEFAULT_MODEL_ID, QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
 
 const modelPickerEntrySchema = z.object({
   agentKind: z.string().min(1),
@@ -735,6 +736,88 @@ function normalizeObjectFromSchema<
   return normalized;
 }
 
+function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSettings {
+  const isRetiredQwenSelection = (agentKind: string, modelId: string) =>
+    agentKind === "qwen" && modelId === QWEN_RETIRED_PREVIEW_MODEL_ID;
+  const migrateUtilityModel = (provider: string, model: string) =>
+    isRetiredQwenSelection(provider, model) ? QWEN_DEFAULT_MODEL_ID : model;
+  const qwenProviderConfig = settings.providerConfigs.qwen;
+  const providerConfigs =
+    qwenProviderConfig?.model === QWEN_RETIRED_PREVIEW_MODEL_ID
+      ? {
+          ...settings.providerConfigs,
+          qwen: { ...qwenProviderConfig, model: QWEN_DEFAULT_MODEL_ID },
+        }
+      : settings.providerConfigs;
+
+  const seenFavorites = new Set<string>();
+  const favoriteModels = settings.favoriteModels
+    .map((entry) =>
+      isRetiredQwenSelection(entry.agentKind, entry.modelId)
+        ? { ...entry, modelId: QWEN_DEFAULT_MODEL_ID }
+        : entry,
+    )
+    .filter((entry) => {
+      const key = `${entry.agentKind}\0${entry.modelId}\0${entry.presentationMode}`;
+      if (seenFavorites.has(key)) return false;
+      seenFavorites.add(key);
+      return true;
+    });
+
+  const hiddenModels = { ...settings.hiddenModels };
+  if (hiddenModels.qwen?.includes(QWEN_RETIRED_PREVIEW_MODEL_ID)) {
+    hiddenModels.qwen = [
+      ...new Set(
+        hiddenModels.qwen.map((modelId) =>
+          modelId === QWEN_RETIRED_PREVIEW_MODEL_ID ? QWEN_DEFAULT_MODEL_ID : modelId,
+        ),
+      ),
+    ];
+  }
+
+  return {
+    ...settings,
+    providerConfigs,
+    hiddenModels,
+    commitGenModel: migrateUtilityModel(settings.commitGenProvider, settings.commitGenModel),
+    titleGenModel: migrateUtilityModel(settings.titleGenProvider, settings.titleGenModel),
+    conflictResolverModel: migrateUtilityModel(
+      settings.conflictResolverProvider,
+      settings.conflictResolverModel,
+    ),
+    experimentJudgeModel: migrateUtilityModel(
+      settings.experimentJudgeProvider,
+      settings.experimentJudgeModel,
+    ),
+    wslCommitGenModel: migrateUtilityModel(
+      settings.wslCommitGenProvider,
+      settings.wslCommitGenModel,
+    ),
+    wslTitleGenModel: migrateUtilityModel(settings.wslTitleGenProvider, settings.wslTitleGenModel),
+    wslConflictResolverModel: migrateUtilityModel(
+      settings.wslConflictResolverProvider,
+      settings.wslConflictResolverModel,
+    ),
+    favoriteModels,
+    // Recents and learned usage are derived; discard retired entries instead of
+    // letting them continue to influence the picker or Crossagents routing.
+    recentModels: settings.recentModels.filter(
+      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+    ),
+    agentSelectionUsage: settings.agentSelectionUsage.filter(
+      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+    ),
+    crossagentSelectionUsage: settings.crossagentSelectionUsage.filter(
+      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+    ),
+    crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map((entry) =>
+      entry.agentKind === "qwen" && entry.modelId === QWEN_RETIRED_PREVIEW_MODEL_ID
+        ? { ...entry, modelId: QWEN_DEFAULT_MODEL_ID }
+        : entry,
+    ),
+  };
+}
+
 export function normalizeSharedSettings(value: unknown): SharedSettings {
   const normalized = normalizeObjectFromSchema(
     sharedSettingsSchema.shape,
@@ -757,7 +840,7 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
     : undefined;
-  return {
+  return migrateRetiredQwenPreviewModel({
     ...normalized,
     sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
     prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
@@ -769,5 +852,5 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
       ...defaultSharedSettings.enabledMcpServers,
       ...normalized.enabledMcpServers,
     },
-  };
+  });
 }

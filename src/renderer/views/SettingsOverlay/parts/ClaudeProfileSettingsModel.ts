@@ -78,25 +78,21 @@ export const KIMI_CODE_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "CLAUDE_CODE_MAX_CONTEXT_TOKENS", value: "1048576", sensitive: false },
 ];
 
-/** Alibaba Token Plan uses a distinct endpoint; its key is invalid on the Coding Plan endpoint. */
-const QWEN_TOKEN_MODEL_ID = "qwen3.8-max-preview";
-const QWEN_38_EFFORTS = ["low", "high", "xHigh", "ultracode"] as const;
+/**
+ * QwenCloud Token Plan Individual uses the Singapore endpoint and an exact model allowlist.
+ * Keep this list in sync with the text-generation entries in:
+ * https://docs.qwencloud.com/token-plan/personal/token-plan-personal-overview#supported-models
+ */
+const QWEN_TOKEN_MODEL_ID = "qwen3.8-max";
+const QWEN_38_EFFORTS = ["low", "medium", "xHigh"] as const;
 const QWEN_TOKEN_PLAN_MODELS = [
-  { id: QWEN_TOKEN_MODEL_ID, label: "Qwen3.8 Max Preview" },
+  { id: QWEN_TOKEN_MODEL_ID, label: "Qwen3.8 Max" },
   { id: "qwen3.7-max", label: "Qwen3.7 Max" },
   { id: "qwen3.7-plus", label: "Qwen3.7 Plus" },
-  { id: "qwen3.6-plus", label: "Qwen3.6 Plus" },
   { id: "qwen3.6-flash", label: "Qwen3.6 Flash" },
-  { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
-  { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
-  { id: "deepseek-v3.2", label: "DeepSeek V3.2" },
-  { id: "kimi-k2.7-code", label: "Kimi K2.7 Code" },
-  { id: "kimi-k2.6", label: "Kimi K2.6" },
-  { id: "kimi-k2.5", label: "Kimi K2.5" },
   { id: "glm-5.2", label: "GLM-5.2" },
-  { id: "glm-5.1", label: "GLM-5.1" },
-  { id: "glm-5", label: "GLM-5" },
-  { id: "MiniMax-M2.5", label: "MiniMax M2.5" },
+  { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+  { id: "deepseek-v4-flash-0731", label: "DeepSeek V4 Flash 0731" },
 ] as const;
 
 export const QWEN_TOKEN_PLAN_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
@@ -107,10 +103,9 @@ export const QWEN_TOKEN_PLAN_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   },
   { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
   { key: "ANTHROPIC_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_FABLE_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
   { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "qwen3.6-flash", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
   { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: "qwen3.7-max", sensitive: false },
   { key: "CLAUDE_CODE_MAX_CONTEXT_TOKENS", value: "983616", sensitive: false },
 ];

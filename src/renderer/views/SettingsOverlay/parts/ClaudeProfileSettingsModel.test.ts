@@ -153,9 +153,10 @@ describe("ClaudeProfileSettingsModel", () => {
       expect(byKey.ANTHROPIC_BASE_URL).toBe(
         "https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic",
       );
-      expect(byKey.ANTHROPIC_MODEL).toBe("qwen3.8-max-preview");
-      expect(byKey.ANTHROPIC_DEFAULT_FABLE_MODEL).toBe("qwen3.8-max-preview");
-      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("qwen3.8-max-preview");
+      expect(byKey.ANTHROPIC_MODEL).toBe("qwen3.8-max");
+      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("qwen3.8-max");
+      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("qwen3.8-max");
+      expect(byKey.ANTHROPIC_DEFAULT_FABLE_MODEL).toBeUndefined();
       expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("qwen3.6-flash");
       expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("qwen3.7-max");
       expect(byKey.CLAUDE_CODE_MAX_CONTEXT_TOKENS).toBe("983616");

@@ -99,7 +99,7 @@ describe("buildQwenProbeCapabilities", () => {
     const capabilities = buildQwenProbeCapabilities({
       models: [
         { id: "coder-model", label: "coder-model" },
-        { id: QWEN_DEFAULT_MODEL_ID, label: "Qwen3.8 Max Preview" },
+        { id: QWEN_DEFAULT_MODEL_ID, label: "Qwen3.8 Max" },
       ],
       modelMetadata: { "coder-model": { contextLimit: 1_000_000 } },
       authState: "authenticated",
@@ -116,8 +116,8 @@ describe("buildQwenProbeCapabilities", () => {
       models: [
         { id: "coder-model(qwen-oauth)", label: "coder-model" },
         {
-          id: "qwen3.8-max-preview(openai)",
-          label: "[ModelStudio Coding Plan for Global/Intl] qwen3.8-max-preview",
+          id: "qwen3.8-max(openai)",
+          label: "[ModelStudio Coding Plan for Global/Intl] qwen3.8-max",
         },
         {
           id: "glm-5.2(openai)",
@@ -129,12 +129,12 @@ describe("buildQwenProbeCapabilities", () => {
         },
       ],
       modelMetadata: {
-        "qwen3.8-max-preview(openai)": { contextLimit: 1_000_000 },
+        "qwen3.8-max(openai)": { contextLimit: 1_000_000 },
       },
     });
 
     expect(capabilities.models).toEqual([
-      { id: QWEN_DEFAULT_MODEL_ID, label: "Qwen3.8 Max Preview" },
+      { id: QWEN_DEFAULT_MODEL_ID, label: "Qwen3.8 Max" },
       { id: "coder-model", label: "Coder Model" },
       { id: "glm-5.2", label: "GLM 5.2" },
       { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
@@ -155,6 +155,23 @@ describe("buildQwenProbeCapabilities", () => {
     expect(capabilities.modelContextSizes).toEqual({
       [QWEN_DEFAULT_MODEL_ID]: ["1M"],
     });
+  });
+
+  it("excludes the retired Qwen 3.8 preview model reported by older CLIs", () => {
+    const capabilities = buildQwenProbeCapabilities({
+      models: [
+        { id: "qwen3.8-max-preview", label: "Qwen3.8 Max Preview" },
+        { id: QWEN_DEFAULT_MODEL_ID, label: "Qwen3.8 Max" },
+      ],
+      modelMetadata: { "qwen3.8-max-preview": { contextLimit: 1_000_000 } },
+      modelEfforts: { "qwen3.8-max-preview": ["high"] },
+      modelDefaultEfforts: { "qwen3.8-max-preview": "high" },
+    });
+
+    expect(capabilities.models?.map((model) => model.id)).toEqual([QWEN_DEFAULT_MODEL_ID]);
+    expect(capabilities.modelContextSizes).toBeUndefined();
+    expect(capabilities.modelEfforts).toEqual({});
+    expect(capabilities.modelDefaultEfforts).toBeUndefined();
   });
 
   it("keeps Agent and Plan modes when an authenticated ACP probe reports only Agent", () => {
