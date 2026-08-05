@@ -72,6 +72,32 @@ describe("patchConfigForModelChange", () => {
     });
   });
 
+  it("resets effort to the next model's declared default, not its first tier", () => {
+    const tiered = {
+      ...capabilities,
+      modelEfforts: { ...capabilities.modelEfforts, b: ["low", "high", "max"] },
+      modelDefaultEfforts: { b: "high" },
+    } as AgentCapability;
+    expect(patchConfigForModelChange(tiered, "b", { effort: "on" })).toMatchObject({
+      model: "b",
+      effort: "high",
+    });
+  });
+
+  // Kimi's K2.7 models advertise no tiers; keeping K3's tier would send an
+  // effort the model does not support instead of letting the agent decide.
+  it("clears effort when the next model has no tiers of its own", () => {
+    const untiered = {
+      ...capabilities,
+      efforts: [],
+      modelEfforts: { ...capabilities.modelEfforts, b: [] },
+    } as unknown as AgentCapability;
+    expect(patchConfigForModelChange(untiered, "b", { effort: "high" })).toMatchObject({
+      model: "b",
+      effort: "",
+    });
+  });
+
   it("forces fast off when the account can't use fast mode", () => {
     const gated = { ...capabilities, fastDisabledReason: "disabled" } as AgentCapability;
     expect(patchConfigForModelChange(gated, "a", { fast: true })).toMatchObject({

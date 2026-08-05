@@ -3,6 +3,7 @@ import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { resolveSharedUpdateCommand } from "@/shared/agents/updateResolver";
 import { createKnownSessionRef } from "../base";
 import { createKimiAdapter, resolveKimiEmptyResponseError } from "./index";
+import { buildKimiLogoutCommand } from "./kimiLogout";
 
 const location = { kind: "windows", path: "C:\\repo" } as ProjectLocation;
 const config = { mode: "agent" } as ThreadConfig;
@@ -67,26 +68,9 @@ describe("createKimiAdapter shape", () => {
     expect(typeof adapter.createStructuredSession).toBe("function");
   });
 
-  it("provides ACP auth and managed OAuth logout commands", async () => {
+  it("provides ACP auth and managed OAuth logout commands", () => {
     expect(typeof adapter.buildAcpAuthCommand).toBe("function");
     expect(typeof adapter.buildAcpLogoutCommand).toBe("function");
-    const isWindows = process.platform === "win32";
-    const envKind = isWindows ? "windows" : "posix";
-    const logout = await adapter.buildAcpLogoutCommand?.({ envKind });
-    expect(logout?.args).toContain(isWindows ? "-NoLogo" : "-c");
-    expect(logout?.args.join(" ")).toContain(
-      isWindows ? "credentials\\kimi-code.json" : "credentials/kimi-code.json",
-    );
-  });
-
-  it("removes the managed OAuth token inside the selected WSL distro", async () => {
-    const logout = await adapter.buildAcpLogoutCommand?.({
-      envKind: "wsl",
-      wslDistro: "Ubuntu",
-    });
-    expect(logout?.command.toLowerCase()).toContain("wsl");
-    expect(logout?.args).toContain("Ubuntu");
-    expect(logout?.args.join(" ")).toContain("credentials/kimi-code.json");
   });
 
   it("neutralizes the browser for the WSL OAuth flow", () => {
@@ -115,6 +99,38 @@ describe("createKimiAdapter shape", () => {
         projectPath: ".agents/skills",
       },
     ]);
+  });
+});
+
+describe("buildKimiLogoutCommand", () => {
+  const isWindows = process.platform === "win32";
+  const hostEnvKind = isWindows ? "windows" : "posix";
+
+  it("builds the credential-file cleanup spec without any side effect", () => {
+    const logout = buildKimiLogoutCommand({ envKind: hostEnvKind });
+    expect(logout.args).toContain(isWindows ? "-NoLogo" : "-c");
+    expect(logout.args.join(" ")).toContain(isWindows ? "Remove-Item" : "rm -f");
+    expect(logout.args.join(" ")).toContain(
+      isWindows ? "credentials\\kimi-code.json" : "credentials/kimi-code.json",
+    );
+  });
+
+  it("removes the managed OAuth token inside the selected WSL distro", () => {
+    const logout = buildKimiLogoutCommand({ envKind: "wsl", wslDistro: "Ubuntu" });
+    expect(logout.command.toLowerCase()).toContain("wsl");
+    expect(logout.args).toContain("Ubuntu");
+    expect(logout.args.join(" ")).toContain("credentials/kimi-code.json");
+  });
+
+  // Regression: an earlier revision ran the ACP logout RPC inside this
+  // builder, so merely asking the adapter for its logout spec signed the user
+  // out. dispatchAcpLogout owns the RPC now; the adapter opts in with
+  // `preferAcpLogoutRpc`.
+  it("is safe to call straight off the adapter, and the RPC is opt-in via dispatch", async () => {
+    const adapter = createKimiAdapter();
+    expect(adapter.preferAcpLogoutRpc).toBe(true);
+    const logout = await adapter.buildAcpLogoutCommand?.({ envKind: hostEnvKind });
+    expect(logout?.args.join(" ")).toContain(isWindows ? "Remove-Item" : "rm -f");
   });
 });
 

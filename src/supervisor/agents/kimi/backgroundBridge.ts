@@ -6,26 +6,31 @@ import {
   type AcpSubagentCoordinator,
 } from "../acp/subagentCoordinator";
 import type { KimiBackgroundLaunch } from "./acpTransform";
+import {
+  isTerminalTaskStatus,
+  parseCompletedKimiWireTurns,
+  parseKimiTaskRecord,
+  type KimiCompletedWireTurn,
+} from "./kimiWireJournal";
 import { resolveKimiSessionDir } from "./sessionFiles";
 
 const POLL_INTERVAL_MS = 500;
 const SESSION_DIR_TIMEOUT_MS = 30_000;
+/**
+ * How long to poll the session's wire journal for the model's follow-up
+ * reply turn after the task file reports a terminal status.
+ *
+ * With the v2 engine (0.33.0+) a detached task settling while the session
+ * is idle makes the engine start a spontaneous notification turn — but the
+ * acp-server forwards events of client-initiated turns ONLY, so that turn
+ * never reaches us over ACP. The on-disk wire journal is the sole place it
+ * can be observed, and disk polling is the only completion signal. When no
+ * turn references the task within this window (e.g. the model acknowledges
+ * a killed task without calling TaskOutput), the completion is emitted
+ * without a parent reply.
+ */
 const AUTOMATIC_TURN_GRACE_MS = 15 * 60 * 1_000;
 const TASK_TIMEOUT_MS = 2 * 60 * 60 * 1_000;
-
-interface KimiTaskRecord {
-  status: string;
-  endedAt?: number;
-}
-
-export interface KimiCompletedWireTurn {
-  turnId: string;
-  completionId: string;
-  firstTime: number;
-  lastTime: number;
-  text: string;
-  taskIds: string[];
-}
 
 export interface KimiBackgroundBridge {
   onBackgroundLaunch(launch: KimiBackgroundLaunch): void;
@@ -97,8 +102,6 @@ async function monitorBackgroundLaunch(input: MonitorBackgroundLaunchInput): Pro
   if (!sessionDir || input.signal.aborted) return;
 
   const wirePath = `${sessionDir}/agents/main/wire.jsonl`;
-  const initialWire = await input.readText(input.location, wirePath, 8_000_000);
-  const launchTurnId = findLatestKimiWireTurnId(initialWire);
   const taskPath = `${sessionDir}/agents/main/tasks/${input.launch.taskId}`;
 
   while (!input.signal.aborted && input.now() - startedAt < TASK_TIMEOUT_MS) {
@@ -113,7 +116,7 @@ async function monitorBackgroundLaunch(input: MonitorBackgroundLaunchInput): Pro
     const output = (
       await input.readText(input.location, `${taskPath}/output.log`, 4_000_000)
     )?.trim();
-    const automaticTurn = await waitForAutomaticTurn(input, wirePath, launchTurnId, task.endedAt);
+    const automaticTurn = await waitForAutomaticTurn(input, wirePath, task.endedAt);
     const emitAutomaticReply =
       automaticTurn !== undefined && !input.claimedAutomaticTurns.has(automaticTurn.completionId);
     if (automaticTurn) input.claimedAutomaticTurns.add(automaticTurn.completionId);
@@ -144,7 +147,6 @@ async function waitForSessionDir(
 async function waitForAutomaticTurn(
   input: MonitorBackgroundLaunchInput,
   wirePath: string,
-  launchTurnId: string | undefined,
   taskEndedAt: number | undefined,
 ): Promise<KimiCompletedWireTurn | undefined> {
   const startedAt = input.now();
@@ -153,7 +155,6 @@ async function waitForAutomaticTurn(
     const candidate = parseCompletedKimiWireTurns(wire)
       .filter(
         (turn) =>
-          turn.turnId !== launchTurnId &&
           turn.taskIds.includes(input.launch.taskId) &&
           (taskEndedAt === undefined || turn.lastTime >= taskEndedAt),
       )
@@ -173,6 +174,8 @@ function emitBackgroundCompletion(
   automaticText: string | undefined,
 ): void {
   const finalText = automaticText?.trim();
+  // Only `completed` is a success; `failed`, `killed`, `timed_out`, `lost`
+  // (and legacy `cancelled`) all surface the subagent card as failed.
   for (const notification of subagents.complete({
     sessionId: launch.sessionId,
     toolCallId: launch.toolCallId,
@@ -182,109 +185,6 @@ function emitBackgroundCompletion(
   })) {
     emit(notification);
   }
-}
-
-export function parseKimiTaskRecord(text: string | undefined): KimiTaskRecord | undefined {
-  if (!text) return undefined;
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (!isPlainRecord(parsed) || typeof parsed.status !== "string") return undefined;
-    return {
-      status: parsed.status,
-      ...(typeof parsed.endedAt === "number" ? { endedAt: parsed.endedAt } : {}),
-    };
-  } catch {
-    return undefined;
-  }
-}
-
-export function parseCompletedKimiWireTurns(text: string | undefined): KimiCompletedWireTurn[] {
-  if (!text) return [];
-  const activeTurns = new Map<
-    string,
-    {
-      firstTime: number;
-      lastTime: number;
-      textParts: string[];
-      taskIds: Set<string>;
-    }
-  >();
-  const completedTurns: KimiCompletedWireTurn[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    let record: unknown;
-    try {
-      record = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (!isPlainRecord(record) || record.type !== "context.append_loop_event") continue;
-    const event = record.event;
-    if (!isPlainRecord(event) || typeof event.turnId !== "string") continue;
-    const time = typeof record.time === "number" ? record.time : 0;
-    const turn = activeTurns.get(event.turnId) ?? {
-      firstTime: time,
-      lastTime: time,
-      textParts: [],
-      taskIds: new Set<string>(),
-    };
-    turn.firstTime = Math.min(turn.firstTime, time);
-    turn.lastTime = Math.max(turn.lastTime, time);
-    if (event.type === "content.part" && isPlainRecord(event.part)) {
-      if (event.part.type === "text" && typeof event.part.text === "string") {
-        turn.textParts.push(event.part.text);
-      }
-    }
-    if (event.type === "tool.call" && isPlainRecord(event.args)) {
-      const path = event.args.path;
-      if (typeof path === "string") {
-        const taskId = /[/\\]tasks[/\\]([^/\\]+)[/\\]output\.log$/i.exec(path)?.[1];
-        if (taskId) turn.taskIds.add(taskId);
-      }
-      if (event.name === "TaskOutput" && typeof event.args.task_id === "string") {
-        turn.taskIds.add(event.args.task_id);
-      }
-    }
-    if (event.type === "step.end" && event.finishReason === "end_turn") {
-      completedTurns.push({
-        turnId: event.turnId,
-        completionId: `${event.turnId}:${turn.firstTime}:${turn.lastTime}`,
-        firstTime: turn.firstTime,
-        lastTime: turn.lastTime,
-        text: turn.textParts.join("").trim(),
-        taskIds: [...turn.taskIds],
-      });
-      activeTurns.delete(event.turnId);
-    } else {
-      activeTurns.set(event.turnId, turn);
-    }
-  }
-  return completedTurns;
-}
-
-function findLatestKimiWireTurnId(text: string | undefined): string | undefined {
-  return parseKimiWireTurnIds(text).at(-1);
-}
-
-function parseKimiWireTurnIds(text: string | undefined): string[] {
-  if (!text) return [];
-  const turnIds: string[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      const record: unknown = JSON.parse(line);
-      if (!isPlainRecord(record) || !isPlainRecord(record.event)) continue;
-      const turnId = record.event.turnId;
-      if (typeof turnId === "string" && turnIds.at(-1) !== turnId) turnIds.push(turnId);
-    } catch {
-      // A partial last line is expected while Kimi is appending to the wire.
-    }
-  }
-  return turnIds;
-}
-
-function isTerminalTaskStatus(status: string): boolean {
-  return status === "completed" || status === "failed" || status === "cancelled";
 }
 
 function waitForNextPoll(signal: AbortSignal, timeoutMs: number): Promise<boolean> {
@@ -300,8 +200,4 @@ function waitForNextPoll(signal: AbortSignal, timeoutMs: number): Promise<boolea
     };
     signal.addEventListener("abort", onAbort, { once: true });
   });
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

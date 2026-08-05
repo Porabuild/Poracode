@@ -1,9 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { parse as parseToml } from "smol-toml";
-import type { AgentCapability, ProjectLocation } from "@/shared/contracts";
-import { dedupeAcpAuthMethods, probeAcpCapabilities } from "../acp";
+import type { AgentCapability, AgentTerminalAuthMethod, ProjectLocation } from "@/shared/contracts";
+import { probeAcpCapabilities, type AcpProbeResult } from "../acp";
 import {
   batchWslCommandsAsync,
   buildAgentCommand,
@@ -14,6 +13,9 @@ import {
 } from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
+import { kimiThoughtLevelChoices, preferredKimiThoughtTier } from "./thoughtLevels";
+import { ensureKimiWorkspaceTrust } from "./kimiTrust";
+import { nativeKimiHomePath, nativeKimiOAuthCredentialPath } from "./paths";
 
 // Kimi Code exposes three permission modes: manual (the CLI default), auto,
 // and yolo. Poracode starts fresh threads in auto mode.
@@ -52,24 +54,73 @@ export function buildKimiCommand(location: ProjectLocation, args: string[], wslE
   return buildAgentCommand(location, "kimi", args, wslExecPath);
 }
 
-async function probeCapabilities(
-  location: ProjectLocation,
-  executablePath?: string,
-): Promise<CapabilitiesProbeResult> {
-  const spec = buildKimiCommand(location, ["acp"], executablePath);
-  const sessionCwd = getAgentProbeCwd(location);
-  const processCwd = resolveProbeSpawnCwd(location, spec.cwd);
-  // No `authenticateMethodIds`: Kimi's only ACP method is "login" (OAuth device
-  // flow), which is interactive — probing must never trigger a browser flow.
-  const [probe, credentialState] = await Promise.all([
-    probeAcpCapabilities(spec.command, spec.args, sessionCwd, {
-      ...(processCwd ? { processCwd } : {}),
-      timeoutMs: 20_000,
-      label: location.kind === "wsl" ? `kimi:wsl:${location.distro}` : `kimi:${location.kind}`,
-    }),
-    readKimiCredentialState(location),
-  ]);
+// 0.33.0's agent-core-v2 ACP server no longer drives the OAuth device flow
+// from `authenticate` — it only re-validates auth state. Sign-in happens in a
+// terminal instead, through `kimiDetectionSpec.loginCommand`. Advertise a
+// static terminal method (the Qwen pattern) so the Login button survives even
+// when the ACP probe itself fails. The method carries no `args`: the renderer
+// runs `status.loginCommand` and reads only `env` off the method, so anything
+// else here would be inert.
+export const kimiTerminalAuthMethod: AgentTerminalAuthMethod = {
+  id: "kimi-terminal-login",
+  name: "Login",
+  type: "terminal",
+};
 
+/**
+ * Turn Kimi's `thought_level` selector into real effort tiers.
+ *
+ * Each model keeps the levels it actually offers (see thoughtLevels.ts for the
+ * probed payloads): the `low`/`high`/`max` ladder for K3, and the lone untiered
+ * `on` for K2.7 — which the composer renders as no picker at all, since there is
+ * nothing to choose, while still giving the thread a level to send.
+ *
+ * Kimi reports `currentValue: "on"` even for the tiered K3 models, so defaults
+ * resolve through {@link preferredKimiThoughtTier} (`high`) rather than adopting
+ * a level the model does not offer.
+ */
+export function normalizeKimiProbeEfforts(probe: AcpProbeResult | undefined): {
+  efforts?: string[];
+  defaultEffort?: string;
+  modelEfforts?: Record<string, string[]>;
+  modelDefaultEfforts?: Record<string, string>;
+} {
+  const efforts = kimiThoughtLevelChoices(probe?.efforts ?? []);
+  const defaultEffort = preferredKimiThoughtTier(efforts, probe?.defaultEffort);
+  const modelEfforts: Record<string, string[]> = {};
+  for (const [modelId, levels] of Object.entries(probe?.modelEfforts ?? {})) {
+    // Record every probed model, including the untiered ones: consumers resolve
+    // `modelEfforts[model] ?? efforts`, so omitting a model makes it inherit the
+    // global list — and that list holds only the levels of whichever model the
+    // probe started on, which is whatever the Kimi CLI last persisted.
+    modelEfforts[modelId] = kimiThoughtLevelChoices(levels);
+  }
+  // Kimi's probed default (`on`) names no tier for the tiered models, so resolve
+  // every model's default against the levels that model actually offers.
+  const modelDefaultEfforts: Record<string, string> = {};
+  const probedModelIds = new Set([
+    ...Object.keys(modelEfforts),
+    ...Object.keys(probe?.modelDefaultEfforts ?? {}),
+  ]);
+  for (const modelId of probedModelIds) {
+    const levels = modelEfforts[modelId] ?? efforts;
+    const level = preferredKimiThoughtTier(levels, probe?.modelDefaultEfforts?.[modelId]);
+    if (level) modelDefaultEfforts[modelId] = level;
+  }
+  return {
+    ...(efforts.length > 0 ? { efforts, ...(defaultEffort ? { defaultEffort } : {}) } : {}),
+    ...(Object.keys(modelEfforts).length > 0 ? { modelEfforts } : {}),
+    ...(Object.keys(modelDefaultEfforts).length > 0 ? { modelDefaultEfforts } : {}),
+  };
+}
+
+export function buildKimiProbeCapabilities(
+  probe: AcpProbeResult | undefined,
+  credentialState: {
+    hasAnyCredential: boolean;
+    hasManagedOAuthCredential: boolean;
+  },
+): CapabilitiesProbeResult {
   let contextCaps: Pick<AgentCapability, "contextSizes" | "modelContextSizes"> = {};
   if (probe?.modelMetadata) {
     const sizes = new Map<string, number>();
@@ -82,26 +133,54 @@ async function probeCapabilities(
     }
   }
 
-  const dedupedAuth = probe?.authMethods?.length
-    ? dedupeAcpAuthMethods(probe.authMethods)
-    : undefined;
-
   return {
+    // 0.33.0 carries no model list on `initialize`; models arrive on
+    // `session/new` configOptions, which the shared probe already maps.
     ...(probe?.models?.length ? { models: probe.models } : {}),
-    ...(probe?.efforts?.length ? { efforts: probe.efforts } : {}),
-    ...(probe?.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
-    ...(probe?.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
-    ...(probe?.modelDefaultEfforts ? { modelDefaultEfforts: probe.modelDefaultEfforts } : {}),
+    ...normalizeKimiProbeEfforts(probe),
     ...(probe?.modes?.length ? { modes: probe.modes } : {}),
     ...(probe?.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
     ...contextCaps,
-    ...(dedupedAuth?.length ? { authMethods: dedupedAuth } : {}),
-    authState: credentialState.hasAnyCredential ? "authenticated" : "missing",
-    ...(credentialState.hasManagedOAuthCredential ? { authLogoutSupported: true } : {}),
-    // Kimi's supported sign-in path is its CLI login flow (`kimi login`).
+    authMethods: [kimiTerminalAuthMethod],
+    // Prefer the ACP-native auth signal (session/new succeeded → authenticated,
+    // `auth_required` → missing); fall back to the credential files when the
+    // probe couldn't decide.
+    authState: probe?.authState ?? (credentialState.hasAnyCredential ? "authenticated" : "missing"),
+    // v2 advertises `agentCapabilities.auth.logout` (the ACP logout RPC); the
+    // legacy engine has no RPC but its managed OAuth token file can be
+    // removed directly — the adapter's logout command handles both.
+    ...(probe?.authLogoutSupported || credentialState.hasManagedOAuthCredential
+      ? { authLogoutSupported: true }
+      : {}),
     preferTerminalLogin: true,
   };
+}
+
+async function probeCapabilities(
+  location: ProjectLocation,
+  executablePath?: string,
+): Promise<CapabilitiesProbeResult> {
+  const spec = buildKimiCommand(location, ["acp"], executablePath);
+  const sessionCwd = getAgentProbeCwd(location);
+  const processCwd = resolveProbeSpawnCwd(location, spec.cwd);
+  // `session/new` is what decides `authState`, models and modes, so the probe
+  // must not be the one call that trips over 0.33's workspace-trust gate.
+  // Trust the probe's own cwd (a scratch dir on posix hosts, the project
+  // elsewhere) rather than the project path a launch would use.
+  // Only the ACP probe depends on the trust marker, so read the credential
+  // files (another WSL round trip) alongside the marker write instead of after.
+  const credentialStatePromise = readKimiCredentialState(location);
+  await ensureKimiWorkspaceTrust(location, sessionCwd);
+  // No `authenticateMethodIds`: on the legacy engine `authenticate` triggers
+  // the interactive OAuth device flow, and on 0.33.0's v2 server it only
+  // re-validates — probing must never invoke either.
+  const probe = await probeAcpCapabilities(spec.command, spec.args, sessionCwd, {
+    ...(processCwd ? { processCwd } : {}),
+    timeoutMs: 20_000,
+    label: location.kind === "wsl" ? `kimi:wsl:${location.distro}` : `kimi:${location.kind}`,
+  });
+  return buildKimiProbeCapabilities(probe, await credentialStatePromise);
 }
 
 /**
@@ -159,15 +238,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function nativeKimiHomePath(): string {
-  const kimiHome = process.env["KIMI_CODE_HOME"];
-  return kimiHome && kimiHome.trim().length > 0 ? kimiHome : join(homedir(), ".kimi-code");
-}
-
-export function nativeKimiOAuthCredentialPath(): string {
-  return join(nativeKimiHomePath(), "credentials", "kimi-code.json");
-}
-
 async function readKimiCredentialState(location: ProjectLocation): Promise<{
   hasAnyCredential: boolean;
   hasManagedOAuthCredential: boolean;
@@ -208,11 +278,15 @@ export const kimiDetectionSpec: DetectionSpec = {
     env: "KIMI_CODE_HOME",
     defaultSubpath: ".kimi-code",
   },
+  // The v2 terminal-auth entry point: `kimi acp --login` runs the device-code
+  // login flow in the terminal and exits. This is the only thing that drives a
+  // Kimi sign-in — the renderer's Login button runs exactly this string.
+  // Works on the legacy engine too.
   loginCommand: ({ location, executablePath }) => {
     if (!executablePath) return undefined;
     return location.kind === "windows"
-      ? `& ${quotePowerShellLiteral(executablePath)} login`
-      : `${quotePosixShellArg(executablePath)} login`;
+      ? `& ${quotePowerShellLiteral(executablePath)} acp --login`
+      : `${quotePosixShellArg(executablePath)} acp --login`;
   },
   capabilities: kimiDefaultCapabilities,
   // `kimi upgrade` is an interactive TUI (arrow-key chooser, no headless flag),

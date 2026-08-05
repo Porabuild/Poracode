@@ -388,7 +388,21 @@ export interface AgentDetector {
  */
 export interface AgentAcpAuth {
   buildAcpAuthCommand(ctx?: AgentEnvContext): Promise<CommandSpec | undefined>;
+  /**
+   * Build the CLI fallback that signs the agent out. Must stay side-effect
+   * free — callers inspect the spec without running it, so a builder that
+   * logs out on its own would sign the user out just for being asked.
+   */
   buildAcpLogoutCommand?(ctx?: AgentEnvContext): Promise<CommandSpec | undefined>;
+  /**
+   * Try the ACP `logout` RPC (over `buildAcpAuthCommand`) before running
+   * `buildAcpLogoutCommand`. For agents whose engine owns the credential but
+   * whose older releases only ever wrote a token file: the RPC is the native
+   * path, the command is the fallback, and both are safe to run in sequence.
+   * A failing RPC never blocks the command — the command is what the adapter
+   * relied on before the RPC existed.
+   */
+  preferAcpLogoutRpc?: boolean;
 }
 
 export interface AgentPromptFormatter {

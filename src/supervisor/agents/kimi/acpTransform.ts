@@ -1,21 +1,44 @@
 /**
  * Kimi-specific ACP `session/update` normalization.
  *
- * Kimi streams Agent tool input over several `tool_call_update`s. The initial
- * call is only `{ title: "Agent", rawInput: undefined }`; the descriptive
- * `Launching … agent` title and structured input arrive later. Canonical ACP
- * mapping classifies a tool when it starts, so this stateful normalizer marks
- * the initial call immediately and carries the eventual input across updates.
+ * Two wire shapes of the `Agent` tool must normalize into the shared
+ * subagent shape — the v2 engine (0.33.0+, `kimi acp` default) and the
+ * legacy engine (still selectable via `KIMI_CODE_LEGACY_FLAG=1`):
  *
- * Kimi does not stream a child agent's internal events over ACP. The canonical
- * `detached` nesting marker prevents parallel sibling launches from being
- * inferred as parent/child calls. Background Agent calls also report the
- * launch receipt as `status: completed` even though the detached task is still
- * running; those receipts stay `in_progress` until the Kimi session-file bridge
- * observes the automatic follow-up turn.
+ * Legacy engine: a bare `{ title: "Agent" }` CREATE first; the descriptive
+ * `Launching … agent` title and structured input arrive on later
+ * `tool_call_update`s.
+ *
+ * v2 engine: the first `tool.call.delta` lazily CREATEs the `tool_call`
+ * with the raw tool name as title (`"Agent"` again), status `pending`, and
+ * a PARTIAL args-text fragment as content. Later deltas send
+ * `tool_call_update`s whose content is the CUMULATIVE (REPLACE) args text.
+ * `tool.call.started` then finalizes the call with a `tool_call_update`
+ * that rewrites the title to `Launching (background )?<profile> agent:
+ * <description>` and carries kind/rawInput/locations. When the args were
+ * never streamed, the started event emits a plain CREATE with status
+ * `in_progress` + rawInput instead. `tool.progress` emits title-only
+ * updates; `tool.result` emits the terminal completed/failed update.
+ *
+ * In both shapes the shared mapper must classify the call as a subagent
+ * from its first notification, so this stateful normalizer marks the bare
+ * initial call immediately and carries the eventual input across updates.
+ * Kimi does not stream a child agent's internal events over ACP; the
+ * canonical `detached` nesting marker prevents parallel sibling launches
+ * from being inferred as parent/child calls.
+ *
+ * A detached launch reports `task_id: …\nstatus: running\n…
+ * automatic_notification: true` as its tool result and keeps running even
+ * though the tool call "completed". Such receipts stay `in_progress` until
+ * the Kimi session-file bridge observes the task settle (the follow-up
+ * notification turn is only ever visible on disk, never over ACP). Since
+ * v2 can also detach a call mid-run that started in the foreground
+ * (`waitForForegroundRelease` → `detached`), the receipt is recognized on
+ * ANY terminal Agent update, not only ones already known to be background.
  */
 
 import type { SessionNotification } from "@agentclientprotocol/sdk";
+import { findThoughtLevelConfigOption } from "../acp/thoughtLevel";
 import {
   createAcpSubagentCoordinator,
   normalizeAcpSubagentToolCall,
@@ -23,6 +46,7 @@ import {
   type AcpBackgroundSubagentLaunch,
   type AcpSubagentCoordinator,
 } from "../acp/subagentCoordinator";
+import { normalizeKimiThoughtLevelOption } from "./thoughtLevels";
 
 const KIMI_SUBAGENT_TITLE = /^Launching\s+(background\s+)?([\w-]+)\s+agent:\s*(.*)$/i;
 const KIMI_AGENT_TITLE = /^Agent$/i;
@@ -41,6 +65,9 @@ export function createKimiAcpSessionUpdateTransform(
 
   return (notification) => {
     const update = notification.update;
+    if (update.sessionUpdate === "config_option_update") {
+      return normalizeKimiConfigOptionUpdate(notification);
+    }
     if (update.sessionUpdate !== "tool_call" && update.sessionUpdate !== "tool_call_update") {
       return notification;
     }
@@ -68,21 +95,25 @@ export function createKimiAcpSessionUpdateTransform(
 
     const titleType = titleMatch?.[2]?.toLowerCase();
     const titleDescription = titleMatch?.[3]?.trim();
+    const terminal = tool.status === "completed" || tool.status === "failed";
+    // The detached-launch receipt can arrive on a call never marked
+    // background (v2 detaches foreground calls mid-run), so parse it on
+    // every terminal update and let it flip the descriptor.
+    const launch = terminal ? parseBackgroundLaunch(tool.rawOutput, tool.content) : undefined;
+
     const descriptor = subagents.updateCall(toolCallId, {
       ...(incomingInput ? { rawInput: incomingInput } : {}),
       ...(titleType ? { subagentType: titleType } : {}),
       ...(titleDescription ? { description: titleDescription } : {}),
-      ...(titleMatch?.[1] !== undefined || incomingInput?.run_in_background === true
+      ...(titleMatch?.[1] !== undefined ||
+      incomingInput?.run_in_background === true ||
+      launch !== undefined
         ? { background: true }
         : {}),
     });
 
-    const terminal = tool.status === "completed" || tool.status === "failed";
     const normalizedInput = subagents.canonicalInput(toolCallId);
 
-    const launch = descriptor.background
-      ? parseBackgroundLaunch(tool.rawOutput, tool.content)
-      : undefined;
     if (launch) {
       const registered = subagents.registerBackgroundLaunch({
         sessionId: notification.sessionId,
@@ -93,8 +124,7 @@ export function createKimiAcpSessionUpdateTransform(
       if (registered) callbacks.onBackgroundLaunch?.(registered);
     }
 
-    const backgroundLaunchReceipt =
-      descriptor.background && tool.status === "completed" && launch !== undefined;
+    const backgroundLaunchReceipt = launch !== undefined && tool.status === "completed";
 
     const hideInputStream = !terminal || backgroundLaunchReceipt;
     const normalizedOutput = normalizeKimiAgentOutput(tool.rawOutput);
@@ -128,6 +158,38 @@ export function transformKimiAcpSessionUpdate(
   return createKimiAcpSessionUpdateTransform()(notification);
 }
 
+/**
+ * Strip the untiered `on` thought level out of a live `config_option_update`.
+ *
+ * The session's config sync adopts the thought-level `currentValue` verbatim as
+ * the thread's effort, and Kimi reports `on` even for the tiered K3 models —
+ * which the capability probe deliberately does not surface as a tier. Without
+ * this, a K3 thread's reasoning would read `On` while its picker offers only
+ * `Low`/`High`/`Max`.
+ */
+function normalizeKimiConfigOptionUpdate(notification: SessionNotification): SessionNotification {
+  const update = notification.update as { configOptions?: unknown };
+  if (!Array.isArray(update.configOptions)) return notification;
+  const thoughtLevel = findThoughtLevelConfigOption(update.configOptions);
+  if (!thoughtLevel) return notification;
+  const normalized = normalizeKimiThoughtLevelOption(thoughtLevel);
+  if (normalized === thoughtLevel) return notification;
+  return {
+    ...notification,
+    update: {
+      ...notification.update,
+      configOptions: update.configOptions.map((option) =>
+        option === thoughtLevel ? normalized : option,
+      ),
+    } as SessionNotification["update"],
+  };
+}
+
+/**
+ * Parse the cumulative args text Kimi streams as tool-call content. Legacy
+ * deltas stream the same JSON text; v2 starts from a partial fragment, so
+ * incomplete JSON simply yields `undefined` until the args assemble.
+ */
 function parseKimiAgentInput(content: unknown): Record<string, unknown> | undefined {
   const text = extractContentText(content)?.trim();
   if (!text?.startsWith("{") || !text.endsWith("}")) return undefined;

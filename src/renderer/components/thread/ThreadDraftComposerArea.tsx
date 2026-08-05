@@ -11,6 +11,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { MAX_EXPERIMENT_CANDIDATES } from "@/shared/contracts";
+import { hasSelectableReasoning } from "@/shared/agentSelection";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -377,12 +378,7 @@ export function ThreadDraftComposerArea(props: {
     props.selectedAgent.capabilities.slashCommands,
     {
       ...slashLookupContext,
-      hasEffort:
-        ((
-          props.selectedAgent.capabilities.modelEfforts?.[props.config.model] ??
-          props.selectedAgent.capabilities.efforts ??
-          []
-        ).length ?? 0) > 0,
+      hasEffort: hasSelectableReasoning(props.selectedAgent.capabilities, props.config.model),
       supportsFast: supportsUsableFastMode(props.selectedAgent.capabilities, props.config.model),
       skillCommands,
       disabledSkillNames: props.selectedAgent.capabilities.disabledSkillNames,

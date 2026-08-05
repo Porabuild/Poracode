@@ -10,7 +10,7 @@ import {
   statSessionPaths,
   watchSessionPaths,
 } from "../base";
-import { nativeKimiHomePath } from "./detection";
+import { nativeKimiHomePath } from "./paths";
 
 // Honor the KIMI_CODE_HOME override the CLI supports (default ~/.kimi-code).
 // Sessions live under $KIMI_CODE_HOME/sessions/<workDirKey>/<sessionId>/. The

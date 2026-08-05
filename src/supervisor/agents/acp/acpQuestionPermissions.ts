@@ -15,6 +15,13 @@ interface AcpPermissionQuestion {
   question: string;
   options: Array<{ optionId: string; label: string; description?: string }>;
   multiSelect: boolean;
+  /**
+   * True when the ACP requestPermission `options` themselves are this
+   * question's answer choices (the content shape below). The response side
+   * needs it to know that an unmatched reply cannot be expressed as an
+   * approval, so request and response must not re-derive it independently.
+   */
+  optionsAreAnswers?: boolean;
 }
 
 type AcpQuestionPermissionResponse = RequestPermissionResponse & {
@@ -108,7 +115,9 @@ function parseContentPermissionQuestion(
     return [{ optionId: option.optionId, label }];
   });
   if (options.length === 0) return [];
-  return [{ id: "0", header: question, question, options, multiSelect: false }];
+  return [
+    { id: "0", header: question, question, options, multiSelect: false, optionsAreAnswers: true },
+  ];
 }
 
 export function mapAcpQuestionPermissionRequest(
@@ -150,9 +159,10 @@ export function normalizeAcpQuestionPermissionResponse(
 ): AcpQuestionPermissionResponse {
   if (isCancelledResponse(response)) return { outcome: { outcome: "cancelled" } };
 
-  const optionId = selectedPermissionOptionId(request, response);
+  const questions = parseAcpPermissionQuestions(request);
+  const optionId = selectedPermissionOptionId(request, response, questions);
   if (!optionId) return { outcome: { outcome: "cancelled" } };
-  const answers = normalizeQuestionAnswers(request, response);
+  const answers = normalizeQuestionAnswers(questions, response);
   return {
     outcome: { outcome: "selected", optionId },
     ...(Object.keys(answers).length > 0 ? { answers } : {}),
@@ -198,12 +208,12 @@ export function isAcpAskUserQuestionToolCall(toolCall: {
 }
 
 function normalizeQuestionAnswers(
-  request: RequestPermissionRequest,
+  questions: readonly AcpPermissionQuestion[],
   response: unknown,
 ): Record<string, string> {
   const rawAnswers = responseAnswers(response);
   const answers: Record<string, string> = {};
-  for (const question of parseAcpPermissionQuestions(request)) {
+  for (const question of questions) {
     const raw =
       rawAnswers[question.id] ?? rawAnswers[question.question] ?? rawAnswers[question.header];
     const selected = chosenOptionIds(raw);
@@ -226,6 +236,7 @@ function responseAnswers(response: unknown): Record<string, unknown> {
 function selectedPermissionOptionId(
   request: RequestPermissionRequest,
   response: unknown,
+  questions: readonly AcpPermissionQuestion[],
 ): string | undefined {
   const requested =
     isRecord(response) && typeof response.optionId === "string" ? response.optionId : undefined;
@@ -233,6 +244,14 @@ function selectedPermissionOptionId(
     return requested;
   const answered = answerSelectedOptionId(request, response);
   if (answered) return answered;
+  if (questions.some((question) => question.optionsAreAnswers)) {
+    // The ACP options of a content-shape question ARE the answer choices,
+    // so an unmatched reply (free text, no selection) cannot be expressed:
+    // falling back to the first option would fabricate an answer. Route to
+    // the server's skip/reject option — the ask-user tool resolves it as
+    // dismissed — and cancel when there is none.
+    return request.options.find((option) => isRejectionOptionKind(option.kind))?.optionId;
+  }
   return (
     request.options.find((option) => option.kind === "allow_once") ??
     request.options.find((option) => !isRejectionOptionKind(option.kind))
