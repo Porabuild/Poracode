@@ -19,6 +19,14 @@ interface SidebarUiState {
   collapsedWorktrees: Record<string, boolean>;
   /** Per-project count of thread-list items revealed via "See more" (ephemeral). */
   threadListLimits: Record<string, number>;
+  /**
+   * Flat thread list's project filter: the project ids to show, or null for
+   * all projects. Persisted; additive to the v1 envelope — payloads written by
+   * older builds lack the key and rehydrate to the default (null = all, the
+   * pre-filter behavior), and older builds ignore the extra key, so the store
+   * version stays 1.
+   */
+  flatListProjectFilter: string[] | null;
   editingThreadId: string | null;
   setProjectCollapsed: (projectId: string, collapsed: boolean) => void;
   toggleProjectCollapsed: (projectId: string) => void;
@@ -26,6 +34,7 @@ interface SidebarUiState {
   setWorktreeCollapsed: (key: string, collapsed: boolean) => void;
   toggleWorktreeCollapsed: (key: string) => void;
   revealMoreThreads: (projectId: string) => void;
+  setFlatListProjectFilter: (projectIds: string[] | null) => void;
   setEditingThreadId: (id: string | null) => void;
 }
 
@@ -52,6 +61,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
       pinnedGitHubWorkflows: {},
       collapsedWorktrees: {},
       threadListLimits: {},
+      flatListProjectFilter: null,
       editingThreadId: null,
 
       setProjectCollapsed: (projectId, collapsed) =>
@@ -109,6 +119,24 @@ export const useSidebarUiStore = create<SidebarUiState>()(
             },
           };
         }),
+      setFlatListProjectFilter: (projectIds) =>
+        set((state) => {
+          // An empty selection reads the same as no filter — normalize to
+          // null; dedup so a stale or hand-edited payload can't double-count
+          // an id and trip the complete-selection collapse downstream.
+          const next = projectIds && projectIds.length > 0 ? [...new Set(projectIds)] : null;
+          const current = state.flatListProjectFilter;
+          if (current === next) return {};
+          if (
+            current !== null &&
+            next !== null &&
+            current.length === next.length &&
+            current.every((id, index) => id === next[index])
+          ) {
+            return {};
+          }
+          return { flatListProjectFilter: next };
+        }),
       setEditingThreadId: (editingThreadId) => set({ editingThreadId }),
     }),
     {
@@ -120,6 +148,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
       partialize: (state) => ({
         collapsedProjects: state.collapsedProjects,
         pinnedGitHubWorkflows: state.pinnedGitHubWorkflows,
+        flatListProjectFilter: state.flatListProjectFilter,
       }),
     },
   ),
