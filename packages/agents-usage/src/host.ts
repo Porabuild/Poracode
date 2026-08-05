@@ -19,6 +19,15 @@ export interface HttpResponse {
   headers: Record<string, string>;
   body: string;
   bodyBytes?: Uint8Array;
+  /**
+   * Raw `Set-Cookie` values, one entry per header line. `headers` cannot carry
+   * them: the Headers API has no reliable generic multi-value read, so repeated
+   * `set-cookie` entries collapse into one comma-joined string that cannot be
+   * split back apart safely (cookie attributes contain commas). Hosts that can
+   * expose them populate this; collectors that rotate a stored session cookie
+   * read it (see `cookieJar.ts`) and degrade gracefully when it is absent.
+   */
+  setCookies?: string[];
 }
 
 export interface HttpClient {

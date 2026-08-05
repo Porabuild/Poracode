@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
+import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import type { BrowserDeviceEmulation } from "@/shared/ipc";
 
 export function BrowserTabWebview(props: {
@@ -155,7 +156,7 @@ export function BrowserTabWebview(props: {
         <webview
           ref={ref}
           data-tab-id={props.tabId}
-          partition="persist:lightcode-browser"
+          partition={BROWSER_SESSION_PARTITION}
           src={initialSrcRef.current || "about:blank"}
           // Electron's React type says boolean, but React warns unless this custom
           // element attribute is serialized as a string.

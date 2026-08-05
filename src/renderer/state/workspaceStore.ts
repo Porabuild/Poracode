@@ -10,6 +10,9 @@ import { useSharedSettings, whenSharedSettingsHydrated } from "./sharedSettingsS
 
 const PERSIST_KEY = "poracode-active-workspace";
 
+/** Key for projects picked while no workspace exists yet (fresh install). */
+const NO_WORKSPACE_KEY = "";
+
 interface WorkspaceUiState {
   /**
    * Which workspace this window is looking at. Deliberately *not* part of
@@ -18,6 +21,16 @@ interface WorkspaceUiState {
    */
   activeWorkspaceId: string | null;
   setActiveWorkspaceId: (workspaceId: string | null) => void;
+  /**
+   * The project last deliberately picked while each workspace was active, keyed
+   * by workspace id, so a new thread started with no explicit target resumes
+   * that workspace's own work instead of whatever project happens to sit first
+   * in the store. Entries for deleted workspaces/projects are left in place;
+   * readers validate the id against the live project list, which is cheaper and
+   * safer than pruning on every deletion path.
+   */
+  lastProjectIdByWorkspace: Record<string, string>;
+  rememberProjectForWorkspace: (workspaceId: string | null, projectId: string) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceUiState>()(
@@ -25,14 +38,37 @@ export const useWorkspaceStore = create<WorkspaceUiState>()(
     (set) => ({
       activeWorkspaceId: null,
       setActiveWorkspaceId: (activeWorkspaceId) => set({ activeWorkspaceId }),
+      lastProjectIdByWorkspace: {},
+      rememberProjectForWorkspace: (workspaceId, projectId) =>
+        set((state) => ({
+          lastProjectIdByWorkspace: {
+            ...state.lastProjectIdByWorkspace,
+            [workspaceId ?? NO_WORKSPACE_KEY]: projectId,
+          },
+        })),
     }),
     {
       name: PERSIST_KEY,
+      // Still version 1: `lastProjectIdByWorkspace` is purely additive, and
+      // persist's shallow merge leaves the `{}` default in place for payloads
+      // written before it existed. A v1 payload stays valid, so bumping would
+      // only throw away the user's active workspace for no gain.
       version: 1,
       storage: createJSONStorage(() => localStorage),
     },
   ),
 );
+
+/** Record a deliberate project pick as the active workspace's default target. */
+export function rememberWorkspaceProject(projectId: string): void {
+  useWorkspaceStore.getState().rememberProjectForWorkspace(getActiveWorkspaceId(), projectId);
+}
+
+/** The project a fresh draft should prefer for the active workspace, if any. */
+export function getLastWorkspaceProjectId(): string | undefined {
+  const byWorkspace = useWorkspaceStore.getState().lastProjectIdByWorkspace ?? {};
+  return byWorkspace[getActiveWorkspaceId() ?? NO_WORKSPACE_KEY];
+}
 
 /**
  * The workspace actually in effect: the stored id when it still resolves,

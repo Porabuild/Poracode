@@ -57,4 +57,63 @@ describe("shared settings defaults", () => {
       }).prAutomationDefault,
     ).toBe("off");
   });
+
+  it("migrates the retired Qwen 3.8 preview model without changing other providers", () => {
+    const migrated = normalizeSharedSettings({
+      providerConfigs: {
+        qwen: { model: "qwen3.8-max-preview", mode: "agent", approvalPolicy: "auto" },
+        "claude:qwen": { model: "qwen3.8-max-preview" },
+      },
+      commitGenProvider: "qwen",
+      commitGenModel: "qwen3.8-max-preview",
+      favoriteModels: [
+        { agentKind: "qwen", modelId: "qwen3.8-max-preview", presentationMode: "gui" },
+      ],
+      recentModels: [
+        { agentKind: "qwen", modelId: "qwen3.8-max-preview", presentationMode: "gui" },
+        { agentKind: "claude:qwen", modelId: "qwen3.8-max-preview", presentationMode: "gui" },
+      ],
+      agentSelectionUsage: [
+        {
+          agentKind: "qwen",
+          modelId: "qwen3.8-max-preview",
+          fast: false,
+          count: 2,
+          lastUsedAt: 1,
+        },
+      ],
+      crossagentSelectionUsage: [
+        {
+          agentKind: "qwen",
+          modelId: "qwen3.8-max-preview",
+          fast: false,
+          count: 1,
+          lastUsedAt: 1,
+        },
+      ],
+      crossagentRoutingOverrides: [
+        {
+          tags: ["review"],
+          agentKind: "qwen",
+          modelId: "qwen3.8-max-preview",
+          updatedAt: 1,
+        },
+      ],
+      hiddenModels: { qwen: ["qwen3.8-max-preview", "qwen3.8-max"] },
+    });
+
+    expect(migrated.providerConfigs.qwen?.model).toBe("qwen3.8-max");
+    expect(migrated.providerConfigs["claude:qwen"]?.model).toBe("qwen3.8-max-preview");
+    expect(migrated.commitGenModel).toBe("qwen3.8-max");
+    expect(migrated.favoriteModels).toEqual([
+      { agentKind: "qwen", modelId: "qwen3.8-max", presentationMode: "gui" },
+    ]);
+    expect(migrated.recentModels).toEqual([
+      { agentKind: "claude:qwen", modelId: "qwen3.8-max-preview", presentationMode: "gui" },
+    ]);
+    expect(migrated.agentSelectionUsage).toEqual([]);
+    expect(migrated.crossagentSelectionUsage).toEqual([]);
+    expect(migrated.crossagentRoutingOverrides[0]?.modelId).toBe("qwen3.8-max");
+    expect(migrated.hiddenModels.qwen).toEqual(["qwen3.8-max"]);
+  });
 });

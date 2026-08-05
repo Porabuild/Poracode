@@ -82,7 +82,9 @@ msgstr "{0, plural, one {# eşleştirilmiş masaüstü} other {# eşleştirilmi�
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
 #. placeholder {0}: props.projects.length
+#. placeholder {0}: selectedProjects.size
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
 msgstr "{0, plural, one {# proje} other {# proje}}"
@@ -610,8 +612,12 @@ msgstr "@cursor/sdk kurulu değil."
 #~ msgstr "/skill-creator {destination} için yeni bir yönetilen beceri oluştur."
 
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "/skill-creator Create a new managed skill for {destinationLabel}."
-msgstr "/skill-creator {destinationLabel} için yeni bir yönetilen beceri oluştur."
+#~ msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+#~ msgstr "/skill-creator {destinationLabel} için yeni bir yönetilen beceri oluştur."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator-poracode Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator-poracode {destinationLabel} için yeni bir yönetilen beceri oluştur."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
@@ -1163,6 +1169,7 @@ msgid "All files"
 msgstr "Tüm dosyalar"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "Tüm projeler"
 
@@ -1170,7 +1177,7 @@ msgstr "Tüm projeler"
 msgid "All sources"
 msgstr "Tüm kaynaklar"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Tüm çalışma alanları"
@@ -3882,7 +3889,7 @@ msgstr "Bilgisayar Kullanımını Devre Dışı Bırak"
 msgid "Disable Crossagents"
 msgstr "Crossagents'i devre dışı bırak"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "Projeyi Devre Dışı Bırak"
 
@@ -4241,7 +4248,7 @@ msgstr "Sistem ayarlarınızdan mikrofon erişimini etkinleştirin ve tekrar den
 msgid "Enable notifications"
 msgstr "Bildirimleri etkinleştir"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Enable Project"
 msgstr "Projeyi Etkinleştir"
 
@@ -4750,6 +4757,7 @@ msgid "Fill in all required workflow inputs."
 msgstr "Tüm gerekli workflow girdilerini doldurun."
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "Projeye göre filtrele"
 
@@ -5092,9 +5100,9 @@ msgstr "Görev al"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5128,7 +5136,8 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "{0} için Git durumu: Git deposu değil"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
@@ -6813,7 +6822,7 @@ msgstr "Tarayıcıyı pencereye taşı"
 msgid "Move changes to a new worktree"
 msgstr "Değişiklikleri yeni bir çalışma ağacına taşı"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Çalışma alanına taşı"
 
@@ -8029,6 +8038,10 @@ msgstr "Veya özel bir cevap yazın"
 msgid "Other"
 msgstr "Diğer"
 
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Other workspaces"
+msgstr "Diğer çalışma alanları"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "Sonuç"
@@ -8617,6 +8630,11 @@ msgstr "Profiller"
 msgid "Project"
 msgstr "Proje"
 
+#. placeholder {0}: props.project.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Project actions for {0}"
+msgstr "{0} için proje eylemleri"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Project folder"
 msgstr "Proje klasörü"
@@ -8642,7 +8660,7 @@ msgstr "Proje bulunamadı."
 msgid "Project notes"
 msgstr "Proje notları"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
 msgstr "Proje Ayarları"
 
@@ -8663,6 +8681,7 @@ msgstr "Genel arama ayarlarının yanı sıra projeye özel geçersiz kılmalar.
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -9260,7 +9279,7 @@ msgstr "{tagLabel} için sabitlenmiş rotayı kaldır"
 msgid "Remove project"
 msgstr "Projeyi kaldır"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Remove Project"
 msgstr "Projeyi Kaldır"
 
@@ -9629,7 +9648,8 @@ msgstr "Aday {0} ({label}) değişikliklerini incele"
 msgid "Review changes"
 msgstr "Değişiklikleri incele"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
 msgstr "Değişiklikleri İncele"
@@ -9697,9 +9717,9 @@ msgstr "Görüntü alanını döndür"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Run"
 msgstr "Çalıştır"
 
@@ -10989,7 +11009,7 @@ msgstr "Yönlendirmeyi durdur"
 msgid "Stop response"
 msgstr "Yanıtı durdur"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Stop syncing"
 msgstr "Senkronizasyonu durdur"
 
@@ -11183,7 +11203,8 @@ msgid "Switch workspace"
 msgstr "Çalışma alanını değiştir"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Sync"
 msgstr "Senkronizasyon"

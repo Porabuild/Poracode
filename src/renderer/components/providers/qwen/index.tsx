@@ -1,6 +1,7 @@
 export * from "./QwenIcon";
 
 import { msg } from "@lingui/core/macro";
+import { QWEN_DEFAULT_MODEL_ID } from "@/shared/agents/qwenModels";
 import { QwenIcon } from "./QwenIcon";
 import providerManifest from "./manifest";
 import { standardPlanApprovalControls } from "../composerControlBuilders";
@@ -13,8 +14,8 @@ import { registerTitleGenDefaults } from "../titleGen";
 const PROVIDER_KIND = providerManifest.kind;
 const QWEN_UTILITY_DEFAULTS = {
   label: "Qwen",
-  hint: "3.8 Max Preview",
-  model: "qwen3.8-max-preview",
+  hint: "3.8 Max",
+  model: QWEN_DEFAULT_MODEL_ID,
   effort: "",
 };
 

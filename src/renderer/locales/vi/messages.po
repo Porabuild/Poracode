@@ -82,7 +82,9 @@ msgstr "{0, plural, one {# desktop đã ghép đôi} other {# desktop đã ghép
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
 #. placeholder {0}: props.projects.length
+#. placeholder {0}: selectedProjects.size
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
 msgstr "{0, plural, one {# dự án} other {# dự án}}"
@@ -610,8 +612,12 @@ msgstr "@cursor/sdk chưa được cài đặt."
 #~ msgstr "/skill-creator Tạo một skill được quản lý mới cho {destination}."
 
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "/skill-creator Create a new managed skill for {destinationLabel}."
-msgstr "/skill-creator Tạo một skill được quản lý mới cho {destinationLabel}."
+#~ msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+#~ msgstr "/skill-creator Tạo một skill được quản lý mới cho {destinationLabel}."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator-poracode Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator-poracode Tạo một skill được quản lý mới cho {destinationLabel}."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
@@ -1163,6 +1169,7 @@ msgid "All files"
 msgstr "Tất cả các tập tin"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "Tất cả dự án"
 
@@ -1170,7 +1177,7 @@ msgstr "Tất cả dự án"
 msgid "All sources"
 msgstr "Tất cả nguồn"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Tất cả không gian làm việc"
@@ -3882,7 +3889,7 @@ msgstr "Tắt sử dụng máy tính"
 msgid "Disable Crossagents"
 msgstr "Tắt Crossagents"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "Vô hiệu hóa dự án"
 
@@ -4241,7 +4248,7 @@ msgstr "Bật quyền truy cập micrô trong cài đặt hệ thống của b�
 msgid "Enable notifications"
 msgstr "Bật thông báo"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Enable Project"
 msgstr "Kích hoạt dự án"
 
@@ -4750,6 +4757,7 @@ msgid "Fill in all required workflow inputs."
 msgstr "Điền tất cả đầu vào workflow bắt buộc."
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "Lọc theo dự án"
 
@@ -5092,9 +5100,9 @@ msgstr "Nhận nhiệm vụ"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5128,7 +5136,8 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "Trạng thái Git cho {0}: không phải kho lưu trữ Git"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
@@ -6813,7 +6822,7 @@ msgstr "Chuyển trình duyệt sang cửa sổ"
 msgid "Move changes to a new worktree"
 msgstr "Di chuyển các thay đổi sang một cây làm việc mới"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Chuyển tới không gian làm việc"
 
@@ -8029,6 +8038,10 @@ msgstr "Hoặc viết một câu trả lời tùy chỉnh"
 msgid "Other"
 msgstr "Khác"
 
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Other workspaces"
+msgstr "Không gian làm việc khác"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "Kết quả"
@@ -8617,6 +8630,11 @@ msgstr "Hồ sơ"
 msgid "Project"
 msgstr "dự án"
 
+#. placeholder {0}: props.project.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Project actions for {0}"
+msgstr "Hành động dự án cho {0}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Project folder"
 msgstr "Thư mục dự án"
@@ -8642,7 +8660,7 @@ msgstr "Không tìm thấy dự án."
 msgid "Project notes"
 msgstr "ghi chú dự án"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
 msgstr "Cài đặt dự án"
 
@@ -8663,6 +8681,7 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -9260,7 +9279,7 @@ msgstr "Xóa tuyến đã ghim cho {tagLabel}"
 msgid "Remove project"
 msgstr "Xóa dự án"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Remove Project"
 msgstr "Xóa dự án"
 
@@ -9629,7 +9648,8 @@ msgstr "Xem lại các thay đổi của ứng viên {0} ({label})"
 msgid "Review changes"
 msgstr "Xem xét thay đổi"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
 msgstr "Xem lại các thay đổi"
@@ -9697,9 +9717,9 @@ msgstr "Xoay khung nhìn"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Run"
 msgstr "Chạy"
 
@@ -10989,7 +11009,7 @@ msgstr "Dừng chuyển tiếp"
 msgid "Stop response"
 msgstr "Dừng phản hồi"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Stop syncing"
 msgstr "Ngừng đồng bộ hóa"
 
@@ -11183,7 +11203,8 @@ msgid "Switch workspace"
 msgstr "Chuyển không gian làm việc"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Sync"
 msgstr "Đồng bộ hóa"

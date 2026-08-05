@@ -4,17 +4,21 @@ import {
   ArrowRightLeft,
   CircleCheck,
   Columns2,
+  FileDiff,
   FlaskConical,
   GitFork,
   Pencil,
   Play,
   Plus,
+  RefreshCw,
   Star,
   Trash2,
+  Workflow,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
+import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -59,6 +63,12 @@ export function ThreadContextMenu(props: {
   thread: Thread;
   project: Project;
   onRename?: () => void;
+  /**
+   * Flat cross-project rows only: add the project-level Git and Run submenus.
+   * The grouped layout already offers them on the project header's own menu;
+   * the flat list has no project headers, so main-branch threads carry them.
+   */
+  showProjectActions?: boolean;
   children: ReactNode;
 }) {
   const { thread, project, onRename } = props;
@@ -81,6 +91,9 @@ export function ThreadContextMenu(props: {
       : thread.status === "launching"
         ? t`Wait for the thread to finish starting.`
         : undefined;
+  // Home has no project menu even in the grouped layout (its sidebar section
+  // is a plain header), so flat Home threads don't get project actions either.
+  const showProjectActions = props.showProjectActions === true && !isHomeProject(project);
 
   return (
     <ContextMenu
@@ -119,9 +132,39 @@ export function ThreadContextMenu(props: {
                   },
                 ],
               },
+              // Project-level git, running against the main checkout the
+              // thread lives in (mirrors the project header's Git submenu).
+              ...(showProjectActions
+                ? [
+                    {
+                      type: "submenu" as const,
+                      id: "git",
+                      label: t`Git`,
+                      icon: <GitFork className="size-3.5" />,
+                      items: [
+                        {
+                          id: "git-review",
+                          label: t`Review Changes`,
+                          icon: <FileDiff className="size-3.5" />,
+                        },
+                        {
+                          id: "github-actions",
+                          label: t`GitHub Actions`,
+                          icon: <Workflow className="size-3.5" />,
+                        },
+                        {
+                          id: "git-sync",
+                          label: t`Sync`,
+                          icon: <RefreshCw className="size-3.5" />,
+                        },
+                      ],
+                    },
+                  ]
+                : []),
             ]
           : []),
-        ...(thread.worktreePath && project.scripts?.actions?.length
+        ...((thread.worktreePath || (showProjectActions && !isExperimentCandidate)) &&
+        project.scripts?.actions?.length
           ? [
               {
                 type: "submenu" as const,
@@ -242,8 +285,12 @@ export function ThreadContextMenu(props: {
         if (key === "move-to-worktree-with-changes") void moveThreadToWorktree(thread.id, true);
         if (key === "move-to-worktree-clean") void moveThreadToWorktree(thread.id, false);
         if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath, thread.id);
-        if (key === "git-sync" && thread.worktreePath)
-          gitSync(thread.projectId, thread.worktreePath);
+        // Non-worktree flat rows offer project-level sync (no path argument).
+        if (key === "git-sync") {
+          if (thread.worktreePath) gitSync(thread.projectId, thread.worktreePath);
+          else gitSync(thread.projectId);
+        }
+        if (key === "github-actions") useAppStore.getState().openGitHubActions(thread.projectId);
         if (key === "git-push" && thread.worktreePath)
           gitPush(thread.projectId, thread.worktreePath);
         if (key === "git-pull" && thread.worktreePath)

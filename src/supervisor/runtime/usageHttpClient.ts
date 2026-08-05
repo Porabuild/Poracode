@@ -35,7 +35,18 @@ export function createNodeHttpClient(): HttpClient {
         });
         const bodyBytes = new Uint8Array(await res.arrayBuffer());
         const body = Buffer.from(bodyBytes).toString("utf8");
-        return { status: res.status, headers: headersToRecord(res.headers), body, bodyBytes };
+        // `headersToRecord` collapses repeated `set-cookie` into one comma-joined
+        // value that cannot be split back apart (attributes contain commas), so
+        // surface the raw lines separately for collectors that rotate a session
+        // cookie. Same pitfall the relay host documents.
+        const setCookies = res.headers.getSetCookie();
+        return {
+          status: res.status,
+          headers: headersToRecord(res.headers),
+          body,
+          bodyBytes,
+          ...(setCookies.length > 0 ? { setCookies } : {}),
+        };
       } finally {
         clearTimeout(timeout);
       }

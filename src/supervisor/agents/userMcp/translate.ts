@@ -254,6 +254,21 @@ export interface AcpMcpCapabilities {
   sse?: boolean;
 }
 
+/**
+ * Effective MCP transport support for an ACP agent.
+ *
+ * `advertised` is what the agent returned in `initialize`. `assumed` is what
+ * the adapter knows the agent actually supports; it only applies when the
+ * agent advertises no `mcpCapabilities` at all, so an agent that explicitly
+ * states its transports is always taken at its word.
+ */
+export function resolveAcpMcpCapabilities(
+  advertised: AcpMcpCapabilities | undefined,
+  assumed: AcpMcpCapabilities | undefined,
+): AcpMcpCapabilities | undefined {
+  return advertised ?? assumed;
+}
+
 export function gateAcpMcpServers<T extends object>(
   servers: T[],
   capabilities: AcpMcpCapabilities | undefined,

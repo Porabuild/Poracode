@@ -14,6 +14,13 @@ export {
   LOCAL_USAGE_PROVIDER_DESCRIPTORS,
 } from "./providers";
 export { DEFAULT_CLIENT_VERSIONS } from "./clientVersions";
+export {
+  applySetCookies,
+  CookieJar,
+  parseCookieHeader,
+  parseSetCookie,
+  serializeCookieHeader,
+} from "./cookieJar";
 export { priceTokens, rateForModel, PRICING_TABLE_REVIEWED } from "./pricing";
 export type { ModelRate } from "./pricing";
 export { aggregateClaudeCost } from "./cost";

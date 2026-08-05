@@ -1,4 +1,5 @@
 import type { AgentCapability, AgentTerminalAuthMethod, ProjectLocation } from "@/shared/contracts";
+import { QWEN_RETIRED_PREVIEW_MODEL_ID } from "@/shared/agents/qwenModels";
 import { humanizeModelId, probeAcpCapabilities, type AcpProbeResult } from "../acp";
 import {
   buildAgentCommand,
@@ -11,7 +12,7 @@ import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
 import { QWEN_DEFAULT_MODEL_ID } from "./argv";
 
 export const qwenDefaultCapabilities: AgentCapability = {
-  models: [{ id: QWEN_DEFAULT_MODEL_ID, label: "Qwen3.8 Max Preview" }],
+  models: [{ id: QWEN_DEFAULT_MODEL_ID, label: "Qwen3.8 Max" }],
   efforts: [],
   modelEfforts: {},
   modes: ["agent", "plan"],
@@ -64,7 +65,7 @@ const MODEL_PROVIDER_TAG_RE = /^\[([^\]]+)\]\s*/u;
 const MODEL_PROVIDER_SUFFIX_RE = /\((openai|qwen-oauth)\)$/u;
 const QWEN_MODEL_LABELS: Readonly<Record<string, string>> = {
   "coder-model": "Coder Model",
-  "qwen3.8-max-preview": "Qwen3.8 Max Preview",
+  "qwen3.8-max": "Qwen3.8 Max",
   "glm-5.2": "GLM 5.2",
   "deepseek-v4-pro": "DeepSeek V4 Pro",
   "qwen3.5-plus": "Qwen3.5 Plus",
@@ -124,14 +125,25 @@ function normalizeQwenModel(model: NonNullable<AcpProbeResult["models"]>[number]
   };
 }
 
+function withoutRetiredPreview<T>(values: Record<string, T> | undefined): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(values ?? {}).filter(
+      ([modelId]) =>
+        modelId.replace(MODEL_PROVIDER_SUFFIX_RE, "") !== QWEN_RETIRED_PREVIEW_MODEL_ID,
+    ),
+  );
+}
+
 export function buildQwenProbeCapabilities(
   probe: AcpProbeResult | undefined,
 ): CapabilitiesProbeResult {
-  const normalizedModels = (probe?.models ?? []).map(normalizeQwenModel);
+  const normalizedModels = (probe?.models ?? [])
+    .map(normalizeQwenModel)
+    .filter((entry) => entry.model.id !== QWEN_RETIRED_PREVIEW_MODEL_ID);
   const probedModels = normalizedModels.map((entry) => entry.model);
   const defaultModel = probedModels.find((model) => model.id === QWEN_DEFAULT_MODEL_ID) ?? {
     id: QWEN_DEFAULT_MODEL_ID,
-    label: "Qwen3.8 Max Preview",
+    label: "Qwen3.8 Max",
   };
   const models = [
     defaultModel,
@@ -151,11 +163,15 @@ export function buildQwenProbeCapabilities(
   }
   const contextTokens = new Map<string, number>();
   for (const [modelId, metadata] of Object.entries(probe?.modelMetadata ?? {})) {
+    const normalizedModelId = modelId.replace(MODEL_PROVIDER_SUFFIX_RE, "");
+    if (normalizedModelId === QWEN_RETIRED_PREVIEW_MODEL_ID) continue;
     const contextLimit = metadata.contextLimit;
     if (typeof contextLimit === "number" && contextLimit > 0) {
-      contextTokens.set(modelId.replace(MODEL_PROVIDER_SUFFIX_RE, ""), contextLimit);
+      contextTokens.set(normalizedModelId, contextLimit);
     }
   }
+  const modelEfforts = withoutRetiredPreview(probe?.modelEfforts);
+  const modelDefaultEfforts = withoutRetiredPreview(probe?.modelDefaultEfforts);
 
   return {
     ...qwenDefaultCapabilities,
@@ -164,8 +180,8 @@ export function buildQwenProbeCapabilities(
     ...(Object.keys(modelSubProvider).length > 0 ? { modelSubProvider } : {}),
     ...(probe?.efforts?.length ? { efforts: probe.efforts } : {}),
     ...(probe?.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
-    ...(probe?.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
-    ...(probe?.modelDefaultEfforts ? { modelDefaultEfforts: probe.modelDefaultEfforts } : {}),
+    ...(Object.keys(modelEfforts).length > 0 ? { modelEfforts } : {}),
+    ...(Object.keys(modelDefaultEfforts).length > 0 ? { modelDefaultEfforts } : {}),
     modes: [...new Set([...qwenDefaultCapabilities.modes, ...(probe?.modes ?? [])])],
     ...(probe?.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),

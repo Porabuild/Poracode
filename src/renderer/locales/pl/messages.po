@@ -82,7 +82,9 @@ msgstr "{0, plural, one {# sparowany desktop} few {# sparowane desktopy} many {#
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
 #. placeholder {0}: props.projects.length
+#. placeholder {0}: selectedProjects.size
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
 msgstr "{0, plural, one {# projekt} few {# projekty} many {# projektów} other {# projektu}}"
@@ -610,8 +612,12 @@ msgstr "@cursor/sdk nie jest zainstalowany."
 #~ msgstr "/skill-creator Utwórz nową zarządzaną umiejętność dla: {destination}."
 
 #: src/renderer/components/skills/SkillsManager.tsx
-msgid "/skill-creator Create a new managed skill for {destinationLabel}."
-msgstr "/skill-creator Utwórz nową zarządzaną umiejętność dla {destinationLabel}."
+#~ msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+#~ msgstr "/skill-creator Utwórz nową zarządzaną umiejętność dla {destinationLabel}."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator-poracode Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator-poracode Utwórz nową zarządzaną umiejętność dla {destinationLabel}."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
@@ -1163,6 +1169,7 @@ msgid "All files"
 msgstr "Wszystkie pliki"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "Wszystkie projekty"
 
@@ -1170,7 +1177,7 @@ msgstr "Wszystkie projekty"
 msgid "All sources"
 msgstr "Wszystkie źródła"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Wszystkie obszary robocze"
@@ -3882,7 +3889,7 @@ msgstr "Wyłącz obsługę komputera"
 msgid "Disable Crossagents"
 msgstr "Wyłącz Crossagents"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "Wyłącz projekt"
 
@@ -4241,7 +4248,7 @@ msgstr "Włącz dostęp do mikrofonu w ustawieniach systemu, a następnie sprób
 msgid "Enable notifications"
 msgstr "Włącz powiadomienia"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Enable Project"
 msgstr "Włącz projekt"
 
@@ -4750,6 +4757,7 @@ msgid "Fill in all required workflow inputs."
 msgstr "Uzupełnij wszystkie wymagane dane wejściowe workflow."
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
 msgstr "Filtruj według projektu"
 
@@ -5092,9 +5100,9 @@ msgstr "Pobierz zadanie"
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Git"
@@ -5128,7 +5136,8 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "Status Git dla {0}: to nie jest repozytorium Git"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
@@ -6813,7 +6822,7 @@ msgstr "Przenieś przeglądarkę do okna"
 msgid "Move changes to a new worktree"
 msgstr "Przenieś zmiany do nowego drzewa roboczego"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Przenieś do obszaru roboczego"
 
@@ -8029,6 +8038,10 @@ msgstr "Lub napisz niestandardową odpowiedź"
 msgid "Other"
 msgstr "Inne"
 
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Other workspaces"
+msgstr "Inne obszary robocze"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "Wynik"
@@ -8617,6 +8630,11 @@ msgstr "Profile"
 msgid "Project"
 msgstr "Projekt"
 
+#. placeholder {0}: props.project.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Project actions for {0}"
+msgstr "Akcje projektu dla {0}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Project folder"
 msgstr "Folder projektu"
@@ -8642,7 +8660,7 @@ msgstr "Nie znaleziono projektu."
 msgid "Project notes"
 msgstr "Notatki projektowe"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
 msgstr "Ustawienia projektu"
 
@@ -8663,6 +8681,7 @@ msgstr "Zastąpienia specyficzne dla projektu ponad globalnymi ustawieniami wysz
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Projects"
@@ -9260,7 +9279,7 @@ msgstr "Usuń przypiętą trasę dla {tagLabel}"
 msgid "Remove project"
 msgstr "Usuń projekt"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Remove Project"
 msgstr "Usuń projekt"
 
@@ -9629,7 +9648,8 @@ msgstr "Przejrzyj zmiany kandydata {0} ({label})"
 msgid "Review changes"
 msgstr "Przejrzyj zmiany"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
 msgstr "Przejrzyj zmiany"
@@ -9697,9 +9717,9 @@ msgstr "Obróć obszar wyświetlania"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Run"
 msgstr "Uruchom"
 
@@ -10989,7 +11009,7 @@ msgstr "Zatrzymaj przekierowywanie"
 msgid "Stop response"
 msgstr "Zatrzymaj odpowiedź"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Stop syncing"
 msgstr "Zatrzymaj synchronizację"
 
@@ -11183,7 +11203,8 @@ msgid "Switch workspace"
 msgstr "Przełącz obszar roboczy"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Sync"
 msgstr "Synchronizuj"

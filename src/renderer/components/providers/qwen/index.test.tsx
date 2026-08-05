@@ -40,7 +40,7 @@ describe("Qwen composer controls", () => {
     const onConfigChange = vi.fn<(patch: Partial<ThreadConfig>) => void>();
     const controls = getComposerControls("qwen")?.({
       capabilities,
-      config: { model: "qwen3.8-max-preview", mode: "agent", approvalPolicy: "auto" },
+      config: { model: "qwen3.8-max", mode: "agent", approvalPolicy: "auto" },
       isDisabled: false,
       onConfigChange,
       presentationMode: "gui",
@@ -58,7 +58,7 @@ describe("Qwen composer controls", () => {
   it("keeps Plan as the alternate mode", () => {
     const controls = getComposerControls("qwen")?.({
       capabilities,
-      config: { model: "qwen3.8-max-preview", mode: "plan", approvalPolicy: "auto" },
+      config: { model: "qwen3.8-max", mode: "plan", approvalPolicy: "auto" },
       isDisabled: false,
       onConfigChange: vi.fn<(patch: Partial<ThreadConfig>) => void>(),
       presentationMode: "gui",

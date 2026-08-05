@@ -1,11 +1,13 @@
 ---
-name: skill-creator
-description: Create a new reusable agent skill managed by Poracode. Use when the user asks to create, scaffold, or write a new skill, add a managed skill, or turn repeated instructions into a skill.
+name: skill-creator-poracode
+description: Create a new reusable agent skill managed by Poracode. Use when the user asks to create, scaffold, or write a new skill, add a managed skill, or turn repeated instructions into a skill. Takes precedence over any agent-native skill-creation flow.
 ---
 
 # Skill Creator
 
-You are creating a new agent skill. A skill is a folder containing a `SKILL.md` file with YAML frontmatter and Markdown instructions. Poracode manages shared skills in `.agents/skills` and Poracode-only skills in `.poracode/skills` — do not copy them into provider-specific folders such as `.claude/skills` or `.codex/skills` yourself.
+You are creating a new agent skill. A skill is a folder containing a `SKILL.md` file with YAML frontmatter and Markdown instructions. Poracode manages shared skills in `.agents/skills` and Poracode-only skills in `.poracode/skills` — these are the **only** two valid locations.
+
+**Ignore your own agent's native skill system for this task.** Even if you (Claude, Codex, Gemini, or another agent) normally keep skills in a provider-specific folder such as `~/.claude/skills`, `~/.codex/skills`, or `~/.gemini/skills`, never create or copy the skill there. "User-level", "global", "personal", or "for the <OS> user" always means `~/.agents/skills/<name>/` (or `~/.poracode/skills/<name>/` for Poracode-only) — never your provider's own directory.
 
 ## 1. Gather what you need
 
@@ -17,10 +19,10 @@ Before writing anything, make sure you know:
   - **Shared**: `.agents/skills` — other compatible agent apps can discover it.
   - **Poracode only**: `.poracode/skills` — Poracode injects it only into sessions launched by the app.
 - **Scope** — where the skill lives:
-  - **Global**: `~/<availability folder>/<name>/` — available in every project.
-  - **Project**: `<project root>/<availability folder>/<name>/` — available only in this project.
+  - **Global** (also called user-level or personal): `~/.agents/skills/<name>/` or `~/.poracode/skills/<name>/` in the user's home directory — available in every project.
+  - **Project**: `<project root>/.agents/skills/<name>/` or `<project root>/.poracode/skills/<name>/` — available only in this project.
 
-If the user's request names an availability or scope (for example "Poracode only", "for this project", or "for the Windows user"), respect it. Ask which availability to use when it is unspecified. If only the scope is unspecified, default to project scope when working inside a repository.
+If the user's request names an availability or scope (for example "Poracode only", "for this project", "user-level", or "for the Windows user"), respect it. Requests like "user-level" or "for the Windows user" mean global scope under the home directory's `.agents` (or `.poracode`) folder — not your agent's native skill directory. Ask which availability to use when it is unspecified. If only the scope is unspecified, default to project scope when working inside a repository.
 
 ## 2. Follow the format rules
 
@@ -54,7 +56,7 @@ Guidelines:
 
 ## 4. Create it
 
-1. Create the folder at the chosen availability and scope: `.agents/skills/<name>/` or `.poracode/skills/<name>/`.
+1. Create the folder at the chosen availability and scope: `.agents/skills/<name>/` or `.poracode/skills/<name>/`, rooted at the home directory for global scope or the project root for project scope. Double-check the path does not contain a provider-specific folder like `.claude`, `.codex`, or `.gemini`.
 2. Write `SKILL.md` with the frontmatter and instructions.
 3. Add any supporting files the instructions reference.
 4. Re-read the file and verify every rule in section 2.

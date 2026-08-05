@@ -413,19 +413,27 @@ describe("ClaudeProfileProviderSettings", () => {
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("ANTHROPIC_MODEL")).toBeInTheDocument();
     expect(screen.getByDisplayValue("CLAUDE_CODE_SUBAGENT_MODEL")).toBeInTheDocument();
-    expect(screen.getAllByLabelText("Model id").at(0)).toHaveValue("qwen3.8-max-preview");
+    expect(screen.getAllByLabelText("Model id").at(0)).toHaveValue("qwen3.8-max");
     const applied = settingsState.setAgentInstance.mock.calls.at(-1)?.[0];
     const config = applied?.config as ClaudeProfileInstanceConfig | undefined;
-    expect(config?.models).toHaveLength(15);
+    expect(config?.models?.map((model) => model.id)).toEqual([
+      "qwen3.8-max",
+      "qwen3.7-max",
+      "qwen3.7-plus",
+      "qwen3.6-flash",
+      "glm-5.2",
+      "deepseek-v4-pro",
+      "deepseek-v4-flash-0731",
+    ]);
     expect(config).toMatchObject({
       configDir: "~/.poracode/claude-profiles/glm",
-      efforts: ["low", "high", "xHigh", "ultracode"],
+      efforts: ["low", "medium", "xHigh"],
       defaultEffort: "xHigh",
       modelEfforts: {
-        "qwen3.8-max-preview": ["low", "high", "xHigh", "ultracode"],
-        "qwen3.7-max": ["low", "high", "xHigh", "ultracode"],
-        "qwen3.7-plus": ["low", "high", "xHigh", "ultracode"],
-        "qwen3.6-flash": ["low", "high", "xHigh", "ultracode"],
+        "qwen3.8-max": ["low", "medium", "xHigh"],
+        "qwen3.7-max": ["low", "medium", "xHigh"],
+        "qwen3.7-plus": ["low", "medium", "xHigh"],
+        "qwen3.6-flash": ["low", "medium", "xHigh"],
       },
     });
   });

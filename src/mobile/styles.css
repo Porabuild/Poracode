@@ -3226,6 +3226,17 @@ html[data-touch-device] .m-compose-bubble [data-composer-input-anchor]:not(:focu
   cursor: default;
 }
 
+/* Group heading between action rows (e.g. the project switcher's other-workspace
+   group). Same typography as the thread list's section labels. */
+.m-sheet-section {
+  padding: 0.375rem 0.625rem 0.125rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* ── Git summaries (read-only, mirrored from the desktop) ─────────── */
 
 .m-git-badge,

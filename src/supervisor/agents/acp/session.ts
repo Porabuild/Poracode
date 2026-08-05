@@ -118,7 +118,12 @@ import {
   shouldEmitAcpPromptRpcErrorItem,
 } from "./sessionErrors";
 import { AcpSessionRequests } from "./sessionRequests";
-import { buildAcpMcpServers, gateAcpMcpServers } from "../userMcp";
+import {
+  buildAcpMcpServers,
+  gateAcpMcpServers,
+  resolveAcpMcpCapabilities,
+  type AcpMcpCapabilities,
+} from "../userMcp";
 
 export { normalizeAcpStopReason, rewriteLoadSessionError };
 
@@ -131,6 +136,24 @@ export { normalizeAcpStopReason, rewriteLoadSessionError };
  * still open, which is what covers the multi-minute cases.
  */
 const ORPHAN_TURN_IDLE_MS = 20_000;
+
+/**
+ * Old Droid builds reject `session/new` with JSON-RPC invalid-params or
+ * internal-error when handed an HTTP MCP server. Retry only those protocol
+ * compatibility failures; transport, auth, and other session-open failures
+ * must remain visible instead of silently launching without requested MCPs.
+ */
+function isAssumedMcpCompatibilityError(error: unknown): error is RequestError {
+  if (!(error instanceof RequestError) || (error.code !== -32602 && error.code !== -32603)) {
+    return false;
+  }
+  const data = error.data as Record<string, unknown> | null | undefined;
+  const evidence = [error.message, data?.message, data?.details, data?.detail, data?.field]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  if (/\bmcp(?:\s+server|servers)?\b/i.test(evidence)) return true;
+  return error.code === -32603 && error.message.trim().toLowerCase() === "internal error" && !data;
+}
 
 /**
  * Whether a `session/update` that arrives with no turn of ours open is the
@@ -195,12 +218,27 @@ export interface AcpStructuredSessionOptions {
   extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
   mcpServers?: readonly ResolvedMcpServer[];
   /**
+   * MCP transports the adapter knows this agent supports even though it
+   * advertises no `mcpCapabilities` in `initialize`. Poracode's built-in MCP
+   * servers (browser, Crossagents, computer use, app controls) are all HTTP,
+   * so an agent that stays silent about transports would otherwise get none of
+   * them. Applied only when the agent advertises nothing, and the session
+   * still falls back to the strictly gated set if opening fails.
+   */
+  assumedMcpCapabilities?: AcpMcpCapabilities;
+  /**
    * Home-relative directories (posix-style, e.g. ".kimi-code") the agent may
    * read and write through the ACP fs bridge even though they sit outside the
    * project root. For providers that keep internal session state (plan files,
    * profiles) under their own home dir and proxy all text IO to the client.
    */
   fsAgentHomeDirs?: readonly string[];
+}
+
+export interface AcpExternalSessionUpdateSource {
+  /** Return true when the source will re-ingest this notification after deferred work. */
+  onSessionUpdate(notification: SessionNotification): boolean | void;
+  dispose(): void;
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
@@ -218,12 +256,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
 
+  private externalSessionUpdateSources?: Set<AcpExternalSessionUpdateSource>;
+
   private readonly acpToolCallIdToItemId = new Map<string, string>();
   private readonly child: ChildProcess;
   private readonly connection: ClientSideConnection;
   private readonly cwd: string;
   private readonly projectLocation: ProjectLocation;
   private readonly mcpServers: readonly ResolvedMcpServer[];
+  private readonly assumedMcpCapabilities: AcpMcpCapabilities | undefined;
   private readonly fsAgentHomeDirs: readonly string[];
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
@@ -389,6 +430,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
     this.mcpServers = options?.mcpServers ?? [];
+    this.assumedMcpCapabilities = options?.assumedMcpCapabilities;
     this.fsAgentHomeDirs = options?.fsAgentHomeDirs ?? [];
   }
 
@@ -673,8 +715,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * ACP mode/model IDs (which vary per agent).
    */
   /** See {@link gateAcpMcpServers}; adds launch-time logging of what was dropped. */
-  private gateMcpServers(servers: ProtocolMcpServer[]): ProtocolMcpServer[] {
-    const kept = gateAcpMcpServers(servers, this.agentMcpCapabilities);
+  private gateMcpServers(
+    servers: ProtocolMcpServer[],
+    capabilities: AcpMcpCapabilities | undefined,
+  ): ProtocolMcpServer[] {
+    const kept = gateAcpMcpServers(servers, capabilities);
     if (kept.length < servers.length) {
       console.log(
         "[acp] dropping %d remote MCP server(s) — agent does not advertise the transport capability; launching without them: %s",
@@ -683,6 +728,40 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       );
     }
     return kept;
+  }
+
+  /**
+   * Run a session-open call with the MCP servers the adapter believes the
+   * agent supports, falling back once to the strictly advertised-capability
+   * set if that fails. Without the fallback an adapter's `assumedMcpCapabilities`
+   * would turn a future agent regression into an unopenable thread; with it the
+   * worst case is the old behaviour of launching without those servers.
+   */
+  private async openWithMcpServers<T>(
+    open: (mcpServers: ProtocolMcpServer[]) => Promise<T>,
+  ): Promise<T> {
+    const built = buildAcpMcpServers(this.mcpServers);
+    const assumed = this.gateMcpServers(
+      built,
+      resolveAcpMcpCapabilities(this.agentMcpCapabilities, this.assumedMcpCapabilities),
+    );
+    const advertised =
+      this.agentMcpCapabilities === undefined && this.assumedMcpCapabilities !== undefined
+        ? gateAcpMcpServers(built, this.agentMcpCapabilities)
+        : assumed;
+    if (advertised.length === assumed.length) return open(assumed);
+
+    try {
+      return await open(assumed);
+    } catch (error) {
+      if (!isAssumedMcpCompatibilityError(error)) throw error;
+      console.log(
+        "[acp] session open failed with %d assumed-transport MCP server(s) (ACP error %d); retrying without them",
+        assumed.length - advertised.length,
+        error.code,
+      );
+      return open(advertised);
+    }
   }
 
   /**
@@ -704,7 +783,6 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.currentConfig = undefined;
     this.currentSlashCommands = undefined;
     this.sessionConfigSync.rememberOptions([], []);
-    const mcpServers = this.gateMcpServers(buildAcpMcpServers(this.mcpServers));
 
     if (sessionRef) {
       if (this.agentSessionCapabilities?.resume !== undefined) {
@@ -712,11 +790,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.isReplayingHistory = true;
         this.replayHistoryUntil = Infinity;
         try {
-          const result = await this.connection.resumeSession({
-            sessionId: sessionRef.providerSessionId,
-            cwd: this.cwd,
-            mcpServers,
-          });
+          const result = await this.openWithMcpServers((mcpServers) =>
+            this.connection.resumeSession({
+              sessionId: sessionRef.providerSessionId,
+              cwd: this.cwd,
+              mcpServers,
+            }),
+          );
           this.adoptSessionRef(sessionRef);
           this.trackUsageScope(sessionRef.providerSessionId, false);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
@@ -732,11 +812,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.isReplayingHistory = true;
         this.replayHistoryUntil = Infinity;
         try {
-          const result = await this.connection.loadSession({
-            sessionId: sessionRef.providerSessionId,
-            cwd: this.cwd,
-            mcpServers,
-          });
+          const result = await this.openWithMcpServers((mcpServers) =>
+            this.connection.loadSession({
+              sessionId: sessionRef.providerSessionId,
+              cwd: this.cwd,
+              mcpServers,
+            }),
+          );
           this.adoptSessionRef(sessionRef);
           this.trackUsageScope(sessionRef.providerSessionId, false);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
@@ -750,10 +832,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
     } else {
       console.log("[acp] creating new session in", this.cwd);
-      const result = await this.connection.newSession({
-        cwd: this.cwd,
-        mcpServers,
-      });
+      const result = await this.openWithMcpServers((mcpServers) =>
+        this.connection.newSession({
+          cwd: this.cwd,
+          mcpServers,
+        }),
+      );
       this.sessionId = result.sessionId;
       this.stableSessionRef = createKnownSessionRef(result.sessionId);
       this.trackUsageScope(result.sessionId, true);
@@ -1002,6 +1086,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (this.isDisposed) return;
     this.isDisposed = true;
 
+    for (const source of this.externalSessionUpdateSources ?? []) source.dispose();
+    this.externalSessionUpdateSources?.clear();
+
     if (this.orphanTurnIdleTimer) {
       clearTimeout(this.orphanTurnIdleTimer);
       this.orphanTurnIdleTimer = undefined;
@@ -1221,7 +1308,21 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * These are the real-time updates the agent sends while processing
    * a turn: text chunks, tool calls, plan updates, etc.
    */
-  private handleSessionUpdate(rawParams: SessionNotification): void {
+  private handleSessionUpdate(rawParams: SessionNotification, notifyExternalSources = true): void {
+    let deferredByExternalSource = false;
+    if (notifyExternalSources) {
+      for (const source of this.externalSessionUpdateSources ?? []) {
+        try {
+          if (source.onSessionUpdate(rawParams) === true) deferredByExternalSource = true;
+        } catch (error) {
+          console.warn(
+            "[acp] external session update source failed:",
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+      }
+    }
+    if (deferredByExternalSource) return;
     maybeCaptureAcpUpdate(rawParams, this.threadId, this.sessionId, this.cwd);
 
     const params = this.applySessionUpdateTransform(rawParams);
@@ -1379,7 +1480,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    */
   ingestExternalSessionUpdate(notification: SessionNotification): void {
     if (this.isDisposed) return;
-    this.handleSessionUpdate(notification);
+    this.handleSessionUpdate(notification, false);
+  }
+
+  attachExternalSessionUpdateSource(source: AcpExternalSessionUpdateSource): void {
+    this.externalSessionUpdateSources ??= new Set();
+    this.externalSessionUpdateSources.add(source);
   }
 
   private recordAgentSurfacedError(events: RuntimeEvent[]): void {
