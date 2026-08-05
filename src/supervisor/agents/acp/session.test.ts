@@ -67,7 +67,8 @@ afterEach(() => {
 function makeConfigSyncSession(
   overrides: {
     currentConfig?: ThreadConfig;
-    agentMcpCapabilities?: { http?: boolean; sse?: boolean };
+    agentMcpCapabilities?: { http?: boolean; sse?: boolean } | undefined;
+    assumedMcpCapabilities?: { http?: boolean; sse?: boolean };
     mcpServers?: Array<{
       id: string;
       name: string;
@@ -149,7 +150,9 @@ function makeConfigSyncSession(
   // Default to advertising HTTP MCP support so the mcpServers-gating (added for
   // the Factory Droid bug) is a no-op for these pass-through tests. The gating
   // itself is covered by a dedicated test below.
-  session["agentMcpCapabilities"] = overrides.agentMcpCapabilities ?? { http: true };
+  session["agentMcpCapabilities"] =
+    "agentMcpCapabilities" in overrides ? overrides.agentMcpCapabilities : { http: true };
+  session["assumedMcpCapabilities"] = overrides.assumedMcpCapabilities;
   session["currentConfig"] = overrides.currentConfig ?? {
     model: "model-a",
     effort: "low",
@@ -1185,6 +1188,262 @@ describe("ACP client protocol helpers", () => {
       cwd: "C:\\repo",
       mcpServers: [],
     });
+  });
+
+  it("keeps HTTP MCP servers when the adapter assumes support and the agent advertises nothing", async () => {
+    // Factory Droid answers `initialize` with no mcpCapabilities block but
+    // connects HTTP MCP servers fine, so its adapter declares the transport.
+    // Without this, none of the built-in (all-HTTP) servers reach the agent.
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: undefined,
+      assumedMcpCapabilities: { http: true },
+      mcpServers: [
+        {
+          id: "crossagents",
+          name: "crossagents",
+          timeoutMs: 300_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9200/mcp",
+            headers: { Authorization: "Bearer crossagent-token" },
+          },
+        },
+      ],
+    });
+
+    await expect(session.openThread({ model: "model-a", crossagentMcp: true })).resolves.toBe(
+      "session-1",
+    );
+
+    expect(connection.newSession).toHaveBeenCalledWith({
+      cwd: "C:\\repo",
+      mcpServers: [
+        {
+          type: "http",
+          name: "crossagents",
+          url: "http://127.0.0.1:9200/mcp",
+          headers: [{ name: "Authorization", value: "Bearer crossagent-token" }],
+        },
+      ],
+    });
+  });
+
+  it("retries without the assumed-transport MCP servers when session creation fails", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: undefined,
+      assumedMcpCapabilities: { http: true },
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp",
+            headers: { Authorization: "Bearer secret-token" },
+          },
+        },
+      ],
+    });
+    connection.newSession
+      .mockRejectedValueOnce(
+        RequestError.internalError({
+          message: "MCP server transport is unsupported",
+          Authorization: "Bearer must-not-reach-logs",
+        }),
+      )
+      .mockResolvedValueOnce({
+        sessionId: "session-1",
+        modes: { availableModes: [] },
+        configOptions: [],
+      });
+
+    try {
+      await expect(session.openThread({ model: "model-a", browserMcp: true })).resolves.toBe(
+        "session-1",
+      );
+
+      expect(connection.newSession).toHaveBeenCalledTimes(2);
+      expect(connection.newSession).toHaveBeenLastCalledWith({
+        cwd: "C:\\repo",
+        mcpServers: [],
+      });
+      expect(JSON.stringify(log.mock.calls)).not.toContain("must-not-reach-logs");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("does not drop assumed-transport MCP servers after an unrelated session-open failure", async () => {
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: undefined,
+      assumedMcpCapabilities: { http: true },
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp",
+            headers: {},
+          },
+        },
+      ],
+    });
+    connection.newSession.mockRejectedValueOnce(new Error("transport closed"));
+
+    await expect(session.openThread({ model: "model-a", browserMcp: true })).rejects.toThrow(
+      "transport closed",
+    );
+    expect(connection.newSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries Droid's legacy bare internal error without broadening to detailed auth errors", async () => {
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: undefined,
+      assumedMcpCapabilities: { http: true },
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp",
+            headers: {},
+          },
+        },
+      ],
+    });
+    connection.newSession
+      .mockRejectedValueOnce(RequestError.internalError())
+      .mockResolvedValueOnce({
+        sessionId: "session-1",
+        modes: { availableModes: [] },
+        configOptions: [],
+      });
+
+    await expect(session.openThread({ model: "model-a", browserMcp: true })).resolves.toBe(
+      "session-1",
+    );
+    expect(connection.newSession).toHaveBeenCalledTimes(2);
+
+    connection.newSession.mockClear();
+    connection.newSession.mockRejectedValueOnce(
+      RequestError.internalError({ details: "401 invalid access token or token expired" }),
+    );
+    await expect(session.openThread({ model: "model-a", browserMcp: true })).rejects.toMatchObject({
+      code: -32603,
+    });
+    expect(connection.newSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves stale-session invalidParams instead of retrying load without MCP servers", async () => {
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: undefined,
+      assumedMcpCapabilities: { http: true },
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp",
+            headers: {},
+          },
+        },
+      ],
+    });
+    const sessionRef = {
+      providerSessionId: "stale-session",
+      discoveredAt: new Date().toISOString(),
+    };
+    connection.loadSession.mockRejectedValueOnce(
+      RequestError.invalidParams({ message: 'Session "stale-session" not found' }),
+    );
+
+    await expect(
+      session.openThread({ model: "model-a", browserMcp: true }, sessionRef),
+    ).rejects.toThrow("can't be resumed");
+    expect(connection.loadSession).toHaveBeenCalledTimes(1);
+    expect((session as unknown as Record<string, unknown>)["isReplayingHistory"]).toBe(false);
+  });
+
+  it.each([
+    ["resumeSession", true],
+    ["loadSession", false],
+  ] as const)(
+    "retries %s without assumed-transport MCP servers",
+    async (method, supportsResume) => {
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: undefined,
+        assumedMcpCapabilities: { http: true },
+        mcpServers: [
+          {
+            id: "browser",
+            name: "browser",
+            timeoutMs: 30_000,
+            transport: {
+              type: "http",
+              url: "http://127.0.0.1:9123/mcp",
+              headers: {},
+            },
+          },
+        ],
+      });
+      if (supportsResume) {
+        (session as unknown as Record<string, unknown>)["agentSessionCapabilities"] = {
+          resume: {},
+        };
+      }
+      const open = connection[method];
+      open.mockRejectedValueOnce(RequestError.invalidParams({ field: "mcpServers" }));
+      const sessionRef = {
+        providerSessionId: `session-${supportsResume ? "resume" : "load"}`,
+        discoveredAt: new Date().toISOString(),
+      };
+
+      await expect(
+        session.openThread({ model: "model-a", browserMcp: true }, sessionRef),
+      ).resolves.toBe(sessionRef.providerSessionId);
+
+      expect(open).toHaveBeenCalledTimes(2);
+      expect(open).toHaveBeenLastCalledWith({
+        sessionId: sessionRef.providerSessionId,
+        cwd: "C:\\repo",
+        mcpServers: [],
+      });
+      expect((session as unknown as Record<string, unknown>)["isReplayingHistory"]).toBe(false);
+    },
+  );
+
+  it("does not assume transports the agent explicitly declined to advertise", async () => {
+    const { connection, session } = makeConfigSyncSession({
+      agentMcpCapabilities: { http: false },
+      assumedMcpCapabilities: { http: true },
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:9123/mcp",
+            headers: { Authorization: "Bearer secret-token" },
+          },
+        },
+      ],
+    });
+
+    await expect(session.openThread({ model: "model-a", browserMcp: true })).resolves.toBe(
+      "session-1",
+    );
+
+    expect(connection.newSession).toHaveBeenCalledTimes(1);
+    expect(connection.newSession).toHaveBeenCalledWith({ cwd: "C:\\repo", mcpServers: [] });
   });
 
   it("appends both browser and Crossagents MCP servers when both are selected", async () => {

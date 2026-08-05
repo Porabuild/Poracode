@@ -1,6 +1,7 @@
 import type { AuthMethod } from "@agentclientprotocol/sdk";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
+import { createAcpStructuredSession } from "../acp";
 import {
   buildFactoryCommand,
   buildFactoryProbeCapabilities,
@@ -10,6 +11,11 @@ import {
   normalizeFactoryModels,
 } from "./detection";
 import { createFactoryAdapter } from "./index";
+
+vi.mock("../acp", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../acp")>()),
+  createAcpStructuredSession: vi.fn<() => undefined>(() => undefined),
+}));
 
 describe("Factory Droid detection", () => {
   it("declares the native binary, updater, ACP defaults, and API-key fallback", () => {
@@ -146,5 +152,17 @@ describe("Factory Droid adapter", () => {
     });
     const authCommand = await adapter.buildAcpAuthCommand?.();
     expect(authCommand?.env).toEqual(expect.objectContaining(FACTORY_DISABLE_AUTO_UPDATE_ENV));
+  });
+
+  it("declares HTTP MCP support Droid never advertises so built-in servers reach it", async () => {
+    await createFactoryAdapter().createStructuredSession?.({
+      threadId: "thread-1",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      config: { model: "auto" },
+    });
+
+    expect(vi.mocked(createAcpStructuredSession).mock.calls[0]?.[2]).toEqual({
+      assumedMcpCapabilities: { http: true },
+    });
   });
 });
