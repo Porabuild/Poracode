@@ -16,6 +16,7 @@ import {
   asOpenCodePermissionDetails,
   formatRawDetails,
   getDefaultApprovalOptions,
+  isPlanApprovalAccepted,
   isPlanApprovalRequest,
   outcomeForSelection,
   readInputString,
@@ -92,7 +93,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
     if (!primaryOptionId) return;
     const isPlanApproval = isPlanApprovalRequest(request);
     const outcome = outcomeForSelection(request.requestType, primaryOptionId, isPlanApproval);
-    if (outcome === "accepted" && isPlanApproval) {
+    if (outcome === "accepted" && isPlanApproval && isPlanApprovalAccepted(primaryOptionId)) {
       onPlanApproved?.(primaryOptionId);
     }
     submitRaw(

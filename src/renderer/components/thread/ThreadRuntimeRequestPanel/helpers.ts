@@ -30,6 +30,23 @@ export function isNegativeOption(option: UserInputOption): boolean {
   );
 }
 
+/**
+ * Plan-review options that ask for another planning round instead of approving.
+ * These read as positive to {@link NEGATIVE_OPTION_PATTERN} — Kimi Code offers
+ * `plan_approve` / `plan_revise` / `plan_reject_and_exit` — so without this a
+ * "Revise" selection was treated as an approval and left plan mode in the
+ * composer while the agent was still planning ("Plan mode remains active").
+ */
+const PLAN_KEEP_PLANNING_PATTERN = /(revise|revision|keep[\s_-]?planning)/i;
+
+/**
+ * True when a plan-review selection approves the plan, i.e. the thread really
+ * leaves plan mode. Revise/keep-planning and every negative option do not.
+ */
+export function isPlanApprovalAccepted(optionId: string): boolean {
+  return !NEGATIVE_OPTION_PATTERN.test(optionId) && !PLAN_KEEP_PLANNING_PATTERN.test(optionId);
+}
+
 export function isPlanApprovalRequest(request: OpenRuntimeRequest): boolean {
   const details = asPermissionRequestDetails(request.payload.details);
   if (!details) return false;
