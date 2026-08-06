@@ -146,17 +146,21 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
   const hasTerminal = useIsProjectTerminalOpen(props.projectId);
   const isActiveTerminal = useIsProjectTerminalActive(props.projectId);
   const isBusy = useIsProjectTerminalBusy(props.projectId);
+  // Match thread / project-header collapse so idle home terminal does not
+  // reserve row width for the project title.
+  const hiddenPanelButtonClass =
+    "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
   return (
     <SidebarPanelDragButton
       panel="terminal"
       projectId={props.projectId}
       ariaLabel={t`Terminal for ${props.projectName}`}
-      className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+      className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
         isActiveTerminal
-          ? "text-accent"
+          ? "w-[18px] p-0.5 text-accent"
           : hasTerminal
-            ? "text-foreground"
-            : "text-muted/60 opacity-0 group-hover:opacity-100"
+            ? "w-[18px] p-0.5 text-foreground"
+            : `text-muted/60 ${hiddenPanelButtonClass}`
       }`}
       onPress={() => openTerminal(props.projectId)}
     >
