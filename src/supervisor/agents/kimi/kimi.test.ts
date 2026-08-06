@@ -192,6 +192,46 @@ describe("createKimiAdapter terminal heuristics", () => {
     expect(adapter.detectTerminalStatus?.("? for shortcuts")?.status).toBe("idle");
     expect(adapter.detectTerminalStatus?.("context: 10% (23.2k/256k)")?.status).toBe("idle");
   });
+
+  // Rendered verbatim by kimi 0.34.0's cache-hint-dialog.ts (verified against
+  // the released bundle): title, footer, body line, and the option list. The
+  // footer's "Enter select" does not match the generic "Enter to select"
+  // pattern, so this only passes through the dedicated cache-hint pattern.
+  const KIMI_034_CACHE_HINT_DIALOG = [
+    " This session has been idle for 3 hours and is ~48.2k tokens.",
+    " ↑↓ navigate · Enter select · Esc cancel",
+    "",
+    " Cache expired — the next message re-sends the entire history at full price.",
+    "",
+    "  ❯ Compact and continue    one-time compact cost · cheapest way to keep this topic",
+    "    Start a new session     zero context cost · best for a new task",
+    "    Continue as-is          full history kept · highest cost per turn",
+    "    Don't ask me again",
+  ].join("\n");
+
+  it("surfaces 0.34's cache-expiry dialog as needing a reply", () => {
+    expect(adapter.detectTerminalStatus?.(KIMI_034_CACHE_HINT_DIALOG)?.status).toBe("needs_reply");
+  });
+
+  it("refuses to type the initial prompt into modal dialogs", () => {
+    // 0.33's trust dialog (already gated) and 0.34's cache-expiry dialog both
+    // swallow keystrokes into a modal list; Enter would pick the default
+    // choice instead of submitting the prompt.
+    expect(adapter.isReadyForInitialPrompt?.("Trust this folder?")).toBe(false);
+    expect(adapter.isReadyForInitialPrompt?.(KIMI_034_CACHE_HINT_DIALOG)).toBe(false);
+  });
+
+  it("stays not-ready when the cache dialog floats over a kimi-branded transcript", () => {
+    // On resume the transcript renders before the dialog mounts, so the
+    // accumulated text can carry the "kimi" header that would otherwise pass
+    // the gate.
+    const text = `kimi code — resumed session\n\n${KIMI_034_CACHE_HINT_DIALOG}`;
+    expect(adapter.isReadyForInitialPrompt?.(text)).toBe(false);
+  });
+
+  it("passes the readiness gate on a normal composer", () => {
+    expect(adapter.isReadyForInitialPrompt?.("kimi\n? for shortcuts")).toBe(true);
+  });
 });
 
 describe("resolveKimiEmptyResponseError", () => {

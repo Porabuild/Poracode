@@ -22,7 +22,11 @@ import {
   makeKimiWatchSessionRef,
   snapshotKimiPreSpawnSessions,
 } from "./sessionFiles";
-import { detectKimiTerminalStatus, KIMI_TRUST_PROMPT_PATTERN } from "./terminal";
+import {
+  detectKimiTerminalStatus,
+  KIMI_CACHE_HINT_PATTERN,
+  KIMI_TRUST_PROMPT_PATTERN,
+} from "./terminal";
 
 // Kimi Code provider implementation (Moonshot AI).
 // Docs: https://www.kimi.com/code/docs/en/
@@ -207,9 +211,15 @@ export function createKimiAdapter(): AgentAdapter {
     },
 
     isReadyForInitialPrompt(text) {
-      // The trust dialog (shown if the pre-written marker ever misses) is not
-      // a composer — typing the prompt into it would just corrupt the choice.
+      // Modal dialogs are not a composer — typing the prompt into one would
+      // just corrupt the choice. The trust dialog shows if the pre-written
+      // marker ever misses; 0.34's cache-expiry dialog shows after a
+      // long-idle session is resumed (a queued resume prompt would otherwise
+      // be swallowed by the dialog and its Enter would pick "Compact and
+      // continue"). Once the user answers, the composer text returns and the
+      // gate re-passes on the next terminal update.
       if (KIMI_TRUST_PROMPT_PATTERN.test(text)) return false;
+      if (KIMI_CACHE_HINT_PATTERN.test(text)) return false;
       const t = text.toLowerCase();
       if (t.includes("kimi")) return true;
       if (/\?\s+for shortcuts|\/\s+for commands/i.test(text)) return true;
