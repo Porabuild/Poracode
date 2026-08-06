@@ -18,8 +18,15 @@ vi.mock("@/renderer/state/gitRefresh", () => ({
   ),
 }));
 
+const unifiedRightPanelProps = vi.hoisted(() => ({
+  current: null as { activeTab: string } | null,
+}));
+
 vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
-  UnifiedRightPanel: () => null,
+  UnifiedRightPanel: (props: { activeTab: string }) => {
+    unifiedRightPanelProps.current = props;
+    return null;
+  },
 }));
 
 function makeThread(id: string, projectId: string, worktreePath: string): Thread {
@@ -57,6 +64,7 @@ function focusThread(threadId: string): void {
 describe("ProjectAuxiliaryPanel", () => {
   beforeEach(() => {
     localStorage.clear();
+    unifiedRightPanelProps.current = null;
     focusThread(threadA.id);
     usePanelStore.setState({
       gitReviewContext: {
@@ -96,6 +104,37 @@ describe("ProjectAuxiliaryPanel", () => {
         projectId: threadC.projectId,
         worktreePath: threadC.worktreePath!,
       });
+    });
+  });
+
+  it("leaves the browser tab when the browser panel was dismissed with it selected", async () => {
+    // Closing the last browser tab clears browserPanelOpen over IPC but leaves
+    // rightPanelTab on "browser"; the panel must fall back to an open panel
+    // instead of rendering an empty browser layer.
+    usePanelStore.setState({ rightPanelTab: "browser", browserPanelOpen: false });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("git");
+    });
+  });
+
+  it("keeps the browser tab active while the browser panel is open", async () => {
+    usePanelStore.setState({ rightPanelTab: "browser", browserPanelOpen: true });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("browser");
     });
   });
 });
