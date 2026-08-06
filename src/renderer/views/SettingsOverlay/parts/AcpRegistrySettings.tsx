@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Input, Tooltip, Card, Dropdown, Label, toast } from "@heroui/react";
+import { Button, Input, Tooltip, Card, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   AlertTriangle,
   ArrowUpCircle,
   CheckCircle2,
-  ChevronDown,
   Download,
   GitFork,
   Link,
@@ -47,6 +46,14 @@ import {
   REGISTRY_AGENT_FAMILY_KIND,
   type NativeAgentRegistryEntry,
 } from "./agentRegistryNative";
+import {
+  availableRuntimeInstallOptions,
+  detectAgentRuntime,
+  installedRuntimeIds,
+  runtimeSummaryText,
+  type NativeAgentRuntimeSlot,
+} from "./nativeAgentRuntimes";
+import { NativeAgentActionControl } from "./NativeAgentActionControl";
 
 /**
  * Pure version label for a native agent card. Shows the installed version when
@@ -98,6 +105,15 @@ interface InstallTarget {
   id: string;
   label: string;
   project?: Project;
+}
+
+interface NativeInstallAction extends InstallTarget {
+  command: string | ((project: Project) => string);
+}
+
+interface NativeRuntimeUpdateAction extends NativeInstallAction {
+  status: AgentStatus;
+  slot: NativeAgentRuntimeSlot;
 }
 
 function findStatusInResponse(
@@ -406,8 +422,11 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
     if (!opened) clearPending();
   };
 
-  const renderTag = (label: string) => (
-    <span className="rounded border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted">
+  const renderTag = (label: string, key?: string) => (
+    <span
+      key={key}
+      className="rounded border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted"
+    >
       {label}
     </span>
   );
@@ -463,6 +482,10 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
     const authStatuses = [nativeStatus, ...installedWslStatuses].filter(
       (status): status is AgentStatus => status !== undefined,
     );
+    const runtimeSlots = agent.runtimeSlots;
+    const installedRuntimes = runtimeSlots
+      ? installedRuntimeIds(runtimeSlots, authStatuses)
+      : undefined;
     const missingAuthStatus = authStatuses.find((status) => status.authState === "missing");
     const agentAuthMethod =
       missingAuthStatus && !shouldPreferTerminalLogin(missingAuthStatus)
@@ -487,33 +510,85 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           : undefined;
     const installTargets: InstallTarget[] = [];
     const shouldOfferWslTargets = isWindowsPlatform && wslProjectsByDistro.size > 0;
+    // Runtime-slot providers keep every target on offer even where they are
+    // already detected, because individual runtimes may still be missing there.
+    const offersPerRuntimeInstalls = runtimeSlots !== undefined;
     if (shouldOfferWslTargets) {
-      if (!nativeStatus && firstWindowsProject) {
+      if ((offersPerRuntimeInstalls || !nativeStatus) && firstWindowsProject) {
         installTargets.push({
           id: "windows",
-          label: t`Install on Windows`,
+          label: t`Windows`,
           project: firstWindowsProject,
         });
       }
       for (const [distro, project] of wslProjectsByDistro) {
-        if (installedWslDistros.has(distro)) continue;
+        if (!offersPerRuntimeInstalls && installedWslDistros.has(distro)) continue;
         installTargets.push({
           id: `wsl:${distro}`,
-          label: t`Install in WSL: ${distro}`,
+          label: t`WSL: ${distro}`,
           project,
         });
       }
-    } else if (!nativeStatus) {
-      installTargets.push({ id: "default", label: t`Install` });
+    } else if (offersPerRuntimeInstalls || !nativeStatus) {
+      installTargets.push({ id: "default", label: t`local` });
     }
 
-    const runInstallTarget = (target: InstallTarget | undefined) => {
+    const installActions: NativeInstallAction[] = runtimeSlots
+      ? installTargets.flatMap((target) => {
+          const targetStatus =
+            target.id === "windows" || target.id === "default"
+              ? nativeStatus
+              : installedWslStatuses.find(
+                  (status) => `wsl:${status.envDistro ?? ""}` === target.id,
+                );
+          const environment = installTargets.length > 1 ? target.label : undefined;
+          return availableRuntimeInstallOptions(runtimeSlots, targetStatus).map((option) => ({
+            ...target,
+            id: `${target.id}:${option.id}`,
+            label: t(option.installLabel(environment)),
+            command: option.installCommand,
+          }));
+        })
+      : installTargets.map((target) => ({
+          ...target,
+          command: agent.installCommand,
+          label:
+            target.id === "windows"
+              ? t`Install on Windows`
+              : target.id.startsWith("wsl:")
+                ? t`Install in ${target.label}`
+                : t`Install`,
+        }));
+    // One update control per updatable runtime, so each keeps its own labels.
+    const runtimeUpdateGroups = (runtimeSlots?.runtimes ?? []).flatMap((slot) => {
+      const update = slot.update;
+      if (!update) return [];
+      const actions: NativeRuntimeUpdateAction[] = authStatuses.flatMap((status) => {
+        if (!update.canUpdate(status)) return [];
+        const project = projectForStatus(status);
+        const environment = detectionScopeLabel(status);
+        return [
+          {
+            id: `${slot.id}-update:${status.envKind ?? "native"}:${status.envDistro ?? ""}`,
+            label: t(update.actionLabel(authStatuses.length > 1 ? environment : undefined)),
+            status,
+            slot,
+            ...(project ? { project } : {}),
+            command: (targetProject: Project) => update.command(status, targetProject) ?? "",
+          },
+        ];
+      });
+      return actions.length > 0 ? [{ slot, update, actions }] : [];
+    });
+
+    const runInstallTarget = (target: NativeInstallAction | undefined) => {
+      if (!target) return;
       setError(undefined);
       setPendingAgentId(agent.id);
-      runAgentInstallCommand({
+      const opened = runAgentInstallCommand({
         label: agentLabel,
-        command: agent.installCommand,
-        ...(target?.project ? { project: target.project } : {}),
+        command: target.command,
+        ...(target.project ? { project: target.project } : {}),
         // Re-detect once the installer exits so the card flips to "Detected"
         // without the user manually refreshing, mirroring the ACP install flow.
         // Keep the loader on through the probe so it doesn't flicker back to
@@ -530,56 +605,56 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           }
         },
       });
+      if (!opened) setPendingAgentId(undefined);
     };
 
     const isNativePending = pendingAgentId === agent.id;
 
-    const renderInstallControl = () => {
-      if (installTargets.length === 0) return null;
-      if (installTargets.length === 1) {
-        const target = installTargets[0];
-        return (
-          <Button
-            size="sm"
-            variant="tertiary"
-            isPending={isNativePending}
-            onPress={() => runInstallTarget(target)}
-          >
-            {({ isPending }) => (
-              <>
-                {isPending ? <PixelLoader size="xs" /> : <Download className="size-4" />}
-                {isPending ? t`Installing` : (target?.label ?? t`Install`)}
-              </>
-            )}
-          </Button>
-        );
-      }
-      const targetsById = new Map(installTargets.map((target) => [target.id, target]));
-      return (
-        <Dropdown>
-          <Button size="sm" variant="tertiary" isPending={isNativePending}>
-            {({ isPending }) => (
-              <>
-                {isPending ? <PixelLoader size="xs" /> : <Download className="size-4" />}
-                {isPending ? t`Installing` : t`Install`}
-                {isPending ? null : <ChevronDown className="size-3.5" />}
-              </>
-            )}
-          </Button>
-          <Dropdown.Popover placement="bottom end">
-            <Dropdown.Menu
-              aria-label={t`${agentLabel} install targets`}
-              onAction={(key) => runInstallTarget(targetsById.get(String(key)))}
-            >
-              {installTargets.map((target) => (
-                <Dropdown.Item key={target.id} id={target.id} textValue={target.label}>
-                  <Label>{target.label}</Label>
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
-      );
+    const runRuntimeUpdate = (action: NativeRuntimeUpdateAction | undefined) => {
+      if (!action) return;
+      const update = action.slot.update;
+      if (!update) return;
+      const previousVersion = detectAgentRuntime(action.slot, action.status).version;
+      setError(undefined);
+      setPendingAgentId(agent.id);
+      const clearPending = () =>
+        setPendingAgentId((current) => (current === agent.id ? undefined : current));
+      const opened = runAgentInstallCommand({
+        label: t(update.actionLabel(undefined)),
+        command: action.command,
+        purpose: "update",
+        ...(action.project ? { project: action.project } : {}),
+        onCommandComplete: (exitCode) => {
+          if (exitCode !== 0) {
+            clearPending();
+            return;
+          }
+          void refreshStatuses({
+            reset: false,
+            scope: {
+              agentKinds: [agent.id],
+              envs: [scopeEnvForStatus(action.status)],
+            },
+          })
+            .then((response) => {
+              const refreshed =
+                action.status.envKind === "wsl"
+                  ? response?.wsl.find(
+                      (status) =>
+                        status.kind === agent.id && status.envDistro === action.status.envDistro,
+                    )
+                  : response?.windows.find((status) => status.kind === agent.id);
+              const nextVersion = detectAgentRuntime(action.slot, refreshed).version;
+              if (nextVersion && nextVersion !== previousVersion) {
+                toast.success(t(update.updatedToast(nextVersion)));
+              } else {
+                toast.success(t(update.upToDateToast));
+              }
+            })
+            .finally(clearPending);
+        },
+      });
+      if (!opened) clearPending();
     };
 
     return (
@@ -600,6 +675,12 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                 <div className="flex items-center gap-2">
                   <Card.Title className="truncate text-base font-semibold">{agentLabel}</Card.Title>
                   {renderTag(t`Native`)}
+                  {runtimeSlots?.runtimes.map((slot) =>
+                    renderTag(
+                      t(installedRuntimes?.has(slot.id) ? slot.installedTag : slot.notInstalledTag),
+                      `${agent.id}-runtime-tag-${slot.id}`,
+                    ),
+                  )}
                 </div>
                 <Card.Description className="line-clamp-2 text-sm text-foreground/85">
                   {t(agent.description)}
@@ -633,7 +714,29 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                     ))}
                   </div>
                 ) : null}
-                {renderInstallControl()}
+                <NativeAgentActionControl
+                  actions={installActions}
+                  icon={Download}
+                  label={t`Install`}
+                  soloLabel={installActions[0]?.label ?? t`Install`}
+                  pendingLabel={t`Installing`}
+                  menuLabel={t`${agentLabel} install targets`}
+                  isPending={isNativePending}
+                  onRun={runInstallTarget}
+                />
+                {runtimeUpdateGroups.map((group) => (
+                  <NativeAgentActionControl
+                    key={`${agent.id}-runtime-update-${group.slot.id}`}
+                    actions={group.actions}
+                    icon={ArrowUpCircle}
+                    label={t(group.update.buttonLabel)}
+                    soloLabel={t(group.update.buttonLabel)}
+                    pendingLabel={t`Updating`}
+                    menuLabel={t(group.update.menuLabel)}
+                    isPending={isNativePending}
+                    onRun={runRuntimeUpdate}
+                  />
+                ))}
                 {isInstalled && missingAuthStatus ? (
                   <div className="flex items-center gap-2 text-xs text-warning">
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -664,10 +767,21 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
               <span className="font-medium">
                 <Trans>ID: {agent.id}</Trans>
               </span>
-              <NativeAgentVersionLabel
-                installedVersion={nativeStatus?.version ?? installedWslStatuses[0]?.version}
-                latestNpmVersion={nativeLatestVersions[agent.id]}
-              />
+              {runtimeSlots ? (
+                authStatuses.map((status) => (
+                  <span
+                    key={`${agent.id}-runtime-${status.envKind ?? "native"}-${status.envDistro ?? ""}`}
+                  >
+                    {authStatuses.length > 1 ? `${detectionScopeLabel(status)}: ` : null}
+                    {runtimeSummaryText(runtimeSlots, status, (descriptor) => t(descriptor))}
+                  </span>
+                ))
+              ) : (
+                <NativeAgentVersionLabel
+                  installedVersion={nativeStatus?.version ?? installedWslStatuses[0]?.version}
+                  latestNpmVersion={nativeLatestVersions[agent.id]}
+                />
+              )}
               <button
                 type="button"
                 className="inline-flex items-center gap-1 text-muted transition-colors hover:text-foreground"

@@ -41,9 +41,18 @@ export function GitDiffContent(props: {
   diffMode: number;
   diffFilter: DiffFilter;
   refreshKey: number;
+  worktreePath: string | undefined;
 }) {
-  const { project, gitStatus, selectedFile, selectedStaged, diffMode, diffFilter, refreshKey } =
-    props;
+  const {
+    project,
+    gitStatus,
+    selectedFile,
+    selectedStaged,
+    diffMode,
+    diffFilter,
+    refreshKey,
+    worktreePath,
+  } = props;
   const theme = useDiffTheme();
   const [entries, setEntries] = useState<DiffEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -210,6 +219,8 @@ export function GitDiffContent(props: {
               mode={diffMode}
               theme={theme}
               projectLocation={project.location}
+              projectId={project.id}
+              worktreePath={worktreePath}
               mountDelay={i * 4}
               onMounted={onSectionMounted}
             />
@@ -225,6 +236,7 @@ export function GitDiffContent(props: {
           diffMode={diffMode}
           refreshKey={refreshKey}
           containerRef={singleFileScrollRef}
+          annotationTarget={{ projectId: project.id, worktreePath }}
         />
       )}
     </div>

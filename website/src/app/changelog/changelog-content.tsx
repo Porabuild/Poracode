@@ -1,16 +1,19 @@
 "use client";
 
-import { ArrowLeft, ArrowUp, Download, Plus, Wrench } from "lucide-react";
+import { ArrowLeft, ArrowUp, Download, Hash, Plus, Wrench } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   CHANGELOG,
   formatReleaseDate,
+  releaseSlug,
   type ChangelogChangeKind,
   type ChangelogRelease,
 } from "@/lib/changelog";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { ChangelogNav } from "./changelog-nav";
+import { useActiveRelease } from "./use-active-release";
 
 const RELEASES_URL = "https://github.com/SDSLeon/lightcode/releases";
 
@@ -27,6 +30,7 @@ const KIND_META: Record<
 
 function ReleaseSection({ release, index }: { release: ChangelogRelease; index: number }) {
   const { t } = useI18n();
+  const slug = releaseSlug(release.version);
   const groups = KIND_ORDER.map((kind) => ({
     kind,
     items: release.changes.filter((change) => change.kind === kind),
@@ -34,17 +38,24 @@ function ReleaseSection({ release, index }: { release: ChangelogRelease; index: 
 
   return (
     <motion.section
+      id={slug}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: Math.min(index, 4) * 0.08 }}
-      className="relative border-l border-white/10 pl-6 pb-12 last:pb-0"
+      className="relative scroll-mt-24 border-l border-white/10 pl-6 pb-12 last:pb-0"
     >
       <span className="absolute -left-[5px] top-1.5 size-2.5 rounded-full bg-white/30 ring-4 ring-black" />
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-xl font-semibold text-white">{release.title}</h2>
-        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-gray-300">
+        <a
+          href={`#${slug}`}
+          title={t("changelog.permalink")}
+          aria-label={t("changelog.permalink")}
+          className="group inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+        >
           v{release.version}
-        </span>
+          <Hash className="size-3 text-gray-500 opacity-0 transition-opacity group-hover:opacity-100" />
+        </a>
         <span className="text-sm text-gray-500">{formatReleaseDate(release.date)}</span>
       </div>
 
@@ -68,6 +79,9 @@ function ReleaseSection({ release, index }: { release: ChangelogRelease; index: 
                     key={i}
                     className="relative pl-4 text-[15px] leading-relaxed text-gray-300 before:absolute before:left-0 before:top-2.5 before:size-1 before:rounded-full before:bg-gray-600"
                   >
+                    {change.label ? (
+                      <span className="font-semibold text-gray-100">{change.label} — </span>
+                    ) : null}
                     {change.text}
                   </li>
                 ))}
@@ -82,8 +96,12 @@ function ReleaseSection({ release, index }: { release: ChangelogRelease; index: 
 
 export function ChangelogContent() {
   const { t } = useI18n();
+  const activeSlug = useActiveRelease();
+  // The page shell clips horizontally with `overflow-x-clip` rather than
+  // `-hidden`: hidden would make it a scroll container and break the sticky
+  // release nav.
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-x-clip bg-black text-white">
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,_rgba(255,255,255,0.05)_0%,_transparent_100%)]" />
 
@@ -106,40 +124,44 @@ export function ChangelogContent() {
       </nav>
 
       {/* Content */}
-      <main className="relative z-10 max-w-3xl mx-auto px-8 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
-            {t("nav.changelog")}
-          </h1>
-          <p className="text-gray-400 mb-12 text-lg">{t("changelog.subtitle")}</p>
-        </motion.div>
+      <main className="relative z-10 mx-auto max-w-5xl px-8 py-12 lg:grid lg:grid-cols-[9rem_minmax(0,1fr)] lg:gap-12">
+        <ChangelogNav activeSlug={activeSlug} />
 
-        <div>
-          {CHANGELOG.map((release, index) => (
-            <ReleaseSection key={release.version} release={release} index={index} />
-          ))}
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
-          className="mt-8 pt-8 border-t border-white/5 text-center"
-        >
-          <p className="text-sm text-gray-600">{t("changelog.footer.text")}</p>
-          <a
-            href={RELEASES_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 inline-block text-sm text-gray-400 hover:text-white underline underline-offset-4 transition-colors"
+        <div className="mx-auto w-full max-w-3xl lg:max-w-none">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
           >
-            {t("changelog.footer.link")} →
-          </a>
-        </motion.div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
+              {t("nav.changelog")}
+            </h1>
+            <p className="text-gray-400 mb-12 text-lg">{t("changelog.subtitle")}</p>
+          </motion.div>
+
+          <div>
+            {CHANGELOG.map((release, index) => (
+              <ReleaseSection key={release.version} release={release} index={index} />
+            ))}
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+            className="mt-8 pt-8 border-t border-white/5 text-center"
+          >
+            <p className="text-sm text-gray-600">{t("changelog.footer.text")}</p>
+            <a
+              href={RELEASES_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-block text-sm text-gray-400 hover:text-white underline underline-offset-4 transition-colors"
+            >
+              {t("changelog.footer.link")} →
+            </a>
+          </motion.div>
+        </div>
       </main>
     </div>
   );

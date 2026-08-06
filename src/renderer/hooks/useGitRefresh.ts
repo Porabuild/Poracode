@@ -3,6 +3,7 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { buildActiveProjectsKey } from "@/renderer/state/projectKeys";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -12,6 +13,7 @@ import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import {
   cleanupGitRefreshProjects,
   getWatcherRefreshMode,
+  prefetchBranchPrData,
   refreshGitProject,
   stopPendingPrRefresh,
   syncPendingPrRefreshProjects,
@@ -86,6 +88,11 @@ export function useGitRefresh(storeHydrated: boolean) {
         return priorityProjectIds;
       }
 
+      if (state.view.kind === "experiment") {
+        priorityProjectIds.add(state.view.projectId);
+        return priorityProjectIds;
+      }
+
       if (state.view.kind !== "thread") {
         return priorityProjectIds;
       }
@@ -117,6 +124,17 @@ export function useGitRefresh(storeHydrated: boolean) {
       syncPendingPrRefreshProjects(activeProjects);
     }
 
+    function prefetchVisibleBranchPrData() {
+      if (!isActive) return;
+      // One bulk PR query keeps sidebar rows current when a thread becomes
+      // visible (for example after "See more") without spawning one `gh pr
+      // view` process per worktree. Do not put this on the view-change path:
+      // plain thread switches must not spawn Git work while the panel is hidden.
+      for (const project of activeProjects) {
+        void prefetchBranchPrData(project);
+      }
+    }
+
     const unsubWatcher = readBridge().onSupervisorEvent((event) => {
       // Both events are git-affecting: `.git` metadata clearly, and worktree
       // edits change `git status` output (a tracked file becomes modified,
@@ -136,6 +154,7 @@ export function useGitRefresh(storeHydrated: boolean) {
     });
 
     syncActiveWorktrees();
+    prefetchVisibleBranchPrData();
     for (const project of activeProjects) {
       void refreshGitProject(project, "initial", "full", { isActive: isActiveCheck });
     }
@@ -153,6 +172,19 @@ export function useGitRefresh(storeHydrated: boolean) {
       (state) => [state.threads, state.view, state.projects],
       syncActiveWorktrees,
     );
+    const unsubBranchPrPrefetchApp = subscribeToFieldChanges(
+      useAppStore.subscribe,
+      (state) => [state.threads, state.projects],
+      prefetchVisibleBranchPrData,
+    );
+    const unsubActiveWorktreeExperiments = subscribeToFieldChanges(
+      useExperimentStore.subscribe,
+      (state) => [state.experiments],
+      () => {
+        syncActiveWorktrees();
+        prefetchVisibleBranchPrData();
+      },
+    );
     const unsubActiveWorktreePanel = subscribeToFieldChanges(
       usePanelStore.subscribe,
       (state) => [
@@ -167,7 +199,10 @@ export function useGitRefresh(storeHydrated: boolean) {
     const unsubActiveWorktreeSidebar = subscribeToFieldChanges(
       useSidebarUiStore.subscribe,
       (state) => [state.collapsedProjects, state.collapsedWorktrees, state.threadListLimits],
-      syncActiveWorktrees,
+      () => {
+        syncActiveWorktrees();
+        prefetchVisibleBranchPrData();
+      },
     );
     const unsubActiveWorktreeTerminal = subscribeToFieldChanges(
       useDevTerminalStore.subscribe,
@@ -211,7 +246,7 @@ export function useGitRefresh(storeHydrated: boolean) {
             await readBridge().gitFetch({
               projectLocation: project.location,
               remote: "origin",
-              prune: false,
+              prune: true,
             });
           } catch {
             // ignore — remote may be unreachable
@@ -255,6 +290,8 @@ export function useGitRefresh(storeHydrated: boolean) {
       watcherDebounceTimers.clear();
       unsubPendingPrRefresh();
       unsubActiveWorktreeApp();
+      unsubBranchPrPrefetchApp();
+      unsubActiveWorktreeExperiments();
       unsubActiveWorktreePanel();
       unsubActiveWorktreeSidebar();
       unsubActiveWorktreeTerminal();

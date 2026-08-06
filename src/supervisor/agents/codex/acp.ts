@@ -1,4 +1,3 @@
-import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -6,19 +5,19 @@ import {
   areAgentSlashCommandsEqual,
   type AgentSlashCommand,
   type PromptSegment,
+  type ProjectLocation,
+  type ResolvedMcpServer,
   type RuntimeEvent,
   type SessionRef,
   type ThreadConfig,
+  type ThreadGoalControl,
   type ThreadServerRequestId,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { terminateChildProcessTree } from "@/shared/processTree";
 import { toWslUncPath } from "@/shared/wsl";
-import { resolveNodeForDistro } from "../../wsl/runtime";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
-  type CommandSpec,
   type CreateStructuredSessionInput,
   type StartTurnOptions,
   type StructuredSessionHandle,
@@ -26,9 +25,9 @@ import {
   type StructuredSessionUpdate,
   type ThreadHistory,
 } from "../base";
-import { buildCodexAppServerCommand } from "./argv";
 import {
   createCodexMapperState,
+  CodexUsageScopeTracker,
   mapCodexNotification,
   type CodexMapperState,
 } from "./canonicalMapping";
@@ -47,8 +46,10 @@ import {
   parseCodexGoalCommand,
   type CodexGoalCommand,
 } from "./acpTurn";
-import { CodexAppServerRpc } from "./appServerRpc";
-import { CodexStdioTransport } from "./stdioTransport";
+import { CodexAppServerRpc, isUnsupportedCodexRequestError } from "./appServerRpc";
+import type { CodexClientRequestMap } from "./protocol";
+import { acquireCodexAppServer } from "./serverPool";
+import { buildCodexThreadOverrides } from "./threadOverrides";
 import {
   mapCodexSkillsToSlashCommands,
   mapCodexSlashCommands,
@@ -59,6 +60,8 @@ import { CodexSubAgentRouter } from "./subAgentRouting";
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
 
+type TurnStartParams = CodexClientRequestMap["turn/start"]["params"];
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -67,13 +70,16 @@ function sleep(ms: number): Promise<void> {
 
 // A `thread/status/changed → systemError` notification carries no message, so
 // we surface a generic fallback. But Codex often follows it with a specific
-// error (a `turn/completed(failed)` or `thread/error` notification carrying the
-// real reason, e.g. a usage-limit / "remote compact task" failure). Defer the
-// generic fallback briefly so a specific error can preempt it — otherwise the
+// error (a `turn/completed(failed)`, `error`, or legacy `thread/error`
+// notification carrying the real reason, e.g. a usage-limit / "remote compact
+// task" failure). Defer the generic fallback briefly so a specific error can
+// preempt it — otherwise the
 // user sees the generic notice *plus* the real error. The delay only postpones
 // an error message; the error status icon updates synchronously.
 const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
 const CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS = 500;
+const CODEX_FORK_NOTIFICATION_BUFFER_LIMIT = 100;
+const CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS = 2_000;
 const CODEX_EVENT_DEBUG_ENV = "PORACODE_DEBUG_CODEX_EVENTS";
 
 type CodexEventDebugDirection =
@@ -94,20 +100,6 @@ function stringifyCodexEventDebugPayload(payload: unknown): string {
   } catch {
     return String(payload);
   }
-}
-
-function spawnAppServer(command: CommandSpec): ChildProcess {
-  return spawn(command.command, command.args, {
-    cwd: command.cwd ?? process.cwd(),
-    env: {
-      ...process.env,
-      ...command.env,
-      TERM: "xterm-256color",
-    },
-    stdio: ["pipe", "pipe", "pipe"],
-    shell: false,
-    windowsHide: true,
-  });
 }
 
 function toSessionRef(threadId: string): SessionRef {
@@ -149,13 +141,13 @@ function readNotificationThreadId(
 // ── Structured Session ──────────────────────────────────────────
 //
 // Lifecycle for a new thread:
-//   1. create()       → spawn app-server and attach stdio JSON-RPC
+//   1. create()       → acquire the shared app-server and attach a JSON-RPC channel
 //   2. activate()     → initialize handshake with the server
 //   3. openThread()   → thread/start on the server, get Codex thread ID
 //   4. startTurn()    → fire turns through the structured server
 //
 // Lifecycle for resuming a saved thread:
-//   1. create()       → spawn app-server and attach stdio JSON-RPC
+//   1. create()       → acquire the shared app-server and attach a JSON-RPC channel
 //   2. activate()     → initialize handshake
 //   3. openThread()   → thread/resume with saved session ID
 
@@ -163,9 +155,11 @@ function readNotificationThreadId(
 export class CodexStructuredSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
 
-  private readonly appServer: ChildProcess;
   private readonly rpc: CodexAppServerRpc;
   private readonly threadId: string;
+  private readonly projectLocation: ProjectLocation;
+  private readonly mcpServers: readonly ResolvedMcpServer[];
+  private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
   private activated = false;
@@ -178,6 +172,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private rolloutModelProvider: string | undefined;
   private wslDistro: string | undefined;
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
+  private currentConfig: ThreadConfig | undefined;
   private activeTurnId: string | undefined;
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   private currentBaseSlashCommands: AgentSlashCommand[] = [];
@@ -190,7 +185,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   // Error messages already surfaced for the current turn. Codex can report one
   // underlying failure (e.g. a usage limit) through several channels — the
   // turn/start rejection, a `turn/completed(failed)` notification, and a
-  // `thread/error` notification — each carrying the same text. Deduping here
+  // `error` notification — each carrying the same text. Deduping here
   // keeps the user from seeing the same error two or three times. Cleared on
   // the next user turn.
   private readonly seenErrorMessages = new Set<string>();
@@ -200,7 +195,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private pendingSystemErrorFallback: ReturnType<typeof setTimeout> | undefined;
   private mapperState: CodexMapperState | undefined;
   private subAgentRouter: CodexSubAgentRouter | undefined;
-  private readonly hasUserMcpServers: boolean;
+  private forkNotificationBuffer:
+    | Array<{
+        method: string;
+        params: Record<string, unknown> | undefined;
+        threadId: string;
+      }>
+    | undefined;
   /**
    * Codex can report a plain `active` status while `thread/resume` is only
    * attaching to an existing saved thread. Treat that as history-load noise
@@ -213,17 +214,19 @@ export class CodexStructuredSession implements StructuredSessionHandle {
    */
   private bufferedRuntimeEvents: RuntimeEvent[] = [];
   private constructor(
-    appServer: ChildProcess,
     rpc: CodexAppServerRpc,
     threadId: string,
+    projectLocation: ProjectLocation,
+    mcpServers: readonly ResolvedMcpServer[],
+    releaseAppServer: () => void,
     wslDistro?: string,
-    hasUserMcpServers = false,
   ) {
-    this.appServer = appServer;
     this.rpc = rpc;
     this.threadId = threadId;
+    this.projectLocation = projectLocation;
+    this.mcpServers = mcpServers;
+    this.releaseAppServer = releaseAppServer;
     this.wslDistro = wslDistro;
-    this.hasUserMcpServers = hasUserMcpServers;
     this.launchOptions = {
       suppressResumeConfigOverrides: true,
     };
@@ -341,6 +344,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   ): Promise<void> {
     switch (command.kind) {
       case "set":
+        if (this.ensureMapperState().goalItemId) {
+          await this.rpc.request("thread/goal/clear", { threadId });
+        }
         await this.rpc.request("thread/goal/set", {
           threadId,
           objective: command.objective,
@@ -364,6 +370,19 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  async controlGoal(control: ThreadGoalControl): Promise<void> {
+    const threadId = await this.waitForRemoteThreadId();
+    if (control.action === "edit") {
+      await this.rpc.request("thread/goal/set", {
+        threadId,
+        objective: control.objective,
+        status: "active",
+      });
+      return;
+    }
+    await this.dispatchCodexGoalCommand(threadId, { kind: control.action });
+  }
+
   private updateSlashCommands(commands: AgentSlashCommand[]): void {
     if (areAgentSlashCommandsEqual(this.currentSlashCommands, commands)) {
       return;
@@ -384,7 +403,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private async refreshSkillSlashCommands(forceReload: boolean): Promise<void> {
-    const result = await this.rpc.request("skills/list", { forceReload });
+    const projectCwd = this.projectLocation
+      ? this.projectLocation.kind === "wsl"
+        ? this.projectLocation.linuxPath
+        : this.projectLocation.path
+      : undefined;
+    const result = await this.rpc.request("skills/list", {
+      ...(projectCwd ? { cwds: [projectCwd] } : {}),
+      forceReload,
+    });
     this.currentSkillSlashCommands = mapCodexSkillsToSlashCommands(result);
     this.rebuildSlashCommands();
   }
@@ -393,48 +420,17 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     input: CreateStructuredSessionInput,
     wslExecPath?: string,
   ): Promise<CodexStructuredSession> {
-    const wslNodePath =
-      input.projectLocation.kind === "wsl"
-        ? (await resolveNodeForDistro(input.projectLocation.distro)).nodePath
-        : undefined;
-    const appServer = spawnAppServer(
-      buildCodexAppServerCommand(input.projectLocation, {
-        ...(wslExecPath !== undefined ? { wslExecPath } : {}),
-        ...(wslNodePath !== undefined ? { wslNodePath } : {}),
-        browserMcpEnabled: input.config.browserMcp === true,
-        ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
-        subagentMcpEnabled: input.config.subagentMcp === true,
-        ...(input.subagentMcp !== undefined ? { subagentMcp: input.subagentMcp } : {}),
-        computerUseMcpEnabled: input.config.computerUse === true,
-        ...(input.computerUseMcp !== undefined ? { computerUseMcp: input.computerUseMcp } : {}),
-        chromeMcpEnabled: input.config.chromeMcp === true,
-        ...(input.chromeMcp !== undefined ? { chromeMcp: input.chromeMcp } : {}),
-        ...(input.appControlsMcp !== undefined ? { appControlsMcp: input.appControlsMcp } : {}),
-        ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
-      }),
-    );
-    const transport = new CodexStdioTransport(appServer);
-
-    const spawnError = await new Promise<Error | undefined>((resolve) => {
-      appServer.once("error", (error) => resolve(error));
-      setImmediate(() => resolve(undefined));
-    });
-    if (spawnError) {
-      throw new Error(`Codex app-server failed to spawn: ${spawnError.message}`);
-    }
-    if (appServer.exitCode !== null) {
-      throw new Error(`Codex app-server exited early.${transport.formatOutput()}`);
-    }
-
+    const acquired = await acquireCodexAppServer(input, wslExecPath);
     const wslDistro =
       input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
-    const rpc = new CodexAppServerRpc(transport, input.threadId);
+    const rpc = new CodexAppServerRpc(acquired.connection, input.threadId);
     const session = new CodexStructuredSession(
-      appServer,
       rpc,
       input.threadId,
+      input.projectLocation,
+      input.mcpServers ?? [],
+      acquired.dispose,
       wslDistro,
-      (input.mcpServers?.length ?? 0) > 0,
     );
     session.attachRpcHandlers();
 
@@ -489,18 +485,18 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
     // `mode` does not exist on `thread/start` or `thread/resume`; plan mode is
     // a per-turn override sent via `collaborationMode` on `turn/start`.
-    const threadOverrides = {
-      model: config.model,
-      ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
-      ...(config.approvalsReviewer ? { approvalsReviewer: config.approvalsReviewer } : {}),
-      ...(config.sandboxMode ? { sandbox: config.sandboxMode } : {}),
-      config: {
-        ...(config.effort ? { model_reasoning_effort: config.effort } : {}),
-        model_reasoning_summary: "auto",
-      },
-    };
+    this.currentConfig = config;
+    const threadOverrides = buildCodexThreadOverrides(config, {
+      projectLocation: this.projectLocation,
+      mcpServers: this.mcpServers,
+    });
 
     let threadId: string;
+    // `fresh` marks a brand-new provider thread (usage ledger baseline 0). A
+    // resumed thread carries inherited history — its first cumulative sample
+    // is a baseline that counts nothing. A failed resume falling back to
+    // `thread/start` DID create a new thread, so it is fresh again.
+    let createdNewThread = false;
 
     if (sessionRef) {
       this.beginResumeActiveStatusSuppression(sessionRef.providerSessionId);
@@ -525,6 +521,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
             cause: error,
           });
         }
+        createdNewThread = true;
         this.extractRolloutMeta(result);
       }
     } else {
@@ -533,11 +530,33 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       if (!threadId) {
         throw new Error("thread/start response did not contain a thread id.");
       }
+      createdNewThread = true;
       this.extractRolloutMeta(result);
     }
 
     this.remoteThreadId = threadId;
+    this.rpc.claimThread(threadId);
+    this.ensureMapperState().usageScope = new CodexUsageScopeTracker(threadId, createdNewThread);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
+    if (!createdNewThread) {
+      try {
+        const { goal } = await this.rpc.request("thread/goal/get", { threadId });
+        if (goal) {
+          this.emitRuntimeEvents(
+            mapCodexNotification(
+              "thread/goal/updated",
+              { threadId, goal },
+              this.ensureMapperState(),
+              this.wslDistro,
+            ),
+          );
+        }
+      } catch (error) {
+        if (!isUnsupportedCodexRequestError(error)) {
+          console.warn("[codex] Failed to hydrate thread goal after resume:", error);
+        }
+      }
+    }
     if (sessionRef) {
       void this.syncRemoteThreadState(threadId, toSessionRef(threadId));
     }
@@ -624,6 +643,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
+    this.currentConfig = config;
     // New user turn clears any sticky error from a previous failed turn, along
     // with the per-turn error dedupe state and any pending fallback timer.
     this.errorSticky = false;
@@ -660,6 +680,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       try {
         await this.dispatchCodexGoalCommand(threadId, goalCommand);
       } catch (error) {
+        this.pendingTurnInterrupt = false;
         const message = error instanceof Error ? error.message : String(error);
         this.emitRuntimeEvents([
           { type: "error", threadId: this.threadId, message },
@@ -671,6 +692,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       if (expectsModelTurn || (canStartModelTurn && this.activeTurnId)) {
         return;
       }
+      this.pendingTurnInterrupt = false;
       this.emitRuntimeEvents([
         { type: "turn.completed", threadId: this.threadId, turnId, state: "completed" },
       ]);
@@ -687,18 +709,29 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const sandboxPolicy = toCodexSandboxPolicy(config.sandboxMode);
     const collaborationMode = buildCodexCollaborationMode(config);
     try {
-      if (this.hasUserMcpServers) {
-        await this.rpc.request("config/mcpServer/reload", null);
-      }
       const result = await this.rpc.request("turn/start", {
         threadId,
         input,
         model: config.model,
         ...(config.effort ? { effort: config.effort } : {}),
         summary: "auto",
-        ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
-        ...(config.approvalsReviewer ? { approvalsReviewer: config.approvalsReviewer } : {}),
-        ...(sandboxPolicy ? { sandboxPolicy } : {}),
+        ...(config.approvalPolicy
+          ? {
+              approvalPolicy: config.approvalPolicy as NonNullable<
+                TurnStartParams["approvalPolicy"]
+              >,
+            }
+          : {}),
+        ...(config.approvalsReviewer
+          ? {
+              approvalsReviewer: config.approvalsReviewer as NonNullable<
+                TurnStartParams["approvalsReviewer"]
+              >,
+            }
+          : {}),
+        ...(sandboxPolicy
+          ? { sandboxPolicy: sandboxPolicy as NonNullable<TurnStartParams["sandboxPolicy"]> }
+          : {}),
         collaborationMode,
         // Fast toggle is authoritative and the server tier is sticky, so force it
         // every turn: "fast" selects the Fast lane, null clears it to the default.
@@ -713,6 +746,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         });
       }
     } catch (error) {
+      this.pendingTurnInterrupt = false;
       if (this.isDisposed) return;
       const message = error instanceof Error ? error.message : String(error);
       this.errorSticky = true;
@@ -739,26 +773,117 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     });
   }
 
-  async rollbackThread(numTurns: number): Promise<ThreadHistory> {
+  async rollbackThread(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory> {
     if (!Number.isInteger(numTurns) || numTurns <= 0) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
     const threadId = await this.waitForRemoteThreadId();
-    await this.rpc.request("thread/rollback", {
+    this.forkNotificationBuffer = undefined;
+
+    const rollbackLegacy = async (reason: string): Promise<ThreadHistory> => {
+      this.forkNotificationBuffer = undefined;
+      console.log(`[codex] ${reason}; falling back to thread/rollback.`);
+      try {
+        await this.rpc.request("thread/rollback", {
+          threadId,
+          numTurns,
+        });
+      } catch (error) {
+        if (isUnsupportedCodexRequestError(error)) {
+          throw new Error(
+            "Codex cannot roll back this thread because neither thread/fork nor thread/rollback is supported.",
+            { cause: error },
+          );
+        }
+        throw error;
+      }
+      this.pendingTurnInterrupt = false;
+      this.activeTurnId = undefined;
+      await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+      return {
+        providerSessionId: threadId,
+        messages: [],
+      };
+    };
+
+    const readResult = await this.rpc.request("thread/read", {
       threadId,
-      numTurns,
+      includeTurns: true,
     });
+    const turns = readResult.thread?.turns;
+    if (!Array.isArray(turns)) {
+      return rollbackLegacy("thread/read omitted turn history");
+    }
+    if (turns.length <= numTurns) {
+      return rollbackLegacy("thread/fork has no retained turn");
+    }
+
+    const retainedTurn = turns.at(turns.length - numTurns - 1);
+    if (!retainedTurn || typeof retainedTurn.id !== "string") {
+      return rollbackLegacy("thread/read omitted the retained turn id");
+    }
+
+    let forkResult: CodexClientRequestMap["thread/fork"]["result"];
+    const rollbackConfig = config ?? this.currentConfig;
+    if (!rollbackConfig) {
+      throw new Error("Cannot roll back a Codex thread before its configuration is initialized.");
+    }
+    this.currentConfig = rollbackConfig;
+    const threadOverrides = buildCodexThreadOverrides(rollbackConfig, {
+      projectLocation: this.projectLocation,
+      mcpServers: this.mcpServers,
+    });
+    this.forkNotificationBuffer = [];
+    try {
+      forkResult = await this.rpc.request("thread/fork", {
+        ...threadOverrides,
+        threadId,
+        lastTurnId: retainedTurn.id,
+      });
+    } catch (error) {
+      this.forkNotificationBuffer = undefined;
+      if (!isUnsupportedCodexRequestError(error)) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      return rollbackLegacy(`thread/fork is unsupported (${message})`);
+    }
+
+    const newThreadId = forkResult.thread?.id;
+    if (!newThreadId) {
+      this.forkNotificationBuffer = undefined;
+      throw new Error("thread/fork response did not contain a thread id.");
+    }
+
+    this.remoteThreadId = newThreadId;
+    this.rpc.claimThread(newThreadId);
+    this.launchOptions = { ...this.launchOptions, resumeThreadId: newThreadId };
+    // The fork created a NEW provider thread carrying inherited history: bump
+    // the usage scope epoch so the first sample on it is a baseline, and do it
+    // BEFORE replaying buffered notifications so their samples land in the new
+    // scope.
+    this.mapperState?.usageScope?.replaceScope(newThreadId);
+    this.replayForkNotifications(newThreadId);
+    await this.rpc
+      .request("thread/unsubscribe", { threadId }, CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS)
+      .catch((error) => {
+        console.log("[codex] failed to unsubscribe old thread after fork:", error);
+      });
     this.pendingTurnInterrupt = false;
     this.activeTurnId = undefined;
-    await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+    await this.syncRemoteThreadState(newThreadId, toSessionRef(newThreadId));
     return {
-      providerSessionId: threadId,
+      providerSessionId: newThreadId,
       messages: [],
     };
   }
 
   async resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): Promise<void> {
     this.rpc.resolveServerRequest(requestId, response);
+  }
+
+  ownsProviderSession(providerSessionId: string): boolean {
+    return this.rpc.ownsThread(providerSessionId);
   }
 
   async dispose(): Promise<void> {
@@ -768,11 +893,36 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.isDisposed = true;
 
     this.clearPendingSystemErrorFallback();
-    this.rpc.dispose(new Error("Codex app-server session disposed."));
-
-    if (!this.appServer.killed) {
-      terminateChildProcessTree(this.appServer);
+    if (this.remoteThreadId) {
+      if (this.activeTurnId) {
+        await this.rpc
+          .request(
+            "turn/interrupt",
+            {
+              threadId: this.remoteThreadId,
+              turnId: this.activeTurnId,
+            },
+            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+          )
+          .catch(() => undefined);
+      }
+      // Re-check ownership *after* the interrupt round-trip: a force-stopped
+      // session is replaced while this teardown drains, and the replacement
+      // resubscribes to the same provider thread on the shared app-server.
+      // Unsubscribing then would silence the live session's notifications and
+      // strand it on "working" with no output.
+      if (this.rpc.ownsThread(this.remoteThreadId)) {
+        await this.rpc
+          .request(
+            "thread/unsubscribe",
+            { threadId: this.remoteThreadId },
+            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+          )
+          .catch(() => undefined);
+      }
     }
+    this.rpc.dispose(new Error("Codex app-server session disposed."));
+    this.releaseAppServer();
   }
 
   private attachRpcHandlers(): void {
@@ -801,6 +951,17 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
     const notificationThreadId = readNotificationThreadId(params, this.remoteThreadId);
+    if (
+      this.forkNotificationBuffer &&
+      notificationThreadId &&
+      this.remoteThreadId !== undefined &&
+      notificationThreadId !== this.remoteThreadId
+    ) {
+      if (this.forkNotificationBuffer.length < CODEX_FORK_NOTIFICATION_BUFFER_LIMIT) {
+        this.forkNotificationBuffer.push({ method, params, threadId: notificationThreadId });
+      }
+      return;
+    }
     const suppressResumeReplay = this.isResumeReplaySuppressed(notificationThreadId);
     const childEvents = this.ensureSubAgentRouter().routeChildNotification(
       method,
@@ -809,6 +970,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     );
     if (childEvents !== undefined) {
       if (childEvents.length > 0) this.emitRuntimeEvents(childEvents);
+      return;
+    }
+    if (
+      notificationThreadId &&
+      this.remoteThreadId !== undefined &&
+      notificationThreadId !== this.remoteThreadId
+    ) {
       return;
     }
 
@@ -865,7 +1033,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       }
       const nextStatus = params.status as CodexThreadStatus;
       // A systemError status alone gives the renderer a red icon but no
-      // message. If Codex didn't already send a paired `thread/error`
+      // message. If Codex didn't already send a paired `error`
       // notification or a turn/start rejection (which set `errorSticky`),
       // surface a fallback runtime error event so `ThreadErrorDock`
       // renders something instead of leaving the user with an empty dock.
@@ -911,6 +1079,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
 
+    // `turn/aborted` is retained only for older app-server compatibility.
     if (method === "turn/completed" || method === "turn/aborted") {
       if (suppressResumeReplay) {
         return;
@@ -971,6 +1140,23 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
   private isCurrentThreadNotification(threadId: string): boolean {
     return this.remoteThreadId === undefined || this.remoteThreadId === threadId;
+  }
+
+  private replayForkNotifications(threadId: string): void {
+    const notifications = this.forkNotificationBuffer ?? [];
+    this.forkNotificationBuffer = undefined;
+    for (const notification of notifications) {
+      // tokenUsage samples are scope-keyed (the mapper resolves scopeId from
+      // the notification's own scope tracker), so replay them even when they
+      // were captured mid-fork for another thread (e.g. a child subagent
+      // thread) — dropping them would punch a gap in that scope's counter.
+      if (
+        notification.threadId === threadId ||
+        notification.method === "thread/tokenUsage/updated"
+      ) {
+        this.handleNotification(notification.method, notification.params);
+      }
+    }
   }
 
   private async waitForRemoteThreadId(): Promise<string> {

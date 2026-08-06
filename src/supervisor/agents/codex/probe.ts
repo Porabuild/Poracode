@@ -136,10 +136,16 @@ export function humanizeCodexModelName(id: string, displayName: string): string 
  * Prefer the explicit `additionalSpeedTiers` list when present; only fall
  * back to `serviceTiers` (non-empty ⇒ a tier like "priority"/Fast exists)
  * when `additionalSpeedTiers` is absent.
+ *
+ * The tier id was renamed from "priority" to "fast" in the Fast mode
+ * rollout, and old CLIs may still report "priority", so accept both.
  */
 function codexModelSupportsFast(entry: CodexModelEntry): boolean {
   if (entry.additionalSpeedTiers !== undefined) {
-    return Array.isArray(entry.additionalSpeedTiers) && entry.additionalSpeedTiers.includes("fast");
+    return (
+      Array.isArray(entry.additionalSpeedTiers) &&
+      entry.additionalSpeedTiers.some((tier) => tier === "fast" || tier === "priority")
+    );
   }
   return Array.isArray(entry.serviceTiers) && entry.serviceTiers.length > 0;
 }

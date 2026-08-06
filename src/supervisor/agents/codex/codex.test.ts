@@ -14,7 +14,9 @@ import {
   parseCodexLoginStatusOutput,
 } from "./detection";
 import { CodexStructuredSession } from "./acp";
-import type { CodexAppServerRpcListener } from "./appServerRpc";
+import { CodexRpcResponseError, type CodexAppServerRpcListener } from "./appServerRpc";
+import { createCodexMapperState, CodexUsageScopeTracker } from "./canonicalMapping";
+import type { CodexThreadStatus } from "./acpProtocol";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
 import { codexIntentFor } from "./plugin/intentMap";
@@ -29,6 +31,15 @@ import { buildCodexTurnInput } from "./acpTurn";
 import { CodexStdioTransport } from "./stdioTransport";
 import { CodexSubAgentRouter } from "./subAgentRouting";
 import type { StructuredSessionUpdate } from "../base";
+
+describe("createCodexAdapter skill roots", () => {
+  it("declares Codex's native shared .agents root", () => {
+    const support = createCodexAdapter().skillSupport;
+
+    expect(support?.roots.map((root) => root.id)).toEqual(["codex", "agents"]);
+    expect(support?.projectionRoots).toBeUndefined();
+  });
+});
 
 describe("deriveCodexStructuredState", () => {
   it("maps active approval state to needs_approval", () => {
@@ -67,6 +78,18 @@ describe("deriveCodexStructuredState", () => {
     });
   });
 
+  it("ignores unknown active flags from newer app-server versions", () => {
+    const status = {
+      type: "active",
+      activeFlags: ["newerUnknownFlag"],
+    } as unknown as CodexThreadStatus;
+
+    expect(deriveCodexStructuredState(status)).toEqual({
+      status: "working",
+      attention: "working",
+    });
+  });
+
   it("maps idle state to idle", () => {
     expect(deriveCodexStructuredState({ type: "idle" })).toEqual({
       status: "idle",
@@ -88,7 +111,11 @@ describe("deriveCodexStructuredState", () => {
         id: "req-1",
         method: "item/tool/requestUserInput",
         params: {
+          threadId: "provider-thread",
+          turnId: "turn-1",
+          itemId: "item-1",
           questions: [],
+          autoResolutionMs: null,
         },
       }),
     ).toEqual({
@@ -96,7 +123,11 @@ describe("deriveCodexStructuredState", () => {
       id: "req-1",
       method: "item/tool/requestUserInput",
       params: {
+        threadId: "provider-thread",
+        turnId: "turn-1",
+        itemId: "item-1",
         questions: [],
+        autoResolutionMs: null,
       },
     });
   });
@@ -364,6 +395,43 @@ describe("CodexSubAgentRouter", () => {
     ).toEqual([]);
   });
 
+  it("suppresses provisional spawn items that never create a child thread", () => {
+    const router = new CodexSubAgentRouter("local-thread");
+
+    expect(
+      router.observeMainNotification(
+        "item/started",
+        {
+          threadId: "provider-thread",
+          item: {
+            id: "failed-spawn",
+            type: "collabAgentToolCall",
+            tool: "spawnAgent",
+            status: "inProgress",
+            senderThreadId: "provider-thread",
+            receiverThreadIds: [],
+            agentsStates: {},
+            prompt: "Inspect the renderer",
+          },
+        },
+        [
+          {
+            type: "item.started",
+            threadId: "local-thread",
+            itemId: "provisional-parent",
+            itemType: "tool_call",
+            payload: {
+              name: "spawnAgent",
+              status: "running",
+              isSubAgent: true,
+              progress: { stepCount: 0 },
+            },
+          },
+        ],
+      ),
+    ).toEqual([]);
+  });
+
   it("routes child-thread items under the parent and keeps the composer tile active", () => {
     const router = new CodexSubAgentRouter("local-thread");
     router.setDefaultModelSettings("gpt-5.4", "medium");
@@ -551,6 +619,29 @@ describe("CodexSubAgentRouter", () => {
       itemId: "parent-item",
       payload: { status: "success", result: "Child result" },
     });
+
+    const lateEvents = router.routeChildNotification(
+      "item/started",
+      {
+        threadId: "child-thread",
+        turnId: "late-child-turn",
+        item: { id: "late-child-message", type: "agentMessage", text: "Late output" },
+      },
+      "provider-thread",
+    );
+    expect(lateEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "parent-item",
+        payload: expect.objectContaining({ status: "success", result: "Child result" }),
+      }),
+    );
+    expect(lateEvents).not.toContainEqual(
+      expect.objectContaining({
+        itemId: "parent-item",
+        payload: expect.objectContaining({ status: "running" }),
+      }),
+    );
   });
 
   it("suppresses notifications from unrelated app-server threads", () => {
@@ -741,6 +832,81 @@ describe("CodexSubAgentRouter", () => {
       }),
     );
   });
+
+  it("routes child tokenUsage as usage.spent in the child scope, dropping context.updated", () => {
+    const router = createRouterWithChild();
+
+    const events = router.routeChildNotification(
+      "thread/tokenUsage/updated",
+      {
+        threadId: "child-thread",
+        tokenUsage: {
+          total: {
+            inputTokens: 900,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            reasoningOutputTokens: 0,
+            totalTokens: 1_000,
+          },
+          last: {
+            inputTokens: 40,
+            cachedInputTokens: 0,
+            outputTokens: 10,
+            reasoningOutputTokens: 0,
+            totalTokens: 50,
+          },
+          modelContextWindow: 258_400,
+        },
+      },
+      "provider-thread",
+    );
+
+    expect(events?.filter((event) => event.type === "usage.spent")).toEqual([
+      {
+        type: "usage.spent",
+        threadId: "local-thread",
+        usage: {
+          counterKind: "cumulative",
+          counter: 1_000,
+          scopeId: "child-thread",
+          epoch: 0,
+          fresh: true,
+          sampleId: "child-thread:0:1000",
+          occurredAt: expect.any(Number),
+        },
+      },
+    ]);
+    // Child context.updated stays dropped — the dock keeps the main thread's occupancy.
+    expect(events?.some((event) => event.type === "context.updated")).toBe(false);
+
+    const next = router.routeChildNotification(
+      "thread/tokenUsage/updated",
+      {
+        threadId: "child-thread",
+        tokenUsage: {
+          total: {
+            inputTokens: 1_400,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            reasoningOutputTokens: 0,
+            totalTokens: 1_500,
+          },
+          last: {
+            inputTokens: 40,
+            cachedInputTokens: 0,
+            outputTokens: 10,
+            reasoningOutputTokens: 0,
+            totalTokens: 50,
+          },
+          modelContextWindow: 258_400,
+        },
+      },
+      "provider-thread",
+    );
+    expect(next?.find((event) => event.type === "usage.spent")).toMatchObject({
+      usage: { counter: 1_500, scopeId: "child-thread", epoch: 0 },
+    });
+  });
 });
 
 function createRouterWithChild(): CodexSubAgentRouter {
@@ -783,12 +949,16 @@ describe("CodexStructuredSession", () => {
 
     session["threadId"] = "local-thread";
     session["remoteThreadId"] = "provider-thread";
+    session["launchOptions"] = {};
     session["bufferedRuntimeEvents"] = [];
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
+    session["currentConfig"] = { model: "gpt-5.4" };
     session["seenErrorMessages"] = new Set<string>();
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
+      claimThread: () => {},
+      ownsThread: (threadId: string) => threadId === "provider-thread",
       request: async (
         method: string,
         params: Record<string, unknown> | null,
@@ -824,6 +994,74 @@ describe("CodexStructuredSession", () => {
     ).handleNotification(message.method, message.params);
   }
 
+  it("exposes provider-thread ownership for shared Crossagents routing", () => {
+    const structuredSession = makeStructuredSession([]);
+
+    expect(structuredSession.ownsProviderSession("provider-thread")).toBe(true);
+    expect(structuredSession.ownsProviderSession("unrelated-thread")).toBe(false);
+  });
+
+  it("interrupts its provider turn and releases its shared-server lease once", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{
+      method: string;
+      params: Record<string, unknown>;
+      timeoutMs?: number;
+    }> = [];
+    const rpcDispose = vi.fn<(error: Error) => void>();
+    const releaseAppServer = vi.fn<() => void>();
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-1";
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] =
+      releaseAppServer;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
+        return Promise.resolve({});
+      },
+      dispose: rpcDispose,
+    };
+
+    await structuredSession.dispose();
+    await structuredSession.dispose();
+
+    expect(requests).toEqual([
+      {
+        method: "turn/interrupt",
+        params: { threadId: "provider-thread", turnId: "turn-1" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "thread/unsubscribe",
+        params: { threadId: "provider-thread" },
+        timeoutMs: 2_000,
+      },
+    ]);
+    expect(rpcDispose).toHaveBeenCalledOnce();
+    expect(releaseAppServer).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a replacement session subscribed when a superseded session disposes", async () => {
+    const structuredSession = makeStructuredSession([]);
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    (structuredSession as unknown as Record<string, unknown>)["activeTurnId"] = "turn-1";
+    (structuredSession as unknown as Record<string, unknown>)["releaseAppServer"] = () => {};
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      // The replacement session claims the provider thread while this teardown
+      // waits on its interrupt round-trip.
+      ownsThread: () => requests.length === 0,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        return Promise.resolve({});
+      },
+      dispose: () => {},
+    };
+
+    await structuredSession.dispose();
+
+    expect(requests.map((request) => request.method)).toEqual(["turn/interrupt"]);
+  });
+
   it("interrupts the active Codex app-server turn", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
@@ -854,19 +1092,356 @@ describe("CodexStructuredSession", () => {
     });
   });
 
-  it("rolls back Codex app-server threads with thread/rollback", async () => {
+  it("does not carry a pending interrupt into the next turn after turn/start fails", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
+    let rejectFirstStart!: (error: Error) => void;
+    let startCount = 0;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method !== "turn/start") return Promise.resolve({});
+        startCount += 1;
+        if (startCount === 1) {
+          return new Promise((_, reject) => {
+            rejectFirstStart = reject;
+          });
+        }
+        return Promise.resolve({ turn: { id: "turn-2", items: [], status: "inProgress" } });
+      },
+    };
 
-    await structuredSession.rollbackThread(2);
+    const firstTurn = structuredSession.startTurn("first", { model: "gpt-5.4" });
+    const firstTurnError = firstTurn.catch((error: unknown) => error);
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    await structuredSession.interruptTurn();
+    rejectFirstStart(new Error("turn start failed"));
+    expect(await firstTurnError).toEqual(new Error("turn start failed"));
 
-    expect(requests[0]).toEqual({
+    await structuredSession.startTurn("second", { model: "gpt-5.4" });
+
+    expect(requests.map((request) => request.method)).toEqual(["turn/start", "turn/start"]);
+  });
+
+  it("forks Codex app-server threads with the current rollback config", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["currentConfig"] = {
+      model: "gpt-5.4",
+      effort: "low",
+      approvalPolicy: "never",
+      sandboxMode: "danger-full-access",
+    };
+    const rollbackConfig = {
+      model: "gpt-5.6-terra",
+      effort: "high",
+      approvalPolicy: "on-request",
+      approvalsReviewer: "user",
+      sandboxMode: "workspace-write",
+    };
+    const runtimeEvents: RuntimeEvent[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+    };
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return Promise.resolve({
+            thread: {
+              turns: ["turn-1", "turn-2", "turn-3", "turn-4"].map((id) => ({ id })),
+            },
+          });
+        }
+        if (method === "thread/fork") {
+          const response = Promise.resolve({ thread: { id: "forked-thread" } });
+          dispatchNotification(structuredSession, {
+            jsonrpc: "2.0",
+            method: "thread/tokenUsage/updated",
+            params: {
+              threadId: "forked-thread",
+              turnId: "turn-2",
+              tokenUsage: {
+                total: {
+                  inputTokens: 100,
+                  cachedInputTokens: 0,
+                  outputTokens: 20,
+                  reasoningOutputTokens: 5,
+                  totalTokens: 120,
+                },
+                last: {
+                  inputTokens: 80,
+                  cachedInputTokens: 0,
+                  outputTokens: 15,
+                  reasoningOutputTokens: 5,
+                  totalTokens: 100,
+                },
+                modelContextWindow: 258_400,
+              },
+            },
+          });
+          return response;
+        }
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+    };
+
+    const history = await structuredSession.rollbackThread(2, rollbackConfig);
+
+    expect(requests).toEqual([
+      {
+        method: "thread/read",
+        params: {
+          threadId: "provider-thread",
+          includeTurns: true,
+        },
+      },
+      {
+        method: "thread/fork",
+        params: {
+          model: "gpt-5.6-terra",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+          sandbox: "workspace-write",
+          config: {
+            model_reasoning_effort: "high",
+            model_reasoning_summary: "auto",
+          },
+          threadId: "provider-thread",
+          lastTurnId: "turn-2",
+        },
+      },
+      {
+        method: "thread/unsubscribe",
+        params: {
+          threadId: "provider-thread",
+        },
+      },
+      {
+        method: "thread/read",
+        params: {
+          threadId: "forked-thread",
+          includeTurns: false,
+        },
+      },
+    ]);
+    expect(history).toEqual({ providerSessionId: "forked-thread", messages: [] });
+    expect((structuredSession as unknown as { remoteThreadId: string }).remoteThreadId).toBe(
+      "forked-thread",
+    );
+    expect(structuredSession.launchOptions.resumeThreadId).toBe("forked-thread");
+    expect(runtimeEvents).toContainEqual({
+      type: "context.updated",
+      threadId: "local-thread",
+      usage: {
+        usedTokens: 100,
+        maxTokens: 258_400,
+        breakdown: [
+          { id: "input", label: "Input", tokens: 80 },
+          { id: "output", label: "Output", tokens: 15 },
+          { id: "reasoning", label: "Reasoning", tokens: 5 },
+        ],
+      },
+    });
+  });
+
+  it("starts a new usage scope epoch on fork and replays buffered tokenUsage into it", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+    };
+    const mapperState = createCodexMapperState("local-thread");
+    mapperState.usageScope = new CodexUsageScopeTracker("provider-thread", false);
+    (structuredSession as unknown as Record<string, unknown>)["mapperState"] = mapperState;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return Promise.resolve({
+            thread: {
+              turns: ["turn-1", "turn-2", "turn-3"].map((id) => ({ id })),
+            },
+          });
+        }
+        if (method === "thread/fork") {
+          const response = Promise.resolve({ thread: { id: "forked-thread" } });
+          // Arrives mid-fork (buffered), carrying the forked thread's inherited history.
+          dispatchNotification(structuredSession, {
+            jsonrpc: "2.0",
+            method: "thread/tokenUsage/updated",
+            params: {
+              threadId: "forked-thread",
+              turnId: "turn-2",
+              tokenUsage: {
+                total: {
+                  inputTokens: 4_800,
+                  cachedInputTokens: 0,
+                  outputTokens: 200,
+                  reasoningOutputTokens: 0,
+                  totalTokens: 5_000,
+                },
+                last: {
+                  inputTokens: 80,
+                  cachedInputTokens: 0,
+                  outputTokens: 15,
+                  reasoningOutputTokens: 5,
+                  totalTokens: 100,
+                },
+                modelContextWindow: 258_400,
+              },
+            },
+          });
+          return response;
+        }
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+    };
+
+    const history = await structuredSession.rollbackThread(1);
+
+    expect(history).toEqual({ providerSessionId: "forked-thread", messages: [] });
+    // The buffered tokenUsage replayed into the new scope: epoch 1, baseline
+    // sample (no fresh — forked threads carry inherited history).
+    expect(runtimeEvents).toContainEqual({
+      type: "usage.spent",
+      threadId: "local-thread",
+      usage: {
+        counterKind: "cumulative",
+        counter: 5_000,
+        scopeId: "forked-thread",
+        epoch: 1,
+        sampleId: "forked-thread:1:5000",
+        occurredAt: expect.any(Number),
+      },
+    });
+  });
+
+  it("falls back to thread/rollback when thread/fork is unavailable", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        }
+        if (method === "thread/fork") {
+          throw new CodexRpcResponseError("Method not found", -32601);
+        }
+        return { thread: { status: { type: "idle" } } };
+      },
+    };
+
+    const history = await structuredSession.rollbackThread(1);
+
+    expect(requests.map((request) => request.method)).toEqual([
+      "thread/read",
+      "thread/fork",
+      "thread/rollback",
+      "thread/read",
+    ]);
+    expect(requests[2]).toEqual({
       method: "thread/rollback",
       params: {
         threadId: "provider-thread",
-        numTurns: 2,
+        numTurns: 1,
       },
     });
+    expect(requests.map((request) => request.method)).not.toContain("thread/unsubscribe");
+    expect(history).toEqual({ providerSessionId: "provider-thread", messages: [] });
+  });
+
+  it("does not fall back to thread/rollback when thread/fork rejects its parameters", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read") {
+          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        }
+        if (method === "thread/fork") {
+          throw new CodexRpcResponseError("Invalid params: lastTurnId is in progress", -32602);
+        }
+        return { thread: { status: { type: "idle" } } };
+      },
+    };
+
+    await expect(structuredSession.rollbackThread(1)).rejects.toThrow(
+      "Invalid params: lastTurnId is in progress",
+    );
+
+    expect(requests.map((request) => request.method)).toEqual(["thread/read", "thread/fork"]);
+  });
+
+  it("clears buffered notifications when thread/fork fails", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+    };
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read") {
+          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        }
+        dispatchNotification(structuredSession, {
+          jsonrpc: "2.0",
+          method: "thread/tokenUsage/updated",
+          params: {
+            threadId: "failed-fork-thread",
+            turnId: "turn-1",
+            tokenUsage: {
+              total: {},
+              last: { totalTokens: 25 },
+              modelContextWindow: 258_400,
+            },
+          },
+        });
+        throw new Error("fork failed");
+      },
+    };
+
+    await expect(structuredSession.rollbackThread(1)).rejects.toThrow("fork failed");
+
+    expect(
+      (structuredSession as unknown as { forkNotificationBuffer?: unknown }).forkNotificationBuffer,
+    ).toBeUndefined();
+    expect(runtimeEvents).toEqual([]);
+    expect(requests.map((request) => request.method)).not.toContain("thread/unsubscribe");
+  });
+
+  it("uses legacy rollback when dropping every turn leaves nothing to fork through", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        }
+        return { thread: { status: { type: "idle" } } };
+      },
+    };
+
+    const history = await structuredSession.rollbackThread(2);
+
+    expect(requests.map((request) => request.method)).toEqual([
+      "thread/read",
+      "thread/rollback",
+      "thread/read",
+    ]);
+    expect(history).toEqual({ providerSessionId: "provider-thread", messages: [] });
   });
 
   it("requests Codex reasoning summaries for GUI turns", async () => {
@@ -998,6 +1573,46 @@ describe("CodexStructuredSession", () => {
     expect(updates).not.toContainEqual({ status: "idle", attention: "none" });
   });
 
+  it("clears an existing goal before /goal replaces it", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    dispatchNotification(structuredSession, {
+      jsonrpc: "2.0",
+      method: "thread/goal/updated",
+      params: {
+        threadId: "provider-thread",
+        turnId: null,
+        goal: {
+          threadId: "provider-thread",
+          objective: "previous goal",
+          status: "active",
+          tokenBudget: null,
+          tokensUsed: 7_900_000,
+          timeUsedSeconds: 29_580,
+          createdAt: 1778570000,
+          updatedAt: 1778599580,
+        },
+      },
+    });
+
+    await structuredSession.startTurn("/goal start fresh", { model: "gpt-5.4" });
+
+    expect(requests).toEqual([
+      {
+        method: "thread/goal/clear",
+        params: { threadId: "provider-thread" },
+      },
+      {
+        method: "thread/goal/set",
+        params: {
+          threadId: "provider-thread",
+          objective: "start fresh",
+          status: "active",
+        },
+      },
+    ]);
+  });
+
   it("settles /goal <objective> when Codex does not start a model turn", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
@@ -1034,6 +1649,38 @@ describe("CodexStructuredSession", () => {
     ]);
   });
 
+  it("does not carry a pending interrupt past a goal command without a model turn", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    let resolveGoalClear!: () => void;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      ownsThread: () => true,
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/goal/clear") {
+          return new Promise<void>((resolve) => {
+            resolveGoalClear = resolve;
+          });
+        }
+        if (method === "turn/start") {
+          return Promise.resolve({ turn: { id: "turn-2", items: [], status: "inProgress" } });
+        }
+        return Promise.resolve({});
+      },
+    };
+
+    const goalTurn = structuredSession.startTurn("/goal clear", { model: "gpt-5.4" });
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    await structuredSession.interruptTurn();
+    resolveGoalClear();
+    await goalTurn;
+
+    await structuredSession.startTurn("next", { model: "gpt-5.4" });
+
+    expect(requests.map((request) => request.method)).toEqual(["thread/goal/clear", "turn/start"]);
+  });
+
   it("maps /goal pause and /goal resume to thread/goal/set status changes", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
@@ -1051,6 +1698,100 @@ describe("CodexStructuredSession", () => {
         params: { threadId: "provider-thread", status: "active" },
       },
     ]);
+  });
+
+  it("controls a goal directly through the app-server lifecycle", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    await structuredSession.controlGoal({ action: "pause" });
+    await structuredSession.controlGoal({ action: "resume" });
+    await structuredSession.controlGoal({ action: "edit", objective: "ship edited goal" });
+    await structuredSession.controlGoal({ action: "clear" });
+
+    expect(requests).toEqual([
+      {
+        method: "thread/goal/set",
+        params: { threadId: "provider-thread", status: "paused" },
+      },
+      {
+        method: "thread/goal/set",
+        params: { threadId: "provider-thread", status: "active" },
+      },
+      {
+        method: "thread/goal/set",
+        params: {
+          threadId: "provider-thread",
+          objective: "ship edited goal",
+          status: "active",
+        },
+      },
+      {
+        method: "thread/goal/clear",
+        params: { threadId: "provider-thread" },
+      },
+    ]);
+  });
+
+  it("hydrates the current goal when resuming a Codex thread", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    structuredSession.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: () => {},
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/goal/get") {
+          return {
+            goal: {
+              threadId: "provider-thread",
+              objective: "finish resumed goal",
+              status: "paused",
+              tokenBudget: null,
+              tokensUsed: 42,
+              timeUsedSeconds: 8,
+              createdAt: 1778570000,
+              updatedAt: 1778570008,
+            },
+          };
+        }
+        if (method === "thread/read") {
+          return { thread: { id: "provider-thread", status: { type: "idle" } } };
+        }
+        return {};
+      },
+    };
+
+    await structuredSession.openThread(
+      { model: "gpt-5.4" },
+      {
+        providerSessionId: "provider-thread",
+        discoveredAt: "2026-05-10T12:00:00.000Z",
+      },
+    );
+
+    expect(requests.slice(0, 2)).toEqual([
+      expect.objectContaining({ method: "thread/resume" }),
+      {
+        method: "thread/goal/get",
+        params: { threadId: "provider-thread" },
+      },
+    ]);
+    expect(runtimeEvents[0]).toMatchObject({
+      type: "item.started",
+      itemType: "goal",
+      payload: {
+        objective: "finish resumed goal",
+        status: "paused",
+        availableActions: ["edit", "resume", "clear"],
+      },
+    });
   });
 
   it("treats /goal with no args as a no-op acknowledgement", async () => {
@@ -1107,11 +1848,11 @@ describe("CodexStructuredSession", () => {
     );
   });
 
-  it("reloads configured MCP servers at the turn boundary without delaying thread creation", async () => {
+  it("starts turns without reloading launch-time MCP servers", async () => {
     const requests: CodexRequestRecord[] = [];
     const structuredSession = makeStructuredSession(requests);
-    (structuredSession as unknown as Record<string, unknown>)["hasUserMcpServers"] = true;
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
       request: async (
         method: string,
         params: Record<string, unknown> | null,
@@ -1135,15 +1876,14 @@ describe("CodexStructuredSession", () => {
     expect(requests).toEqual([expect.objectContaining({ method: "thread/start" })]);
 
     await structuredSession.startTurn("hello", { model: "gpt-5.5" });
+    await structuredSession.startTurn("continue", { model: "gpt-5.5" });
 
     expect(requests).toEqual([
       expect.objectContaining({ method: "thread/start" }),
-      {
-        method: "config/mcpServer/reload",
-        params: null,
-      },
+      expect.objectContaining({ method: "turn/start" }),
       expect.objectContaining({ method: "turn/start" }),
     ]);
+    expect(requests.map((request) => request.method)).not.toContain("config/mcpServer/reload");
   });
 
   it("wires RPC notifications and transport lifecycle callbacks into the session", () => {
@@ -1384,6 +2124,7 @@ describe("CodexStructuredSession", () => {
     session["bufferedRuntimeEvents"] = [];
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
+      claimThread: () => {},
       request: async (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({
           method,
@@ -1793,6 +2534,66 @@ describe("Codex skills", () => {
         path: "/home/me/.agents/skills/review-code/SKILL.md",
       },
       { type: "text", text: "focus on security", text_elements: [] },
+    ]);
+  });
+
+  it("keeps diff comments in the text sent alongside a structured skill", () => {
+    expect(
+      buildCodexTurnInput("$review-code", [
+        {
+          kind: "skill",
+          name: "review-code",
+          path: "/home/me/.agents/skills/review-code/SKILL.md",
+          invocation: "$review-code",
+          provider: "Codex",
+          scope: "global",
+        },
+        { kind: "text", content: "\n\n" },
+        {
+          kind: "diff_comment",
+          path: "src/app.ts",
+          lineNumber: 42,
+          side: "new",
+          staged: false,
+          body: "Handle the empty state.",
+        },
+      ]),
+    ).toEqual([
+      {
+        type: "skill",
+        name: "review-code",
+        path: "/home/me/.agents/skills/review-code/SKILL.md",
+      },
+      {
+        type: "text",
+        text: "Review comment on src/app.ts:+42 (unstaged):\nHandle the empty state.",
+        text_elements: [],
+      },
+    ]);
+  });
+
+  it("keeps an MCP mention directive in the text when a skill segment is also present", () => {
+    expect(
+      buildCodexTurnInput("$review-code @Browser check the page", [
+        {
+          kind: "skill",
+          name: "review-code",
+          path: "/home/me/.agents/skills/review-code/SKILL.md",
+          invocation: "$review-code",
+          provider: "Codex",
+          scope: "global",
+        },
+        { kind: "text", content: " " },
+        { kind: "mcp", id: "browser", name: "Browser" },
+        { kind: "text", content: " check the page" },
+      ]),
+    ).toEqual([
+      {
+        type: "skill",
+        name: "review-code",
+        path: "/home/me/.agents/skills/review-code/SKILL.md",
+      },
+      { type: "text", text: "@Browser check the page", text_elements: [] },
     ]);
   });
 });
@@ -2224,5 +3025,33 @@ describe("mapCodexModels", () => {
       },
     ]);
     expect(result.fastModels).toEqual(["gpt-5.5"]);
+  });
+
+  it("treats 'priority' in additionalSpeedTiers as fast-capable (renamed tier id)", () => {
+    const result = mapCodexModels([
+      {
+        id: "gpt-5.6-sol",
+        model: "gpt-5.6-sol",
+        displayName: "gpt-5.6-sol",
+        hidden: false,
+        isDefault: true,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        additionalSpeedTiers: ["priority"],
+        serviceTiers: [{ id: "priority" }],
+      },
+      {
+        id: "gpt-5.4-mini",
+        model: "gpt-5.4-mini",
+        displayName: "gpt-5.4-mini",
+        hidden: false,
+        isDefault: false,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        additionalSpeedTiers: ["fast"],
+        serviceTiers: [{ id: "fast" }],
+      },
+    ]);
+    expect(result.fastModels).toEqual(["gpt-5.6-sol", "gpt-5.4-mini"]);
   });
 });

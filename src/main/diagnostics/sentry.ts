@@ -1,14 +1,12 @@
 import { app } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
-import {
-  sanitizeSentryEvent,
-  type PoracodeDiagnosticTags,
-  type SentryEventLike,
-} from "@/shared/diagnostics/sentryPrivacy";
+import type { PoracodeDiagnosticTags, SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
 import {
   readBuildSentryDsn,
   readBuildSentryEnvironment,
+  shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
+import { prepareMainSentryEvent } from "./mainEvent";
 
 const DISABLED_INTEGRATIONS = new Set([
   "ChildProcess",
@@ -62,9 +60,7 @@ function readSentryEnvironment(options: MainSentryOptions): string {
 }
 
 function shouldEnableSentry(options: MainSentryOptions): boolean {
-  if (!readSentryDsn()) return false;
-  if (!options.isDev) return true;
-  return process.env.SENTRY_ENABLE_DEV === "1";
+  return shouldEnableSentryReporting(readSentryDsn(), options.isDev);
 }
 
 function buildBaseTags(options: MainSentryOptions): PoracodeDiagnosticTags {
@@ -112,7 +108,10 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
       return null;
     },
     beforeSend(event) {
-      return sanitizeSentryEvent(event as unknown as SentryEventLike) as unknown as typeof event;
+      return prepareMainSentryEvent(
+        event as unknown as SentryEventLike,
+        process.platform,
+      ) as unknown as typeof event | null;
     },
     integrations(defaultIntegrations) {
       return defaultIntegrations.filter(
@@ -131,13 +130,20 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
   return true;
 }
 
-export function captureMainException(error: unknown, tags?: PoracodeDiagnosticTags): void {
+export function captureMainException(
+  error: unknown,
+  tags?: PoracodeDiagnosticTags,
+  fingerprint?: string[],
+): void {
   const Sentry = loadMainSentry();
   if (!Sentry) return;
   if (!Sentry.isEnabled()) return;
   Sentry.withScope((scope) => {
     if (tags) {
       scope.setTags(tags);
+    }
+    if (fingerprint) {
+      scope.setFingerprint(fingerprint);
     }
     Sentry.captureException(error);
   });

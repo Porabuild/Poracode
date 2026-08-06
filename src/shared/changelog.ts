@@ -23,6 +23,8 @@ export type ChangelogChangeKind = "added" | "improved" | "fixed";
 export const changelogChangeSchema = z.object({
   /** Bucket the change renders under: a new capability, a refinement, or a fix. */
   kind: z.enum(["added", "improved", "fixed"]),
+  /** Optional short feature name rendered as a bold prefix, e.g. "Crossagents". */
+  label: z.string().optional(),
   /** One complete, user-facing sentence describing the change. */
   text: z.string(),
 });

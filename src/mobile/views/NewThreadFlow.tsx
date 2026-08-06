@@ -17,6 +17,7 @@ import { NewThreadView } from "./NewThreadView";
 export function NewThreadFlow(props: {
   readonly onStarted: (threadId: string) => void;
   readonly onSetupAction?: (kind: MobileSetupKind) => void;
+  readonly restoreWorktreeSelectionToken?: number;
 }) {
   const remote = useRemote();
   const { t } = useLingui();
@@ -54,6 +55,9 @@ export function NewThreadFlow(props: {
       project={draftProject}
       setupKind={remote.connection === "online" ? "project" : "desktop"}
       {...(props.onSetupAction ? { onSetupAction: props.onSetupAction } : {})}
+      {...(props.restoreWorktreeSelectionToken !== undefined
+        ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
+        : {})}
       onStart={startFromDraft}
     />
   );

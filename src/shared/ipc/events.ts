@@ -4,9 +4,10 @@ import type {
   AgentSlashCommand,
   AgentStatus,
   PendingSteerState,
+  PrData,
+  PrDetails,
+  Project,
   RuntimeEvent,
-  StartThreadPayload,
-  Thread,
   ThreadAttention,
   ThreadConfig,
   ThreadStatus,
@@ -16,8 +17,9 @@ import type {
   UsageSnapshot,
 } from "../contracts";
 import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
-import type { BrowserLinkPresentationMode } from "../settings";
+import type { BrowserLinkPresentationMode, CrossagentRoutingOverride } from "../settings";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "./procedureMap";
+import type { MessageKey } from "../messages";
 
 export type SupervisorRequest = {
   [Name in SupervisorProcedureName]: {
@@ -32,6 +34,48 @@ export type SupervisorReply =
   | { replyTo: string; ok: false; error: string };
 
 export type SupervisorEvent =
+  | {
+      type: "crossagent-routing-override-changed";
+      requestId: string;
+      change:
+        | { action: "set"; override: CrossagentRoutingOverride }
+        | { action: "remove"; tags: string[] };
+    }
+  | {
+      type: "crossagent-selection-used";
+      selections: Array<{
+        agentKind: string;
+        modelId: string;
+        effort?: string;
+        fast: boolean;
+        tags?: string[];
+        explicitFields: {
+          provider: boolean;
+          model: boolean;
+          effort: boolean;
+          fast: boolean;
+        };
+      }>;
+    }
+  | {
+      type: "experiment-judge-progress";
+      experimentId: string;
+      progress:
+        | {
+            kind: "captured";
+            threadId: string;
+            files: number;
+            insertions: number;
+            deletions: number;
+            omittedFiles?: number;
+          }
+        | {
+            kind: "captured-response";
+            threadId: string;
+            characters: number;
+          }
+        | { kind: "judging" };
+    }
   | { type: "thread-reset"; threadId: string }
   | { type: "thread-output"; threadId: string; data: string; outputLength: number }
   | { type: "thread-runtime-event"; threadId: string; event: RuntimeEvent }
@@ -61,32 +105,6 @@ export type SupervisorEvent =
       pending: PendingSteerState | null;
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null }
-  /**
-   * Emitted by the supervisor's orchestrator lane (subagents MCP
-   * `create_thread`) when an agent thread asks for a first-class child thread.
-   * The main process owns the rest of the flow, mirroring the remote-start
-   * path: it resolves `projectId` from the parent's DB row, upserts the child
-   * row, mirrors it to the renderer (`remoteThreadCommand` "start" with
-   * `launchRuntime: false`), then calls the supervisor's `startThread` with
-   * `start`. This event is consumed in main and never forwarded to the
-   * renderer or remote clients.
-   */
-  | {
-      type: "orchestrator-thread-created";
-      parentThreadId: string;
-      /** Child thread row, complete except `projectId` (main fills it from the parent's row). */
-      thread: Omit<Thread, "projectId">;
-      /** Ready-to-send supervisor `startThread` payload for the child. */
-      start: StartThreadPayload;
-      /** True when `create_thread` just created the child's git worktree. */
-      isNewWorktree?: boolean;
-      /**
-       * True when the caller supplied an explicit title (vs. a prompt-derived
-       * one). Main forwards the title to the renderer only in this case, so a
-       * custom title stays authoritative and suppresses AI title generation.
-       */
-      hasCustomTitle?: boolean;
-    }
   | {
       type: "thread-osc-notification";
       threadId: string;
@@ -149,9 +167,38 @@ export type BrowserEvent =
   // when it goes idle the renderer unmounts them to free resources.
   | { type: "automation-active"; active: boolean };
 
-/** Emitted by the main process when the user clicks an OS notification. */
-export type NotificationClickEvent = {
+/** Emitted by the main process when a native app surface requests opening a thread. */
+export type ThreadOpenRequestedEvent = {
   threadId: string;
+  /** Present for OS notification clicks; omitted by tray and app-control opens. */
+  source?: "notification";
+};
+
+/** Project rows changed outside the renderer's persisted app-store snapshot. */
+export type ProjectStateChangedEvent = {
+  projects: Project[];
+};
+
+/** Successful desktop PR automation merge; consumed once by the runtime-owner renderer. */
+export type PrWatchMergedEvent = {
+  projectId: string;
+  prNumber: number;
+  worktreePath?: string;
+};
+
+/**
+ * Live PR state seen by the desktop PR-watch loop on one of its polls. The loop
+ * always refetches the PR and fetches details when needed, so forwarding what it
+ * saw keeps the renderer's cached snapshot honest — including the open→merged
+ * flip an auto-merge performs behind the UI's back — without extra `gh` calls.
+ */
+export type PrWatchStatusEvent = {
+  projectId: string;
+  prNumber: number;
+  headBranch: string;
+  worktreePath?: string;
+  pr: PrData;
+  details?: PrDetails;
 };
 
 export type UpdateStatus =
@@ -166,4 +213,5 @@ export type UpdateStatus =
       total: number;
     }
   | { type: "downloaded"; version: string }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; messageKey?: never }
+  | { type: "error"; messageKey: MessageKey; message?: never };

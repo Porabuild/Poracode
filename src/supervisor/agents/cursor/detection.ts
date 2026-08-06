@@ -15,8 +15,7 @@ import {
   stripBracketParams,
 } from "@/shared/modelLabels";
 import {
-  buildAgentCommand,
-  readAgentCommandOutput,
+  extractSemverFromVersionOutput,
   readCommandOutputAsync,
   readWslLoginShellCommandOutputAsync,
   type AgentEnvContext,
@@ -26,6 +25,9 @@ import {
 } from "../base";
 import { dedupeAcpAuthMethods, probeAcpCapabilities } from "../acp";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
+import { cursorDefaultHiddenModels } from "./defaultModelVisibility";
+import { cursorModelGrouping } from "./modelGrouping";
+import { buildCursorAgentCommand, readCursorAgentCommandOutput } from "./windowsExecutable";
 
 export const cursorDefaultCapabilities: AgentCapability = {
   models: [],
@@ -87,7 +89,7 @@ export function buildCursorProbeSpec(
   const location: ProjectLocation = isWindows
     ? { kind: "windows", path: resolvedCwd }
     : { kind: "posix", path: resolvedCwd };
-  return buildAgentCommand(location, executablePath, args);
+  return buildCursorAgentCommand(location, args, executablePath);
 }
 
 async function readCursorProbeOutputAsync(
@@ -114,7 +116,7 @@ async function probeCursorLogoutSupport(
 ): Promise<boolean> {
   if (!ctx.executablePath) return false;
   const probeCwd = getAgentProbeCwd(ctx.location);
-  const result = await readAgentCommandOutput(
+  const result = await readCursorAgentCommandOutput(
     ctx.location,
     ctx.executablePath,
     ["logout", "--help"],
@@ -238,9 +240,12 @@ export function buildCursorModelPickerCapabilities(
 ): Pick<
   AgentCapability,
   | "models"
+  | "defaultHiddenModels"
   | "efforts"
   | "defaultEffort"
   | "modelEfforts"
+  | "subProviders"
+  | "modelSubProvider"
   | "contextSizes"
   | "modelContextSizes"
   | "defaultContextSize"
@@ -340,9 +345,12 @@ export function buildCursorModelPickerCapabilities(
     ...(contextIds.has("300k") ? [{ id: "300k", label: "300K" }] : []),
     ...(contextIds.has("1m") ? [{ id: "1m", label: "1M" }] : []),
   ];
+  const defaultHiddenModels = cursorDefaultHiddenModels(displayModels);
 
   return {
     models: displayModels,
+    ...(defaultHiddenModels.length > 0 ? { defaultHiddenModels } : {}),
+    ...cursorModelGrouping(displayModels),
     efforts: sortCursorEffortIds([...effortIds]),
     ...(effortIds.has("medium") ? { defaultEffort: "medium" } : {}),
     modelEfforts,
@@ -362,15 +370,26 @@ function formatCursorAcpModelLabel(model: LabeledOption): string {
 
 export function buildCursorAcpModelPickerCapabilities(
   models: LabeledOption[],
-): Pick<AgentCapability, "models" | "efforts" | "modelEfforts"> {
+): Pick<
+  AgentCapability,
+  | "models"
+  | "defaultHiddenModels"
+  | "efforts"
+  | "modelEfforts"
+  | "subProviders"
+  | "modelSubProvider"
+> {
   const displayModels = models.map((model) => ({
     id: model.id,
     label: formatCursorAcpModelLabel(model),
   }));
   const sortedModels = sortCursorModels(displayModels);
+  const defaultHiddenModels = cursorDefaultHiddenModels(sortedModels);
 
   return {
     models: sortedModels,
+    ...(defaultHiddenModels.length > 0 ? { defaultHiddenModels } : {}),
+    ...cursorModelGrouping(sortedModels),
     efforts: [],
     modelEfforts: Object.fromEntries(sortedModels.map((model) => [model.id, []])),
   };
@@ -380,7 +399,7 @@ async function probeCursorAcpCapabilities(
   ctx: Parameters<NonNullable<DetectionSpec["capabilitiesProbe"]>>[0],
 ): Promise<CapabilitiesProbeResult | undefined> {
   if (!ctx.executablePath) return undefined;
-  const spec = buildAgentCommand(ctx.location, "cursor-agent", ["acp"], ctx.executablePath);
+  const spec = buildCursorAgentCommand(ctx.location, ["acp"], ctx.executablePath);
   const probeCwd = getAgentProbeCwd(ctx.location);
   const processCwd = resolveProbeSpawnCwd(ctx.location, spec.cwd);
   const result = await probeAcpCapabilities(spec.command, spec.args, probeCwd, {
@@ -611,8 +630,12 @@ async function probeCursorStatus(ctx: Parameters<NonNullable<DetectionSpec["stat
   if (!ctx.executablePath) return undefined;
   const probeCwd = getAgentProbeCwd(ctx.location);
   const [whoamiResult, aboutResult] = await Promise.all([
-    readAgentCommandOutput(ctx.location, ctx.executablePath, ["whoami"], { posixCwd: probeCwd }),
-    readAgentCommandOutput(ctx.location, ctx.executablePath, ["about"], { posixCwd: probeCwd }),
+    readCursorAgentCommandOutput(ctx.location, ctx.executablePath, ["whoami"], {
+      posixCwd: probeCwd,
+    }),
+    readCursorAgentCommandOutput(ctx.location, ctx.executablePath, ["about"], {
+      posixCwd: probeCwd,
+    }),
   ]);
 
   const whoami = parseCursorWhoamiOutput(`${whoamiResult.stdout}\n${whoamiResult.stderr}`);
@@ -637,6 +660,17 @@ export const cursorDetectionSpec: DetectionSpec = {
   update: {
     builtIn: { binary: "cursor-agent", args: ["update"] },
     homebrewCask: "cursor-cli",
+  },
+  async versionProbe(ctx) {
+    if (!ctx.executablePath) return undefined;
+    const result = await readCursorAgentCommandOutput(
+      ctx.location,
+      ctx.executablePath,
+      ["--version"],
+      ctx.probeEnv ? { env: ctx.probeEnv } : undefined,
+    );
+    const text = stripAnsi(result.stdout || result.stderr).trim();
+    return extractSemverFromVersionOutput(text);
   },
   statusProbe: probeCursorStatus,
   async capabilitiesProbe(ctx) {

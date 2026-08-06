@@ -52,6 +52,7 @@ import {
   setSkillEnabledPayloadSchema,
   skillScanResultSchema,
 } from "@/shared/contracts";
+import { compareVersions } from "@/shared/changelog";
 import { parseWslUncPath, toWslUncPath } from "@/shared/wsl";
 import type { AgentAdapter, AgentSkillRootSpec } from "../agents/base";
 import {
@@ -109,6 +110,8 @@ interface LocatedRoot {
   origin: SkillOrigin;
   mutable: boolean;
   wslDistro?: string;
+  agentKind?: AgentKind;
+  linkProjectionFromVersion?: string;
 }
 
 interface ResolvedEnvironment {
@@ -162,6 +165,7 @@ export interface SkillsServiceOptions {
     paths: readonly string[],
   ) => Promise<readonly (string | undefined)[]>;
   wslFsPath?: (distro: string, linuxPath: string) => string;
+  resolveAgentVersion?: (kind: AgentKind, wslDistro?: string) => string | undefined;
   fetch?: typeof fetch;
   readInstalledPlugins?: () => InstalledPlugins;
   /** Agent Plugins packages discovered by the supervisor's plugin registry. */
@@ -456,6 +460,26 @@ async function createDirectoryLink(targetPath: string, linkPath: string): Promis
   await symlink(resolve(targetPath), linkPath, process.platform === "win32" ? "junction" : "dir");
 }
 
+async function readDirectoryLinkTarget(linkPath: string): Promise<string | undefined> {
+  try {
+    if (!(await lstat(linkPath)).isSymbolicLink()) return undefined;
+    const target = await readlink(linkPath);
+    return isAbsolute(target) ? resolve(target) : resolve(dirname(linkPath), target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+function isCanonicalManagedSkillPath(path: string, folderName: string): boolean {
+  const skillsRoot = dirname(path);
+  return (
+    basename(path) === folderName &&
+    basename(skillsRoot) === "skills" &&
+    basename(dirname(skillsRoot)) === ".agents"
+  );
+}
+
 export class SkillsService {
   private readonly adapters: ReadonlyMap<AgentKind, AgentAdapter>;
   private readonly env: NodeJS.ProcessEnv;
@@ -470,6 +494,7 @@ export class SkillsService {
     paths: readonly string[],
   ) => Promise<readonly (string | undefined)[]>;
   private readonly wslFsPath: (distro: string, linuxPath: string) => string;
+  private readonly resolveAgentVersion: (kind: AgentKind, wslDistro?: string) => string | undefined;
   private readonly fetchImpl: typeof fetch;
   private readonly pluginSkillPolicy: PluginSkillPolicy;
   private readonly readPlugins: () => readonly LoadedPlugin[];
@@ -487,6 +512,7 @@ export class SkillsService {
     this.resolveWslEnv = options.resolveWslEnv ?? resolveWslEnvironment;
     this.resolveWslRealPaths = options.resolveWslRealPaths ?? resolveWslRealPaths;
     this.wslFsPath = options.wslFsPath ?? toWslUncPath;
+    this.resolveAgentVersion = options.resolveAgentVersion ?? (() => undefined);
     this.fetchImpl = options.fetch ?? fetch;
     this.readPlugins = options.readPlugins ?? (() => []);
     this.pluginSkillPolicy = new PluginSkillPolicy({
@@ -1353,6 +1379,16 @@ export class SkillsService {
     enabled: boolean,
   ): Promise<LinkedImportMove[]> {
     const moves: LinkedImportMove[] = [];
+    // Compare canonical paths on hosts such as macOS where a caller-visible
+    // path (`/var/...`) can resolve through a system symlink (`/private/var/...`).
+    // Comparing the link target to the unresolved source path leaves the
+    // managed import behind as a broken symlink when the source is disabled.
+    let canonicalSourcePath: string;
+    try {
+      canonicalSourcePath = await realpath(sourcePath);
+    } catch {
+      return moves;
+    }
     for (const availability of ["shared", "poracode"] as const) {
       const managedRoot = this.managedRoot(environment, "global", availability);
       const sourceRoot = enabled ? disabledRoot(managedRoot.fsPath) : managedRoot.fsPath;
@@ -1373,7 +1409,7 @@ export class SkillsService {
       } catch {
         continue;
       }
-      if (normalizePath(targetPath) !== normalizePath(sourcePath)) continue;
+      if (normalizePath(targetPath) !== normalizePath(canonicalSourcePath)) continue;
       const destinationPath = join(destinationRoot, linkName);
       if (await pathExists(destinationPath)) {
         throw new Error(`A linked skill named ${linkName} already exists in the destination.`);
@@ -1528,6 +1564,17 @@ export class SkillsService {
         roots.push(root);
       }
     }
+    const linkCapableProjections = new Map(
+      this.projectionRoots(environment, selectedAdapters)
+        .filter((root) => root.linkProjectionFromVersion !== undefined)
+        .map((root) => [normalizePath(root.fsPath), root] as const),
+    );
+    for (const root of roots) {
+      const projection = linkCapableProjections.get(normalizePath(root.fsPath));
+      if (!projection?.linkProjectionFromVersion) continue;
+      root.linkProjectionFromVersion = projection.linkProjectionFromVersion;
+      if (projection.agentKind) root.agentKind = projection.agentKind;
+    }
     return roots;
   }
 
@@ -1650,7 +1697,7 @@ export class SkillsService {
     spec: AgentSkillRootSpec,
     scope: SkillScope,
     providerLabel: string,
-    providerGroupId: string,
+    providerGroupId: AgentKind,
     providerGroupLabel: string,
   ): LocatedRoot {
     const explicitBase = scope === "global" ? spec.globalBasePath?.trim() : undefined;
@@ -1700,6 +1747,10 @@ export class SkillsService {
       providerLabel,
       providerGroupId,
       providerGroupLabel,
+      agentKind: providerGroupId,
+      ...(spec.linkProjectionFromVersion
+        ? { linkProjectionFromVersion: spec.linkProjectionFromVersion }
+        : {}),
       ...(spec.builtInPath ? { builtInPath: spec.builtInPath } : {}),
       scope,
       scopeLabel: scope === "global" ? "Global" : environment.projectLabel!,
@@ -1781,6 +1832,25 @@ export class SkillsService {
         }
         const absolutePath = join(rootPath, directory.name);
         const resolvedWslLink = resolvedWslLinks.get(absolutePath);
+        let linked = directory.isSymbolicLink();
+        let sourcePath = resolvedWslLink;
+        if (linked && !sourcePath) {
+          try {
+            const target = await readlink(absolutePath);
+            sourcePath = isAbsolute(target) ? target : resolve(dirname(absolutePath), target);
+          } catch {
+            linked = false;
+          }
+        }
+        if (
+          linked &&
+          root.origin === "external" &&
+          root.linkProjectionFromVersion !== undefined &&
+          sourcePath &&
+          isCanonicalManagedSkillPath(sourcePath, directory.name)
+        ) {
+          return undefined;
+        }
         const readablePath = resolvedWslLink ?? absolutePath;
         const manifest = await readManifest(readablePath);
         if (manifest?.mode === "projection") return undefined;
@@ -1809,16 +1879,7 @@ export class SkillsService {
           ? validateSkillMetadata(metadata, directory.name)
           : undefined;
         const invalidReason = fileInvalidReason ?? metadataInvalidReason;
-        let linked = directory.isSymbolicLink();
-        let sourcePath = resolvedWslLink ?? manifest?.sourcePath;
-        if (linked && !sourcePath) {
-          try {
-            const target = await readlink(absolutePath);
-            sourcePath = isAbsolute(target) ? target : resolve(dirname(absolutePath), target);
-          } catch {
-            linked = false;
-          }
-        }
+        sourcePath ??= manifest?.sourcePath;
         return {
           id: `${root.scope}:${root.providerId}:${directory.name}:${enabled ? "on" : "off"}`,
           name: metadata.name,
@@ -1906,20 +1967,10 @@ export class SkillsService {
     environment: ResolvedEnvironment,
     selectedAdapters?: readonly AgentAdapter[],
   ): Promise<void> {
+    await this.removeRetiredProjectionCopies(environment);
     for (const scope of ["global", "project"] as const) {
       if (scope === "project" && !environment.projectFsPath) continue;
       const managedRoot = this.managedRoot(environment, scope, "shared");
-      for (const projectionPath of [managedRoot.fsPath, disabledRoot(managedRoot.fsPath)]) {
-        const entries = await readdir(projectionPath, { withFileTypes: true }).catch((error) => {
-          if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-          throw error;
-        });
-        for (const entry of entries) {
-          if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-          const path = join(projectionPath, entry.name);
-          if ((await readManifest(path))?.mode === "projection") await removeSkillPath(path);
-        }
-      }
       const managed = await this.scanRootState(managedRoot, managedRoot.fsPath, true, []);
       // Provider projection roots receive shared skills only. Poracode-only
       // and bundled skills are delivered through prompt injection or path hints.
@@ -1940,22 +1991,56 @@ export class SkillsService {
       for (const projectionRoot of this.projectionRoots(environment, selectedAdapters).filter(
         (root) => root.scope === scope,
       )) {
-        await this.projectInto(projectionRoot.fsPath, sourceByFolder, sourceHashFor);
+        await this.projectInto(projectionRoot, managedRoot.fsPath, sourceByFolder, sourceHashFor);
       }
     }
   }
 
   /**
-   * Sync one projection target: remove stale/disabled Poracode-owned copies
-   * (identified by their projection manifest), then copy each source skill in,
-   * skipping unchanged copies via the source hash. Folders without a matching
-   * manifest are user-owned and never overwritten.
+   * Projection declarations can disappear when a provider starts scanning the
+   * canonical `.agents/skills` root itself. Remove only copies carrying
+   * Poracode's projection manifest; ordinary provider skills remain untouched.
+   */
+  private async removeRetiredProjectionCopies(environment: ResolvedEnvironment): Promise<void> {
+    const activeProjectionRoots = new Set(
+      this.projectionRoots(environment).map((root) => normalizePath(root.fsPath)),
+    );
+    for (const root of this.roots(environment)) {
+      if (!root.mutable || root.origin === "built-in") continue;
+      if (activeProjectionRoots.has(normalizePath(root.fsPath))) continue;
+      for (const rootPath of [root.fsPath, disabledRoot(root.fsPath)]) {
+        const entries = await readdir(rootPath, { withFileTypes: true }).catch((error) => {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+          throw error;
+        });
+        for (const entry of entries) {
+          if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+          const path = join(rootPath, entry.name);
+          if ((await readManifest(path))?.mode === "projection") await removeSkillPath(path);
+        }
+      }
+    }
+  }
+
+  private shouldLinkProjection(root: LocatedRoot): boolean {
+    if (!root.agentKind || !root.linkProjectionFromVersion) return false;
+    const version = this.resolveAgentVersion(root.agentKind, root.wslDistro);
+    return version !== undefined && compareVersions(version, root.linkProjectionFromVersion) >= 0;
+  }
+
+  /**
+   * Sync one projection target. Current provider versions receive directory
+   * links to the canonical skill; older/unknown versions and link failures
+   * receive physical copies carrying a Poracode projection manifest.
    */
   private async projectInto(
-    targetFsPath: string,
+    root: LocatedRoot,
+    sourceRootFsPath: string,
     sourceByFolder: ReadonlyMap<string, SkillEntry>,
     sourceHashFor: (absolutePath: string) => Promise<string>,
   ): Promise<void> {
+    const targetFsPath = root.fsPath;
+    const useLinks = this.shouldLinkProjection(root);
     const disabledNames = new Set(
       await readdir(disabledRoot(targetFsPath), { withFileTypes: true })
         .then((entries) =>
@@ -1974,9 +2059,12 @@ export class SkillsService {
     for (const entry of existing) {
       if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
       const destination = join(targetFsPath, entry.name);
-      const manifest = await readManifest(destination);
+      const linkedSource = await readDirectoryLinkTarget(destination);
+      const managedLink =
+        linkedSource !== undefined && isDirectChild(sourceRootFsPath, linkedSource);
+      const manifest = managedLink ? undefined : await readManifest(destination);
       if (
-        manifest?.mode === "projection" &&
+        (manifest?.mode === "projection" || managedLink) &&
         (!sourceByFolder.has(entry.name) || disabledNames.has(entry.name))
       ) {
         await removeSkillPath(destination);
@@ -1986,14 +2074,27 @@ export class SkillsService {
     for (const skill of sourceByFolder.values()) {
       if (disabledNames.has(skill.folderName)) continue;
       const destination = join(targetFsPath, skill.folderName);
-      const sourceHash = await sourceHashFor(skill.absolutePath);
       if (await pathExists(destination)) {
-        const manifest = await readManifest(destination);
-        if (manifest?.mode === "projection" && manifest.sourcePath === skill.absolutePath) {
-          if (manifest.sourceHash === sourceHash) continue;
+        const linkedSource = await readDirectoryLinkTarget(destination);
+        const managedLink =
+          linkedSource !== undefined && isDirectChild(sourceRootFsPath, linkedSource);
+        if (
+          useLinks &&
+          managedLink &&
+          normalizePath(linkedSource) === normalizePath(skill.absolutePath)
+        ) {
+          continue;
+        }
+        const manifest = managedLink ? undefined : await readManifest(destination);
+        if (manifest?.mode === "projection" || managedLink) {
+          if (!useLinks && manifest?.sourcePath === skill.absolutePath) {
+            const sourceHash = await sourceHashFor(skill.absolutePath);
+            if (manifest.sourceHash === sourceHash) continue;
+          }
           await removeSkillPath(destination);
         } else {
           try {
+            const sourceHash = await sourceHashFor(skill.absolutePath);
             if ((await hashDirectory(destination)) === sourceHash) continue;
           } catch {
             // The user-owned destination remains authoritative on a conflict.
@@ -2004,6 +2105,18 @@ export class SkillsService {
           continue;
         }
       }
+      if (useLinks) {
+        try {
+          await createDirectoryLink(skill.absolutePath, destination);
+          continue;
+        } catch (error) {
+          console.warn(
+            `[skills] linked projection failed for ${destination}; falling back to a copy`,
+            error,
+          );
+        }
+      }
+      const sourceHash = await sourceHashFor(skill.absolutePath);
       await copyDirectorySafely(skill.absolutePath, destination);
       await writeManifest(destination, {
         version: 1,

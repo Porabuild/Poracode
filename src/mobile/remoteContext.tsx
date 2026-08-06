@@ -29,9 +29,6 @@ export interface MobileChromeContextValue {
   readonly threadSearchOpen: boolean;
   readonly setThreadSearchOpen: (open: boolean) => void;
   readonly threadSearchHost: HTMLElement | null;
-  /** Scroll-driven chrome: the /threads list reports its scroll direction and
-   * the shell collapses/reveals the header and composer dock accordingly. */
-  readonly setChromeHidden: (hidden: boolean) => void;
 }
 
 export interface MobileAppContextValue extends RemoteContextValue, MobileChromeContextValue {}
@@ -55,7 +52,6 @@ export function MobileAppProvider(props: {
     threadSearchOpen,
     setThreadSearchOpen,
     threadSearchHost,
-    setChromeHidden,
   } = props.value;
 
   const remoteValue: RemoteContextValue = { remote };
@@ -65,7 +61,6 @@ export function MobileAppProvider(props: {
     threadSearchOpen,
     setThreadSearchOpen,
     threadSearchHost,
-    setChromeHidden,
   };
 
   return (

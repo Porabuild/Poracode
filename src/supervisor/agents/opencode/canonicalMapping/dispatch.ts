@@ -1,7 +1,7 @@
 /**
  * OpenCode SDK event dispatch → canonical RuntimeEvent[].
  *
- * Translates events emitted by `client.event.subscribe` (`@opencode-ai/sdk/v2`)
+ * Translates events emitted by the legacy client's `event.subscribe`
  * into Poracode's canonical chat events.
  *
  * Reconciliation note: OpenCode interleaves `message.part.delta` (incremental)
@@ -10,10 +10,14 @@
  * `suffixPrefixOverlap` to detect what's new in a snapshot.
  */
 
-import type { EventSubscribeResponse, Part } from "@opencode-ai/sdk/v2";
+import type { EventSubscribeResponse, Part } from "../legacySdk";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { newItemId } from "../../contextUsage";
-import type { OpenCodeMapperState } from "../sdkCanonicalMappingState";
+import {
+  markOpenCodeUsageScopeSampled,
+  openCodeUsageScopeForSession,
+  type OpenCodeMapperState,
+} from "../sdkCanonicalMappingState";
 import { normalizeToolName } from "./readers";
 import {
   classifyPermissionRequestType,
@@ -35,7 +39,7 @@ import {
 } from "./textItems";
 import { classifyToolItemType } from "./toolClassification";
 import { toolPayload } from "./toolPayload";
-import { createOpenCodeContextUsageEvent } from "./usage";
+import { createOpenCodeContextUsageEvent, createOpenCodeUsageSpentEvent } from "./usage";
 
 function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent[]): void {
   if (part.type === "text") {
@@ -206,6 +210,19 @@ function mapCanonicalEvent(
       // the reasoning Part snapshot didn't carry `time.end` before the message
       // wrapped up.
       if (info.role === "assistant" && info.time?.completed) {
+        // Token spend is final only on the completed snapshot (earlier
+        // message.updated snapshots still evolve), and emitted exactly once
+        // per message id — the ledger dedups per-call samples by sampleId.
+        // Child (subagent) sessions scope to their own session id.
+        if (!state.usageSpentMessages.has(info.id)) {
+          const scope = openCodeUsageScopeForSession(state, info.sessionID);
+          const spentEvent = createOpenCodeUsageSpentEvent(state.threadId, info, scope);
+          if (spentEvent) {
+            state.usageSpentMessages.add(info.id);
+            markOpenCodeUsageScopeSampled(state, scope.scopeId);
+            events.push(spentEvent);
+          }
+        }
         const itemId = state.assistantItems.get(info.id);
         if (itemId) {
           events.push({
@@ -354,9 +371,10 @@ export function mapOpenCodeEvent(
     // child-session message/part IDs are independent UUIDs from OpenCode, so
     // they don't collide with parent items in the mapper's shared state maps.
     tagChildEventsWithParent(canonicalEvents, child.itemId);
-    // Suppress context.updated events from child sessions — token accounting
-    // on the thread tracks the main session only; child sessions have their
-    // own budgets that don't roll up into the parent's display.
+    // Suppress context.updated events from child sessions — the context dock
+    // tracks the main session only; child sessions have their own budgets
+    // that don't roll up into the parent's display. usage.spent still flows
+    // through: the ledger keys it by the child's own scope id.
     for (const ev of canonicalEvents) {
       if (ev.type === "context.updated") continue;
       events.push(ev);

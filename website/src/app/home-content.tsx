@@ -21,6 +21,37 @@ import {
   ArrowUpRight,
   KeyRound,
   Moon,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+  Signal,
+  Wifi,
+  BatteryFull,
+  Users,
+  SlidersHorizontal,
+  MousePointerClick,
+  Plug,
+  FlaskConical,
+  CalendarClock,
+  Boxes,
+  Sparkles,
+  Mic,
+  Undo2,
+  Search,
+  Bell,
+  ListChecks,
+  IdCard,
+  Languages,
+  Command,
+  Keyboard,
+  GitMerge,
+  PackageCheck,
+  Server,
+  Network,
+  GitPullRequest,
+  MessageSquarePlus,
+  Activity,
+  Scale,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -36,9 +67,12 @@ import {
   MonoLockup,
   DotPeriod,
 } from "@/components/BrandMark";
+import { AGENT_NAMES, AgentIcon } from "@/components/AgentIcons";
+import { LightboxProvider, LightboxTrigger, useLightbox } from "@/components/Lightbox";
 import { LandingFaq } from "./landing-faq";
 
 const ACP_REGISTRY_CDN = "https://cdn.agentclientprotocol.com/registry/v1/latest";
+const WEB_APP_URL = "https://app.poracode.com";
 
 // lucide-react 1.14.0 dropped brand glyphs, so the GitHub mark is inlined.
 function GithubMark({ className }: { className?: string }) {
@@ -92,13 +126,75 @@ const FEATURES = [
   { icon: Layout, title: "feature.threads.title", desc: "feature.threads.desc" },
   { icon: Layers, title: "feature.protocol.title", desc: "feature.protocol.desc" },
   { icon: Terminal, title: "feature.terminal.title", desc: "feature.terminal.desc" },
+  { icon: FlaskConical, title: "feature.experiments.title", desc: "feature.experiments.desc" },
+  { icon: CalendarClock, title: "feature.schedules.title", desc: "feature.schedules.desc" },
+  { icon: GitBranch, title: "feature.prs.title", desc: "feature.prs.desc" },
+  { icon: Sparkles, title: "feature.skills.title", desc: "feature.skills.desc" },
+  { icon: Mic, title: "feature.voice.title", desc: "feature.voice.desc" },
+  { icon: Undo2, title: "feature.checkpoints.title", desc: "feature.checkpoints.desc" },
+  { icon: Boxes, title: "feature.workspaces.title", desc: "feature.workspaces.desc" },
   { icon: Zap, title: "feature.speed.title", desc: "feature.speed.desc" },
   { icon: History, title: "feature.persistence.title", desc: "feature.persistence.desc" },
   { icon: Globe, title: "feature.browser.title", desc: "feature.browser.desc" },
-  { icon: GitBranch, title: "feature.prs.title", desc: "feature.prs.desc" },
   { icon: FileCode2, title: "feature.editor.title", desc: "feature.editor.desc" },
   { icon: Monitor, title: "feature.crossPlatform.title", desc: "feature.crossPlatform.desc" },
+  { icon: Network, title: "feature.remote.title", desc: "feature.remote.desc" },
   { icon: Terminal, title: "feature.wsl.title", desc: "feature.wsl.desc" },
+] as const;
+
+// Smaller capabilities that still decide whether the app fits someone's day.
+// Rendered as a dense hairline list rather than more icon cards.
+// 12 items, so the lg 3-col grid closes in exactly four rows.
+const DETAILS = [
+  { icon: Search, title: "detail.search.title", desc: "detail.search.desc" },
+  { icon: Command, title: "detail.palette.title", desc: "detail.palette.desc" },
+  {
+    icon: MessageSquarePlus,
+    title: "detail.quickComposer.title",
+    desc: "detail.quickComposer.desc",
+  },
+  { icon: Bell, title: "detail.notifications.title", desc: "detail.notifications.desc" },
+  { icon: ListChecks, title: "detail.plans.title", desc: "detail.plans.desc" },
+  { icon: GitPullRequest, title: "detail.globalPrs.title", desc: "detail.globalPrs.desc" },
+  { icon: GitMerge, title: "detail.conflicts.title", desc: "detail.conflicts.desc" },
+  { icon: IdCard, title: "detail.profiles.title", desc: "detail.profiles.desc" },
+  { icon: Activity, title: "detail.activity.title", desc: "detail.activity.desc" },
+  { icon: PackageCheck, title: "detail.agentUpdates.title", desc: "detail.agentUpdates.desc" },
+  { icon: Languages, title: "detail.languages.title", desc: "detail.languages.desc" },
+  { icon: Keyboard, title: "detail.shortcuts.title", desc: "detail.shortcuts.desc" },
+] as const;
+
+// The built-in MCP servers Poracode exposes to any agent that speaks MCP.
+// `server` is the literal server name an agent addresses, so it stays untranslated.
+const MCP_POWERS = [
+  {
+    icon: SlidersHorizontal,
+    server: "poracode",
+    title: "mcp.appControls.title",
+    desc: "mcp.appControls.desc",
+  },
+  {
+    icon: Users,
+    server: "crossagents",
+    title: "mcp.crossagents.title",
+    desc: "mcp.crossagents.desc",
+  },
+  { icon: Plug, server: "poracode", title: "mcp.extend.title", desc: "mcp.extend.desc" },
+  {
+    icon: MousePointerClick,
+    server: "browser · chrome · computer_use",
+    title: "mcp.surfaces.title",
+    desc: "mcp.surfaces.desc",
+  },
+  // The user's side of the same story, given a full-width card: the servers
+  // above are Poracode's, this one is everyone else's.
+  {
+    icon: Server,
+    server: "stdio · http · sse",
+    title: "mcp.byo.title",
+    desc: "mcp.byo.desc",
+    wide: true,
+  },
 ] as const;
 
 // Real captures of individual app surfaces for the zig-zag showcase.
@@ -132,6 +228,13 @@ const SHOWCASE = [
     desc: "feature.browser.desc",
     width: 1934,
     height: 1440,
+  },
+  {
+    src: "/sf-experiment.png",
+    title: "feature.experiments.title",
+    desc: "feature.experiments.desc",
+    width: 2920,
+    height: 1800,
   },
 ] as const;
 
@@ -184,6 +287,51 @@ const GALLERY = [
     height: 586,
   },
   {
+    src: "/sf-crossagents.png",
+    title: "mcp.crossagents.title",
+    desc: "gallery.crossagents.desc",
+    span: 3,
+    fit: "object-left-top",
+    width: 2020,
+    height: 740,
+  },
+  {
+    src: "/sf-mcp.png",
+    title: "gallery.mcp.title",
+    desc: "gallery.mcp.desc",
+    span: 3,
+    fit: "object-top",
+    width: 1500,
+    height: 551,
+  },
+  {
+    src: "/sf-skills.png",
+    title: "feature.skills.title",
+    desc: "feature.skills.desc",
+    span: 2,
+    fit: "object-top",
+    width: 1710,
+    height: 961,
+  },
+  {
+    src: "/sf-schedules.png",
+    title: "feature.schedules.title",
+    desc: "feature.schedules.desc",
+    span: 2,
+    fit: "object-top",
+    width: 1510,
+    height: 850,
+  },
+  {
+    src: "/sf-workspaces.png",
+    title: "feature.workspaces.title",
+    desc: "feature.workspaces.desc",
+    span: 2,
+    fit: "object-top",
+    width: 1510,
+    height: 850,
+  },
+  {
     src: "/sf-terminal.png",
     title: "feature.terminal.title",
     desc: "feature.terminal.desc",
@@ -195,7 +343,7 @@ const GALLERY = [
 ] as const;
 
 // lg col-span per bento tile. Literal class strings so Tailwind's JIT keeps them.
-const SPAN_CLASS: Record<number, string> = {
+const BENTO_SPAN_CLASS: Record<number, string> = {
   2: "lg:col-span-2",
   3: "sm:col-span-2 lg:col-span-3",
   6: "sm:col-span-2 lg:col-span-6",
@@ -238,7 +386,16 @@ async function getBrowserArchitecture(): Promise<string | undefined> {
 }
 
 export function HomeContent({ release }: { release: ReleaseInfo }) {
+  return (
+    <LightboxProvider>
+      <HomeBody release={release} />
+    </LightboxProvider>
+  );
+}
+
+function HomeBody({ release }: { release: ReleaseInfo }) {
   const { locale, t } = useI18n();
+  const openLightbox = useLightbox();
 
   const [platform, setPlatform] = useState<{ label: string; slug: string }>({
     label: "Desktop",
@@ -293,9 +450,33 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
     : t("hero.tagline");
   const downloadHref = downloadUrlFor(release, platform.slug);
   const homeHref = localizedPath("/", locale);
+  const aboutHref = "/about";
   const changelogHref = "/changelog";
   const downloadsHref = localizedPath("/download", locale);
   const nightlyHref = localizedPath("/nightly", locale);
+  // Every real capture on the page, in visual order, so the viewer's arrows walk
+  // them the way the page reads.
+  const HERO_SHOT = {
+    src: "/hero-screenshot.png",
+    width: 2920,
+    height: 1840,
+    title: t("hero.tagline"),
+  };
+  const lightboxItems = [
+    HERO_SHOT,
+    ...SHOWCASE.map((s) => ({
+      src: s.src,
+      width: s.width,
+      height: s.height,
+      title: t(s.title),
+    })),
+    ...GALLERY.map((g) => ({
+      src: g.src,
+      width: g.width,
+      height: g.height,
+      title: t(g.title),
+    })),
+  ];
   // Lead with the `Pora.code` wordmark, so the headline copy is the value-prop
   // only: drop the "Poracode —" brand prefix from title1 and the trailing
   // full-stop from title2 (the Pora dot stands in for it). Locale-safe.
@@ -339,6 +520,20 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             <BrandLockup />
           </Link>
           <div className="flex items-center gap-1 sm:gap-2">
+            <a
+              href={WEB_APP_URL}
+              className="hidden items-center gap-1.5 rounded-md px-3 py-2 font-mono text-[13px] text-dim transition-colors hover:bg-white/[0.04] hover:text-moon md:inline-flex"
+            >
+              <Globe className="h-4 w-4" />
+              {t("nav.webApp")}
+            </a>
+            <Link
+              href={aboutHref}
+              prefetch={false}
+              className="hidden rounded-md px-3 py-2 font-mono text-[13px] text-dim transition-colors hover:bg-white/[0.04] hover:text-moon lg:inline-flex"
+            >
+              About
+            </Link>
             <Link
               href={changelogHref}
               prefetch={false}
@@ -388,7 +583,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             {t("hero.subtitle")}
           </p>
 
-          <div className="hero-fade-up hero-fade-up-delay-2 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
+          <div className="hero-fade-up hero-fade-up-delay-2 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:flex-wrap sm:justify-center">
             <a
               href={downloadHref}
               className="brand-glow group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-moon px-7 font-semibold text-night transition will-change-transform hover:-translate-y-0.5 hover:brightness-95"
@@ -396,28 +591,79 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               <Download className="h-4 w-4" />
               {t("hero.downloadFor", { platform: platform.label })}
             </a>
-            <div className="flex items-center gap-5">
-              <Link
-                href={downloadsHref}
-                prefetch={false}
-                className="text-sm text-dim underline-offset-4 transition-colors hover:text-moon hover:underline"
-              >
-                {t("nav.otherPlatforms")}
-              </Link>
-              <Link
-                href={nightlyHref}
-                prefetch={false}
-                className="inline-flex items-center gap-1.5 text-sm text-dim transition-colors hover:text-ice"
-              >
-                <Moon className="h-3.5 w-3.5" />
-                {t("nav.nightly")}
-              </Link>
-            </div>
+            <a
+              href={WEB_APP_URL}
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-7 font-semibold text-moon transition will-change-transform hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
+            >
+              <Globe className="h-4 w-4 text-accent" />
+              {t("hero.openWebApp")}
+              <ArrowUpRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </a>
+            <a
+              href="https://github.com/SDSLeon/lightcode"
+              target="_blank"
+              rel="noreferrer"
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-7 font-semibold text-moon transition will-change-transform hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
+            >
+              <GithubMark className="h-4 w-4" />
+              {t("hero.starOnGithub")}
+              <ArrowUpRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </a>
           </div>
 
-          <div className="hero-fade-up hero-fade-up-delay-3 mt-6 inline-flex items-center gap-2 font-mono text-[12px] text-dim">
-            <KeyRound className="h-4 w-4" />
-            <span>{t("hero.byo")}</span>
+          <div className="hero-fade-up hero-fade-up-delay-2 mt-4 flex items-center gap-5">
+            <Link
+              href={downloadsHref}
+              prefetch={false}
+              className="text-sm text-dim underline-offset-4 transition-colors hover:text-moon hover:underline"
+            >
+              {t("nav.otherPlatforms")}
+            </Link>
+            <Link
+              href={nightlyHref}
+              prefetch={false}
+              className="inline-flex items-center gap-1.5 text-sm text-dim transition-colors hover:text-ice"
+            >
+              <Moon className="h-3.5 w-3.5" />
+              {t("nav.nightly")}
+            </Link>
+          </div>
+
+          <div className="hero-fade-up hero-fade-up-delay-3 mt-6 flex flex-col items-center gap-2 font-mono text-[12px] text-dim sm:flex-row sm:gap-5">
+            <span className="inline-flex items-center gap-2">
+              <KeyRound className="h-4 w-4" />
+              {t("hero.byo")}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <Scale className="h-4 w-4 text-accent" />
+              {t("hero.foss")}
+            </span>
+          </div>
+        </section>
+
+        {/* ── §2b Supported agents — the native roster ─────────────── */}
+        <section className="relative z-10 mx-auto max-w-5xl px-5 pb-20 sm:px-8">
+          <p className="mb-5 flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-dim">
+            <span className="pora-dot h-1.5 w-1.5" />
+            {t("hero.supportedAgents")}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {AGENT_NAMES.map((name) => (
+              <span
+                key={name}
+                className="brand-chip whitespace-nowrap px-3.5 py-1.5 font-mono text-[13px] text-dim"
+              >
+                <AgentIcon name={name} className="h-4 w-4 shrink-0 opacity-80" />
+                {name}
+              </span>
+            ))}
+            <a
+              href="#acp-registry"
+              className="brand-chip whitespace-nowrap px-3.5 py-1.5 font-mono text-[13px] text-accent"
+            >
+              {t("hero.acpRegistry")}
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
           </div>
         </section>
 
@@ -433,8 +679,38 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             parallax
             badge
             preload
+            onOpen={() => openLightbox(lightboxItems, HERO_SHOT.src)}
           />
           <div className="pointer-events-none absolute inset-x-0 -bottom-px h-48 bg-gradient-to-t from-night to-transparent" />
+        </section>
+
+        {/* ── §3b Web app — the desktop, browser-borne ────────────── */}
+        <section className="relative z-10 border-t border-white/[0.06] px-5 py-28 sm:px-8 lg:pb-40">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[560px] w-[920px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(139,123,255,0.10),transparent)] blur-3xl" />
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto mb-14 max-w-2xl text-center lg:mb-36">
+              <p className="mb-4 flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-accent">
+                <span className="pora-dot h-1.5 w-1.5" />
+                {t("nav.webApp")}
+              </p>
+              <h2 className="text-4xl font-bold tracking-[-0.03em] text-moon md:text-5xl">
+                {t("webapp.title").replace(/[.。]\s*$/, "")}
+                <DotPeriod pulse={false} />
+              </h2>
+            </div>
+            {/* One composition: the browser window is the stage, the phone docks
+                over its right edge. The wrapper centers the phone vertically so
+                the device keeps its own hover lift (no translate-y conflict). */}
+            <div className="relative mx-auto max-w-5xl">
+              <WebAppCard description={t("hero.webAppDescription")} />
+              <div className="mt-12 flex justify-center lg:absolute lg:inset-y-0 lg:-right-6 lg:z-10 lg:mt-0 lg:items-center lg:pointer-events-none">
+                <PhoneMockup
+                  pairedLabel={t("webapp.paired")}
+                  className="dock-shadow lg:pointer-events-auto"
+                />
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* ── §4 Features — hairline manifest grid ────────────────── */}
@@ -455,7 +731,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               <p className="mt-4 text-lg text-dim">{t("features.subtitle")}</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid-fill-last grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((f, i) => (
                 <FeatureCell
                   key={f.title}
@@ -463,7 +739,40 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
                   icon={f.icon}
                   title={t(f.title)}
                   desc={t(f.desc)}
-                  wide={i === FEATURES.length - 1}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── §4a Automation — agents that drive the app itself ───── */}
+        <section
+          id="automation"
+          className="relative z-10 border-t border-white/[0.06] px-5 py-28 sm:px-8"
+        >
+          <div className="pointer-events-none absolute left-1/2 top-20 -z-10 h-[440px] w-[860px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(139,123,255,0.12),transparent)] blur-3xl" />
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto mb-14 max-w-2xl text-center">
+              <p className="mb-4 flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-accent">
+                <span className="pora-dot h-1.5 w-1.5" />
+                {t("automation.eyebrow")}
+              </p>
+              <h2 className="text-4xl font-bold tracking-[-0.03em] text-moon md:text-5xl">
+                {t("automation.title")}
+                <DotPeriod pulse={false} />
+              </h2>
+              <p className="mt-4 text-lg text-dim">{t("automation.subtitle")}</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              {MCP_POWERS.map((p) => (
+                <PowerCard
+                  key={p.title}
+                  icon={p.icon}
+                  server={p.server}
+                  title={t(p.title)}
+                  desc={t(p.desc)}
+                  wide={"wide" in p}
                 />
               ))}
             </div>
@@ -477,7 +786,12 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             {SHOWCASE.map((s, i) => (
               <div key={s.src} className="grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
                 <div className={`lg:col-span-7 ${i % 2 === 1 ? "lg:order-2" : ""}`}>
-                  <AppWindow src={s.src} width={s.width} height={s.height} />
+                  <AppWindow
+                    src={s.src}
+                    width={s.width}
+                    height={s.height}
+                    onOpen={() => openLightbox(lightboxItems, s.src)}
+                  />
                 </div>
                 <div className={`lg:col-span-5 ${i % 2 === 1 ? "lg:order-1" : ""}`}>
                   <p className="mb-3 flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-accent">
@@ -521,7 +835,31 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
                   fit={g.fit}
                   width={g.width}
                   height={g.height}
+                  onOpen={() => openLightbox(lightboxItems, g.src)}
                 />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── §4d Details — the smaller things, densely ───────────── */}
+        <section className="relative z-10 border-t border-white/[0.06] px-5 py-24 sm:px-8">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-12 max-w-2xl">
+              <p className="mb-4 flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-dim">
+                <span className="pora-dot h-1.5 w-1.5" />
+                {t("details.eyebrow")}
+              </p>
+              <h2 className="text-3xl font-bold tracking-[-0.02em] text-moon md:text-4xl">
+                {t("details.title")}
+                <DotPeriod pulse={false} />
+              </h2>
+              <p className="mt-4 text-lg text-dim">{t("details.subtitle")}</p>
+            </div>
+
+            <div className="grid-fill-last grid grid-cols-1 gap-x-12 gap-y-px sm:grid-cols-2 lg:grid-cols-3">
+              {DETAILS.map((d) => (
+                <DetailRow key={d.title} icon={d.icon} title={t(d.title)} desc={t(d.desc)} />
               ))}
             </div>
           </div>
@@ -555,6 +893,10 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
                 <DotPeriod />
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-dim">{t("features.subtitle")}</p>
+              <p className="mt-4 inline-flex items-center gap-2 font-mono text-[12px] text-dim">
+                <Scale className="h-4 w-4 text-accent" />
+                {t("hero.foss")}
+              </p>
               <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <a
                   href={downloadHref}
@@ -590,6 +932,12 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
           <p className="font-mono text-[12px] text-dim">{t("footer.copyright", { year: 2026 })}</p>
           <div className="flex items-center gap-6">
             <Link
+              href={aboutHref}
+              className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
+            >
+              About
+            </Link>
+            <Link
               href={changelogHref}
               className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
             >
@@ -610,6 +958,111 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
 }
 
 /**
+ * The web-app pitch rendered as a real browser window — the address bar is the
+ * message. Chrome bar (traffic lights, nav, `app.poracode.com` address pill with
+ * a live pora-dot), a living pairing link (desktop ⇄ browser), and the localized
+ * description. The whole window links to the web app.
+ */
+function WebAppCard({ className, description }: { className?: string; description: string }) {
+  return (
+    <a
+      href={WEB_APP_URL}
+      className={`group brand-glow relative block w-full overflow-hidden rounded-2xl border border-white/[0.09] bg-tile/85 text-left transition will-change-transform hover:-translate-y-0.5 hover:border-white/[0.18] ${className ?? ""}`}
+    >
+      <span className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
+      {/* browser chrome — on lg the right side yields to the docked phone */}
+      <span className="flex items-center gap-3 border-b border-white/[0.06] bg-tile-2 px-4 py-2.5 lg:pr-72">
+        <span className="flex shrink-0 gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+        </span>
+        <span className="hidden shrink-0 items-center gap-0.5 text-dim/50 sm:flex">
+          <ChevronLeft className="h-3.5 w-3.5" />
+          <ChevronRight className="h-3.5 w-3.5" />
+        </span>
+        <span className="mx-auto flex min-w-0 items-center gap-2 rounded-md border border-white/[0.06] bg-night/70 px-3 py-1">
+          <Lock className="h-3 w-3 shrink-0 text-ice" />
+          <span className="truncate font-mono text-[12px] text-dim">app.poracode.com</span>
+          <span className="pora-dot pora-pulse h-1 w-1 shrink-0" />
+        </span>
+        <ArrowUpRight className="h-4 w-4 shrink-0 text-dim transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-moon" />
+      </span>
+      {/* body: pairing link + pitch */}
+      <span className="relative block px-6 py-12 sm:px-8 sm:py-14 lg:py-16 lg:pr-72">
+        <span className="brand-grid absolute inset-0 opacity-50" />
+        <span className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(139,123,255,0.14),transparent)] blur-2xl" />
+        <span className="relative flex items-center justify-center">
+          <PoraIconTile className="h-11 w-11 sm:h-14 sm:w-14" />
+          <span className="relative mx-2 h-px w-20 bg-white/15 sm:mx-3 sm:w-28">
+            <span className="pora-pair-dot absolute -top-[3px] h-[7px] w-[7px] rounded-full bg-accent [box-shadow:0_0_8px_rgba(139,123,255,0.8)]" />
+          </span>
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-[26%] bg-tile ring-1 ring-white/10 sm:h-14 sm:w-14">
+            <Globe className="h-[62%] w-[62%] text-accent" />
+          </span>
+        </span>
+        <span className="relative mx-auto mt-6 block max-w-lg text-center text-base leading-relaxed text-dim">
+          {description}
+        </span>
+      </span>
+      <span className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.06]" />
+    </a>
+  );
+}
+
+/**
+ * The web app on a phone — the paired state. Where the browser card pitches the
+ * pairing (traveling dot), the phone shows its outcome: the app glyph breathing,
+ * a confirmed `paired` status, and the `app.poracode.com` address pill. Pure
+ * CSS/SVG; no capture asset. The whole device links to the web app.
+ */
+function PhoneMockup({ pairedLabel, className }: { pairedLabel: string; className?: string }) {
+  return (
+    <a
+      href={WEB_APP_URL}
+      className={`group brand-glow relative block w-[260px] shrink-0 rounded-[2.75rem] border border-white/[0.12] bg-tile p-2 text-left transition will-change-transform hover:-translate-y-0.5 hover:border-white/[0.22] ${className ?? ""}`}
+    >
+      <span className="pointer-events-none absolute inset-x-10 top-0 z-10 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
+      <span className="relative flex h-[520px] flex-col overflow-hidden rounded-[2.25rem] border border-white/[0.06] bg-night">
+        {/* dynamic island */}
+        <span className="absolute left-1/2 top-2.5 z-10 h-[22px] w-20 -translate-x-1/2 rounded-full bg-black ring-1 ring-white/[0.08]" />
+        {/* status bar */}
+        <span className="flex items-center justify-between px-6 pt-3.5">
+          <span className="font-mono text-[11px] font-medium text-moon">9:41</span>
+          <span className="flex items-center gap-1.5 text-dim">
+            <Signal className="h-3 w-3" />
+            <Wifi className="h-3 w-3" />
+            <BatteryFull className="h-3.5 w-3.5" />
+          </span>
+        </span>
+        {/* address pill */}
+        <span className="mx-3 mt-3 flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-tile-2 px-3 py-1.5">
+          <Lock className="h-2.5 w-2.5 shrink-0 text-ice" />
+          <span className="truncate font-mono text-[10px] text-dim">app.poracode.com</span>
+          <span className="pora-dot pora-pulse ml-auto h-1 w-1 shrink-0" />
+        </span>
+        {/* paired state */}
+        <span className="relative flex flex-1 flex-col items-center justify-center gap-5 px-6">
+          <span className="brand-grid absolute inset-0 opacity-60" />
+          <span className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(139,123,255,0.16),transparent)] blur-2xl" />
+          <span className="relative">
+            <span className="pora-pulse absolute -inset-3 rounded-[32%] bg-accent/15 blur-xl" />
+            <PoraIconTile className="relative h-16 w-16" />
+          </span>
+          <span className="relative flex items-center gap-2 font-mono text-[11px] text-dim">
+            <span className="pora-dot h-1.5 w-1.5" />
+            {pairedLabel}
+          </span>
+        </span>
+        {/* home indicator */}
+        <span className="mx-auto mb-2.5 h-1 w-24 rounded-full bg-white/20" />
+      </span>
+      <span className="pointer-events-none absolute inset-0 rounded-[2.75rem] ring-1 ring-inset ring-white/[0.06]" />
+    </a>
+  );
+}
+
+/**
  * Framed app-capture window. The hero passes `chrome` (macOS title bar + `pora.code`
  * mono URL), `badge` (floating glyph), and `parallax` (mouse tilt); the zig-zag
  * captures use the bare frame. The shared shell (border, top hairline, inset ring)
@@ -624,6 +1077,7 @@ function AppWindow({
   badge = false,
   parallax = false,
   preload = false,
+  onOpen,
 }: {
   src: string;
   alt?: string;
@@ -633,6 +1087,7 @@ function AppWindow({
   badge?: boolean;
   parallax?: boolean;
   preload?: boolean;
+  onOpen: () => void;
 }) {
   const onMove = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (!parallax || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -681,11 +1136,41 @@ function AppWindow({
         className="block h-auto w-full"
       />
       <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.06]" />
+      <LightboxTrigger onOpen={onOpen} />
       {badge ? (
         <div className="absolute -bottom-5 -left-4 hidden h-12 w-12 rotate-3 items-center justify-center rounded-2xl border border-white/10 bg-tile brand-glow sm:flex">
           <PoraGlyph className="h-6 w-6 text-moon" />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Shared treatments repeated across the cards below — one edit per brand tweak. */
+const ACCENT_ICON_TILE =
+  "inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20 transition group-hover:bg-accent/[0.16]";
+const HOVER_HAIRLINE_TOP =
+  "pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100";
+
+/** One row of the details band: small icon tile, title, one-line description. */
+function DetailRow({
+  icon: Icon,
+  title,
+  desc,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="group flex items-start gap-4 border-t border-white/[0.07] py-5">
+      <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-accent ring-1 ring-white/[0.06] transition group-hover:bg-accent/10">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-base font-semibold text-moon">{title}</h3>
+        <p className="mt-1 text-sm leading-relaxed text-dim">{desc}</p>
+      </div>
     </div>
   );
 }
@@ -699,6 +1184,7 @@ function BentoCard({
   fit,
   width,
   height,
+  onOpen,
 }: {
   src: string;
   title: string;
@@ -707,13 +1193,14 @@ function BentoCard({
   fit: string;
   width: number;
   height: number;
+  onOpen: () => void;
 }) {
-  const spanClass = SPAN_CLASS[span] ?? "lg:col-span-2";
+  const spanClass = BENTO_SPAN_CLASS[span] ?? "lg:col-span-2";
   return (
     <div
       className={`group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-tile/70 transition-colors hover:border-white/[0.16] ${spanClass}`}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className={`${HOVER_HAIRLINE_TOP} z-10`} />
       <div className="relative h-52 overflow-hidden border-b border-white/[0.06] bg-night">
         <Image
           src={src}
@@ -725,6 +1212,7 @@ function BentoCard({
           className={`h-full w-full object-cover ${fit} transition-transform duration-500 group-hover:scale-[1.03]`}
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-tile/80 to-transparent" />
+        <LightboxTrigger onOpen={onOpen} />
       </div>
       <div className="flex flex-1 flex-col gap-1.5 p-5">
         <h3 className="text-base font-semibold text-moon">{title}</h3>
@@ -734,29 +1222,60 @@ function BentoCard({
   );
 }
 
-function FeatureCell({
-  index,
+/**
+ * A built-in MCP server pitched as a capability: accent icon tile, the literal
+ * server name an agent addresses as a mono chip, then the plain-language claim.
+ */
+function PowerCard({
   icon: Icon,
+  server,
   title,
   desc,
   wide,
 }: {
-  index: number;
   icon: ComponentType<{ className?: string }>;
+  server: string;
   title: string;
   desc: string;
   wide?: boolean;
 }) {
   return (
     <div
-      className={`group relative bg-night p-7 transition-colors hover:bg-[rgba(139,123,255,0.035)] ${
-        wide ? "lg:col-span-3" : ""
-      }`}
+      className={`group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-tile/70 p-6 transition-colors hover:border-white/[0.16] ${wide ? "md:col-span-2" : ""}`}
     >
+      <span className={HOVER_HAIRLINE_TOP} />
+      <div className="mb-4 flex items-center gap-3">
+        <span className={`${ACCENT_ICON_TILE} shrink-0`}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className="brand-chip min-w-0 px-2.5 py-1 font-mono text-[11px] text-dim">
+          <span className="pora-dot h-1 w-1 shrink-0" />
+          <span className="truncate">{server}</span>
+        </span>
+      </div>
+      <h3 className="mb-2 text-lg font-semibold text-moon">{title}</h3>
+      <p className="text-sm leading-relaxed text-dim">{desc}</p>
+    </div>
+  );
+}
+
+function FeatureCell({
+  index,
+  icon: Icon,
+  title,
+  desc,
+}: {
+  index: number;
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="group relative bg-night p-7 transition-colors hover:bg-[rgba(139,123,255,0.035)]">
       {/* cursor-sweep top edge on hover */}
       <span className="pointer-events-none absolute inset-x-0 top-0 h-px origin-left scale-x-0 bg-gradient-to-r from-accent/0 via-accent/70 to-accent/0 transition-transform duration-500 group-hover:scale-x-100" />
       <div className="mb-4 flex items-center justify-between">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20 transition group-hover:bg-accent/[0.16]">
+        <span className={ACCENT_ICON_TILE}>
           <Icon className="h-5 w-5" />
         </span>
         <span className="font-mono text-xs text-dim/75">{String(index + 1).padStart(2, "0")}</span>

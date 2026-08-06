@@ -3,8 +3,12 @@ name: Build (reusable)
 on:
   workflow_call:
     inputs:
-      tag:
-        description: "Tag to check out and build from (e.g. v1.0.1 or v1.0.1-nightly.202605160530)"
+      ref:
+        description: "Commit to check out and build from"
+        required: true
+        type: string
+      version:
+        description: "Version to write to package.json before building"
         required: true
         type: string
       channel:
@@ -33,6 +37,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # Release runners are disposable single checkouts; use pnpm's standard local
+  # virtual store so postinstall native rebuilds operate on this checkout.
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
 jobs:
   build:
     strategy:
@@ -55,10 +64,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout tag
+      - name: Checkout source
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -68,6 +77,18 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
+
+      - name: Set package version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            p.version = process.env.RELEASE_VERSION;
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+        shell: bash
 
       - name: Cache Electron binary
         uses: actions/cache@v5
@@ -110,7 +131,17 @@ jobs:
             echo "Sentry secrets are not configured; skipping source map upload."
             exit 0
           fi
-          pnpm run sentry:sourcemaps
+          for attempt in 1 2 3; do
+            if pnpm run sentry:sourcemaps; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Sentry source map upload failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::Sentry source map upload attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
         shell: bash
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

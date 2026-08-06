@@ -84,4 +84,44 @@ describe("PushRegistrationStore", () => {
     store.remove("device-1234");
     expect(store.list()).toEqual([]);
   });
+
+  it("persists and prunes a web Push API subscription", () => {
+    const store = new PushRegistrationStore(dir, () => 42);
+    const webPushSubscription = {
+      endpoint: "https://web.push.apple.com/subscription-1",
+      expirationTime: null,
+      keys: { p256dh: "key-1", auth: "auth-1" },
+    };
+    store.upsert({
+      deviceId: "browser-1234",
+      platform: "web",
+      webPushSubscription,
+      webAppBasePath: "/app",
+    });
+
+    expect(new PushRegistrationStore(dir).get("browser-1234")).toMatchObject({
+      platform: "web",
+      webPushSubscription,
+      webAppBasePath: "/app",
+    });
+    store.removeToken("browser-1234", { kind: "web" });
+    expect(store.get("browser-1234")).toBeUndefined();
+  });
+
+  it("does not preserve native credentials across a platform change", () => {
+    const store = new PushRegistrationStore(dir);
+    store.upsert({ deviceId: "device-1234", platform: "ios", deviceToken: "apns-token" });
+    store.upsert({
+      deviceId: "device-1234",
+      platform: "web",
+      webPushSubscription: {
+        endpoint: "https://web.push.apple.com/subscription-1",
+        expirationTime: null,
+        keys: { p256dh: "key-1", auth: "auth-1" },
+      },
+      webAppBasePath: "/",
+    });
+
+    expect(store.get("device-1234")).not.toHaveProperty("deviceToken");
+  });
 });

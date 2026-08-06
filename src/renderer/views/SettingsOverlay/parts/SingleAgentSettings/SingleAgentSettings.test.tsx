@@ -74,8 +74,42 @@ vi.mock("@heroui/react", () => {
   Switch.Control = (props: { children?: ReactNode }) => <span>{props.children}</span>;
   Switch.Thumb = () => <span />;
 
+  function RadioGroup(props: { children?: ReactNode; "aria-label"?: string }) {
+    return (
+      <div role="radiogroup" aria-label={props["aria-label"]}>
+        {props.children}
+      </div>
+    );
+  }
+
+  function Radio(props: { children?: ReactNode; value: string }) {
+    return (
+      <label>
+        <input type="radio" value={props.value} />
+        {props.children}
+      </label>
+    );
+  }
+  Radio.Content = (props: { children?: ReactNode }) => <span>{props.children}</span>;
+
   function Wrapper(props: { children?: ReactNode }) {
     return <div>{props.children}</div>;
+  }
+
+  function Input(props: {
+    "aria-label"?: string;
+    placeholder?: string;
+    value?: string;
+    onChange?: (event: { target: { value: string } }) => void;
+  }) {
+    return (
+      <input
+        aria-label={props["aria-label"]}
+        placeholder={props.placeholder}
+        value={props.value}
+        onChange={props.onChange}
+      />
+    );
   }
 
   function ListBox(props: { children?: ReactNode }) {
@@ -100,12 +134,24 @@ vi.mock("@heroui/react", () => {
   Tooltip.Trigger = Wrapper;
   Tooltip.Content = Wrapper;
 
+  const Disclosure = Object.assign(Wrapper, {
+    Heading: Wrapper,
+    Trigger: Wrapper,
+    Indicator: () => null,
+    Content: Wrapper,
+    Body: Wrapper,
+  });
+
   return {
     Button,
+    Disclosure,
+    Input,
     Label: (props: { children?: ReactNode }) => <span>{props.children}</span>,
     ListBox,
     ListLayout: () => null,
     Popover,
+    Radio,
+    RadioGroup,
     Switch,
     Tooltip,
     toast: toastMock,
@@ -282,6 +328,7 @@ vi.mock("@/renderer/components/common", () => ({
   ),
 }));
 
+import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { SingleAgentSettings } from "./SingleAgentSettings";
 
 const baseCapabilities = {
@@ -354,6 +401,7 @@ describe("SingleAgentSettings", () => {
     toastMock.success.mockReset();
     runAgentInstallCommandMock.mockReset().mockReturnValue(true);
     runAgentLoginCommandMock.mockReset().mockReturnValue(true);
+    useProviderUsageStore.setState({ snapshots: {} });
   });
 
   it("renders identity metadata as a single compact summary line", () => {
@@ -379,6 +427,125 @@ describe("SingleAgentSettings", () => {
     // identity fields are available.
     expect(screen.queryByText("Auth method")).not.toBeInTheDocument();
     expect(screen.queryByText("Claude.ai")).not.toBeInTheDocument();
+  });
+
+  it("prefers the live usage plan over the one baked into provider credentials", () => {
+    // Codex derives its detected plan from the `chatgpt_plan_type` claim of the
+    // cached OAuth id_token, so an upgrade keeps reporting the old tier until
+    // that token is refreshed. The usage snapshot is read live.
+    statusesState.agentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        providerMetadata: {
+          authenticatedAs: "user@example.com",
+          plan: "ChatGPT Pro 5x",
+        },
+      }),
+    ];
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        providerId: "codex",
+        status: "ok",
+        plan: "ChatGPT Pro 20x",
+        windows: [],
+        fetchedAt: 1,
+      },
+    ]);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+
+    expect(screen.getByText(/ChatGPT Pro 20x/)).toBeInTheDocument();
+    expect(screen.queryByText(/ChatGPT Pro 5x/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the detected plan when the live usage snapshot is for another account", () => {
+    statusesState.agentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        providerMetadata: {
+          authenticatedAs: "user@example.com",
+          plan: "ChatGPT Pro 5x",
+        },
+      }),
+    ];
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        providerId: "codex",
+        status: "ok",
+        plan: "ChatGPT Pro 20x",
+        authenticatedAs: "someone-else@example.com",
+        windows: [],
+        fetchedAt: 1,
+      },
+    ]);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+
+    expect(screen.getByText(/ChatGPT Pro 5x/)).toBeInTheDocument();
+    expect(screen.queryByText(/ChatGPT Pro 20x/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the detected plan when the live usage read failed", () => {
+    statusesState.agentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        providerMetadata: {
+          authenticatedAs: "user@example.com",
+          plan: "ChatGPT Pro 5x",
+        },
+      }),
+    ];
+    useProviderUsageStore
+      .getState()
+      .setSnapshots([{ providerId: "codex", status: "error", windows: [], fetchedAt: 1 }]);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+
+    expect(screen.getByText(/ChatGPT Pro 5x/)).toBeInTheDocument();
+  });
+
+  it("does not lend the live plan to an environment that is not signed in", () => {
+    statusesState.agentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        envKind: "windows",
+        providerMetadata: { authenticatedAs: "user@example.com", plan: "ChatGPT Pro 5x" },
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("codex", {
+        label: "Codex",
+        authState: "missing",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      }),
+    ];
+    appState.projects = [
+      makeProject({
+        id: "wsl-project",
+        name: "WSL Project",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/project",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+        },
+      }),
+    ];
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        providerId: "codex",
+        status: "ok",
+        plan: "ChatGPT Pro 20x",
+        windows: [],
+        fetchedAt: 1,
+      },
+    ]);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+
+    expect(within(envRow("WSL (Ubuntu)")).queryByText(/ChatGPT Pro/)).not.toBeInTheDocument();
+    expect(within(envRow("Windows")).getByText(/ChatGPT Pro 20x/)).toBeInTheDocument();
   });
 
   it("renders a Claude profile editor before detection has reported the profile status", () => {
@@ -1272,6 +1439,44 @@ describe("SingleAgentSettings", () => {
     );
   });
 
+  it("refreshes terminal authentication after the login console is manually closed", async () => {
+    const windowsProject = makeProject({
+      id: "windows-project",
+      name: "Windows Project",
+      location: { kind: "windows", path: "C:\\project" },
+    });
+    appState.projects = [windowsProject];
+    runAgentLoginCommandMock.mockReturnValue(true);
+    statusesState.agentStatuses = [
+      makeStatus("qwen", {
+        label: "Qwen Code",
+        authState: "missing",
+        loginCommand: "qwen -i /auth",
+        authMethods: [
+          {
+            type: "terminal",
+            id: "qwen-terminal-login",
+            name: "Login",
+          },
+        ],
+        envKind: "windows",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="qwen" />);
+    fireEvent.click(within(envRow("Windows")).getByRole("button", { name: /login/i }));
+    const loginInput = runAgentLoginCommandMock.mock.calls[0]?.[0];
+
+    await act(async () => {
+      loginInput?.onCommandComplete?.(-1);
+    });
+
+    expect(refreshAgentStatusesMock).toHaveBeenCalledWith([], {
+      agentKinds: ["qwen"],
+      envs: [{ kind: "native" }],
+    });
+  });
+
   it("runs native ACP agent-owned auth in the selected environment", async () => {
     statusesState.agentStatuses = [
       makeStatus("gemini", {
@@ -1368,6 +1573,89 @@ describe("SingleAgentSettings", () => {
       envKind: "wsl",
       wslDistro: "Ubuntu",
     });
+    platformSpy.mockRestore();
+  });
+
+  it("keeps Windows and WSL update loaders independent", async () => {
+    const platformSpy = vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
+    statusesState.agentStatuses = [
+      makeStatus("cursor", {
+        label: "Cursor",
+        version: "1.0.0",
+        envKind: "windows",
+        update: { builtIn: { binary: "cursor-agent", args: ["update"] } },
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("cursor", {
+        label: "Cursor",
+        version: "1.0.0",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+        update: { builtIn: { binary: "cursor-agent", args: ["update"] } },
+      }),
+    ];
+    getLatestAgentVersionMock.mockResolvedValue({
+      version: "1.1.0",
+      source: "npm",
+    });
+    let resolveWindowsUpdate!: (result: { ok: boolean }) => void;
+    let resolveWslUpdate!: (result: { ok: boolean }) => void;
+    const windowsUpdate = new Promise<{ ok: boolean }>((resolve) => {
+      resolveWindowsUpdate = resolve;
+    });
+    const wslUpdate = new Promise<{ ok: boolean }>((resolve) => {
+      resolveWslUpdate = resolve;
+    });
+    updateAgentBinaryMock.mockImplementation((payload) =>
+      payload.envKind === "wsl" ? wslUpdate : windowsUpdate,
+    );
+
+    render(<SingleAgentSettings agentKind="cursor" />);
+
+    const windowsRow = envRow("Windows");
+    const wslRow = envRow("WSL (Ubuntu)");
+    fireEvent.click(
+      await within(windowsRow).findByRole("button", {
+        name: /Update to v1\.1\.0/i,
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(
+      within(wslRow).getByRole("button", {
+        name: /Update to v1\.1\.0/i,
+      }),
+    );
+    await waitFor(() => {
+      expect(
+        within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+      ).toBeInTheDocument();
+      expect(
+        within(wslRow).getByRole("status", { name: "Updating Cursor (WSL (Ubuntu))" }),
+      ).toBeInTheDocument();
+    });
+
+    resolveWslUpdate({ ok: false });
+    await waitFor(() =>
+      expect(
+        within(wslRow).queryByRole("status", { name: "Updating Cursor (WSL (Ubuntu))" }),
+      ).toBeNull(),
+    );
+    expect(
+      within(windowsRow).getByRole("status", { name: "Updating Cursor (Windows)" }),
+    ).toBeInTheDocument();
+
+    resolveWindowsUpdate({ ok: false });
+    await waitFor(() =>
+      expect(
+        within(windowsRow).queryByRole("status", { name: "Updating Cursor (Windows)" }),
+      ).toBeNull(),
+    );
     platformSpy.mockRestore();
   });
 

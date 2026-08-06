@@ -2,12 +2,21 @@ import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { TerminalSurfaces } from "./TerminalSurfaces";
 
 const { state } = vi.hoisted(() => ({
   state: {
     focusCalls: [] as string[],
     refitCalls: [] as string[],
+    surfaceProps: new Map<
+      string,
+      {
+        outputSource?: (listener: TerminalFeedListener) => () => void;
+        initialScrollback?: string;
+        preferDomRenderer?: boolean;
+      }
+    >(),
   },
 }));
 
@@ -27,8 +36,14 @@ vi.mock("@/renderer/components/terminal/XTermSurface", async () => {
         findPrevious: () => boolean;
         clearSearch: () => void;
       },
-      { terminalId: string }
+      {
+        terminalId: string;
+        outputSource?: (listener: TerminalFeedListener) => () => void;
+        initialScrollback?: string;
+        preferDomRenderer?: boolean;
+      }
     >(function MockXTermSurface(props, ref) {
+      state.surfaceProps.set(props.terminalId, props);
       React.useImperativeHandle(ref, () => ({
         focus: () => state.focusCalls.push(props.terminalId),
         refit: () => state.refitCalls.push(props.terminalId),
@@ -83,6 +98,7 @@ describe("TerminalSurfaces", () => {
   beforeEach(() => {
     state.focusCalls = [];
     state.refitCalls = [];
+    state.surfaceProps.clear();
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
       setTimeout(() => callback(performance.now()), 0),
     );
@@ -136,5 +152,34 @@ describe("TerminalSurfaces", () => {
     await flushFocusFrames();
 
     expect(state.focusCalls).toEqual([]);
+  });
+
+  it("connects every reused desktop surface to a caller-provided terminal feed", () => {
+    const unsubscribe = vi.fn<() => void>();
+    const watchTerminal = vi.fn<(terminalId: string, listener: TerminalFeedListener) => () => void>(
+      () => unsubscribe,
+    );
+    render(
+      <TerminalSurfaces
+        tabs={[tabA, tabB]}
+        selectedTabId={tabA.id}
+        activeTab={tabA}
+        focusRequestId={1}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+        watchTerminal={watchTerminal}
+      />,
+    );
+
+    const surface = state.surfaceProps.get(tabA.id);
+    const listener: TerminalFeedListener = {
+      onOutput: vi.fn<(data: string) => void>(),
+      onReset: vi.fn<() => void>(),
+      onExited: vi.fn<(exitCode: number | null) => void>(),
+    };
+    expect(surface?.initialScrollback).toBe("");
+    expect(surface?.preferDomRenderer).toBe(true);
+    expect(surface?.outputSource?.(listener)).toBe(unsubscribe);
+    expect(watchTerminal).toHaveBeenCalledWith(tabA.id, listener);
   });
 });

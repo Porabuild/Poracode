@@ -10,14 +10,31 @@ export type Chrome =
       readonly title: MessageDescriptor;
       readonly backTo: "/threads" | "/settings" | "/settings/desktop";
     }
-  | { readonly layout: "thread" }
+  | {
+      readonly layout: "subagent";
+      readonly threadId: string;
+      readonly parentItemId: string;
+    }
+  | { readonly layout: "thread"; readonly threadId: string }
   | { readonly layout: "fullscreen" };
 
 /** Pure mapping from the current route path to the narrow-shell chrome. */
 export function getChrome(pathname: string): Chrome {
-  if (pathname.startsWith("/thread/")) return { layout: "thread" };
+  const subAgentMatch = /^\/subagent\/([^/]+)\/([^/]+)$/.exec(pathname);
+  if (subAgentMatch?.[1] && subAgentMatch[2]) {
+    return {
+      layout: "subagent",
+      threadId: decodeURIComponent(subAgentMatch[1]),
+      parentItemId: decodeURIComponent(subAgentMatch[2]),
+    };
+  }
+  const threadMatch = /^\/thread\/([^/]+)$/.exec(pathname);
+  if (threadMatch?.[1]) {
+    return { layout: "thread", threadId: decodeURIComponent(threadMatch[1]) };
+  }
   if (
     pathname.startsWith("/workspace/") ||
+    pathname.startsWith("/notes/") ||
     pathname.startsWith("/pr/") ||
     pathname.startsWith("/terminal/")
   ) {

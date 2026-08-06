@@ -80,7 +80,7 @@ export type SkillScanIssue = z.infer<typeof skillScanIssueSchema>;
 export const skillScanResultSchema = z.object({
   skills: z.array(skillEntrySchema),
   effectiveSkillIds: z.array(z.string()),
-  invocation: z.enum(["slash", "dollar", "prompt"]).nullable(),
+  invocation: z.enum(["slash", "dollar", "prompt", "skill"]).nullable(),
   issues: z.array(skillScanIssueSchema),
   canLinkToGlobal: z.boolean(),
 });

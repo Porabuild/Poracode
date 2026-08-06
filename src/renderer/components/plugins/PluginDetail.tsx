@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Box, Cable, Plug, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Box, Plug, Sparkles, TriangleAlert } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { Button, ToggleSwitch } from "@/renderer/components/common";
@@ -7,7 +7,6 @@ import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
-  isPluginAppEnabled,
   isPluginMcpServerEnabled,
   isPluginSkillEnabled,
   isPluginSupportedOnHost,
@@ -29,7 +28,6 @@ export function PluginDetail(props: {
   const uninstallPlugin = useSharedSettings((settings) => settings.uninstallPlugin);
   const setPluginEnabled = useSharedSettings((settings) => settings.setPluginEnabled);
   const setPluginSkillEnabled = useSharedSettings((settings) => settings.setPluginSkillEnabled);
-  const setPluginAppEnabled = useSharedSettings((settings) => settings.setPluginAppEnabled);
   const setPluginMcpServerEnabled = useSharedSettings(
     (settings) => settings.setPluginMcpServerEnabled,
   );
@@ -170,7 +168,7 @@ export function PluginDetail(props: {
               <Trans>Enable plugin</Trans>
             </h2>
             <p className="text-xs text-muted">
-              <Trans>Enable this plugin's active skills and apps for new threads.</Trans>
+              <Trans>Enable this plugin's skills and servers for new threads.</Trans>
             </p>
           </div>
           <ToggleSwitch
@@ -180,41 +178,6 @@ export function PluginDetail(props: {
             onChange={(enabled) => setPluginEnabled(plugin, enabled)}
           />
         </section>
-      ) : null}
-
-      {props.plugin.apps.length > 0 ? (
-        <ContributionSection
-          icon={<Cable className="size-4" />}
-          title={t`Apps`}
-          description={t`MCP-powered tools contributed by this plugin.`}
-        >
-          {props.plugin.apps.map((app, index) => {
-            const enabled = state ? isPluginAppEnabled(plugin, state, app.id) : true;
-            const labelId = `${titleId}-app-${app.id}`;
-            const badgeId = `${labelId}-kind`;
-            return (
-              <ContributionRow
-                key={app.id}
-                labelId={labelId}
-                badgeId={badgeId}
-                name={app.name}
-                {...(app.description ? { description: app.description } : {})}
-                badge={t`MCP`}
-                last={index === props.plugin.apps.length - 1}
-                control={
-                  state ? (
-                    <ToggleSwitch
-                      aria-labelledby={`${labelId} ${badgeId}`}
-                      isSelected={enabled}
-                      isDisabled={!supported || !state.enabled}
-                      onChange={(next) => setPluginAppEnabled(plugin, app.id, next)}
-                    />
-                  ) : undefined
-                }
-              />
-            );
-          })}
-        </ContributionSection>
       ) : null}
 
       {props.plugin.mcpServers.length > 0 ? (

@@ -4,6 +4,8 @@ import type { ProjectTreeEntry } from "@/shared/contracts";
 const EMPTY_ENTRIES: ProjectTreeEntry[] = [];
 
 interface ProjectTreeState {
+  /** Invalidates async directory loads when the active remote desktop changes. */
+  generation: number;
   /** rootKey (projectId:worktreePath) of the currently-loaded tree. State resets when this changes. */
   rootKey: string;
   expandedPaths: Record<string, boolean>;
@@ -26,6 +28,7 @@ interface ProjectTreeState {
 }
 
 export const useProjectTreeStore = create<ProjectTreeState>()((set) => ({
+  generation: 0,
   rootKey: "",
   expandedPaths: { "": true },
   loadingPaths: {},
@@ -94,6 +97,18 @@ export const useProjectTreeStore = create<ProjectTreeState>()((set) => ({
       state.committedSearchQuery === committedSearchQuery ? {} : { committedSearchQuery },
     ),
 }));
+
+export function resetProjectTreeStore(): void {
+  useProjectTreeStore.setState((state) => ({
+    generation: state.generation + 1,
+    rootKey: "",
+    expandedPaths: { "": true },
+    loadingPaths: {},
+    directoryEntries: {},
+    dropTargetPath: null,
+    committedSearchQuery: "",
+  }));
+}
 
 export function useIsPathExpanded(path: string): boolean {
   return useProjectTreeStore((s) => s.expandedPaths[path] ?? false);

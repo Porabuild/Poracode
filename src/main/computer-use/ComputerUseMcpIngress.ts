@@ -18,11 +18,9 @@ import {
 
 export type ComputerUseMcpIngressInfo = StreamableHttpMcpIngressInfo;
 
-export interface ComputerUseActivityEvent {
-  threadId: string;
-  active: boolean;
-  toolName: string;
-}
+export type ComputerUseActivityEvent =
+  | { kind: "session"; threadId: string; active: boolean }
+  | { kind: "action"; threadId: string; active: boolean; toolName: string };
 
 export interface ComputerUseMcpIngressOptions {
   driver?: ComputerUseDriver;
@@ -70,9 +68,20 @@ export class ComputerUseMcpIngress {
   }
 
   private buildContext(identity: McpThreadIdentity): ToolContext {
+    const { threadId } = identity;
     return {
       driver: this.driver,
-      ...(identity.threadId ? { threadId: identity.threadId } : {}),
+      ...(threadId
+        ? {
+            threadId,
+            setSessionActive: (active: boolean) =>
+              this.options.onActivity?.({
+                kind: "session",
+                threadId,
+                active,
+              }),
+          }
+        : {}),
     };
   }
 
@@ -85,11 +94,11 @@ export class ComputerUseMcpIngress {
       return await dispatchTool(name, args, ctx);
     }
     const event = { threadId: ctx.threadId, toolName: normalizeToolName(name) };
-    this.options.onActivity?.({ ...event, active: true });
+    this.options.onActivity?.({ kind: "action", ...event, active: true });
     try {
       return await dispatchTool(name, args, ctx);
     } finally {
-      this.options.onActivity?.({ ...event, active: false });
+      this.options.onActivity?.({ kind: "action", ...event, active: false });
     }
   }
 }

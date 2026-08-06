@@ -20,7 +20,9 @@ export {
   dbGetState,
   dbSetState,
   dbUpsertProject,
+  dbUpdateProject,
   dbUpsertThread,
+  dbSetThreadGroup,
   dbMarkLiveThreadsInactive,
   dbDeleteThread,
   dbDeleteProject,
@@ -28,11 +30,13 @@ export {
 
 export { dbGetProjectNotes, dbSetProjectNotes } from "./db/notes";
 
-export { dbSyncAll } from "./db/sync";
+export { dbPersistExperimentState, dbSyncAll } from "./db/sync";
+export { onProjectThreadDataChanged } from "./db/projectThreadChanges";
 
 export {
   dbReadThreadRuntimeSummaries,
   dbGetThreadRuntimeSummaries,
+  dbGetThreadRuntimeItem,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbTruncateThreadRuntimeAfter,
@@ -57,6 +61,8 @@ export {
 } from "./db/remoteCommandReceipts";
 
 export { dbGetSchedules, dbGetSchedule, dbUpsertSchedule, dbDeleteSchedule } from "./db/schedules";
+
+export { dbGetPrWatches, dbGetPrWatch, dbUpsertPrWatch, dbDeletePrWatch } from "./db/prWatches";
 
 export {
   dbInsertScheduleRun,

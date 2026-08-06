@@ -15,12 +15,24 @@ import type {
   UserInputOption,
 } from "@/shared/contracts";
 import { readStringField } from "../../fileChangeSummary";
+import type { CommandExecutionApprovalDecision, ToolRequestUserInputParams } from "../protocol";
+
+type StringCommandExecutionApprovalDecision = Extract<CommandExecutionApprovalDecision, string>;
+
+const DEFAULT_APPROVAL_DECISIONS = [
+  "accept",
+  "acceptForSession",
+  "decline",
+  "cancel",
+] as const satisfies readonly StringCommandExecutionApprovalDecision[];
 
 const CODEX_APPROVAL_METHODS = new Set([
+  // Legacy-only: this request is absent from the 0.144.5 protocol.
   "item/fileRead/requestApproval",
   "item/fileChange/requestApproval",
   "applyPatchApproval",
   "execCommandApproval",
+  // Legacy-only: this request is absent from the 0.144.5 protocol.
   "item/tool/requestApproval",
   "item/commandExecution/requestApproval",
   "item/permissions/requestApproval",
@@ -28,7 +40,7 @@ const CODEX_APPROVAL_METHODS = new Set([
 
 const CODEX_FORM_METHODS = new Set(["mcpServer/elicitation/request", "item/tool/requestUserInput"]);
 
-function decisionLabel(decision: string): string {
+function decisionLabel(decision: StringCommandExecutionApprovalDecision): string {
   switch (decision) {
     case "accept":
       return "Allow";
@@ -37,14 +49,17 @@ function decisionLabel(decision: string): string {
     case "decline":
     case "cancel":
       return "Deny";
-    default:
-      return decision;
   }
 }
 
-function codexDecisionOptions(decisions: readonly string[]): UserInputOption[] {
-  const hasDecline = decisions.includes("decline");
-  return decisions
+function codexDecisionOptions(
+  decisions: readonly CommandExecutionApprovalDecision[],
+): UserInputOption[] {
+  const stringDecisions = decisions.filter(
+    (decision): decision is StringCommandExecutionApprovalDecision => typeof decision === "string",
+  );
+  const hasDecline = stringDecisions.includes("decline");
+  return stringDecisions
     .filter((decision) => decision !== "cancel" || !hasDecline)
     .map((decision) => ({
       optionId: decision,
@@ -54,11 +69,48 @@ function codexDecisionOptions(decisions: readonly string[]): UserInputOption[] {
 
 function readAvailableDecisions(
   params: Record<string, unknown> | undefined,
-  fallback: readonly string[],
-): string[] {
+  fallback: readonly StringCommandExecutionApprovalDecision[],
+): CommandExecutionApprovalDecision[] {
   return Array.isArray(params?.availableDecisions)
-    ? (params.availableDecisions as unknown[]).filter((d): d is string => typeof d === "string")
+    ? (params.availableDecisions as unknown[]).filter(isCommandExecutionApprovalDecision)
     : [...fallback];
+}
+
+function isCommandExecutionApprovalDecision(
+  value: unknown,
+): value is CommandExecutionApprovalDecision {
+  if (typeof value === "string") {
+    return DEFAULT_APPROVAL_DECISIONS.includes(value as StringCommandExecutionApprovalDecision);
+  }
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    ("acceptWithExecpolicyAmendment" in value || "applyNetworkPolicyAmendment" in value)
+  );
+}
+
+function normalizeCodexUserInputQuestions(
+  questions: ToolRequestUserInputParams["questions"],
+): unknown[] {
+  return questions.map((question) => {
+    if (!question || typeof question !== "object") return question;
+    const record = question as Record<string, unknown>;
+    if (!Array.isArray(record.options)) return question;
+    return {
+      ...record,
+      options: record.options.map((option) => {
+        if (!option || typeof option !== "object") return option;
+        const optionRecord = option as Record<string, unknown>;
+        const label =
+          typeof optionRecord.label === "string" && optionRecord.label.length > 0
+            ? optionRecord.label
+            : typeof optionRecord.optionId === "string" && optionRecord.optionId.length > 0
+              ? optionRecord.optionId
+              : undefined;
+        return label ? { ...optionRecord, optionId: label, label } : option;
+      }),
+    };
+  });
 }
 
 function codexPermissionDetails(input: {
@@ -113,7 +165,11 @@ export function mapCodexServerRequest(
   }
 
   if (method === "item/tool/requestUserInput") {
-    const questions = Array.isArray(params?.questions) ? params.questions : [];
+    const questions = Array.isArray(params?.questions)
+      ? normalizeCodexUserInputQuestions(
+          params.questions as ToolRequestUserInputParams["questions"],
+        )
+      : [];
     if (questions.length === 0) return undefined;
     return {
       type: "request.opened",
@@ -159,12 +215,7 @@ export function mapCodexServerRequest(
 
   if (method === "item/commandExecution/requestApproval") {
     const command = readStringField(params, "command") ?? "command";
-    const decisions = readAvailableDecisions(params, [
-      "accept",
-      "acceptForSession",
-      "decline",
-      "cancel",
-    ]);
+    const decisions = readAvailableDecisions(params, DEFAULT_APPROVAL_DECISIONS);
     return {
       type: "request.opened",
       threadId,
@@ -204,7 +255,7 @@ export function mapCodexServerRequest(
             ...(readStringField(params, "cwd") ? { cwd: readStringField(params, "cwd") } : {}),
           },
         }),
-        options: codexDecisionOptions(["accept", "acceptForSession", "decline", "cancel"]),
+        options: codexDecisionOptions(DEFAULT_APPROVAL_DECISIONS),
       },
     };
   }
@@ -232,12 +283,7 @@ export function mapCodexServerRequest(
 
   if (method === "item/fileChange/requestApproval" || method === "applyPatchApproval") {
     const summary = reason ?? "File changes need approval";
-    const decisions = readAvailableDecisions(params, [
-      "accept",
-      "acceptForSession",
-      "decline",
-      "cancel",
-    ]);
+    const decisions = readAvailableDecisions(params, DEFAULT_APPROVAL_DECISIONS);
     return {
       type: "request.opened",
       threadId,
@@ -279,7 +325,7 @@ export function mapCodexServerRequest(
         ...(approvalToolName ? { displayName: approvalToolName } : {}),
         toolInput: params?.input,
       }),
-      options: codexDecisionOptions(["accept", "acceptForSession", "decline", "cancel"]),
+      options: codexDecisionOptions(DEFAULT_APPROVAL_DECISIONS),
     },
   };
 }

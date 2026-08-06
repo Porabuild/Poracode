@@ -14,7 +14,12 @@ const bridge = vi.hoisted(() => ({
 
 vi.mock("@poracode/ssh-bridge", () => ({ SshBridge: bridge }));
 
-import { __resetMobileSshRuntimeForTests, connectMobileSsh, probeMobileSshHost } from "./mobileSsh";
+import {
+  __resetMobileSshRuntimeForTests,
+  connectMobileSsh,
+  isMobileSshAuthenticationError,
+  probeMobileSshHost,
+} from "./mobileSsh";
 
 const connection: SshConnectionConfig = {
   id: "a5fe6f57-e779-4efe-aad8-6cd9ec0c38fb",
@@ -36,6 +41,29 @@ function response(input: { json?: unknown; bytes?: Uint8Array; ok?: boolean; sta
   } as unknown as Response;
 }
 
+function helperEnvironmentResponse() {
+  return response({
+    json: {
+      protocolVersion: 1,
+      hostMode: "helper",
+      desktopId: "remote-test",
+      label: "Remote test",
+      appVersion: "test",
+      platform: "linux",
+      auth: {
+        policy: "remote-reachable",
+        bootstrapMethods: ["one-time-token"],
+        sessionMethods: ["bearer-access-token"],
+        scopes: ["session:read"],
+      },
+      endpoints: {
+        httpBaseUrl: "http://127.0.0.1:40123/",
+        wsBaseUrl: "ws://127.0.0.1:40123/",
+      },
+    },
+  });
+}
+
 describe("mobile SSH bootstrap", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -48,6 +76,18 @@ describe("mobile SSH bootstrap", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("recognizes the native authentication error code without matching its message", () => {
+    const authenticationError = Object.assign(new Error("server-specific wording"), {
+      code: "SSH_AUTHENTICATION_FAILED",
+    });
+    expect(isMobileSshAuthenticationError(authenticationError)).toBe(true);
+    expect(
+      isMobileSshAuthenticationError(
+        Object.assign(new Error("Permission denied"), { code: "SSH_CONNECT_FAILED" }),
+      ),
+    ).toBe(false);
   });
 
   it("probes a host key without sending credentials", async () => {
@@ -70,7 +110,7 @@ describe("mobile SSH bootstrap", () => {
         .mockResolvedValueOnce(
           response({ json: { hash: "a".repeat(64), archive: "runtime.tar.gz" } }),
         )
-        .mockResolvedValueOnce(response({})),
+        .mockResolvedValueOnce(helperEnvironmentResponse()),
     );
     bridge.run
       .mockResolvedValueOnce({ stdout: "ready\n", stderr: "", exitCode: 0 })
@@ -111,7 +151,7 @@ describe("mobile SSH bootstrap", () => {
           response({ json: { hash: "b".repeat(64), archive: "runtime.tar.gz" } }),
         )
         .mockResolvedValueOnce(response({ bytes: new Uint8Array([1, 2, 3]) }))
-        .mockResolvedValueOnce(response({})),
+        .mockResolvedValueOnce(helperEnvironmentResponse()),
     );
     bridge.run
       .mockResolvedValueOnce({ stdout: "install\n", stderr: "", exitCode: 0 })

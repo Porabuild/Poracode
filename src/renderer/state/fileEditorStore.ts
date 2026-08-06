@@ -10,7 +10,6 @@ import { captureProductEvent } from "../analytics/productAnalytics";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasUnresolvedConflicts } from "@/renderer/utils/mergeConflicts";
 import { useGitStore } from "./gitStore";
-import { useRemoteServersStore } from "./remoteServersStore";
 import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
 
 /**
@@ -63,7 +62,11 @@ function externalReadAsProjectResult(result: ReadExternalFileResult): ReadProjec
       ...(result.hasBom !== undefined ? { hasBom: result.hasBom } : {}),
     };
   }
-  return { ...base, status: result.status };
+  return {
+    ...base,
+    status: result.status,
+    ...(result.contentBase64 !== undefined ? { contentBase64: result.contentBase64 } : {}),
+  };
 }
 
 export type FileEditorOverlayMode = "modal" | "fullscreen";
@@ -82,6 +85,7 @@ export interface FileEditorBuffer {
   status: ProjectFileReadStatus;
   modifiedAtMs: number;
   content: string;
+  binaryContentBase64?: string;
   savedContent: string;
   lineEnding: "lf" | "crlf";
   hasBom: boolean;
@@ -199,6 +203,7 @@ function buildBuffer(result: ReadProjectFileResult): FileEditorBuffer {
       status: result.status,
       modifiedAtMs: result.modifiedAtMs,
       content: "",
+      ...(result.contentBase64 !== undefined ? { binaryContentBase64: result.contentBase64 } : {}),
       savedContent: "",
       lineEnding: "lf",
       hasBom: false,
@@ -234,17 +239,21 @@ function isRemoteFileEditorContext(
   return typeof rootContext.remoteServerId === "string" && rootContext.remoteServerId.length > 0;
 }
 
+function normalizeRootContext(rootContext: FileEditorRootContext): FileEditorRootContext {
+  if (!rootContext.remoteServerId) return rootContext;
+  return {
+    ...rootContext,
+    projectLocation: {
+      ...rootContext.projectLocation,
+      remoteServerId: rootContext.remoteServerId,
+    },
+  };
+}
+
 async function readFileForContext(
   rootContext: FileEditorRootContext,
   path: string,
 ): Promise<ReadProjectFileResult> {
-  if (isRemoteFileEditorContext(rootContext) && !isExternalPath(path)) {
-    return useRemoteServersStore.getState().readProjectFile({
-      desktopId: rootContext.remoteServerId,
-      projectLocation: rootContext.projectLocation,
-      path,
-    });
-  }
   return isExternalPath(path)
     ? externalReadAsProjectResult(
         await readBridge().readExternalFile({
@@ -264,15 +273,6 @@ async function writeFileForContext(
   content: string,
   baseModifiedAtMs: number,
 ): Promise<{ modifiedAtMs: number }> {
-  if (isRemoteFileEditorContext(rootContext) && !isExternalPath(path)) {
-    return useRemoteServersStore.getState().writeProjectFile({
-      desktopId: rootContext.remoteServerId,
-      projectLocation: rootContext.projectLocation,
-      path,
-      content,
-      baseModifiedAtMs,
-    });
-  }
   return isExternalPath(path)
     ? await readBridge().writeExternalFile({
         projectLocation: rootContext.projectLocation,
@@ -363,18 +363,19 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
   buffers: {},
   refreshToken: 0,
   pendingReveal: null,
-  setRootContext: (rootContext) =>
+  setRootContext: (rootContext) => {
+    const nextRootContext = rootContext ? normalizeRootContext(rootContext) : null;
     set((state) => {
       if (
-        state.rootContext?.projectId === rootContext?.projectId &&
-        state.rootContext?.worktreePath === rootContext?.worktreePath &&
-        state.rootContext?.remoteServerId === rootContext?.remoteServerId
+        state.rootContext?.projectId === nextRootContext?.projectId &&
+        state.rootContext?.worktreePath === nextRootContext?.worktreePath &&
+        state.rootContext?.remoteServerId === nextRootContext?.remoteServerId
       ) {
         return {};
       }
 
       return {
-        rootContext,
+        rootContext: nextRootContext,
         overlayMode: null,
         tabs: [],
         activePath: null,
@@ -384,7 +385,8 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         pendingReveal: null,
         refreshToken: state.refreshToken + 1,
       };
-    }),
+    });
+  },
   clearSession: () =>
     set((state) => ({
       rootContext: null,
@@ -447,6 +449,9 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
               hasBom: existing.hasBom,
             }
           : {}),
+        ...(existing.binaryContentBase64 !== undefined
+          ? { contentBase64: existing.binaryContentBase64 }
+          : {}),
       };
       return cachedResult;
     }
@@ -480,6 +485,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
 
     try {
       const result = await readFileForContext(rootContext, openPath);
+      if (get().rootContext !== rootContext) return result;
       set((state) => ({
         buffers: {
           ...state.buffers,
@@ -496,6 +502,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       }
       return result;
     } catch (error) {
+      if (get().rootContext !== rootContext) throw error;
       set((state) => {
         const { [openPath]: _, ...rest } = state.buffers;
         return {
@@ -569,6 +576,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
     const savedContent = buffer.content;
     const isRemoteContext = isRemoteFileEditorContext(rootContext);
     const result = await writeFileForContext(rootContext, path, savedContent, buffer.modifiedAtMs);
+    if (get().rootContext !== rootContext) return;
 
     if (!isRemoteContext) {
       recentlySavedAt.set(path, Date.now());
@@ -709,6 +717,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         readFileForContext(rootContext, path).then((result) => ({ path, result })),
       ),
     );
+    if (get().rootContext !== rootContext) return;
 
     set((state) => {
       let changed = false;

@@ -1,5 +1,6 @@
 export type SettingsSection =
   | "profile"
+  | "workspaces"
   | "general"
   | "audio"
   | "appearance"

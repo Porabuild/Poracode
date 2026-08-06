@@ -1,0 +1,83 @@
+name: Deploy Nightly PWA
+
+# Vercel Git deployments are disabled in vercel.json. Keep
+# app-nightly.poracode.com on relevant master builds through this workflow.
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/deploy-nightly-pwa.yml"
+      - ".vercelignore"
+      - "lingui.config.ts"
+      - "native/**"
+      - "package.json"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "postcss.config.mjs"
+      - "public/**"
+      - "resources/**"
+      - "scripts/**"
+      - "src/**"
+      - "tsconfig.json"
+      - "vercel.json"
+      - "vite.config.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-nightly-pwa-master
+  cancel-in-progress: false
+
+jobs:
+  web:
+    name: Nightly PWA (Vercel)
+    runs-on: ubuntu-latest
+    environment: mobile-web
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      PORACODE_MOBILE_APP_HOST: ${{ vars.PORACODE_MOBILE_APP_HOST }}
+      NIGHTLY_ALIAS: app-nightly.poracode.com
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Validate Vercel configuration
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          for name in VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "Missing mobile-web variable: $name" >&2
+              exit 1
+            fi
+          done
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "Missing mobile-web secret: VERCEL_TOKEN" >&2
+            exit 1
+          fi
+      - name: Install Vercel CLI
+        run: npm install --global vercel@54.21.1
+      - name: Pull Vercel environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+      - name: Build
+        env:
+          PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
+          PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --token="$VERCEL_TOKEN"
+      - name: Deploy and update nightly alias
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          deployment_url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")"
+          vercel alias set "$deployment_url" "$NIGHTLY_ALIAS" --token="$VERCEL_TOKEN"

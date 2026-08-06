@@ -3,7 +3,10 @@
   "name": "chrome-tools",
   "version": "1.0.0",
   "description": "Work with the pages and signed-in sessions already open in Chrome.",
-  "author": { "name": "Poracode", "url": "https://poracode.com" },
+  "author": {
+    "name": "Poracode",
+    "url": "https://poracode.com"
+  },
   "homepage": "https://poracode.com",
   "license": "Apache-2.0",
   "keywords": ["chrome", "browser", "automation"],
@@ -13,19 +16,10 @@
       "category": "automation",
       "featured": true,
       "projectKinds": ["windows", "posix"],
-      "apps": [
-        {
-          "id": "chrome",
-          "name": "Chrome",
-          "description": "Control the user's Chrome browser through Poracode.",
-          "builtInMcpServerId": "chrome"
-        }
-      ],
       "skills": {
         "chrome-control": {
           "name": "Chrome Control",
-          "description": "Use Chrome safely when a task needs an existing browser session.",
-          "requiredAppIds": ["chrome"]
+          "description": "Use Chrome safely when a task needs an existing browser session."
         }
       }
     }

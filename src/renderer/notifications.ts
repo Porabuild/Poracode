@@ -1,11 +1,15 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { Thread, ThreadAttention, ThreadStatus } from "@/shared/contracts";
-import type { NotificationClickEvent } from "@/shared/ipc";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import {
+  isBrowserWebPushActive,
+  requestBrowserNotificationPermission,
+} from "@/renderer/browserNotificationPermission";
 import { i18n } from "@/renderer/i18n/i18n";
 
 type NotificationCategory = "done" | "needsAttention" | "error";
@@ -28,6 +32,10 @@ type SupervisorThreadStateEvent = {
   threadId: string;
   status: ThreadStatus;
   attention: ThreadAttention;
+  /** The turn settled because the user stopped it or an interrupt-backed steer
+   * replaced it. That is an acknowledgement of the user's own action, not a
+   * completion that should alert another device. */
+  forceCloseActiveTurn?: boolean;
 };
 
 const NOTIFICATION_SOUND_URL = "./notification.mp3";
@@ -67,7 +75,19 @@ function classifyTransition(
 
 function isThreadInActivePanes(threadId: string): boolean {
   const view = useAppStore.getState().view;
-  return view.kind === "thread" && view.panes.includes(threadId);
+  if (view.kind === "thread") return view.panes.includes(threadId);
+  if (view.kind !== "experiment") return false;
+  return (
+    useExperimentStore
+      .getState()
+      .experiments[view.experimentId]?.candidates.some(
+        (candidate) => candidate.threadId === threadId,
+      ) ?? false
+  );
+}
+
+function openNotificationThread(threadId: string): void {
+  openThread(threadId, { focusComposer: true, switchWorkspace: true });
 }
 
 function getProjectName(projectId: string): string {
@@ -112,7 +132,7 @@ function showToastNotification(
   const detail = getStatusDetail(category, status);
 
   const open = () => {
-    openThread(threadId, { focusComposer: true });
+    openNotificationThread(threadId);
     toast.close(toastId);
   };
 
@@ -141,7 +161,7 @@ function ensureBrowserNotificationPermission(): Promise<NotificationPermission> 
     return Promise.resolve(Notification.permission);
   }
   if (!permissionRequest) {
-    permissionRequest = Notification.requestPermission();
+    permissionRequest = requestBrowserNotificationPermission();
   }
   return permissionRequest;
 }
@@ -154,6 +174,10 @@ function showBrowserNotification(
   status: ThreadStatus,
 ): void {
   if (!canUseBrowserNotifications()) return;
+  // An installed PWA with an active Push API subscription is notified by its
+  // service worker, including while the page is suspended. Avoid a duplicate
+  // page-created notification when the live socket is still awake.
+  if (isBrowserWebPushActive()) return;
 
   const detail = getStatusDetail(category, status);
   const body = `${threadTitle}\n${detail}`;
@@ -166,7 +190,7 @@ function showBrowserNotification(
       });
       native.onclick = () => {
         void readBridge().focusWindow();
-        openThread(threadId, { focusComposer: true });
+        openNotificationThread(threadId);
         native.close();
       };
     } catch {
@@ -191,7 +215,7 @@ function showBrowserNotification(
 // src/main/browser/permissions.ts), which denies "notifications" and would force
 // Notification.permission to "denied"; the main-process API bypasses that layer
 // entirely. The renderer still owns the decision and the localized strings, and
-// reacts to clicks via onNotificationClick (handleNotificationClick below).
+// reacts to clicks through the source-neutral thread-open request event.
 function showElectronNotification(
   threadId: string,
   projectName: string,
@@ -224,15 +248,13 @@ function showNativeNotification(
   showElectronNotification(threadId, projectName, threadTitle, category, status);
 }
 
-export function handleNotificationClick(event: NotificationClickEvent): void {
-  openThread(event.threadId, { focusComposer: true });
-}
-
 export function handleThreadStateNotification(
   event: SupervisorThreadStateEvent,
   oldThread: Thread | undefined,
   newThread?: Pick<Thread, "status" | "attention">,
 ): void {
+  if (event.forceCloseActiveTurn) return;
+
   const settings = useSharedSettings.getState();
 
   if (!settings.notificationsEnabled) return;

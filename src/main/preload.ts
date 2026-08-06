@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { type PoracodeChannel, normalizeChannel } from "@/shared/channel";
 import type { RemoteThreadCommand } from "@/shared/contracts";
+import type { RemoteAccessPairingInfo } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { GitStatePatch } from "@/shared/gitState";
 import {
   createInvokeBridge,
   IPC_EVENT_CHANNELS,
@@ -10,11 +12,30 @@ import {
   type BrowserEvent,
   type PoracodeBridge,
   type PoracodeWindowKind,
-  type NotificationClickEvent,
+  type PrWatchMergedEvent,
+  type PrWatchStatusEvent,
+  type ProjectStateChangedEvent,
   type QuickComposerSubmission,
   type SupervisorEvent,
+  type ThreadOpenRequestedEvent,
   type UpdateStatus,
 } from "@/shared/ipc";
+
+/**
+ * Host home dir without `node:os` — sandboxed preload must not import Node
+ * built-ins that can fail and drop `window.poracode` (index.html then redirects
+ * to mobile.html).
+ */
+function resolveHomeDir(): string | undefined {
+  const env = process.env;
+  const userProfile = env.USERPROFILE?.trim();
+  if (userProfile) return userProfile;
+  const home = env.HOME?.trim();
+  if (home) return home;
+  // Windows often has HOMEDRIVE+HOMEPATH when USERPROFILE is unset.
+  const combined = `${env.HOMEDRIVE ?? ""}${env.HOMEPATH ?? ""}`.trim();
+  return combined.length > 0 ? combined : undefined;
+}
 
 function resolveAppVersion(): string {
   const prefix = "--lc-app-version=";
@@ -86,6 +107,8 @@ function resolveArgBoolean(prefix: string): boolean {
   return resolveArgValue(prefix) === "1";
 }
 
+const homeDir = resolveHomeDir();
+
 const bridge: PoracodeBridge = {
   platform: process.platform,
   appVersion: resolveAppVersion(),
@@ -94,6 +117,7 @@ const bridge: PoracodeBridge = {
   isDev: resolveIsDev(),
   windowKind: resolveWindowKind(),
   channel: resolveChannel(),
+  ...(homeDir ? { homeDir } : {}),
   electronVersion: process.versions.electron ?? "unknown",
   nodeVersion: process.versions.node,
   posthogEnableDev: resolveArgBoolean("--lc-posthog-enable-dev="),
@@ -141,6 +165,15 @@ const bridge: PoracodeBridge = {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.remoteThreadCommand, handler);
     };
   },
+  onRemoteAccessPairingChanged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, info: RemoteAccessPairingInfo) => {
+      listener(info);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.remoteAccessPairingChanged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.remoteAccessPairingChanged, handler);
+    };
+  },
   onSharedSettingsChanged(listener) {
     const handler = (_event: Electron.IpcRendererEvent, settings: SharedSettings) => {
       listener(settings);
@@ -150,13 +183,49 @@ const bridge: PoracodeBridge = {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.sharedSettingsChanged, handler);
     };
   },
-  onNotificationClick(listener) {
-    const handler = (_event: Electron.IpcRendererEvent, payload: NotificationClickEvent) => {
+  onProjectStateChanged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: ProjectStateChangedEvent) => {
       listener(payload);
     };
-    ipcRenderer.on(IPC_EVENT_CHANNELS.notificationClick, handler);
+    ipcRenderer.on(IPC_EVENT_CHANNELS.projectStateChanged, handler);
     return () => {
-      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.notificationClick, handler);
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.projectStateChanged, handler);
+    };
+  },
+  onGitStateChanged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, patch: GitStatePatch) => {
+      listener(patch);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.gitStateChanged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.gitStateChanged, handler);
+    };
+  },
+  onPrWatchMerged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: PrWatchMergedEvent) => {
+      listener(payload);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.prWatchMerged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.prWatchMerged, handler);
+    };
+  },
+  onPrWatchStatus(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: PrWatchStatusEvent) => {
+      listener(payload);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.prWatchStatus, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.prWatchStatus, handler);
+    };
+  },
+  onThreadOpenRequested(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: ThreadOpenRequestedEvent) => {
+      listener(payload);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.threadOpenRequested, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.threadOpenRequested, handler);
     };
   },
   submitQuickComposer(submission) {
@@ -170,6 +239,9 @@ const bridge: PoracodeBridge = {
   },
   notifyQuickComposerMainReady() {
     return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickComposerMainReady);
+  },
+  reloadRenderer() {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.rendererReload);
   },
   onQuickComposerSubmit(listener) {
     const handler = (_event: Electron.IpcRendererEvent, payload: QuickComposerSubmission) => {

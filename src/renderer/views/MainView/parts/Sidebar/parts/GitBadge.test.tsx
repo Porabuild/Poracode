@@ -6,6 +6,7 @@ import type { GitStatusResult, PrData, ProjectLocation } from "@/shared/contract
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import { getWorktreeActionVisibility } from "./useWorktreeActions";
 import { GitBadge } from "./GitBadge";
 
 const ghGetPrForBranchMock = vi.hoisted(() =>
@@ -95,6 +96,26 @@ describe("GitBadge", () => {
     expect(icon).toHaveClass("lucide-git-pull-request");
   });
 
+  it("keeps the latest merged PR status visible while allowing another PR", () => {
+    useGitStore.setState({
+      worktreeStatuses: { "/wt/feature": makeStatus() },
+      ghAvailable: { "project-1": true },
+      prData: {
+        "/wt/feature": { ...basePr, number: 2, state: "merged" },
+      },
+    });
+
+    render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
+
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const icon = badge.querySelector(".lucide-git-pull-request");
+    const actions = getWorktreeActionVisibility("project-1", "/wt/feature");
+
+    expect(icon).toHaveClass("text-[color:var(--pr-merged)]");
+    expect(actions.showCreatePr).toBe(true);
+    expect(actions.showOpenPr).toBe(false);
+  });
+
   it("falls back to a worktree fork icon when a clean worktree has no PR", () => {
     useGitStore.setState({
       worktreeStatuses: { "/wt/feature": makeStatus() },
@@ -127,8 +148,7 @@ describe("GitBadge", () => {
     const icon = badge.querySelector("svg");
 
     expect(badge).toHaveClass("opacity-0");
-    expect(badge).toHaveClass("px-1");
-    expect(badge).toHaveClass("py-0.5");
+    expect(badge).toHaveClass("p-[3px]");
     expect(badge).not.toHaveClass("w-[18px]");
     expect(badge).not.toHaveClass("w-0");
     expect(icon).not.toBeNull();
@@ -168,12 +188,40 @@ describe("GitBadge", () => {
     const icon = badge.querySelector("svg");
 
     expect(badge).toHaveClass("opacity-0");
-    expect(badge).toHaveClass("px-1");
-    expect(badge).toHaveClass("py-0.5");
+    expect(badge).toHaveClass("p-[3px]");
     expect(badge).not.toHaveClass("w-[18px]");
     expect(badge).not.toHaveClass("w-0");
     expect(icon).not.toBeNull();
     expect(icon).toHaveClass("lucide-git-branch");
+  });
+
+  it("pads a glyph-only badge into a square, and only widens one carrying diff counts", () => {
+    useGitStore.setState({
+      worktreeStatuses: { "/wt/feature": makeStatus() },
+      prData: { "/wt/feature": basePr },
+    });
+
+    const { unmount } = render(
+      <GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />,
+    );
+
+    // PR icon only: an 18px square, matching the row's other icon buttons.
+    expect(screen.getByRole("button", { name: "Git status for feature/pr" })).toHaveClass(
+      "p-[3px]",
+    );
+    unmount();
+
+    useGitStore.setState({
+      worktreeStatuses: {
+        "/wt/feature": makeStatus({ totalInsertions: 12, totalDeletions: 3 }),
+      },
+      prData: { "/wt/feature": basePr },
+    });
+    render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
+
+    const withCounts = screen.getByRole("button", { name: "Git status for feature/pr" });
+    expect(withCounts).toHaveClass("px-1");
+    expect(withCounts).not.toHaveClass("p-[3px]");
   });
 
   it("renders diff stats before the PR icon so the icon stays aligned with the timestamp", () => {
@@ -242,6 +290,54 @@ describe("GitBadge", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+    });
+    expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
+  });
+
+  it("shares one PR lookup across concurrent badges for the same project branch", async () => {
+    let resolvePr: (pr: PrData | null) => void = () => {};
+    ghGetPrForBranchMock.mockReturnValue(
+      new Promise<PrData | null>((resolve) => {
+        resolvePr = resolve;
+      }),
+    );
+    useAppStore.setState({
+      projects: [
+        {
+          id: "project-1",
+          name: "Project",
+          location: { kind: "posix", path: "/repo" },
+          createdAt: "2026-06-02T00:00:00.000Z",
+        },
+      ],
+    });
+    useGitStore.setState({
+      statuses: {
+        "project-1": makeStatus({
+          branch: "feature/current",
+          remoteInfo: { platform: "github", owner: "o", repo: "r", url: "https://github.com/o/r" },
+        }),
+      },
+      ghAvailable: { "project-1": true },
+    });
+
+    render(
+      <>
+        <GitBadge projectId="project-1" projectName="Project" />
+        <GitBadge projectId="project-1" projectName="Project" />
+      </>,
+    );
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(1);
+
+    resolvePr({ ...basePr, number: 2, title: "Current PR" });
+
+    await waitFor(() => {
+      const badges = screen.getAllByRole("button", { name: "Git status for Project" });
+      expect(badges).toHaveLength(2);
+      for (const badge of badges) {
+        expect(badge.querySelector(".lucide-git-pull-request")).not.toBeNull();
+      }
     });
     expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
   });

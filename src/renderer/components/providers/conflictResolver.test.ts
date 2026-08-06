@@ -31,6 +31,7 @@ const codexStatus = {
   kind: "codex",
   capabilities: {
     models: [
+      { id: "gpt-5.6-sol", label: "5.6 Sol" },
       { id: "gpt-5.5", label: "5.5" },
       { id: "gpt-5.4", label: "5.4" },
       { id: "gpt-5.4-mini", label: "5.4 Mini" },
@@ -65,9 +66,13 @@ describe("resolveConflictResolverConfig", () => {
     expect(result.model).toBe("claude-opus-4-8");
   });
 
-  it("falls back to registered defaults (Codex → GPT-5.5)", () => {
+  it("falls back to registered defaults (Codex → GPT-5.6 Sol medium)", () => {
     const result = resolveConflictResolverConfig(codexStatus, "", "");
-    expect(result.model).toBe("gpt-5.5");
+    expect(result).toEqual({
+      model: "gpt-5.6-sol",
+      effort: "medium",
+      availableEfforts: ["low", "medium", "high", "xhigh"],
+    });
   });
 
   it("falls back to registered defaults (Cursor → Composer 2.5 Fast)", () => {

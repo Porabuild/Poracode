@@ -1,15 +1,30 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProcess } from "node:child_process";
+import type { ProjectLocation } from "@/shared/contracts";
 import type { CommandSpec } from "../base";
 import type { OpenCodeServerHandle } from "./sdkServer";
 
 const mocks = vi.hoisted(() => ({
-  buildOpenCodeServerCommand: vi.fn<() => CommandSpec>(),
+  buildOpenCodeServerCommand:
+    vi.fn<
+      (
+        location: ProjectLocation,
+        resolvedExecPath?: string,
+        env?: Record<string, string>,
+      ) => CommandSpec
+    >(),
   createOpencodeClient: vi.fn<() => unknown>(),
   resolveAgentBinaryPath: vi.fn<() => string>(),
+  resolveWslHomeDirectoryAsync: vi.fn<() => Promise<string>>(),
+  installOpenCodePlugin: vi.fn<() => { ok: true; version: string }>(),
   spawnOpenCodeServer: vi.fn<() => OpenCodeServerHandle>(),
   disposeSpawnedOpenCodeServerHandles: vi.fn<() => void>(),
+}));
+
+vi.mock("../base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../base")>()),
+  resolveWslHomeDirectoryAsync: mocks.resolveWslHomeDirectoryAsync,
 }));
 
 vi.mock("../binaryResolver", () => ({
@@ -25,6 +40,10 @@ vi.mock("./sdkServer", () => ({
   disposeSpawnedOpenCodeServerHandles: mocks.disposeSpawnedOpenCodeServerHandles,
 }));
 
+vi.mock("./plugin/install", () => ({
+  installOpenCodePlugin: mocks.installOpenCodePlugin,
+}));
+
 vi.mock("@opencode-ai/sdk/v2/client", () => ({
   createOpencodeClient: mocks.createOpencodeClient,
 }));
@@ -38,6 +57,15 @@ function makeHandle(baseUrl: string) {
   } satisfies OpenCodeServerHandle;
 }
 
+function remoteMcp(
+  name: string,
+  url: string,
+  headers: Record<string, string> = {},
+  timeoutMs = 30_000,
+) {
+  return { id: name, name, timeoutMs, transport: { type: "http" as const, url, headers } };
+}
+
 describe("acquireOpenCodeServer", () => {
   const oldBrowserMcpUrl = process.env.PORACODE_BROWSER_MCP_URL;
   const oldBrowserMcpToken = process.env.PORACODE_BROWSER_MCP_TOKEN;
@@ -49,14 +77,56 @@ describe("acquireOpenCodeServer", () => {
       cwd: "/repo",
       env: {},
     });
-    mocks.createOpencodeClient.mockReset();
+    mocks.createOpencodeClient.mockReset().mockImplementation(() => makeSubagentClient());
     mocks.resolveAgentBinaryPath.mockReset().mockReturnValue("opencode");
+    mocks.resolveWslHomeDirectoryAsync.mockReset().mockResolvedValue("/home/test");
+    mocks.installOpenCodePlugin.mockReset().mockReturnValue({ ok: true, version: "1.0.0" });
     mocks.spawnOpenCodeServer.mockReset();
+    mocks.disposeSpawnedOpenCodeServerHandles.mockReset();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
     process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:9321";
     process.env.PORACODE_BROWSER_MCP_TOKEN = "test-token";
   });
 
-  afterEach(() => {
+  it("installs the routing plugin before starting the shared native server", async () => {
+    const handle = makeHandle("http://127.0.0.1:4096");
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    await acquireOpenCodeServer({
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+    });
+
+    expect(mocks.installOpenCodePlugin).toHaveBeenCalledWith(
+      expect.objectContaining({ envKind: "windows" }),
+    );
+    expect(mocks.installOpenCodePlugin.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.spawnOpenCodeServer.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("does not leak a rejected server startup as an unhandled rejection", async () => {
+    const handle = {
+      ...makeHandle("http://127.0.0.1:4096"),
+      baseUrl: Promise.reject(new Error("database is locked")),
+    };
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    await expect(
+      acquireOpenCodeServer({
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+      }),
+    ).rejects.toThrow("database is locked");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(handle.dispose).toHaveBeenCalledOnce();
+  });
+
+  afterEach(async () => {
+    const { shutdownSpawnedOpenCodeServers } = await import("./sdkClient");
+    shutdownSpawnedOpenCodeServers();
+    vi.unstubAllGlobals();
     if (oldBrowserMcpUrl === undefined) {
       delete process.env.PORACODE_BROWSER_MCP_URL;
     } else {
@@ -74,38 +144,41 @@ describe("acquireOpenCodeServer", () => {
     const secondHandle = makeHandle("http://127.0.0.1:4097");
     const firstAdd = vi.fn<() => Promise<void>>().mockRejectedValue(new Error("fetch failed"));
     const secondAdd = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    const secondConnect = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
     mocks.spawnOpenCodeServer.mockReturnValueOnce(firstHandle).mockReturnValueOnce(secondHandle);
     mocks.createOpencodeClient
+      .mockReturnValueOnce({})
       .mockReturnValueOnce({
         mcp: {
           add: firstAdd,
           connect: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         },
       })
+      .mockReturnValueOnce({})
       .mockReturnValueOnce({
         mcp: {
           add: secondAdd,
-          connect: secondConnect,
         },
       });
 
     const { acquireOpenCodeServer } = await import("./sdkClient");
     const acquired = await acquireOpenCodeServer({
       projectLocation: { kind: "posix", path: "/repo" },
-      browserMcpEnabled: true,
+      mcpServers: [
+        remoteMcp("browser", "http://127.0.0.1:9321/mcp", {
+          Authorization: "Bearer test-token",
+        }),
+      ],
     });
 
     expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
     expect(firstAdd).toHaveBeenCalledTimes(1);
     expect(firstHandle.dispose).toHaveBeenCalledTimes(1);
     expect(secondAdd).toHaveBeenCalledTimes(1);
-    expect(secondConnect).toHaveBeenCalledTimes(1);
     expect(acquired.baseUrl).toBe("http://127.0.0.1:4097");
 
     await acquired.dispose();
-    expect(secondHandle.dispose).toHaveBeenCalledTimes(1);
+    expect(secondHandle.dispose).not.toHaveBeenCalled();
   });
 
   function makeSubagentClient() {
@@ -115,14 +188,11 @@ describe("acquireOpenCodeServer", () => {
         connect: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         disconnect: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
+      instance: {
+        dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
     };
   }
-
-  const subagentMcp = {
-    url: "http://127.0.0.1:9400/mcp",
-    token: "parent-thread-token",
-    headers: { Authorization: "Bearer parent-thread-token" },
-  };
 
   const chromeMcp = {
     url: "http://127.0.0.1:9401/mcp",
@@ -139,8 +209,7 @@ describe("acquireOpenCodeServer", () => {
     const { acquireOpenCodeServer } = await import("./sdkClient");
     const acquired = await acquireOpenCodeServer({
       projectLocation: { kind: "posix", path: "/repo-chrome" },
-      chromeMcpEnabled: true,
-      chromeMcp,
+      mcpServers: [remoteMcp("chrome", chromeMcp.url, chromeMcp.headers)],
     });
 
     expect(client.mcp.add).toHaveBeenCalledWith({
@@ -151,144 +220,238 @@ describe("acquireOpenCodeServer", () => {
         url: chromeMcp.url,
         headers: chromeMcp.headers,
         enabled: true,
+        timeout: 30_000,
       },
     });
-    expect(client.mcp.connect).toHaveBeenCalledWith({
-      directory: "/repo-chrome",
-      name: "chrome",
-    });
+    expect(client.mcp.connect).not.toHaveBeenCalled();
 
     await acquired.dispose();
-    expect(handle.dispose).toHaveBeenCalledTimes(1);
+    expect(handle.dispose).not.toHaveBeenCalled();
   });
 
-  it("dedicates a per-thread server and registers the subagents MCP via mcp.add", async () => {
-    const handle = makeHandle("http://127.0.0.1:4200");
-    mocks.spawnOpenCodeServer.mockReturnValue(handle);
-    const client = makeSubagentClient();
-    mocks.createOpencodeClient.mockReturnValue(client);
-
-    const { acquireOpenCodeServer } = await import("./sdkClient");
-    const acquired = await acquireOpenCodeServer({
-      projectLocation: { kind: "posix", path: "/repo-dedicated" },
-      subagentMcp,
-      dedicatedKey: "thread-parent",
-    });
-
-    expect(client.mcp.add).toHaveBeenCalledTimes(1);
-    expect(client.mcp.add).toHaveBeenCalledWith({
-      directory: "/repo-dedicated",
-      name: "subagents",
-      config: {
-        type: "remote",
-        url: subagentMcp.url,
-        headers: subagentMcp.headers,
-        enabled: true,
-      },
-    });
-    expect(client.mcp.connect).toHaveBeenCalledWith({
-      directory: "/repo-dedicated",
-      name: "subagents",
-    });
-
-    // Dedicated entry has a single tenant → disposes with the thread.
-    await acquired.dispose();
-    expect(handle.dispose).toHaveBeenCalledTimes(1);
-  });
-
-  it("keys the dedicated server distinctly from the shared per-project pool", async () => {
-    const sharedHandle = makeHandle("http://127.0.0.1:4300");
-    const dedicatedHandle = makeHandle("http://127.0.0.1:4301");
-    mocks.spawnOpenCodeServer
-      .mockReturnValueOnce(sharedHandle)
-      .mockReturnValueOnce(dedicatedHandle);
-    mocks.createOpencodeClient.mockReturnValueOnce({}).mockReturnValueOnce(makeSubagentClient());
-
-    const { acquireOpenCodeServer } = await import("./sdkClient");
-    const location = { kind: "posix", path: "/repo-split" } as const;
-
-    // A plain (child / non-hosting) acquire joins the shared pool …
-    const shared = await acquireOpenCodeServer({ projectLocation: location });
-    // … while a hosting thread on the SAME project gets its own server.
-    const dedicated = await acquireOpenCodeServer({
-      projectLocation: location,
-      subagentMcp,
-      dedicatedKey: "thread-host",
-    });
-
-    expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
-    expect(shared.baseUrl).toBe("http://127.0.0.1:4300");
-    expect(dedicated.baseUrl).toBe("http://127.0.0.1:4301");
-
-    // Tearing down the dedicated server must not touch the shared one.
-    await dedicated.dispose();
-    expect(dedicatedHandle.dispose).toHaveBeenCalledTimes(1);
-    expect(sharedHandle.dispose).not.toHaveBeenCalled();
-    await shared.dispose();
-    expect(sharedHandle.dispose).toHaveBeenCalledTimes(1);
-  });
-
-  it("recycles a dedicated server when its managed custom MCP set changes", async () => {
-    const firstHandle = makeHandle("http://127.0.0.1:4350");
-    const secondHandle = makeHandle("http://127.0.0.1:4351");
+  it("shares an authenticated native sidecar across directories", async () => {
+    const handle = makeHandle("http://127.0.0.1:4300");
+    const eventClient = makeSubagentClient();
     const firstClient = makeSubagentClient();
     const secondClient = makeSubagentClient();
-    mocks.spawnOpenCodeServer.mockReturnValueOnce(firstHandle).mockReturnValueOnce(secondHandle);
-    mocks.createOpencodeClient.mockReturnValueOnce(firstClient).mockReturnValueOnce(secondClient);
-    const location = { kind: "posix", path: "/repo-custom" } as const;
-    const customMcp = {
-      id: "memory-id",
-      name: "memory",
-      description: "",
-      enabled: true,
-      timeoutMs: 30_000,
-      transport: { type: "stdio" as const, command: "memory-server", args: [], env: {} },
-    };
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+    mocks.createOpencodeClient
+      .mockReturnValueOnce(eventClient)
+      .mockReturnValueOnce(firstClient)
+      .mockReturnValueOnce(secondClient);
 
     const { acquireOpenCodeServer } = await import("./sdkClient");
     const first = await acquireOpenCodeServer({
-      projectLocation: location,
-      dedicatedKey: "thread-custom",
-      mcpServers: [customMcp],
+      projectLocation: { kind: "posix", path: "/repo-a" },
     });
     const second = await acquireOpenCodeServer({
-      projectLocation: location,
-      dedicatedKey: "thread-custom",
-      mcpServers: [],
+      projectLocation: { kind: "posix", path: "/repo-b" },
     });
-
-    expect(firstClient.mcp.disconnect).toHaveBeenCalledWith({
-      directory: "/repo-custom",
-      name: "memory",
-    });
-    expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
-    expect(second.baseUrl).toBe("http://127.0.0.1:4351");
-    expect(firstHandle.dispose).not.toHaveBeenCalled();
-
-    await first.dispose();
-    expect(firstHandle.dispose).toHaveBeenCalledTimes(1);
-    await second.dispose();
-    expect(secondHandle.dispose).toHaveBeenCalledTimes(1);
-  });
-
-  it("shares one server for two child acquires that do not host the subagents MCP", async () => {
-    const handle = makeHandle("http://127.0.0.1:4400");
-    mocks.spawnOpenCodeServer.mockReturnValue(handle);
-    mocks.createOpencodeClient.mockReturnValue({});
-
-    const { acquireOpenCodeServer } = await import("./sdkClient");
-    const location = { kind: "posix", path: "/repo-shared" } as const;
-
-    const first = await acquireOpenCodeServer({ projectLocation: location });
-    const second = await acquireOpenCodeServer({ projectLocation: location });
 
     expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(1);
-    expect(first.baseUrl).toBe(second.baseUrl);
+    expect(first.client).toBe(firstClient);
+    expect(second.client).toBe(secondClient);
+    expect(first.eventClient).toBe(eventClient);
+    expect(second.eventClient).toBe(eventClient);
+
+    const credentials = mocks.buildOpenCodeServerCommand.mock.calls[0]?.[2] as Record<
+      string,
+      string
+    >;
+    expect(credentials.OPENCODE_SERVER_USERNAME).toBe("opencode");
+    expect(credentials.OPENCODE_SERVER_PASSWORD).toEqual(expect.any(String));
+    expect(credentials.PORACODE_OPENCODE_SESSION_ROUTING).toBe("1");
+    const authorization = `Basic ${Buffer.from(
+      `opencode:${credentials.OPENCODE_SERVER_PASSWORD}`,
+    ).toString("base64")}`;
+    expect(mocks.createOpencodeClient).toHaveBeenNthCalledWith(1, {
+      baseUrl: "http://127.0.0.1:4300",
+      headers: { Authorization: authorization },
+      throwOnError: true,
+    });
+    expect(mocks.createOpencodeClient).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ directory: "/repo-a" }),
+    );
+    expect(mocks.createOpencodeClient).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ directory: "/repo-b" }),
+    );
 
     await first.dispose();
-    expect(handle.dispose).not.toHaveBeenCalled(); // second still holds a ref
     await second.dispose();
-    expect(handle.dispose).toHaveBeenCalledTimes(1);
+    expect(handle.dispose).not.toHaveBeenCalled();
+  });
+
+  it("pools WSL directories by distro", async () => {
+    const ubuntuHandle = makeHandle("http://127.0.0.1:4400");
+    const debianHandle = makeHandle("http://127.0.0.1:4401");
+    mocks.spawnOpenCodeServer.mockReturnValueOnce(ubuntuHandle).mockReturnValueOnce(debianHandle);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const ubuntuA = await acquireOpenCodeServer({
+      projectLocation: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo-a",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo-a",
+      },
+    });
+    const ubuntuB = await acquireOpenCodeServer({
+      projectLocation: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo-b",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo-b",
+      },
+    });
+    const debian = await acquireOpenCodeServer({
+      projectLocation: {
+        kind: "wsl",
+        distro: "Debian",
+        linuxPath: "/repo-a",
+        uncPath: "\\\\wsl.localhost\\Debian\\repo-a",
+      },
+    });
+
+    expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
+    expect(ubuntuA.baseUrl).toBe(ubuntuB.baseUrl);
+    expect(debian.baseUrl).not.toBe(ubuntuA.baseUrl);
+
+    await ubuntuA.dispose();
+    await ubuntuB.dispose();
+    await debian.dispose();
+    expect(ubuntuHandle.dispose).not.toHaveBeenCalled();
+    expect(debianHandle.dispose).not.toHaveBeenCalled();
+  });
+
+  it("rebuilds MCP state for only the changed directory", async () => {
+    const handle = makeHandle("http://127.0.0.1:4500");
+    const eventClient = makeSubagentClient();
+    const firstAClient = makeSubagentClient();
+    const firstBClient = makeSubagentClient();
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+    mocks.createOpencodeClient
+      .mockReturnValueOnce(eventClient)
+      .mockReturnValueOnce(firstAClient)
+      .mockReturnValueOnce(firstBClient);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const firstA = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo-a" },
+      mcpServers: [remoteMcp("memory", "http://127.0.0.1:9500/mcp")],
+    });
+    const firstB = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo-b" },
+      mcpServers: [remoteMcp("chrome", chromeMcp.url, chromeMcp.headers)],
+    });
+    await firstA.updateMcpServers([]);
+
+    expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(1);
+    expect(firstAClient.mcp.disconnect).toHaveBeenCalledWith({
+      directory: "/repo-a",
+      name: "memory",
+    });
+    expect(firstAClient.instance.dispose).toHaveBeenCalledWith({ directory: "/repo-a" });
+    expect(firstBClient.instance.dispose).not.toHaveBeenCalled();
+    expect(handle.dispose).not.toHaveBeenCalled();
+
+    await firstA.dispose();
+    await firstB.dispose();
+  });
+
+  it("updates an existing MCP config without disposing the directory", async () => {
+    const handle = makeHandle("http://127.0.0.1:4550");
+    const eventClient = makeSubagentClient();
+    const client = makeSubagentClient();
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+    mocks.createOpencodeClient.mockReturnValueOnce(eventClient).mockReturnValueOnce(client);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const acquired = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo" },
+      mcpServers: [remoteMcp("memory", "http://127.0.0.1:9500/mcp")],
+    });
+    await acquired.updateMcpServers([remoteMcp("memory", "http://127.0.0.1:9501/mcp")]);
+
+    expect(client.mcp.add).toHaveBeenCalledTimes(2);
+    expect(client.mcp.disconnect).not.toHaveBeenCalled();
+    expect(client.instance.dispose).not.toHaveBeenCalled();
+
+    await acquired.dispose();
+  });
+
+  it("leaves managed MCP state unchanged when a caller omits mcpServers", async () => {
+    const handle = makeHandle("http://127.0.0.1:4600");
+    const eventClient = makeSubagentClient();
+    const settingsClient = makeSubagentClient();
+    const oneShotClient = makeSubagentClient();
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+    mocks.createOpencodeClient
+      .mockReturnValueOnce(eventClient)
+      .mockReturnValueOnce(settingsClient)
+      .mockReturnValueOnce(oneShotClient);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const settings = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo" },
+      mcpServers: [remoteMcp("chrome", chromeMcp.url, chromeMcp.headers)],
+    });
+    const oneShot = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo" },
+    });
+
+    expect(oneShotClient.mcp.add).not.toHaveBeenCalled();
+    expect(oneShotClient.mcp.disconnect).not.toHaveBeenCalled();
+    expect(oneShotClient.instance.dispose).not.toHaveBeenCalled();
+
+    await settings.dispose();
+    await oneShot.dispose();
+  });
+
+  it("serializes concurrent MCP updates for the same directory", async () => {
+    const handle = makeHandle("http://127.0.0.1:4700");
+    const eventClient = makeSubagentClient();
+    const firstClient = makeSubagentClient();
+    const secondClient = makeSubagentClient();
+    let markStarted!: () => void;
+    let releaseAdd!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const blockedAdd = new Promise<void>((resolve) => {
+      releaseAdd = resolve;
+    });
+    firstClient.mcp.add.mockImplementation(async () => {
+      markStarted();
+      await blockedAdd;
+    });
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+    mocks.createOpencodeClient
+      .mockReturnValueOnce(eventClient)
+      .mockReturnValueOnce(firstClient)
+      .mockReturnValueOnce(secondClient);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const firstPromise = acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo" },
+      mcpServers: [remoteMcp("chrome", chromeMcp.url, chromeMcp.headers)],
+    });
+    await started;
+    const secondPromise = acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo" },
+      mcpServers: [],
+    });
+    await Promise.resolve();
+
+    expect(secondClient.instance.dispose).not.toHaveBeenCalled();
+    releaseAdd();
+    const first = await firstPromise;
+    const second = await secondPromise;
+    expect(secondClient.instance.dispose).toHaveBeenCalledWith({ directory: "/repo" });
+
+    await first.dispose();
+    await second.dispose();
   });
 
   it("shutdownSpawnedOpenCodeServers clears pool bookkeeping and disposes tracked spawns only", async () => {
@@ -298,7 +461,6 @@ describe("acquireOpenCodeServer", () => {
 
     const acquired = await acquireOpenCodeServer({
       projectLocation: { kind: "windows", path: "C:\\repo" },
-      browserMcpEnabled: false,
     });
     expect(acquired.baseUrl).toBe("http://127.0.0.1:4096");
 
@@ -310,7 +472,6 @@ describe("acquireOpenCodeServer", () => {
     await expect(
       acquireOpenCodeServer({
         projectLocation: { kind: "windows", path: "C:\\repo" },
-        browserMcpEnabled: false,
       }),
     ).resolves.toBeDefined();
     expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);

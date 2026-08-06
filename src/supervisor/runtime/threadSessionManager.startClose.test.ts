@@ -5,7 +5,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
-import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
+
+const captureSupervisorException = vi.hoisted(() =>
+  vi.fn<(error: unknown, tags?: Record<string, string>) => void>(),
+);
+
+vi.mock("../diagnostics/sentry", async (importActual) => {
+  const actual = await importActual<typeof import("../diagnostics/sentry")>();
+  return { ...actual, captureSupervisorException };
+});
 
 vi.mock("../agents/base", async (importActual) => {
   const actual = await importActual<typeof import("../agents/base")>();
@@ -61,11 +69,7 @@ function deferred<T = void>(): {
   return { promise, resolve, reject };
 }
 
-function createManager(
-  agentKind: AgentKind,
-  adapter: AgentAdapter,
-  extraOptions: Partial<ThreadSessionManagerOptions> = {},
-): ThreadSessionManager {
+function createManager(agentKind: AgentKind, adapter: AgentAdapter): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
   const manager = new ThreadSessionManager({
@@ -76,7 +80,6 @@ function createManager(
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[agentKind, adapter]]),
     windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
-    ...extraOptions,
   });
   managersToDispose.push(manager);
   return manager;
@@ -177,172 +180,175 @@ afterEach(async () => {
   }
 });
 
+describe("ThreadSessionManager provider-session routing", () => {
+  it("resolves both root and provider-owned child sessions to the live thread", () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    structuredSession.ownsProviderSession = (sessionId) => sessionId === "ses_child";
+    const adapter = createAdapter("opencode", structuredSession);
+    adapter.capabilities.crossagentMcpRouting = "provider-session";
+    const manager = createManager("opencode", adapter);
+    const runtime = createInactiveRuntime("opencode", adapter, structuredSession);
+    manager.sessions.set(runtime.threadId, runtime);
+    manager.sessionsBySessionId.set("ses_existing", runtime);
+
+    expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBe(runtime.threadId);
+    expect(manager.getThreadIdByProviderSessionId("ses_child")).toBe(runtime.threadId);
+    expect(manager.getThreadIdByProviderSessionId("ses_unknown")).toBeUndefined();
+
+    delete adapter.capabilities.crossagentMcpRouting;
+    expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBeUndefined();
+  });
+});
+
 describe("ThreadSessionManager start guards", () => {
-  it("does not launch with the raw prompt when plugin policy filters every segment", async () => {
+  it("lets the IPC boundary exclusively own a structured GUI factory failure", async () => {
+    captureSupervisorException.mockClear();
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("codex", structuredSession);
-    const filterPluginSkillSegments = vi.fn<
-      NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>
-    >(() => []);
-    const manager = createManager("codex", adapter, { filterPluginSkillSegments });
+    vi.mocked(adapter.createStructuredSession!).mockRejectedValueOnce(
+      new Error("factory output with private provider details"),
+    );
+    const manager = createManager("codex", adapter);
 
-    await manager.startThread({
-      threadId: "thread-filtered-skill",
-      projectLocation: { kind: "windows", path: "C:\\repo" },
-      agentKind: "codex",
-      config: { model: "codex/model" },
-      prompt: "/browser-control",
-      segments: [
-        {
-          kind: "skill",
-          name: "browser-control",
-          path: "C:\\plugins\\browser-control\\SKILL.md",
-          invocation: "/browser-control",
-          provider: "Browser Tools",
-          scope: "global",
-        },
-      ],
-      initialSize: { cols: 80, rows: 24 },
-      presentationMode: "terminal",
+    await expect(
+      manager.startThread({
+        threadId: "factory-failure",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        agentKind: "codex",
+        config: { model: "codex/model" },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      }),
+    ).rejects.toMatchObject({
+      name: "StructuredRuntimeDiagnosticError",
+      message: "Structured runtime session creation failed.",
     });
+    expect(captureSupervisorException).not.toHaveBeenCalled();
+  });
 
-    expect(filterPluginSkillSegments).toHaveBeenCalledTimes(1);
-    expect(adapter.buildLaunchArgv).toHaveBeenCalledWith(
-      { kind: "windows", path: "C:\\repo" },
-      { model: "codex/model" },
-      "",
-      undefined,
-      expect.objectContaining({ agentSettings: expect.any(Object) }),
+  it("reports an optional terminal structured factory failure once and falls back", async () => {
+    captureSupervisorException.mockClear();
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    vi.mocked(adapter.createStructuredSession!).mockRejectedValueOnce(
+      new Error("factory output with private provider details"),
+    );
+    const manager = createManager("codex", adapter);
+
+    await expect(
+      manager.startThread({
+        threadId: "terminal-factory-failure",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        agentKind: "codex",
+        config: { model: "codex/model" },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "terminal",
+      }),
+    ).resolves.toEqual({ threadId: "terminal-factory-failure" });
+    expect(captureSupervisorException).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        name: "StructuredRuntimeDiagnosticError",
+        message: "Structured runtime session creation failed.",
+      }),
+      expect.objectContaining({
+        "poracode.feature_area": "structured-runtime-session-creation",
+      }),
     );
   });
 
-  it("unions supervisor and caller hard-disables after plugin App defaults", async () => {
+  it("treats late input, write, and interrupt IPC after known removal as idempotent", async () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("codex", structuredSession);
-    adapter.capabilities.browserMcpScope = { terminal: "launch" };
-    adapter.capabilities.subagentMcpScope = { terminal: "launch" };
-    const manager = createManager("codex", adapter, {
-      readDisabledBuiltInMcpServerIds: () => ["browser"],
-      readDisabledBuiltInMcpTools: () => ({ browser: ["server-disabled-tool"] }),
-      applyPluginAppsToConfig: (config) => ({
-        config: { ...config, browserMcp: true, subagentMcp: true },
-        disabledConfigKeys: [],
-      }),
-    });
+    const manager = createManager("codex", adapter);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.threadId = "closed-thread";
+    manager.sessions.set(runtime.threadId, runtime);
+    await manager.closeThread({ threadId: runtime.threadId });
 
-    await manager.startThread({
-      threadId: "thread-authoritative-mcp-disables",
-      projectLocation: { kind: "windows", path: "C:\\repo" },
-      agentKind: "codex",
-      config: { model: "codex/model" },
-      prompt: "",
-      initialSize: { cols: 80, rows: 24 },
-      presentationMode: "terminal",
-      disabledBuiltInMcpServerIds: ["subagents"],
-      disabledBuiltInMcpTools: { browser: ["caller-disabled-tool"] },
-    });
-
-    expect(adapter.buildLaunchArgv).toHaveBeenCalledWith(
-      { kind: "windows", path: "C:\\repo" },
-      expect.objectContaining({ browserMcp: false, subagentMcp: false }),
-      "",
-      undefined,
-      expect.not.objectContaining({
-        browserMcp: expect.anything(),
-        subagentMcp: expect.anything(),
+    await expect(
+      manager.sendThreadInput({
+        threadId: "closed-thread",
+        prompt: "late",
+        config: { model: "codex/model" },
       }),
-    );
-    expect(manager.sessions.get("thread-authoritative-mcp-disables")?.runtimeLaunchConfig).toEqual(
-      expect.objectContaining({ browserMcp: false, subagentMcp: false }),
-    );
-    expect(
-      manager.sessions.get("thread-authoritative-mcp-disables")?.mcpLaunchSnapshot
-        .disabledBuiltInMcpTools,
-    ).toEqual({ browser: ["caller-disabled-tool", "server-disabled-tool"] });
+    ).resolves.toBeUndefined();
+    await expect(
+      manager.writeTerminal({ threadId: "closed-thread", data: "late" }),
+    ).resolves.toBeUndefined();
+    await expect(manager.interruptThread({ threadId: "closed-thread" })).resolves.toBeUndefined();
   });
 
-  it("rejects renderer App flags outside the provider launch scope", async () => {
+  it("preserves bookkeeping errors for never-known session ids", async () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("codex", structuredSession);
     const manager = createManager("codex", adapter);
 
-    await manager.startThread({
-      threadId: "thread-unsupported-app-flags",
-      projectLocation: { kind: "windows", path: "C:\\repo" },
-      agentKind: "codex",
-      config: {
-        model: "codex/model",
-        browserMcp: true,
-        subagentMcp: true,
-        computerUse: true,
-        chromeMcp: true,
-      },
-      prompt: "",
-      initialSize: { cols: 80, rows: 24 },
-      presentationMode: "terminal",
-    });
-
-    expect(adapter.buildLaunchArgv).toHaveBeenCalledWith(
-      { kind: "windows", path: "C:\\repo" },
-      expect.objectContaining({
-        browserMcp: false,
-        subagentMcp: false,
-        computerUse: false,
-        chromeMcp: false,
+    await expect(
+      manager.sendThreadInput({
+        threadId: "never-known",
+        prompt: "late",
+        config: { model: "codex/model" },
       }),
-      "",
-      undefined,
-      expect.not.objectContaining({
-        browserMcp: expect.anything(),
-        subagentMcp: expect.anything(),
-        computerUseMcp: expect.anything(),
-        chromeMcp: expect.anything(),
-      }),
+    ).rejects.toThrow("Unknown thread session: never-known");
+    await expect(manager.writeTerminal({ threadId: "never-known", data: "late" })).rejects.toThrow(
+      "Unknown thread session: never-known",
+    );
+    await expect(manager.interruptThread({ threadId: "never-known" })).rejects.toThrow(
+      "Unknown thread session: never-known",
     );
   });
 
-  it("fails a selected plugin skill when its requested App transport cannot attach", async () => {
+  it("bounds removal tombstones and clears one when the thread id is reused", async () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("codex", structuredSession);
-    adapter.capabilities.browserMcpScope = { terminal: "launch" };
-    const filterPluginSkillSegments = vi.fn<
-      NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>
-    >((segments, context) => (context.launchConfig?.browserMcp === true ? segments : []));
-    const manager = createManager("codex", adapter, {
-      applyPluginAppsToConfig: (config) => ({
-        config: { ...config, browserMcp: true },
-        disabledConfigKeys: [],
-      }),
-      filterPluginSkillSegments,
+    const manager = createManager("codex", adapter);
+    const internal = manager as unknown as {
+      recentlyRemovedThreadIds: Set<string>;
+      rememberRemovedThread(threadId: string): void;
+    };
+
+    for (let index = 0; index < 257; index++) {
+      internal.rememberRemovedThread(`removed-${index}`);
+    }
+    expect(internal.recentlyRemovedThreadIds.size).toBe(256);
+    expect(internal.recentlyRemovedThreadIds.has("removed-0")).toBe(false);
+    expect(internal.recentlyRemovedThreadIds.has("removed-256")).toBe(true);
+
+    internal.rememberRemovedThread("reused-thread");
+    await manager.startThread({
+      threadId: "reused-thread",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "codex",
+      config: { model: "codex/model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    expect(internal.recentlyRemovedThreadIds.has("reused-thread")).toBe(false);
+  });
+
+  it("passes an empty MCP set to provider-owned structured sessions", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("opencode", structuredSession);
+    adapter.capabilities.mcpConfigSource = "agentSettings";
+    const manager = createManager("opencode", adapter);
+
+    await manager.startThread({
+      threadId: "thread-opencode-empty-mcp",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "opencode",
+      config: { model: "opencode/model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+      disabledBuiltInMcpServerIds: ["app-controls"],
     });
 
-    await expect(
-      manager.startThread({
-        threadId: "thread-missing-required-app",
-        projectLocation: {
-          kind: "wsl",
-          distro: "Ubuntu",
-          linuxPath: "/repo",
-          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
-        },
-        agentKind: "codex",
-        config: { model: "codex/model" },
-        prompt: "/browser-control",
-        segments: [
-          {
-            kind: "skill",
-            name: "browser-control",
-            path: "C:\\plugins\\browser-control\\SKILL.md",
-            invocation: "/browser-control",
-            provider: "Browser Tools",
-            scope: "global",
-          },
-        ],
-        initialSize: { cols: 80, rows: 24 },
-        presentationMode: "terminal",
-      }),
-    ).rejects.toThrow("A required plugin App could not be attached");
-    expect(adapter.buildLaunchArgv).not.toHaveBeenCalled();
+    expect(adapter.createStructuredSession).toHaveBeenCalledWith(
+      expect.objectContaining({ mcpServers: [] }),
+    );
   });
 
   it.each(guardedStructuredProviders)(

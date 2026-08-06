@@ -28,6 +28,20 @@ function roundedOffset(value: number): number {
   return value > VIEWPORT_NOISE_PX ? Math.round(value) : 0;
 }
 
+/**
+ * `documentElement.clientHeight` equals the layout viewport only while the
+ * document is viewport-sized. The iOS browser-mode shells are IN-FLOW and
+ * taller than the viewport (they intentionally overshoot 100lvh so content
+ * paints beneath Safari's toolbar glass), so the raw clientHeight would
+ * report the CONTENT height and inflate every keyboard offset by the
+ * overshoot. Clamp it to the window's layout viewport.
+ */
+function clampToLayoutViewport(height: number): number {
+  const inner = positive(window.innerHeight);
+  if (height <= 0) return inner;
+  return inner > 0 ? Math.min(height, inner) : height;
+}
+
 function readLayoutViewportHeight(viewport: VisualViewport): number {
   if (getMobileRuntimePlatform() === "android") {
     return (
@@ -36,7 +50,7 @@ function readLayoutViewportHeight(viewport: VisualViewport): number {
       positive(viewport.height)
     );
   }
-  const rootHeight = positive(document.documentElement.clientHeight);
+  const rootHeight = clampToLayoutViewport(positive(document.documentElement.clientHeight));
   if (rootHeight > 0) return rootHeight;
   return positive(window.innerHeight) || positive(viewport.height);
 }
@@ -44,7 +58,7 @@ function readLayoutViewportHeight(viewport: VisualViewport): number {
 function readViewportExtent(viewport: VisualViewport): number {
   return Math.max(
     positive(window.innerHeight),
-    positive(document.documentElement.clientHeight),
+    clampToLayoutViewport(positive(document.documentElement.clientHeight)),
     positive(viewport.height + readVisualViewportTop(viewport)),
   );
 }

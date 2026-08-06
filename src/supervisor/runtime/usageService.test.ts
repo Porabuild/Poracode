@@ -107,7 +107,9 @@ describe("UsageService", () => {
       "factory",
       "gemini",
       "grok",
+      "kimi",
       "opencode",
+      "qwen",
       "zai",
     ]);
   });

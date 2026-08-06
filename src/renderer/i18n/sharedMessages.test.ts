@@ -28,6 +28,12 @@ describe("shared message i18n integration", () => {
     // interpolates the `{detail}` value.
     expect(translated).not.toBe("Commit failed: boom");
     expect(translated).toContain("boom");
+    expect(msg("update.serviceUnavailable")).toBe(
+      "El servicio de actualizaciones no está disponible temporalmente.",
+    );
+    expect(msg("remote.session.expired")).toBe(
+      "El emparejamiento caducó: empareja de nuevo para reconectar.",
+    );
   });
 
   it("preserves a leading placeholder + newline through translation", async () => {
@@ -46,6 +52,17 @@ describe("shared message i18n integration", () => {
     const summary = friendlyError(new Error("CONFLICT (content): Merge conflict in src/x.ts"));
     expect(summary).not.toBe("Merge has conflicts");
     expect(summary.length).toBeGreaterThan(0);
+  });
+
+  it("translates main-process SSH manifest errors and preserves their path", async () => {
+    await dynamicActivate("es");
+    const path = "C:\\Poracode\\server.ssh-runtime-manifest.json";
+    const summary = friendlyError(
+      new Error(`Poracode SSH runtime manifest is missing or invalid: ${path}`),
+    );
+
+    expect(summary).not.toBe(`Poracode SSH runtime manifest is missing or invalid: ${path}`);
+    expect(summary).toContain(path);
   });
 });
 // @vitest-environment node

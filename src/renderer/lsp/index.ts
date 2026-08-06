@@ -67,6 +67,10 @@ export class LspOrchestrator {
     projectLocation: ProjectLocation,
     filePath: string,
   ): Promise<LspSession | null> {
+    // LSP sessions and their message stream are owned by the local supervisor.
+    // Remote file editing remains available, but must never start a local
+    // language server against a path that exists only on the paired host.
+    if (projectLocation.remoteServerId) return null;
     const languageId = detectLanguageServerId(filePath);
     if (!languageId) return null;
 

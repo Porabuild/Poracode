@@ -1,28 +1,16 @@
-import {
-  ChevronRight,
-  FileDiff,
-  FolderOpen,
-  GitFork,
-  Play,
-  Power,
-  PowerOff,
-  RefreshCw,
-  Settings2,
-  Trash2,
-} from "lucide-react";
+import { ChevronRight, FolderOpen } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import { useRemoteServerStatusLabel } from "@/renderer/components/common/RemoteServerStatusDot";
+import {
+  ProjectRemoteServerIcon,
+  useProjectRemoteServer,
+} from "@/renderer/components/common/ProjectRemoteServer";
 import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
-import { setProjectDisabled, deleteProject } from "@/renderer/actions/projectActions";
-import {
-  openFilesPanel,
-  openGitReview,
-  openProjectSettings,
-} from "@/renderer/actions/panelActions";
-import { gitSync } from "@/renderer/actions/gitActions";
-import { openTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
+import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
+import { openTerminal } from "@/renderer/actions/terminalActions";
 import {
   useIsProjectFilesPanelActive,
   useIsProjectGitPanelActive,
@@ -31,19 +19,20 @@ import {
   useIsProjectTerminalOpen,
 } from "@/renderer/hooks/uiSelectors";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
-import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { formatProjectLocation } from "./formatProjectLocation";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
+import { useProjectMenu } from "./useProjectMenu";
 
 export function SidebarProjectHeader(props: {
   project: Project;
   isCollapsed: boolean;
   isDragging: boolean;
+  isUnreachable: boolean;
 }) {
-  const { project, isCollapsed, isDragging } = props;
+  const { project, isCollapsed, isDragging, isUnreachable } = props;
   const { t } = useLingui();
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
   const hasTerminal = useIsProjectTerminalOpen(project.id);
@@ -53,76 +42,23 @@ export function SidebarProjectHeader(props: {
   const isActiveFilesPanel = useIsProjectFilesPanelActive(project.id);
   const projectLocation = formatProjectLocation(project);
   const isDisabled = !!project.disabled;
-  const showBody = !isCollapsed && !isDisabled;
+  const remote = useProjectRemoteServer(project);
+  const remoteStatusLabel = useRemoteServerStatusLabel(remote.status ?? "offline");
+  // Git, run-scripts and removal all execute on the project's host, so they are
+  // unavailable while a mirrored project's server is unreachable. The row
+  // tooltip carries the status, so the greyed-out items read as explained.
+  const isUnavailable = isDisabled || isUnreachable;
+  const showBody = !isCollapsed && !isUnavailable;
+  const projectMenu = useProjectMenu(project, { isUnreachable });
+  // Same collapse footprint as thread / worktree panel buttons so idle icons
+  // free horizontal space for the project title.
+  const hiddenPanelButtonClass =
+    "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
+  const panelButtonBaseClass =
+    "flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing";
 
   return (
-    <ContextMenu
-      items={[
-        {
-          id: "project-settings",
-          label: t`Project Settings`,
-          icon: <Settings2 className="size-3.5" />,
-        },
-        ...(isDisabled
-          ? []
-          : [
-              {
-                type: "submenu" as const,
-                id: "git",
-                label: t`Git`,
-                icon: <GitFork className="size-3.5" />,
-                items: [
-                  {
-                    id: "git-review",
-                    label: t`Review Changes`,
-                    icon: <FileDiff className="size-3.5" />,
-                  },
-                  {
-                    id: "git-sync",
-                    label: t`Sync`,
-                    icon: <RefreshCw className="size-3.5" />,
-                  },
-                ],
-              },
-              ...(project.scripts?.actions?.length
-                ? [
-                    {
-                      type: "submenu" as const,
-                      id: "run-action",
-                      label: t`Run`,
-                      icon: <Play className="size-3.5" />,
-                      items: project.scripts.actions.map((action) => ({
-                        id: `action:${action.id}`,
-                        label: action.name,
-                        icon: resolveActionIcon(action.icon),
-                      })),
-                    },
-                  ]
-                : []),
-            ]),
-        {
-          id: "toggle-disabled",
-          label: isDisabled ? t`Enable Project` : t`Disable Project`,
-          icon: isDisabled ? <Power className="size-3.5" /> : <PowerOff className="size-3.5" />,
-        },
-        {
-          id: "remove-project",
-          label: t`Remove Project`,
-          icon: <Trash2 className="size-3.5" />,
-          variant: "danger" as const,
-        },
-      ]}
-      onAction={(key) => {
-        if (key === "project-settings") openProjectSettings(project.id);
-        if (key === "remove-project") deleteProject(project.id);
-        if (key === "toggle-disabled") setProjectDisabled(project.id, !isDisabled);
-        if (key === "git-review") openGitReview(project.id);
-        if (key === "git-sync") gitSync(project.id);
-        if (key.startsWith("action:")) {
-          runProjectAction(project.id, key.slice("action:".length));
-        }
-      }}
-    >
+    <ContextMenu items={projectMenu.items} onAction={projectMenu.onAction}>
       <SidebarButton
         icon={
           <ChevronRight
@@ -134,31 +70,45 @@ export function SidebarProjectHeader(props: {
         label={
           <span className="flex items-center gap-1.5">
             <span className="truncate text-xs font-semibold text-foreground">{project.name}</span>
+            <ProjectRemoteServerIcon info={remote} />
+            {/* Own span rather than the shared chip: the machine name has to
+                undo the project name's `font-semibold` beside it. */}
+            {remote.serverName ? (
+              <span className="max-w-24 truncate text-[10px] font-normal text-muted/60">
+                {remote.serverName}
+              </span>
+            ) : null}
             {project.location.kind === "wsl" && (
               <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
             )}
           </span>
         }
-        tooltip={isDisabled ? t`${projectLocation} (disabled)` : projectLocation}
+        tooltip={
+          isDisabled
+            ? t`${projectLocation} (disabled)`
+            : remote.serverName
+              ? `${projectLocation} · ${remote.serverName} · ${remoteStatusLabel}`
+              : projectLocation
+        }
         className={`poracode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${
-          isDisabled ? " opacity-50" : ""
+          isUnavailable ? " opacity-50" : ""
         }`}
         onPress={() => {
-          if (isDisabled) return;
+          if (isUnavailable) return;
           toggleProjectCollapsed(project.id);
         }}
         isDragging={isDragging}
         suffix={
-          isDisabled ? null : (
+          isUnavailable ? null : (
             <>
               <SidebarPanelDragButton
                 panel="files"
                 projectId={project.id}
                 ariaLabel={t`Files for ${project.name}`}
-                className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+                className={`${panelButtonBaseClass} ${
                   isActiveFilesPanel
-                    ? "text-accent"
-                    : "text-muted/60 opacity-0 group-hover:opacity-100"
+                    ? "w-[18px] p-0.5 text-accent"
+                    : `text-muted/60 ${hiddenPanelButtonClass}`
                 }`}
                 onPress={() => openFilesPanel(project.id)}
               >
@@ -168,12 +118,12 @@ export function SidebarProjectHeader(props: {
                 panel="terminal"
                 projectId={project.id}
                 ariaLabel={t`Terminal for ${project.name}`}
-                className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+                className={`${panelButtonBaseClass} ${
                   isActiveTerminal
-                    ? "text-accent"
+                    ? "w-[18px] p-0.5 text-accent"
                     : hasTerminal
-                      ? "text-foreground"
-                      : "text-muted/60 opacity-0 group-hover:opacity-100"
+                      ? "w-[18px] p-0.5 text-foreground"
+                      : `text-muted/60 ${hiddenPanelButtonClass}`
                 }`}
                 onPress={() => openTerminal(project.id)}
               >

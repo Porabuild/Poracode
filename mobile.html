@@ -6,7 +6,40 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual"
     />
-    <meta name="theme-color" content="#070709" />
+    <meta name="theme-color" content="#000000" />
+    <script data-mobile-display-bootstrap>
+      // Safari's floating browser toolbar should blend with the in-flow app
+      // paint, which needs a transparent theme-color. Installed Home Screen
+      // apps instead need the opaque app color through the bottom safe area.
+      // WebKit has reported inconsistent display-mode media-query values for
+      // Home Screen apps, so the iOS-specific navigator.standalone signal (and
+      // app-like display modes) must take precedence over "browser".
+      (function () {
+        try {
+          var standalone =
+            window.navigator.standalone === true ||
+            window.matchMedia("(display-mode: standalone)").matches ||
+            window.matchMedia("(display-mode: fullscreen)").matches;
+          var ios =
+            /iPad|iPhone|iPod/i.test(window.navigator.userAgent || "") ||
+            (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+          var hasBrowserChrome =
+            !standalone && window.matchMedia("(display-mode: browser)").matches;
+          if (standalone) {
+            document.documentElement.setAttribute("data-mobile-standalone", "true");
+            if (ios) document.documentElement.style.setProperty("height", "100lvh");
+          } else if (hasBrowserChrome) {
+            document.documentElement.setAttribute("data-mobile-browser-chrome", "true");
+            document
+              .querySelector('meta[name="theme-color"]')
+              .setAttribute("content", "transparent");
+          }
+        } catch (e) {
+          // Keep the opaque default when display-mode cannot be queried.
+        }
+      })();
+    </script>
+    <meta name="robots" content="noindex, nofollow" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Poracode" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -18,7 +51,7 @@
     <style>
       :root {
         color-scheme: dark;
-        background: #070709;
+        background: #000000;
       }
 
       html,
@@ -26,7 +59,7 @@
       #root {
         min-height: 100%;
         margin: 0;
-        background: #070709;
+        background: #000000;
       }
 
       body {
@@ -38,7 +71,7 @@
         inset: 0;
         display: grid;
         place-items: center;
-        background: #070709;
+        background: #000000;
         color: #f4f4f5;
         font:
           600 15px ui-sans-serif,

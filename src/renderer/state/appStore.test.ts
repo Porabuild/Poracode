@@ -7,6 +7,7 @@ import {
   writeStoredSizes,
 } from "@/renderer/components/layout/paneSizeStorage";
 import { useAppStore } from "./appStore";
+import { usePanelStore } from "./panelStore";
 
 describe("appStore runtime config sync", () => {
   beforeEach(() => {
@@ -16,9 +17,9 @@ describe("appStore runtime config sync", () => {
       ...state,
       projects: [],
       threads: [],
-      runtimeLaunchConfigByThreadId: {},
       view: { kind: "home" },
     }));
+    usePanelStore.getState().setGitHubActionsContext(null);
   });
 
   it("applies resolved runtime config onto the stored thread", () => {
@@ -48,52 +49,6 @@ describe("appStore runtime config sync", () => {
     });
 
     expect(useAppStore.getState().threads[0]?.config.effort).toBe("high");
-  });
-
-  it("tracks and clears the supervisor's effective launch config separately", () => {
-    const project = useAppStore.getState().addProject({
-      kind: "windows",
-      path: "C:\\repo",
-    });
-    const thread = useAppStore.getState().createThread({
-      projectId: project.id,
-      agentKind: "codex",
-      config: { model: "gpt-5.4", browserMcp: true },
-      prompt: "hello",
-    });
-
-    useAppStore.getState().updateThreadRuntime(thread.id, {
-      status: "idle",
-      attention: "none",
-      config: thread.config,
-      launchConfig: { ...thread.config, browserMcp: false, subagentMcp: true },
-      canResumeWithConfig: true,
-    });
-
-    expect(useAppStore.getState().threads[0]?.config.browserMcp).toBe(true);
-    expect(useAppStore.getState().runtimeLaunchConfigByThreadId[thread.id]).toMatchObject({
-      browserMcp: false,
-      subagentMcp: true,
-    });
-
-    useAppStore.getState().updateThreadRuntime(thread.id, {
-      status: "working",
-      attention: "working",
-      canResumeWithConfig: true,
-    });
-    expect(useAppStore.getState().runtimeLaunchConfigByThreadId[thread.id]).toMatchObject({
-      browserMcp: false,
-      subagentMcp: true,
-    });
-
-    useAppStore.getState().updateThreadRuntime(thread.id, {
-      status: "idle",
-      attention: "none",
-      config: thread.config,
-      launchConfig: null,
-      canResumeWithConfig: true,
-    });
-    expect(useAppStore.getState().runtimeLaunchConfigByThreadId[thread.id]).toBeUndefined();
   });
 
   it("tags an existing thread with worktree metadata (set-worktree command path)", () => {
@@ -326,6 +281,22 @@ describe("appStore runtime config sync", () => {
   it("opens pull requests as a main view", () => {
     useAppStore.getState().openPullRequests();
     expect(useAppStore.getState().view).toEqual({ kind: "pullRequests" });
+  });
+
+  it("opens GitHub Actions for a project as an overlay", () => {
+    useAppStore.getState().openGitHubActions("project-1");
+    expect(usePanelStore.getState().githubActionsContext).toEqual({
+      projectId: "project-1",
+    });
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+  });
+
+  it("opens a GitHub Actions run from another surface", () => {
+    useAppStore.getState().openGitHubActions("project-1", 501);
+    expect(usePanelStore.getState().githubActionsContext).toEqual({
+      projectId: "project-1",
+      runId: 501,
+    });
   });
 
   it("openThread replaces panes[0] and keeps secondary panes", () => {
@@ -1286,13 +1257,67 @@ describe("markThreadDone / unmarkThreadDone", () => {
     expect(useAppStore.getState().threads[0]?.updatedAt).toBe(before);
   });
 
-  it("openThread clears done when thread becomes visible in a pane", () => {
+  it("openThread preserves done when thread becomes visible in a pane", () => {
     const thread = createTestThread();
     useAppStore.getState().markThreadDone(thread.id);
     expect(useAppStore.getState().threads[0]?.done).toBe(true);
 
     useAppStore.getState().openThread(thread.id);
-    expect(useAppStore.getState().threads[0]?.done).toBe(false);
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
+  });
+
+  it("updateThreadRuntime clears done when the thread starts working", () => {
+    const thread = createTestThread();
+    useAppStore.getState().markThreadDone(thread.id);
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    const stored = useAppStore.getState().threads[0];
+    expect(stored?.done).toBe(false);
+    expect(stored?.doneAt).toBeUndefined();
+  });
+
+  it("updateThreadRuntime preserves done on non-working status updates", () => {
+    const thread = createTestThread();
+    useAppStore.getState().markThreadDone(thread.id);
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
+  });
+
+  it("updateThreadRuntime preserves done on working rebroadcasts (not a turn start)", () => {
+    const thread = createTestThread();
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    // markThreadDone removes the pane; leave status working and mark done.
+    useAppStore.setState((state) => ({
+      threads: state.threads.map((t) =>
+        t.id === thread.id
+          ? { ...t, done: true, doneAt: "2026-05-01T00:00:00.000Z", status: "working" as const }
+          : t,
+      ),
+    }));
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
   });
 
   it("markThreadExited preserves done flag", () => {
@@ -1687,6 +1712,42 @@ describe("group view layout restore", () => {
       groupLayouts: {},
       view: { kind: "home" },
     }));
+  });
+
+  it("opens four or more group threads in a balanced two-row grid", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const groupId = "group-grid";
+    const ids = Array.from(
+      { length: 5 },
+      (_, index) =>
+        useAppStore.getState().createThread({
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "m" },
+          prompt: `t${index}`,
+          groupId,
+          groupName: "Grid",
+        }).id,
+    );
+
+    useAppStore.getState().openGroupGrid(groupId);
+
+    const view = useAppStore.getState().view;
+    const expectedIds = [...ids].reverse();
+    expect(view.kind).toBe("thread");
+    expect(view.kind === "thread" && view.panes).toEqual(expectedIds);
+    expect(view.kind === "thread" && view.activeGroupId).toBe(groupId);
+    expect(view.kind === "thread" && view.paneLayout).toMatchObject({
+      kind: "split",
+      axis: "horizontal",
+      children: [
+        { kind: "split", axis: "vertical", children: [{}, {}, {}] },
+        { kind: "split", axis: "vertical", children: [{}, {}] },
+      ],
+    });
   });
 
   it("restores the saved pane layout after closing and reopening a reordered group", () => {

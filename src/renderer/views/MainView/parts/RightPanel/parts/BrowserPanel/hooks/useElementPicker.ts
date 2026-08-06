@@ -3,7 +3,9 @@ import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import type { PromptSegment } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
+import { materializePickerAttachment } from "@/renderer/actions/browserAttachmentActions";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildSelectorPlainText, useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
@@ -168,23 +170,32 @@ export function useElementPicker() {
 
   const deliverPick = useCallback(
     async (threadId: string, destination: PickDestination, attachment: PendingPickerAttachment) => {
+      let routedAttachment: PendingPickerAttachment;
+      try {
+        routedAttachment = await materializePickerAttachment(threadId, attachment);
+      } catch (error) {
+        const message = friendlyError(error);
+        toast.danger(message);
+        return message;
+      }
       if (destination === "terminal") {
-        const { prompt, segments } = buildSelectionSegments(attachment);
+        const { prompt, segments } = buildSelectionSegments(routedAttachment);
         try {
           await readBridge().stageThreadInput({ threadId, prompt, segments });
           toast.success(t`Sent selection to terminal.`);
-          return;
+          return null;
         } catch (error) {
           // The PTY may not be ready (still launching, exited). Don't lose the
           // pick — drop it into the composer instead.
           console.error("[picker] failed to stage terminal input", error);
-          enqueueAttach({ threadId, ...attachment });
+          enqueueAttach({ threadId, ...routedAttachment });
           toast.warning(t`Terminal not ready — added selection to composer.`);
-          return;
+          return null;
         }
       }
-      enqueueAttach({ threadId, ...attachment });
+      enqueueAttach({ threadId, ...routedAttachment });
       toast.success(t`Attached browser selection.`);
+      return null;
     },
     [enqueueAttach, t],
   );
@@ -240,7 +251,8 @@ export function useElementPicker() {
         const threadId = targetIds[0]!;
         const destination = resolvePickDestination(threadId);
         if (destination !== "ask") {
-          await deliverPick(threadId, destination, attachment);
+          const error = await deliverPick(threadId, destination, attachment);
+          if (error) return { ok: false, cancelled: false, error };
           return { ok: true, cancelled: false };
         }
       }

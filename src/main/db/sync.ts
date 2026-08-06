@@ -1,7 +1,15 @@
 import Database from "better-sqlite3";
-import type { Project, Thread } from "@/shared/contracts";
+import {
+  EXPERIMENT_STORE_KEY,
+  EXPERIMENT_STORE_VERSION,
+  type Project,
+  type Thread,
+} from "@/shared/contracts";
+import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
 import { getSqlite } from "./connection";
-import { locationToRow } from "./rowMappers";
+import { acknowledgeMirroredThreadIds, isMainCreatedThreadUnmirrored } from "./mainCreatedThreads";
+import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
+import { projectMutableRow } from "./rowMappers";
 
 /**
  * Bulk-sync the full project and thread lists from the renderer store.
@@ -37,19 +45,52 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
     const upsertThread = prepareThreadSyncStatement(sqlite);
 
     for (const tid of existingThreadIds) {
-      if (!incomingThreadIds.has(tid)) {
-        deleteThread.run(tid);
-      }
+      if (incomingThreadIds.has(tid)) continue;
+      // A thread main just created (remote `start`, schedule, orchestrator) is
+      // absent from this snapshot only because the renderer has not applied the
+      // forwarded command yet. Deleting it would cascade away the launch turn's
+      // runtime items — most visibly the initial `user_message`.
+      if (isMainCreatedThreadUnmirrored(tid)) continue;
+      deleteThread.run(tid);
     }
     for (let i = 0; i < threadsData.length; i++) {
       runThreadSync(upsertThread, threadsData[i]!, i);
     }
+    // Anything in this snapshot is renderer-owned from here on, so a later
+    // snapshot that drops it is a real deletion.
+    acknowledgeMirroredThreadIds(incomingThreadIds);
 
     sqlite
       .prepare(
         "INSERT INTO app_state (key, value) VALUES ('view', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
       )
       .run(viewJson);
+  })();
+  notifyProjectThreadDataChanged();
+}
+
+export function dbPersistExperimentState(payload: DbPersistExperimentStatePayload): void {
+  const sqlite = getSqlite();
+  sqlite.transaction(() => {
+    const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
+    for (const threadId of payload.deletedThreadIds) deleteThread.run(threadId);
+
+    const upsertThread = prepareThreadSyncStatement(sqlite);
+    for (const { thread, sortOrder } of payload.upsertThreads) {
+      runThreadSync(upsertThread, thread, sortOrder);
+    }
+
+    sqlite
+      .prepare(
+        "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      )
+      .run(
+        EXPERIMENT_STORE_KEY,
+        JSON.stringify({
+          state: { experiments: payload.experiments },
+          version: EXPERIMENT_STORE_VERSION,
+        }),
+      );
   })();
 }
 
@@ -59,12 +100,14 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
   return sqlite.prepare(`
     INSERT INTO projects (
       id, name, location_kind, location_path, location_distro, location_linux_path,
-      location_unc_path, last_draft_config, scripts, search_settings, mcp_servers, disabled,
-      sort_order, created_at
+      location_unc_path, last_draft_config, scripts, search_settings, worktree_location,
+      mcp_servers, workspace_id,
+      disabled, sort_order, created_at
     ) VALUES (
       @id, @name, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
-      @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @mcpServers, @disabled,
-      @sortOrder, @createdAt
+      @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @worktreeLocation,
+      @mcpServers, @workspaceId,
+      @disabled, @sortOrder, @createdAt
     )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
@@ -76,7 +119,9 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
       last_draft_config = excluded.last_draft_config,
       scripts = excluded.scripts,
       search_settings = excluded.search_settings,
+      worktree_location = excluded.worktree_location,
       mcp_servers = excluded.mcp_servers,
+      workspace_id = excluded.workspace_id,
       disabled = excluded.disabled,
       sort_order = excluded.sort_order
   `);
@@ -85,12 +130,7 @@ function prepareProjectSyncStatement(sqlite: InstanceType<typeof Database>): Sql
 function runProjectSync(stmt: SqliteStatement, project: Project, sortOrder: number): void {
   stmt.run({
     id: project.id,
-    name: project.name,
-    ...locationToRow(project.location),
-    lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
-    scripts: project.scripts ? JSON.stringify(project.scripts) : null,
-    searchSettings: project.searchSettings ? JSON.stringify(project.searchSettings) : null,
-    mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
+    ...projectMutableRow(project),
     disabled: project.disabled ? 1 : 0,
     sortOrder,
     createdAt: project.createdAt,
@@ -102,13 +142,13 @@ function prepareThreadSyncStatement(sqlite: InstanceType<typeof Database>): Sqli
     INSERT INTO threads (
       id, project_id, title, agent_kind, agent_instance_id, config, status,
       attention, can_resume_with_config, session_ref, terminal_prompt, worktree_path,
-      worktree_branch, pr_number, group_id, group_name, archived, done, done_at,
+      worktree_branch, pr_number, group_id, group_name, parent_thread_id, archived, done, done_at,
       starred, presentation_mode, sort_order, created_at, updated_at,
       active_turn_started_at, last_turn_started_at, last_turn_ended_at
     ) VALUES (
       @id, @projectId, @title, @agentKind, @agentInstanceId, @config, @status,
       @attention, @canResumeWithConfig, @sessionRef, NULL, @worktreePath,
-      @worktreeBranch, @prNumber, @groupId, @groupName, @archived, @done, @doneAt,
+      @worktreeBranch, @prNumber, @groupId, @groupName, @parentThreadId, @archived, @done, @doneAt,
       @starred, @presentationMode, @sortOrder, @createdAt, @updatedAt,
       @activeTurnStartedAt, @lastTurnStartedAt, @lastTurnEndedAt
     )
@@ -126,6 +166,7 @@ function prepareThreadSyncStatement(sqlite: InstanceType<typeof Database>): Sqli
       pr_number = excluded.pr_number,
       group_id = excluded.group_id,
       group_name = excluded.group_name,
+      parent_thread_id = excluded.parent_thread_id,
       archived = excluded.archived,
       done = excluded.done,
       done_at = excluded.done_at,
@@ -156,6 +197,7 @@ function runThreadSync(stmt: SqliteStatement, thread: Thread, sortOrder: number)
     prNumber: thread.prNumber ?? null,
     groupId: thread.groupId ?? null,
     groupName: thread.groupName ?? null,
+    parentThreadId: thread.parentThreadId ?? null,
     archived: thread.archived ? 1 : 0,
     done: thread.done ? 1 : 0,
     doneAt: thread.doneAt ?? null,

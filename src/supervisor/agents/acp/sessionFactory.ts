@@ -1,5 +1,5 @@
 import type { CommandSpec, CreateStructuredSessionInput } from "../base";
-import { AcpStructuredSession } from "./session";
+import { AcpStructuredSession, type AcpStructuredSessionOptions } from "./session";
 
 /**
  * Decide whether `createAcpStructuredSession` should actually spawn the ACP
@@ -34,10 +34,15 @@ export function shouldSpawnAcpSession(input: CreateStructuredSessionInput): bool
  * their own `if (input.sessionRef) return undefined` gate — that's what
  * produced the Copilot GUI-resume regression. Just call this factory
  * unconditionally and trust the shared decision.
+ *
+ * `overrides` carries the few session options an adapter states about its own
+ * agent rather than reading off the launch input (currently the MCP transports
+ * the agent supports without advertising them).
  */
 export function createAcpStructuredSession(
   acpCommand: CommandSpec,
   input: CreateStructuredSessionInput,
+  overrides?: Pick<AcpStructuredSessionOptions, "assumedMcpCapabilities">,
 ): AcpStructuredSession | undefined {
   if (!shouldSpawnAcpSession(input)) {
     return undefined;
@@ -46,17 +51,26 @@ export function createAcpStructuredSession(
     ...(input.loadSessionErrorRewriter
       ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }
       : {}),
+    ...(input.acpEmptyResponseErrorResolver
+      ? { emptyResponseErrorResolver: input.acpEmptyResponseErrorResolver }
+      : {}),
     ...(input.acpSessionUpdateTransform
       ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
+      : {}),
+    ...(input.acpGoalCommands ? { goalCommands: true } : {}),
+    ...(input.acpExtensionSessionUpdateTransform
+      ? { extensionSessionUpdateTransform: input.acpExtensionSessionUpdateTransform }
       : {}),
     ...(input.acpExtensionNotificationHandler
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),
-    ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
-    ...(input.subagentMcp !== undefined ? { subagentMcp: input.subagentMcp } : {}),
-    ...(input.computerUseMcp !== undefined ? { computerUseMcp: input.computerUseMcp } : {}),
-    ...(input.chromeMcp !== undefined ? { chromeMcp: input.chromeMcp } : {}),
-    ...(input.appControlsMcp !== undefined ? { appControlsMcp: input.appControlsMcp } : {}),
     ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
+    ...(input.acpFsAgentHomeDirs ? { fsAgentHomeDirs: input.acpFsAgentHomeDirs } : {}),
+    ...(input.acpFsTextCapability !== undefined
+      ? { fsTextCapability: input.acpFsTextCapability }
+      : {}),
+    ...(overrides?.assumedMcpCapabilities
+      ? { assumedMcpCapabilities: overrides.assumedMcpCapabilities }
+      : {}),
   });
 }

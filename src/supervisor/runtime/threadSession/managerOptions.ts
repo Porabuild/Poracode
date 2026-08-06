@@ -1,26 +1,16 @@
 import type { SupervisorEvent } from "@/shared/ipc";
 import type {
-  AgentCapability,
   AgentKind,
-  BuiltInMcpDisabledTools,
-  BuiltInMcpServerId,
   McpServer,
+  ResolvedMcpServer,
   ProjectLocation,
   PromptSegment,
-  ThreadConfig,
-  ThreadPresentationMode,
   ThreadServerRequestId,
 } from "@/shared/contracts";
-import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
-import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
-import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
-import type {
-  SubagentMcpHostAccessResolver,
-  SubagentMcpHttpConfig,
-} from "@/supervisor/agents/subagentMcp";
+import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
+import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
 import type { AgentAdapter } from "../../agents/base";
 import type { WindowsShellPreference } from "../../shellPreference";
-import type { PluginManagedConfigKey } from "../sessionTypes";
 
 export interface ThreadSessionManagerOptions {
   emit(event: SupervisorEvent): void;
@@ -28,8 +18,6 @@ export interface ThreadSessionManagerOptions {
   logsDir: string;
   settingsPath: string;
   readDisableCliHookPlugin(): boolean;
-  readDisabledBuiltInMcpServerIds?(): BuiltInMcpServerId[];
-  readDisabledBuiltInMcpTools?(): BuiltInMcpDisabledTools;
   adapters: Map<AgentKind, AgentAdapter>;
   windowsShell: WindowsShellPreference;
   /**
@@ -42,31 +30,30 @@ export interface ThreadSessionManagerOptions {
     threadId: string;
     agentKind: AgentKind;
     projectLocation: ProjectLocation;
-    browserMcpEnabled?: boolean;
-    browserMcp?: BrowserMcpHttpConfig;
-    computerUseMcpEnabled?: boolean;
-    computerUseMcp?: ComputerUseMcpHttpConfig;
-    chromeMcpEnabled?: boolean;
-    chromeMcp?: ChromeMcpHttpConfig;
-    mcpServers?: McpServer[];
+    mcpServers?: readonly ResolvedMcpServer[];
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined>;
   wslBridge?: {
     ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
   };
   /**
-   * Optional: cross-provider subagents MCP hooks. When a thread launches with
-   * `config.subagentMcp === true`, the manager registers it with the ingress
+   * Optional: Crossagents MCP hooks. When a thread launches with
+   * `config.crossagentMcp === true`, the manager registers it with the ingress
    * and threads the resulting http config into the structured session / launch
-   * options. On interrupt + close it cancels the thread's child runs; on close
-   * it also unregisters the thread. All heavy lifting lives in the subagentMcp
-   * module — these are thin hooks only.
+   * options. An interrupt cancels turn-scoped children while preserving explicit
+   * background runs; close cancels everything and unregisters the thread. All
+   * heavy lifting lives in the crossagentMcp module — these are thin hooks only.
    */
-  subagentMcp?: {
+  crossagentMcp?: {
     register(
       threadId: string,
       disabledTools?: readonly string[],
-    ): SubagentMcpHttpConfig | undefined;
+    ): CrossagentMcpHttpConfig | undefined;
+    registerProviderSession(
+      threadId: string,
+      disabledTools?: readonly string[],
+    ): CrossagentMcpHttpConfig | undefined;
     unregister(threadId: string): void;
+    cancelForeground(threadId: string): void;
     cancelAll(threadId: string): void;
     /**
      * Try to route a server-request resolution to a subagent child run. Returns
@@ -77,18 +64,24 @@ export interface ThreadSessionManagerOptions {
   };
   /**
    * Optional: resolves how a WSL distro reaches host-bound services (NAT
-   * gateway IP vs. mirrored-mode loopback) so subagents MCP URLs can be
-   * rewritten — or left as-is — for agents launched inside a WSL distro (the
-   * ingress binds `0.0.0.0` on Windows for this). Windows-only in practice;
-   * absent/undefined on macOS/Linux, which makes the WSL rewrite path inert.
+   * gateway IP vs. mirrored-mode loopback) so built-in MCP URLs can be
+   * rewritten — or left as-is — for agents launched inside a WSL distro.
+   * Windows-only in practice; absent/undefined on macOS/Linux, which makes the
+   * WSL rewrite path inert.
    */
-  subagentMcpHostAccess?: SubagentMcpHostAccessResolver;
+  wslHostAccess?: WslHostAccessResolver;
   /**
    * Optional: attaches stored OAuth `Authorization` headers to user-configured
    * HTTP/SSE MCP servers just before a launch fans them out to the provider
    * config builders. Tokens are refreshed by the supervisor's OAuth service.
    */
   applyMcpServerAuthorization?(servers: McpServer[]): Promise<McpServer[]>;
+  /**
+   * MCP servers contributed by enabled Agent Plugins packages via `mcp.json`.
+   * They join the user's own servers, so every provider translator picks them up
+   * without knowing the Agent Plugins specification exists.
+   */
+  resolvePluginMcpServers?(): McpServer[];
   /** Wrap servers with disabled tools in Poracode's same-environment filtering proxy. */
   prepareMcpToolFilters?(
     servers: McpServer[],
@@ -96,34 +89,6 @@ export interface ThreadSessionManagerOptions {
   ): Promise<McpServer[]>;
   /** Synchronize Poracode-owned provider skill projections before a new agent process starts. */
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;
-  /** Drop bundled plugin skill segments that are not currently trusted for delivery. */
-  filterPluginSkillSegments?(
-    segments: PromptSegment[],
-    context: {
-      projectLocation: ProjectLocation;
-      agentKind: AgentKind;
-      presentationMode: ThreadPresentationMode;
-      launchConfig?: ThreadConfig;
-    },
-  ): PromptSegment[] | Promise<PromptSegment[]>;
-  /**
-   * MCP servers contributed by enabled Agent Plugins packages via `mcp.json`.
-   * They join the user's own servers, so every provider translator picks them up
-   * without knowing the Agent Plugins specification exists.
-   */
-  resolvePluginMcpServers?(): McpServer[];
-  /** Apply supported Poracode plugin app contributions before enforcing global MCP disables. */
-  applyPluginAppsToConfig?(
-    config: ThreadConfig,
-    context: {
-      capabilities: AgentCapability;
-      presentationMode: ThreadPresentationMode;
-      projectLocation: ProjectLocation;
-    },
-  ): {
-    config: ThreadConfig;
-    disabledConfigKeys: PluginManagedConfigKey[];
-  };
   /**
    * Portable-skills fallback for structured turns: returns inline SKILL.md
    * instructions for skill segments the provider can't load natively, or

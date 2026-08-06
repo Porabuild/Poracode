@@ -9,9 +9,17 @@ import type {
   PermissionRequestDetails,
   RuntimeEvent,
 } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { readStringField } from "../../fileChangeSummary";
-import { isApplyPatchToolName, normalizeToolText } from "./contentExtraction";
+import {
+  extractToolCallContentText,
+  isAcpExitPlanModeTool,
+  isApplyPatchToolName,
+  normalizeToolText,
+  parseAcpPlanReviewText,
+} from "./contentExtraction";
 import type { AcpMapperState } from "./state";
+import { mapAcpQuestionPermissionRequest } from "../acpQuestionPermissions";
 
 /**
  * Map an ACP `requestPermission` call to a canonical `request.opened` event.
@@ -25,13 +33,44 @@ export function mapAcpPermissionRequest(
   state: AcpMapperState,
   requestId: string,
 ): RuntimeEvent {
+  const questionRequest = mapAcpQuestionPermissionRequest(req, state, requestId);
+  if (questionRequest) return questionRequest;
+
   const toolCall = req.toolCall as {
     title?: string;
     kind?: string;
     rawInput?: unknown;
+    content?: unknown;
   };
-  const requestType = classifyApprovalRequestType(toolCall.kind, toolCall.title);
-  const command = readStringField(toolCall.rawInput, "command");
+  // Cross-provider plan review: an ExitPlanMode approval renders through the
+  // unified plan-review composer, so emit the same canonical shape Claude
+  // produces — "Proposed plan" summary plus `input.plan`/`input.planFilePath`
+  // recovered from the ACP text content block.
+  if (isAcpExitPlanModeTool(toolCall.title, toolCall.kind)) {
+    const planReview = parseAcpPlanReviewText(extractToolCallContentText(toolCall.content));
+    return {
+      type: "request.opened",
+      threadId: state.threadId,
+      requestId,
+      requestType: "tool_call_approval",
+      payload: {
+        summary: msg("supervisor.proposedPlan"),
+        details: {
+          toolName: normalizeToolText(toolCall.title) ?? "ExitPlanMode",
+          input: {
+            ...(planReview ? { plan: planReview.plan } : {}),
+            ...(planReview?.planFilePath ? { planFilePath: planReview.planFilePath } : {}),
+          },
+        },
+        options: mapPermissionOptions(req),
+      },
+    };
+  }
+
+  const command =
+    readStringField(toolCall.rawInput, "command") ??
+    extractCommandFromApprovalContent(toolCall.content);
+  const requestType = classifyApprovalRequestType(toolCall.kind, toolCall.title, command);
   const title = normalizeToolText(toolCall.title);
   const kind = normalizeToolText(toolCall.kind);
   const summary =
@@ -40,15 +79,11 @@ export function mapAcpPermissionRequest(
       : (title ?? kind ?? "Approval requested");
   const details =
     requestType === "command_execution_approval" && command
-      ? buildCommandPermissionDetails(toolCall.rawInput, kind)
+      ? buildCommandPermissionDetails(toolCall.rawInput, kind, title, command)
       : requestType === "tool_call_approval"
         ? buildToolCallPermissionDetails(toolCall.rawInput, title, kind)
         : toolCall.rawInput;
-  const options = req.options.map((opt) => ({
-    optionId: opt.optionId,
-    label: opt.name,
-    description: undefined,
-  }));
+  const options = mapPermissionOptions(req);
   return {
     type: "request.opened",
     threadId: state.threadId,
@@ -62,20 +97,36 @@ export function mapAcpPermissionRequest(
   };
 }
 
+function mapPermissionOptions(req: RequestPermissionRequest) {
+  return req.options.map((opt) => ({
+    optionId: opt.optionId,
+    label: opt.name,
+    description: undefined,
+  }));
+}
+
 function buildCommandPermissionDetails(
   rawInput: unknown,
   kind: string | undefined,
+  title: string | undefined,
+  command: string,
 ): PermissionRequestDetails {
-  const command = readStringField(rawInput, "command") ?? "";
   const cwd = readStringField(rawInput, "cwd");
   return {
-    toolName: kind ?? "execute",
+    toolName: kind ?? title ?? "execute",
     displayName: "command",
     input: {
       command,
       ...(cwd ? { cwd } : {}),
     },
   };
+}
+
+function extractCommandFromApprovalContent(content: unknown): string | undefined {
+  const text = extractToolCallContentText(content)?.trim();
+  if (!text) return undefined;
+  const match = /^Requesting approval to\s+(?:Run|Running):\s*([\s\S]+)$/i.exec(text);
+  return normalizeToolText(match?.[1]);
 }
 
 function buildToolCallPermissionDetails(
@@ -133,7 +184,9 @@ export function mapAcpElicitationRequest(
 function classifyApprovalRequestType(
   kind: string | undefined,
   title: string | undefined,
+  command?: string,
 ): CanonicalRequestType {
+  if (command) return "command_execution_approval";
   const k = (kind ?? "").toLowerCase();
   const t = (title ?? "").toLowerCase();
   if (k === "execute" || k === "shell" || /^(run|exec|shell)\b/.test(t)) {

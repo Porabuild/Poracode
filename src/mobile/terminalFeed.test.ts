@@ -92,4 +92,14 @@ describe("terminalFeed", () => {
       { type: "terminal-watch", id: "sh2" },
     ]);
   });
+
+  it("unwatches active terminals when the feed resets", () => {
+    const sent: RemoteWebSocketClientMessage[] = [];
+    setTerminalSocketSender((m) => (sent.push(m), true));
+    watchTerminal("sh1", makeListener());
+
+    resetTerminalFeed();
+
+    expect(sent.at(-1)).toEqual({ type: "terminal-unwatch", id: "sh1" });
+  });
 });

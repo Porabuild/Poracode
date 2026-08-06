@@ -74,10 +74,26 @@ const agentUpdateCommandSchema = z.object({
 
 export const agentUpdateInfoSchema = z.object({
   builtIn: agentUpdateCommandSchema.optional(),
+  /** Fall back when the built-in command exits successfully without changing the detected version. */
+  verifyBuiltInVersionChange: z.boolean().optional(),
   npm: z.string().min(1).optional(),
   homebrewCask: z.string().min(1).optional(),
   brew: z.string().min(1).optional(),
   winget: z.string().min(1).optional(),
+  /**
+   * The provider's own install script, re-run non-interactively, per platform.
+   * For agents distributed by a `curl … | bash` / `irm … | iex` installer
+   * rather than a package manager (and whose CLI `update`/`upgrade` is an
+   * interactive TUI with no headless flag). Preferred over the npm last-resort
+   * so the update refreshes the existing install in place instead of spawning a
+   * conflicting global npm install. `posix` also serves WSL.
+   */
+  installer: z
+    .object({
+      posix: agentUpdateCommandSchema,
+      windows: agentUpdateCommandSchema,
+    })
+    .optional(),
   latestVersionUrls: z.array(z.string().url()).optional(),
 });
 export type AgentUpdateInfo = z.infer<typeof agentUpdateInfoSchema>;
@@ -140,10 +156,18 @@ const bypassPermissionsSchema = z.object({
 
 const agentPresentationCapabilityOverrideSchema = z
   .object({
+    /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
+    runtimeLabel: z.string().min(1).optional(),
     models: z.array(labeledOptionSchema),
+    /**
+     * Provider-owned initial model visibility. Applied only while the user has
+     * no explicit hidden-model list for this presentation/runtime surface.
+     */
+    defaultHiddenModels: z.array(z.string().min(1)).optional(),
     efforts: z.array(z.string().min(1)),
     defaultEffort: z.string().optional(),
     modelEfforts: z.record(z.string(), z.array(z.string().min(1))),
+    modelDefaultEfforts: z.record(z.string(), z.string()).optional(),
     subProviders: z.array(labeledOptionSchema).optional(),
     modelSubProvider: z.record(z.string(), z.string()).optional(),
     contextSizes: z.array(labeledOptionSchema).optional(),
@@ -156,6 +180,7 @@ const agentPresentationCapabilityOverrideSchema = z
     approvalPolicies: z.array(labeledOptionSchema),
     sandboxModes: z.array(labeledOptionSchema),
     defaultApprovalPolicy: z.string().optional(),
+    defaultApprovalsReviewer: z.string().optional(),
     defaultSandboxMode: z.string().optional(),
     supportsResume: z.boolean(),
     supportsDirectInput: z.boolean(),
@@ -171,7 +196,7 @@ const agentPresentationCapabilityOverrideSchema = z
   .partial();
 
 /**
- * How a composer MCP toggle (Browser / Subagents) gates per-thread for one
+ * How a composer MCP toggle (Browser / Crossagents) gates per-thread for one
  * presentation mode:
  *
  * - "always":  the MCP server set is rebuilt on every turn (e.g. Claude SDK
@@ -207,10 +232,19 @@ export function resolveComposerMcpScope(
 }
 
 export const agentCapabilitySchema = z.object({
+  /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
+  runtimeLabel: z.string().min(1).optional(),
   models: z.array(labeledOptionSchema).default([]),
+  /**
+   * Provider-owned initial model visibility. An explicit user list (including
+   * an empty list from "Show all") always replaces these defaults.
+   */
+  defaultHiddenModels: z.array(z.string().min(1)).optional(),
   efforts: z.array(z.string().min(1)).default([]),
   defaultEffort: z.string().optional(),
   modelEfforts: z.record(z.string(), z.array(z.string().min(1))).default({}),
+  /** Per-model default effort. Wins over `defaultEffort` for that model. */
+  modelDefaultEfforts: z.record(z.string(), z.string()).optional(),
   /** Optional sub-provider grouping (e.g. OpenCode Zen, GitHub Copilot under OpenCode). */
   subProviders: z.array(labeledOptionSchema).optional(),
   /** Map from model id to its sub-provider id. Falls back to model-id namespace prefix when omitted. */
@@ -237,6 +271,8 @@ export const agentCapabilitySchema = z.object({
   sandboxModes: z.array(labeledOptionSchema).default([]),
   /** First-draft approval policy when the user has no saved preference. Falls back to the first entry in `approvalPolicies` if unset. */
   defaultApprovalPolicy: z.string().optional(),
+  /** First-draft approval reviewer when the user has no saved preference. */
+  defaultApprovalsReviewer: z.string().optional(),
   /** First-draft sandbox mode when the user has no saved preference. Falls back to the first entry in `sandboxModes` if unset. */
   defaultSandboxMode: z.string().optional(),
   supportsResume: z.boolean().default(false),
@@ -252,12 +288,22 @@ export const agentCapabilitySchema = z.object({
    */
   supportsOneShot: z.boolean().optional(),
   /**
+   * Whether the adapter exposes a provider-enforced text-only one-shot path
+   * with tools, MCPs, plugins, and hooks disabled. Optional: absent = false.
+   */
+  supportsTextOnlyOneShot: z.boolean().optional(),
+  /**
    * When true, the agent can only read files inside its working directory (e.g.
    * Command Code sandboxes file access to the project/worktree). Attachments
    * that live outside the workspace are copied into a workspace-local dir and
    * referenced there before being handed to the terminal.
    */
   requiresWorkspaceLocalAttachments: z.boolean().optional(),
+  /**
+   * When true, structured turns read PDF attachment bytes in the host
+   * supervisor, so WSL path rewriting must preserve their native host paths.
+   */
+  readsPdfAttachmentsFromHost: z.boolean().optional(),
   liveInputMode: liveInputModeSchema.default("terminal"),
   presentationMode: threadPresentationModeSchema.default("terminal"),
   /**
@@ -268,14 +314,32 @@ export const agentCapabilitySchema = z.object({
   presentationModes: z.array(threadPresentationModeSchema).optional(),
   requiresTerminalFocusBeforeInput: z.boolean().optional(),
   bypassPermissions: bypassPermissionsSchema.optional(),
-  /** Composer Browser-MCP toggle gating. See {@link composerMcpScopesSchema}. */
-  browserMcpScope: composerMcpScopesSchema.optional(),
-  /** Composer Subagents-MCP toggle gating. See {@link composerMcpScopesSchema}. */
-  subagentMcpScope: composerMcpScopesSchema.optional(),
-  /** Composer Computer-Use-MCP toggle gating. See {@link composerMcpScopesSchema}. */
-  computerUseMcpScope: composerMcpScopesSchema.optional(),
-  /** Composer external-Chrome-MCP toggle gating. See {@link composerMcpScopesSchema}. */
-  chromeMcpScope: composerMcpScopesSchema.optional(),
+  /** Composer MCP toggle gating for every server. */
+  mcpScope: composerMcpScopesSchema.optional(),
+  /** Provider-owned defaults for values stored in shared agent settings. */
+  agentSettingsDefaults: z.record(z.string(), z.union([z.boolean(), z.string()])).optional(),
+  /**
+   * Where the provider's MCP launch flags come from:
+   *
+   * - absent / "thread": per-thread `ThreadConfig` flags set by the composer
+   *   MCP controls (the default for every provider).
+   * - "agentSettings": provider-level — flags are read from
+   *   `sharedSettings.agentSettings[kind]` at launch, the composer shows no
+   *   MCP controls at all, and the MCP set is identical across the provider's
+   *   threads (letting pooled servers stay stable). Configured from the
+   *   provider's settings page.
+   */
+  mcpConfigSource: z.enum(["thread", "agentSettings"]).optional(),
+  /**
+   * How Crossagents identifies the calling parent thread:
+   *
+   * - absent / "thread-token": the MCP bearer token maps directly to one
+   *   Poracode thread (the default for provider processes launched per thread).
+   * - "provider-session": one provider-runtime credential is shared, and a
+   *   trusted provider hook adds the native session id to every tool call so
+   *   the supervisor can resolve the live parent thread at call time.
+   */
+  crossagentMcpRouting: z.enum(["thread-token", "provider-session"]).optional(),
   settingDefs: z.array(agentSettingDefSchema).default([]),
   /** Populated when the Claude Agent SDK init probe succeeds (install detection). */
   slashCommands: z.array(agentSlashCommandSchema).optional(),
@@ -301,6 +365,38 @@ export const agentCapabilitySchema = z.object({
 });
 export type AgentCapability = z.infer<typeof agentCapabilitySchema>;
 
+/**
+ * One independently detected runtime behind a provider tile.
+ *
+ * `capabilities` is deliberately the complete, already-resolved capability
+ * surface for this runtime rather than a presentation override. That lets an
+ * existing thread stay pinned to its original runtime when the provider's
+ * default changes later.
+ */
+export const agentRuntimeVariantSchema = z.object({
+  presentationMode: threadPresentationModeSchema,
+  installed: z.boolean(),
+  /** Runtime-specific package version when the provider exposes one. */
+  version: z.string().min(1).optional(),
+  /** Provider-owned installation source used to explain lifecycle ownership. */
+  installationSource: z.string().min(1).optional(),
+  authState: authStateSchema,
+  authUsesProviderLogin: z.boolean(),
+  capabilities: agentCapabilitySchema,
+});
+export type AgentRuntimeVariant = z.infer<typeof agentRuntimeVariantSchema>;
+
+/**
+ * Provider-owned mapping from opaque provider session ids to named runtime
+ * variants. Shared consumers only apply the generic prefix/fallback rules;
+ * provider-specific discriminators stay at the provider boundary.
+ */
+export const agentSessionRuntimeRoutingSchema = z.object({
+  prefixes: z.record(z.string().min(1), z.string().min(1)),
+  fallbackRuntime: z.string().min(1).optional(),
+});
+export type AgentSessionRuntimeRouting = z.infer<typeof agentSessionRuntimeRoutingSchema>;
+
 export const agentStatusSchema = z.object({
   kind: agentKindSchema,
   label: z.string().min(1),
@@ -310,6 +406,31 @@ export const agentStatusSchema = z.object({
   version: z.string().optional(),
   update: agentUpdateInfoSchema.optional(),
   authState: authStateSchema,
+  /**
+   * Authentication can differ between presentation runtimes even when they
+   * share one provider tile. For example, Cursor's terminal/ACP surfaces use
+   * the installed CLI login while its SDK GUI surface requires
+   * `CURSOR_API_KEY`. Consumers fall back to `authState` when no override is
+   * present.
+   */
+  presentationAuthStates: z
+    .object({
+      terminal: authStateSchema.optional(),
+      gui: authStateSchema.optional(),
+    })
+    .optional(),
+  /**
+   * Whether the provider's ordinary login command / ACP auth methods apply to
+   * a presentation-specific auth state. Set false for runtimes that require
+   * external credentials (such as Cursor SDK API keys) so the UI does not
+   * offer a misleading CLI login action.
+   */
+  presentationAuthUsesProviderLogin: z
+    .object({
+      terminal: z.boolean().optional(),
+      gui: z.boolean().optional(),
+    })
+    .optional(),
   loginCommand: z.string().min(1).optional(),
   /**
    * Prefer the terminal `loginCommand` over agent-owned/browser auth methods
@@ -321,6 +442,10 @@ export const agentStatusSchema = z.object({
   authMethods: z.array(agentAuthMethodSchema).optional(),
   authLogoutSupported: z.boolean().optional(),
   capabilities: agentCapabilitySchema,
+  /** Named, independently detected runtimes available behind this provider. */
+  runtimeVariants: z.record(z.string().min(1), agentRuntimeVariantSchema).optional(),
+  /** Session-id routing into `runtimeVariants` for existing threads. */
+  sessionRuntimeRouting: agentSessionRuntimeRoutingSchema.optional(),
   envKind: z.enum(["windows", "wsl", "posix"]).optional(),
   envDistro: z.string().optional(),
 });
@@ -509,8 +634,25 @@ export const updateAgentBinaryResultSchema = z.object({
 });
 export type UpdateAgentBinaryResult = z.infer<typeof updateAgentBinaryResultSchema>;
 
+/**
+ * Optional npm scope for `getLatestAgentVersion`. When present the probe
+ * resolves the newest published version of `name` inside this window instead of
+ * the agent kind's own release channel — for provider settings that manage an
+ * extra package alongside the CLI (e.g. Cursor's `@cursor/sdk`), where an
+ * update to an unsupported major must never be offered.
+ */
+export const npmPackageVersionQuerySchema = z.object({
+  name: z.string().min(1),
+  /** Inclusive minimum supported version. */
+  minVersion: z.string().min(1).optional(),
+  /** First major version the caller does not support. */
+  maxExclusiveMajor: z.number().int().positive().optional(),
+});
+export type NpmPackageVersionQuery = z.infer<typeof npmPackageVersionQuerySchema>;
+
 export const getLatestAgentVersionPayloadSchema = z.object({
   agentKind: agentKindSchema,
+  npmPackage: npmPackageVersionQuerySchema.optional(),
 });
 export type GetLatestAgentVersionPayload = z.infer<typeof getLatestAgentVersionPayloadSchema>;
 
@@ -600,6 +742,43 @@ export function areAgentProviderMetadataEqual(
     left.plan === right.plan &&
     left.authMethod === right.authMethod &&
     areAgentConnectedProvidersEqual(left.connectedProviders, right.connectedProviders)
+  );
+}
+
+/**
+ * Compare the presentation- and runtime-scoped status fields that carry nested
+ * provider-owned shapes (per-presentation auth, named runtime variants, session
+ * runtime routing). Structural equality via `JSON.stringify` is intentional:
+ * these payloads are adapter-produced, key-order-stable, and cheap to serialize,
+ * and every consumer only needs "did the provider report something different".
+ *
+ * Shared by the renderer status store and the status slice so their change
+ * detection cannot drift apart.
+ */
+export function areAgentPresentationRuntimeFieldsEqual(
+  left: Pick<
+    AgentStatus,
+    | "presentationAuthStates"
+    | "presentationAuthUsesProviderLogin"
+    | "runtimeVariants"
+    | "sessionRuntimeRouting"
+  >,
+  right: Pick<
+    AgentStatus,
+    | "presentationAuthStates"
+    | "presentationAuthUsesProviderLogin"
+    | "runtimeVariants"
+    | "sessionRuntimeRouting"
+  >,
+): boolean {
+  return (
+    JSON.stringify(left.presentationAuthStates ?? {}) ===
+      JSON.stringify(right.presentationAuthStates ?? {}) &&
+    JSON.stringify(left.presentationAuthUsesProviderLogin ?? {}) ===
+      JSON.stringify(right.presentationAuthUsesProviderLogin ?? {}) &&
+    JSON.stringify(left.runtimeVariants ?? {}) === JSON.stringify(right.runtimeVariants ?? {}) &&
+    JSON.stringify(left.sessionRuntimeRouting ?? {}) ===
+      JSON.stringify(right.sessionRuntimeRouting ?? {})
   );
 }
 

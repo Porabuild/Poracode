@@ -25,6 +25,7 @@ import {
   type TurnCloseUpdate,
 } from "./threadTurnHelpers";
 import { recordThreadStarted } from "../usageRecorder";
+import { removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 
 export interface ThreadSlice {
@@ -48,6 +49,15 @@ export interface ThreadSlice {
    * sort). Not persisted — recreated as the user navigates after launch.
    */
   lastViewedAtByThreadId: Record<string, number>;
+  /**
+   * Names of the custom (user/project) MCP servers that were enabled when the
+   * thread's current session launched. Written by the launch effect right
+   * before `startThread`; shown read-only in the active composer's MCP menu.
+   * Not persisted — sessions do not survive an app restart, and a resume goes
+   * back through the launch effect which repopulates it.
+   */
+  mcpLaunchCustomServerNamesByThreadId: Record<string, readonly string[]>;
+  setThreadMcpLaunchCustomServerNames: (threadId: string, names: readonly string[]) => void;
   markThreadsInactiveOnLaunch: () => void;
   createThread: (input: {
     threadId?: string;
@@ -116,6 +126,14 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   lastRuntimeConfigByThreadId: {},
   runtimeLaunchConfigByThreadId: {},
   lastViewedAtByThreadId: {},
+  mcpLaunchCustomServerNamesByThreadId: {},
+  setThreadMcpLaunchCustomServerNames: (threadId, names) =>
+    set((state) => ({
+      mcpLaunchCustomServerNamesByThreadId: {
+        ...state.mcpLaunchCustomServerNamesByThreadId,
+        [threadId]: names,
+      },
+    })),
   markThreadsInactiveOnLaunch: () =>
     set((state) => {
       let changed = false;
@@ -240,10 +258,16 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.runtimeLaunchConfigByThreadId;
       const { [threadId]: _droppedLastViewed, ...lastViewedAtByThreadId } =
         state.lastViewedAtByThreadId;
+      const { [threadId]: _droppedMcpLaunch, ...mcpLaunchCustomServerNamesByThreadId } =
+        state.mcpLaunchCustomServerNamesByThreadId;
       const { [threadId]: _droppedThreadDraft, ...threadDraftContents } = state.threadDraftContents;
+      // The thread is gone — drop it from the keep-alive cache so its terminal
+      // disposes and doesn't leak.
+      const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
       return {
         threads: nextThreads,
         threadDraftContents,
+        mcpLaunchCustomServerNamesByThreadId,
         pendingThreadLaunches: Object.fromEntries(
           Object.entries(state.pendingThreadLaunches).filter(([id]) => id !== threadId),
         ),
@@ -259,6 +283,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         lastRuntimeConfigByThreadId,
         runtimeLaunchConfigByThreadId,
         lastViewedAtByThreadId,
+        keepAlivePaneIds,
         view: nextView,
       };
     }),
@@ -361,6 +386,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         const slashCommandsChanged =
           input.slashCommands !== undefined &&
           !areAgentSlashCommandsEqual(thread.slashCommands, input.slashCommands);
+        // Implicit unmark only on a real turn start (same predicate as updatedAt),
+        // not on working rebroadcasts after the user marks done mid-turn.
+        const turnStarted = input.status === "working" && thread.status !== "working";
+        const activityClearsDone = turnStarted && thread.done;
 
         if (
           thread.status === effectiveStatus &&
@@ -396,9 +425,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             : {}),
           ...(nextSessionRef ? { sessionRef: nextSessionRef } : {}),
           ...(input.slashCommands !== undefined ? { slashCommands: input.slashCommands } : {}),
-          ...(input.status === "working" && thread.status !== "working"
-            ? { updatedAt: nowIso }
-            : {}),
+          ...(turnStarted ? { updatedAt: nowIso } : {}),
+          ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,
         };
       });
@@ -457,7 +485,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         nextView = removePaneFromView(state.view, threadId);
       }
 
-      return { threads, view: nextView };
+      // Archived threads leave the cache so their terminal disposes.
+      const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
+      return { threads, view: nextView, keepAlivePaneIds };
     }),
   unarchiveThread: (threadId) =>
     set((state) => {
@@ -485,7 +515,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         nextView = removePaneFromView(state.view, threadId);
       }
 
-      return { threads, view: nextView };
+      // A done thread leaves the pane (and soon the view), so its terminal
+      // disposes; keep-alive would only retain a dead buffer.
+      const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
+      return { threads, view: nextView, keepAlivePaneIds };
     }),
   unmarkThreadDone: (threadId) =>
     set((state) => {

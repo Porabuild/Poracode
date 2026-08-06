@@ -20,6 +20,22 @@ function recentInstalls(skill: MarketplaceSkill): number {
   return skill.weeklyInstalls?.at(-1) ?? 0;
 }
 
+function marketplaceMetricTotal(
+  marketplace: SkillMarketplaceId,
+  skills: MarketplaceSkill[],
+): number {
+  if (marketplace === "skills-directory") {
+    const starsBySource = new Map<string, number>();
+    for (const skill of skills) {
+      if (skill.stars === undefined) continue;
+      const source = skill.source.toLowerCase();
+      starsBySource.set(source, Math.max(starsBySource.get(source) ?? 0, skill.stars));
+    }
+    return [...starsBySource.values()].reduce((total, stars) => total + stars, 0);
+  }
+  return skills.reduce((total, skill) => total + (skill.installs ?? 0), 0);
+}
+
 export function SkillMarketplaceModal(props: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -108,10 +124,7 @@ export function SkillMarketplaceModal(props: {
       .map((skill) => skill.folderName.toLowerCase()),
   );
   const formatNumber = (value: number) => new Intl.NumberFormat(i18n.locale).format(value);
-  const metricTotal = installableSkills.reduce(
-    (total, skill) => total + (skill.installs ?? skill.stars ?? 0),
-    0,
-  );
+  const metricTotal = marketplaceMetricTotal(marketplace, installableSkills);
 
   const install = async (skill: MarketplaceSkill) => {
     setInstalling(skill.id);

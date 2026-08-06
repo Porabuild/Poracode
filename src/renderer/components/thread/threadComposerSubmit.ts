@@ -12,9 +12,10 @@ import { friendlyError } from "@/shared/messages";
 import {
   changeThreadConfig,
   resolveThreadServerRequest,
+  setThreadPendingSteer,
   submitThreadInput,
 } from "@/renderer/actions/threadRuntimeActions";
-import { readBridge } from "@/renderer/bridge";
+import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildLcSelectorFence, buildSelectorPlainText } from "@/renderer/state/browserAttachInbox";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
@@ -87,10 +88,16 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
             attachmentName: a.name,
           }),
     }));
-  const boundSegments = bindLeadingSkillUnlessLocalAction(segments, ctx.availableCommands, {
+  const slashLookupContext = {
     agentKind: thread.agentKind,
     presentationMode: ctx.presentationMode,
-  });
+    runtimeLabel: agentStatus?.capabilities.runtimeLabel,
+  };
+  const boundSegments = bindLeadingSkillUnlessLocalAction(
+    segments,
+    ctx.availableCommands,
+    slashLookupContext,
+  );
   const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
   if (flat.length === 0 || !ctx.canSubmit) return;
@@ -99,10 +106,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     ctx.setHasContent(false);
     ctx.latestSegmentsRef.current = [];
   };
-  const localAction = resolveLocalActionUnlessSkill(allSegments, flat, {
-    agentKind: thread.agentKind,
-    presentationMode: ctx.presentationMode,
-  });
+  const localAction = resolveLocalActionUnlessSkill(allSegments, flat, slashLookupContext);
   if (localAction?.kind === "set-mode") {
     changeThreadConfig(thread.id, { ...thread.config, mode: localAction.mode });
     mentionRef.current?.clear();
@@ -166,6 +170,10 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       requestId: activeRuntimeRequest.requestId,
       method: "requestPermission",
       response: { optionId: approvalDenyOption.optionId },
+      analytics: {
+        outcome: "declined",
+        requestType: activeRuntimeRequest.requestType,
+      },
     }).catch((err) => {
       console.error("[chat] auto-deny on composer submit failed", err);
       rollback();
@@ -182,15 +190,19 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     ctx.onSubmitInput ??
     ((outgoingPrompt: string, outgoingSegments?: PromptSegment[]) =>
       submitThreadInput(thread.id, outgoingPrompt, outgoingSegments));
-  const runSubmission = () =>
-    ctx.usesPendingSteerPath
-      ? readBridge().setPendingSteer({
-          threadId: thread.id,
-          prompt: flat,
-          ...(allSegments.length > 0 ? { segments: allSegments } : {}),
-          config: thread.config,
-        })
-      : submit(flat, allSegments.length > 0 ? allSegments : undefined);
+  const runSubmission = async () => {
+    if (!ctx.usesPendingSteerPath) {
+      await submit(flat, allSegments.length > 0 ? allSegments : undefined);
+      return;
+    }
+    await setThreadPendingSteer(thread, flat, allSegments.length > 0 ? allSegments : undefined);
+    captureThreadPromptSubmitted(
+      thread,
+      flat,
+      allSegments.length > 0 ? allSegments : undefined,
+      "pending_steer",
+    );
+  };
 
   if (!usesTerminalPresentation) {
     clearSubmittedComposer();

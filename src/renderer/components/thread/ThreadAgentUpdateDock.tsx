@@ -2,15 +2,17 @@ import { useEffect, useState } from "react";
 import { toast } from "@heroui/react";
 import { Download } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { extractAcpGenericInstanceId, type AgentStatus } from "@/shared/contracts";
+import { extractAcpGenericInstanceId, type AgentStatus, type Project } from "@/shared/contracts";
 import {
   formatUpdateCommandLine,
   isNewerVersion,
   resolveSharedUpdateCommand,
 } from "@/shared/agents/updateResolver";
 import { readBridge } from "@/renderer/bridge";
+import { runAgentInstallCommand } from "@/renderer/actions/agentLoginActions";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { getComposerRuntimeUpdate } from "@/renderer/components/providers/providerComposer";
 import {
   currentWslDistros,
   envLabelForStatus,
@@ -24,7 +26,9 @@ import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
  * available" with an inline Update button. Reads the *project-scoped* status
  * (Windows for Windows projects, the matching WSL distro for WSL projects), so
  * a draft against a WSL project never offers to update the Windows binary —
- * and vice versa.
+ * and vice versa. Providers with independently versioned composer runtimes can
+ * register a runtime-specific probe and update command; otherwise this uses the
+ * provider binary metadata on `AgentStatus`.
  *
  * Mirrors `ThreadAuthRequiredDock` in pattern. Hidden when:
  *   - The agent is not installed in the project's env.
@@ -36,27 +40,50 @@ import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
  */
 export function ThreadAgentUpdateDock(props: {
   agentStatus: AgentStatus;
+  project: Project;
   onUpdatingChange?: (updating: boolean) => void;
 }) {
-  const { agentStatus, onUpdatingChange } = props;
+  const { agentStatus, project, onUpdatingChange } = props;
   const { t } = useLingui();
   const [latestVersion, setLatestVersion] = useState<
-    { agentKind: string; version: string | undefined } | undefined
+    { updateKey: string; version: string | undefined } | undefined
   >(undefined);
   const [pending, setPending] = useState(false);
 
   const registryAgentId = extractAcpGenericInstanceId(agentStatus.kind);
+  const runtimeUpdate = getComposerRuntimeUpdate(agentStatus.kind)?.({ agentStatus, project });
+  const updateKey = `${agentStatus.kind}:${runtimeUpdate?.label ?? "provider"}`;
+  const installed = runtimeUpdate?.installed ?? agentStatus.installed;
+  const installedVersion = runtimeUpdate?.installedVersion ?? agentStatus.version;
+  const npmPackageName = runtimeUpdate?.npmPackage?.name;
+  const npmPackageMinVersion = runtimeUpdate?.npmPackage?.minVersion;
+  const npmPackageMaxExclusiveMajor = runtimeUpdate?.npmPackage?.maxExclusiveMajor;
+  const runtimeUpdateHandled = runtimeUpdate !== undefined;
 
   useEffect(() => {
     if (registryAgentId) return;
-    if (!agentStatus.installed || !agentStatus.version) return;
+    if (!installed || !installedVersion) return;
+    if (runtimeUpdateHandled && !npmPackageName) return;
     let cancelled = false;
     const kind = agentStatus.kind;
     readBridge()
-      .getLatestAgentVersion({ agentKind: kind })
+      .getLatestAgentVersion({
+        agentKind: kind,
+        ...(npmPackageName
+          ? {
+              npmPackage: {
+                name: npmPackageName,
+                ...(npmPackageMinVersion ? { minVersion: npmPackageMinVersion } : {}),
+                ...(npmPackageMaxExclusiveMajor
+                  ? { maxExclusiveMajor: npmPackageMaxExclusiveMajor }
+                  : {}),
+              },
+            }
+          : {}),
+      })
       .then((result) => {
         if (cancelled) return;
-        setLatestVersion({ agentKind: kind, version: result.version });
+        setLatestVersion({ updateKey, version: result.version });
       })
       .catch((error) => {
         console.warn(
@@ -67,19 +94,26 @@ export function ThreadAgentUpdateDock(props: {
     return () => {
       cancelled = true;
     };
-  }, [agentStatus.kind, agentStatus.installed, agentStatus.version, registryAgentId]);
+  }, [
+    agentStatus.kind,
+    installed,
+    installedVersion,
+    npmPackageMaxExclusiveMajor,
+    npmPackageMinVersion,
+    npmPackageName,
+    registryAgentId,
+    runtimeUpdateHandled,
+    updateKey,
+  ]);
 
   // Identity-gated read so a stale entry from a previous agent never matches
   // the current one (avoids one-frame flash on agent switch).
   const resolvedLatest =
-    latestVersion && latestVersion.agentKind === agentStatus.kind
-      ? latestVersion.version
-      : undefined;
+    latestVersion && latestVersion.updateKey === updateKey ? latestVersion.version : undefined;
 
-  const installedVersion = agentStatus.version;
   const isOutdated =
     registryAgentId === undefined &&
-    agentStatus.installed &&
+    installed &&
     resolvedLatest !== undefined &&
     installedVersion !== undefined &&
     isNewerVersion(resolvedLatest, installedVersion);
@@ -89,39 +123,57 @@ export function ThreadAgentUpdateDock(props: {
   }
 
   const scope = statusUpdateScope(agentStatus);
-  const previewCommand = resolveSharedUpdateCommand({
-    update: agentStatus.update,
-    executablePath: agentStatus.executablePath,
-    envKind: scope.envKind,
-  });
+  const previewCommand = runtimeUpdate
+    ? undefined
+    : resolveSharedUpdateCommand({
+        update: agentStatus.update,
+        executablePath: agentStatus.executablePath,
+        envKind: scope.envKind,
+      });
   const previewCommandLine = previewCommand ? formatUpdateCommandLine(previewCommand) : undefined;
 
   const envLabel = envLabelForStatus(agentStatus);
+  const updateLabel = runtimeUpdate?.label ?? agentStatus.label;
 
   async function handleUpdate() {
     if (pending) return;
     setPending(true);
     onUpdatingChange?.(true);
     try {
-      const result = await readBridge().updateAgentBinary({
-        agentKind: agentStatus.kind,
-        envKind: scope.envKind,
-        ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
-      });
-      if (result.ok) {
-        toast.success(t`${agentStatus.label} updated to v${resolvedLatest}.`);
-        await readBridge().refreshAgentStatuses(currentWslDistros(), {
-          agentKinds: [agentStatus.kind],
-          envs: [scopeEnvForStatus(agentStatus)],
+      const runtimeCommand = runtimeUpdate?.command;
+      if (runtimeCommand) {
+        const exitCode = await new Promise<number>((resolve) => {
+          const opened = runAgentInstallCommand({
+            label: updateLabel,
+            command: runtimeCommand,
+            project,
+            purpose: "update",
+            onCommandComplete: resolve,
+          });
+          if (!opened) resolve(-1);
         });
+        if (exitCode !== 0) return;
       } else {
-        const detail = result.output?.trim();
-        toast.danger(
-          detail
-            ? t`Unable to update ${agentStatus.label}: ${detail.slice(0, 240)}`
-            : t`Unable to update ${agentStatus.label}.`,
-        );
+        const result = await readBridge().updateAgentBinary({
+          agentKind: agentStatus.kind,
+          envKind: scope.envKind,
+          ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
+        });
+        if (!result.ok) {
+          const detail = result.output?.trim();
+          toast.danger(
+            detail
+              ? t`Unable to update ${agentStatus.label}: ${detail.slice(0, 240)}`
+              : t`Unable to update ${agentStatus.label}.`,
+          );
+          return;
+        }
       }
+      toast.success(t`${agentStatus.label} updated to v${resolvedLatest}.`);
+      await readBridge().refreshAgentStatuses(currentWslDistros(), {
+        agentKinds: [agentStatus.kind],
+        envs: [scopeEnvForStatus(agentStatus)],
+      });
     } catch (error) {
       toast.danger(
         error instanceof Error ? error.message : t`Unable to update ${agentStatus.label}.`,
@@ -159,7 +211,7 @@ export function ThreadAgentUpdateDock(props: {
         }
       >
         <span className="min-w-0 flex-1 truncate leading-5 text-[color:var(--muted)]">
-          {agentStatus.label}: {description}
+          {updateLabel}: {description}
         </span>
       </ThreadDockHeader>
     </ThreadDockSection>

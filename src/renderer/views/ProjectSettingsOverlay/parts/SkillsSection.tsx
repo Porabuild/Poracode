@@ -7,7 +7,10 @@ import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsFor
 
 export function SkillsSection(props: { projectId: string }) {
   const { t } = useLingui();
-  const projects = useAppStore((state) => state.projects)
+  const allProjects = useAppStore((state) => state.projects);
+  const currentProject = allProjects.find((project) => project.id === props.projectId);
+  const projects = allProjects
+    .filter((project) => project.remoteServerId === currentProject?.remoteServerId)
     .filter((item) => !isHomeProject(item))
     .map(({ id, name, location }) => ({ id, name, location }));
   if (!projects.some((project) => project.id === props.projectId)) return null;

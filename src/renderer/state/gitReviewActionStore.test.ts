@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useGitReviewActionStore } from "./gitReviewActionStore";
+import { gitReviewActionStoreKey, useGitReviewActionStore } from "./gitReviewActionStore";
 
 function resetStore() {
   useGitReviewActionStore.setState({ panels: {} });
@@ -74,6 +74,21 @@ describe("gitReviewActionStore", () => {
     const before = panels();
     patch("p", { commitMessage: "x" }); // same value
     expect(panels()).toBe(before); // identical reference — no update
+  });
+
+  // A conflicted stash-pull records its stash commit here so the panel's
+  // finish/abort merge actions can re-apply it later, even though the pull
+  // ran from the dialog and the panel may remount in between.
+  it("holds a pull stash commit across writers until the merge resolves", () => {
+    patch("wt", { pullStashCommit: "a".repeat(40) });
+    expect(panels()["wt"]?.pullStashCommit).toBe("a".repeat(40));
+    patch("wt", { pullStashCommit: null });
+    expect(panels()["wt"]?.pullStashCommit).toBeNull();
+  });
+
+  it("derives the same store key as the panel (statusKey ?? project.id)", () => {
+    expect(gitReviewActionStoreKey("proj-1", "/path/to/worktree")).toBe("/path/to/worktree");
+    expect(gitReviewActionStoreKey("proj-1", undefined)).toBe("proj-1");
   });
 
   it("leaves untouched keys referentially stable when another key changes", () => {

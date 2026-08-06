@@ -1,7 +1,13 @@
 import { compactAgentProviderMetadata, type AgentCapability } from "@/shared/contracts";
-import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import { readAgentCommandOutput, type DetectionSpec, type StatusProbeResult } from "../base";
 import { getAgentProbeCwd } from "../probeCwd";
+import {
+  CLAUDE_BUILTIN_FAST_MODELS,
+  CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
+  CLAUDE_BUILTIN_MODEL_EFFORTS,
+  CLAUDE_BUILTIN_MODELS,
+  CLAUDE_PREMIUM_EFFORT_TIERS,
+} from "./models";
 import { probeClaudeCapabilities } from "./probe";
 
 /** Default `--permission-mode` when `ThreadConfig.approvalPolicy` is omitted. */
@@ -21,55 +27,20 @@ const CLAUDE_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
   },
 ];
 
-/** Effort tiers shared by the frontier models (Opus 4.7/4.8 and Fable 5). */
-const PREMIUM_EFFORT_TIERS: string[] = [...CLAUDE_EFFORT_TIERS];
-
-/**
- * Master switch for the Fable 5 model. Flip to `false` to hide it from the
- * model pickers while keeping its effort/context/auto metadata ready below.
- */
-const FABLE_5_ENABLED = true;
-const SONNET_5_MODEL_ID = "claude-sonnet-5";
-
 export const claudeCapabilities: AgentCapability = {
-  models: [
-    ...(FABLE_5_ENABLED ? [{ id: "claude-fable-5", label: "Fable 5" }] : []),
-    { id: "claude-opus-4-8", label: "Opus 4.8" },
-    { id: "claude-opus-4-7", label: "Opus 4.7" },
-    { id: "claude-opus-4-6", label: "Opus 4.6" },
-    { id: SONNET_5_MODEL_ID, label: "Sonnet 5" },
-    { id: "haiku", label: "Haiku" },
-  ],
-  efforts: PREMIUM_EFFORT_TIERS,
+  models: CLAUDE_BUILTIN_MODELS,
+  efforts: CLAUDE_PREMIUM_EFFORT_TIERS,
   defaultEffort: "high",
-  modelEfforts: {
-    "claude-fable-5": PREMIUM_EFFORT_TIERS,
-    "claude-opus-4-8": PREMIUM_EFFORT_TIERS,
-    "claude-opus-4-7": PREMIUM_EFFORT_TIERS,
-    "claude-opus-4-6": ["low", "medium", "high", "max"],
-    [SONNET_5_MODEL_ID]: PREMIUM_EFFORT_TIERS,
-    haiku: [],
-  },
+  modelEfforts: CLAUDE_BUILTIN_MODEL_EFFORTS,
   contextSizes: [
     { id: "200k", label: "200k" },
     { id: "1m", label: "1M" },
   ],
   // Order matters: the first entry is the per-model default. Frontier models
   // default to 1M (the long-context build users select these for).
-  modelContextSizes: {
-    "claude-fable-5": ["1m"],
-    "claude-opus-4-8": ["1m", "200k"],
-    "claude-opus-4-7": ["1m", "200k"],
-    "claude-opus-4-6": ["1m", "200k"],
-    [SONNET_5_MODEL_ID]: ["1m"],
-    // Legacy `sonnet` alias — dropped from the picker (replaced by Sonnet 5) but
-    // still used by commit-gen defaults and pre-rename threads, so keep it
-    // context-managed (200k default) for backward compatibility. Its presence
-    // here is what keeps it in CLAUDE_CONTEXT_MANAGED_MODEL_IDS below.
-    sonnet: ["200k", "1m"],
-  },
+  modelContextSizes: CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
   defaultContextSize: "200k",
-  fastModels: ["claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6"],
+  fastModels: CLAUDE_BUILTIN_FAST_MODELS,
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },
@@ -81,7 +52,9 @@ export const claudeCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  supportsTextOnlyOneShot: true,
   supportsDirectInput: true,
+  readsPdfAttachmentsFromHost: true,
   slashCommands: CLAUDE_BUILT_IN_SLASH_COMMANDS,
   liveInputMode: "terminal",
   presentationMode: "terminal",
@@ -90,9 +63,7 @@ export const claudeCapabilities: AgentCapability = {
   bypassPermissions: { approvalPolicy: CLAUDE_DEFAULT_APPROVAL_POLICY },
   // SDK GUI sessions rebuild the MCP server set on every turn, so both
   // toggles stay live mid-thread. The TUI has no per-thread MCP gating.
-  browserMcpScope: { terminal: "none", gui: "always" },
-  subagentMcpScope: { terminal: "none", gui: "always" },
-  chromeMcpScope: { terminal: "none", gui: "always" },
+  mcpScope: { terminal: "none", gui: "always" },
   settingDefs: [
     {
       key: "usePowershellTool",

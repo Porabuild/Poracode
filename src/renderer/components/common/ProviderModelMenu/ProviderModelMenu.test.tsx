@@ -121,6 +121,7 @@ describe("ProviderModelMenu", () => {
     useSharedSettings.setState({
       favoriteModels: [],
       recentModels: [],
+      hiddenModels: {},
     });
   });
 
@@ -138,11 +139,37 @@ describe("ProviderModelMenu", () => {
 
     const listbox = await screen.findByRole("listbox", { name: "Models" });
     expect(listbox).toHaveClass("no-scrollbar");
+    expect(listbox.querySelector(".poracode-model-menu-bottom-spacer")).toHaveAttribute(
+      "data-scroll-end-gap",
+      "6",
+    );
     expect(screen.queryByText("Model 500")).not.toBeInTheDocument();
 
     fireEvent.scroll(listbox, { target: { scrollTop: 500 * 28 } });
 
     expect(await screen.findByText("Model 500")).toBeInTheDocument();
+  });
+
+  it("keeps the desktop popover width fixed while windowing model rows", async () => {
+    render(
+      <ProviderModelMenu
+        providers={[makeProvider(500)]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    const fixedWidthPopover = listbox.closest(".w-96");
+    expect(fixedWidthPopover).not.toBeNull();
+
+    fireEvent.scroll(listbox, { target: { scrollTop: 500 * 28 } });
+
+    expect(await screen.findByText("Model 500")).toBeInTheDocument();
+    expect(listbox.closest(".w-96")).toBe(fixedWidthPopover);
   });
 
   it("renders normalized model rate descriptions as muted row hints", async () => {
@@ -488,6 +515,62 @@ describe("ProviderModelMenu", () => {
     await assertShortcutRailOrder("OpenAI Model 1", "OpenAI");
   });
 
+  it("lets a long sub-provider label truncate before the model name", async () => {
+    const baseProvider = makeSubProviderBackedProvider();
+    const longSubProvider = {
+      ...baseProvider,
+      capabilities: {
+        ...baseProvider.capabilities,
+        subProviders: [
+          { id: "github-copilot", label: "An Extremely Long Sub-Provider Display Name" },
+          { id: "openai", label: "OpenAI" },
+        ],
+      },
+    };
+    useSharedSettings.setState({
+      favoriteModels: [
+        { agentKind: "opencode", modelId: "github-copilot/model-1", presentationMode: "gui" },
+      ],
+    });
+
+    render(
+      <ProviderModelMenu
+        providers={[longSubProvider, makeNamedProvider("claude", "Claude", 3)]}
+        currentAgentKind="opencode"
+        currentModel="github-copilot/model-2"
+        presentationMode="gui"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    let row: Element | null | undefined;
+    await waitFor(() => {
+      row = screen
+        .getAllByText("Copilot Model 1")
+        .map((element) => element.closest('[role="option"]'))
+        .find((option) => option?.textContent?.includes("An Extremely Long Sub-Provider"));
+      expect(row).not.toBeUndefined();
+    });
+    expect(row).not.toBeNull();
+
+    const modelName = within(row as HTMLElement).getByText("Copilot Model 1");
+    const subProviderLabel = within(row as HTMLElement).getByText(
+      "An Extremely Long Sub-Provider Display Name",
+    );
+    const subProviderRail = subProviderLabel.parentElement as HTMLElement;
+
+    // The model name owns the flexible space, so it only truncates once the
+    // sub-provider rail has fully shrunk. The rail is additionally width-capped
+    // so the model always keeps the majority of the row.
+    expect(modelName.parentElement?.className).toContain("flex-1");
+    expect(subProviderRail.className).toContain("max-w-[45%]");
+    expect(subProviderRail.className).not.toContain("shrink-0");
+    expect(subProviderLabel.className).toContain("min-w-0");
+    expect(subProviderLabel.className).toContain("truncate");
+  });
+
   it("keeps shortcut favorites and recents scoped to the current presentation mode", async () => {
     useSharedSettings.setState({
       favoriteModels: [
@@ -520,6 +603,41 @@ describe("ProviderModelMenu", () => {
     expect(within(listbox).getByText("Gui Recent")).toBeInTheDocument();
     expect(within(listbox).queryByText("Terminal Fav")).not.toBeInTheDocument();
     expect(within(listbox).queryByText("Terminal Recent")).not.toBeInTheDocument();
+  });
+
+  it("keeps hidden models out of the favorites and recents sections", async () => {
+    useSharedSettings.setState({
+      favoriteModels: [{ agentKind: "codex", modelId: "model-2", presentationMode: "gui" }],
+      recentModels: [
+        { agentKind: "codex", modelId: "model-4[1m]", presentationMode: "gui" },
+        { agentKind: "codex", modelId: "model-3", presentationMode: "gui" },
+      ],
+      hiddenModels: { codex: ["model-2", "model-4"] },
+    });
+
+    // Callers strip hidden models from the capabilities they pass in, so the
+    // visible catalog only carries model-1 and model-3.
+    const codex = makeNamedProvider("codex", "Codex", 3);
+    codex.capabilities.models = codex.capabilities.models.filter((m) => m.id !== "model-2");
+
+    render(
+      <ProviderModelMenu
+        providers={[codex, makeNamedProvider("claude", "Claude", 1)]}
+        currentAgentKind="codex"
+        currentModel="model-1"
+        presentationMode="gui"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).getByText("Recent")).toBeInTheDocument();
+    expect(within(listbox).getAllByText("Model 3").length).toBeGreaterThan(0);
+    expect(within(listbox).queryAllByText("Favorites")).toHaveLength(0);
+    expect(within(listbox).queryAllByText("Model 2")).toHaveLength(0);
+    expect(within(listbox).queryAllByText(/Model 4/u)).toHaveLength(0);
   });
 
   it("does not duplicate favorites into a separate section when only one provider is visible", async () => {

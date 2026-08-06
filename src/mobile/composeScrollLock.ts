@@ -155,10 +155,13 @@ export function lockComposeScroll(source?: HTMLElement | null): void {
   const scroller = document.scrollingElement ?? document.documentElement;
   lockedScroller = scroller;
   capturedScrollers = captureAncestorScrollers(source);
-  // The PWA shell is fixed and overflow-hidden; any nonzero root scroll here
-  // is keyboard pan residue from iOS, not app state. Reset before focusing so
-  // WebKit evaluates the composer from the correct screen position.
-  originalScrollTop = MOBILE_ROOT_SCROLL_TOP;
+  // When the shell is fixed and overflow-hidden, any nonzero root scroll here
+  // is keyboard pan residue from iOS, not app state — reset it before focusing
+  // so WebKit evaluates the composer from the correct screen position. But in
+  // browser-mode home the document IS the list scroller: there the current
+  // offset is real user state and must be re-asserted, not zeroed.
+  const documentScrolls = scroller.scrollHeight > scroller.clientHeight + 1;
+  originalScrollTop = documentScrolls ? scroller.scrollTop : MOBILE_ROOT_SCROLL_TOP;
   isLocked = true;
   clearSettleTimers();
   window.addEventListener("scroll", restoreCapturedScroll, { passive: true });

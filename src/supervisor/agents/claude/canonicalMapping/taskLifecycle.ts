@@ -1,7 +1,6 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, ToolCallProgress } from "@/shared/contracts";
 import type { ClaudeMapperState, ToolItemState } from "../sdkCanonicalMappingState";
-import { emitActiveGoalTaskUsageUpdate } from "./goal";
 import { classifyToolItemType, isSubAgentToolName } from "./toolClassification";
 import { syncSubAgentModelProgress } from "./toolItems";
 import { toolPayload } from "./toolPayload";
@@ -19,6 +18,22 @@ type TaskUsage = { total_tokens?: number; tool_uses?: number; duration_ms?: numb
 
 function readTaskUsage(obj: { usage?: unknown }): TaskUsage | undefined {
   return obj.usage && typeof obj.usage === "object" ? (obj.usage as TaskUsage) : undefined;
+}
+
+/**
+ * Record a live progress description on a Workflow tool's structured metadata.
+ * Descriptions are the only in-flight source of agent labels ("Phase: label");
+ * the manifest with authoritative labels is only written at completion. Kept
+ * distinct and in first-seen order so the renderer can pair them positionally
+ * with journal-ordered agents.
+ */
+function recordWorkflowLiveDescription(tool: ToolItemState, description: unknown): void {
+  if (tool.toolName !== "Workflow") return;
+  if (typeof description !== "string" || description.length === 0) return;
+  const workflow = (tool.workflow ??= {});
+  const log = (workflow.liveDescriptions ??= []);
+  if (log.length >= 1000 || log.includes(description)) return;
+  log.push(description);
 }
 
 /** Merge a task lifecycle message's descriptive/usage fields onto a tool's progress. */
@@ -50,19 +65,23 @@ function mergeTaskProgress(
  * Absorb a `task_started` / `task_progress` / `task_notification` system
  * message into the parent Task tool_call's progress field. Lets a collapsed
  * sub-agent row show its current step without expanding to read the children.
+ *
+ * The per-task `usage` is reflected on the tool progress only — it must NOT
+ * feed goal/session token totals: sidechain spend is already counted exactly
+ * once from the sub-agent's own assistant messages, and task usage is a
+ * cumulative-per-task counter that would double-count it.
  */
 export function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   const obj = message as TaskLifecycleMessage;
   const usage = readTaskUsage(obj);
-  const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
-  if (goalUsage) events.push(goalUsage);
 
   const toolUseId = typeof obj.tool_use_id === "string" ? obj.tool_use_id : undefined;
   if (!toolUseId) return events;
   const tool = state.toolItemsById.get(toolUseId);
   if (!tool) return events;
   syncSubAgentModelProgress(tool);
+  recordWorkflowLiveDescription(tool, obj.description);
 
   const next = mergeTaskProgress(tool, obj, usage);
   if (Object.keys(next).length === 0) return events;
@@ -127,6 +146,7 @@ export function applyTaskUpdated(message: SDKMessage, state: ClaudeMapperState):
       : undefined;
   const error = typeof patch.error === "string" && patch.error.length > 0 ? patch.error : undefined;
   if (!description && !error) return [];
+  recordWorkflowLiveDescription(tool, description);
   tool.progress = {
     ...tool.progress,
     ...(description ? { description } : {}),
@@ -162,8 +182,6 @@ export function applyTaskNotification(
 
   const events: RuntimeEvent[] = [];
   const usage = readTaskUsage(obj);
-  const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
-  if (goalUsage) events.push(goalUsage);
 
   const tool = state.toolItemsById.get(registeredToolUseId);
   if (!tool) {

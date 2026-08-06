@@ -7,10 +7,11 @@ import { ChatPane } from "./ChatPane/ChatPane";
 import { ChatRuntimeDebugPanel } from "./ChatPane/ChatRuntimeDebugPanel";
 import { guiChatFontCssVars } from "./ChatPane/chatFontVars";
 import { clearUserMessageCollapsedHeightCache } from "./ChatPane/parts/items/userMessageOverflow";
-import type { TerminalPaneHandle } from "./TerminalPane";
+import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
+import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import { ThreadComposerSection } from "./ThreadComposerSection";
-import { ThreadTodoDock } from "./ThreadTodoDock";
 import { useThreadDockState, type ThreadDockState } from "./useThreadDockState";
+import type { SaveClipboardImage } from "../composer/useAttachments";
 
 export type ThreadContentCommonProps = {
   threadId: string;
@@ -26,7 +27,15 @@ export type ThreadContentCommonProps = {
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onRevealProjectFolderInTree?: ((path: string) => void) | undefined;
+  onOpenSubAgent?:
+    | ((parentItemId: string, projectLocation: ProjectLocation | undefined) => void)
+    | undefined;
   canShowProjectEntryInExplorer?: boolean | undefined;
+  checkpointActions?: CheckpointRevertActions | undefined;
+  checkpointProjectLocation?: ProjectLocation | undefined;
+  remoteTerminalTransport?: RemoteTerminalTransport | undefined;
+  pickFiles?: (() => Promise<string[] | null>) | undefined;
+  saveClipboardImage?: SaveClipboardImage | undefined;
 };
 
 export function GuiThreadContent(
@@ -34,6 +43,8 @@ export function GuiThreadContent(
     runtimeDebugOpen: boolean;
     dockState?: ThreadDockState;
     hideComposer?: boolean;
+    initialScrollRevealDelayMs?: number;
+    onInitialScrollSettled?: () => void;
   },
 ) {
   const runtimeDebugOpen = import.meta.env.DEV && props.runtimeDebugOpen;
@@ -44,9 +55,6 @@ export function GuiThreadContent(
   }, [guiChatFontSize]);
   const ownDockState = useThreadDockState(thread.id);
   const dockState = props.dockState ?? ownDockState;
-  const { todoDockState } = dockState;
-  const showTodoInRightRail = dockState.showTodoInRightRail;
-  const showThreadSideRail = runtimeDebugOpen || showTodoInRightRail;
 
   return (
     <>
@@ -67,39 +75,30 @@ export function GuiThreadContent(
               {...(props.onRevealProjectFolderInTree
                 ? { onRevealProjectFolderInTree: props.onRevealProjectFolderInTree }
                 : {})}
+              {...(props.onOpenSubAgent ? { onOpenSubAgent: props.onOpenSubAgent } : {})}
               {...(props.canShowProjectEntryInExplorer !== undefined
                 ? { canShowProjectEntryInExplorer: props.canShowProjectEntryInExplorer }
                 : {})}
+              {...(props.checkpointActions ? { checkpointActions: props.checkpointActions } : {})}
+              {...(props.checkpointProjectLocation
+                ? { checkpointProjectLocation: props.checkpointProjectLocation }
+                : {})}
+              {...(props.initialScrollRevealDelayMs !== undefined
+                ? { initialScrollRevealDelayMs: props.initialScrollRevealDelayMs }
+                : {})}
+              {...(props.onInitialScrollSettled
+                ? { onInitialScrollSettled: props.onInitialScrollSettled }
+                : {})}
             />
           </div>
-          {showThreadSideRail ? (
+          {runtimeDebugOpen ? (
             <div className="flex h-full min-h-0 w-[min(44%,24rem)] shrink-0 flex-col gap-2 border-l border-[color:var(--border)] pl-2">
-              {showTodoInRightRail ? (
-                <div
-                  className={
-                    runtimeDebugOpen && !dockState.todoDockCollapsed
-                      ? "min-h-0 max-h-[45%] shrink-0"
-                      : "min-h-0 flex-1"
-                  }
-                >
-                  <ThreadTodoDock
-                    collapsed={dockState.todoDockCollapsed}
-                    placement={dockState.todoDockPlacement}
-                    state={todoDockState!}
-                    onCollapsedChange={dockState.onTodoDockCollapsedChange}
-                    onPlacementChange={dockState.onTodoDockPlacementChange}
-                    onRetire={dockState.onTodoDockRetire}
-                  />
-                </div>
-              ) : null}
-              {runtimeDebugOpen ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-                  <p className="shrink-0 text-xs font-medium text-foreground">
-                    <Trans>Runtime debug</Trans>
-                  </p>
-                  <ChatRuntimeDebugPanel threadId={thread.id} />
-                </div>
-              ) : null}
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+                <p className="shrink-0 text-xs font-medium text-foreground">
+                  <Trans>Runtime debug</Trans>
+                </p>
+                <ChatRuntimeDebugPanel threadId={thread.id} />
+              </div>
             </div>
           ) : null}
         </div>

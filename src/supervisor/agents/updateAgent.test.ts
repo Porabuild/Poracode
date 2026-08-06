@@ -1,10 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter, AgentEnvContext } from "./base";
+const readAgentCommandOutputMock = vi.hoisted(() =>
+  vi.fn<typeof import("./base").readAgentCommandOutput>(),
+);
+
+vi.mock("./base", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./base")>();
+  return { ...actual, readAgentCommandOutput: readAgentCommandOutputMock };
+});
+
 import {
   clearLatestVersionCache,
+  getLatestSupportedNpmPackageVersion,
   getLatestVersionForAdapter,
   resolveUpdateCommand,
+  runUpdateCommandWithFallback,
 } from "./updateAgent";
 
 const updateByKind: Record<string, AgentAdapter["update"]> = {
@@ -21,6 +32,12 @@ const updateByKind: Record<string, AgentAdapter["update"]> = {
   gemini: {
     npm: "@google/gemini-cli",
     brew: "gemini-cli",
+  },
+  qwen: {
+    builtIn: { binary: "qwen", args: ["update"] },
+    verifyBuiltInVersionChange: true,
+    npm: "@qwen-code/qwen-code",
+    brew: "qwen-code",
   },
   opencode: {
     builtIn: { binary: "opencode", args: ["upgrade"] },
@@ -193,6 +210,24 @@ describe("resolveUpdateCommand", () => {
     expect(command?.args).toEqual(["install", "-g", "@google/gemini-cli@latest"]);
   });
 
+  it("uses Qwen's built-in command before its package-manager fallback", () => {
+    const adapter = makeAdapter("qwen");
+    const status = makeStatus({
+      kind: "qwen",
+      executablePath: "C:\\Users\\me\\AppData\\Roaming\\fnm\\aliases\\default\\qwen.cmd",
+    });
+    expect(resolveUpdateCommand(adapter, status, NATIVE_WIN)).toEqual({
+      binary: "qwen",
+      args: ["update"],
+      strategy: "built-in",
+    });
+    expect(resolveUpdateCommand(adapter, status, NATIVE_WIN, { skipBuiltIn: true })).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "@qwen-code/qwen-code@latest"],
+      strategy: "npm-global",
+    });
+  });
+
   it("uses brew for Homebrew-installed Gemini", () => {
     const adapter = makeAdapter("gemini");
     const status = makeStatus({
@@ -261,6 +296,42 @@ describe("resolveUpdateCommand", () => {
     const adapter = makeAdapter("homemade-agent");
     const status = makeStatus({ kind: "homemade-agent" });
     expect(resolveUpdateCommand(adapter, status, NATIVE_POSIX)).toBeUndefined();
+  });
+});
+
+describe("runUpdateCommandWithFallback", () => {
+  it("uses the package-manager fallback when a successful built-in update is not verified", async () => {
+    readAgentCommandOutputMock
+      .mockResolvedValueOnce({ ok: true, stdout: "Run npm install -g", stderr: "" })
+      .mockResolvedValueOnce({ ok: true, stdout: "updated", stderr: "" });
+    const verifyBuiltInSuccess = vi.fn<() => Promise<boolean>>().mockResolvedValue(false);
+    const adapter = makeAdapter("qwen");
+    const status = makeStatus({
+      kind: "qwen",
+      version: "0.21.0",
+      executablePath: "C:\\Users\\me\\AppData\\Roaming\\npm\\qwen.cmd",
+    });
+
+    const result = await runUpdateCommandWithFallback(adapter, status, NATIVE_WIN, {
+      verifyBuiltInSuccess,
+    });
+
+    expect(result).toEqual({ ok: true, strategy: "npm-global", output: "updated" });
+    expect(verifyBuiltInSuccess).toHaveBeenCalledOnce();
+    expect(readAgentCommandOutputMock).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      "qwen",
+      ["update"],
+      { timeoutMs: 5 * 60 * 1000 },
+    );
+    expect(readAgentCommandOutputMock).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      "npm",
+      ["install", "-g", "@qwen-code/qwen-code@latest"],
+      { timeoutMs: 5 * 60 * 1000 },
+    );
   });
 });
 
@@ -375,5 +446,87 @@ describe("getLatestVersionForAdapter", () => {
     globalThis.fetch = (() => Promise.reject(new Error("network down"))) as unknown as typeof fetch;
     const result = await getLatestVersionForAdapter(makeAdapter("codex"));
     expect(result.version).toBeUndefined();
+  });
+});
+
+describe("getLatestSupportedNpmPackageVersion", () => {
+  const originalFetch = globalThis.fetch;
+  const cursorSdkQuery = {
+    name: "@cursor/sdk",
+    minVersion: "1.0.24",
+    maxExclusiveMajor: 2,
+  };
+
+  function registryResponse(versions: readonly string[]): Response {
+    return {
+      ok: true,
+      json: async () => ({
+        versions: Object.fromEntries(versions.map((version) => [version, { version }])),
+      }),
+    } as Response;
+  }
+
+  beforeEach(() => {
+    clearLatestVersionCache();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    clearLatestVersionCache();
+  });
+
+  it("returns the newest supported version from the abbreviated registry document", async () => {
+    const fetchSpy = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(registryResponse(["1.0.24", "1.0.31", "1.0.9"]));
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestSupportedNpmPackageVersion(cursorSdkQuery);
+
+    expect(result).toEqual({ version: "1.0.31", source: "npm" });
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://registry.npmjs.org/%40cursor%2Fsdk");
+    expect((init.headers as Record<string, string>).accept).toBe(
+      "application/vnd.npm.install-v1+json",
+    );
+  });
+
+  it("stays inside the window when a newer unsupported major is published", async () => {
+    globalThis.fetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(registryResponse(["1.0.24", "2.0.0", "2.1.3"])) as unknown as typeof fetch;
+
+    const result = await getLatestSupportedNpmPackageVersion(cursorSdkQuery);
+
+    // Newest *supported* release only: a caller sitting on 1.0.24 sees nothing
+    // newer, so no update is offered for the 2.x line the runtime can't load.
+    expect(result).toEqual({ version: "1.0.24", source: "npm" });
+  });
+
+  it("ignores pre-releases and versions below the minimum", async () => {
+    globalThis.fetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(registryResponse(["1.0.23", "1.1.0-beta.1"])) as unknown as typeof fetch;
+
+    expect(await getLatestSupportedNpmPackageVersion(cursorSdkQuery)).toEqual({
+      source: "unknown",
+    });
+  });
+
+  it("returns no version on registry failure (does not throw)", async () => {
+    globalThis.fetch = (() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
+
+    expect(await getLatestSupportedNpmPackageVersion(cursorSdkQuery)).toEqual({
+      source: "unknown",
+    });
+  });
+
+  it("caches per package and window", async () => {
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue(registryResponse(["1.0.31"]));
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    await getLatestSupportedNpmPackageVersion(cursorSdkQuery);
+    await getLatestSupportedNpmPackageVersion(cursorSdkQuery);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

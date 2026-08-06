@@ -22,6 +22,7 @@ import {
 } from "react";
 import type { TerminalSize } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
@@ -30,6 +31,7 @@ import {
   clearActiveTerminalFind,
   setActiveTerminalFind,
 } from "@/renderer/components/find/terminalFindBridge";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 
 /** Decoration colors for in-terminal find matches (kept in sync with the CSS
  * highlight colors used elsewhere: amber for matches, orange for the active). */
@@ -96,6 +98,8 @@ export const XTermSurface = forwardRef<
     openLinksInNativeBrowser?: boolean;
     /** Mobile browsers are more reliable with xterm's default DOM renderer. */
     preferDomRenderer?: boolean;
+    /** Whether this mounted keep-alive surface is currently visible. */
+    visible?: boolean;
     /** Keep xterm's local buffer at the canonical PTY size instead of fitting. */
     fixedTerminalSize?: TerminalSize;
     /** Whether a visual fit should resize the backing PTY. */
@@ -144,6 +148,7 @@ export const XTermSurface = forwardRef<
     baseFontSize = 12,
     openLinksInNativeBrowser = false,
     preferDomRenderer = false,
+    visible = true,
     fixedTerminalSize,
     resizeTerminalOnFit = true,
     touchScrollEnabled = false,
@@ -182,6 +187,8 @@ export const XTermSurface = forwardRef<
   const baseFontSizeRef = useRef(baseFontSize);
   baseFontSizeRef.current = baseFontSize;
   const requestRefitRef = useRef<(() => void) | null>(null);
+  const revealRef = useRef<(() => void) | null>(null);
+  const previousVisibleRef = useRef(visible);
   const openLink = (uri: string) => {
     const bridge = readBridge();
     void (openLinksInNativeBrowser ? bridge.openExternalNative(uri) : bridge.openExternal(uri));
@@ -249,7 +256,6 @@ export const XTermSurface = forwardRef<
     let scrollbackHydrationToken = 0;
     let hydratingScrollback = false;
     let bufferedOutputDuringHydration = "";
-    let reopenRepaintDone = false;
     // Fit the canvas every frame for live visual feedback, but DEBOUNCE the PTY
     // resize RPC, mirroring VS Code's TerminalResizeDebouncer. A full-height
     // repaint-in-place TUI (Claude no-flicker, codex) re-emits its whole frame
@@ -282,13 +288,12 @@ export const XTermSurface = forwardRef<
     // never redraws and its bottom input row can be missing until the user
     // manually resizes the window. Send one deliberate winsize delta so the
     // kernel delivers SIGWINCH and the agent emits a fresh frame over the
-    // (possibly stale / byte-sliced) replayed scrollback. One-shot per mount.
+    // (possibly stale / byte-sliced) replayed scrollback.
     const forceAgentRepaint = () => {
-      if (!isActive || reopenRepaintDone) return;
+      if (!isActive) return;
       const cols = terminal.cols;
       const rows = terminal.rows;
       if (cols < 20 || rows < 5) return;
-      reopenRepaintDone = true;
       // Pin our throttle bookkeeping to the REAL size so the next doFit doesn't
       // also fire a (now-redundant) resize for the same dimensions.
       lastCols = cols;
@@ -320,18 +325,39 @@ export const XTermSurface = forwardRef<
         return;
       }
       let restoredScrollback = false;
+      // Prefer the renderer-side accumulator (threadOutputStore): it keeps a
+      // bounded append-only copy of this thread's PTY bytes across pane
+      // switches, so re-opening a repaint-in-place agent (Claude no-flicker,
+      // Command Code) restores what the terminal actually displayed. The
+      // supervisor transcript read remains the fallback (e.g. when the store
+      // was reset or this surface mounted before any output was fed).
+      const localScrollback = useThreadOutputStore.getState().readTail(terminalId, 100_000);
+      const applyScrollback = (scrollback: string) => {
+        if (!isActive || token !== scrollbackHydrationToken) {
+          return;
+        }
+        if (scrollback.length > 0) {
+          terminal.reset();
+          terminal.write(scrollback);
+          bufferedOutputDuringHydration = "";
+          restoredScrollback = true;
+        }
+      };
+      if (localScrollback.length > 0) {
+        applyScrollback(localScrollback);
+        hydratingScrollback = false;
+        forceAgentRepaint();
+        return;
+      }
       void readBridge()
         .readTerminalScrollback({ threadId: terminalId })
         .then((scrollback) => {
-          if (!isActive || token !== scrollbackHydrationToken) {
+          // If the accumulator already hydrated (or was invalidated by a
+          // thread-reset), don't replay the transcript over it.
+          if (restoredScrollback || !isActive || token !== scrollbackHydrationToken) {
             return;
           }
-          if (scrollback.length > 0) {
-            terminal.reset();
-            terminal.write(scrollback);
-            bufferedOutputDuringHydration = "";
-            restoredScrollback = true;
-          }
+          applyScrollback(scrollback);
         })
         .catch(() => undefined)
         .finally(() => {
@@ -504,6 +530,14 @@ export const XTermSurface = forwardRef<
       lastFitWidth = -1;
       lastFitHeight = -1;
       scheduleResize();
+    };
+    revealRef.current = () => {
+      requestRefitRef.current?.();
+      requestAnimationFrame(() => {
+        if (!isActive) return;
+        terminal.refresh(0, terminal.rows - 1);
+        forceAgentRepaint();
+      });
     };
 
     const search = new SearchAddon();
@@ -824,9 +858,18 @@ export const XTermSurface = forwardRef<
       fitRef.current = null;
       searchRef.current = null;
       requestRefitRef.current = null;
+      revealRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance/touch behavior are captured at init
   }, []);
+
+  useEffect(() => {
+    const wasVisible = previousVisibleRef.current;
+    previousVisibleRef.current = visible;
+    if (visible && !wasVisible) {
+      revealRef.current?.();
+    }
+  }, [visible]);
 
   useEffect(() => {
     requestRefitRef.current?.();
@@ -1003,7 +1046,9 @@ export const XTermSurface = forwardRef<
           size="sm"
           aria-label={t`Scroll to bottom`}
           onPress={() => terminalRef.current?.scrollToBottom()}
-          className={`absolute bottom-4 right-4 z-10 transition-opacity duration-200 ease-out ${
+          /* Centered via a negative margin, matching the chat pane without
+             conflicting with HeroUI's pressed-state transform. */
+          className={`${floatingGlassSurfaceClass} absolute bottom-4 left-1/2 z-10 -ml-3.5 size-7 min-w-0 rounded-full transition-opacity duration-200 ease-out ${
             showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
           }`}
         >

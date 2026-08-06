@@ -3,14 +3,13 @@ import { ArchiveRestore, Trash2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
+import { deleteThread, unarchiveThread } from "@/renderer/actions/threadActions";
 import { SettingsPage } from "./SettingsForm";
 
 export function ArchivedThreadsSettings() {
   const { t } = useLingui();
   const threads = useAppStore((s) => s.threads);
   const projects = useAppStore((s) => s.projects);
-  const unarchiveThread = useAppStore((s) => s.unarchiveThread);
-  const deleteThread = useAppStore((s) => s.deleteThread);
   const archivedThreads = threads.filter((thread) => thread.archived);
 
   return (

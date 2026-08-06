@@ -58,6 +58,20 @@ function getGrokSessionsRoot(location: ProjectLocation): string | null {
   return getNativeGrokSessionsRoot();
 }
 
+function sessionExistsUnderAnyCwd(
+  sessionsRoot: string,
+  currentCwdKey: string,
+  sessionId: string,
+): boolean {
+  if (existsSync(join(sessionsRoot, currentCwdKey, sessionId))) return true;
+  if (!existsSync(sessionsRoot)) return false;
+
+  for (const entry of readdirSync(sessionsRoot, { withFileTypes: true })) {
+    if (entry.isDirectory() && existsSync(join(sessionsRoot, entry.name, sessionId))) return true;
+  }
+  return false;
+}
+
 /**
  * Call this from buildLaunchArgv (and optionally buildResumeArgv) immediately
  * before spawning the grok PTY. It records what sessions already exist for
@@ -94,15 +108,17 @@ function isUuid(s: string): boolean {
 }
 
 /**
- * True when the session directory for <cwd>/<sessionId> exists on disk.
+ * True when the session directory exists anywhere in Grok's session store.
  *
- * grok 0.2.93 normally writes the session dir within ~1s of TUI boot
+ * grok 0.2.118 normally writes the session dir within ~1s of TUI boot
  * (verified live), but a UUID we pre-assigned with `-s` can still be missing
  * when the launch died at startup (spawn failure, immediate kill) or the TUI
  * deferred to its welcome/resume menu. Callers use this to decide between
  * `-r <id>` (resume a real session) and `-s <id>` (re-assign the same id —
  * `-s` requires the session to not exist and exits 1 on a collision, so the
- * choice must reflect live disk state, never a timing assumption).
+ * choice must reflect live disk state, never a timing assumption). Searching
+ * every cwd also preserves resume after a project folder moves, which Grok
+ * supports by locating the original session independently of the current cwd.
  *
  * Returns `undefined` when the check is unavailable (WSL distro home not
  * cached / UNC bridge unreachable); callers should then default to resume.
@@ -115,17 +131,19 @@ export function grokSessionDirMaterialized(
   if (location.kind === "wsl") {
     const home = getCachedWslHomeDirectory(location.distro);
     if (!home) return undefined;
-    const linuxPath = `${home}/.grok/sessions/${encodeCwdKey(cwd)}/${sessionId}`;
-    const uncPath = `\\\\wsl.localhost\\${location.distro}${linuxPath.replaceAll("/", "\\")}`;
+    const linuxRoot = `${home}/.grok/sessions`;
+    const uncRoot = `\\\\wsl.localhost\\${location.distro}${linuxRoot.replaceAll("/", "\\")}`;
     try {
-      return existsSync(uncPath);
+      return sessionExistsUnderAnyCwd(uncRoot, encodeCwdKey(cwd), sessionId);
     } catch {
       return undefined;
     }
   }
-  const dir = getGrokCwdSessionsDir(location, cwd);
-  if (!dir) return undefined;
-  return existsSync(join(dir, sessionId));
+  try {
+    return sessionExistsUnderAnyCwd(getNativeGrokSessionsRoot(), encodeCwdKey(cwd), sessionId);
+  } catch {
+    return undefined;
+  }
 }
 
 /**

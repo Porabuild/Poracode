@@ -26,15 +26,44 @@ export const CONTENT_MIN_WIDTH = 540;
 
 export type ResizeTarget = "sidebar" | "panel" | "panel-bottom" | "git-panel";
 
-export function useResizablePanels(refs: {
-  sidebarRef: RefObject<HTMLDivElement | null>;
-  panelRef: RefObject<HTMLDivElement | null>;
-  panelInnerRef: RefObject<HTMLDivElement | null>;
-  gitPanelRef: RefObject<HTMLDivElement | null>;
-  gitPanelInnerRef: RefObject<HTMLDivElement | null>;
-  mainRef: RefObject<HTMLElement | null>;
-  overlayRef: RefObject<HTMLDivElement | null>;
-}) {
+/**
+ * Caller-supplied bounds for one drag, overriding the built-in range. Used for
+ * right-side panels floating as an overlay: main content is not squeezed at
+ * all there, so the docked "keep main >= CONTENT_MIN_WIDTH" cap does not apply.
+ */
+export interface ResizeLimits {
+  min?: number;
+  max?: number;
+}
+
+/**
+ * Resolves the allowed size range for one drag/nudge. `limits` (from the
+ * caller) wins over `fallbackMax` (the built-in dynamic cap), and both stay
+ * inside the target's hard bounds. `max` is never below `min`.
+ */
+function resolveRange(
+  hardMin: number,
+  hardMax: number,
+  limits: ResizeLimits | null,
+  fallbackMax: number = hardMax,
+): { min: number; max: number } {
+  const min = Math.max(hardMin, Math.ceil(limits?.min ?? hardMin));
+  const max = Math.min(hardMax, Math.floor(limits?.max ?? fallbackMax));
+  return { min, max: Math.max(min, max) };
+}
+
+export function useResizablePanels(
+  refs: {
+    sidebarRef: RefObject<HTMLDivElement | null>;
+    panelRef: RefObject<HTMLDivElement | null>;
+    panelInnerRef: RefObject<HTMLDivElement | null>;
+    gitPanelRef: RefObject<HTMLDivElement | null>;
+    gitPanelInnerRef: RefObject<HTMLDivElement | null>;
+    mainRef: RefObject<HTMLElement | null>;
+    overlayRef: RefObject<HTMLDivElement | null>;
+  },
+  options?: { getResizeLimits?: (target: ResizeTarget) => ResizeLimits | null },
+) {
   const [sidebarWidth, setSidebarWidth] = useState(() =>
     readStoredNumber("poracode-sidebar-width", SIDEBAR_DEFAULT_WIDTH),
   );
@@ -52,6 +81,13 @@ export function useResizablePanels(refs: {
     panelWidth,
     panelHeight,
     gitPanelWidth,
+  });
+
+  // Read at drag/nudge time (never during render), so the latest closure is
+  // enough and `startResize` keeps a stable identity.
+  const getResizeLimitsRef = useRef(options?.getResizeLimits);
+  useEffect(() => {
+    getResizeLimitsRef.current = options?.getResizeLimits;
   });
 
   useEffect(() => {
@@ -193,22 +229,17 @@ export function useResizablePanels(refs: {
 
       // Cap right-side panel drags so main content never falls below
       // CONTENT_MIN_WIDTH — otherwise the auto-hide ResizeObserver kicks in
-      // mid-drag and the panel disappears under the cursor.
+      // mid-drag and the panel disappears under the cursor. A floating overlay
+      // panel does not squeeze main at all, so the caller overrides the range.
+      const limits = getResizeLimitsRef.current?.(target) ?? null;
       const mainW = refs.mainRef.current?.getBoundingClientRect().width ?? 0;
-      const dynamicMaxPanel =
-        target === "panel" && mainW > 0
-          ? Math.min(
-              PANEL_MAX_WIDTH,
-              Math.max(PANEL_MIN_WIDTH, mainW + startWidth - CONTENT_MIN_WIDTH),
-            )
-          : PANEL_MAX_WIDTH;
-      const dynamicMaxGitPanel =
-        target === "git-panel" && mainW > 0
-          ? Math.min(
-              GIT_PANEL_MAX_WIDTH,
-              Math.max(GIT_PANEL_MIN_WIDTH, mainW + startWidth - CONTENT_MIN_WIDTH),
-            )
-          : GIT_PANEL_MAX_WIDTH;
+      const dockedMaxWidth =
+        mainW > 0 ? mainW + startWidth - CONTENT_MIN_WIDTH : Number.POSITIVE_INFINITY;
+      // Only meaningful for the "panel" / "git-panel" targets.
+      const sidePanelRange =
+        target === "git-panel"
+          ? resolveRange(GIT_PANEL_MIN_WIDTH, GIT_PANEL_MAX_WIDTH, limits, dockedMaxWidth)
+          : resolveRange(PANEL_MIN_WIDTH, PANEL_MAX_WIDTH, limits, dockedMaxWidth);
 
       // The element whose CSS transition must be paused for the duration of the drag,
       // otherwise its width/height will lag behind the per-frame ref writes below.
@@ -247,12 +278,23 @@ export function useResizablePanels(refs: {
           if (next === sizeRef.current.sidebarWidth) return;
           sizeRef.current.sidebarWidth = next;
           applySidebarWidth(next);
-        } else if (target === "panel") {
+        } else if (target === "panel" || target === "git-panel") {
+          // Both right-side panels are anchored to the right edge and share the
+          // same clamp; only the state field and DOM writer differ.
           const delta = startX - x;
-          const next = Math.min(dynamicMaxPanel, Math.max(PANEL_MIN_WIDTH, startWidth + delta));
-          if (next === sizeRef.current.panelWidth) return;
-          sizeRef.current.panelWidth = next;
-          applyPanelWidth(next);
+          const next = Math.min(
+            sidePanelRange.max,
+            Math.max(sidePanelRange.min, startWidth + delta),
+          );
+          if (target === "panel") {
+            if (next === sizeRef.current.panelWidth) return;
+            sizeRef.current.panelWidth = next;
+            applyPanelWidth(next);
+          } else {
+            if (next === sizeRef.current.gitPanelWidth) return;
+            sizeRef.current.gitPanelWidth = next;
+            applyGitPanelWidth(next);
+          }
         } else if (target === "panel-bottom") {
           const delta = startY - y;
           const next = Math.min(
@@ -262,15 +304,6 @@ export function useResizablePanels(refs: {
           if (next === sizeRef.current.panelHeight) return;
           sizeRef.current.panelHeight = next;
           applyPanelHeight(next);
-        } else if (target === "git-panel") {
-          const delta = startX - x;
-          const next = Math.min(
-            dynamicMaxGitPanel,
-            Math.max(GIT_PANEL_MIN_WIDTH, startWidth + delta),
-          );
-          if (next === sizeRef.current.gitPanelWidth) return;
-          sizeRef.current.gitPanelWidth = next;
-          applyGitPanelWidth(next);
         }
       }
 
@@ -329,6 +362,7 @@ export function useResizablePanels(refs: {
   // immediately (there's no drag "end" event to persist on).
   const nudgeResize = useCallback(
     (target: ResizeTarget, deltaPx: number) => {
+      const limits = getResizeLimitsRef.current?.(target) ?? null;
       if (target === "sidebar") {
         const next = Math.min(
           SIDEBAR_MAX_WIDTH,
@@ -338,10 +372,8 @@ export function useResizablePanels(refs: {
         applySidebarWidth(next);
         setSidebarWidth(next);
       } else if (target === "panel") {
-        const next = Math.min(
-          PANEL_MAX_WIDTH,
-          Math.max(PANEL_MIN_WIDTH, sizeRef.current.panelWidth + deltaPx),
-        );
+        const range = resolveRange(PANEL_MIN_WIDTH, PANEL_MAX_WIDTH, limits);
+        const next = Math.min(range.max, Math.max(range.min, sizeRef.current.panelWidth + deltaPx));
         sizeRef.current.panelWidth = next;
         applyPanelWidth(next);
         setPanelWidth(next);
@@ -354,9 +386,10 @@ export function useResizablePanels(refs: {
         applyPanelHeight(next);
         setPanelHeight(next);
       } else {
+        const range = resolveRange(GIT_PANEL_MIN_WIDTH, GIT_PANEL_MAX_WIDTH, limits);
         const next = Math.min(
-          GIT_PANEL_MAX_WIDTH,
-          Math.max(GIT_PANEL_MIN_WIDTH, sizeRef.current.gitPanelWidth + deltaPx),
+          range.max,
+          Math.max(range.min, sizeRef.current.gitPanelWidth + deltaPx),
         );
         sizeRef.current.gitPanelWidth = next;
         applyGitPanelWidth(next);

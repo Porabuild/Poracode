@@ -1,10 +1,10 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { AppWindow, Globe, Users, type LucideIcon } from "lucide-react";
-import { resolveComposerMcpScope } from "@/shared/contracts";
 import type {
   AgentCapability,
   ComposerMcpScope,
+  ComposerMcpScopes,
   ProjectLocation,
   ThreadConfig,
   ThreadPresentationMode,
@@ -23,7 +23,7 @@ import type {
 export type { ComposerMcpScope };
 
 /** `ThreadConfig` keys that hold the per-thread enable flag for each MCP. */
-export type ComposerMcpConfigKey = "browserMcp" | "subagentMcp" | "chromeMcp";
+export type ComposerMcpConfigKey = "browserMcp" | "crossagentMcp" | "chromeMcp";
 
 /**
  * Resolve an adapter-declared per-presentation scope pair to the active
@@ -32,14 +32,30 @@ export type ComposerMcpConfigKey = "browserMcp" | "subagentMcp" | "chromeMcp";
  * terminal TUIs have no per-thread gating point ("none").
  */
 export function resolveMcpScope(
-  scopes: AgentCapability["browserMcpScope"],
+  scopes: ComposerMcpScopes | undefined,
   presentationMode: ThreadPresentationMode,
 ): ComposerMcpScope {
-  return resolveComposerMcpScope(scopes, presentationMode);
+  if (presentationMode === "gui") {
+    return scopes?.gui ?? "launch";
+  }
+  return scopes?.terminal ?? "none";
+}
+
+/**
+ * Providers that declare `mcpConfigSource: "agentSettings"` configure MCP on
+ * their settings page instead of the composer: the "+" menu shows no MCP rows
+ * at all for their threads (built-ins are hidden by their `"none"` scopes;
+ * callers use this to suppress the custom-server rows and read-only fallbacks
+ * too).
+ */
+export function providerOwnsMcpConfig(
+  capabilities: Pick<AgentCapability, "mcpConfigSource">,
+): boolean {
+  return capabilities.mcpConfigSource === "agentSettings";
 }
 
 export interface ComposerMcpServerDescriptor {
-  id: "browser" | "subagents" | "chrome";
+  id: "browser" | "crossagents" | "chrome";
   configKey: ComposerMcpConfigKey;
   icon: LucideIcon;
   /** Menu row + chip label. */
@@ -63,18 +79,18 @@ export const browserMcpServer: ComposerMcpServerDescriptor = {
   enabledTitle: msg`Browser MCP enabled for this thread`,
   disableLabel: msg`Disable Browser MCP`,
   getScope: (capabilities, presentationMode) =>
-    resolveMcpScope(capabilities.browserMcpScope, presentationMode),
+    resolveMcpScope(capabilities.mcpScope, presentationMode),
 };
 
-export const subagentMcpServer: ComposerMcpServerDescriptor = {
-  id: "subagents",
-  configKey: "subagentMcp",
+export const crossagentMcpServer: ComposerMcpServerDescriptor = {
+  id: "crossagents",
+  configKey: "crossagentMcp",
   icon: Users,
-  label: msg`Subagents`,
-  enabledTitle: msg`Subagents enabled for this thread`,
-  disableLabel: msg`Disable Subagents`,
+  label: msg`Crossagents`,
+  enabledTitle: msg`Crossagents enabled for this thread`,
+  disableLabel: msg`Disable Crossagents`,
   getScope: (capabilities, presentationMode) =>
-    resolveMcpScope(capabilities.subagentMcpScope, presentationMode),
+    resolveMcpScope(capabilities.mcpScope, presentationMode),
 };
 
 export const chromeMcpServer: ComposerMcpServerDescriptor = {
@@ -87,12 +103,12 @@ export const chromeMcpServer: ComposerMcpServerDescriptor = {
   getScope: (capabilities, presentationMode, projectLocation) =>
     projectLocation?.kind === "wsl"
       ? "none"
-      : resolveMcpScope(capabilities.chromeMcpScope, presentationMode),
+      : resolveMcpScope(capabilities.mcpScope, presentationMode),
 };
 
 export const composerMcpServers: readonly ComposerMcpServerDescriptor[] = [
   browserMcpServer,
-  subagentMcpServer,
+  crossagentMcpServer,
   chromeMcpServer,
 ];
 

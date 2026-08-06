@@ -48,13 +48,46 @@ export function installDevBridge(): void {
     /** Patch the app-update store (phase / version / download progress) for screenshots. */
     setUpdate: (patch: Partial<UpdateStoreState>) => useUpdateStore.setState(patch),
     /** Reset transient driven state to a clean baseline — call before teardown. */
-    reset: () =>
+    reset: () => {
+      const app = useAppStore.getState();
+      useAppStore.setState({
+        draftContents: {},
+        threadDraftContents: {},
+        pendingDraftWorktreeSelections: {},
+        pendingComposerSeeds: {},
+        draftContentDiscardRequests: {
+          ...app.draftContentDiscardRequests,
+          ...Object.fromEntries(
+            Object.keys(app.draftContents).map((projectId) => [projectId, true] as const),
+          ),
+        },
+      });
+      usePanelStore.setState({
+        gitReviewContext: null,
+        filesPanelContext: null,
+        subAgentPanelOpen: false,
+        browserPanelOpen: false,
+        usagePanelOpen: false,
+        notesPanelOpen: false,
+        settingsOpen: false,
+        projectSettingsId: null,
+        threadSearchOpen: false,
+        createProjectModalOpen: false,
+        cloneProjectModalOpen: false,
+        gitOverlayOpen: false,
+        prReviewContext: null,
+        githubActionsContext: null,
+        subAgentPanelContext: null,
+        browserOverlayOpen: false,
+        browserOverlayMaximized: false,
+      });
       useUpdateStore.setState({
         phase: "idle",
         version: null,
         downloadPercent: 0,
         downloadTransferred: null,
         downloadTotal: null,
-      }),
+      });
+    },
   };
 }

@@ -10,7 +10,8 @@ import { defaultFormatPromptSegments } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
 import type { PendingSteerSlot, QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
-import { effectiveStructuredTurnConfig } from "./spawnPipeline";
+
+const STEER_PREPARATION_TIMEOUT_MS = 750;
 
 /**
  * Stopped states a staged steer can drain from. A failed turn ("error") still
@@ -64,10 +65,6 @@ export interface SteerCoordinatorContext {
     session: SessionRuntime,
     segments: readonly PromptSegment[] | undefined,
   ): Promise<string | undefined>;
-  filterPluginSkillSegments(
-    session: SessionRuntime,
-    segments: PromptSegment[],
-  ): Promise<PromptSegment[]>;
 }
 
 /**
@@ -101,7 +98,9 @@ export class SteerCoordinator {
   }
 
   fireSteerInterrupt(session: SessionRuntime): void {
-    void this.ctx.interruptStructuredTurn(session).catch((error) => {
+    const pendingSteerId = session.pendingSteer?.id;
+    if (!pendingSteerId) return;
+    void this.prepareAndInterrupt(session, pendingSteerId).catch((error) => {
       if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
         return;
       }
@@ -111,6 +110,53 @@ export class SteerCoordinator {
         "poracode.provider": session.agentKind,
       });
     });
+  }
+
+  private async prepareAndInterrupt(
+    session: SessionRuntime,
+    pendingSteerId: string,
+  ): Promise<void> {
+    const prepareSteerInterrupt = session.structuredSession?.prepareSteerInterrupt;
+    if (prepareSteerInterrupt) {
+      try {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            prepareSteerInterrupt.call(session.structuredSession),
+            new Promise<never>((_resolve, reject) => {
+              timeout = setTimeout(
+                () => reject(new Error("Structured steer preparation timed out.")),
+                STEER_PREPARATION_TIMEOUT_MS,
+              );
+            }),
+          ]);
+        } finally {
+          if (timeout) clearTimeout(timeout);
+        }
+      } catch (error) {
+        // Preparation preserves optional provider work; it must never strand
+        // the user's replacement prompt if the provider rejects the control.
+        console.error("[supervisor] failed to prepare structured steer interrupt:", error);
+        captureSupervisorException(error, {
+          "poracode.feature_area": "supervisor-runtime",
+          "poracode.provider": session.agentKind,
+        });
+      }
+    }
+    if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+      return;
+    }
+    // Preparation can let the old provider turn settle. Its idle update drains
+    // the slot and may already start the replacement before the control request
+    // resolves; never let this delayed continuation interrupt that new turn.
+    if (session.pendingSteer?.id !== pendingSteerId) {
+      return;
+    }
+    if (session.status !== "working") {
+      this.maybeDrainPendingSteer(session);
+      return;
+    }
+    await this.ctx.interruptStructuredTurn(session);
   }
 
   maybeDrainPendingSteer(session: SessionRuntime): void {
@@ -148,22 +194,17 @@ export class SteerCoordinator {
     if (!usesStructuredFlow || !session.structuredSession?.startTurn) {
       throw new Error("Thread does not support structured turns.");
     }
-    const trustedSegments = payload.segments
-      ? await this.ctx.filterPluginSkillSegments(session, payload.segments)
-      : undefined;
-    const pluginSegmentsFiltered = trustedSegments !== payload.segments;
-    const effectiveSegments = trustedSegments
-      ? await rewriteSegmentsForWsl(trustedSegments, session.projectLocation, {
+    const effectiveSegments = payload.segments
+      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
           preserveImageAttachments: true,
+          preservePdfAttachments: session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
       : undefined;
     const prompt =
       effectiveSegments && effectiveSegments.length > 0
         ? (session.adapter.formatPromptSegments?.(effectiveSegments) ??
           defaultFormatPromptSegments(effectiveSegments))
-        : pluginSegmentsFiltered
-          ? ""
-          : payload.prompt;
+        : payload.prompt;
     const inlineInstructions = await this.ctx.resolveSkillTurnInjection(session, effectiveSegments);
     const turn: QueuedStructuredTurn = {
       prompt,
@@ -209,7 +250,7 @@ export class SteerCoordinator {
     const steer = steerTurn.call(
       session.structuredSession,
       turn.prompt,
-      effectiveStructuredTurnConfig(session, turn.config),
+      turn.config,
       turn.segments,
       Object.keys(steerOptions).length > 0 ? steerOptions : undefined,
     );

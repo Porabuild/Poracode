@@ -4,23 +4,54 @@ import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useDraggable } from "@dnd-kit/react";
 import { readBridge } from "@/renderer/bridge";
+import { DiffStat } from "@/renderer/components/common/DiffStat";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import { coalesceByKey } from "@/shared/coalesce";
 import { useShallow } from "zustand/shallow";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import {
   aggregatePrChecksStatus,
   combineChecksStatus,
   getPrStatusTone,
+  isPrActive,
   PR_TONE_TEXT_CLASS,
 } from "@/renderer/utils/prStatus";
 import type { DragSourceData } from "@/renderer/dnd";
 
 const gitBadgeButtonClass =
-  "shrink-0 cursor-grab rounded px-1 py-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing";
+  "shrink-0 cursor-grab rounded text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing";
+
+/**
+ * A glyph-only badge is an 18px square around its 12px glyph — the same box as
+ * every other icon button in these rows, so its background can't read as a
+ * different-sized chip and its glyph shares their column. Only a badge carrying
+ * diff counts takes extra horizontal room for the text.
+ */
+const gitBadgeIconPaddingClass = "p-[3px]";
+const gitBadgeTextPaddingClass = "px-1 py-0.5";
+
+/**
+ * "Its Git panel is open" is a persistent accent wash behind the badge, at
+ * roughly hover weight. Deliberately not a glyph recolor — the glyph carries the
+ * PR's status tone, which the open state must not mask — and not a ring, which
+ * drew outside the badge's box and clipped inside truncating rows. Overrides the
+ * base `hover:bg-*` so hovering an open badge deepens the wash instead of
+ * flattening it back to neutral.
+ */
+const activeGitBadgeClass = "bg-accent/15 hover:bg-accent/25";
 const hiddenGitBadgeClass =
   "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto";
+
+/**
+ * In-flight project-branch PR verifications, keyed by project PR key + branch. Every
+ * mounted project badge verifies on mount, and a flat thread list mounts one
+ * badge per main-branch thread of the same project — without sharing, each
+ * would clear the shared prData entry and fire its own `gh` lookup. Followers
+ * for the same branch await the leader's lookup instead of starting another.
+ */
+const projectPrVerifications = new Map<string, Promise<void>>();
 
 export function GitBadge(props: {
   projectId: string;
@@ -67,6 +98,9 @@ export function GitBadge(props: {
     totalDeletions,
     prState,
     checksStatus,
+    reviewDecision,
+    mergeable,
+    mergeStateStatus,
     canCreatePr,
   } = useGitStore(
     useShallow((s) => {
@@ -82,7 +116,7 @@ export function GitBadge(props: {
       const details = pr?.number ? s.prDetails[`${props.projectId}#${pr.number}`] : undefined;
       const detailsStatus = aggregatePrChecksStatus(details?.checks);
       const isWorktree = props.worktreePath !== undefined;
-      const hasPr = pr !== undefined && pr !== null && pr.state !== "closed";
+      const hasActivePr = isPrActive(pr?.state);
       return {
         hasStatus: gitStatus !== undefined,
         isRepo: gitStatus?.isRepo ?? false,
@@ -93,10 +127,13 @@ export function GitBadge(props: {
         totalDeletions: gitStatus?.totalDeletions ?? 0,
         prState: pr?.state,
         checksStatus: combineChecksStatus(detailsStatus, pr?.checksStatus),
+        reviewDecision: pr?.reviewDecision,
+        mergeable: pr?.mergeable,
+        mergeStateStatus: pr?.mergeStateStatus,
         canCreatePr:
           isWorktree &&
           (s.ghAvailable[props.projectId] ?? false) &&
-          !hasPr &&
+          !hasActivePr &&
           Boolean(gitStatus?.tracking) &&
           (gitStatus?.ahead ?? 0) === 0,
       };
@@ -111,17 +148,20 @@ export function GitBadge(props: {
     if (remotePlatform !== "github" && remotePlatform !== "unknown") return;
 
     let isActive = true;
-    readBridge()
-      .ghGetPrForBranch({ projectLocation, branch })
-      .then((pr) => {
-        if (!isActive) return;
-        if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
-        useGitStore.getState().setPrData(projectPrKey, pr);
-        setVerifiedProjectPrBranch(branch);
-      })
-      .catch(() => {
-        if (isActive) setVerifiedProjectPrBranch(branch);
-      });
+    const markVerified = () => {
+      if (!isActive) return;
+      if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
+      setVerifiedProjectPrBranch(branch);
+    };
+    void coalesceByKey(projectPrVerifications, `${projectPrKey}\0${branch}`, () =>
+      readBridge()
+        .ghGetPrForBranch({ projectLocation, branch })
+        .then((pr) => {
+          if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
+          useGitStore.getState().setPrData(projectPrKey, pr);
+        })
+        .catch(() => undefined),
+    ).then(markVerified);
     return () => {
       isActive = false;
     };
@@ -147,8 +187,8 @@ export function GitBadge(props: {
             role="button"
             tabIndex={0}
             aria-label={t`Git status for ${props.projectName}: not a Git repository`}
-            className={`${gitBadgeButtonClass} ${
-              props.isActive ? "bg-accent/15 ring-1 ring-accent/40" : "text-muted/60"
+            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${
+              props.isActive ? activeGitBadgeClass : ""
             }`}
             onClick={(e) => {
               e.stopPropagation();
@@ -168,7 +208,7 @@ export function GitBadge(props: {
     );
   }
   const hasVisiblePr =
-    prState !== undefined && prState !== "closed" && (prState !== "merged" || isWorktree);
+    prState !== undefined && (isWorktree || (prState !== "merged" && prState !== "closed"));
   const showPrIcon = hasVisiblePr || canCreatePr;
   const showWorktreeFork = (props.fallbackToWorktreeIcon ?? false) && isWorktree && !showPrIcon;
   if (!isRepo || (!hasChanges && !showPrIcon && !showWorktreeFork)) {
@@ -180,10 +220,8 @@ export function GitBadge(props: {
             role="button"
             tabIndex={0}
             aria-label={t`Git status for ${props.projectName}`}
-            className={`${gitBadgeButtonClass} ${
-              props.isActive
-                ? "bg-accent/15 ring-1 ring-accent/40"
-                : `text-muted/60 ${hiddenGitBadgeClass}`
+            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${
+              props.isActive ? activeGitBadgeClass : hiddenGitBadgeClass
             }`}
             onClick={(e) => {
               e.stopPropagation();
@@ -204,18 +242,25 @@ export function GitBadge(props: {
       </Tooltip>
     );
   }
-  const prIconColor = canCreatePr
-    ? "text-[color:var(--git-branch-tone)]"
-    : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
+  const prIconColor =
+    prState === undefined
+      ? "text-[color:var(--git-branch-tone)]"
+      : PR_TONE_TEXT_CLASS[
+          getPrStatusTone(prState, checksStatus, {
+            reviewDecision,
+            mergeable,
+            mergeStateStatus,
+          })
+        ];
   return (
     <div
       ref={elementRef}
       role="button"
       tabIndex={0}
       aria-label={t`Git status for ${props.projectName}`}
-      className={`shrink-0 cursor-grab rounded px-1 py-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-        props.isActive ? "bg-accent/15 ring-1 ring-accent/40" : "text-muted/60"
-      }`}
+      className={`${gitBadgeButtonClass} ${
+        hasChanges ? gitBadgeTextPaddingClass : gitBadgeIconPaddingClass
+      } ${props.isActive ? activeGitBadgeClass : ""}`}
       onClick={(e) => {
         e.stopPropagation();
         props.onPress?.();
@@ -224,10 +269,12 @@ export function GitBadge(props: {
     >
       <span className="flex items-center gap-1 text-[10px] font-medium">
         {hasChanges && (
-          <span className="flex items-center gap-0.5">
-            {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
-            {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
-          </span>
+          <DiffStat
+            animated
+            className="flex items-center gap-0.5"
+            insertions={totalInsertions}
+            deletions={totalDeletions}
+          />
         )}
         {showPrIcon && <GitPullRequest className={`size-3 shrink-0 ${prIconColor}`} />}
         {showWorktreeFork && (

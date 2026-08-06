@@ -3,6 +3,7 @@ import { isHomeProject } from "@/shared/homeScope";
 import { makeDraftPaneId } from "@/shared/paneId";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import type { DragSourceData, MainPanelDropSource, PaneDropIndicator } from "@/renderer/dnd";
 import type { ReorderPlacement } from "@/renderer/state/reorder";
 import { showFilesPanel, showGitReviewPanel } from "@/renderer/actions/panelActions";
@@ -113,6 +114,7 @@ export function useDndHandlers() {
       if (!reorder) return;
       startTransition(() => reorderProjects(source.projectId, reorder.targetId, reorder.placement));
     } else if (source.type === "thread") {
+      if (findExperimentByThreadId(source.threadId)) return;
       const allThreads = useAppStore.getState().threads;
       const reorder = resolveThreadReorder({
         threads: allThreads,
@@ -134,6 +136,7 @@ export function useDndHandlers() {
 
     if (source.type === "thread") {
       const threadId = source.threadId;
+      if (findExperimentByThreadId(threadId)) return;
       if (panes.includes(threadId)) return;
       startTransition(() => {
         if (target.kind === "replace") replacePaneById(threadId, target.paneId);

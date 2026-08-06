@@ -27,6 +27,7 @@ export interface ProviderModelMenuProvider {
   label: string;
   icon?: string;
   presentationMode?: ThreadPresentationMode;
+  runtimeVariant?: string;
   /** Unique UI identity when one adapter exposes multiple model surfaces. */
   modelPickerKey?: string;
   /** Settings key used for hidden-model persistence. */
@@ -64,6 +65,12 @@ export interface BuildProviderModelItemsInput {
   recents?: readonly ModelRef[];
   /** Display cap for recents (default 5). */
   recentsLimit?: number;
+  /**
+   * Hidden model ids keyed by provider visibility key. Callers already strip
+   * these from `providers[*].capabilities.models`; this keeps them out of the
+   * favorites/recents sections too, which resolve from persisted refs.
+   */
+  hiddenModels?: Readonly<Record<string, readonly string[] | undefined>>;
   /**
    * User-defined provider display order. Kinds in this list win over the built-in
    * provider-manifest default; anything missing falls to the tail.
@@ -308,20 +315,50 @@ function findVisibleProvider(
   );
 }
 
+const EMPTY_HIDDEN_ALIASES: ReadonlySet<string> = new Set();
+const hiddenAliasCache = new WeakMap<readonly string[], ReadonlySet<string>>();
+
+// Expand a provider's hidden ids into every alias form once and cache it against
+// the settings array identity, so repeated builds (each keystroke re-runs this
+// while the menu is open) reuse the same set instead of re-deriving aliases.
+function getHiddenAliases(hiddenIds: readonly string[] | undefined): ReadonlySet<string> {
+  if (!hiddenIds || hiddenIds.length === 0) return EMPTY_HIDDEN_ALIASES;
+  const cached = hiddenAliasCache.get(hiddenIds);
+  if (cached) return cached;
+  const aliases = new Set<string>();
+  for (const id of hiddenIds) {
+    for (const alias of modelLookupAliases(id)) aliases.add(alias);
+  }
+  hiddenAliasCache.set(hiddenIds, aliases);
+  return aliases;
+}
+
 function resolveModelRef(
   ref: ModelRef,
   providersByKind: ReadonlyMap<string, VisibleProvider[]>,
+  hiddenModels: BuildProviderModelItemsInput["hiddenModels"],
 ): ResolvedModelRef | undefined {
   const visibleProvider = findVisibleProvider(providersByKind, ref.agentKind, ref.presentationMode);
   if (!visibleProvider) return undefined;
   const { provider, cache } = visibleProvider;
-  const model =
-    findModelEntry(cache, ref.modelId) ??
-    makeModelEntry(
+  let model = findModelEntry(cache, ref.modelId);
+  if (!model) {
+    // Missing from the visible catalog means the caller either hid this model or
+    // never offered it. Hidden ones drop out of the section; genuinely unknown
+    // ids (stale recents, custom models) still get a synthesized row. Only this
+    // miss path pays for the hidden lookup — a resolvable id can't be hidden.
+    const hidden = getHiddenAliases(hiddenModels?.[visibleProvider.visibilityKey]);
+    if (hidden.size > 0) {
+      for (const alias of modelLookupAliases(ref.modelId)) {
+        if (hidden.has(alias)) return undefined;
+      }
+    }
+    model = makeModelEntry(
       ref.modelId,
       formatShortcutFallbackLabel(ref.agentKind, ref.modelId),
       provider.capabilities,
     );
+  }
   const resolved: ResolvedModelRef = {
     ref,
     label: formatShortcutModelLabel(ref.agentKind, ref.modelId, model.label),
@@ -347,6 +384,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     favoriteStateRefs,
     recents,
     recentsLimit = 5,
+    hiddenModels,
     providerOrder,
   } = input;
   const providerSortKey = makeProviderSortKey(providerOrder);
@@ -411,7 +449,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     });
     const items = dedupedRefs
       .filter((ref) => visibleKinds.has(ref.agentKind))
-      .map((ref) => resolveModelRef(ref, visibleProvidersByKind))
+      .map((ref) => resolveModelRef(ref, visibleProvidersByKind, hiddenModels))
       .filter((m): m is ResolvedModelRef => m !== undefined)
       .filter((m) => {
         if (!isSearching) return true;

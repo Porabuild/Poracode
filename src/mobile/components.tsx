@@ -6,16 +6,18 @@ import type { ReactNode } from "react";
 import { Check, ChevronRight, Columns2, Loader2, Plus, Rows2, Wifi, WifiOff } from "lucide-react";
 import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useSheetGrabber";
 import type { ThreadStatus } from "@/shared/contracts";
-import { CONNECTION_LABELS, type ConnectionState } from "./useRemoteDesktop";
+import { CONNECTION_LABELS, type ConnectionState } from "./remoteConnectionState";
 import { THREAD_STATUS_LABELS, threadStatusTone } from "./presentation";
 import { DESKTOP_POINTER_QUERY, useMediaQuery } from "./useMediaQuery";
 
 export function ConnectionPill(props: {
   readonly state: ConnectionState;
+  readonly label?: string;
   /** Tapping the pill re-syncs with the desktop (replaces a refresh button). */
   readonly onPress?: () => void;
 }) {
   const { t } = useLingui();
+  const stateLabel = t(CONNECTION_LABELS[props.state]);
   const icon =
     props.state === "online" ? (
       <Wifi className="size-3.5" />
@@ -28,15 +30,14 @@ export function ConnectionPill(props: {
     <button
       className="m-connection"
       data-state={props.state}
+      data-labeled={props.label ? true : undefined}
       type="button"
-      // Icon-only now: the state word is dropped from the header (color carries
-      // the state), but it stays the accessible name so AT still announces
-      // "Live" / "Reconnecting" / "Offline" / "Pair again".
-      aria-label={t(CONNECTION_LABELS[props.state])}
+      aria-label={props.label ? `${props.label}: ${stateLabel}` : stateLabel}
       title={t`Sync with desktop`}
       onClick={props.onPress}
     >
       {icon}
+      {props.label ? <span className="m-connection__label">{props.label}</span> : null}
     </button>
   );
 }
@@ -282,11 +283,11 @@ export function BottomSheet(props: {
 }
 
 /**
- * A tall, near-fullscreen drawer that slides up over the whole pane — the mobile
- * stand-in for a modal form. Where {@link BottomSheet} hosts a short action list,
- * this hosts a scrolling form behind a titled header, dismissed by dragging the
- * grabber down (or tapping the scrim / pressing Escape), opened from a
- * {@link Fab}. Portaled to <body> like the other drawers; drive
+ * A titled form drawer that slides up over the whole pane — near-fullscreen by
+ * default, with an optional content-fit height. Where {@link BottomSheet} hosts
+ * a short action list, this hosts a scrolling form behind a titled header,
+ * dismissed by dragging the grabber down (or tapping the scrim / pressing
+ * Escape), opened from a {@link Fab}. Portaled to <body> like the other drawers; drive
  * `closing`/`onClose` with {@link useSheet} so the slide-out plays.
  */
 export function FullScreenDrawer(props: {
@@ -294,6 +295,8 @@ export function FullScreenDrawer(props: {
   readonly title: ReactNode;
   /** Dialog accessible name. */
   readonly label: string;
+  /** Size the drawer to its contents instead of filling the viewport. */
+  readonly fitContent?: boolean;
   /** Scrim (dismiss) accessible name; defaults to "Close". */
   readonly closeLabel?: string;
   readonly closing?: boolean | undefined;
@@ -331,6 +334,7 @@ export function FullScreenDrawer(props: {
       <div
         ref={drawerRef}
         className="m-drawer"
+        data-fit-content={props.fitContent || undefined}
         data-dragging={dragging || undefined}
         role="dialog"
         aria-modal="true"

@@ -1,5 +1,10 @@
+import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { buildPosixExportPrefix } from "./shellBasics";
+import {
+  buildPosixExportPrefix,
+  buildWindowsCommandLine,
+  quoteWindowsCommandLineArg,
+} from "./shellBasics";
 
 describe("buildPosixExportPrefix", () => {
   it("returns empty string for undefined or empty env", () => {
@@ -41,4 +46,50 @@ describe("buildPosixExportPrefix", () => {
     const prefix = buildPosixExportPrefix({ _FOO: "1", BAR_2: "2", COLORTERM: "3" });
     expect(prefix).toBe("export _FOO='1'; export BAR_2='2'; export COLORTERM='3'; ");
   });
+});
+
+describe("quoteWindowsCommandLineArg", () => {
+  it("leaves plain args unquoted", () => {
+    expect(quoteWindowsCommandLineArg("--model")).toBe("--model");
+    expect(quoteWindowsCommandLineArg("C:\\tools\\bin")).toBe("C:\\tools\\bin");
+  });
+
+  it("quotes empty args and args with whitespace", () => {
+    expect(quoteWindowsCommandLineArg("")).toBe('""');
+    expect(quoteWindowsCommandLineArg("two words")).toBe('"two words"');
+  });
+
+  it("escapes embedded quotes and doubles backslash runs before quotes", () => {
+    expect(quoteWindowsCommandLineArg('say "hi"')).toBe('"say \\"hi\\""');
+    expect(quoteWindowsCommandLineArg('back\\"slash')).toBe('"back\\\\\\"slash"');
+    expect(quoteWindowsCommandLineArg("trailing slash\\ ")).toBe('"trailing slash\\ "');
+    expect(quoteWindowsCommandLineArg("endswith\\")).toBe("endswith\\");
+    expect(quoteWindowsCommandLineArg("ends with \\")).toBe('"ends with \\\\"');
+  });
+
+  it("keeps newlines inside the quoted region", () => {
+    expect(quoteWindowsCommandLineArg("line1\nline2")).toBe('"line1\nline2"');
+  });
+
+  it.skipIf(process.platform !== "win32")(
+    "round-trips hostile diff content through a real CRT parse",
+    () => {
+      const hostile = [
+        'const x = $("div',
+        'escaped \\" quote and trailing backslash \\',
+        'single \' quote and "double" and !bang',
+        "tabs\tand  double  spaces",
+      ].join("\n");
+      // windowsVerbatimArguments hands our pre-quoted command line to
+      // CreateProcess untouched — exactly how ProcessStartInfo.Arguments is
+      // consumed — so node's own CRT parser validates the quoting.
+      const result = spawnSync(
+        "node.exe",
+        [buildWindowsCommandLine(["-e", "process.stdout.write(process.argv[1])", hostile])],
+        { encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true },
+      );
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe(hostile);
+    },
+  );
 });

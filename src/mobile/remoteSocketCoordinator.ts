@@ -1,21 +1,20 @@
-import { reconnectBackoffDelay } from "@/shared/remote/backoff";
+import type { GitStateInterest } from "@/shared/gitState";
 import { handleBrowserServerMessage, setBrowserSocketSender } from "./browserMirror";
-import { RemoteClientError, type RemoteDesktopClient } from "./remoteClient";
+import {
+  isRemoteTransportFailure,
+  isUnauthorizedRemoteError,
+  type RemoteDesktopClient,
+} from "@/shared/remote/client";
+import {
+  isUnauthorizedRemoteSocketClose,
+  REMOTE_SOCKET_POLICY,
+  RemoteSocketHealthMonitor,
+  RemoteSocketReconnectPolicy,
+} from "@/shared/remote/socketPolicy";
 import { createRemoteSocketSender } from "./remoteSocketSender";
 import { dispatchRemoteSupervisorEvent } from "./storeSync";
 import { handleTerminalServerMessage, setTerminalSocketSender } from "./terminalFeed";
 
-/** WebSocket reconnect backoff: full-jitter exponential, capped. */
-const RECONNECT_BASE_MS = 1000;
-const RECONNECT_MAX_MS = 20000;
-/** How long to wait for a health-check pong before treating the socket as dead. */
-const HEALTH_PING_TIMEOUT_MS = 5000;
-// Foreground keepalive: periodically probe a seemingly-open socket so a
-// half-open stream is detected even when no visibility/online event fires.
-const HEALTH_PING_INTERVAL_MS = 25000;
-// Force-close a WebSocket handshake that never completes so a stuck
-// `connecting` flag cannot wedge every later reconnect path.
-const CONNECT_TIMEOUT_MS = 15000;
 const REFRESH_DEBOUNCE_MS = 600;
 
 export type SocketConnectionState = "online" | "reconnecting" | "offline" | "unauthorized";
@@ -23,6 +22,7 @@ export type SocketConnectionState = "online" | "reconnecting" | "offline" | "una
 export interface SocketRefreshRequest {
   readonly refreshSelectedThread: boolean;
   readonly includeAuxiliary: boolean;
+  readonly resetLastSeenSeq?: boolean;
 }
 
 type SocketClient = Pick<
@@ -38,21 +38,21 @@ export interface RemoteSocketCoordinatorOptions {
   readonly onConnectionChange: (state: SocketConnectionState) => void;
   readonly onMessageChange: (message: string) => void;
   readonly onOpenChange: (open: boolean) => void;
+  /** Recent HTTP success lets scheduleReconnect keep the pill "online" while
+   * only the event socket is down. Optional; defaults to always-unhealthy. */
+  readonly isHttpHealthy?: () => boolean;
   /** Resolves the localized fallback when an unauthorized close has no reason. */
   readonly getPairingExpiredMessage: () => string;
 }
 
 export interface RemoteSocketCoordinator {
   start(): void;
+  getLastSeenSeq(): number;
+  advanceLastSeenSeq(seq: number): void;
+  setGitStateInterests(interests: readonly GitStateInterest[]): void;
+  /** Threads to receive live transcript content for; others send lifecycle only. */
+  setThreadItemInterests(threadIds: readonly string[]): void;
   dispose(): void;
-}
-
-export function isUnauthorizedRemoteError(error: unknown): error is RemoteClientError {
-  return error instanceof RemoteClientError && (error.status === 401 || error.status === 403);
-}
-
-function isUnauthorizedClose(code: number, reason: string): boolean {
-  return code === 1008 || reason === "Remote access session expired";
 }
 
 /** Status-affecting events warrant a snapshot refresh; streaming deltas do not. */
@@ -63,8 +63,6 @@ function shouldRefreshAfterSupervisorEvent(value: unknown): boolean {
     type === "thread-state" ||
     type === "thread-exited" ||
     type === "thread-reset" ||
-    type === "windows-agent-statuses" ||
-    type === "wsl-agent-statuses" ||
     type === "remote-projects-changed" ||
     type === "remote-threads-changed"
   );
@@ -90,15 +88,53 @@ export function createRemoteSocketCoordinator(
   // Coalesced refreshes retain the strongest flags requested before the flush.
   let pendingRecovery = false;
   let pendingRefreshSelected = false;
-  let attempt = 0;
+  let pendingSeqReset = false;
   let lastSeenSeq = options.initialLastSeenSeq;
-  let pingTimer = 0;
-  let pendingPingId: string | null = null;
   let connectWatchdog = 0;
   let heartbeat = 0;
+  const reconnectPolicy = new RemoteSocketReconnectPolicy();
+  const health = new RemoteSocketHealthMonitor<WebSocket>({
+    isCurrent: (socket) => !closed && ws === socket,
+    isOpen: (socket) => socket.readyState === WebSocket.OPEN,
+    send: (socket, payload) => socket.send(payload),
+    onDead: (socket) => socket.close(),
+  });
+  let gitStateInterests: readonly GitStateInterest[] = [];
+  let gitStateInterestsKey = "[]";
+  const initialSelectedThreadId = options.getSelectedThreadId();
+  let threadItemInterests: readonly string[] = initialSelectedThreadId
+    ? [initialSelectedThreadId]
+    : [];
+  let threadItemInterestsKey = JSON.stringify(threadItemInterests);
+
+  function publishThreadItemInterests(): void {
+    const socket = ws;
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    socket.send(
+      JSON.stringify({
+        type: "thread-item-interests",
+        threadIds: threadItemInterests,
+      }),
+    );
+  }
+
+  function publishGitStateInterests(): void {
+    const socket = ws;
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    socket.send(
+      JSON.stringify({
+        type: "git-state-interests",
+        interests: gitStateInterests,
+      }),
+    );
+  }
 
   function scheduleRefresh(
-    request: { readonly triggerThreadId?: string; readonly recovery?: boolean } = {},
+    request: {
+      readonly triggerThreadId?: string;
+      readonly recovery?: boolean;
+      readonly resetLastSeenSeq?: boolean;
+    } = {},
   ): void {
     const recovery = request.recovery ?? false;
     const refreshSelectedThread =
@@ -107,53 +143,69 @@ export function createRemoteSocketCoordinator(
         request.triggerThreadId === options.getSelectedThreadId());
     pendingRecovery ||= recovery;
     pendingRefreshSelected ||= refreshSelectedThread;
+    pendingSeqReset ||= request.resetLastSeenSeq ?? false;
     window.clearTimeout(refreshTimer);
     refreshTimer = window.setTimeout(() => {
       const runRecovery = pendingRecovery;
       const runRefreshSelected = pendingRefreshSelected;
+      const runSeqReset = pendingSeqReset;
       pendingRecovery = false;
       pendingRefreshSelected = false;
+      pendingSeqReset = false;
       options.requestRefresh({
         refreshSelectedThread: runRefreshSelected,
         includeAuxiliary: runRecovery,
+        ...(runSeqReset ? { resetLastSeenSeq: true } : {}),
       });
     }, REFRESH_DEBOUNCE_MS);
   }
 
-  function scheduleReconnect(): void {
+  function scheduleReconnect(connectionState?: SocketConnectionState): void {
     if (closed) return;
-    options.onConnectionChange(navigator.onLine === false ? "offline" : "reconnecting");
-    window.clearTimeout(reconnectTimer);
-    reconnectTimer = window.setTimeout(
-      connect,
-      reconnectBackoffDelay(attempt, { baseMs: RECONNECT_BASE_MS, maxMs: RECONNECT_MAX_MS }),
+    // A dead event socket alone must not spin the pill while HTTP provably
+    // works — reconnects keep retrying in the background either way.
+    const httpHealthy = options.isHttpHealthy?.() ?? false;
+    options.onConnectionChange(
+      connectionState ??
+        (navigator.onLine === false ? "offline" : httpHealthy ? "online" : "reconnecting"),
     );
-    attempt += 1;
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = window.setTimeout(connect, reconnectPolicy.nextDelay());
   }
 
   function connect(): void {
-    if (closed || navigator.onLine === false) return;
+    if (closed) return;
+    // navigator.onLine is a hint, not proof (VPNs and quirky adapters can pin
+    // it false on a working network). Never DROP a scheduled attempt because of
+    // it — reschedule instead, or the backoff loop dies silently here and the
+    // connection pill shows a sync spinner forever.
+    if (navigator.onLine === false) {
+      scheduleReconnect();
+      return;
+    }
     if (connecting || ws?.readyState === WebSocket.OPEN) return;
     connecting = true;
     void (async () => {
       try {
         const client = options.createClient();
-        const ticket = await client.websocketTicket();
+        const ticket = await client.websocketTicket(REMOTE_SOCKET_POLICY.connectTimeoutMs);
         if (closed) {
           connecting = false;
           return;
         }
-        const socket = new WebSocket(client.websocketUrl(ticket, lastSeenSeq));
+        const handshakeThreadItemInterestsKey = threadItemInterestsKey;
+        const socket = new WebSocket(
+          client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+        );
         // A new socket supersedes any health probe owned by the previous one.
         // Keeping its ping id would block probes on the replacement forever
         // once the stale close callback is (correctly) ignored below.
-        pendingPingId = null;
-        window.clearTimeout(pingTimer);
+        health.reset();
         ws = socket;
         window.clearTimeout(connectWatchdog);
         connectWatchdog = window.setTimeout(() => {
           if (socket.readyState === WebSocket.CONNECTING) socket.close();
-        }, CONNECT_TIMEOUT_MS);
+        }, REMOTE_SOCKET_POLICY.connectTimeoutMs);
 
         socket.addEventListener("open", () => {
           if (closed || ws !== socket) {
@@ -162,13 +214,17 @@ export function createRemoteSocketCoordinator(
           }
           connecting = false;
           window.clearTimeout(connectWatchdog);
-          attempt = 0;
+          reconnectPolicy.reset();
           options.onOpenChange(true);
           options.onConnectionChange("online");
           options.onMessageChange("");
           const socketSender = createRemoteSocketSender(socket);
           setBrowserSocketSender(socketSender);
           setTerminalSocketSender(socketSender);
+          publishGitStateInterests();
+          if (threadItemInterestsKey !== handshakeThreadItemInterestsKey) {
+            publishThreadItemInterests();
+          }
           scheduleRefresh({ recovery: true });
         });
 
@@ -177,16 +233,14 @@ export function createRemoteSocketCoordinator(
           try {
             const parsed = client.parseSocketMessage(String(event.data));
             if (parsed.type === "pong") {
-              if (pendingPingId !== null && parsed.id === pendingPingId) {
-                pendingPingId = null;
-                window.clearTimeout(pingTimer);
-              }
+              health.acceptPong(parsed.id);
               return;
             }
             if (handleBrowserServerMessage(parsed)) return;
             if (handleTerminalServerMessage(parsed)) return;
             if (parsed.type === "event") {
-              lastSeenSeq = Math.max(lastSeenSeq, parsed.seq);
+              if (parsed.seq <= lastSeenSeq) return;
+              lastSeenSeq = parsed.seq;
               dispatchRemoteSupervisorEvent(parsed.event);
               if (shouldRefreshAfterSupervisorEvent(parsed.event)) {
                 const triggerThreadId =
@@ -199,7 +253,11 @@ export function createRemoteSocketCoordinator(
               }
             }
             if (parsed.type === "resync-required") {
-              scheduleRefresh({ recovery: true });
+              // The server's in-memory sequence can move backwards after a
+              // desktop restart. Reset immediately so events from the new
+              // stream are not discarded while the recovery snapshot loads.
+              lastSeenSeq = parsed.seq;
+              scheduleRefresh({ recovery: true, resetLastSeenSeq: true });
             }
           } catch {
             // Bad frames are ignored; HTTP refresh remains authoritative.
@@ -213,11 +271,10 @@ export function createRemoteSocketCoordinator(
           window.clearTimeout(connectWatchdog);
           if (closed) return;
           options.onOpenChange(false);
-          pendingPingId = null;
-          window.clearTimeout(pingTimer);
+          health.reset();
           setBrowserSocketSender(null);
           setTerminalSocketSender(null);
-          if (isUnauthorizedClose(event.code, event.reason)) {
+          if (isUnauthorizedRemoteSocketClose(event.code, event.reason)) {
             options.onConnectionChange("unauthorized");
             options.onMessageChange(
               event.reason ? event.reason : options.getPairingExpiredMessage(),
@@ -235,7 +292,7 @@ export function createRemoteSocketCoordinator(
           options.onMessageChange(error.message);
           return;
         }
-        scheduleReconnect();
+        scheduleReconnect(isRemoteTransportFailure(error) ? "offline" : undefined);
       }
     })();
   }
@@ -243,27 +300,12 @@ export function createRemoteSocketCoordinator(
   /** Probe a seemingly-open socket and force-close it when no matching pong arrives. */
   function sendHealthPing(): void {
     const socket = ws;
-    if (socket?.readyState !== WebSocket.OPEN) return;
-    if (pendingPingId !== null) return;
-    const id = crypto.randomUUID();
-    pendingPingId = id;
-    try {
-      socket.send(JSON.stringify({ type: "ping", id, sentAt: Date.now() }));
-    } catch {
-      pendingPingId = null;
-      window.clearTimeout(pingTimer);
-      socket.close();
-      return;
-    }
-    window.clearTimeout(pingTimer);
-    pingTimer = window.setTimeout(() => {
-      if (pendingPingId === id) socket.close();
-    }, HEALTH_PING_TIMEOUT_MS);
+    if (socket) health.probe(socket);
   }
 
   function handleOnline(): void {
     if (closed) return;
-    attempt = 0;
+    reconnectPolicy.reset();
     window.clearTimeout(reconnectTimer);
     connect();
     scheduleRefresh({ recovery: true });
@@ -290,11 +332,33 @@ export function createRemoteSocketCoordinator(
       started = true;
       window.addEventListener("online", handleOnline);
       window.addEventListener("offline", handleOffline);
+      window.addEventListener("pageshow", handleVisibility);
+      window.addEventListener("focus", handleVisibility);
       document.addEventListener("visibilitychange", handleVisibility);
       heartbeat = window.setInterval(() => {
         if (document.visibilityState === "visible") sendHealthPing();
-      }, HEALTH_PING_INTERVAL_MS);
+      }, REMOTE_SOCKET_POLICY.healthPingIntervalMs);
       connect();
+    },
+    getLastSeenSeq() {
+      return lastSeenSeq;
+    },
+    advanceLastSeenSeq(seq) {
+      if (Number.isInteger(seq) && seq >= 0) lastSeenSeq = Math.max(lastSeenSeq, seq);
+    },
+    setGitStateInterests(interests) {
+      const nextKey = JSON.stringify(interests);
+      if (nextKey === gitStateInterestsKey) return;
+      gitStateInterests = interests;
+      gitStateInterestsKey = nextKey;
+      publishGitStateInterests();
+    },
+    setThreadItemInterests(threadIds) {
+      const nextKey = JSON.stringify(threadIds);
+      if (nextKey === threadItemInterestsKey) return;
+      threadItemInterests = threadIds;
+      threadItemInterestsKey = nextKey;
+      publishThreadItemInterests();
     },
     dispose() {
       if (closed) return;
@@ -302,11 +366,13 @@ export function createRemoteSocketCoordinator(
       options.onOpenChange(false);
       window.clearTimeout(reconnectTimer);
       window.clearTimeout(refreshTimer);
-      window.clearTimeout(pingTimer);
+      health.reset();
       window.clearTimeout(connectWatchdog);
       window.clearInterval(heartbeat);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("pageshow", handleVisibility);
+      window.removeEventListener("focus", handleVisibility);
       document.removeEventListener("visibilitychange", handleVisibility);
       setBrowserSocketSender(null);
       setTerminalSocketSender(null);

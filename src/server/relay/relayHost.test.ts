@@ -250,6 +250,39 @@ describe("startRelayHost", () => {
     handle.dispose();
   });
 
+  it("drops high-volume stream frames before they disconnect every relay channel", () => {
+    const control = fakeSocket();
+    const terminalLocal = fakeSocket();
+    const otherLocal = fakeSocket();
+    const locals = [terminalLocal, otherLocal];
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      maxWebSocketOutboundBufferBytes: 512,
+      socketFactory: () => control,
+      wsFactory: () => locals.shift()!,
+    });
+
+    control.onopen?.();
+    control.onmessage?.(frame({ t: "ws-open", id: "terminal", path: "/ws?ticket=t1" }));
+    control.onmessage?.(frame({ t: "ws-open", id: "other", path: "/ws?ticket=t2" }));
+    control.bufferedAmount = 300;
+    terminalLocal.onmessage?.({
+      data: JSON.stringify({ type: "terminal-output", id: "thread-1", data: "noisy" }),
+    });
+    otherLocal.onmessage?.({ data: JSON.stringify({ type: "ready", seq: 1 }) });
+
+    const sent = control.sent.map((data) => JSON.parse(data) as { t: string; id?: string });
+    expect(sent).not.toContainEqual(expect.objectContaining({ t: "ws-data", id: "terminal" }));
+    expect(sent).toContainEqual(expect.objectContaining({ t: "ws-data", id: "other" }));
+    expect(control.closed).toBe(false);
+    expect(terminalLocal.closed).toBe(false);
+    expect(otherLocal.closed).toBe(false);
+    handle.dispose();
+  });
+
   it("closes the relay channel when opening the local websocket fails", () => {
     const error = new Error("local open failed");
     const control = fakeSocket();
@@ -383,6 +416,82 @@ describe("startRelayHost", () => {
         setCookies: ["unrelated=xyz; Path=/"],
         body: "",
       });
+    });
+    handle.dispose();
+  });
+
+  it("never forwards a content-encoding for a body fetch already decoded", async () => {
+    const control = fakeSocket();
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => control,
+      // `fetch` transparently inflates a gzip response but leaves the header in
+      // place. Echoing it would label these plaintext bytes as gzip and the
+      // visitor would fail to decode them.
+      fetchImpl: async () =>
+        new Response('{"ok":true}', {
+          headers: {
+            "content-type": "application/json",
+            "content-encoding": "gzip",
+            "content-length": "999",
+            etag: '"abc"',
+          },
+        }),
+    });
+
+    control.onopen?.();
+    control.onmessage?.(
+      frame({ t: "req", id: "req-1", method: "GET", path: "/api/snapshot", headers: {} }),
+    );
+
+    await vi.waitFor(() => {
+      const response = control.sent
+        .map((data) => JSON.parse(data) as { t: string; headers?: Record<string, string> })
+        .find((message) => message.t === "res");
+      expect(response).toBeDefined();
+      expect(response!.headers).not.toHaveProperty("content-encoding");
+      // Stale once the body is re-encoded for the tunnel.
+      expect(response!.headers).not.toHaveProperty("content-length");
+      // Validators must still survive so conditional GETs keep working.
+      expect(response!.headers).toMatchObject({ etag: '"abc"' });
+    });
+    handle.dispose();
+  });
+
+  it("does not ask the local server to compress a loopback response", async () => {
+    const control = fakeSocket();
+    let forwarded: Record<string, string> | undefined;
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => control,
+      fetchImpl: async (_url, init) => {
+        forwarded = init?.headers as Record<string, string>;
+        return new Response('{"ok":true}');
+      },
+    });
+
+    control.onopen?.();
+    control.onmessage?.(
+      frame({
+        t: "req",
+        id: "req-1",
+        method: "GET",
+        path: "/api/snapshot",
+        headers: { "accept-encoding": "gzip, br", "if-none-match": '"abc"' },
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(forwarded).toBeDefined();
+      expect(forwarded).not.toHaveProperty("accept-encoding");
+      // Conditional-request headers must still reach the origin.
+      expect(forwarded).toMatchObject({ "if-none-match": '"abc"' });
     });
     handle.dispose();
   });

@@ -74,6 +74,8 @@ interface BuiltInSettings {
   title: string;
   actionLabel: string;
   content: ReactNode;
+  /** Overrides the default `sm:max-w-lg` dialog width for content-heavy settings. */
+  dialogClassName?: string;
 }
 
 interface McpToolList {
@@ -103,7 +105,15 @@ export function McpServersManager(props: {
   const [importOpen, setImportOpen] = useState(false);
   const [builtInSettingsId, setBuiltInSettingsId] = useState<BuiltInMcpServerId>();
   const [toolList, setToolList] = useState<McpToolList>();
-  const oauth = useMcpServerOauth();
+  const userOauth = useMcpServerOauth();
+  const remoteWorkspaceLocation = props.sources.workspace?.projectLocation?.remoteServerId
+    ? props.sources.workspace.projectLocation
+    : undefined;
+  const remoteWorkspaceOauth = useMcpServerOauth(
+    remoteWorkspaceLocation,
+    remoteWorkspaceLocation !== undefined,
+  );
+  const workspaceOauth = remoteWorkspaceLocation ? remoteWorkspaceOauth : userOauth;
   const userProbes = useMcpServerProbes(props.sources.user.servers);
   const workspaceProbes = useMcpServerProbes(
     props.sources.workspace?.servers ?? EMPTY_MCP_SERVERS,
@@ -186,14 +196,14 @@ export function McpServersManager(props: {
       icon: <Globe className="size-4" />,
     },
     {
-      id: "subagents",
-      name: BUILT_IN_MCP_SERVER_NAMES.subagents,
-      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES.subagents,
-      label: t`Subagents`,
+      id: "crossagents",
+      name: BUILT_IN_MCP_SERVER_NAMES.crossagents,
+      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES.crossagents,
+      label: t`Crossagents`,
       description: builtInDescription,
       icon: <Users className="size-4" />,
-      ...(props.builtInSettings?.subagents !== undefined
-        ? { settingsLabel: props.builtInSettings.subagents.actionLabel }
+      ...(props.builtInSettings?.crossagents !== undefined
+        ? { settingsLabel: props.builtInSettings.crossagents.actionLabel }
         : {}),
     },
     {
@@ -326,7 +336,7 @@ export function McpServersManager(props: {
       {activeBuiltInSettings ? (
         <Modal.Backdrop isOpen onOpenChange={(open) => !open && setBuiltInSettingsId(undefined)}>
           <Modal.Container placement="center" size="md">
-            <Modal.Dialog className="sm:max-w-lg">
+            <Modal.Dialog className={activeBuiltInSettings.dialogClassName ?? "sm:max-w-lg"}>
               <Modal.CloseTrigger />
               <Modal.Header>
                 <Modal.Heading>{activeBuiltInSettings.title}</Modal.Heading>
@@ -454,6 +464,7 @@ export function McpServersManager(props: {
           <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
             {visibleServers.map(({ scope, source, server }) => {
               const probes = scope === "user" ? userProbes : workspaceProbes;
+              const oauth = scope === "user" ? userOauth : workspaceOauth;
               const destinationId =
                 scope === "user"
                   ? GLOBAL_MCP_DESTINATION_ID

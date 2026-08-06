@@ -9,7 +9,7 @@
  */
 
 import type { CanonicalItemType } from "@/shared/contracts";
-import type { ToolState } from "@opencode-ai/sdk/v2";
+import type { ToolState } from "../legacySdk";
 import { readDiffSummary, readFileChangePath, readStringField } from "../../fileChangeSummary";
 import { normalizeOpenCodeFileChangeMetadata } from "../sdkCanonicalFileChangeMetadata";
 import { inferFileChangeKind } from "./fileChangeKind";

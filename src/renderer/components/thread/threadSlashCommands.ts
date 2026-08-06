@@ -10,10 +10,35 @@ import { flattenSegments } from "@/renderer/components/composer/serializeMention
 import type { MentionInputHandle } from "@/renderer/components/composer/MentionInput";
 import {
   getGuiSlashCommands,
+  type GuiSlashCommandRegistration,
   type LocalSlashCommandAction,
 } from "@/renderer/components/providers/providerSlashCommands";
 
 export type { LocalSlashCommandAction };
+
+/** Fields every local GUI slash-command lookup needs from the composer. */
+export type SlashCommandLookupContext = {
+  agentKind?: AgentStatus["kind"] | undefined;
+  presentationMode?: ThreadPresentationMode | undefined;
+  runtimeLabel?: string | undefined;
+};
+
+/**
+ * A provider's local GUI command registration can opt out of runtime scopes
+ * (e.g. Cursor's applies to the SDK runtime only, so ACP sessions keep the
+ * commands the agent reports itself).
+ */
+function activeGuiSlashCommands(
+  context: Pick<SlashCommandLookupContext, "agentKind" | "runtimeLabel">,
+): GuiSlashCommandRegistration | undefined {
+  if (!context.agentKind) return undefined;
+  const registration = getGuiSlashCommands(context.agentKind);
+  if (!registration) return undefined;
+  if (registration.isEnabled && !registration.isEnabled({ runtimeLabel: context.runtimeLabel })) {
+    return undefined;
+  }
+  return registration;
+}
 
 const EMPTY_SLASH_COMMANDS: AgentSlashCommand[] = [];
 
@@ -21,10 +46,40 @@ function isSkillCommand(command: AgentSlashCommand): boolean {
   return command.section === "skills";
 }
 
+export function slashCommandDisplayId(command: AgentSlashCommand): string {
+  return isSkillCommand(command) ? (command.skillName ?? command.id) : command.id;
+}
+
+function slashCommandMatches(command: AgentSlashCommand, query: string): boolean {
+  const displayId = slashCommandDisplayId(command).toLowerCase();
+  const wireId = command.id.toLowerCase();
+  return displayId.startsWith(query) || wireId.startsWith(query);
+}
+
 function withoutSkillCommands(
   commands: readonly AgentSlashCommand[] | undefined,
 ): AgentSlashCommand[] {
   return commands?.filter((command) => !isSkillCommand(command)) ?? EMPTY_SLASH_COMMANDS;
+}
+
+/**
+ * Providers can report the same command name from several scopes (user,
+ * project, plugin), and a name may also resolve to a skill entry. Inserting any
+ * of them types the same `/name`, and a typed name binds to the skill when one
+ * exists, so only the first occurrence per name survives and skill entries win
+ * over plain commands.
+ */
+function dedupeBaseCommands(
+  commands: readonly AgentSlashCommand[] | undefined,
+  skills: readonly AgentSlashCommand[],
+): AgentSlashCommand[] {
+  const seen = new Set(skills.map((skill) => (skill.skillName ?? skill.id).toLowerCase()));
+  return withoutSkillCommands(commands).filter((command) => {
+    const id = command.id.toLowerCase();
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
 function mergeSkillCommands(
@@ -130,9 +185,7 @@ export function rebindSkillSegments(
 export function resolveAvailableSlashCommands(
   threadCommands: readonly AgentSlashCommand[] | undefined,
   capabilityCommands: readonly AgentSlashCommand[] | undefined,
-  context?: {
-    agentKind?: AgentStatus["kind"] | undefined;
-    presentationMode?: ThreadPresentationMode | undefined;
+  context?: SlashCommandLookupContext & {
     hasEffort?: boolean | undefined;
     supportsFast?: boolean | undefined;
     skillCommands?: readonly AgentSlashCommand[] | undefined;
@@ -151,10 +204,10 @@ export function resolveAvailableSlashCommands(
   );
   if (context?.presentationMode === "terminal") {
     const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
-    return [...withoutSkillCommands(base), ...skills];
+    return [...dedupeBaseCommands(base, skills), ...skills];
   }
-  if (context?.agentKind) {
-    const registration = getGuiSlashCommands(context.agentKind);
+  if (context) {
+    const registration = activeGuiSlashCommands(context);
     if (registration) {
       return [
         ...registration.buildCommands({
@@ -166,18 +219,15 @@ export function resolveAvailableSlashCommands(
     }
   }
   const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
-  return [...withoutSkillCommands(base), ...skills];
+  return [...dedupeBaseCommands(base, skills), ...skills];
 }
 
 export function resolveLocalSlashCommandAction(
   input: string,
-  context: {
-    agentKind?: AgentStatus["kind"] | undefined;
-    presentationMode?: ThreadPresentationMode | undefined;
-  },
+  context: SlashCommandLookupContext,
 ): LocalSlashCommandAction | null {
-  if (!context.agentKind || context.presentationMode === "terminal") return null;
-  const registration = getGuiSlashCommands(context.agentKind);
+  if (context.presentationMode === "terminal") return null;
+  const registration = activeGuiSlashCommands(context);
   return registration ? registration.resolveLocalAction(input) : null;
 }
 
@@ -189,10 +239,7 @@ export function resolveLocalSlashCommandAction(
 export function bindLeadingSkillUnlessLocalAction(
   segments: PromptSegment[],
   commands: readonly AgentSlashCommand[],
-  context: {
-    agentKind?: AgentStatus["kind"] | undefined;
-    presentationMode?: ThreadPresentationMode | undefined;
-  },
+  context: SlashCommandLookupContext,
 ): PromptSegment[] {
   return resolveLocalSlashCommandAction(flattenSegments(segments), context)
     ? segments
@@ -206,10 +253,7 @@ export function bindLeadingSkillUnlessLocalAction(
 export function resolveLocalActionUnlessSkill(
   segments: readonly PromptSegment[],
   input: string,
-  context: {
-    agentKind?: AgentStatus["kind"] | undefined;
-    presentationMode?: ThreadPresentationMode | undefined;
-  },
+  context: SlashCommandLookupContext,
 ): LocalSlashCommandAction | null {
   return segments.some((segment) => segment.kind === "skill")
     ? null
@@ -225,7 +269,7 @@ export function filterSlashCommands(
   }
 
   const normalizedQuery = query.toLowerCase();
-  return commands.filter((command) => command.id.toLowerCase().startsWith(normalizedQuery));
+  return commands.filter((command) => slashCommandMatches(command, normalizedQuery));
 }
 
 export interface SlashCommandPanelKeyDownContext {
@@ -263,7 +307,11 @@ export function handleSlashCommandPanelKeyDown(
   }
   if (e.key === " " && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const typed = (ctx.slashQuery ?? "").toLowerCase();
-    const exact = filteredCommands.find((cmd) => cmd.id.toLowerCase() === typed);
+    const exact = filteredCommands.find(
+      (command) =>
+        slashCommandDisplayId(command).toLowerCase() === typed ||
+        command.id.toLowerCase() === typed,
+    );
     if (exact) {
       e.preventDefault();
       mentionRef.current?.insertSlashCommand(exact);

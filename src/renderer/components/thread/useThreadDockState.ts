@@ -5,6 +5,7 @@ import {
   useThreadTodoDockStore,
   type ThreadTodoDockPlacement,
 } from "@/renderer/state/threadTodoDockStore";
+import { moveThreadTodoDock } from "@/renderer/actions/panelActions";
 import { selectThreadErrorDockStates, type ThreadErrorDockState } from "./threadErrorState";
 import {
   selectThreadGoalDockItem,
@@ -27,7 +28,6 @@ export interface ThreadDockState {
   errorDockStates: ThreadErrorDockState[];
   showTodoDock: boolean;
   showGoalDock: boolean;
-  showTodoInRightRail: boolean;
   hiddenRuntimeItemId: string | undefined;
   dockLayoutToken: string | null;
   onGoalDockDismiss: () => void;
@@ -47,7 +47,6 @@ export function useThreadDockState(threadId: string): ThreadDockState {
   const retiredSourceItemId = useThreadTodoDockStore(
     (s) => s.byThreadId[threadId]?.retiredSourceItemId,
   );
-  const setTodoDockPlacement = useThreadTodoDockStore((s) => s.setPlacement);
   const setTodoDockCollapsed = useThreadTodoDockStore((s) => s.setCollapsed);
   const retireTodoDock = useThreadTodoDockStore((s) => s.retire);
   const todoDockState = useAppStore((s) => selectThreadTodoDockState(s, threadId));
@@ -111,7 +110,6 @@ export function useThreadDockState(threadId: string): ThreadDockState {
     (dismissedGoal?.threadId !== threadId || goalDockState.sourceItemId !== dismissedGoal.itemId);
   const visibleTodoDockState = showTodoDock ? todoDockState : null;
   const visibleGoalDockState = showGoalDock ? goalDockState : null;
-  const showTodoInRightRail = showTodoDock && todoDockPlacement === "right";
   const hiddenRuntimeItemId = visibleTodoDockState?.sourceItemId;
   const dockLayoutToken =
     [
@@ -131,7 +129,6 @@ export function useThreadDockState(threadId: string): ThreadDockState {
     errorDockStates,
     showTodoDock,
     showGoalDock,
-    showTodoInRightRail,
     hiddenRuntimeItemId,
     dockLayoutToken,
     onGoalDockDismiss: () => {
@@ -145,7 +142,7 @@ export function useThreadDockState(threadId: string): ThreadDockState {
         itemIds: new Set([...(prev.threadId === threadId ? prev.itemIds : []), sourceItemId]),
       })),
     onTodoDockCollapsedChange: (collapsed) => setTodoDockCollapsed(threadId, collapsed),
-    onTodoDockPlacementChange: (placement) => setTodoDockPlacement(threadId, placement),
+    onTodoDockPlacementChange: (placement) => moveThreadTodoDock(threadId, placement),
     onTodoDockRetire: () => {
       if (visibleTodoDockState) retireTodoDock(threadId, visibleTodoDockState.sourceItemId);
     },

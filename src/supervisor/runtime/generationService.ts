@@ -8,6 +8,8 @@ import type {
   GeneratePrSummaryResult,
   GenerateTitlePayload,
   GenerateTitleResult,
+  JudgeExperimentPayload,
+  JudgeExperimentResult,
 } from "@/shared/contracts";
 import { generateCommitMessage } from "../commitMessageGenerator";
 import {
@@ -16,11 +18,14 @@ import {
 } from "../contextExtractor";
 import { generatePrSummary } from "../prSummaryGenerator";
 import { generateTitle } from "../titleGenerator";
+import { judgeExperiment } from "../experimentJudge";
 import type { AgentAdapter } from "../agents/base";
+import type { WslBridgeClient } from "../wsl/bridge/client";
 
 export interface GenerationServiceDeps {
   adapters: Map<AgentKind, AgentAdapter>;
   readTerminalScrollback: (threadId: string) => string;
+  wslBridgeClient: WslBridgeClient | undefined;
 }
 
 /**
@@ -31,6 +36,7 @@ export interface GenerationServiceDeps {
  */
 export class GenerationService {
   private readonly extractionAbortControllers = new Map<string, AbortController>();
+  private readonly judgeAbortControllers = new Map<string, AbortController>();
 
   constructor(private readonly deps: GenerationServiceDeps) {}
 
@@ -84,6 +90,41 @@ export class GenerationService {
       payload.effort,
       payload.language,
     );
+  }
+
+  async judgeExperiment(payload: JudgeExperimentPayload): Promise<JudgeExperimentResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    const abortController = new AbortController();
+    this.judgeAbortControllers.get(payload.experimentId)?.abort();
+    this.judgeAbortControllers.set(payload.experimentId, abortController);
+    try {
+      return await judgeExperiment(
+        payload.projectLocation,
+        adapter,
+        payload.prompt,
+        payload.candidates,
+        payload.model,
+        payload.effort,
+        payload.fast,
+        {
+          signal: abortController.signal,
+          ...(this.deps.wslBridgeClient ? { wslClient: this.deps.wslBridgeClient } : {}),
+          ...(payload.mode ? { mode: payload.mode } : {}),
+        },
+      );
+    } finally {
+      if (this.judgeAbortControllers.get(payload.experimentId) === abortController) {
+        this.judgeAbortControllers.delete(payload.experimentId);
+      }
+    }
+  }
+
+  cancelJudgeExperiment(experimentId: string): void {
+    const controller = this.judgeAbortControllers.get(experimentId);
+    if (controller) {
+      controller.abort();
+      this.judgeAbortControllers.delete(experimentId);
+    }
   }
 
   async extractContext(payload: ExtractContextPayload): Promise<ExtractContextResult> {

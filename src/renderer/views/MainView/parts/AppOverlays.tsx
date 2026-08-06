@@ -3,6 +3,10 @@ import { AlertDialog } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import {
+  productSurfaceView,
+  useProductViewTracking,
+} from "@/renderer/analytics/useProductViewTracking";
 import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import {
   DeferredBrowserHost as PrewarmedBrowserHost,
@@ -10,22 +14,20 @@ import {
   DeferredCreateProjectModal as PrewarmedCreateProjectModal,
   DeferredFileEditorOverlay,
   DeferredGitReviewOverlay,
+  DeferredGitHubActionsView,
   DeferredLoginTerminalOverlay as PrewarmedLoginTerminalOverlay,
   DeferredPrReviewOverlay,
   DeferredProjectSettingsOverlay,
-  DeferredRemoteThreadView,
   DeferredSettingsOverlay,
 } from "@/renderer/deferredFeatures";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
-import { closeThreads } from "@/renderer/utils/shellUtils";
-import { performWorktreeRemoval } from "@/renderer/actions/worktreeActions";
+import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 
 import { readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common/Button";
@@ -33,8 +35,8 @@ import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import type { UsageLoginConfirmationAction } from "@/shared/contracts";
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
-import { RemoteProjectModal } from "@/renderer/views/RemoteProjectModal/RemoteProjectModal";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 
 function useEverEnabled(active: boolean): boolean {
   const [enabled, setEnabled] = useState(active);
@@ -47,7 +49,6 @@ function useEverEnabled(active: boolean): boolean {
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
-  const remoteThreadOpen = useRemoteServersStore((s) => s.openThread !== null);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
@@ -58,12 +59,42 @@ export function AppOverlays() {
   const gitReviewProject = gitReviewContext
     ? projects.find((p) => p.id === gitReviewContext.projectId)
     : undefined;
+  // Experiment candidate worktrees are viewable, but their lifecycle (merge/
+  // remove) is owned by the experiment crown flow — never the review surface.
+  const gitReviewIsExperiment = Boolean(
+    gitReviewContext &&
+    findExperimentByWorktree(gitReviewContext.projectId, gitReviewContext.worktreePath),
+  );
   const gitOverlayVisible = gitOverlayOpen && !!gitReviewContext && !!gitReviewProject;
   const prReviewContext = usePanelStore((s) => s.prReviewContext);
   const prReviewProject = prReviewContext
     ? projects.find((p) => p.id === prReviewContext.projectId)
     : undefined;
   const prReviewVisible = !!prReviewContext && !!prReviewProject;
+  const githubActionsContext = usePanelStore((s) => s.githubActionsContext);
+  const githubActionsVisible = githubActionsContext !== null;
+  const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
+  const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
+  const trackedOverlaySurface =
+    fileEditorOverlayMode && fileEditorRootContext
+      ? `editor_${fileEditorOverlayMode}`
+      : prReviewVisible
+        ? "pull_request_review"
+        : gitOverlayVisible
+          ? "git_review"
+          : browserOverlayOpen
+            ? browserOverlayMaximized
+              ? "browser_fullscreen"
+              : "browser_drawer"
+            : null;
+  useProductViewTracking(
+    productSurfaceView(trackedOverlaySurface ?? "inactive", "overlay"),
+    "overlay",
+    {
+      active: trackedOverlaySurface !== null,
+      finishWhenInactive: true,
+    },
+  );
 
   return (
     <>
@@ -74,16 +105,12 @@ export function AppOverlays() {
           <DeferredSettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
         </Suspense>
       </OverlayShell>
-      <OverlayShell
-        open={remoteThreadOpen}
-        onExited={() => useRemoteServersStore.getState().closeRemoteThread()}
-      >
-        <Suspense fallback={<OverlayLoader />}>
-          <DeferredRemoteThreadView />
-        </Suspense>
-      </OverlayShell>
+      {/* No fade-in: the project settings view is lazily loaded and resolves its
+          project as it mounts, so fading it in over the hidden base app just
+          shows full-screen acrylic until the content lands. */}
       <OverlayShell
         open={!!projectSettingsId}
+        instantEnter
         onExited={() => usePanelStore.getState().closeProjectSettings()}
       >
         {projectSettingsId && (
@@ -123,26 +150,24 @@ export function AppOverlays() {
                         gitReviewContext.projectId,
                         gitReviewContext.worktreePath,
                       ) ?? undefined,
-                    onMergeAndRemove: () => {
-                      const allThreads = useAppStore.getState().threads;
-                      const wtPath = gitReviewContext!.worktreePath;
-                      const wtBranch = wtPath
-                        ? resolveWorktreeBranch(gitReviewContext!.projectId, wtPath)
-                        : undefined;
-                      usePanelStore.getState().setGitOverlayOpen(false);
-                      usePanelStore.getState().setGitReviewContext(null);
-                      if (wtPath) {
-                        const siblings = allThreads.filter((t) => t.worktreePath === wtPath);
-                        const deleteThreadStoreAction = useAppStore.getState().deleteThread;
-                        for (const sib of siblings) {
-                          deleteThreadStoreAction(sib.id);
-                        }
-                        void (async () => {
-                          await closeThreads(siblings.map((sib) => sib.id));
-                          await performWorktreeRemoval(gitReviewProject, wtPath, wtBranch);
-                        })();
-                      }
-                    },
+                    ...(gitReviewIsExperiment
+                      ? {}
+                      : {
+                          onMergeAndRemove: () => {
+                            const allThreads = useAppStore.getState().threads;
+                            const wtPath = gitReviewContext!.worktreePath;
+                            usePanelStore.getState().setGitOverlayOpen(false);
+                            usePanelStore.getState().setGitReviewContext(null);
+                            if (wtPath) {
+                              const siblings = allThreads.filter((t) => t.worktreePath === wtPath);
+                              deleteWorktreeGroup(
+                                gitReviewProject.id,
+                                wtPath,
+                                siblings.map((sibling) => sibling.id),
+                              );
+                            }
+                          },
+                        }),
                   }
                 : {})}
               onClose={() => {
@@ -187,6 +212,26 @@ export function AppOverlays() {
           </Suspense>
         )}
       </OverlayShell>
+      {/* No fade-in: this view builds its model and fetches workflows as it
+          mounts, so fading it in over the hidden base app just shows
+          full-screen acrylic until the content lands. */}
+      <OverlayShell
+        open={githubActionsVisible}
+        instantEnter
+        onExited={() => usePanelStore.getState().setGitHubActionsContext(null)}
+      >
+        {githubActionsContext && (
+          <Suspense fallback={<OverlayLoader />}>
+            <DeferredGitHubActionsView
+              {...(githubActionsContext.projectId
+                ? { projectId: githubActionsContext.projectId }
+                : {})}
+              {...(githubActionsContext.runId ? { runId: githubActionsContext.runId } : {})}
+              onClose={() => usePanelStore.getState().setGitHubActionsContext(null)}
+            />
+          </Suspense>
+        )}
+      </OverlayShell>
       <OverlayShell
         open={fileEditorOverlayMode === "fullscreen"}
         onExited={() => setFileEditorOverlayMode(null)}
@@ -199,7 +244,6 @@ export function AppOverlays() {
       </OverlayShell>
       <DeferredBrowserHost />
       <UsageLoginConfirmationDialog />
-      <RemoteProjectModal />
       <DeferredLoginTerminalOverlay />
       <DeferredCreateProjectModal />
       <DeferredCloneProjectModal />

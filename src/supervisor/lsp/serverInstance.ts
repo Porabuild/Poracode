@@ -12,6 +12,7 @@ import { createLspRootUri, type LspSessionStatus } from "@/shared/lsp";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { getProjectFsPath } from "@/shared/wsl";
 import { buildAgentCommand, primeProjectShellEnv } from "../agents/base";
+import { captureSupervisorException } from "../diagnostics/sentry";
 import type { LanguageServerConfig } from "./serverRegistry";
 
 /**
@@ -50,6 +51,7 @@ export class ServerInstance {
   private connection: MessageConnection | null = null;
   private restartCount = 0;
   private disposed = false;
+  private failureReported = false;
 
   constructor(
     readonly sessionId: string,
@@ -153,6 +155,11 @@ export class ServerInstance {
     connection.onError(([error]) => {
       console.error(`[LSP ${this.sessionId}] Connection error:`, error);
     });
+    connection.onClose(() => {
+      if (this.connection === connection) {
+        this.connection = null;
+      }
+    });
 
     connection.listen();
     this.connection = connection;
@@ -216,12 +223,10 @@ export class ServerInstance {
       });
 
       await connection.sendNotification("initialized", {});
+      this.failureReported = false;
       this.onStatus("ready");
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.onStatus("error", message);
-      this.dispose();
-      throw new Error(message, { cause: error });
+      this.handleInitializationFailure(error);
     }
 
     // Handle process exit — attempt restart
@@ -231,6 +236,11 @@ export class ServerInstance {
       this.connection = null;
       this.process = null;
 
+      if (code === 0) {
+        this.onStatus("stopped");
+        return;
+      }
+      this.reportFailure("Language server process exited unexpectedly.");
       if (this.restartCount < 3) {
         this.restartCount++;
         const delay = Math.min(1000 * 2 ** this.restartCount, 10000);
@@ -249,21 +259,50 @@ export class ServerInstance {
 
   /** Forward a raw JSON-RPC message from the renderer to the language server. */
   async sendMessage(message: unknown): Promise<unknown> {
-    if (!this.connection) return undefined;
+    const connection = this.connection;
+    if (!connection) return undefined;
 
     const msg = message as { method?: string; id?: number | string; params?: unknown };
     if (!msg.method) return undefined;
 
     if (msg.id !== undefined) {
       // It's a request — send and return the response
-      return this.connection.sendRequest(msg.method, msg.params);
+      try {
+        return await connection.sendRequest(msg.method, msg.params);
+      } catch (error) {
+        if (this.disposed || this.connection !== connection) return undefined;
+        throw error;
+      }
     }
     // It's a notification — fire and forget
-    await this.connection.sendNotification(msg.method, msg.params);
+    try {
+      await connection.sendNotification(msg.method, msg.params);
+    } catch (error) {
+      if (this.disposed || this.connection !== connection) return undefined;
+      throw error;
+    }
     return undefined;
   }
 
-  dispose(): void {
+  private reportFailure(message: string): void {
+    if (this.failureReported) return;
+    this.failureReported = true;
+    captureSupervisorException(new Error(message), {
+      "poracode.feature_area": "language-server",
+      "poracode.runtime_kind": "structured",
+    });
+  }
+
+  private handleInitializationFailure(error: unknown): never {
+    const message = error instanceof Error ? error.message : String(error);
+    this.onStatus("error", message);
+    this.dispose(false);
+    // The synchronous start request owns this failure at the supervisor IPC
+    // boundary. Keep the rejection privacy-safe and do not self-capture here.
+    throw new Error("Language server failed to initialize.");
+  }
+
+  dispose(emitStopped = true): void {
     this.disposed = true;
     if (this.connection) {
       try {
@@ -277,6 +316,8 @@ export class ServerInstance {
       terminateChildProcessTree(this.process);
       this.process = null;
     }
-    this.onStatus("stopped");
+    if (emitStopped) {
+      this.onStatus("stopped");
+    }
   }
 }

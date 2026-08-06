@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import { ImageLightboxHost } from "@/renderer/components/composer";
 import { ChatPaneActionsContext, type ChatPaneActions } from "../../chatPaneActionsContext";
 import ItemMarkdownInner from "./ItemMarkdownInner";
 import { LC_SELECTOR_LANG } from "./SelectorBadge";
@@ -126,7 +127,7 @@ describe("ItemMarkdownInner", () => {
   });
 
   it("caps markdown images so tall screenshots do not fill the chat", () => {
-    render(
+    const { container } = render(
       <AppProvider>
         <ItemMarkdownInner text={"![Tall screenshot](https://example.test/tall-screenshot.png)"} />
       </AppProvider>,
@@ -136,6 +137,28 @@ describe("ItemMarkdownInner", () => {
     expect(img).toHaveClass("max-h-[min(18rem,40vh)]", "max-w-full", "object-contain");
     expect(img).toHaveAttribute("decoding", "async");
     expect(img).toHaveAttribute("draggable", "false");
+    expect(img.closest('[data-poracode-image-card="true"]')).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Copy image" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Download image" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open preview" })).toBeTruthy();
+    expect(container.querySelector("p div")).toBeNull();
+  });
+
+  it("opens markdown images in the shared lightbox", () => {
+    render(
+      <AppProvider>
+        <ItemMarkdownInner text={"![Screenshot](https://example.test/screenshot.png)"} />
+        <ImageLightboxHost />
+      </AppProvider>,
+    );
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Open image preview" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(document.querySelector(".poracode-image-lightbox__image")).toHaveAttribute(
+      "src",
+      "https://example.test/screenshot.png",
+    );
   });
 
   it("renders Windows absolute markdown image paths through the local file protocol", () => {
@@ -151,6 +174,138 @@ describe("ItemMarkdownInner", () => {
       "src",
       "poracode-local://local/C:/Users/sdsle/.poracode-smoke/artifacts/composer-before-full.png",
     );
+  });
+
+  it("renders remote markdown image paths through the host image endpoint", () => {
+    const remoteLocalImageUrl = vi.fn<(url: string) => string>(
+      () => "https://remote.test/api/files/image?path=screenshot.png",
+    );
+    const actions = makeActions({ remoteLocalImageUrl });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"![Screenshot](/tmp/screenshot.png)"} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    expect(remoteLocalImageUrl).toHaveBeenCalledWith("poracode-local://local/tmp/screenshot.png");
+    expect(screen.getByAltText("Screenshot")).toHaveAttribute(
+      "src",
+      "https://remote.test/api/files/image?path=screenshot.png",
+    );
+  });
+
+  it("renders Windows backslash markdown image paths without CommonMark escape corruption", () => {
+    // Paths with `\.` (dot-folders) are mangled by CommonMark unless rewritten
+    // to poracode-local:// before parse.
+    render(
+      <AppProvider>
+        <ItemMarkdownInner
+          text={
+            "![Before](C:\\Users\\sdsle\\.grok\\sessions\\E%3A%5Cwork\\assets\\image-ea056148.png)"
+          }
+        />
+      </AppProvider>,
+    );
+
+    const src = screen.getByAltText("Before").getAttribute("src") ?? "";
+    expect(src.startsWith("poracode-local://local/")).toBe(true);
+    // Literal percent folder names must be double-encoded in the URL so the
+    // protocol handler's decodeURIComponent restores E%3A… rather than E:…
+    expect(src).toContain("E%253A%255Cwork");
+    expect(src).toContain(".grok");
+    expect(src).not.toContain("sdsle.grok");
+  });
+
+  it("renders project-relative markdown image paths via the local file protocol", () => {
+    const actions = makeActions({
+      projectLocation: {
+        kind: "windows",
+        path: "E:\\work\\lightcode\\.poracode\\worktrees\\poracode-brave-willow-b4fc6c26",
+      },
+    });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner
+            text={"![After](verification-shots/01-collapsed-same-file-edits.png)"}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const src = screen.getByAltText("After").getAttribute("src") ?? "";
+    expect(src.startsWith("poracode-local://local/E:")).toBe(true);
+    expect(src).toContain("verification-shots");
+    expect(src).toContain("01-collapsed-same-file-edits.png");
+  });
+
+  it("copies project-relative markdown images through the local-file bridge", async () => {
+    const readLocalImageFile = vi
+      .fn<(payload: { url: string }) => Promise<Uint8Array>>()
+      .mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
+    const copyImageToClipboard = vi
+      .fn<(payload: { data: Uint8Array }) => Promise<boolean>>()
+      .mockResolvedValue(true);
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: {
+        appVersion: "test",
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        readLocalImageFile,
+        copyImageToClipboard,
+      },
+    });
+    const actions = makeActions({
+      projectLocation: { kind: "posix", path: "/tmp/project" },
+    });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"![Screenshot](images/screenshot.png)"} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy image" }));
+
+    await waitFor(() => expect(copyImageToClipboard).toHaveBeenCalledTimes(1));
+    expect(readLocalImageFile).toHaveBeenCalledWith({
+      url: "poracode-local://local/tmp/project/images/screenshot.png",
+    });
+    expect(screen.getByRole("button", { name: "Copied" })).toBeTruthy();
+  });
+
+  it("renders Grok session-relative images/ markdown via the local file protocol", () => {
+    const sessionDir =
+      "C:\\Users\\sdsle\\.grok\\sessions\\E%3A%5Cwork%5Clightcode%5C.poracode%5Cworktrees%5Cporacode-warm-yak-d27ed350\\019f6789-4fd1-7740-a828-9a42918d42e8";
+    const actions = makeActions({
+      projectLocation: {
+        kind: "windows",
+        path: "E:\\work\\lightcode\\.poracode\\worktrees\\poracode-warm-yak-d27ed350",
+      },
+      markdownImageRoots: [sessionDir],
+    });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"![Modal PDF preview](images/4.jpg)"} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const src = screen.getByAltText("Modal PDF preview").getAttribute("src") ?? "";
+    expect(src.startsWith("poracode-local://local/")).toBe(true);
+    expect(src).toContain("images");
+    expect(src).toContain("4.jpg");
+    // Must land under the Grok session dir, not the project root.
+    expect(src).toContain(".grok");
+    expect(src).toContain("E%253A%255Cwork");
   });
 
   it("normalizes absolute markdown link hrefs to project file chips", () => {
@@ -177,6 +332,46 @@ describe("ItemMarkdownInner", () => {
       "src/renderer/styles.css",
       undefined,
     );
+  });
+
+  it("renders a bare filename with a line number as a clickable file chip", () => {
+    const actions = makeActions();
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"BrowserPanelManager.ts:288 lost its badge."} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const chip = screen.getByRole("button", { name: /BrowserPanelManager\.ts.*288/ });
+    expect(chip).toHaveAttribute("title", "BrowserPanelManager.ts:288");
+
+    fireEvent.click(chip);
+    expect(actions.openProjectRelativePath).toHaveBeenCalledWith("BrowserPanelManager.ts", 288);
+  });
+
+  it("makes an unresolved bare filename chip read-only after the index lookup fails", async () => {
+    const actions = makeActions({
+      openProjectRelativePath: vi
+        .fn<(path: string, lineNumber?: number) => Promise<void>>()
+        .mockRejectedValue(new Error("File not found")),
+    });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"MissingFile.ts:12 could not be found."} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const chip = screen.getByRole("button", { name: /MissingFile\.ts.*12/ });
+    fireEvent.click(chip);
+
+    await waitFor(() => expect(chip).toBeDisabled());
+    expect(chip).toHaveClass("poracode-inline-path-chip--inert");
   });
 
   it("keeps out-of-project absolute markdown link hrefs absolute", () => {
@@ -296,13 +491,14 @@ describe("ItemMarkdownInner", () => {
   });
 });
 
-function makeActions(): ChatPaneActions {
+function makeActions(overrides?: Partial<ChatPaneActions>): ChatPaneActions {
   return {
-    openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
+    openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
     revealProjectFolderInTree: vi.fn<(path: string) => void>(),
     showProjectEntryInExplorer: vi.fn<(path: string) => void>(),
     onContentHeightChange: vi.fn<() => void>(),
     projectLocation: { kind: "posix", path: "/Users/serhiivecherenko/work/poracode" },
     projectRootNames: new Set(["src"]),
+    ...overrides,
   };
 }

@@ -20,6 +20,60 @@ function permissionRequest(): RequestPermissionRequest {
   };
 }
 
+function questionPermissionRequest(): RequestPermissionRequest {
+  return {
+    sessionId: "session-1",
+    toolCall: {
+      toolCallId: "question-1",
+      title: "Ask user 2 questions",
+      kind: "other",
+      rawInput: {
+        questions: [
+          {
+            header: "Scope",
+            question: "Which scope should be implemented?",
+            options: [
+              { label: "Focused", description: "Implement only the requested feature." },
+              { label: "Broad", description: "Include adjacent improvements." },
+            ],
+          },
+          {
+            header: "Checks",
+            question: "Which checks should run?",
+            multiSelect: true,
+            options: [
+              { label: "Tests", description: "Run focused tests." },
+              { label: "Lint", description: "Run lint checks." },
+            ],
+          },
+        ],
+      },
+    },
+    options: [
+      { optionId: "proceed_once", name: "Submit", kind: "allow_once" },
+      { optionId: "cancel", name: "Cancel", kind: "reject_once" },
+    ],
+  };
+}
+
+function kimiQuestionPermissionRequest(): RequestPermissionRequest {
+  return {
+    sessionId: "session-1",
+    toolCall: {
+      toolCallId: "0:tool-kimi",
+      title: "AskUserQuestion",
+      content: [
+        { type: "content", content: { type: "text", text: "Which authentication method?" } },
+      ],
+    },
+    options: [
+      { optionId: "q0_opt_0", name: "Paste a token", kind: "allow_once" },
+      { optionId: "q0_opt_1", name: "Log in via browser", kind: "allow_once" },
+      { optionId: "q0_skip", name: "Skip", kind: "reject_once" },
+    ],
+  };
+}
+
 function formElicitation(): CreateElicitationRequest {
   return {
     mode: "form",
@@ -60,7 +114,8 @@ function makeRequests(
   };
   const availableModeIds = overrides.availableModeIds ?? ["default", "plan", "yolo"];
   const emitRuntimeEvents = vi.fn<(events: RuntimeEvent[]) => void>();
-  const setRequestAttention = vi.fn<(attention: "needs_approval" | "needs_reply") => void>();
+  const setRequestAttention =
+    vi.fn<(attention: "needs_approval" | "needs_reply" | "working") => void>();
   const requests = new AcpSessionRequests({
     threadId: "thread-1",
     getPermissionContext: () => ({ config, availableModeIds }),
@@ -72,6 +127,224 @@ function makeRequests(
 }
 
 describe("AcpSessionRequests permissions", () => {
+  it("maps Qwen AskUserQuestion permissions to a reply form and returns indexed answers", async () => {
+    const { emitRuntimeEvents, requests, setRequestAttention } = makeRequests({
+      config: { model: "model-a", mode: "agent", approvalPolicy: "never" },
+      availableModeIds: ["agent"],
+    });
+
+    const response = requests.requestPermission(questionPermissionRequest());
+
+    expect(setRequestAttention).toHaveBeenCalledExactlyOnceWith("needs_reply");
+    expect(emitRuntimeEvents).toHaveBeenCalledWith([
+      {
+        type: "request.opened",
+        threadId: "thread-1",
+        requestId: "acp-perm-0",
+        requestType: "tool_user_input",
+        payload: {
+          summary: "Which scope should be implemented?",
+          details: {
+            userInputForm: {
+              questions: [
+                {
+                  id: "0",
+                  header: "Scope",
+                  question: "Which scope should be implemented?",
+                  options: [
+                    {
+                      optionId: "Focused",
+                      label: "Focused",
+                      description: "Implement only the requested feature.",
+                    },
+                    {
+                      optionId: "Broad",
+                      label: "Broad",
+                      description: "Include adjacent improvements.",
+                    },
+                  ],
+                  multiSelect: false,
+                },
+                {
+                  id: "1",
+                  header: "Checks",
+                  question: "Which checks should run?",
+                  options: [
+                    {
+                      optionId: "Tests",
+                      label: "Tests",
+                      description: "Run focused tests.",
+                    },
+                    {
+                      optionId: "Lint",
+                      label: "Lint",
+                      description: "Run lint checks.",
+                    },
+                  ],
+                  multiSelect: true,
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    requests.resolve("acp-perm-0", {
+      answers: {
+        "0": "Focused",
+        "1": ["Tests", "Lint"],
+      },
+    });
+
+    await expect(response).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "proceed_once" },
+      answers: { "0": "Focused", "1": "Tests, Lint" },
+    });
+    expect(setRequestAttention).toHaveBeenLastCalledWith("working");
+    expect(emitRuntimeEvents).toHaveBeenCalledWith([
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "acp-question-answer-acp-perm-0",
+        itemType: "question_answer",
+        payload: {
+          questions: [
+            {
+              header: "Scope",
+              question: "Which scope should be implemented?",
+              selected: [
+                { label: "Focused", description: "Implement only the requested feature." },
+              ],
+            },
+            {
+              header: "Checks",
+              question: "Which checks should run?",
+              selected: [
+                { label: "Tests", description: "Run focused tests." },
+                { label: "Lint", description: "Run lint checks." },
+              ],
+            },
+          ],
+        },
+      },
+      {
+        type: "item.completed",
+        threadId: "thread-1",
+        itemId: "acp-question-answer-acp-perm-0",
+      },
+    ]);
+  });
+
+  it("cancels Qwen AskUserQuestion without forwarding answers", async () => {
+    const { emitRuntimeEvents, requests, setRequestAttention } = makeRequests();
+    const response = requests.requestPermission(questionPermissionRequest());
+
+    requests.resolve("acp-perm-0", { action: "cancel" });
+
+    await expect(response).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    expect(emitRuntimeEvents).toHaveBeenLastCalledWith([
+      {
+        type: "request.resolved",
+        threadId: "thread-1",
+        requestId: "acp-perm-0",
+        outcome: "answered",
+      },
+    ]);
+    expect(setRequestAttention).toHaveBeenLastCalledWith("working");
+  });
+
+  it("maps Kimi AskUserQuestion (content + options) to a reply form and returns the picked option", async () => {
+    const { emitRuntimeEvents, requests, setRequestAttention } = makeRequests({
+      config: { model: "model-a", mode: "agent", approvalPolicy: "never" },
+      availableModeIds: ["agent"],
+    });
+
+    const response = requests.requestPermission(kimiQuestionPermissionRequest());
+
+    expect(setRequestAttention).toHaveBeenCalledExactlyOnceWith("needs_reply");
+    expect(emitRuntimeEvents).toHaveBeenCalledWith([
+      {
+        type: "request.opened",
+        threadId: "thread-1",
+        requestId: "acp-perm-0",
+        requestType: "tool_user_input",
+        payload: {
+          summary: "Which authentication method?",
+          details: {
+            userInputForm: {
+              questions: [
+                {
+                  id: "0",
+                  header: "Which authentication method?",
+                  question: "Which authentication method?",
+                  options: [
+                    { optionId: "q0_opt_0", label: "Paste a token" },
+                    { optionId: "q0_opt_1", label: "Log in via browser" },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          },
+          options: [
+            { optionId: "q0_opt_0", label: "Paste a token" },
+            { optionId: "q0_opt_1", label: "Log in via browser" },
+          ],
+          multiSelect: false,
+        },
+      },
+    ]);
+
+    // The form submits the picked choice inside the answers map; it must be
+    // promoted to the outcome optionId Kimi expects (not the first allow_once).
+    requests.resolve("acp-perm-0", { answers: { "0": "q0_opt_1" } });
+
+    await expect(response).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "q0_opt_1" },
+      answers: { "0": "Log in via browser" },
+    });
+  });
+
+  it("echoes Kimi v2 plan-review option ids back to the server verbatim", async () => {
+    const { requests } = makeRequests();
+    const response = requests.requestPermission({
+      sessionId: "session-1",
+      toolCall: {
+        toolCallId: "3:tool-plan",
+        title: "ExitPlanMode",
+        content: [
+          {
+            type: "content",
+            content: { type: "text", text: "Plan saved to: /p.md\n\n# Plan" },
+          },
+          {
+            type: "content",
+            content: { type: "text", text: "Requesting approval to Presenting plan" },
+          },
+        ],
+      },
+      options: [
+        { optionId: "plan_opt_0", name: "Use REST", kind: "allow_once" },
+        { optionId: "plan_opt_1", name: "Use GraphQL", kind: "allow_once" },
+        { optionId: "plan_revise", name: "Revise", kind: "reject_once" },
+        { optionId: "plan_reject_and_exit", name: "Reject and Exit", kind: "reject_once" },
+      ],
+    });
+
+    requests.resolve("acp-perm-0", { optionId: "plan_opt_1" });
+    await expect(response).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "plan_opt_1" },
+    });
+  });
+
+  it("reports when a permission request is no longer pending", () => {
+    const { emitRuntimeEvents, requests } = makeRequests();
+
+    expect(requests.resolve("acp-perm-missing", { optionId: "proceed_once" })).toBe(false);
+    expect(emitRuntimeEvents).not.toHaveBeenCalled();
+  });
+
   it.each(["never", "yolo", "bypassPermissions"])(
     "auto-approves %s when the agent has no matching native mode",
     async (approvalPolicy) => {
@@ -198,7 +471,7 @@ describe("AcpSessionRequests elicitations", () => {
         tags: ["fast"],
       },
     });
-    expect(emitRuntimeEvents).toHaveBeenLastCalledWith([
+    expect(emitRuntimeEvents).toHaveBeenCalledWith([
       expect.objectContaining({
         type: "item.started",
         itemId: "acp-question-answer-acp-elicit-0",

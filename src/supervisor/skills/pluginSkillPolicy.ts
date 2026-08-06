@@ -9,11 +9,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import {
-  arePluginSkillRequiredAppsEnabled,
-  isPluginSkillEnabled,
-  isPluginSkillSupportedForLaunch,
-} from "@/shared/plugins/catalog";
+import { isPluginSkillEnabled, isPluginSkillSupportedForLaunch } from "@/shared/plugins/catalog";
 import { relativePolicyPath } from "@/supervisor/plugins";
 import { parseWslUncPath } from "@/shared/wsl";
 import { batchWslCommandsAsync, quotePosixShellArg } from "../agents/base";
@@ -146,7 +142,7 @@ export class PluginSkillPolicy {
       const { plugin } = root;
       const state = installedPlugins[plugin.name];
       if (!state) return [];
-      if (!this.isSupported(plugin, skill.folderName, context)) return [];
+      if (!this.isSupported(plugin, context)) return [];
       const label = plugin.poracode.title ?? plugin.name;
       return [
         {
@@ -268,10 +264,8 @@ export class PluginSkillPolicy {
         parts.length === 2 &&
         parts[1] === SKILL_FILE &&
         state &&
-        this.isSupported(plugin, folder, context) &&
-        isPluginSkillEnabled(plugin, state, folder) &&
-        (!context.launchConfig ||
-          arePluginSkillRequiredAppsEnabled(plugin, folder, context.launchConfig)),
+        this.isSupported(plugin, context) &&
+        isPluginSkillEnabled(plugin, state, folder),
       );
       if (!allowed) changed = true;
       return allowed;
@@ -279,16 +273,10 @@ export class PluginSkillPolicy {
     return changed ? filtered : segments;
   }
 
-  private isSupported(
-    plugin: LoadedPlugin,
-    folder: string,
-    context: PluginSkillPolicyContext,
-  ): boolean {
-    return isPluginSkillSupportedForLaunch(plugin, folder, {
+  private isSupported(plugin: LoadedPlugin, context: PluginSkillPolicyContext): boolean {
+    return isPluginSkillSupportedForLaunch(plugin, {
       hostPlatform: this.options.hostPlatform,
       ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
-      ...(context.capabilities ? { capabilities: context.capabilities } : {}),
-      ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
     });
   }
 

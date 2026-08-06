@@ -239,6 +239,10 @@ describe("item payload schemas", () => {
       tokensUsed: 0,
     };
     expect(goalItemPayloadSchema.parse(roundTrip(payload))).toEqual(payload);
+    expect(goalItemPayloadSchema.parse({ status: "failed" })).toEqual({ status: "failed" });
+    expect(goalItemPayloadSchema.parse({ status: "cancelled" })).toEqual({
+      status: "cancelled",
+    });
     expect(goalItemPayloadSchema.safeParse({ tokensUsed: -1 }).success).toBe(false);
   });
 

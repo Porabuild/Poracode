@@ -13,7 +13,26 @@ export type DiffBuildResult = DiffBuildResponse["results"][number];
 
 let worker: Worker | null = null;
 let nextId = 0;
-const pending = new Map<number, (results: DiffBuildResponse["results"]) => void>();
+const WORKER_RESPONSE_TIMEOUT_MS = 1_500;
+const pending = new Map<
+  number,
+  {
+    resolve: (results: DiffBuildResponse["results"]) => void;
+    fallback: () => DiffBuildResponse["results"];
+    timeout: ReturnType<typeof setTimeout>;
+  }
+>();
+
+function failPendingWorkerBuilds(): void {
+  const builds = [...pending.values()];
+  pending.clear();
+  worker?.terminate();
+  worker = null;
+  for (const build of builds) {
+    clearTimeout(build.timeout);
+    build.resolve(build.fallback());
+  }
+}
 
 function getWorker(): Worker {
   if (!worker) {
@@ -21,60 +40,84 @@ function getWorker(): Worker {
       type: "module",
     });
     worker.onmessage = (e: MessageEvent<DiffBuildResponse>) => {
-      const resolve = pending.get(e.data.id);
-      if (resolve) {
+      const build = pending.get(e.data.id);
+      if (build) {
         pending.delete(e.data.id);
-        resolve(e.data.results);
+        clearTimeout(build.timeout);
+        build.resolve(e.data.results);
       }
     };
+    worker.onerror = failPendingWorkerBuilds;
+    worker.onmessageerror = failPendingWorkerBuilds;
   }
   return worker;
+}
+
+function buildOnMainThread(
+  items: DiffBuildItem[],
+  theme: "light" | "dark",
+): DiffBuildResponse["results"] {
+  return items.map((item) => {
+    const data = {
+      newFile: {
+        fileName: item.newName,
+        fileLang: item.fileLang,
+        content: item.newContent ?? null,
+      },
+      hunks: [item.diff],
+    };
+    if (!item.diff.trim()) return { key: item.key, data, bundle: null };
+    try {
+      const instance = DiffFile.createInstance({
+        oldFile: {
+          fileName: item.oldName,
+          fileLang: item.fileLang,
+          content: item.oldContent ?? null,
+        },
+        ...data,
+      });
+      instance.initTheme(theme);
+      instance.initRaw();
+      instance.initSyntax({ registerHighlighter: highlighter });
+      instance.buildSplitDiffLines();
+      instance.buildUnifiedDiffLines();
+      const bundle = instance._getFullBundle();
+      instance.clear();
+      return { key: item.key, data, bundle };
+    } catch {
+      return { key: item.key, data, bundle: null };
+    }
+  });
 }
 
 export function buildInWorker(
   items: DiffBuildItem[],
   theme?: "light" | "dark",
 ): Promise<DiffBuildResponse["results"]> {
-  // Fallback to main-thread building when Worker is unavailable (e.g. tests)
-  if (typeof Worker === "undefined") {
-    return Promise.resolve(
-      items.map((item) => {
-        const data = {
-          newFile: {
-            fileName: item.newName,
-            fileLang: item.fileLang,
-            content: item.newContent ?? null,
-          },
-          hunks: [item.diff],
-        };
-        if (!item.diff.trim()) return { key: item.key, data, bundle: null };
-        try {
-          const instance = DiffFile.createInstance({
-            oldFile: {
-              fileName: item.oldName,
-              fileLang: item.fileLang,
-              content: item.oldContent ?? null,
-            },
-            ...data,
-          });
-          instance.initTheme(theme ?? "dark");
-          instance.initRaw();
-          instance.initSyntax({ registerHighlighter: highlighter });
-          instance.buildSplitDiffLines();
-          instance.buildUnifiedDiffLines();
-          const bundle = instance._getFullBundle();
-          instance.clear();
-          return { key: item.key, data, bundle };
-        } catch {
-          return { key: item.key, data, bundle: null };
-        }
-      }),
-    );
+  const resolvedTheme = theme ?? "dark";
+  // The remote PWA serves source through a mobile-specific Vite entry. Its
+  // module worker can fail before posting a response, which leaves every
+  // expanded Git card loading forever. Diffs are opened one at a time in this
+  // surface (and oversized diffs are already gated), so use the same tested
+  // synchronous builder there. Electron retains the worker path.
+  if (
+    typeof Worker === "undefined" ||
+    import.meta.env.VITE_PORACODE_BUILD_TARGET === "mobile" ||
+    window.poracode?.appVersion === "remote"
+  ) {
+    return Promise.resolve(buildOnMainThread(items, resolvedTheme));
   }
   return new Promise((resolve) => {
     const id = nextId++;
-    pending.set(id, resolve);
-    getWorker().postMessage({ id, items, theme: theme ?? "dark" } satisfies DiffBuildRequest);
+    const fallback = () => buildOnMainThread(items, resolvedTheme);
+    const timeout = setTimeout(() => {
+      const build = pending.get(id);
+      if (!build) return;
+      pending.delete(id);
+      build.resolve(build.fallback());
+    }, WORKER_RESPONSE_TIMEOUT_MS);
+    pending.set(id, { resolve, fallback, timeout });
+    getWorker().postMessage({ id, items, theme: resolvedTheme } satisfies DiffBuildRequest);
   });
 }
 

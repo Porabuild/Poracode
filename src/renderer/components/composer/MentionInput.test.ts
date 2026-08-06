@@ -1,5 +1,5 @@
 import { createElement, createRef } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Globe, Monitor, Users } from "lucide-react";
 import type { PromptSegment } from "@/shared/contracts";
@@ -36,9 +36,9 @@ describe("buildMentionResults", () => {
     detail: "MCP server",
     enabled: false,
   };
-  const subagents: McpMentionItem = {
-    id: "subagents",
-    name: "Subagents",
+  const crossagents: McpMentionItem = {
+    id: "crossagents",
+    name: "Crossagents",
     icon: Users,
     detail: "MCP server",
     enabled: true,
@@ -85,8 +85,10 @@ describe("buildMentionResults", () => {
   });
 
   it("filters MCP mentions by case-insensitive name prefix", () => {
-    // "browser" does not prefix-match "Subagents" / "Computer Use".
-    expect(buildMentionResults(fileResults, "browser", [browser, subagents, computerUse])).toEqual([
+    // "browser" does not prefix-match "Crossagents" / "Computer Use".
+    expect(
+      buildMentionResults(fileResults, "browser", [browser, crossagents, computerUse]),
+    ).toEqual([
       {
         type: "mcp",
         path: "browser",
@@ -99,12 +101,12 @@ describe("buildMentionResults", () => {
     ]);
   });
 
-  it("shows Subagents when the query matches subagents", () => {
-    expect(buildMentionResults(fileResults, "sub", [browser, subagents])).toEqual([
+  it("shows Crossagents when the query matches crossagents", () => {
+    expect(buildMentionResults(fileResults, "cross", [browser, crossagents])).toEqual([
       {
         type: "mcp",
-        path: "subagents",
-        name: "Subagents",
+        path: "crossagents",
+        name: "Crossagents",
         icon: Users,
         detail: "MCP server",
         enabled: true,
@@ -128,7 +130,7 @@ describe("buildMentionResults", () => {
   });
 
   it("preserves the caller's order for an empty @ mention", () => {
-    expect(buildMentionResults(fileResults, "", [browser, subagents, computerUse])).toEqual([
+    expect(buildMentionResults(fileResults, "", [browser, crossagents, computerUse])).toEqual([
       {
         type: "mcp",
         path: "browser",
@@ -139,8 +141,8 @@ describe("buildMentionResults", () => {
       },
       {
         type: "mcp",
-        path: "subagents",
-        name: "Subagents",
+        path: "crossagents",
+        name: "Crossagents",
         icon: Users,
         detail: "MCP server",
         enabled: true,
@@ -166,11 +168,13 @@ describe("MCP mention selection", () => {
     onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
   };
 
-  it("keeps an enabled MCP mention in the prompt for the agent", () => {
+  it("inserts an enabled MCP mention as a badge that flattens to the agent directive", () => {
     const onMcpMentionSelect = vi.fn<(id: string) => void>();
+    const ref = createRef<MentionInputHandle>();
     render(
       createElement(MentionInput, {
         ...baseProps,
+        ref,
         mcpMentions: [
           {
             id: "browser",
@@ -187,7 +191,12 @@ describe("MCP mention selection", () => {
     const editor = typeMention("bro");
     fireEvent.keyDown(editor, { key: "Enter" });
 
-    expect(editor).toHaveTextContent("@Browser");
+    const chip = editor.querySelector("[data-mcp-name]");
+    expect(chip).not.toBeNull();
+    expect(chip).toHaveAttribute("data-mcp-id", "browser");
+    expect(chip).toHaveAttribute("data-mcp-name", "Browser");
+    // The badge still flattens to the `@Browser` directive the agent reads.
+    expect(ref.current?.serialize()).toBe("@Browser");
     expect(onMcpMentionSelect).not.toHaveBeenCalled();
   });
 
@@ -217,7 +226,133 @@ describe("MCP mention selection", () => {
   });
 });
 
+describe("Enter handling", () => {
+  const baseProps = {
+    placeholder: "Send a message...",
+    projectLocation: undefined,
+    onTextChange: vi.fn<(hasText: boolean) => void>(),
+  };
+
+  it("submits with Enter by default", () => {
+    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+    render(
+      createElement(MentionInput, {
+        ...baseProps,
+        onSubmit,
+      }),
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.appendChild(document.createTextNode("hello"));
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(onSubmit).toHaveBeenCalledWith([{ kind: "text", content: "hello" }]);
+  });
+
+  it("leaves Enter available for newline insertion when submitOnEnter is false", () => {
+    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+    render(
+      createElement(MentionInput, {
+        ...baseProps,
+        onSubmit,
+        submitOnEnter: false,
+      }),
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.appendChild(document.createTextNode("hello"));
+    const event = createEvent.keyDown(editor, { key: "Enter" });
+    fireEvent(editor, event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
 describe("structured segment insertion", () => {
+  it("renders and restores multiple diff-comment badges", () => {
+    const ref = createRef<MentionInputHandle>();
+    const comments: PromptSegment[] = [
+      {
+        kind: "diff_comment",
+        path: "src/a.ts",
+        lineNumber: 12,
+        side: "new",
+        staged: false,
+        body: "Keep this guard.",
+      },
+      { kind: "text", content: "\n\n" },
+      {
+        kind: "diff_comment",
+        path: "src/b.ts",
+        lineNumber: 7,
+        side: "old",
+        staged: true,
+        body: "Why was this removed?",
+      },
+    ];
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+
+    act(() => ref.current?.restoreFromSegments(comments));
+
+    expect(screen.getByRole("textbox").querySelectorAll("[data-diff-comment-path]")).toHaveLength(
+      2,
+    );
+    expect(ref.current?.serializeSegments()).toEqual(comments);
+  });
+
+  it("deletes a diff-comment badge with Backspace", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+
+    act(() => {
+      ref.current?.restoreFromSegments([
+        {
+          kind: "diff_comment",
+          path: "src/a.ts",
+          lineNumber: 3,
+          side: "new",
+          staged: false,
+          body: "Need a check",
+        },
+      ]);
+    });
+
+    const editor = screen.getByRole("textbox");
+    const chip = editor.querySelector("[data-diff-comment-path]");
+    expect(chip).not.toBeNull();
+    const selection = window.getSelection();
+    expect(selection).not.toBeNull();
+    const range = document.createRange();
+    const safeSelection = selection!;
+    const safeChip = chip!;
+    range.setStartAfter(safeChip);
+    range.collapse(true);
+    safeSelection.removeAllRanges();
+    safeSelection.addRange(range);
+
+    fireEvent.keyDown(editor, { key: "Backspace" });
+
+    expect(editor.querySelector("[data-diff-comment-path]")).toBeNull();
+    expect(ref.current?.serializeSegments()).toEqual([]);
+  });
+
   it("inserts a seeded skill directly without requiring a caret trigger", () => {
     const ref = createRef<MentionInputHandle>();
     render(
@@ -258,5 +393,32 @@ describe("structured segment insertion", () => {
       },
       { kind: "text", content: " Create a managed skill." },
     ]);
+  });
+
+  it("can append segments without stealing focus", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    outside.focus();
+
+    act(() => {
+      ref.current?.insertSegments([{ kind: "text", content: "review note" }], {
+        atEnd: true,
+        focus: false,
+      });
+    });
+
+    expect(ref.current?.serialize()).toBe("review note");
+    expect(outside).toHaveFocus();
+    outside.remove();
   });
 });

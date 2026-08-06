@@ -65,27 +65,12 @@ function prepareGeminiLaunchMcpSettings(
 ): { env: Record<string, string>; cleanup: () => void } | undefined {
   const ctx: AgentEnvContext = {
     ...geminiEnvContextForLocation(location),
-    browserMcpEnabled: launchOptions?.browserMcp !== undefined,
-    computerUseMcpEnabled: launchOptions?.computerUseMcp !== undefined,
-    chromeMcpEnabled: launchOptions?.chromeMcp !== undefined,
     mcpServers: launchOptions?.mcpServers ?? [],
   };
-  const createIfMissing =
-    (launchOptions?.mcpServers?.length ?? 0) > 0 ||
-    launchOptions?.browserMcp !== undefined ||
-    launchOptions?.subagentMcp !== undefined ||
-    launchOptions?.computerUseMcp !== undefined ||
-    launchOptions?.chromeMcp !== undefined ||
-    launchOptions?.appControlsMcp !== undefined;
+  const createIfMissing = (launchOptions?.mcpServers?.length ?? 0) > 0;
   if (!ensureGeminiLaunchSettingsFile(ctx, createIfMissing)) return undefined;
 
-  syncGeminiLaunchMcpSettings(ctx, {
-    ...(launchOptions?.browserMcp ? { browserMcp: launchOptions.browserMcp } : {}),
-    ...(launchOptions?.computerUseMcp ? { computerUseMcp: launchOptions.computerUseMcp } : {}),
-    ...(launchOptions?.chromeMcp ? { chromeMcp: launchOptions.chromeMcp } : {}),
-    ...(launchOptions?.subagentMcp ? { subagentMcp: launchOptions.subagentMcp } : {}),
-    ...(launchOptions?.appControlsMcp ? { appControlsMcp: launchOptions.appControlsMcp } : {}),
-  });
+  syncGeminiLaunchMcpSettings(ctx, launchOptions?.mcpServers ?? []);
   const threadSettings = createGeminiThreadSettingsFile(ctx);
   if (!threadSettings) return undefined;
   return {
@@ -109,6 +94,14 @@ export function createGeminiAdapter(): AgentAdapter {
           globalPath: ".gemini/skills",
           projectPath: ".gemini/skills",
           globalOverride: { env: "GEMINI_CLI_HOME", path: ".gemini/skills" },
+        },
+        {
+          // Gemini CLI treats `.agents/skills` as a native alias at both
+          // user and workspace scope.
+          id: "agents",
+          label: "Shared agent skills",
+          globalPath: ".agents/skills",
+          projectPath: ".agents/skills",
         },
       ],
       invocation: "prompt",

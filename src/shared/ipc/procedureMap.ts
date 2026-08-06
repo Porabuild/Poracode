@@ -1,12 +1,14 @@
 import { appProcedures } from "./procedures/app";
 import { browserProcedures } from "./procedures/browser";
 import { dbProcedures } from "./procedures/db";
+import { experimentProcedures } from "./procedures/experiment";
 import { githubProcedures } from "./procedures/github";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
 import { mcpProcedures } from "./procedures/mcp";
 import { pluginProcedures } from "./procedures/plugins";
 import { profileProcedures } from "./procedures/profile";
+import { prWatchProcedures } from "./procedures/prWatches";
 import { scheduleProcedures } from "./procedures/schedules";
 import { skillProcedures } from "./procedures/skills";
 import { projectTreeProcedures } from "./procedures/projectTree";
@@ -20,6 +22,7 @@ export const groupedIpcProcedures = {
   app: appProcedures,
   thread: threadProcedures,
   git: gitProcedures,
+  experiment: experimentProcedures,
   github: githubProcedures,
   projectTree: projectTreeProcedures,
   settings: settingsProcedures,
@@ -32,6 +35,7 @@ export const groupedIpcProcedures = {
   usage: usageProcedures,
   profile: profileProcedures,
   schedules: scheduleProcedures,
+  prWatches: prWatchProcedures,
   skills: skillProcedures,
   plugins: pluginProcedures,
 } as const;
@@ -40,6 +44,7 @@ export const ipcProcedureMap = {
   ...appProcedures,
   ...threadProcedures,
   ...gitProcedures,
+  ...experimentProcedures,
   ...githubProcedures,
   ...projectTreeProcedures,
   ...settingsProcedures,
@@ -52,6 +57,7 @@ export const ipcProcedureMap = {
   ...usageProcedures,
   ...profileProcedures,
   ...scheduleProcedures,
+  ...prWatchProcedures,
   ...skillProcedures,
   ...pluginProcedures,
 } as const;
@@ -74,6 +80,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "saveHandoffContext",
   "saveImageFile",
   "copyImageToClipboard",
+  "readLocalImageFile",
   "createProjectDirectory",
   "remoteHttpRequest",
   "openExternal",
@@ -88,6 +95,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "setKeybindings",
   "setGlobalShortcutsSuspended",
   "getRemoteAccessPairing",
+  "refreshRemoteAccessPairing",
   "setRemoteAccessEnabled",
   "revokeRemoteAccessSession",
   "getRemoteAccessTailscaleStatus",
@@ -101,6 +109,10 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "revealProjectEntry",
   "getSharedSettings",
   "setSharedSettings",
+  "setAgentSecretSetting",
+  "removeCrossagentRoutingOverride",
+  "removeCrossagentMemoryEntry",
+  "updateCrossagentMemoryEntryTags",
   "setClaudeProfileEnvironment",
   "setWindowChrome",
   "dbGetProjects",
@@ -112,6 +124,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbDeleteThread",
   "dbDeleteProject",
   "dbSyncAll",
+  "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
   "dbTruncateThreadRuntimeAfter",
@@ -177,6 +190,10 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "runScheduleNow",
   "getScheduleRuns",
   "openPluginsFolder",
+  "getPrWatch",
+  "checkPrWatch",
+  "upsertPrWatch",
+  "deletePrWatch",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

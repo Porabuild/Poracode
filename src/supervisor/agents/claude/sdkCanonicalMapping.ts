@@ -2,7 +2,7 @@
 // is split by concern under `./canonicalMapping/*`; this file preserves the
 // original public API surface so importers (sdkSession, tests) are unaffected.
 export { createClaudeMapperState, type ClaudeMapperState } from "./sdkCanonicalMappingState";
-export { buildPromptContentBlocks, startClaudeTurn } from "./canonicalMapping/turn";
+export { startClaudeTurn } from "./canonicalMapping/turn";
 export { closeClaudeOpenItems } from "./canonicalMapping/textItems";
 export {
   ACCEPT_SUGGESTION_OPTION_PREFIX,
@@ -14,12 +14,19 @@ export {
   parseClaudeQuestions,
   type ClaudeQuestion,
 } from "./canonicalMapping/questions";
-export { emitActiveGoalTokenUpdate } from "./canonicalMapping/goal";
+export {
+  accumulateActiveGoalAssistantSpend,
+  completeActiveGoalOnTaskDrainEvents,
+  emitActiveGoalTick,
+} from "./canonicalMapping/goal";
 export {
   extractResultErrorMessage,
   isApiErrorResult,
   mapClaudeContextUsageResponse,
   nonDiagnosticErrors,
-  readClaudeApiUsageSpendTokens,
 } from "./canonicalMapping/result";
 export { mapClaudeSdkMessage, readParentToolUseId } from "./canonicalMapping/dispatch";
+export {
+  ClaudeUsageScopeTracker,
+  createClaudeUsageSpentEvent,
+} from "./canonicalMapping/usageSpent";

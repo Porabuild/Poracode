@@ -1,5 +1,6 @@
 import { Disclosure, Tooltip } from "@heroui/react";
 import { useRef, useState, type ReactNode } from "react";
+import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatFilePath } from "./ChatFilePath";
 import {
@@ -30,6 +31,15 @@ export interface ChatItemAccordionProps {
   rightLabel?: ReactNode;
   /** Tailwind class applied to `rightLabel` (e.g. `"text-danger"`). */
   rightLabelClassName?: string;
+  /**
+   * While true the stable part of the title shimmers (the `titleParts.prefix`,
+   * or the whole title when it is a plain string) — the same treatment as
+   * grouped tool rows, replacing any spinner. Only stable text may shimmer:
+   * mutating text under `background-clip: text` ghosts old glyphs (see
+   * `.poracode-thinking-text` in styles.css). ReactNode titles are the
+   * caller's responsibility.
+   */
+  isRunning?: boolean;
   /** When false the row renders without a trigger / chevron (no body to toggle). */
   hasBody?: boolean;
   /** Controlled expand state. Required when `hasBody`. */
@@ -74,6 +84,7 @@ export function ChatItemAccordion({
   titleParts,
   rightLabel,
   rightLabelClassName = "!text-[color:var(--muted)]",
+  isRunning = false,
   hasBody = true,
   isExpanded,
   onExpandedChange,
@@ -90,6 +101,12 @@ export function ChatItemAccordion({
         : undefined;
   const codeRef = useRef<HTMLElement | null>(null);
   const pathRef = useRef<HTMLSpanElement | null>(null);
+  const prefixRef = useRef<HTMLSpanElement | null>(null);
+  // Shimmer target: the prefix span when the title is structured, otherwise the
+  // whole <code> — but only when it is a plain string (stable text).
+  const shimmerPlainTitle = isRunning && !titleParts && typeof displayTitle === "string";
+  useShimmerRef(prefixRef, isRunning && !!titleParts);
+  useShimmerRef(codeRef, shimmerPlainTitle);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
   // PathDisplay handles its own truncation (basename always visible, head-
@@ -110,7 +127,13 @@ export function ChatItemAccordion({
 
   const titleContent = titleParts ? (
     <code className={`${codeClass} flex items-baseline overflow-hidden`}>
-      <span className="shrink-0 whitespace-pre">{displayPrefix}</span>
+      <span
+        ref={prefixRef}
+        className={`shrink-0 whitespace-pre ${isRunning ? "poracode-thinking-text" : ""}`}
+        {...(isRunning ? { "data-poracode-shimmer-text": displayPrefix } : {})}
+      >
+        {displayPrefix}
+      </span>
       {titleParts.filePath ? (
         <ChatFilePath
           className="flex-1"
@@ -125,7 +148,11 @@ export function ChatItemAccordion({
       )}
     </code>
   ) : (
-    <code ref={codeRef} className={codeClass}>
+    <code
+      ref={codeRef}
+      className={`${codeClass} ${shimmerPlainTitle ? "poracode-thinking-text !block" : ""}`}
+      {...(shimmerPlainTitle ? { "data-poracode-shimmer-text": displayTitle as string } : {})}
+    >
       {displayTitle}
     </code>
   );
@@ -134,7 +161,7 @@ export function ChatItemAccordion({
     <span className="min-w-0" onPointerEnter={measureTitleOverflow} onFocus={measureTitleOverflow}>
       <Tooltip delay={300} isDisabled={!isOverflowing || !titleString}>
         <Tooltip.Trigger className="block min-w-0 w-full">{titleContent}</Tooltip.Trigger>
-        <Tooltip.Content placement="top" className="max-w-[80vw] break-all">
+        <Tooltip.Content placement="top" className="max-w-[80vw]">
           {titleString}
         </Tooltip.Content>
       </Tooltip>

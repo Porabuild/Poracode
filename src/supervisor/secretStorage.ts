@@ -1,4 +1,5 @@
 import type { SharedSettings } from "@/shared/settings";
+import { sensitiveAgentSettingKeys } from "@/shared/agentSecrets";
 import {
   configureSecretStorageKey,
   decryptSecret,
@@ -18,7 +19,30 @@ export function transformSensitiveAgentSecrets(
   onTransformError?: (input: { instanceId: string; variableName: string; error: unknown }) => void,
 ): SharedSettings {
   let changed = false;
+  const agentSettings = { ...settings.agentSettings };
   const agentInstances = { ...settings.agentInstances };
+
+  for (const [agentKind, values] of Object.entries(settings.agentSettings)) {
+    const sensitiveKeys = sensitiveAgentSettingKeys(agentKind);
+    if (sensitiveKeys.length === 0) continue;
+    const nextValues = { ...values };
+    let settingsChanged = false;
+    for (const key of sensitiveKeys) {
+      const value = values[key];
+      if (typeof value !== "string") continue;
+      try {
+        nextValues[key] = transform(baseDir, value);
+      } catch (error) {
+        if (!onTransformError) throw error;
+        delete nextValues[key];
+        onTransformError({ instanceId: agentKind, variableName: key, error });
+      }
+      settingsChanged = true;
+    }
+    if (!settingsChanged) continue;
+    agentSettings[agentKind] = nextValues;
+    changed = true;
+  }
 
   for (const [instanceId, instance] of Object.entries(settings.agentInstances)) {
     if (!instance.environment) continue;
@@ -40,5 +64,5 @@ export function transformSensitiveAgentSecrets(
     changed = true;
   }
 
-  return changed ? { ...settings, agentInstances } : settings;
+  return changed ? { ...settings, agentSettings, agentInstances } : settings;
 }

@@ -40,6 +40,7 @@ interface WorktreeWatcherEntry {
 
 const IGNORED_PREFIXES = [
   "node_modules/",
+  ".poracode/worktrees/",
   ".next/",
   "dist/",
   "build/",
@@ -48,7 +49,7 @@ const IGNORED_PREFIXES = [
   ".venv/",
 ];
 
-function isIgnoredWorkTreeFile(name: string): boolean {
+export function isIgnoredWorkTreeFile(name: string): boolean {
   if (name === ".git" || name.startsWith(".git/")) return true;
   return IGNORED_PREFIXES.some((p) => name.startsWith(p));
 }
@@ -144,6 +145,14 @@ export class ProjectWatcher {
   /** Late-bound so the supervisor can wire the bridge client after boot. */
   setWslClient(client: WslBridgeClient): void {
     this.wslClient = client;
+  }
+
+  /** True when at least one watched project lives inside a WSL distro. */
+  hasWslProjects(): boolean {
+    for (const entry of this.watchers.values()) {
+      if (entry.location.kind === "wsl") return true;
+    }
+    return false;
   }
 
   /**
@@ -500,7 +509,9 @@ export class ProjectWatcher {
             // worktree path is the parent of `.git`. Those are already covered
             // by the dedicated git-scope subscription with noise filtering, so
             // drop them here to avoid a refresh→lock-write→refresh loop.
-            const treePaths = event.paths.filter((p) => p !== ".git" && !p.startsWith(".git/"));
+            const treePaths = event.paths.filter(
+              (p) => p !== ".git" && !p.startsWith(".git/") && !isIgnoredWorkTreeFile(p),
+            );
             if (treePaths.length === 0) return;
             schedule.onTree();
             return;

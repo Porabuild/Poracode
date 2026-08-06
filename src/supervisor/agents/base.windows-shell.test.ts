@@ -6,6 +6,7 @@ import {
   buildAgentCommand,
   buildWindowsCommand,
   buildWindowsCmdCommand,
+  buildWindowsCommandLine,
   quotePosixShellArg,
   quotePowerShellLiteral,
 } from "./base";
@@ -100,7 +101,15 @@ describe.skipIf(process.platform !== "win32")("buildWindowsCommand", () => {
 
     expect(spec.command).toBe("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
     const script = decodePowerShellEncoded(spec.args.at(-1)!);
-    expect(script).toContain(quotePowerShellLiteral(SPICY_PROMPT));
+    // 5.1's `& $cmd @args` mangles native args containing quotes/newlines, so
+    // the legacy script must route through ProcessStartInfo with a pre-built
+    // MSVC-quoted command line instead of PS literal splatting.
+    expect(script).toContain(quotePowerShellLiteral("claude"));
+    expect(script).toContain("System.Diagnostics.ProcessStartInfo");
+    expect(script).toContain(
+      `$psi.Arguments = ${quotePowerShellLiteral(buildWindowsCommandLine([SPICY_PROMPT]))}`,
+    );
+    expect(script).not.toContain("& $cmd @args");
   });
 
   it("falls back to cmd.exe when no PowerShell is available, passing args raw", () => {

@@ -7,7 +7,8 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
-import { writeScriptToShell } from "@/renderer/utils/shellUtils";
+import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { disposeRoutedShellSession, writeScriptToShell } from "@/renderer/utils/shellUtils";
 
 function resolveLoginProject(): Project | undefined {
   const app = useAppStore.getState();
@@ -18,7 +19,7 @@ function resolveLoginProject(): Project | undefined {
     if (project) return project;
   }
 
-  if (view.kind === "draft") {
+  if (view.kind === "draft" || view.kind === "experiment") {
     const project = app.projects.find((candidate) => candidate.id === view.projectId);
     if (project) return project;
   }
@@ -55,6 +56,7 @@ export function runAgentLoginCommand(input: {
   const previous = useLoginTerminalStore.getState().active;
   if (previous) {
     previous.onForceClose?.();
+    disposeRoutedShellSession(previous.shellId);
     void readBridge()
       .closeThread({ threadId: previous.shellId })
       .catch(() => undefined);
@@ -62,9 +64,11 @@ export function runAgentLoginCommand(input: {
 
   const shellId = `login:${crypto.randomUUID()}`;
   // On WSL the agent CLI can't reach the Windows browser on its own, so we
-  // suppress its opener (BROWSER=/bin/true) and watch stdout for auth URLs to
-  // hand off via the Windows shell. Native macOS / Windows CLIs already open
-  // their own browser, so a renderer-side watcher would just double-launch.
+  // suppress its opener and watch stdout for auth URLs to hand off via the
+  // Windows shell. Clearing the WSLg display variables matters for CLIs such
+  // as Kimi that call xdg-open directly instead of honoring BROWSER. Native
+  // macOS / Windows CLIs already open their own browser, so a renderer-side
+  // watcher would just double-launch.
   const suppressWslBrowser = project.location.kind === "wsl";
   const interceptWslUrls = suppressWslBrowser && !isGeminiLoginCommand(input);
   // Wipe the bash prompt + echoed script line that briefly appear before the
@@ -72,7 +76,14 @@ export function runAgentLoginCommand(input: {
   // overlay a clean canvas so the user only sees the agent's own UI.
   const loginCommand = buildTerminalCommand({
     command: input.command,
-    env: suppressWslBrowser ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
+    env: suppressWslBrowser
+      ? {
+          ...(input.env ?? {}),
+          BROWSER: "/bin/true",
+          DISPLAY: "",
+          WAYLAND_DISPLAY: "",
+        }
+      : input.env,
     locationKind: project.location.kind,
   });
   const command =
@@ -88,19 +99,24 @@ export function runAgentLoginCommand(input: {
     input.onCommandComplete?.(exitCode);
   };
 
-  const stopWatching = watchCommandCompletion(shellId, completionToken, (exitCode) => {
-    stopOpeningUrls?.(true);
-    fireOnce(exitCode);
-    if (exitCode === 0) {
-      // Auto-dismiss the overlay shortly after the command exits so the user
-      // can read any final success line before it slides away.
-      window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
-    } else {
-      // Leave the overlay open so the user can read the failure output, but
-      // flag the session so the header switches to a failed state.
-      useLoginTerminalStore.getState().markFailed(shellId, exitCode);
-    }
-  });
+  const stopWatching = watchCommandCompletion(
+    shellId,
+    completionToken,
+    (exitCode) => {
+      stopOpeningUrls?.(true);
+      fireOnce(exitCode);
+      if (exitCode === 0) {
+        // Auto-dismiss the overlay shortly after the command exits so the user
+        // can read any final success line before it slides away.
+        window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+      } else {
+        // Leave the overlay open so the user can read the failure output, but
+        // flag the session so the header switches to a failed state.
+        useLoginTerminalStore.getState().markFailed(shellId, exitCode);
+      }
+    },
+    project.remoteServerId,
+  );
 
   useLoginTerminalStore.getState().open({
     shellId,
@@ -127,7 +143,7 @@ export function runAgentLoginCommand(input: {
       );
       useLoginTerminalStore.getState().close();
     });
-  writeScriptToShell(shellId, script);
+  writeScriptToShell(shellId, script, project.remoteServerId);
   return true;
 }
 
@@ -145,10 +161,15 @@ export function runAgentInstallCommand(input: {
   env?: Record<string, string>;
   onCommandComplete?: (exitCode: number) => void;
   project?: Project;
+  purpose?: "install" | "update";
 }): boolean {
   const project = input.project ?? resolveLoginProject();
   if (!project) {
-    toast.warning(i18n._(msg`Add a project before installing an agent.`));
+    toast.warning(
+      input.purpose === "update"
+        ? i18n._(msg`Add a project before updating an agent.`)
+        : i18n._(msg`Add a project before installing an agent.`),
+    );
     return false;
   }
 
@@ -156,12 +177,13 @@ export function runAgentInstallCommand(input: {
   const previous = useLoginTerminalStore.getState().active;
   if (previous) {
     previous.onForceClose?.();
+    disposeRoutedShellSession(previous.shellId);
     void readBridge()
       .closeThread({ threadId: previous.shellId })
       .catch(() => undefined);
   }
 
-  const shellId = `install:${crypto.randomUUID()}`;
+  const shellId = `${input.purpose ?? "install"}:${crypto.randomUUID()}`;
   const command = buildTerminalCommand({
     command: typeof input.command === "function" ? input.command(project) : input.command,
     env: input.env,
@@ -177,21 +199,26 @@ export function runAgentInstallCommand(input: {
     input.onCommandComplete?.(exitCode);
   };
 
-  const stopWatching = watchCommandCompletion(shellId, completionToken, (exitCode) => {
-    fireOnce(exitCode);
-    if (exitCode === 0) {
-      // Let the user read the final success line before the overlay slides away.
-      window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
-    } else {
-      useLoginTerminalStore.getState().markFailed(shellId, exitCode);
-    }
-  });
+  const stopWatching = watchCommandCompletion(
+    shellId,
+    completionToken,
+    (exitCode) => {
+      fireOnce(exitCode);
+      if (exitCode === 0) {
+        // Let the user read the final success line before the overlay slides away.
+        window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+      } else {
+        useLoginTerminalStore.getState().markFailed(shellId, exitCode);
+      }
+    },
+    project.remoteServerId,
+  );
 
   useLoginTerminalStore.getState().open({
     shellId,
     label: input.label,
     projectLocation: project.location,
-    purpose: "install",
+    purpose: input.purpose ?? "install",
     onForceClose: () => {
       stopWatching();
       fireOnce(-1);
@@ -210,7 +237,7 @@ export function runAgentInstallCommand(input: {
       );
       useLoginTerminalStore.getState().close();
     });
-  writeScriptToShell(shellId, script);
+  writeScriptToShell(shellId, script, project.remoteServerId);
   return true;
 }
 
@@ -386,6 +413,7 @@ function watchCommandCompletion(
   shellId: string,
   token: string,
   onCommandComplete: (exitCode: number) => void,
+  remoteServerId?: string,
 ): () => void {
   const marker = completionMarker(token);
   let buffer = "";
@@ -396,19 +424,34 @@ function watchCommandCompletion(
     done = true;
     unsubscribe();
   }, 10 * 60_000);
-  unsubscribe = readBridge().onSupervisorEvent((event) => {
-    if (done || event.type !== "thread-output" || event.threadId !== shellId) return;
-    buffer = `${buffer}${event.data}`.slice(-1024);
-    const start = buffer.indexOf(marker);
-    if (start < 0) return;
-    const rest = buffer.slice(start + marker.length);
-    const match = /^(\d+)/u.exec(rest);
-    if (!match) return;
-    done = true;
-    window.clearTimeout(timeout);
-    unsubscribe();
-    onCommandComplete(Number(match[1]));
-  });
+  unsubscribe = watchRoutedTerminal(
+    shellId,
+    {
+      onOutput: (output) => {
+        if (done) return;
+        buffer = `${buffer}${output}`.slice(-1024);
+        const start = buffer.indexOf(marker);
+        if (start < 0) return;
+        const rest = buffer.slice(start + marker.length);
+        const match = /^(\d+)/u.exec(rest);
+        if (!match) return;
+        done = true;
+        window.clearTimeout(timeout);
+        unsubscribe();
+        onCommandComplete(Number(match[1]));
+      },
+      onReset: () => {
+        buffer = "";
+      },
+      onExited: () => {
+        if (done) return;
+        done = true;
+        window.clearTimeout(timeout);
+        unsubscribe();
+      },
+    },
+    remoteServerId,
+  );
   return () => {
     if (done) return;
     done = true;

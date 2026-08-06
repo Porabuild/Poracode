@@ -374,16 +374,25 @@ export async function updateDesktopPlatform(
   });
 }
 
-export async function markDesktopConnected(desktopId: string, seq?: number): Promise<void> {
+export async function markDesktopConnected(
+  desktopId: string,
+  seq?: number,
+  options: { readonly resetLastSeenSeq?: boolean } = {},
+): Promise<void> {
   await mobileDb.transaction("rw", mobileDb.desktops, async () => {
     const existing = await mobileDb.desktops.get(desktopId);
     if (!existing) return;
     const now = new Date().toISOString();
     await mobileDb.desktops.put({
       ...existing,
-      // Monotonic: an out-of-order/lagging seq (overlapping refreshes, replayed
-      // catch-up) must never move the resume high-water mark backwards.
-      ...(seq === undefined ? {} : { lastSeenSeq: Math.max(existing.lastSeenSeq, seq) }),
+      // Normally monotonic: an out-of-order/lagging refresh must not move the
+      // resume cursor backwards. A server-restart resync is the exception —
+      // its new event stream starts at a lower authoritative sequence.
+      ...(seq === undefined
+        ? {}
+        : {
+            lastSeenSeq: options.resetLastSeenSeq ? seq : Math.max(existing.lastSeenSeq, seq),
+          }),
       lastConnectedAt: now,
       updatedAt: now,
     });

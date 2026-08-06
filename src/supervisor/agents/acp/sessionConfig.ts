@@ -1,5 +1,6 @@
 import type { ThreadConfig } from "@/shared/contracts";
 import { normalizeAcpModeId } from "./probe";
+import { findThoughtLevelConfigOption } from "./thoughtLevel";
 
 /**
  * Resolve the ACP mode ID from Poracode's ThreadConfig.
@@ -88,7 +89,7 @@ export function findSelectConfigOption(
 }
 
 export function findThoughtLevelConfig(configOptions: unknown): AcpConfigOptionLike | undefined {
-  return findSelectConfigOption(configOptions, "thought_level");
+  return findThoughtLevelConfigOption(configOptions);
 }
 
 function isSelectOption(value: unknown): value is AcpConfigSelectOptionLike {
@@ -109,6 +110,14 @@ function flattenSelectOptions(options: unknown): AcpConfigSelectOptionLike[] {
     }
     return [];
   });
+}
+
+export function listSelectConfigOptionValues(configOptions: unknown, category: string): string[] {
+  const option = findSelectConfigOption(configOptions, category);
+  if (!option) return [];
+  return flattenSelectOptions(option.options).flatMap((entry) =>
+    typeof entry.value === "string" && entry.value.length > 0 ? [entry.value] : [],
+  );
 }
 
 function normalizeConfigOptionAlias(value: string): string {
@@ -145,7 +154,11 @@ function modelOptionAliases(option: AcpConfigSelectOptionLike): string[] {
   }
 
   if (value) {
-    const base = value.replace(/\[[^\]]*\]/g, "");
+    // Some agents append a transport/provider tag to the wire value while the
+    // configured model keeps the public id (Qwen: `model(openai)`). Treat that
+    // final tag like bracket metadata so the public id resolves to the exact
+    // raw option value sent back through ACP.
+    const base = value.replace(/\[[^\]]*\]/g, "").replace(/\([a-z0-9_-]+\)$/i, "");
     if (base) aliases.add(base);
     const params = parseBracketParams(value);
     const thinking = params.thinking === "true";

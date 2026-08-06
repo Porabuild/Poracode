@@ -12,6 +12,7 @@ import {
   createProjectDirectoryPayloadSchema,
   openExternalPayloadSchema,
   pickFilesOptionsSchema,
+  readLocalImageFilePayloadSchema,
   saveClipboardImagePayloadSchema,
   saveHandoffContextPayloadSchema,
   saveImageFilePayloadSchema,
@@ -84,9 +85,10 @@ export interface LegacyDataMigrationRequestResult {
  */
 export const remoteHttpRequestPayloadSchema = z.object({
   url: z.string().url(),
-  method: z.enum(["GET", "POST"]).optional(),
+  method: z.enum(["GET", "POST", "DELETE"]).optional(),
   headers: z.record(z.string(), z.string()).optional(),
   body: z.string().optional(),
+  bodyBase64: z.string().optional(),
 });
 export type RemoteHttpRequestPayload = z.infer<typeof remoteHttpRequestPayloadSchema>;
 export interface RemoteHttpRequestResult {
@@ -135,6 +137,11 @@ export const appProcedures = {
     boolean,
     "main-local"
   >("copyImageToClipboard", "main-local", copyImageToClipboardPayloadSchema),
+  readLocalImageFile: definePayloadProcedure<
+    z.infer<typeof readLocalImageFilePayloadSchema>,
+    Uint8Array,
+    "main-local"
+  >("readLocalImageFile", "main-local", readLocalImageFilePayloadSchema),
   createProjectDirectory: definePayloadProcedure<
     z.infer<typeof createProjectDirectoryPayloadSchema>,
     CreateProjectDirectoryResult,
@@ -188,6 +195,10 @@ export const appProcedures = {
   >("setGlobalShortcutsSuspended", "main-local", setGlobalShortcutsSuspendedPayloadSchema),
   getRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
     "getRemoteAccessPairing",
+    "main-local",
+  ),
+  refreshRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
+    "refreshRemoteAccessPairing",
     "main-local",
   ),
   setRemoteAccessEnabled: definePayloadProcedure<

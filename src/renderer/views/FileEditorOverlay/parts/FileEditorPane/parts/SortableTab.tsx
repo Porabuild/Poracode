@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingEditorTab, type DragSourceData } from "@/renderer/dnd";
@@ -20,8 +21,9 @@ export function SortableTab(props: {
   const isActive = useIsTabActive(path);
   const isPreview = useIsTabPreview(path);
   const isDirty = useIsTabDirty(path);
+  const nodeRef = useRef<HTMLDivElement | null>(null);
 
-  const { ref } = useSortable({
+  const { ref: setSortableRef } = useSortable({
     id: `editor-tab:${path}`,
     index,
     type: "editor-tab",
@@ -32,15 +34,24 @@ export function SortableTab(props: {
 
   const isDragging = useIsDraggingEditorTab(path);
 
+  // Keep the active tab visible in the overflow strip (new tabs append at the end).
+  useEffect(() => {
+    if (!isActive) return;
+    nodeRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [isActive]);
+
   return (
     <div
-      ref={ref}
+      ref={(node) => {
+        nodeRef.current = node;
+        setSortableRef(node);
+      }}
       role="tab"
       aria-selected={isActive}
       // Roving tabindex: only the active tab sits in the tab order, matching
       // the sibling tablist container's expectations.
       tabIndex={isActive ? 0 : -1}
-      className={`group flex h-6 max-w-[220px] shrink-0 cursor-default items-center gap-1 rounded-md pl-3 pr-1 text-xs transition-colors ${
+      className={`poracode-content-over-drag-region group flex h-6 max-w-[220px] shrink-0 cursor-default items-center gap-1 rounded-md pl-3 pr-1 text-xs transition-colors ${
         isActive
           ? "bg-default/40 text-foreground"
           : "text-muted hover:bg-default/20 hover:text-foreground"

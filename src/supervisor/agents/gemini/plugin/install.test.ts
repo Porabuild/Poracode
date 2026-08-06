@@ -2,20 +2,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
-import type { AppControlsMcpHttpConfig } from "@/supervisor/agents/appControlsMcp";
-import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
-import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
 import {
   ensureGeminiLaunchSettingsFile,
   getGeminiPluginPaths,
   installGeminiPlugin,
   isGeminiPluginInstalled,
   renderGeminiSettings,
-  syncGeminiBrowserMcpSettings,
   syncGeminiLaunchMcpSettings,
-  syncGeminiAppControlsMcpSettings,
-  syncGeminiSubagentMcpSettings,
 } from "./install";
 
 const tempDirs: string[] = [];
@@ -82,7 +75,7 @@ describe("getGeminiPluginPaths", () => {
 
     const settingsPath = ensureGeminiLaunchSettingsFile(ctx, true);
     expect(settingsPath).toBeDefined();
-    syncGeminiLaunchMcpSettings(ctx, {});
+    syncGeminiLaunchMcpSettings(ctx, ctx.mcpServers);
 
     expect(readSettings(settingsPath!).mcpServers).toMatchObject({
       memory: { command: "memory-server", timeout: 30_000 },
@@ -153,30 +146,6 @@ describe("installGeminiPlugin", () => {
   });
 });
 
-const subagentCfg: SubagentMcpHttpConfig = {
-  url: "http://127.0.0.1:9200/mcp",
-  token: "subagent-token",
-  headers: { Authorization: "Bearer subagent-token" },
-};
-
-const browserCfg: BrowserMcpHttpConfig = {
-  url: "http://127.0.0.1:45678/mcp",
-  token: "browser-secret",
-  headers: { Authorization: "Bearer browser-secret" },
-};
-
-const chromeCfg: ChromeMcpHttpConfig = {
-  url: "http://127.0.0.1:45679/mcp",
-  token: "chrome-secret",
-  headers: { Authorization: "Bearer chrome-secret" },
-};
-
-const appControlsCfg: AppControlsMcpHttpConfig = {
-  url: "http://127.0.0.1:45680/mcp",
-  token: "app-controls-secret",
-  headers: { Authorization: "Bearer app-controls-secret" },
-};
-
 type McpSettings = {
   mcpServers?: Record<string, { httpUrl?: string; headers?: Record<string, string> }>;
 };
@@ -185,103 +154,36 @@ function readSettings(path: string): McpSettings {
   return JSON.parse(readFileSync(path, "utf8")) as McpSettings;
 }
 
-describe("syncGeminiSubagentMcpSettings", () => {
-  it("preserves launch MCP entries when installing or updating the hook plugin", () => {
-    const baseDir = makeBaseDir();
-    const ctx = { envKind: "posix" as const, baseDir };
-    expect(ensureGeminiLaunchSettingsFile(ctx, true)).toBeDefined();
-    syncGeminiSubagentMcpSettings(ctx, subagentCfg);
-    syncGeminiAppControlsMcpSettings(ctx, true, appControlsCfg);
-
-    const install = installGeminiPlugin(ctx);
-    expect(install.ok).toBe(true);
-    if (!install.ok) return;
-
-    expect(readSettings(install.paths.settingsPath).mcpServers).toMatchObject({
-      subagents: { httpUrl: subagentCfg.url },
-      poracode: { httpUrl: appControlsCfg.url },
-    });
-  });
-
-  it("registers and clears the subagents MCP entry without touching other keys", () => {
+describe("syncGeminiLaunchMcpSettings", () => {
+  it("replaces the complete provider-neutral MCP projection", () => {
     const baseDir = makeBaseDir();
     const ctx = { envKind: "posix" as const, baseDir };
     const install = installGeminiPlugin(ctx);
     expect(install.ok).toBe(true);
     if (!install.ok) return;
     const settingsPath = install.paths.settingsPath;
+    const servers = [
+      {
+        id: "runtime",
+        name: "runtime",
+        timeoutMs: 45_000,
+        transport: {
+          type: "http" as const,
+          url: "http://127.0.0.1:9200/mcp",
+          headers: { Authorization: "Bearer token" },
+        },
+      },
+    ];
 
-    syncGeminiSubagentMcpSettings(ctx, subagentCfg);
+    syncGeminiLaunchMcpSettings(ctx, servers);
     expect(readSettings(settingsPath).mcpServers).toEqual({
-      subagents: {
-        httpUrl: subagentCfg.url,
-        headers: subagentCfg.headers,
-        timeout: 300_000,
+      runtime: {
+        httpUrl: "http://127.0.0.1:9200/mcp",
+        headers: { Authorization: "Bearer token" },
+        timeout: 45_000,
       },
     });
-
-    // Clearing removes the subagents key and drops mcpServers entirely.
-    syncGeminiSubagentMcpSettings(ctx, undefined);
+    syncGeminiLaunchMcpSettings(ctx, []);
     expect(readSettings(settingsPath).mcpServers).toBeUndefined();
-  });
-
-  it("coexists with the browser and Chrome MCP entries", () => {
-    const baseDir = makeBaseDir();
-    const ctx = { envKind: "posix" as const, baseDir };
-    const install = installGeminiPlugin(ctx);
-    expect(install.ok).toBe(true);
-    if (!install.ok) return;
-    const settingsPath = install.paths.settingsPath;
-
-    syncGeminiSubagentMcpSettings(ctx, subagentCfg);
-    syncGeminiBrowserMcpSettings({ ...ctx, browserMcpEnabled: true }, browserCfg);
-    syncGeminiBrowserMcpSettings(
-      { ...ctx, chromeMcpEnabled: true },
-      undefined,
-      undefined,
-      chromeCfg,
-    );
-
-    expect(readSettings(settingsPath).mcpServers).toEqual({
-      subagents: {
-        httpUrl: subagentCfg.url,
-        headers: subagentCfg.headers,
-        timeout: 300_000,
-      },
-      browser: {
-        httpUrl: browserCfg.url,
-        headers: browserCfg.headers,
-        timeout: 30_000,
-      },
-      chrome: {
-        httpUrl: chromeCfg.url,
-        headers: chromeCfg.headers,
-        timeout: 30_000,
-      },
-    });
-
-    // Disabling one MCP leaves the other entries intact.
-    syncGeminiBrowserMcpSettings({ ...ctx, browserMcpEnabled: false }, undefined);
-    expect(readSettings(settingsPath).mcpServers).toEqual({
-      subagents: {
-        httpUrl: subagentCfg.url,
-        headers: subagentCfg.headers,
-        timeout: 300_000,
-      },
-      chrome: {
-        httpUrl: chromeCfg.url,
-        headers: chromeCfg.headers,
-        timeout: 30_000,
-      },
-    });
-
-    syncGeminiBrowserMcpSettings({ ...ctx, chromeMcpEnabled: false });
-    expect(readSettings(settingsPath).mcpServers).toEqual({
-      subagents: {
-        httpUrl: subagentCfg.url,
-        headers: subagentCfg.headers,
-        timeout: 300_000,
-      },
-    });
   });
 });

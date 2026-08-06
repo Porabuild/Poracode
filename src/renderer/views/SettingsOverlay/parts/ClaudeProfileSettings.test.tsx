@@ -1,7 +1,11 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentInstanceConfig, AgentStatus } from "@/shared/contracts";
+import type {
+  AgentInstanceConfig,
+  AgentStatus,
+  ClaudeProfileInstanceConfig,
+} from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const toastMock = vi.hoisted(() => ({
@@ -337,6 +341,11 @@ describe("ClaudeProfileProviderSettings", () => {
           { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
         ],
         efforts: ["max"],
+        defaultEffort: "max",
+        modelEfforts: {
+          "deepseek-v4-pro[1m]": ["max"],
+          "deepseek-v4-flash": ["max"],
+        },
       },
     });
     expect(settingsState.setHiddenModels).toHaveBeenCalledWith("claude:glm", [
@@ -361,6 +370,72 @@ describe("ClaudeProfileProviderSettings", () => {
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("CLAUDE_CODE_AUTO_COMPACT_WINDOW")).toBeInTheDocument();
     expect(screen.getByLabelText("Model id")).toHaveValue("MiniMax-M3");
+  });
+
+  it("fills the editor from the Kimi Code preset", () => {
+    render(<ClaudeProfileProviderSettings instanceId="glm" />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Kimi Code" }));
+
+    expect(screen.getByDisplayValue("https://api.kimi.com/coding/")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("ANTHROPIC_API_KEY")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("CLAUDE_CODE_AUTO_COMPACT_WINDOW")).toBeInTheDocument();
+    expect(
+      screen.getAllByLabelText("Model id").map((input) => input.getAttribute("value")),
+    ).toEqual(["k3[1m]", "kimi-for-coding", "kimi-for-coding-highspeed"]);
+    const applied = settingsState.setAgentInstance.mock.calls.at(-1)?.[0];
+    const appliedConfig = applied?.config as ClaudeProfileInstanceConfig | undefined;
+    expect(appliedConfig?.models).toEqual([
+      { id: "k3[1m]", label: "Kimi K3 (1M)" },
+      { id: "kimi-for-coding", label: "Kimi K2.7 Code" },
+      { id: "kimi-for-coding-highspeed", label: "Kimi K2.7 Code HighSpeed" },
+    ]);
+    expect(applied?.config).toMatchObject({
+      configDir: "~/.poracode/claude-profiles/glm",
+      efforts: ["low", "high", "max", "ultracode"],
+      defaultEffort: "high",
+      modelEfforts: {
+        "k3[1m]": ["low", "high", "max", "ultracode"],
+        "kimi-for-coding": ["high"],
+      },
+    });
+  });
+
+  it("fills the editor from the Qwen Token Plan preset", () => {
+    render(<ClaudeProfileProviderSettings instanceId="glm" />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Qwen Token Plan" }));
+
+    expect(
+      screen.getByDisplayValue(
+        "https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("ANTHROPIC_MODEL")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("CLAUDE_CODE_SUBAGENT_MODEL")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Model id").at(0)).toHaveValue("qwen3.8-max");
+    const applied = settingsState.setAgentInstance.mock.calls.at(-1)?.[0];
+    const config = applied?.config as ClaudeProfileInstanceConfig | undefined;
+    expect(config?.models?.map((model) => model.id)).toEqual([
+      "qwen3.8-max",
+      "qwen3.7-max",
+      "qwen3.7-plus",
+      "qwen3.6-flash",
+      "glm-5.2",
+      "deepseek-v4-pro",
+      "deepseek-v4-flash-0731",
+    ]);
+    expect(config).toMatchObject({
+      configDir: "~/.poracode/claude-profiles/glm",
+      efforts: ["low", "medium", "xHigh"],
+      defaultEffort: "xHigh",
+      modelEfforts: {
+        "qwen3.8-max": ["low", "medium", "xHigh"],
+        "qwen3.7-max": ["low", "medium", "xHigh"],
+        "qwen3.7-plus": ["low", "medium", "xHigh"],
+        "qwen3.6-flash": ["low", "medium", "xHigh"],
+      },
+    });
   });
 
   it("masks an already-sealed secret value", () => {
@@ -411,6 +486,52 @@ describe("ClaudeProfileProviderSettings", () => {
       configDir: "~/.poracode/claude-profiles/glm",
       models: [{ id: "glm-5.2" }],
       efforts: ["medium", "high", "xHigh", "max", "ultracode"],
+    });
+  });
+
+  it("configures and persists an effort override on an individual model row", async () => {
+    render(<ClaudeProfileProviderSettings instanceId="glm" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /add model/i }));
+    fireEvent.change(screen.getByLabelText("Model id"), { target: { value: "glm-5.2" } });
+
+    expect(screen.getByRole("button", { name: "Effort levels for glm-5.2" })).toHaveTextContent(
+      "Inherit global",
+    );
+    fireEvent.click(screen.getByRole("option", { name: "High" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Claude profile" }));
+
+    await waitFor(() => expect(settingsState.setAgentInstance).toHaveBeenCalled());
+    expect(settingsState.setAgentInstance.mock.calls.at(-1)?.[0]?.config).toEqual({
+      configDir: "~/.poracode/claude-profiles/glm",
+      models: [{ id: "glm-5.2" }],
+      modelEfforts: { "glm-5.2": ["high"] },
+    });
+  });
+
+  it("can reset a saved model effort override to inherit the global list", async () => {
+    settingsState.agentInstances = {
+      glm: claudeProfile({
+        config: {
+          configDir: "~/.poracode/claude-profiles/glm",
+          models: [{ id: "glm-5.2", label: "GLM 5.2" }],
+          modelEfforts: { "glm-5.2": ["high"] },
+        },
+      }),
+    };
+    render(<ClaudeProfileProviderSettings instanceId="glm" />);
+
+    expect(screen.getByRole("button", { name: "Effort levels for GLM 5.2" })).toHaveTextContent(
+      "High",
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Inherit global" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Claude profile" }));
+
+    await waitFor(() => expect(settingsState.setAgentInstance).toHaveBeenCalled());
+    expect(settingsState.setAgentInstance.mock.calls.at(-1)?.[0]?.config).toEqual({
+      configDir: "~/.poracode/claude-profiles/glm",
+      models: [{ id: "glm-5.2", label: "GLM 5.2" }],
     });
   });
 });

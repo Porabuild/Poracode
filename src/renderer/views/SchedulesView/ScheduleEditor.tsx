@@ -64,7 +64,7 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
   const projectOptions = [
     { id: HOME_PROJECT_ID, label: t`Home` },
     ...projects
-      .filter((project) => !isHomeProject(project))
+      .filter((project) => !isHomeProject(project) && !project.remoteServerId)
       .map((project) => ({ id: project.id, label: project.name })),
   ];
   // A schedule can reference a project that was deleted since it was created.

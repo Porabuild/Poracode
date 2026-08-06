@@ -24,7 +24,11 @@ describe("sharedSettingsStore", () => {
       disabledAgents: [],
       favoriteModels: [],
       recentModels: [],
+      agentSelectionUsage: [],
+      crossagentSelectionUsage: [],
+      crossagentRoutingOverrides: [],
       providerOrder: [],
+      sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       lastUsedProjectDirs: {},
       enabledMcpServers: {},
       installedPlugins: {},
@@ -45,9 +49,45 @@ describe("sharedSettingsStore", () => {
     expect(useSharedSettings.getState().staleThreadUnloadMinutes).toBe(30);
   });
 
+  it("shows and hides sidebar shortcuts", () => {
+    useSharedSettings.setState({ sidebarHiddenShortcuts: ["githubActions"] });
+
+    useSharedSettings.getState().setSidebarShortcutVisible("githubActions", true);
+    expect(useSharedSettings.getState().sidebarHiddenShortcuts).toEqual([]);
+
+    useSharedSettings.getState().setSidebarShortcutVisible("schedules", false);
+    expect(useSharedSettings.getState().sidebarHiddenShortcuts).toEqual(["schedules"]);
+  });
+
+  it("reorders sidebar shortcuts and keeps every supported shortcut", () => {
+    useSharedSettings.getState().setSidebarShortcutOrder(["schedules", "pullRequests"]);
+
+    expect(useSharedSettings.getState().sidebarShortcutOrder).toEqual([
+      "schedules",
+      "pullRequests",
+      "githubActions",
+    ]);
+  });
+
   it("updates audio settings", () => {
     useSharedSettings.getState().setAudioSetting("transcriptionLanguage", "es");
     expect(useSharedSettings.getState().audio.transcriptionLanguage).toBe("es");
+  });
+
+  it("counts repeated normal composer selections for Crossagents fallback ranking", () => {
+    const state = useSharedSettings.getState();
+    state.pushRecentModel("kimi", "k3", "gui", "max", false);
+    state.pushRecentModel("kimi", "k3", "gui", "max", false);
+
+    expect(useSharedSettings.getState().agentSelectionUsage).toEqual([
+      expect.objectContaining({
+        agentKind: "kimi",
+        modelId: "k3",
+        effort: "max",
+        fast: false,
+        count: 2,
+      }),
+    ]);
   });
 
   it("updates provider config when only context size, fast, and thinking change", () => {
@@ -73,6 +113,19 @@ describe("sharedSettingsStore", () => {
       contextSize: "200k",
       fast: true,
       thinking: true,
+    });
+  });
+
+  it("preserves the last experiment judge configuration", () => {
+    useSharedSettings
+      .getState()
+      .setExperimentJudgeConfig("claude", "claude-opus-4-8", "high", true);
+
+    expect(useSharedSettings.getState()).toMatchObject({
+      experimentJudgeProvider: "claude",
+      experimentJudgeModel: "claude-opus-4-8",
+      experimentJudgeEffort: "high",
+      experimentJudgeFast: true,
     });
   });
 
@@ -103,75 +156,22 @@ describe("sharedSettingsStore", () => {
         version: "1.0.0",
         enabled: true,
         disabledSkillIds: [],
-        disabledAppIds: [],
         disabledMcpServerNames: [],
       },
     });
 
     useSharedSettings.getState().setPluginEnabled(pluginFixture("browser-tools"), false);
     useSharedSettings.getState().setPluginSkillEnabled("browser-tools", "browser-control", false);
-    useSharedSettings
-      .getState()
-      .setPluginAppEnabled(pluginFixture("browser-tools"), "browser", false);
     expect(persistedPlugins()["browser-tools"]).toEqual({
       version: "1.0.0",
       enabled: false,
       disabledSkillIds: ["browser-control"],
-      disabledAppIds: ["browser"],
       disabledMcpServerNames: [],
     });
 
     useSharedSettings.getState().uninstallPlugin(pluginFixture("browser-tools"));
     expect(useSharedSettings.getState().installedPlugins).toEqual({});
     expect(persistedPlugins()).toEqual({});
-  });
-
-  it("clears the legacy MCP setting when a plugin is installed", () => {
-    useSharedSettings.setState({
-      enabledMcpServers: { browser: true, subagents: true },
-    });
-
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
-
-    expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
-    expect(
-      JSON.parse(localStorage.getItem("poracode-shared-settings") ?? "null").enabledMcpServers,
-    ).toEqual({ subagents: true });
-  });
-
-  it("clears the legacy MCP setting when a plugin is disabled", () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
-    useSharedSettings.setState({
-      enabledMcpServers: { browser: true, subagents: true },
-    });
-
-    useSharedSettings.getState().setPluginEnabled(pluginFixture("browser-tools"), false);
-
-    expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
-  });
-
-  it("clears the legacy MCP setting when a plugin app is disabled", () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
-    useSharedSettings.setState({
-      enabledMcpServers: { browser: true, subagents: true },
-    });
-
-    useSharedSettings
-      .getState()
-      .setPluginAppEnabled(pluginFixture("browser-tools"), "browser", false);
-
-    expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
-  });
-
-  it("clears the legacy MCP setting when a plugin is uninstalled", () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
-    useSharedSettings.setState({
-      enabledMcpServers: { browser: true, subagents: true },
-    });
-
-    useSharedSettings.getState().uninstallPlugin(pluginFixture("browser-tools"));
-
-    expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
   });
 
   describe("toggleFavoriteModelAnyMode", () => {

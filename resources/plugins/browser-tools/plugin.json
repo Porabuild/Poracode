@@ -3,7 +3,10 @@
   "name": "browser-tools",
   "version": "1.0.0",
   "description": "Browse, inspect, and test websites in Poracode's isolated in-app browser.",
-  "author": { "name": "Poracode", "url": "https://poracode.com" },
+  "author": {
+    "name": "Poracode",
+    "url": "https://poracode.com"
+  },
   "homepage": "https://poracode.com",
   "license": "Apache-2.0",
   "keywords": ["browser", "testing", "automation"],
@@ -12,19 +15,10 @@
       "title": "Browser Tools",
       "category": "developer-tools",
       "featured": true,
-      "apps": [
-        {
-          "id": "browser",
-          "name": "Browser",
-          "description": "Control Poracode's isolated in-app browser.",
-          "builtInMcpServerId": "browser"
-        }
-      ],
       "skills": {
         "browser-control": {
           "name": "Browser Control",
-          "description": "Navigate, inspect, and test pages with the in-app Browser MCP.",
-          "requiredAppIds": ["browser"]
+          "description": "Navigate, inspect, and test pages with the in-app Browser MCP."
         }
       }
     }

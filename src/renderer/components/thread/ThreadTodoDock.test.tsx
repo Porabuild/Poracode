@@ -46,6 +46,10 @@ describe("ThreadTodoDock", () => {
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
 
+    for (const name of ["Move todo dock to right panel", "Collapse todo dock", "Close plan"]) {
+      expect(screen.getByRole("button", { name })).toHaveClass("h-6", "w-6");
+    }
+
     fireEvent.click(screen.getByRole("button", { name: "Move todo dock to right panel" }));
     expect(onPlacementChange).toHaveBeenCalledWith("right");
 

@@ -12,6 +12,8 @@ export type ChangelogChangeKind = "added" | "improved" | "fixed";
 
 export interface ChangelogChange {
   kind: ChangelogChangeKind;
+  /** Optional short feature name rendered as a bold prefix, e.g. "Crossagents". */
+  label?: string;
   text: string;
 }
 
@@ -28,7 +30,11 @@ const VALID_KINDS: ReadonlySet<string> = new Set(["added", "improved", "fixed"])
 function isChange(value: unknown): value is ChangelogChange {
   if (typeof value !== "object" || value === null) return false;
   const c = value as Record<string, unknown>;
-  return VALID_KINDS.has(c.kind as string) && typeof c.text === "string";
+  return (
+    VALID_KINDS.has(c.kind as string) &&
+    typeof c.text === "string" &&
+    (c.label === undefined || typeof c.label === "string")
+  );
 }
 
 function isRelease(value: unknown): value is ChangelogRelease {
@@ -73,9 +79,33 @@ const RELEASE_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
 });
 
-/** Format an ISO date (YYYY-MM-DD) as a long, human-readable date. */
-export function formatReleaseDate(iso: string): string {
+const RELEASE_DATE_SHORT_FORMAT = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+});
+
+/** Format an ISO date (YYYY-MM-DD), falling back to the raw value if unparseable. */
+function formatIso(format: Intl.DateTimeFormat, iso: string): string {
   const date = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return iso;
-  return RELEASE_DATE_FORMAT.format(date);
+  return Number.isNaN(date.getTime()) ? iso : format.format(date);
+}
+
+/** Long, human-readable release date, e.g. "August 3, 2026". */
+export function formatReleaseDate(iso: string): string {
+  return formatIso(RELEASE_DATE_FORMAT, iso);
+}
+
+/** Compact release date for the release nav, e.g. "Aug 3, 2026". */
+export function formatReleaseDateShort(iso: string): string {
+  return formatIso(RELEASE_DATE_SHORT_FORMAT, iso);
+}
+
+/**
+ * Stable DOM id / URL fragment for a release, e.g. "v1.6.0". Deep links to
+ * /changelog#v1.6.0 must keep working, so this shape is part of the public URL
+ * surface — don't change it without redirects.
+ */
+export function releaseSlug(version: string): string {
+  return `v${version.replace(/^v/i, "")}`;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Disclosure, toast } from "@heroui/react";
+import { Button, Disclosure, ToggleButton, ToggleButtonGroup, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Copy, ExternalLink, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { toDataURL } from "qrcode";
@@ -8,12 +8,15 @@ import { Input, PixelLoader, ToggleSwitch } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { RemoteAccessTailscaleStatus } from "@/shared/ipc";
 import type { RemoteAccessPairingInfo, RemoteAccessSessionSummary } from "@/shared/remote";
-import { parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import {
+  normalizePairingEndpoint,
+  parsePairingUrlParts,
+  retargetPairingUrl,
+} from "@/shared/remote/pairingUrl";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 
 interface PairingViewState {
   readonly info: RemoteAccessPairingInfo | null;
-  readonly qrDataUrl: string | null;
   readonly error: string | null;
 }
 
@@ -22,21 +25,8 @@ async function readPairingViewState(): Promise<PairingViewState> {
   return pairingViewStateFromInfo(info);
 }
 
-async function pairingViewStateFromInfo(info: RemoteAccessPairingInfo): Promise<PairingViewState> {
-  if (info.status !== "ready") {
-    return { info, qrDataUrl: null, error: null };
-  }
-  const qrDataUrl = await toDataURL(info.pairingUrl, {
-    errorCorrectionLevel: "M",
-    margin: 1,
-    scale: 8,
-    type: "image/png",
-    color: {
-      dark: "#111827",
-      light: "#ffffff",
-    },
-  });
-  return { info, qrDataUrl, error: null };
+function pairingViewStateFromInfo(info: RemoteAccessPairingInfo): PairingViewState {
+  return { info, error: null };
 }
 
 function friendlyError(error: unknown, fallback: string): string {
@@ -135,6 +125,39 @@ function RemoteAccessHeaderDescription(props: {
       <span>{body}</span>
     </span>
   );
+}
+
+/** Mint the next code this long before the current one lapses. */
+const PAIRING_ROTATE_LEAD_MS = 60_000;
+
+function formatCountdown(remainingMs: number): string {
+  const totalSeconds = Math.ceil(remainingMs / 1000);
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The single reading of a code's expiry, shared by the countdown and the
+ * rotation timer so they cannot disagree. An unparseable value counts as lapsed:
+ * the UI says so and rotation mints immediately, which repairs it.
+ */
+function pairingExpiryMs(expiresAt: string): number {
+  const expiresAtMs = new Date(expiresAt).getTime();
+  return Number.isFinite(expiresAtMs) ? expiresAtMs : 0;
+}
+
+/** Milliseconds left on the displayed code, re-read every second until it lapses. */
+function usePairingCodeRemainingMs(expiresAt: string): number {
+  const expiresAtMs = pairingExpiryMs(expiresAt);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    // Stop once the code has lapsed — further ticks cannot change the output.
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+      if (Date.now() >= expiresAtMs) clearInterval(timer);
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, [expiresAtMs]);
+  return Math.max(0, expiresAtMs - nowMs);
 }
 
 function CopyValueRow(props: {
@@ -244,7 +267,6 @@ function PairedDevicesDisclosure(props: {
 
 function PairingReady(props: {
   info: Extract<RemoteAccessPairingInfo, { status: "ready" }>;
-  qrDataUrl: string | null;
   isRefreshing: boolean;
   revokingSessionId: string | null;
   onRefresh: () => void;
@@ -254,7 +276,48 @@ function PairingReady(props: {
   const desktopEndpointLabel = t`Desktop endpoint`;
   const pairingTokenLabel = t`Pairing token`;
   const pairingLinkLabel = t`Pairing link`;
-  const pairingToken = pairingTokenFromUrl(props.info.pairingUrl);
+  const tailscaleEndpoint = props.info.tailscaleHttpBaseUrl
+    ? normalizePairingEndpoint(props.info.tailscaleHttpBaseUrl)
+    : null;
+  const [endpointKind, setEndpointKind] = useState<"local" | "tailscale">(
+    tailscaleEndpoint ? "tailscale" : "local",
+  );
+  const selectedKind = endpointKind === "tailscale" && tailscaleEndpoint ? "tailscale" : "local";
+  const selectedEndpoint = tailscaleEndpoint
+    ? selectedKind === "tailscale"
+      ? tailscaleEndpoint
+      : normalizePairingEndpoint(props.info.localHttpBaseUrl)
+    : normalizePairingEndpoint(props.info.httpBaseUrl);
+  const pairingUrl = retargetPairingUrl(props.info.pairingUrl, selectedEndpoint);
+  const pairingToken = pairingTokenFromUrl(pairingUrl);
+  const remainingMs = usePairingCodeRemainingMs(props.info.pairingExpiresAt);
+  const countdown = formatCountdown(remainingMs);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setQrDataUrl(null);
+    void toDataURL(pairingUrl, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      scale: 8,
+      type: "image/png",
+      color: {
+        dark: "#111827",
+        light: "#ffffff",
+      },
+    }).then(
+      (value) => {
+        if (!cancelled) setQrDataUrl(value);
+      },
+      () => {
+        if (!cancelled) setQrDataUrl(null);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [pairingUrl]);
 
   const copyValue = useCopyValue();
   const handleCopy = (value: string, label: string, failureMessage: string) =>
@@ -262,15 +325,35 @@ function PairingReady(props: {
 
   return (
     <div className="space-y-6">
+      {tailscaleEndpoint ? (
+        <div className="flex justify-end">
+          <ToggleButtonGroup
+            aria-label={desktopEndpointLabel}
+            className="h-8 [&_button]:h-8 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-3"
+            selectionMode="single"
+            disallowEmptySelection
+            size="sm"
+            selectedKeys={[selectedKind]}
+            onSelectionChange={(keys) => {
+              const next = [...keys][0];
+              if (next === "local" || next === "tailscale") setEndpointKind(next);
+            }}
+          >
+            <ToggleButton id="local">
+              <Trans>Local</Trans>
+            </ToggleButton>
+            <ToggleButton id="tailscale">
+              <ToggleButtonGroup.Separator />
+              <Trans>Tailscale HTTPS</Trans>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </div>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="space-y-3">
           <div className="flex aspect-square w-full max-w-[220px] items-center justify-center bg-white p-3">
-            {props.qrDataUrl ? (
-              <img
-                src={props.qrDataUrl}
-                alt={t`Remote access pairing QR code`}
-                className="size-full"
-              />
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt={t`Remote access pairing QR code`} className="size-full" />
             ) : (
               <PixelLoader size="md" />
             )}
@@ -279,7 +362,7 @@ function PairingReady(props: {
             <Button
               size="sm"
               variant="tertiary"
-              onPress={() => void readBridge().openExternal(props.info.pairingUrl)}
+              onPress={() => void readBridge().openExternal(pairingUrl)}
             >
               <ExternalLink className="size-3.5" />
               <Trans>Open</Trans>
@@ -294,12 +377,15 @@ function PairingReady(props: {
               <Trans>New code</Trans>
             </Button>
           </div>
+          <p className="text-xs text-muted">
+            {remainingMs > 0 ? t`This code expires in ${countdown}` : t`This code has expired.`}
+          </p>
         </div>
 
         <div className="min-w-0 space-y-1">
           <CopyValueRow
             label={desktopEndpointLabel}
-            value={props.info.httpBaseUrl}
+            value={selectedEndpoint}
             copyLabel={t`Copy desktop endpoint`}
             failureMessage={t`Unable to copy desktop endpoint.`}
             onCopy={handleCopy}
@@ -315,7 +401,7 @@ function PairingReady(props: {
           ) : null}
           <CopyValueRow
             label={pairingLinkLabel}
-            value={props.info.pairingUrl}
+            value={pairingUrl}
             copyLabel={t`Copy pairing link`}
             failureMessage={t`Unable to copy pairing link.`}
             onCopy={handleCopy}
@@ -625,7 +711,6 @@ export function RemoteAccessSettings() {
   const { t } = useLingui();
   const [state, setState] = useState<PairingViewState>({
     info: null,
-    qrDataUrl: null,
     error: null,
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -635,17 +720,21 @@ export function RemoteAccessSettings() {
 
   useEffect(() => {
     let cancelled = false;
+    let pairingChanged = false;
+    const unsubscribe = readBridge().onRemoteAccessPairingChanged((info) => {
+      pairingChanged = true;
+      setState(pairingViewStateFromInfo(info));
+    });
     async function loadInitialPairing() {
       try {
         const next = await readPairingViewState();
-        if (!cancelled) {
+        if (!cancelled && !pairingChanged) {
           setState(next);
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !pairingChanged) {
           setState({
             info: null,
-            qrDataUrl: null,
             error: friendlyError(error, t`Unable to load remote access pairing.`),
           });
         }
@@ -654,16 +743,47 @@ export function RemoteAccessSettings() {
     void loadInitialPairing();
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [t]);
+
+  // The code on screen is one-time and short-lived, but the server mints it once
+  // at startup — so a panel opened hours later would show a credential the
+  // desktop has already dropped, and pairing would fail with "Invalid pairing
+  // token" as if the desktop were unreachable. Keep the displayed code inside
+  // its own advertised window: rotating re-runs this with the new expiry, which
+  // schedules the next mint. A code that is still fresh is left alone.
+  const pairingExpiresAt = state.info?.status === "ready" ? state.info.pairingExpiresAt : undefined;
+  useEffect(() => {
+    if (!pairingExpiresAt) return;
+    let cancelled = false;
+    const rotate = async () => {
+      try {
+        const info = await readBridge().refreshRemoteAccessPairing();
+        if (!cancelled) setState(pairingViewStateFromInfo(info));
+      } catch {
+        // Keep the current code on a transient failure; "New code" still works.
+      }
+    };
+    // An already-lapsed code mints immediately (zero delay); a fresh one waits.
+    const timer = setTimeout(
+      () => void rotate(),
+      Math.max(0, pairingExpiryMs(pairingExpiresAt) - PAIRING_ROTATE_LEAD_MS - Date.now()),
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [pairingExpiresAt]);
 
   const refresh = async () => {
     setIsRefreshing(true);
     try {
-      setState(await readPairingViewState());
+      const info = await readBridge().refreshRemoteAccessPairing();
+      setState(pairingViewStateFromInfo(info));
     } catch (error) {
       const message = friendlyError(error, t`Unable to load remote access pairing.`);
-      setState({ info: null, qrDataUrl: null, error: message });
+      setState({ info: null, error: message });
       toast.danger(message);
     } finally {
       setIsRefreshing(false);
@@ -692,12 +812,11 @@ export function RemoteAccessSettings() {
     setState((current) => ({
       ...current,
       info: enabled ? { status: "starting" } : { status: "disabled" },
-      qrDataUrl: null,
       error: null,
     }));
     try {
       const info = await readBridge().setRemoteAccessEnabled({ enabled });
-      setState(await pairingViewStateFromInfo(info));
+      setState(pairingViewStateFromInfo(info));
     } catch (error) {
       const occupiedPort = addressInUsePort(error);
       const message = occupiedPort
@@ -717,7 +836,7 @@ export function RemoteAccessSettings() {
       try {
         setState(await readPairingViewState());
       } catch {
-        setState({ info: null, qrDataUrl: null, error: message });
+        setState({ info: null, error: message });
       }
     } finally {
       setIsToggling(false);
@@ -750,15 +869,15 @@ export function RemoteAccessSettings() {
       ) : state.info?.status === "ready" ? (
         <div className="space-y-10">
           <PairingReady
+            key={state.info.tailscaleHttpBaseUrl ? "tailscale" : "local"}
             info={state.info}
-            qrDataUrl={state.qrDataUrl}
             isRefreshing={isRefreshing}
             revokingSessionId={revokingSessionId}
             onRefresh={() => void refresh()}
             onRevoke={(sessionId) => void revokeSession(sessionId)}
           />
           <RemoteAccessAdvanced
-            onPairingChanged={(info) => void pairingViewStateFromInfo(info).then(setState)}
+            onPairingChanged={(info) => setState(pairingViewStateFromInfo(info))}
           />
           <RemotePushSection />
         </div>

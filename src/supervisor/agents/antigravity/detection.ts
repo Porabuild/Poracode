@@ -3,7 +3,8 @@ import { batchWslCommandsAsync, type AuthProbe, type DetectionSpec } from "../ba
 import {
   ANTIGRAVITY_KNOWN_MODEL_VARIANTS,
   buildAntigravityModelCapabilities,
-  probeAntigravityModels,
+  probeAntigravityRuntime,
+  type AntigravityProbeResult,
 } from "./models";
 import { ANTIGRAVITY_CONFIG_SUBPATH, antigravityConfigDirExists } from "./session";
 
@@ -18,9 +19,10 @@ export const defaultAntigravityCapabilities: AgentCapability = {
   efforts: defaultModelCapabilities.efforts,
   defaultEffort: defaultModelCapabilities.defaultEffort,
   modelEfforts: defaultModelCapabilities.modelEfforts,
-  modes: [],
+  modes: ["agent", "plan"],
   approvalPolicies: [
-    { id: "default", label: "Default" },
+    { id: "default", label: "Request Review" },
+    { id: "accept-edits", label: "Accept Edits" },
     { id: "yolo", label: "Bypass Permissions" },
   ],
   sandboxModes: [],
@@ -33,10 +35,7 @@ export const defaultAntigravityCapabilities: AgentCapability = {
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
   // No dedicated-server hosting path in any presentation.
-  browserMcpScope: { terminal: "none", gui: "none" },
-  subagentMcpScope: { terminal: "none", gui: "none" },
-  computerUseMcpScope: { terminal: "none", gui: "none" },
-  chromeMcpScope: { terminal: "none", gui: "none" },
+  mcpScope: { terminal: "none", gui: "none" },
   settingDefs: [],
 };
 
@@ -73,33 +72,40 @@ const ANTIGRAVITY_TERMINAL_AUTH_METHOD: AgentAuthMethod = {
   args: [],
 };
 
-export const antigravityDetectionSpec: DetectionSpec = {
-  kind: "antigravity",
-  label: "Antigravity",
-  binary: "agy",
-  // Running `agy` with no args triggers the interactive sign-in on first run;
-  // there is no `agy login` subcommand, so the bare binary is the login path.
-  // On an already-authenticated machine the UI surfaces this as "Re-login".
-  // We intentionally do NOT advertise `authLogoutSupported`: `agy` exposes
-  // logout only as the in-session `/logout` TUI slash command (no
-  // non-interactive `agy logout`), and the adapter is not ACP — so the UI
-  // never shows a Logout button that would have nothing to invoke.
-  loginCommand: "agy",
-  capabilities: defaultAntigravityCapabilities,
-  authProbes: [configDirAuthProbe],
-  async capabilitiesProbe(ctx) {
-    // Advertise the terminal login method regardless of the model-probe
-    // outcome (a `undefined` models result must still flip the auth UI on).
-    const models = await probeAntigravityModels(ctx);
-    return {
-      ...(models ?? {}),
-      authMethods: [ANTIGRAVITY_TERMINAL_AUTH_METHOD],
-    };
-  },
-  update: {
-    builtIn: { binary: "agy", args: ["update"] },
-    latestVersionUrls: [
-      "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json",
-    ],
-  },
-};
+export function createAntigravityDetectionSpec(
+  onProbe?: (result: AntigravityProbeResult) => void,
+): DetectionSpec {
+  return {
+    kind: "antigravity",
+    label: "Antigravity",
+    binary: "agy",
+    // Running `agy` with no args triggers the interactive sign-in on first run;
+    // there is no `agy login` subcommand, so the bare binary is the login path.
+    // On an already-authenticated machine the UI surfaces this as "Re-login".
+    // We intentionally do NOT advertise `authLogoutSupported`: `agy` exposes
+    // logout only as the in-session `/logout` TUI slash command (no
+    // non-interactive `agy logout`), and the adapter is not ACP — so the UI
+    // never shows a Logout button that would have nothing to invoke.
+    loginCommand: "agy",
+    capabilities: defaultAntigravityCapabilities,
+    authProbes: [configDirAuthProbe],
+    async capabilitiesProbe(ctx) {
+      // Advertise the terminal login method regardless of the model-probe
+      // outcome (a missing models result must still flip the auth UI on).
+      const probe = await probeAntigravityRuntime(ctx);
+      onProbe?.(probe);
+      return {
+        ...(probe.capabilities ?? {}),
+        authMethods: [ANTIGRAVITY_TERMINAL_AUTH_METHOD],
+      };
+    },
+    update: {
+      builtIn: { binary: "agy", args: ["update"] },
+      latestVersionUrls: [
+        "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json",
+      ],
+    },
+  };
+}
+
+export const antigravityDetectionSpec = createAntigravityDetectionSpec();

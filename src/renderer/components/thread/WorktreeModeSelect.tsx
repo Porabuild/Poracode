@@ -34,7 +34,7 @@ export function WorktreeModeSelect(props: {
   const options: WorktreeModeOption[] = [
     {
       id: "none",
-      label: t`No worktree`,
+      label: t`Branch`,
       description: t`Work in the current checkout`,
       icon: GitBranch,
     },

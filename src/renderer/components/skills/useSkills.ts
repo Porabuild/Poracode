@@ -5,10 +5,8 @@ import type {
   ProjectLocation,
   ScanSkillsPayload,
   SkillScanResult,
-  ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { arePluginSkillRequiredAppsEnabled } from "@/shared/plugins/catalog";
 import { readBridge } from "@/renderer/bridge";
 import {
   resolveLocalizedPluginSkill,
@@ -118,17 +116,14 @@ export function useSkillSlashCommands(
   projectLocation: ProjectLocation,
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
-  launchConfig?: ThreadConfig,
 ): AgentSlashCommand[] {
-  return useSkillSlashCommandState(projectLocation, agentKind, presentationMode, launchConfig)
-    .commands;
+  return useSkillSlashCommandState(projectLocation, agentKind, presentationMode).commands;
 }
 
 export function useSkillSlashCommandState(
   projectLocation: ProjectLocation,
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
-  launchConfig?: ThreadConfig,
 ) {
   const { scan, loading, error } = useSkills(
     projectLocation,
@@ -138,7 +133,7 @@ export function useSkillSlashCommandState(
   );
   const localizedPlugins = useLocalizedPluginCatalog();
   return {
-    commands: buildSkillSlashCommands(scan, localizedPlugins, launchConfig),
+    commands: buildSkillSlashCommands(scan, localizedPlugins),
     resolved: !loading && (scan !== null || error !== undefined),
   };
 }
@@ -146,32 +141,25 @@ export function useSkillSlashCommandState(
 export function buildSkillSlashCommands(
   scan: SkillScanResult | null,
   localizedPlugins: readonly LocalizedPlugin[] = [],
-  launchConfig?: ThreadConfig,
 ): AgentSlashCommand[] {
   if (!scan?.invocation) return [];
   const effective = new Set(scan.effectiveSkillIds);
   return scan.skills.flatMap((skill) => {
     if (!effective.has(skill.id)) return [];
-    const { localizedPlugin, pluginSkill, localizedSkill } = resolveLocalizedPluginSkill(
+    const { localizedPlugin, localizedSkill } = resolveLocalizedPluginSkill(
       localizedPlugins,
       skill,
     );
-    if (
-      launchConfig &&
-      localizedPlugin &&
-      pluginSkill &&
-      !arePluginSkillRequiredAppsEnabled(localizedPlugin.plugin, pluginSkill.folder, launchConfig)
-    ) {
-      return [];
-    }
     const displayName = localizedSkill?.name ?? skill.name;
     const description = localizedSkill?.description ?? skill.description;
     const invocation =
       scan.invocation === "dollar"
         ? `$${skill.name}`
-        : scan.invocation === "prompt"
-          ? `Use the ${skill.name} skill.`
-          : `/${skill.name}`;
+        : scan.invocation === "skill"
+          ? `/skill:${skill.name}`
+          : scan.invocation === "prompt"
+            ? `Use the ${skill.name} skill.`
+            : `/${skill.name}`;
     return [
       {
         id: skill.name,

@@ -51,36 +51,4 @@ describe("PluginsSettings", () => {
     expect(within(restored).getByRole("button", { name: "Browser Tools" })).toHaveFocus();
     expect(within(restored).getByRole("button", { name: "Browser Tools Install" })).toBeVisible();
   });
-
-  it("switches to the manage tab and lists contributions by type", () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
-    render(<PluginsSettings />);
-
-    fireEvent.click(screen.getByRole("tab", { name: "Manage" }));
-
-    expect(screen.getByRole("tab", { name: /^Plugins/u })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("switch", { name: "Enable Browser Tools" })).toBeChecked();
-
-    fireEvent.click(screen.getByRole("tab", { name: /^Skills/u }));
-    expect(screen.getByRole("switch", { name: "Enable Browser Control" })).toBeChecked();
-
-    fireEvent.click(screen.getByRole("switch", { name: "Enable Browser Control" }));
-    expect(
-      useSharedSettings.getState().installedPlugins["browser-tools"]?.disabledSkillIds,
-    ).toEqual(["browser-control"]);
-
-    fireEvent.click(screen.getByRole("tab", { name: /^Apps/u }));
-    expect(screen.getByRole("switch", { name: "Enable Browser" })).toBeChecked();
-  });
-
-  it("reports an empty contribution list when nothing is installed", () => {
-    render(<PluginsSettings />);
-
-    fireEvent.click(screen.getByRole("tab", { name: "Manage" }));
-    fireEvent.click(screen.getByRole("tab", { name: /^Skills/u }));
-
-    expect(
-      screen.getByText("Nothing here yet. Install a plugin to add contributions."),
-    ).toBeInTheDocument();
-  });
 });

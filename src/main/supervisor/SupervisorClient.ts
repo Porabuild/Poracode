@@ -57,7 +57,7 @@ export interface SupervisorClientOptions {
   wslHelpersDir: string;
   /**
    * Directory containing the read-only skills shipped with the app
-   * (`skill-creator`, …). Forwarded to the supervisor via
+   * (`skill-creator-poracode`, …). Forwarded to the supervisor via
    * `PORACODE_BUNDLED_SKILLS_DIR` so the skills service can surface them.
    */
   bundledSkillsDir?: string;
@@ -80,6 +80,13 @@ export interface SupervisorClientOptions {
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
   onEvent(event: SupervisorEvent): void;
   onReset(): void;
+  /**
+   * Invoked after every (re)spawn of the supervisor process — including
+   * crash-restarts — once requests can be sent. Used to push state the
+   * supervisor cannot recover on its own (e.g. persisted orchestrator
+   * child-thread rows).
+   */
+  onStarted?(): void;
 }
 
 export class SupervisorClient {
@@ -173,6 +180,8 @@ export class SupervisorClient {
 
       this.options.onEvent(message);
     });
+
+    this.options.onStarted?.();
 
     child.on("exit", (code) => {
       if (this.child !== child) {

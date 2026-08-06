@@ -52,7 +52,6 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 }));
 
 import {
-  handleNotificationClick,
   handleThreadStateNotification,
   shouldInspectThreadStateForNotification,
 } from "./notifications";
@@ -313,8 +312,31 @@ describe("handleThreadStateNotification PWA path", () => {
     notifications[0]!.onclick?.();
 
     expect(bridgeMock.focusWindow).toHaveBeenCalledOnce();
-    expect(openThreadMock).toHaveBeenCalledWith("thread-1", { focusComposer: true });
+    expect(openThreadMock).toHaveBeenCalledWith("thread-1", {
+      focusComposer: true,
+      switchWorkspace: true,
+    });
     expect(notifications[0]!.close).toHaveBeenCalledOnce();
+  });
+
+  it("does not notify when a desktop stop or steer force-closes the active turn", () => {
+    const { notifications } = installBrowserNotification();
+    const oldThread = thread({ status: "working", attention: "working" });
+
+    handleThreadStateNotification(
+      {
+        type: "thread-state",
+        threadId: oldThread.id,
+        status: "idle",
+        attention: "none",
+        forceCloseActiveTurn: true,
+      },
+      oldThread,
+      { status: "finished", attention: "none" },
+    );
+
+    expect(notifications).toHaveLength(0);
+    expect(bridgeMock.showNotification).not.toHaveBeenCalled();
   });
 
   it("requests browser notification permission before showing the notification", async () => {
@@ -338,17 +360,5 @@ describe("handleThreadStateNotification PWA path", () => {
     await Promise.resolve();
 
     expect(notifications).toHaveLength(1);
-  });
-});
-
-describe("handleNotificationClick", () => {
-  beforeEach(() => {
-    openThreadMock.mockClear();
-  });
-
-  it("opens the originating thread focused on the composer", () => {
-    handleNotificationClick({ threadId: "thread-42" });
-
-    expect(openThreadMock).toHaveBeenCalledWith("thread-42", { focusComposer: true });
   });
 });

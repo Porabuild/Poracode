@@ -1,17 +1,12 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { join, normalize, resolve } from "node:path";
 import { net, protocol } from "electron";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
+import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import { getProjectFsPath } from "@/shared/wsl";
-
-function sanitizeAttachmentPathPart(value: string): string {
-  return value.replace(/[<>:"/\\|?*]/g, "-");
-}
-
-function getThreadAttachmentDir(paths: PoracodePaths, threadId: string): string {
-  return join(paths.attachmentsDir, sanitizeAttachmentPathPart(threadId).slice(0, 12));
-}
+import { getThreadAttachmentDir, sanitizeAttachmentPathPart } from "./attachmentStorage";
 
 export function saveClipboardImageFile(
   paths: PoracodePaths,
@@ -22,13 +17,25 @@ export function saveClipboardImageFile(
   const namePrefix = sanitizeAttachmentPathPart(payload.threadId).slice(0, 8);
   const fileName = `${namePrefix}-${Date.now()}.${payload.extension || "png"}`;
   const filePath = join(threadDir, fileName);
-  writeFileSync(filePath, Buffer.from(payload.data));
+  writeFileSync(filePath, payload.data);
   return filePath;
 }
 
 /** Write raw image bytes to a user-chosen absolute path (download "Save as…"). */
 export function writeImageFile(filePath: string, data: Uint8Array): void {
   writeFileSync(filePath, Buffer.from(data));
+}
+
+/** Read image bytes addressed by the desktop-only local-file protocol. */
+export function readLocalImageFile(url: string): Uint8Array {
+  if (!/^(?:poracode|lightcode)-local:\/\//.test(url)) {
+    throw new Error("Unsupported local image URL");
+  }
+  const filePath = resolveLocalFileUrlPath(url);
+  if (filePath.includes("\0")) {
+    throw new Error("Invalid local image path");
+  }
+  return readFileSync(resolve(filePath));
 }
 
 export function saveHandoffContextFile(
@@ -44,6 +51,13 @@ export function saveHandoffContextFile(
 
 export function deleteThreadAttachments(paths: PoracodePaths, threadId: string): void {
   rmSync(getThreadAttachmentDir(paths, threadId), { recursive: true, force: true });
+}
+
+export async function deleteThreadAttachmentsAsync(
+  paths: PoracodePaths,
+  threadId: string,
+): Promise<void> {
+  await rm(getThreadAttachmentDir(paths, threadId), { recursive: true, force: true });
 }
 
 export function resolveProjectFsPath(payload: {
@@ -88,10 +102,8 @@ export function registerLocalFileProtocolScheme(): void {
 export function installLocalFileProtocolHandler(): void {
   for (const scheme of LOCAL_FILE_PROTOCOL_SCHEMES) {
     protocol.handle(scheme, (request) => {
-      const raw = decodeURIComponent(new URL(request.url).pathname);
       const { pathToFileURL } = require("node:url") as typeof import("node:url");
-      const filePath =
-        process.platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
+      const filePath = resolveLocalFileUrlPath(request.url);
       if (filePath.includes("\0")) {
         return new Response("invalid path", { status: 400 });
       }

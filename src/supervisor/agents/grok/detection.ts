@@ -20,7 +20,7 @@ import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
 
 // Approval policies surfaced to Poracode. Grok only honors `--always-approve`
 // (bypass) at launch — `--permission-mode <MODE>` is silently ignored by both
-// the TUI and `grok agent stdio` (re-verified live on 0.2.93; see argv.ts).
+// the TUI and `grok agent stdio` (re-verified live on 0.2.118; see argv.ts).
 // We therefore expose a single Default ↔ Bypass Approvals toggle in the
 // composer.
 const GROK_APPROVAL_POLICIES = [
@@ -30,7 +30,7 @@ const GROK_APPROVAL_POLICIES = [
 
 // Plan mode is intentionally omitted from the composer surface: it cannot be
 // force-activated at launch on either Grok surface — `--permission-mode plan`
-// is silently ignored (verified live on 0.2.93). Plan mode is entered in the
+// is silently ignored (verified live on 0.2.118). Plan mode is entered in the
 // TUI via Shift+Tab or by the model calling `enter_plan_mode`, so a Plan/Work
 // toggle would falsely imply we drive it.
 //
@@ -51,7 +51,7 @@ export const grokDefaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
-  defaultApprovalPolicy: "default",
+  defaultApprovalPolicy: "bypassPermissions",
   bypassPermissions: { approvalPolicy: "bypassPermissions" },
   settingDefs: [],
 };
@@ -64,11 +64,16 @@ async function probeCapabilities(
   location: ProjectLocation,
   executablePath?: string,
 ): Promise<CapabilitiesProbeResult> {
-  const spec = buildGrokCommand(location, ["agent", "stdio"], executablePath);
+  const spec = buildGrokCommand(location, ["--no-auto-update", "agent", "stdio"], executablePath);
   const sessionCwd = getAgentProbeCwd(location);
   const processCwd = resolveProbeSpawnCwd(location, spec.cwd);
   const probe = await probeAcpCapabilities(spec.command, spec.args, sessionCwd, {
     ...(processCwd ? { processCwd } : {}),
+    // macOS apps launched from Finder/Dock inherit a system-only PATH. The
+    // resolved Grok executable is a `#!/usr/bin/env node` script, so preserve
+    // the login-shell environment captured by buildGrokCommand or the script
+    // exits before ACP initialize with `env: node: No such file or directory`.
+    ...(spec.env ? { env: spec.env } : {}),
     timeoutMs: 20_000, // grok may take a moment on first init
     label: location.kind === "wsl" ? `grok:wsl:${location.distro}` : `grok:${location.kind}`,
     // Grok returns identity (email, auth_mode, subscription_tier) in the
@@ -79,7 +84,7 @@ async function probeCapabilities(
   });
 
   // Extract context windows from model _meta (grok reports totalContextTokens
-  // per model, e.g. 500k for grok-4.5 and 200k for grok-composer-2.5-fast).
+  // per model, e.g. 500k for grok-4.5).
   let contextCaps: Pick<AgentCapability, "contextSizes" | "modelContextSizes"> = {};
   if (probe?.modelMetadata) {
     const sizes = new Map<string, number>();
@@ -113,6 +118,7 @@ async function probeCapabilities(
     ...(probe?.efforts?.length ? { efforts: probe.efforts } : {}),
     ...(probe?.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
     ...(probe?.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
+    ...(probe?.modelDefaultEfforts ? { modelDefaultEfforts: probe.modelDefaultEfforts } : {}),
     ...(probe?.modes?.length ? { modes: probe.modes } : {}),
     ...(probe?.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
@@ -145,10 +151,9 @@ type GrokReasoningEffortMeta = { id?: unknown; default?: unknown };
 
 /**
  * Derive effort capabilities from the per-model `_meta.reasoningEfforts` the
- * grok 0.2.x ACP handshake advertises (verified live on 0.2.93: grok-4.5
- * exposes high/medium/low with high as default; grok-composer-2.5-fast
- * advertises none). Models without tiers get an explicit empty list so the
- * shared model picker hides the effort dropdown for them.
+ * grok 0.2.x ACP handshake advertises (verified live on 0.2.118: grok-4.5
+ * exposes high/medium/low with high as default). Models without tiers get an
+ * explicit empty list so the shared model picker hides the effort dropdown.
  */
 export function mapGrokEffortCapabilities(
   modelMetadata: Record<string, Record<string, unknown>> | undefined,
@@ -214,10 +219,13 @@ function formatGrokAuthMode(mode: string): string {
  */
 async function grokAuthFileProbe(
   ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
-): Promise<"authenticated" | "unknown"> {
+): Promise<"authenticated" | "missing" | "unknown"> {
   const check = (home: string) => {
     if (existsSync(join(home, ".grok", "auth.json"))) return "authenticated";
-    return "unknown";
+    // `grok logout` removes this file, so absence is a definitive signed-out
+    // state. Reporting unknown hides the terminal login action when the
+    // unauthenticated ACP handshake cannot advertise methods or models.
+    return "missing";
   };
   if (ctx.location.kind !== "wsl") {
     return check(homedir());
@@ -225,7 +233,8 @@ async function grokAuthFileProbe(
   const [r] = await batchWslCommandsAsync(ctx.location.distro, [
     "test -f ~/.grok/auth.json && echo yes || echo no",
   ]);
-  return r?.ok && r.stdout.trim() === "yes" ? "authenticated" : "unknown";
+  if (!r?.ok) return "unknown";
+  return r.stdout.trim() === "yes" ? "authenticated" : "missing";
 }
 
 export const grokDetectionSpec: DetectionSpec = {

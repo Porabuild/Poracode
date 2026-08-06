@@ -48,6 +48,7 @@ function makeHandlers() {
     injectBrowserToMain: vi.fn<() => void>(),
     requestRelaunch: vi.fn<() => void>(),
     scheduleService: {} as never,
+    prWatchService: {} as never,
   });
 }
 
@@ -86,6 +87,22 @@ describe("local remoteHttpRequest handler", () => {
       headers: { "content-type": "text/plain;charset=UTF-8", "x-poracode": "remote" },
       body: "ok",
     });
+  });
+
+  it("forwards delete requests through main-process fetch", async () => {
+    const fetchMock = vi.fn<FetchMock>(async (_url, init): Promise<Response> => {
+      expect(init).toMatchObject({ method: "DELETE", body: "{}" });
+      return new Response(null, { status: 204 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      makeHandlers().remoteHttpRequest({
+        url: "https://remote.example.test/api/pr-watches",
+        method: "DELETE",
+        body: "{}",
+      }),
+    ).resolves.toMatchObject({ status: 204 });
   });
 
   it("rejects non-http protocols before fetching", async () => {

@@ -23,6 +23,8 @@ import { useLspSync } from "./parts/useLspSync";
 import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConflictContribution";
 import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
 import { setActiveFindEditor } from "@/renderer/components/find/editorFindBridge";
+import { openPdfPreview } from "@/renderer/components/pdf";
+import { isPdfPath } from "@/shared/promptContent";
 
 export { getLanguageFromPath } from "./parts/langMap";
 
@@ -210,6 +212,10 @@ function TabStripHeader(props: {
         className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
         role="tablist"
         aria-label={t`Editor tabs`}
+        onWheel={(event) => {
+          // Map vertical wheel to horizontal scrolling so overflowed tabs are reachable.
+          if (event.deltaY !== 0) event.currentTarget.scrollLeft += event.deltaY;
+        }}
       >
         {paths.map((path, index) => (
           <SortableTab
@@ -223,17 +229,18 @@ function TabStripHeader(props: {
         ))}
       </div>
 
-      <div className="flex-1" />
-      <EditorToolbar
-        isMarkdown={props.isMarkdown}
-        showPreview={props.showPreview}
-        setShowPreview={props.setShowPreview}
-        isDirty={props.isDirty}
-        activePath={props.activePath}
-        onSave={() => props.activePath && props.onSave(props.activePath)}
-        {...(props.onOpenFullscreen ? { onOpenFullscreen: props.onOpenFullscreen } : {})}
-        {...(props.onClose ? { onClose: props.onClose } : {})}
-      />
+      <div className="poracode-content-over-drag-region flex items-center gap-1.5">
+        <EditorToolbar
+          isMarkdown={props.isMarkdown}
+          showPreview={props.showPreview}
+          setShowPreview={props.setShowPreview}
+          isDirty={props.isDirty}
+          activePath={props.activePath}
+          onSave={() => props.activePath && props.onSave(props.activePath)}
+          {...(props.onOpenFullscreen ? { onOpenFullscreen: props.onOpenFullscreen } : {})}
+          {...(props.onClose ? { onClose: props.onClose } : {})}
+        />
+      </div>
     </div>
   );
 }
@@ -265,6 +272,7 @@ function EditorBody(props: {
     const buffer = state.buffers[path];
     return buffer?.status === "ready" ? (buffer.gitDiff ?? null) : null;
   });
+  const isPdf = isPdfPath(activePath);
 
   useMergeConflictContribution({ editor: editorInstance, monaco: monacoInstance });
   useGitDiffContribution({ editor: editorInstance, gitDiff, bufferStatus });
@@ -315,7 +323,9 @@ function EditorBody(props: {
 
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
-      {bufferStatus === "ready" && showPreview && isMarkdown ? (
+      {isPdf ? (
+        <PdfBrowserPlaceholder path={activePath} projectLocation={projectLocation} />
+      ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
         <MarkdownPreview content={content ?? ""} />
       ) : bufferStatus === "ready" ? (
         <Editor
@@ -346,6 +356,30 @@ function EditorBody(props: {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PdfBrowserPlaceholder(props: { path: string; projectLocation: ProjectLocation | null }) {
+  const { t } = useLingui();
+  const location = props.projectLocation ?? undefined;
+
+  useEffect(() => {
+    openPdfPreview(props.path, location);
+  }, [props.path, location]);
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center text-sm text-muted">
+      <p>
+        <Trans>PDF preview opens in the browser.</Trans>
+      </p>
+      <button
+        type="button"
+        className="rounded-md border border-[color:var(--border)] px-3 py-1.5 text-foreground transition-colors hover:bg-[var(--row-hover)]"
+        onClick={() => openPdfPreview(props.path, location)}
+      >
+        {t`Open in browser`}
+      </button>
     </div>
   );
 }

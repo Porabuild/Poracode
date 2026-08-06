@@ -8,6 +8,16 @@ import { readStoredBoolean } from "@/renderer/utils/localStorage";
  */
 export const WELCOME_SEEN_STORAGE_KEY = "poracode-welcome-seen-v16";
 
+/**
+ * Manual isolated test launches should reach the requested surface immediately,
+ * without first painting the onboarding overlay. Keep this dev-only so a build
+ * environment can never suppress the real first-launch experience.
+ */
+export function isWelcomeSeen(): boolean {
+  const skipForTesting = import.meta.env.DEV && import.meta.env.VITE_PORACODE_SKIP_WELCOME === "1";
+  return skipForTesting || readStoredBoolean(WELCOME_SEEN_STORAGE_KEY, false);
+}
+
 interface WelcomeGateStore {
   /**
    * True once it is safe to start deferred first-launch background work — most
@@ -16,17 +26,17 @@ interface WelcomeGateStore {
    * otherwise starve the welcome animation's first paint and make it snap
    * straight to its final frame.
    *
-   * Seeded from {@link WELCOME_SEEN_STORAGE_KEY} so returning users (who never
-   * see the welcome overlay) are released on the very first render and never
-   * delayed. On a genuine first launch it starts `false`; the welcome overlay
-   * flips it once the intro animation has settled or the user dismisses it.
+   * Seeded through {@link isWelcomeSeen} so returning users and isolated manual
+   * test launches are released on the very first render and never delayed. On a
+   * genuine first launch it starts `false`; the welcome overlay flips it once
+   * the intro animation has settled or the user dismisses it.
    */
   backgroundWorkReleased: boolean;
   releaseBackgroundWork: () => void;
 }
 
 export const useWelcomeGateStore = create<WelcomeGateStore>((set) => ({
-  backgroundWorkReleased: readStoredBoolean(WELCOME_SEEN_STORAGE_KEY, false),
+  backgroundWorkReleased: isWelcomeSeen(),
   releaseBackgroundWork: () =>
     set((prev) => (prev.backgroundWorkReleased ? prev : { backgroundWorkReleased: true })),
 }));

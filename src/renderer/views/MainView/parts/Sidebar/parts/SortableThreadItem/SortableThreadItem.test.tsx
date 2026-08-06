@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
@@ -12,12 +13,14 @@ type MockContextMenuItem = {
 
 const {
   sortableRefMock,
+  sortableOptionsMock,
   contextMenuItemsMock,
   getStatusToneMock,
   useThreadHasBackgroundActivityMock,
   useThreadHasDraftMock,
 } = vi.hoisted(() => ({
   sortableRefMock: vi.fn<(element: HTMLElement | null) => void>(),
+  sortableOptionsMock: vi.fn<(options: unknown) => void>(),
   contextMenuItemsMock: vi.fn<(items: MockContextMenuItem[]) => void>(),
   getStatusToneMock:
     vi.fn<(thread: Thread, opts?: { hasBackgroundActivity?: boolean }) => string>(),
@@ -26,7 +29,10 @@ const {
 }));
 
 vi.mock("@dnd-kit/react/sortable", () => ({
-  useSortable: () => ({ ref: sortableRefMock }),
+  useSortable: (options: unknown) => {
+    sortableOptionsMock(options);
+    return { ref: sortableRefMock };
+  },
 }));
 
 vi.mock("@/renderer/dnd", () => ({
@@ -41,11 +47,22 @@ vi.mock("@/renderer/components/common/ContextMenu", () => ({
 }));
 
 vi.mock("@/renderer/components/common/SidebarButton", () => ({
-  SidebarButton: (props: { label: ReactNode }) => <button type="button">{props.label}</button>,
+  SidebarButton: (props: { label: ReactNode; suffix?: ReactNode }) => (
+    <button type="button">
+      {props.label}
+      {props.suffix}
+    </button>
+  ),
 }));
 
 vi.mock("@/renderer/components/providers/ThreadProviderIcon", () => ({
   ThreadProviderIcon: () => null,
+}));
+
+vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/GitBadge", () => ({
+  GitBadge: (props: { projectName: string }) => (
+    <button type="button" aria-label={`Git status for ${props.projectName}`} />
+  ),
 }));
 
 vi.mock("@/renderer/components/providers/statusTone", () => ({
@@ -59,6 +76,7 @@ vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useThreadHasBackgroundActivity: (threadId: string) =>
     useThreadHasBackgroundActivityMock(threadId),
   useThreadHasDraft: (threadId: string) => useThreadHasDraftMock(threadId),
+  useIsProjectGitPanelActive: () => false,
   useIsWorktreeFilesPanelActive: () => false,
   useIsWorktreeGitPanelActive: () => false,
   useIsWorktreeTerminalActive: () => false,
@@ -102,9 +120,14 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({ openExternal: vi.fn<(url: string) => void>() }),
 }));
 
-vi.mock("@/renderer/state/gitStore", () => ({
-  useGitStore: { getState: () => ({ prData: {} }) },
-}));
+vi.mock("@/renderer/state/gitStore", () => {
+  const state = { prData: {} };
+  return {
+    useGitStore: Object.assign((selector: (value: typeof state) => unknown) => selector(state), {
+      getState: () => state,
+    }),
+  };
+});
 
 function makeThread(): Thread {
   return {
@@ -134,6 +157,7 @@ const project: Project = {
 describe("SortableThreadItem", () => {
   beforeEach(() => {
     sortableRefMock.mockClear();
+    sortableOptionsMock.mockClear();
     contextMenuItemsMock.mockClear();
     getStatusToneMock.mockReset();
     getStatusToneMock.mockReturnValue("default");
@@ -215,6 +239,29 @@ describe("SortableThreadItem", () => {
     expect(sortableRefMock).toHaveBeenCalledWith(row);
   });
 
+  it("keeps automatic-sort rows draggable into panes while disabling sidebar reordering", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+        sortDisabled
+      />,
+    );
+
+    expect(sortableOptionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread",
+        accept: [],
+        disabled: false,
+      }),
+    );
+  });
+
   it("enables unload for a loaded thread without a session ref", () => {
     render(
       <SortableThreadItem
@@ -259,5 +306,40 @@ describe("SortableThreadItem", () => {
       isDisabled: true,
       disabledReason: "Thread is already unloaded.",
     });
+  });
+
+  it("shows the project git badge on a flat-list main-branch thread row", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+  });
+
+  it("omits the project git badge in grouped lists, where the project header carries it", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Git status for Project" }),
+    ).not.toBeInTheDocument();
   });
 });

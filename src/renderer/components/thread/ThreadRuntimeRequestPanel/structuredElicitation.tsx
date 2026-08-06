@@ -3,6 +3,13 @@ import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
 
+type StructuredElicitationChoice = { const: string; title?: string };
+
+type StructuredElicitationChoiceSource = {
+  oneOf?: StructuredElicitationChoice[];
+  anyOf?: StructuredElicitationChoice[];
+};
+
 type StructuredElicitationSchemaProperty =
   | {
       type: "string";
@@ -11,7 +18,11 @@ type StructuredElicitationSchemaProperty =
       default?: string;
       enum?: string[];
       enumNames?: string[];
-      oneOf?: Array<{ const: string; title?: string }>;
+      // JSON Schema choice lists arrive under either combinator: agents build
+      // single-select from `oneOf` and multi-select item schemas from `anyOf`
+      // (Kimi Code v2 does exactly that). Accept both wherever choices appear.
+      oneOf?: StructuredElicitationChoice[];
+      anyOf?: StructuredElicitationChoice[];
     }
   | {
       type: "integer" | "number";
@@ -33,7 +44,8 @@ type StructuredElicitationSchemaProperty =
       items?: {
         enum?: string[];
         enumNames?: string[];
-        oneOf?: Array<{ const: string; title?: string }>;
+        oneOf?: StructuredElicitationChoice[];
+        anyOf?: StructuredElicitationChoice[];
       };
     };
 
@@ -139,21 +151,30 @@ function getAcpElicitationSourceText(obj: Record<string, unknown>): string {
 
 type StructuredFormValue = boolean | number | string | string[];
 
+function readChoiceOptions(source: StructuredElicitationChoiceSource): {
+  id: string;
+  label: string;
+}[] {
+  const choices = [source.oneOf, source.anyOf].find(Array.isArray) ?? [];
+  return choices.map((choice) => ({ id: choice.const, label: choice.title ?? choice.const }));
+}
+
 function getStructuredElicitationEnumOptions(
   property: StructuredElicitationSchemaProperty,
 ): { id: string; label: string }[] {
-  if ("oneOf" in property && Array.isArray(property.oneOf)) {
-    return property.oneOf.map((o) => ({ id: o.const, label: o.title ?? o.const }));
-  }
+  // A combinator can sit directly on the property (single-select) regardless of
+  // the declared `type`, which agents sometimes omit — so read it off every
+  // property shape rather than narrowing on `type === "string"`.
+  const direct = readChoiceOptions(property as StructuredElicitationChoiceSource);
+  if (direct.length > 0) return direct;
   if ("enum" in property && Array.isArray(property.enum)) {
     const names =
       "enumNames" in property && Array.isArray(property.enumNames) ? property.enumNames : [];
     return property.enum.map((v, i) => ({ id: v, label: names[i] ?? v }));
   }
   if (property.type === "array" && property.items) {
-    if (Array.isArray(property.items.oneOf)) {
-      return property.items.oneOf.map((o) => ({ id: o.const, label: o.title ?? o.const }));
-    }
+    const choices = readChoiceOptions(property.items);
+    if (choices.length > 0) return choices;
     if (Array.isArray(property.items.enum)) {
       const names = Array.isArray(property.items.enumNames) ? property.items.enumNames : [];
       return property.items.enum.map((v, i) => ({ id: v, label: names[i] ?? v }));

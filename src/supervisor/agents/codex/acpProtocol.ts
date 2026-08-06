@@ -1,10 +1,11 @@
-import type { ThreadAttention, ThreadServerRequestId, ThreadStatus } from "@/shared/contracts";
+import type {
+  ThreadAttention,
+  ThreadServerRequestId,
+  ThreadStatus as CanonicalThreadStatus,
+} from "@/shared/contracts";
+import type { ThreadStatus as CodexProtocolThreadStatus } from "./protocol";
 
-export type CodexThreadStatus =
-  | { type: "active"; activeFlags?: string[] }
-  | { type: "idle" }
-  | { type: "notLoaded" }
-  | { type: "systemError" };
+export type CodexThreadStatus = CodexProtocolThreadStatus;
 
 export type CodexSocketMessage =
   | {
@@ -68,7 +69,7 @@ function extractObjectStringField(
 }
 
 export function deriveCodexStructuredState(status: CodexThreadStatus): {
-  status: ThreadStatus;
+  status: CanonicalThreadStatus;
   attention: ThreadAttention;
 } {
   if (status.type === "systemError") {

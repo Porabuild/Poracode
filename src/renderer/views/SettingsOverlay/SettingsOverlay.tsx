@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { AgentDiscoveryScreen } from "@/renderer/components/thread/AgentDiscoveryScreen";
+import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -8,6 +9,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
+import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
 import { ProfileSettings } from "./parts/ProfileSettings";
 import { AppearanceSettings } from "./parts/AppearanceSettings";
 import { BrowserSettings } from "./parts/BrowserSettings";
@@ -34,11 +36,13 @@ import { McpServersSettings } from "./parts/McpServersSettings";
 import { SkillsSettings } from "./parts/SkillsSettings";
 import { PluginsSettings } from "./parts/PluginsSettings";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
+import { WorkspacesSettings } from "./parts/WorkspacesSettings";
 import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSettings";
 import type { SettingsSection } from "./parts/types";
 
 const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   profile: () => <ProfileSettings />,
+  workspaces: () => <WorkspacesSettings />,
   general: () => <GeneralSettings />,
   audio: () => <AudioSettings />,
   appearance: () => <AppearanceSettings />,
@@ -85,6 +89,24 @@ function renderSection(
   return SECTION_VIEWS[activeSection]?.() ?? null;
 }
 
+export function settingsSectionProductProperties(activeSection: SettingsSection) {
+  if (activeSection.startsWith("agents:")) {
+    const provider = normalizeAnalyticsProvider(activeSection.slice(7));
+    return {
+      key: `settings:agent:${provider}`,
+      properties: {
+        provider,
+        settings_section: "agent",
+        settings_scope: "application",
+      },
+    };
+  }
+  return {
+    key: `settings:${activeSection}`,
+    properties: { settings_section: activeSection, settings_scope: "application" },
+  };
+}
+
 export function SettingsOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
   const { t } = useLingui();
@@ -92,6 +114,14 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const clearSettingsSection = usePanelStore((s) => s.clearSettingsSection);
   const [activeSection, setActiveSection] = useState<SettingsSection>(
     (requestedSection as SettingsSection | null) ?? "general",
+  );
+  useProductViewTracking(
+    {
+      ...settingsSectionProductProperties(activeSection),
+      seenEvent: "settings.section_seen",
+      durationEvent: "settings.section_duration",
+    },
+    "settings",
   );
   // Apply a deep-link request (e.g. clicking a sidebar usage circle) and clear
   // it so it doesn't re-fire on the next open.

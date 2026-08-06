@@ -22,6 +22,9 @@ const codexStatus: AgentStatus = {
   authState: "authenticated",
   capabilities: {
     models: [
+      { id: "gpt-5.6-luna", label: "5.6 Luna" },
+      { id: "gpt-5.6-terra", label: "5.6 Terra" },
+      { id: "gpt-5.6-sol", label: "5.6 Sol" },
       { id: "gpt-5.5", label: "5.5" },
       { id: "gpt-5.4", label: "5.4" },
       { id: "gpt-5.4-mini", label: "5.4 Mini" },
@@ -79,9 +82,9 @@ const claudeStatus: AgentStatus = {
 };
 
 describe("resolveCommitGenConfig", () => {
-  it("falls back to the registered Codex default (5.4 Mini + low)", () => {
+  it("falls back to the registered Codex default (5.6 Terra + low)", () => {
     expect(resolveCommitGenConfig(codexStatus, "", "")).toEqual({
-      model: "gpt-5.4-mini",
+      model: "gpt-5.6-terra",
       effort: "low",
       availableEfforts: ["low", "medium", "high", "xhigh"],
     });
@@ -127,13 +130,13 @@ describe("getCommitGenCandidates", () => {
   });
 
   it("falls back to all installed agents when no provider has its preferred model", () => {
-    // Codex without its gpt-5.4-mini default — strict filter would empty the
+    // Codex without its gpt-5.6-terra default — strict filter would empty the
     // list, so the helper loosens to the full installed set sorted by preference.
     const codexWithoutPreferred: AgentStatus = {
       ...codexStatus,
       capabilities: {
         ...codexStatus.capabilities,
-        models: [{ id: "gpt-5.5", label: "5.5" }],
+        models: [{ id: "gpt-5.6-sol", label: "5.6 Sol" }],
       },
     };
     expect(getCommitGenCandidates([codexWithoutPreferred], "auto")).toEqual([
@@ -145,7 +148,7 @@ describe("getCommitGenCandidates", () => {
 describe("provider default hints", () => {
   it("builds commit-generation hint text from provider registrations", () => {
     expect(getCommitGenDefaultsHint()).toBe(
-      "Defaults: Claude -> Sonnet medium, Codex -> GPT-5.4 Mini low, Copilot -> auto, Cursor -> Composer 2.5 Fast, Gemini -> 3 Flash",
+      "Defaults: Claude -> Sonnet medium, Codex -> GPT-5.6 Terra low, Copilot -> auto, Cursor -> Composer 2.5 Fast, Gemini -> 3 Flash",
     );
   });
 });
@@ -178,7 +181,7 @@ describe("generateCommitMessageWithFallback", () => {
     expect(invoke).toHaveBeenNthCalledWith(1, {
       projectLocation,
       agentKind: "codex",
-      model: "gpt-5.4-mini",
+      model: "gpt-5.6-terra",
       effort: "low",
     });
     expect(invoke).toHaveBeenNthCalledWith(2, {

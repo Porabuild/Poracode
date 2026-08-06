@@ -2,12 +2,16 @@ packages:
   - "."
   - "website"
   - "packages/agents-usage"
+  - "packages/codex-protocol"
 
 # Share the virtual store across worktrees/checkouts via symlinks instead of
 # hardlinking every package into each node_modules/.pnpm (see pnpm.io/git-worktrees).
+# Native build outputs are shared too; worktrees intentionally testing a
+# different Electron ABI should set PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE=false.
 enableGlobalVirtualStore: true
 
 allowBuilds:
+  "@google/genai": false
   "@sentry/cli": true
   better-sqlite3: true
   electron: true
@@ -25,30 +29,93 @@ onlyBuiltDependencies:
   - esbuild
   - node-pty
 
-# @sentry/electron's main-process bundle eagerly requires @sentry/node, which
-# requires @opentelemetry/* via bare paths. Under pnpm's nested layout
-# electron-builder does not traverse those into the asar. Public-hoisting
-# pins them to top-level node_modules so the default packaging traversal
-# picks them up.
+# TypeScript does not use Node's ESM resolver bridge, so keep a root-level
+# compatibility facade for external declaration files and tooling. This masks
+# undeclared transitive imports at the root; first-party imports must still be
+# declared. Entries are symlinks, not duplicate package contents.
 publicHoistPattern:
-  - "@opentelemetry/*"
-  - "@sentry/*"
-  - "@sentry-internal/*"
-  - "@fastify/otel"
-  - "@prisma/instrumentation"
-  - "import-in-the-middle"
-  - "require-in-the-middle"
-  - "acorn"
-  - "acorn-import-attributes"
-  - "cjs-module-lexer"
-  - "module-details-from-path"
+  - "*"
 
-# Force electron-builder to traverse symlinked transitive deps under pnpm's
-# nested layout. Without this, deep deps like @opentelemetry/* are not copied
-# into the asar even when listed in `files`.
-nodeLinker: hoisted
+# Declare published packages' direct imports at their package boundaries so
+# resolution still works when the dependency graph lives in pnpm's global
+# virtual store.
+packageExtensions:
+  "@testing-library/jest-dom@6.9.1":
+    dependencies:
+      vitest: 4.1.10
+  "@huggingface/transformers@4.2.0":
+    dependencies:
+      onnxruntime-common: 1.24.3
+  "@heroui/react@3.2.2":
+    dependencies:
+      "@internationalized/date": 3.12.2
+  "react-aria-components@1.17.0":
+    dependencies:
+      "@internationalized/string": 3.2.9
+  "react-aria-components@1.19.0":
+    dependencies:
+      "@internationalized/string": 3.2.9
+
+# Keep development installs lightweight across Git worktrees. The global
+# virtual store above shares package graphs between checkouts, while each
+# worktree keeps only the symlinks needed for its own dependency graph.
+#
+# Production packaging is intentionally independent: build-desktop-artifact.mjs
+# installs the curated runtime dependency set into a clean, flat npm stage.
+nodeLinker: isolated
 
 minimumReleaseAgeExclude:
+  # The OpenCode connector tracks the current SDK used by Desktop's compatibility path.
+  - "@opencode-ai/sdk@1.18.10"
+  # Claude steering relies on the current official SDK lifecycle controls.
+  - "@anthropic-ai/claude-agent-sdk@0.3.219"
+  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.219"
+  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.219"
+  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.219"
+  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.219"
+  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.219"
+  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.219"
+  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.219"
+  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.219"
+  # Retain the previous release while pnpm validates the pre-update lockfile.
+  - "@anthropic-ai/claude-agent-sdk@0.3.218"
+  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.218"
+  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.218"
+  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.218"
+  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.218"
+  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.218"
+  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.218"
+  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.218"
+  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.218"
+  # OpenCode v2 runtime-pooling integration requires the current official SDK.
+  - "@opencode-ai/sdk@1.18.3"
+  # 2026-07-21 Next.js security release and its platform binaries.
+  - "next@16.2.11"
+  - "@next/env@16.2.11"
+  - "@next/swc-darwin-x64@16.2.11"
+  - "@next/swc-darwin-arm64@16.2.11"
+  - "@next/swc-linux-x64-gnu@16.2.11"
+  - "@next/swc-linux-x64-musl@16.2.11"
+  - "@next/swc-linux-arm64-gnu@16.2.11"
+  - "@next/swc-linux-arm64-musl@16.2.11"
+  - "@next/swc-win32-x64-msvc@16.2.11"
+  - "@next/swc-win32-arm64-msvc@16.2.11"
+  # 2026-08-03 Next.js 16.3 release and its platform binaries.
+  - "next@16.3.0"
+  - "@next/env@16.3.0"
+  - "@next/swc-darwin-x64@16.3.0"
+  - "@next/swc-darwin-arm64@16.3.0"
+  - "@next/swc-linux-x64-gnu@16.3.0"
+  - "@next/swc-linux-x64-musl@16.3.0"
+  - "@next/swc-linux-arm64-gnu@16.3.0"
+  - "@next/swc-linux-arm64-musl@16.3.0"
+  - "@next/swc-win32-x64-msvc@16.3.0"
+  - "@next/swc-win32-arm64-msvc@16.3.0"
+  # 2026-07-19 fast-uri authority-parsing security release.
+  - "fast-uri@3.1.4"
+  # LegendList 3.3.3 contains the web anchoring and batched measurement fixes
+  # required by the chat transcript virtualizer migration.
+  - "@legendapp/list@3.3.3"
   # Already present in the lockfile when the supply-chain guard was added.
   - "react@19.2.7"
   - "react-dom@19.2.7"
@@ -91,11 +158,7 @@ minimumReleaseAgeExclude:
   - "form-data@4.0.6"
   # 2026-06-18 Dependabot advisory batch: security patches published within the
   # 7-day guard window, adopted immediately (alerts #129-#131).
-  - "dompurify@3.4.11"
   - "undici@6.27.0 || 7.28.0"
-  # 2026-06-16 Dependabot advisory batch: hono security patch published within
-  # the 7-day guard window, adopted immediately (alerts #124-#128).
-  - "hono@4.12.25"
   # 2026-07-08: TypeScript 7.0 GA (official Microsoft package) — TS7 migration;
   # remove after 2026-07-15 when it ages past the window. The @typescript/
   # typescript-* entries are its platform binaries (optionalDependencies of the
@@ -154,46 +217,40 @@ minimumReleaseAgeExclude:
   - "@oxfmt/binding-win32-arm64-msvc@0.58.0"
   - "@oxfmt/binding-win32-ia32-msvc@0.58.0"
   - "@oxfmt/binding-win32-x64-msvc@0.58.0"
+  - "@oxlint/binding-android-arm-eabi@1.76.0"
+  - "@oxlint/binding-android-arm64@1.76.0"
+  - "@oxlint/binding-darwin-arm64@1.76.0"
+  - "@oxlint/binding-darwin-x64@1.76.0"
+  - "@oxlint/binding-freebsd-x64@1.76.0"
+  - "@oxlint/binding-linux-arm-gnueabihf@1.76.0"
+  - "@oxlint/binding-linux-arm-musleabihf@1.76.0"
+  - "@oxlint/binding-linux-arm64-gnu@1.76.0"
+  - "@oxlint/binding-linux-arm64-musl@1.76.0"
+  - "@oxlint/binding-linux-ppc64-gnu@1.76.0"
+  - "@oxlint/binding-linux-riscv64-gnu@1.76.0"
+  - "@oxlint/binding-linux-riscv64-musl@1.76.0"
+  - "@oxlint/binding-linux-s390x-gnu@1.76.0"
+  - "@oxlint/binding-linux-x64-gnu@1.76.0"
+  - "@oxlint/binding-linux-x64-musl@1.76.0"
+  - "@oxlint/binding-openharmony-arm64@1.76.0"
+  - "@oxlint/binding-win32-arm64-msvc@1.76.0"
+  - "@oxlint/binding-win32-ia32-msvc@1.76.0"
+  - "@oxlint/binding-win32-x64-msvc@1.76.0"
   - "@sentry/core@10.63.0"
   - "@sentry/node-core@10.63.0"
   - "@sentry/node@10.63.0"
   - "@sentry/opentelemetry@10.63.0"
   - "@sentry/server-utils@10.63.0"
-  - "@tsdown/css@0.22.4"
-  - "@tsdown/exe@0.22.4"
-  - "@types/node@25.9.5"
-  - "@yuku-codegen/binding-darwin-arm64@0.5.44"
-  - "@yuku-codegen/binding-darwin-x64@0.5.44"
-  - "@yuku-codegen/binding-freebsd-x64@0.5.44"
-  - "@yuku-codegen/binding-linux-arm-gnu@0.5.44"
-  - "@yuku-codegen/binding-linux-arm-musl@0.5.44"
-  - "@yuku-codegen/binding-linux-arm64-gnu@0.5.44"
-  - "@yuku-codegen/binding-linux-arm64-musl@0.5.44"
-  - "@yuku-codegen/binding-linux-x64-gnu@0.5.44"
-  - "@yuku-codegen/binding-linux-x64-musl@0.5.44"
-  - "@yuku-codegen/binding-win32-arm64@0.5.44"
-  - "@yuku-codegen/binding-win32-x64@0.5.44"
-  - "@yuku-parser/binding-darwin-arm64@0.5.44"
-  - "@yuku-parser/binding-darwin-x64@0.5.44"
-  - "@yuku-parser/binding-freebsd-x64@0.5.44"
-  - "@yuku-parser/binding-linux-arm-gnu@0.5.44"
-  - "@yuku-parser/binding-linux-arm-musl@0.5.44"
-  - "@yuku-parser/binding-linux-arm64-gnu@0.5.44"
-  - "@yuku-parser/binding-linux-arm64-musl@0.5.44"
-  - "@yuku-parser/binding-linux-x64-gnu@0.5.44"
-  - "@yuku-parser/binding-linux-x64-musl@0.5.44"
-  - "@yuku-parser/binding-win32-arm64@0.5.44"
-  - "@yuku-parser/binding-win32-x64@0.5.44"
-  - "@yuku-toolchain/types@0.5.43"
+  - "@types/node@26.1.2"
+  - "@vitejs/plugin-react@6.0.5"
   - "electron@43.1.0"
   - "oxfmt@0.58.0"
+  - "oxlint@1.76.0"
   - "picomatch@4.0.5"
-  - "rolldown-plugin-dts@0.27.2"
-  - "tsdown@0.22.4"
+  - "vite@8.2.0"
   - "undici-types@7.24.6"
-  - "yuku-ast@0.1.7"
-  - "yuku-codegen@0.5.44"
-  - "yuku-parser@0.5.44"
+  # The platform aliases are prerelease versions of this same package name.
+  - "@openai/codex"
 
 # Supply-chain guard: refuse to install any package version published less
 # than this many minutes ago. 7 days catches the typical window in which
@@ -210,28 +267,35 @@ overrides:
   "tmp@<0.2.6": "^0.2.6"
   "brace-expansion@>=5.0.0 <5.0.6": "^5.0.6"
   "esbuild@<0.28.1": "0.28.1"
-  "shell-quote@<1.8.4": "^1.8.4"
+  "shell-quote@<1.9.0": "^1.9.0"
   "cross-spawn@<6.0.6": "6.0.6"
   "@xmldom/xmldom@<0.8.13": "0.8.13"
-  # 2026-06-18 advisory batch.
-  "dompurify@>=3.0.0 <3.4.11": "3.4.11"
+  # DOMPurify custom-element hook bypass (#141).
+  "dompurify@>=3.0.0 <3.4.12": "3.4.12"
   # 2026-06-15 advisory batch (alerts #88-#102).
   "@opentelemetry/core@>=2.0.0 <2.8.0": "2.8.0"
-  "protobufjs@>=7.0.0 <7.6.4": "7.6.4"
+  "protobufjs@>=7.0.0 <7.6.5": "7.6.5"
   "form-data@>=4.0.0 <4.0.6": "4.0.6"
   "tar@>=7.0.0 <7.5.16": "^7.5.16"
   "vite@>=8.0.0 <8.0.16": "^8.0.16"
   "js-yaml@>=4.0.0 <4.2.0": "^4.2.0"
   "@babel/core@>=7.0.0 <7.29.6": "^7.29.6"
-  "postcss@<8.5.10": "8.5.10"
+  # PostCSS source-map arbitrary file read (#153, #164).
+  "postcss@<8.5.12": "8.5.12"
   "mermaid@>=11.0.0-alpha.1 <=11.14.0": "11.15.0"
   "joi@>=18.0.0 <18.2.1": "18.2.1"
   # 2026-06-18 advisory batch.
   "undici@>=6.0.0 <6.27.0": "6.27.0"
   "undici@>=7.0.0 <7.28.0": "7.28.0"
-  # 2026-06-16 advisory batch.
-  # hono CORS wildcard-with-credentials + path traversal etc. (#124-#128).
-  "hono@<4.12.25": "4.12.25"
+  # Hono request-context disclosure / JSX XSS / header de-duplication
+  # (#138-#140), plus the node adapter's encoded-backslash traversal (#137).
+  "hono@<4.12.27": "4.12.27"
+  "@hono/node-server@<2.0.5": "2.0.5"
+  # fast-uri host confusion through a backslash authority delimiter (#143).
+  "fast-uri@>=3.0.0 <3.1.4": "3.1.4"
+  # sharp 0.35.x upgrades libvips past the inherited CVE batch (#142, #154).
+  # Use 0.35.3, which also restores exported TypeScript declarations.
+  "sharp@<0.35.3": "0.35.3"
   # got UNIX-socket redirect (#103); only the dev react-devtools update-notifier
   # chain pulls the vulnerable 6.x. Pin to the last CJS line (11.x), since
   # package-json@4 `require()`s got and got@12+ is ESM-only.
@@ -240,3 +304,10 @@ overrides:
   # comes only from react-devtools (dev-only standalone inspector); 23.x has no
   # in-line patch (#104), so dedupe it onto the app's own electron major.
   "electron@>=23.0.0 <39.8.5": "43.1.0"
+  # 2026-07-21 advisory batch (#132-#136).
+  # adm-zip crafted-ZIP 4GB allocation; only used by onnxruntime-node's install
+  # script to extract trusted NuGet archives.
+  "adm-zip@<0.6.0": "^0.6.0"
+  # brace-expansion exponential-time expansion DoS, 1.x/2.x lines.
+  "brace-expansion@<1.1.16": "^1.1.16"
+  "brace-expansion@>=2.0.0 <2.1.2": "^2.1.2"

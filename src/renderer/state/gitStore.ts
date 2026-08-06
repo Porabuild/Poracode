@@ -184,6 +184,7 @@ function areGitStatusesEqual(a: GitStatusResult | undefined, b: GitStatusResult)
     a.detail === b.detail &&
     a.isRepo === b.isRepo &&
     a.branch === b.branch &&
+    a.headSha === b.headSha &&
     a.tracking === b.tracking &&
     a.hasRemote === b.hasRemote &&
     ((leftRemote === null && rightRemote === null) ||
@@ -283,6 +284,7 @@ function arePrDataEqual(a: PrData | null | undefined, b: PrData | null) {
   return (
     a.number === b.number &&
     a.state === b.state &&
+    a.headSha === b.headSha &&
     a.title === b.title &&
     a.url === b.url &&
     a.baseBranch === b.baseBranch &&
@@ -765,6 +767,35 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
       };
     }),
 }));
+
+export function resetGitStoreCache(): void {
+  useGitStore.setState({
+    statuses: {},
+    worktreeStatuses: {},
+    worktrees: {},
+    branches: {},
+    ghAvailable: {},
+    prData: {},
+    worktreeSourceInfo: {},
+    prFiles: {},
+    prDiffs: {},
+    prDetails: {},
+  });
+  // `setState` synchronously schedules persistence through the subscription
+  // below. A desktop/session reset must remove the previous identity's cache
+  // immediately, rather than leave a reload window before that debounce fires.
+  if (persistTimer !== null) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.removeItem(PERSIST_KEY);
+    } catch {
+      // Storage may be unavailable (privacy mode / sandboxed webview).
+    }
+  }
+}
 
 // Persist a snapshot whenever any of the cached fields change.
 useGitStore.subscribe((state, prev) => {

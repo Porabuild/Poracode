@@ -9,6 +9,9 @@ import "@/renderer/components/providers/bootstrap";
 import { RouterProvider } from "@tanstack/react-router";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { router } from "./router";
+import { disableToastExitViewTransitionsInIosBrowser } from "./toastViewTransitions";
+
+disableToastExitViewTransitionsInIosBrowser();
 
 export { registerServiceWorker } from "./registerServiceWorker";
 

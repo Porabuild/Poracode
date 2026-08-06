@@ -45,10 +45,13 @@ const h = vi.hoisted(() => ({
   patchSettings: vi.fn<(path: string, patch: Partial<SharedSettings>) => SharedSettings>(),
   getProjects: vi.fn<() => unknown[]>(() => []),
   getThreads: vi.fn<() => unknown[]>(() => []),
+  refreshGitInterests: vi.fn<() => Promise<void>>(async () => undefined),
   defaultInfo: {
     httpBaseUrl: "http://127.0.0.1:38987/",
+    localHttpBaseUrl: "http://127.0.0.1:38987",
     wsBaseUrl: "ws://127.0.0.1:38987/",
     pairingUrl: "http://127.0.0.1:38987/pair?token=startup",
+    pairingExpiresAt: "2026-01-01T00:10:00.000Z",
   } satisfies RemoteAccessServerInfo,
   serverPlans: [] as ServerPlan[],
   servers: [] as FakeServer[],
@@ -110,6 +113,7 @@ vi.mock("./portForward/portForwarding", () => ({
 
 vi.mock("./push", () => ({
   createPushGateway: () => vi.fn<() => void>(),
+  createWebPushPublicKeyResolver: () => vi.fn<() => Promise<string>>(async () => "public-key"),
   PushRegistrationStore: class {
     upsert = vi.fn<(registration: unknown) => void>();
     remove = vi.fn<(deviceId: string) => void>();
@@ -158,7 +162,7 @@ vi.mock("./RemoteBrowserGateway", () => ({
 }));
 
 vi.mock("./tailscale", () => ({
-  buildTailscaleHttpsUrl: (dnsName: string) => `https://${dnsName.trim().replace(/\.$/, "")}/`,
+  buildTailscaleHttpsUrl: (dnsName: string) => `https://${dnsName.trim().replace(/\.$/, "")}`,
   probeTailscaleStatus: () => h.probeTailscaleStatus(),
   enableTailscaleServe: (port: number) => h.enableTailscaleServe(port),
   disableTailscaleServe: () => h.disableTailscaleServe(),
@@ -201,12 +205,20 @@ function deferredTailscaleProbe(): {
   return { probe, entered: entered.promise };
 }
 
-function createController(devServerUrl?: string) {
+function createController(
+  devServerUrl?: string,
+  channel: DesktopRemoteAccessControllerOptions["channel"] = "stable",
+  notifyRemoteAccessPairingChanged?: DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"],
+  reportError: DesktopRemoteAccessControllerOptions["reportError"] = vi.fn<
+    DesktopRemoteAccessControllerOptions["reportError"]
+  >(),
+) {
   const callSupervisor = vi.fn<() => Promise<Record<string, never>>>(
     async () => ({}),
   ) as unknown as RemoteAccessServerOptions["callSupervisor"];
   return createDesktopRemoteAccessController({
     appVersion: "9.9.9-test",
+    channel,
     paths: {
       baseDir: "/tmp/poracode-controller-test",
       settingsPath: "/tmp/poracode-controller-test/settings.json",
@@ -219,8 +231,21 @@ function createController(devServerUrl?: string) {
     getBrowserPanelManager: () => null,
     notifySharedSettingsChanged:
       vi.fn<DesktopRemoteAccessControllerOptions["notifySharedSettingsChanged"]>(),
-    reportError: vi.fn<DesktopRemoteAccessControllerOptions["reportError"]>(),
+    notifyRemoteAccessPairingChanged:
+      notifyRemoteAccessPairingChanged ??
+      vi.fn<DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"]>(),
+    notifyProjectStateChanged:
+      vi.fn<DesktopRemoteAccessControllerOptions["notifyProjectStateChanged"]>(),
+    reportError,
     scheduleService: {} as never,
+    prWatchService: {} as never,
+    gitStateService: { refreshInterests: h.refreshGitInterests } as never,
+    updates: {
+      currentVersion: () => "9.9.9-test",
+      status: () => null,
+      check: vi.fn<() => Promise<void>>(async () => {}),
+      install: vi.fn<() => void>(),
+    },
   });
 }
 
@@ -238,6 +263,10 @@ describe("DesktopRemoteAccessController", () => {
     h.forwardingDisposedWaiters.length = 0;
     h.pushCoordinators.length = 0;
     h.settingsPatches.length = 0;
+    h.refreshGitInterests.mockReset();
+    h.refreshGitInterests.mockResolvedValue(undefined);
+    h.getThreads.mockReset();
+    h.getThreads.mockReturnValue([]);
     h.settings = {
       ...defaultSharedSettings,
       remoteAccessEnabled: false,
@@ -275,13 +304,47 @@ describe("DesktopRemoteAccessController", () => {
     await production.setEnabled(true);
 
     expect(h.servers[0]?.options.pairingAppUrl).toBe("https://poracode.com");
+    expect(h.servers[0]?.options.trustedCorsOrigins).toEqual([
+      "https://app.poracode.com",
+      "https://app-nightly.poracode.com",
+    ]);
     expect(h.servers[0]?.options.devMobileAppUrl).toBeUndefined();
+    expect(h.servers[0]?.options.isDev).toBe(false);
 
     const development = createController("http://127.0.0.1:3100");
     await development.setEnabled(true);
 
     expect(h.servers[1]?.options.pairingAppUrl).toBeUndefined();
+    expect(h.servers[1]?.options.trustedCorsOrigins).toBeUndefined();
     expect(h.servers[1]?.options.devMobileAppUrl).toBe("http://127.0.0.1:3100/mobile.html");
+    expect(h.servers[1]?.options.isDev).toBe(true);
+  });
+
+  it("uses the nightly web app by default while trusting both hosted apps", async () => {
+    const nightly = createController(undefined, "nightly");
+    await nightly.setEnabled(true);
+
+    expect(h.servers[0]?.options.pairingAppUrl).toBe("https://app-nightly.poracode.com");
+    expect(h.servers[0]?.options.trustedCorsOrigins).toEqual([
+      "https://app.poracode.com",
+      "https://app-nightly.poracode.com",
+    ]);
+  });
+
+  it("publishes the rotated pairing state from the server", async () => {
+    const notifyRemoteAccessPairingChanged =
+      vi.fn<DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"]>();
+    const controller = createController(undefined, "stable", notifyRemoteAccessPairingChanged);
+    await controller.setEnabled(true);
+
+    h.servers[0]?.options.onPairingChanged?.();
+
+    expect(notifyRemoteAccessPairingChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "ready",
+        pairingUrl: h.defaultInfo.pairingUrl,
+      }),
+    );
   });
 
   it("coalesces enable calls while a server start is in flight", async () => {
@@ -433,6 +496,53 @@ describe("DesktopRemoteAccessController", () => {
     expect(controller.getServer()).toBeNull();
   });
 
+  it("reports an exhausted port conflict without its address and with normalized tags", async () => {
+    const start = deferred<RemoteAccessServerInfo>();
+    h.serverPlans.push({ startPromise: start.promise });
+    const reportError = vi.fn<DesktopRemoteAccessControllerOptions["reportError"]>();
+    const controller = createController(undefined, "stable", undefined, reportError);
+    const serverCreated = waitForNextServerCreated();
+
+    const enabling = controller.setEnabled(true);
+    await serverCreated;
+    const conflict = Object.assign(new Error("listen EADDRINUSE 192.168.1.20:38987"), {
+      code: "EADDRINUSE",
+    });
+    start.reject(conflict);
+
+    await expect(enabling).rejects.toBe(conflict);
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError.mock.calls[0]?.[0]).toMatchObject({
+      name: "RemoteAccessPortConflictError",
+      message: "Remote access server port remained unavailable after retries.",
+    });
+    expect(reportError.mock.calls[0]?.[1]).toEqual({
+      "poracode.feature_area": "remote-access",
+      "poracode.channel": "stable",
+      "poracode.platform": process.platform,
+      "event.origin": "remote-access.listen.port-conflict",
+    });
+    expect((reportError.mock.calls[0]![0] as Error).message).not.toContain("192.168");
+  });
+
+  it("does not report a port bind failure from a superseded shutdown race", async () => {
+    const start = deferred<RemoteAccessServerInfo>();
+    h.serverPlans.push({ startPromise: start.promise });
+    const reportError = vi.fn<DesktopRemoteAccessControllerOptions["reportError"]>();
+    const controller = createController(undefined, "stable", undefined, reportError);
+    const serverCreated = waitForNextServerCreated();
+
+    const enabling = controller.setEnabled(true);
+    await serverCreated;
+    await controller.setEnabled(false);
+    start.reject(
+      Object.assign(new Error("listen EADDRINUSE private-address"), { code: "EADDRINUSE" }),
+    );
+
+    await expect(enabling).resolves.toEqual({ status: "disabled" });
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
   it("keeps forwarding alive until a full disable finishes closing the server", async () => {
     const close = deferred<void>();
     h.serverPlans.push({ disposePromise: close.promise });
@@ -540,6 +650,36 @@ describe("DesktopRemoteAccessController", () => {
     expect(h.settingsPatches).toEqual([]);
   });
 
+  it("runs one bounded Git warm-up when remote access first starts", async () => {
+    h.getThreads.mockReturnValue([
+      {
+        id: "thread-1",
+        projectId: "project-1",
+        worktreePath: "/repo/worktrees/thread-1",
+        status: "idle",
+        archived: false,
+        updatedAt: "2026-07-30T12:00:00.000Z",
+      },
+    ]);
+    const controller = createController();
+
+    await controller.setEnabled(true);
+    await controller.setEnabled(true);
+
+    expect(h.refreshGitInterests).toHaveBeenCalledTimes(1);
+    expect(h.refreshGitInterests).toHaveBeenCalledWith(
+      [
+        {
+          kind: "target",
+          projectId: "project-1",
+          worktreePath: "/repo/worktrees/thread-1",
+          includePrDetails: true,
+        },
+      ],
+      { fetchRemote: true },
+    );
+  });
+
   it("preserves immediate quit teardown and makes final disposal idempotent", async () => {
     h.settings.remoteAccessTailscaleHttps = true;
     h.probeTailscaleStatus.mockResolvedValue({
@@ -551,6 +691,8 @@ describe("DesktopRemoteAccessController", () => {
     h.serverPlans.push({ disposePromise: close.promise });
     const controller = createController();
     await controller.setEnabled(true);
+
+    expect(h.servers[0]?.options.tailscaleHttpBaseUrl).toBe("https://desktop.tailnet.ts.net");
 
     const first = controller.dispose();
     const second = controller.dispose();

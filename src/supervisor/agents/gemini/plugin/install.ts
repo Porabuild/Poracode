@@ -10,27 +10,9 @@ import {
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
-import { isReservedMcpServerName } from "@/shared/contracts";
-import { BROWSER_MCP_SERVER_NAME, type BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
-import {
-  SUBAGENT_MCP_SERVER_NAME,
-  type SubagentMcpHttpConfig,
-} from "@/supervisor/agents/subagentMcp";
-import {
-  COMPUTER_USE_MCP_SERVER_NAME,
-  type ComputerUseMcpHttpConfig,
-} from "@/supervisor/agents/computerUseMcp";
-import { CHROME_MCP_SERVER_NAME, type ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
-import {
-  APP_CONTROLS_MCP_SERVER_NAME,
-  type AppControlsMcpHttpConfig,
-} from "@/supervisor/agents/appControlsMcp";
-import { buildGeminiBrowserMcpServers, type GeminiMcpServerEntry } from "../mcpBrowser";
-import { buildGeminiSubagentMcpServers } from "../mcpSubagent";
-import { buildGeminiComputerUseMcpServers } from "../mcpComputerUse";
-import { buildGeminiChromeMcpServers } from "../mcpChrome";
-import { buildGeminiAppControlsMcpServers } from "../mcpAppControls";
-import { buildGeminiUserMcpServers } from "../../userMcp";
+import type { ResolvedMcpServer } from "@/shared/contracts";
+import type { GeminiMcpServerConfig as GeminiMcpServerEntry } from "../../userMcp";
+import { buildGeminiMcpServers } from "../../userMcp";
 import type { AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -221,24 +203,6 @@ export function createGeminiThreadSettingsFile(
   };
 }
 
-/**
- * Merge (or clear) a single poracode-managed `mcpServers` entry, preserving
- * every other key. Browser and subagents each own one key, so their syncs can
- * run independently against the same `settings.json` without clobbering one
- * another. Returns `undefined` when the map ends up empty so the caller can
- * drop `mcpServers` entirely.
- */
-function upsertGeminiMcpServer(
-  existing: GeminiSettings["mcpServers"],
-  name: string,
-  entry: GeminiMcpServerEntry | undefined,
-): GeminiSettings["mcpServers"] {
-  const next: Record<string, GeminiMcpServerEntry> = { ...(existing ?? {}) };
-  if (entry) next[name] = entry;
-  else delete next[name];
-  return Object.keys(next).length > 0 ? next : undefined;
-}
-
 function updateGeminiSettings(
   settingsPath: string,
   mutate: (settings: GeminiSettings) => void,
@@ -252,197 +216,16 @@ function updateGeminiSettings(
   }
 }
 
-function writeGeminiMcpServer(
-  settingsPath: string,
-  name: string,
-  entry: GeminiMcpServerEntry | undefined,
-): void {
-  updateGeminiSettings(settingsPath, (settings) => {
-    const next = upsertGeminiMcpServer(settings.mcpServers, name, entry);
-    if (next) settings.mcpServers = next;
-    else delete settings.mcpServers;
-  });
-}
-
-function readGeminiMcpServers(settingsPath: string): NonNullable<GeminiSettings["mcpServers"]> {
-  try {
-    const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as GeminiSettings;
-    return settings.mcpServers ?? {};
-  } catch {
-    return {};
-  }
-}
-
-export function syncGeminiBrowserMcpSettings(
-  ctx: AgentEnvContext | undefined,
-  browserMcp?: BrowserMcpHttpConfig,
-  computerUseMcp?: ComputerUseMcpHttpConfig,
-  chromeMcp?: ChromeMcpHttpConfig,
-): void {
-  if (!ctx) return;
-  if (
-    ctx.browserMcpEnabled === undefined &&
-    ctx.computerUseMcpEnabled === undefined &&
-    ctx.chromeMcpEnabled === undefined
-  ) {
-    return;
-  }
-  const paths = getGeminiPluginPaths(ctx);
-  if (!paths.settingsPath) return;
-  const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
-  const location = isWslPluginContext(ctx)
-    ? ({ kind: "wsl", distro: ctx.wslDistro } as const)
-    : process.platform === "win32"
-      ? ({ kind: "windows" } as const)
-      : ({ kind: "posix" } as const);
-  // Upsert each server independently so a sync for one MCP never clobbers the
-  // other's staged entry (or the subagents entry written by its own sync).
-  if (ctx.browserMcpEnabled !== undefined) {
-    const entry =
-      ctx.browserMcpEnabled && browserMcp
-        ? buildGeminiBrowserMcpServers(location, browserMcp)?.[BROWSER_MCP_SERVER_NAME]
-        : undefined;
-    writeGeminiMcpServer(settingsPath, BROWSER_MCP_SERVER_NAME, entry);
-  }
-  if (ctx.computerUseMcpEnabled !== undefined) {
-    const entry = buildGeminiComputerUseMcpServers(
-      location,
-      ctx.computerUseMcpEnabled === true,
-      computerUseMcp,
-    )?.[COMPUTER_USE_MCP_SERVER_NAME];
-    writeGeminiMcpServer(settingsPath, COMPUTER_USE_MCP_SERVER_NAME, entry);
-  }
-  if (ctx.chromeMcpEnabled !== undefined) {
-    const entry = buildGeminiChromeMcpServers(location, ctx.chromeMcpEnabled === true, chromeMcp)?.[
-      CHROME_MCP_SERVER_NAME
-    ];
-    writeGeminiMcpServer(settingsPath, CHROME_MCP_SERVER_NAME, entry);
-  }
-}
-
-export function syncGeminiUserMcpSettings(ctx: AgentEnvContext | undefined): void {
-  if (!ctx) return;
-  const paths = getGeminiPluginPaths(ctx);
-  if (!paths.settingsPath) return;
-  const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
-  updateGeminiSettings(settingsPath, (settings) => {
-    const existing = settings.mcpServers ?? {};
-    const builtIns = Object.fromEntries(
-      Object.entries(existing).filter(([name]) => isReservedMcpServerName(name)),
-    );
-    const mcpServers = {
-      ...buildGeminiUserMcpServers(ctx.mcpServers ?? []),
-      ...builtIns,
-    };
-    if (Object.keys(mcpServers).length > 0) settings.mcpServers = mcpServers;
-    else delete settings.mcpServers;
-  });
-}
-
-/**
- * Merge (or clear) the cross-provider subagents MCP server entry in Gemini's
- * staged `settings.json`. Mirrors `syncGeminiBrowserMcpSettings`; the endpoint
- * is pre-resolved so there is no location/WSL fallback. Passing an undefined
- * `subagentMcp` clears the entry.
- */
-export function syncGeminiSubagentMcpSettings(
-  ctx: AgentEnvContext | undefined,
-  subagentMcp?: SubagentMcpHttpConfig,
-): void {
-  const paths = getGeminiPluginPaths(ctx);
-  if (!paths.settingsPath) return;
-  const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
-  const entry = buildGeminiSubagentMcpServers(subagentMcp)?.[SUBAGENT_MCP_SERVER_NAME];
-  writeGeminiMcpServer(settingsPath, SUBAGENT_MCP_SERVER_NAME, entry);
-}
-
-export function syncGeminiAppControlsMcpSettings(
-  ctx: AgentEnvContext | undefined,
-  enabled: boolean,
-  appControlsMcp?: AppControlsMcpHttpConfig,
-): void {
-  const paths = getGeminiPluginPaths(ctx);
-  if (!paths.settingsPath) return;
-  const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
-  const location = isWslPluginContext(ctx)
-    ? ({ kind: "wsl", distro: ctx.wslDistro } as const)
-    : process.platform === "win32"
-      ? ({ kind: "windows" } as const)
-      : ({ kind: "posix" } as const);
-  const entry = enabled
-    ? buildGeminiAppControlsMcpServers(location, appControlsMcp)?.[APP_CONTROLS_MCP_SERVER_NAME]
-    : undefined;
-  writeGeminiMcpServer(settingsPath, APP_CONTROLS_MCP_SERVER_NAME, entry);
-}
-
-export interface GeminiLaunchMcpSettings {
-  browserMcp?: BrowserMcpHttpConfig;
-  computerUseMcp?: ComputerUseMcpHttpConfig;
-  chromeMcp?: ChromeMcpHttpConfig;
-  subagentMcp?: SubagentMcpHttpConfig;
-  appControlsMcp?: AppControlsMcpHttpConfig;
-}
-
 /** Replace the complete per-thread MCP projection with one settings-file update. */
 export function syncGeminiLaunchMcpSettings(
   ctx: AgentEnvContext,
-  input: GeminiLaunchMcpSettings,
+  servers: readonly ResolvedMcpServer[],
 ): void {
   const paths = getGeminiPluginPaths(ctx);
   if (!paths.settingsPath) return;
   const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
-  const location = isWslPluginContext(ctx)
-    ? ({ kind: "wsl", distro: ctx.wslDistro } as const)
-    : process.platform === "win32"
-      ? ({ kind: "windows" } as const)
-      : ({ kind: "posix" } as const);
-
   updateGeminiSettings(settingsPath, (settings) => {
-    const existingBuiltIns = Object.fromEntries(
-      Object.entries(settings.mcpServers ?? {}).filter(([name]) => isReservedMcpServerName(name)),
-    );
-    const mcpServers: Record<string, GeminiMcpServerEntry> = {
-      ...buildGeminiUserMcpServers(ctx.mcpServers ?? []),
-      ...existingBuiltIns,
-    };
-    const set = (name: string, entry: GeminiMcpServerEntry | undefined): void => {
-      if (entry) mcpServers[name] = entry;
-      else delete mcpServers[name];
-    };
-
-    set(
-      BROWSER_MCP_SERVER_NAME,
-      ctx.browserMcpEnabled && input.browserMcp
-        ? buildGeminiBrowserMcpServers(location, input.browserMcp)?.[BROWSER_MCP_SERVER_NAME]
-        : undefined,
-    );
-    set(
-      COMPUTER_USE_MCP_SERVER_NAME,
-      buildGeminiComputerUseMcpServers(
-        location,
-        ctx.computerUseMcpEnabled === true,
-        input.computerUseMcp,
-      )?.[COMPUTER_USE_MCP_SERVER_NAME],
-    );
-    set(
-      CHROME_MCP_SERVER_NAME,
-      buildGeminiChromeMcpServers(location, ctx.chromeMcpEnabled === true, input.chromeMcp)?.[
-        CHROME_MCP_SERVER_NAME
-      ],
-    );
-    set(
-      SUBAGENT_MCP_SERVER_NAME,
-      buildGeminiSubagentMcpServers(input.subagentMcp)?.[SUBAGENT_MCP_SERVER_NAME],
-    );
-    set(
-      APP_CONTROLS_MCP_SERVER_NAME,
-      input.appControlsMcp
-        ? buildGeminiAppControlsMcpServers(location, input.appControlsMcp)?.[
-            APP_CONTROLS_MCP_SERVER_NAME
-          ]
-        : undefined,
-    );
-
+    const mcpServers: Record<string, GeminiMcpServerEntry> = buildGeminiMcpServers(servers);
     if (Object.keys(mcpServers).length > 0) settings.mcpServers = mcpServers;
     else delete settings.mcpServers;
   });
@@ -491,15 +274,12 @@ export function installGeminiPlugin(
       sourceDir,
       manifest,
       options.resolvedNodePath,
-      ctx.browserMcp,
-      ctx.computerUseMcp,
-      ctx.chromeMcp,
+      ctx.mcpServers ?? [],
     );
   }
 
   const pluginDir = getNativePluginBaseDir("gemini", ctx?.baseDir);
   const settingsPath = join(pluginDir, "settings.json");
-  const preservedMcpServers = readGeminiMcpServers(settingsPath);
   mkdirSync(pluginDir, { recursive: true });
   copyPluginAssetsIfStale(sourceDir, pluginDir);
   copyForwardRuntimeFile(pluginDir);
@@ -508,20 +288,7 @@ export function installGeminiPlugin(
   });
 
   const nativeCommands = buildNativeHookCommandHeads(wrapperPath);
-  const mcpServers = {
-    ...preservedMcpServers,
-    ...(buildGeminiBrowserMcpServers({ kind: "windows" }, ctx?.browserMcp) ?? {}),
-    ...(buildGeminiComputerUseMcpServers(
-      { kind: "windows" },
-      ctx?.computerUseMcpEnabled === true,
-      ctx?.computerUseMcp,
-    ) ?? {}),
-    ...(buildGeminiChromeMcpServers(
-      { kind: "windows" },
-      ctx?.chromeMcpEnabled === true,
-      ctx?.chromeMcp,
-    ) ?? {}),
-  };
+  const mcpServers = buildGeminiMcpServers(ctx?.mcpServers ?? []);
   const settings = renderGeminiSettings({
     headExpression: nativeCommands.command,
     ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {}),
@@ -544,14 +311,8 @@ function installGeminiPluginWsl(
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
-  browserMcp?: BrowserMcpHttpConfig,
-  computerUseMcp?: ComputerUseMcpHttpConfig,
-  chromeMcp?: ChromeMcpHttpConfig,
+  servers: readonly ResolvedMcpServer[],
 ): { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string } {
-  const existingPluginDir = getWslPluginBaseDirs(distro, "gemini");
-  const preservedMcpServers = existingPluginDir
-    ? readGeminiMcpServers(`${existingPluginDir.uncBase}\\settings.json`)
-    : {};
   const staged = stagePluginAssetsToWsl(distro, sourceDir, "gemini", {
     includeForwardRuntime: true,
   });
@@ -565,20 +326,7 @@ function installGeminiPluginWsl(
 
   try {
     mkdirSync(dirname(uncSettingsPath), { recursive: true });
-    const mcpServers = {
-      ...preservedMcpServers,
-      ...(buildGeminiBrowserMcpServers({ kind: "wsl", distro }, browserMcp) ?? {}),
-      ...(buildGeminiComputerUseMcpServers(
-        { kind: "wsl", distro },
-        computerUseMcp !== undefined,
-        computerUseMcp,
-      ) ?? {}),
-      ...(buildGeminiChromeMcpServers(
-        { kind: "wsl", distro },
-        chromeMcp !== undefined,
-        chromeMcp,
-      ) ?? {}),
-    };
+    const mcpServers = buildGeminiMcpServers(servers);
     const settings = renderGeminiSettings({
       headExpression,
       ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {}),

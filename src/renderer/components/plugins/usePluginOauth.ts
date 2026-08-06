@@ -38,7 +38,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
 
   const refresh = useCallback(async () => {
     try {
-      const status = await readBridge().getMcpOauthStatus();
+      const status = await readBridge().getMcpOauthStatus({});
       setAuthorizedUrls(status.authenticatedUrls);
     } catch {
       // Leave the state unknown rather than claiming a server is disconnected.

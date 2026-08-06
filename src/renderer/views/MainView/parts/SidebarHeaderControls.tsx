@@ -1,10 +1,13 @@
 import { FolderPlus, Globe, Search } from "lucide-react";
-import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
+import { Button, Dropdown, Label, Separator, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { toggleBrowserPanel } from "@/renderer/actions/panelActions";
 import {
   type ThreadSortMode,
+  listLayoutIcon,
+  listLayoutLabel,
+  listLayoutOrder,
   sortModeOrder,
   sortModeIcon,
   sortModeLabel,
@@ -14,6 +17,7 @@ import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject
 export function SidebarHeaderControls() {
   const { t } = useLingui();
   const threadSortMode = usePanelStore((s) => s.threadSortMode);
+  const threadListLayout = usePanelStore((s) => s.threadListLayout);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
   const browserVisible = browserPanelOpen && rightPanelTab === "browser";
@@ -51,23 +55,26 @@ export function SidebarHeaderControls() {
       <Dropdown>
         <Button
           isIconOnly
-          aria-label={t`Sort threads`}
+          aria-label={t`List options`}
           size="sm"
           variant="ghost"
           className="size-6 min-w-0 text-muted hover:text-foreground"
         >
           {(() => {
-            const Icon = sortModeIcon[threadSortMode];
+            const Icon =
+              threadListLayout === "flat" ? listLayoutIcon.flat : sortModeIcon[threadSortMode];
             return <Icon className="size-3.5" />;
           })()}
         </Button>
         <Dropdown.Popover>
           <Dropdown.Menu
-            aria-label={t`Thread sort order`}
-            selectionMode="single"
-            selectedKeys={[threadSortMode]}
+            aria-label={t`Thread list options`}
+            selectionMode="multiple"
+            selectedKeys={[threadSortMode, threadListLayout]}
             onAction={(key) => {
-              usePanelStore.getState().setThreadSortMode(key as ThreadSortMode);
+              const state = usePanelStore.getState();
+              if (key === "grouped" || key === "flat") state.setThreadListLayout(key);
+              else state.setThreadSortMode(key as ThreadSortMode);
             }}
           >
             {sortModeOrder.map((mode) => {
@@ -77,6 +84,19 @@ export function SidebarHeaderControls() {
                 <Dropdown.Item key={mode} id={mode} textValue={label}>
                   <Icon className="size-4 shrink-0 text-muted" />
                   <Label>{label}</Label>
+                  <Dropdown.ItemIndicator />
+                </Dropdown.Item>
+              );
+            })}
+            <Separator />
+            {listLayoutOrder.map((layout) => {
+              const Icon = listLayoutIcon[layout];
+              const label = t(listLayoutLabel[layout]);
+              return (
+                <Dropdown.Item key={layout} id={layout} textValue={label}>
+                  <Icon className="size-4 shrink-0 text-muted" />
+                  <Label>{label}</Label>
+                  <Dropdown.ItemIndicator />
                 </Dropdown.Item>
               );
             })}

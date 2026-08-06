@@ -90,6 +90,7 @@ describe("createAcpGenericAdapter", () => {
       { id: "default", label: "Supervised" },
       { id: "never", label: "Auto Approve" },
     ]);
+    expect(status.capabilities.defaultApprovalPolicy).toBe("never");
   });
 
   it("normalizes probe-produced default-only approval policy to supervised and auto-approve", async () => {
@@ -102,6 +103,7 @@ describe("createAcpGenericAdapter", () => {
       { id: "default", label: "Supervised" },
       { id: "never", label: "Auto Approve" },
     ]);
+    expect(status.capabilities.defaultApprovalPolicy).toBe("never");
   });
 
   it("does not override agent-advertised approval policies", async () => {

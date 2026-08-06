@@ -5,10 +5,14 @@ import type { ProjectLocation } from "@/shared/contracts";
 const buildAgentCommandMock = vi.hoisted(() =>
   vi.fn<(location: ProjectLocation, command: string, args: string[]) => unknown>(),
 );
+const terminateProcessTreeMock = vi.hoisted(() => vi.fn<(pid: number) => void>());
+const spawnPtyMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 
 vi.mock("./agents/base", () => ({ buildAgentCommand: buildAgentCommandMock }));
+vi.mock("@/shared/processTree", () => ({ terminateProcessTree: terminateProcessTreeMock }));
+vi.mock("node-pty", () => ({ spawn: spawnPtyMock }));
 
-import { buildOneShotSpec } from "./oneShotSpawn";
+import { buildOneShotSpec, spawnAgentPty } from "./oneShotSpawn";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -52,5 +56,42 @@ describe("buildOneShotSpec isolateCwd", () => {
   it("does not neutralize the cwd when isolateCwd is false", () => {
     buildOneShotSpec(wslProject, "agy", ["-p", "hi"], { isolateCwd: false });
     expect(capturedLocation()).toEqual(wslProject);
+  });
+});
+
+describe("spawnAgentPty", () => {
+  it("terminates the process tree on Windows instead of invoking node-pty's console helper", async () => {
+    vi.useFakeTimers();
+    const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    let onExit: ((event: { exitCode: number }) => void) | undefined;
+    const kill = vi.fn<() => void>();
+    spawnPtyMock.mockReturnValue({
+      pid: 4321,
+      kill,
+      write: vi.fn<() => void>(),
+      onData: vi.fn<() => { dispose: () => void }>(() => ({
+        dispose: vi.fn<() => void>(),
+      })),
+      onExit: vi.fn<(callback: (event: { exitCode: number }) => void) => { dispose: () => void }>(
+        (callback) => {
+          onExit = callback;
+          return { dispose: vi.fn<() => void>() };
+        },
+      ),
+    });
+
+    try {
+      const result = spawnAgentPty({ command: "agy", args: [] }, "", 10);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(terminateProcessTreeMock).toHaveBeenCalledWith(4321);
+      expect(kill).not.toHaveBeenCalled();
+
+      onExit?.({ exitCode: 1 });
+      await expect(result).rejects.toThrow("Agent timed out");
+    } finally {
+      platform.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });

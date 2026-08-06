@@ -1,54 +1,44 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import type { InstalledPlugins } from "@/shared/contracts";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import { defaultSharedSettings } from "@/shared/settings";
 import { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
 
-function writeInstalledPlugins(settingsPath: string, installedPlugins: InstalledPlugins): void {
-  writeFileAtomic(settingsPath, JSON.stringify({ ...defaultSharedSettings, installedPlugins }), {
-    encoding: "utf8",
-  });
+const tempDirs: string[] = [];
+const caches: SupervisorSharedSettingsCache[] = [];
+
+afterEach(() => {
+  for (const cache of caches.splice(0)) cache.dispose();
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+function writeTheme(settingsPath: string, themeMode: "dark" | "light"): void {
+  writeFileAtomic(
+    settingsPath,
+    `${JSON.stringify({ ...defaultSharedSettings, themeMode }, null, 2)}\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
 }
 
 describe("SupervisorSharedSettingsCache", () => {
-  it("reads plugin state synchronously when the filesystem watcher has not invalidated the cache", () => {
-    const directory = mkdtempSync(join(tmpdir(), "poracode-supervisor-settings-"));
-    const settingsPath = join(directory, "settings.json");
+  it("re-arms its watcher after repeated atomic file replacements", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-supervisor-settings-"));
+    tempDirs.push(dir);
+    const settingsPath = join(dir, "settings.json");
+    writeTheme(settingsPath, "dark");
     const cache = new SupervisorSharedSettingsCache(settingsPath);
+    caches.push(cache);
 
-    try {
-      expect(cache.read().installedPlugins).toEqual({});
+    expect(cache.read().themeMode).toBe("dark");
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
-      writeInstalledPlugins(settingsPath, {
-        "browser-tools": {
-          version: "1.0.0",
-          enabled: true,
-          disabledSkillIds: [],
-          disabledAppIds: [],
-          disabledMcpServerNames: [],
-        },
-      });
-      expect(cache.readFresh().installedPlugins["browser-tools"]?.enabled).toBe(true);
+    writeTheme(settingsPath, "light");
+    await vi.waitFor(() => expect(cache.read().themeMode).toBe("light"), { timeout: 2_000 });
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
-      writeInstalledPlugins(settingsPath, {
-        "browser-tools": {
-          version: "1.0.0",
-          enabled: false,
-          disabledSkillIds: [],
-          disabledAppIds: [],
-          disabledMcpServerNames: [],
-        },
-      });
-      expect(cache.readFresh().installedPlugins["browser-tools"]?.enabled).toBe(false);
-
-      writeInstalledPlugins(settingsPath, {});
-      expect(cache.readFresh().installedPlugins).toEqual({});
-    } finally {
-      cache.dispose();
-      rmSync(directory, { recursive: true, force: true });
-    }
+    writeTheme(settingsPath, "dark");
+    await vi.waitFor(() => expect(cache.read().themeMode).toBe("dark"), { timeout: 2_000 });
   });
 });

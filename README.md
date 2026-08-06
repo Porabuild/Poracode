@@ -6,11 +6,11 @@
 
 <p align="center">
   <strong>One window for all your AI coding agents.</strong><br />
-  Run Claude, Codex, OpenCode, Gemini, Grok, Antigravity, Cursor, Command Code, and Copilot side-by-side. Terminal and chat, any layout.
+  Run Claude, Codex, OpenCode, Gemini, Grok, Kimi Code, Qwen Code, Pi, Qoder, Factory Droid, Antigravity, Cursor, Command Code, and Copilot side-by-side. Terminal and chat, any layout — with built-in MCP so agents can orchestrate each other and the app itself.
 </p>
 
 <p align="center">
-  <a href="https://poracode.com">Website</a> · <a href="https://github.com/SDSLeon/lightcode/releases">Download</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Report Bug</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Request Feature</a>
+  <a href="https://poracode.com">Website</a> · <a href="https://github.com/SDSLeon/lightcode/releases">Download</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Report a Bug</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Request Feature</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 
 ## Supported Agents
 
-**Claude** · **Codex** · **OpenCode** · **Gemini** · **Grok** · **Antigravity** · **Cursor** · **Command Code** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
+**Claude** · **Codex** · **OpenCode** · **Gemini** · **Grok** · **Kimi Code** · **Qwen Code** · **Pi** · **Qoder** · **Factory Droid** · **Antigravity** · **Cursor** · **Command Code** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
 
 ## Why Poracode?
 
@@ -33,11 +33,51 @@ If you use more than one AI coding agent, you know the pain: separate terminals,
 
 ### Infinite Threads & Layouts
 
-Open as many agent threads as you need and arrange them in horizontal and vertical splits. Resize, stack, and rearrange freely. The layout stays fast no matter how many threads you have running.
+Mix TUI and GUI agents in any configuration. Open as many threads as you need, arrange them in horizontal and vertical splits, and resize freely. The layout stays fast no matter how many sessions you have running.
 
 ### Unified Protocol GUI
 
-Agents that support structured APIs (like ACP or provider SDKs) get a proper chat interface with markdown, syntax highlighting, and tool call displays.
+A consistent chat interface for ACP and SDK agents — markdown, syntax highlighting, and tool call displays. Where a provider offers more than one runtime (for example Cursor ships CLI, ACP, and SDK), you pick which one a thread runs on.
+
+### Crossagents
+
+Let one agent delegate work to another across providers. Subagent output streams into the parent thread, background runs finish while the parent keeps working, and you can pin routing rules per task type.
+
+### Built-in MCP & App Controls
+
+Poracode ships its own MCP servers. Point any agent at them to create and steer threads, organize projects, list and merge Git worktrees, commit and sync, open and merge pull requests, schedule runs, manage skills, and change settings — or add your own MCP servers over stdio, HTTP, or SSE.
+
+### Agent Experiments
+
+Run one prompt across several agents in parallel worktrees, then let an AI judge compare their code and answers, crown a winner, and merge it or open a PR.
+
+### Scheduled Runs
+
+Put recurring work on a schedule — nightly reviews, dependency sweeps, changelog drafts — and let Poracode start the thread for you.
+
+### Skills & Marketplace
+
+Browse and install skills from public marketplaces, or import your own. One shared folder that every provider picks up automatically.
+
+### On-Device Voice Input
+
+Dictate a prompt with a keystroke. Whisper runs locally, with optional GPU acceleration, so your audio never leaves the machine.
+
+### Checkpoints & Rollback
+
+Rewind a conversation to any earlier message and restore the files with it, with a warning first when another thread shares the same tree.
+
+### Project Workspaces
+
+Group projects into workspaces and switch the whole sidebar between them, so dozens of repos stay one click apart.
+
+### Git Worktrees
+
+Group threads by worktree and drive parallel branches side by side, without leaving the app.
+
+### Live Usage & Limits
+
+See session and weekly quota for every provider — Claude Max, ChatGPT Pro, and more — at a glance.
 
 ### Terminal Fidelity
 
@@ -55,9 +95,17 @@ Sessions are saved automatically, so you can close Poracode and pick up right wh
 
 Open web pages, attach browser context to agents, and keep research in the same workspace.
 
-### In-App GitHub PRs
+### Remote Access
 
-View diffs, stage files, generate commit messages with AI, and review GitHub PRs directly inside Poracode.
+Pair the Poracode web app with your desktop to follow live threads, read terminal output, send messages, and receive notifications from your phone or browser.
+
+### Remote Machines over SSH
+
+Connect a server from your SSH config and Poracode installs its runtime there, then runs agents on that machine — clone repos, open threads, and drive projects that never leave the box.
+
+### In-App PRs
+
+Review pull requests, browse diffs, stage changes, and generate AI commits — then let automation watch the PR, fix what fails, merge with your chosen method, and mark the thread done.
 
 ### Code Editor
 
@@ -79,11 +127,11 @@ Install and run any agent from the [Agent Client Protocol](https://agentclientpr
 
 Download the latest release for your platform from the [releases page](https://github.com/SDSLeon/lightcode/releases) or visit [poracode.com](https://poracode.com).
 
-| Platform | Format           |
-| -------- | ---------------- |
-| macOS    | DMG (Universal)  |
-| Windows  | NSIS installer   |
-| Linux    | AppImage, `.deb` |
+| Platform | Format                        |
+| -------- | ----------------------------- |
+| macOS    | DMG (Apple silicon or Intel)  |
+| Windows  | NSIS installer (x64 or Arm64) |
+| Linux    | AppImage or `.deb` (x64)      |
 
 ### Getting Started
 

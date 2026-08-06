@@ -118,7 +118,7 @@ console.log(`[cap-android] target: ${target}`);
 const gradleCommand = process.platform === "win32" ? "cmd.exe" : "./gradlew";
 const gradleArgs =
   process.platform === "win32"
-    ? ["/d", "/s", "/c", "gradlew.bat", "assembleDebug"]
+    ? ["/d", "/s", "/c", ".\\gradlew.bat", "assembleDebug"]
     : ["assembleDebug"];
 const apkPath = resolve(androidDir, "app/build/outputs/apk/debug/app-debug.apk");
 const nativeRunArgs = [

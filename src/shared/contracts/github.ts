@@ -2,11 +2,14 @@ import { z } from "zod";
 import { projectLocationSchema } from "./common";
 
 export type PrState = "open" | "draft" | "merged" | "closed";
-export type PrMergeMethod = "merge" | "squash" | "rebase";
+export const prMergeMethodSchema = z.enum(["merge", "squash", "rebase"]);
+export type PrMergeMethod = z.infer<typeof prMergeMethodSchema>;
 
 export interface PrData {
   number: number;
   state: PrState;
+  /** Last commit that belonged to this pull request's head branch. */
+  headSha?: string;
   title: string;
   url: string;
   baseBranch: string;
@@ -75,6 +78,15 @@ export interface PrComment {
   body: string;
   createdAt: string;
   url?: string;
+}
+
+export interface PrReviewThread {
+  id: string;
+  isResolved: boolean;
+  isOutdated: boolean;
+  path?: string;
+  line?: number;
+  comments: PrComment[];
 }
 
 export type PrReviewState =
@@ -167,10 +179,149 @@ export interface GhListPullRequestsResult {
   viewerLogin?: string;
 }
 
+export interface GitHubActionsWorkflow {
+  id: number;
+  name: string;
+  path: string;
+  state: string;
+}
+
+export type GitHubActionsWorkflowInputType =
+  | "boolean"
+  | "choice"
+  | "environment"
+  | "number"
+  | "string";
+
+export interface GitHubActionsWorkflowInput {
+  name: string;
+  description: string;
+  required: boolean;
+  type: GitHubActionsWorkflowInputType;
+  defaultValue?: string | number | boolean;
+  options: string[];
+}
+
+export interface GitHubActionsWorkflowDefinition {
+  workflowId: number;
+  ref: string;
+  defaultBranch: string;
+  dispatchable: boolean;
+  triggers: string[];
+  inputs: GitHubActionsWorkflowInput[];
+}
+
+export interface GitHubActionsStep {
+  number: number;
+  name: string;
+  status: string;
+  conclusion: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface GitHubActionsJob {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string;
+  startedAt?: string;
+  completedAt?: string;
+  url?: string;
+  steps: GitHubActionsStep[];
+}
+
+export interface GitHubActionsRun {
+  id: number;
+  workflowId: number;
+  workflowName: string;
+  name: string;
+  number: number;
+  attempt: number;
+  title: string;
+  event: string;
+  headBranch: string;
+  headSha: string;
+  status: string;
+  conclusion: string;
+  createdAt: string;
+  startedAt: string;
+  updatedAt: string;
+  url: string;
+  jobs: GitHubActionsJob[];
+}
+
+export const ghListWorkflowsPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GhListWorkflowsPayload = z.infer<typeof ghListWorkflowsPayloadSchema>;
+
+export interface GhListWorkflowsResult {
+  workflows: GitHubActionsWorkflow[];
+}
+
+export const ghListWorkflowRunsPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  workflowId: z.number().int().min(1).optional(),
+});
+export type GhListWorkflowRunsPayload = z.infer<typeof ghListWorkflowRunsPayloadSchema>;
+
+export interface GhListWorkflowRunsResult {
+  runs: GitHubActionsRun[];
+}
+
+export const ghGetWorkflowDefinitionPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  workflowId: z.number().int().min(1),
+  ref: z.string().min(1).optional(),
+});
+export type GhGetWorkflowDefinitionPayload = z.infer<typeof ghGetWorkflowDefinitionPayloadSchema>;
+
+export interface GhGetWorkflowDefinitionResult {
+  definition: GitHubActionsWorkflowDefinition;
+}
+
+export const ghGetWorkflowRunPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  runId: z.number().int().min(1),
+});
+export type GhGetWorkflowRunPayload = z.infer<typeof ghGetWorkflowRunPayloadSchema>;
+
+export interface GhGetWorkflowRunResult {
+  run: GitHubActionsRun;
+}
+
+export const ghDispatchWorkflowPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  workflowId: z.number().int().min(1),
+  ref: z.string().min(1).optional(),
+  inputs: z.record(z.string().min(1), z.string()).default({}),
+});
+export type GhDispatchWorkflowPayload = z.infer<typeof ghDispatchWorkflowPayloadSchema>;
+
+export const ghRerunWorkflowRunPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  runId: z.number().int().min(1),
+  failedOnly: z.boolean().default(false),
+});
+export type GhRerunWorkflowRunPayload = z.infer<typeof ghRerunWorkflowRunPayloadSchema>;
+
+export const ghCancelWorkflowRunPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  runId: z.number().int().min(1),
+});
+export type GhCancelWorkflowRunPayload = z.infer<typeof ghCancelWorkflowRunPayloadSchema>;
+
+export const ghDeleteWorkflowRunPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  runId: z.number().int().min(1),
+});
+export type GhDeleteWorkflowRunPayload = z.infer<typeof ghDeleteWorkflowRunPayloadSchema>;
+
 export const ghMergePrPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   prNumber: z.number().int().min(1),
-  method: z.enum(["merge", "squash", "rebase"]).default("merge"),
+  method: prMergeMethodSchema.default("merge"),
   admin: z.boolean().default(false),
 });
 export type GhMergePrPayload = z.infer<typeof ghMergePrPayloadSchema>;
@@ -246,6 +397,11 @@ export type GhGetPrDetailsPayload = z.infer<typeof ghGetPrDetailsPayloadSchema>;
 
 export interface GhGetPrDetailsResult {
   details: PrDetails;
+}
+
+export interface GhGetPrReviewThreadsResult {
+  comments: PrComment[];
+  threads: PrReviewThread[];
 }
 
 export const ghPostPrCommentPayloadSchema = z.object({

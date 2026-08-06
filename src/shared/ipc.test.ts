@@ -3,6 +3,7 @@ import { createLocalIpcHandlers } from "@/main/ipc/localHandlers";
 import { createSupervisorIpcHandlers } from "@/supervisor/ipcHandlers";
 import {
   createInvokeBridge,
+  createProcedureBridge,
   ipcProcedureMap,
   MAIN_LOCAL_PROCEDURE_NAMES,
   type MainLocalProcedureName,
@@ -22,6 +23,44 @@ describe("ipcProcedureMap", () => {
     for (const name of Object.keys(ipcProcedureMap)) {
       expect(typeof bridge[name as keyof typeof bridge]).toBe("function");
     }
+  });
+
+  it("can generate a bridge while preserving procedure names and arguments", async () => {
+    const invoke = vi.fn<(name: string, args: unknown[]) => Promise<unknown>>(async () => null);
+    const bridge = createProcedureBridge(invoke);
+
+    await bridge.dbGetProjectNotes("project-1");
+
+    expect(invoke).toHaveBeenCalledWith("dbGetProjectNotes", ["project-1"]);
+  });
+
+  it("repairs blank legacy thread models at the database persistence boundary", () => {
+    const baseThread = {
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "claude" as const,
+      status: "idle" as const,
+      attention: "none" as const,
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    const parsed = ipcProcedureMap.dbSyncAll.parseArgs(
+      [],
+      [
+        { ...baseThread, config: { model: "", effort: "high" } },
+        { ...baseThread, id: "thread-2", config: { model: "sonnet", effort: "low" } },
+      ],
+      JSON.stringify({ kind: "home" }),
+    );
+
+    expect(parsed.threads[0]?.config).toEqual({ model: "auto", effort: "high" });
+    expect(parsed.threads[1]?.config).toEqual({ model: "sonnet", effort: "low" });
   });
 
   it("covers every main-local procedure with a local handler", () => {
@@ -63,6 +102,7 @@ describe("ipcProcedureMap", () => {
       injectBrowserToMain: vi.fn<() => void>(),
       requestRelaunch: vi.fn<() => void>(),
       scheduleService: {} as never,
+      prWatchService: {} as never,
     });
 
     expect(Object.keys(handlers).sort()).toEqual([...MAIN_LOCAL_PROCEDURE_NAMES].sort());

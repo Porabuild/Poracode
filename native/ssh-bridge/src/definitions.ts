@@ -6,6 +6,20 @@ export type SshBridgeAuthentication =
       readonly passphrase?: string;
     };
 
+export type SshBridgeErrorCode =
+  | "SSH_INVALID_INPUT"
+  | "SSH_PROBE_FAILED"
+  | "SSH_CONNECT_FAILED"
+  | "SSH_AUTHENTICATION_FAILED"
+  | "SSH_NOT_CONNECTED"
+  | "SSH_COMMAND_FAILED"
+  | "SSH_UPLOAD_FAILED"
+  | "SSH_FORWARD_FAILED";
+
+export interface SshBridgeError extends Error {
+  readonly code: SshBridgeErrorCode;
+}
+
 export interface SshBridgeTarget {
   readonly host: string;
   readonly port: number;

@@ -7,6 +7,8 @@ import {
   type McpOauthBeginResult,
   mcpOauthClearPayloadSchema,
   type McpOauthClearPayload,
+  mcpOauthStatusPayloadSchema,
+  type McpOauthStatusPayload,
   mcpOauthWaitPayloadSchema,
   type McpOauthWaitPayload,
   type McpOauthWaitResult,
@@ -14,10 +16,31 @@ import {
   mcpProbePayloadSchema,
   type McpProbePayload,
   type McpProbeResult,
+  reloadAgentMcpServersPayloadSchema,
+  type ReloadAgentMcpServersPayload,
 } from "../../contracts";
-import { defineNoArgProcedure, definePayloadProcedure } from "../core";
+import { z } from "zod";
+import { definePayloadProcedure } from "../core";
+
+export const confirmCrossagentRoutingOverridePayloadSchema = z.object({
+  requestId: z.string().uuid(),
+  ok: z.boolean(),
+  error: z.string().optional(),
+});
+export type ConfirmCrossagentRoutingOverridePayload = z.infer<
+  typeof confirmCrossagentRoutingOverridePayloadSchema
+>;
 
 export const mcpProcedures = {
+  confirmCrossagentRoutingOverride: definePayloadProcedure<
+    ConfirmCrossagentRoutingOverridePayload,
+    void,
+    "supervisor"
+  >(
+    "confirmCrossagentRoutingOverride",
+    "supervisor",
+    confirmCrossagentRoutingOverridePayloadSchema,
+  ),
   discoverExternalMcpServers: definePayloadProcedure<
     DiscoverExternalMcpServersPayload,
     DiscoverExternalMcpServersResult,
@@ -27,6 +50,11 @@ export const mcpProcedures = {
     "probeMcpServer",
     "supervisor",
     mcpProbePayloadSchema,
+  ),
+  reloadAgentMcpServers: definePayloadProcedure<ReloadAgentMcpServersPayload, void, "supervisor">(
+    "reloadAgentMcpServers",
+    "supervisor",
+    reloadAgentMcpServersPayloadSchema,
   ),
   beginMcpServerOauth: definePayloadProcedure<
     McpOauthBeginPayload,
@@ -43,8 +71,9 @@ export const mcpProcedures = {
     "supervisor",
     mcpOauthClearPayloadSchema,
   ),
-  getMcpOauthStatus: defineNoArgProcedure<McpOauthStatusResult, "supervisor">(
-    "getMcpOauthStatus",
-    "supervisor",
-  ),
+  getMcpOauthStatus: definePayloadProcedure<
+    McpOauthStatusPayload,
+    McpOauthStatusResult,
+    "supervisor"
+  >("getMcpOauthStatus", "supervisor", mcpOauthStatusPayloadSchema),
 } as const;

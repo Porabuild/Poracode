@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { FileEditorPane } from "./FileEditorPane/FileEditorPane";
@@ -26,7 +26,7 @@ export function FileEditorPanel() {
     return undefined;
   }, [isOpen]);
 
-  const requestClose = useEffectEvent(() => {
+  const requestClose = () => {
     const hasDirty = Object.values(useFileEditorStore.getState().buffers).some(
       (buffer) => buffer.status === "ready" && buffer.isDirty,
     );
@@ -34,7 +34,7 @@ export function FileEditorPanel() {
       return;
     }
     setOverlayMode(null);
-  });
+  };
 
   // Close on Escape
   useEffect(() => {
@@ -47,6 +47,7 @@ export function FileEditorPanel() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the listener is scoped to the open lifecycle and requestClose reads the matching render state.
   }, [isOpen]);
 
   if (!isOpen) return null;

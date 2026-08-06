@@ -32,6 +32,7 @@ describe("QuickCompose", () => {
   it("renders only when connected and at least one project is available", () => {
     const props = {
       expanded: false,
+      restoreWorktreeSelectionToken: 0,
       onExpandedChange: vi.fn<(expanded: boolean) => void>(),
       onStarted: vi.fn<(threadId: string) => void>(),
     };
@@ -51,10 +52,24 @@ describe("QuickCompose", () => {
 
   it("collapses if the session becomes unavailable while expanded", () => {
     const onExpandedChange = vi.fn<(expanded: boolean) => void>();
-    render(<QuickCompose expanded onExpandedChange={onExpandedChange} onStarted={() => {}} />);
+    render(
+      <QuickCompose
+        expanded
+        restoreWorktreeSelectionToken={0}
+        onExpandedChange={onExpandedChange}
+        onStarted={() => {}}
+      />,
+    );
 
     fixtures.remote.connection = "offline";
-    render(<QuickCompose expanded onExpandedChange={onExpandedChange} onStarted={() => {}} />);
+    render(
+      <QuickCompose
+        expanded
+        restoreWorktreeSelectionToken={0}
+        onExpandedChange={onExpandedChange}
+        onStarted={() => {}}
+      />,
+    );
 
     expect(onExpandedChange).toHaveBeenCalledWith(false);
   });

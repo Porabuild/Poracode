@@ -12,6 +12,7 @@ export {
 } from "./procedureMap";
 export {
   createInvokeBridge,
+  createProcedureBridge,
   defineMainLocalIpcHandlers,
   defineSupervisorIpcHandlers,
   IPC_EVENT_CHANNELS,
@@ -35,7 +36,10 @@ export {
   isAgentStatusSupervisorEvent,
   type AgentStatusSupervisorEvent,
   type BrowserEvent,
-  type NotificationClickEvent,
+  type PrWatchMergedEvent,
+  type PrWatchStatusEvent,
+  type ProjectStateChangedEvent,
+  type ThreadOpenRequestedEvent,
   type SupervisorEvent,
   type SupervisorReply,
   type SupervisorRequest,
@@ -59,6 +63,7 @@ export {
 } from "./procedures/browser";
 export {
   windowChromePayloadSchema,
+  type DbPersistExperimentStatePayload,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,

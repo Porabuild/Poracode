@@ -40,6 +40,7 @@ export const WebSearchItem = memo(function WebSearchItem({ item }: WebSearchItem
     <ChatItemAccordion
       icon={<Globe className="size-3" />}
       title={title}
+      isRunning={item.state !== "completed"}
       rightLabel={right}
       hasBody={hasDetails}
       isExpanded={isExpanded}

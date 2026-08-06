@@ -1,7 +1,7 @@
-import { useEffect } from "react";
-import { Tooltip } from "@heroui/react";
+import { Fragment, useEffect, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
+import { useShallow } from "zustand/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
@@ -15,10 +15,16 @@ import {
   type ToolCallPayload,
   type WorkflowRun,
 } from "@/shared/contracts";
-import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
-import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
+import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
-import { ThreadDockHeader, ThreadDockList, ThreadDockSection } from "../../../ThreadDockUI";
+import {
+  ThreadDockActionRow,
+  ThreadDockHeader,
+  ThreadDockIconButton,
+  ThreadDockList,
+  ThreadDockSection,
+} from "../../../ThreadDockUI";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import {
   SubAgentProgressMeta,
@@ -26,72 +32,148 @@ import {
   readSubAgentLiveLabel,
 } from "./subAgentProgressMeta";
 
+export type ActiveAgentKind = "subagent" | "crossagent" | "workflow";
+
+/** Visible (non-dismissed) active agent item ids with their dock kind. */
+function useVisibleActiveAgents(threadId: string): {
+  visibleIds: readonly string[];
+  kinds: readonly ActiveAgentKind[];
+} {
+  const ids = useAppStore((s) => selectActiveSubAgentParentItemIds(s, threadId));
+  const dismissed = useThreadSubAgentDockStore((s) => s.dismissedByThread[threadId]);
+  const visibleIds = dismissed ? ids.filter((id) => !dismissed[id]) : ids;
+  const kinds = useAppStore(
+    useShallow((s) =>
+      visibleIds.map((id) => {
+        const item = getRuntimeItemStoreSelector(threadId, id)(s);
+        const payload = item
+          ? getRuntimeItemPayload<ToolCallPayload>(item, "tool_call")
+          : undefined;
+        if (isWorkflowTool(payload)) return "workflow" as const;
+        return isCrossagentTool(payload) ? ("crossagent" as const) : ("subagent" as const);
+      }),
+    ),
+  );
+  return { visibleIds, kinds };
+}
+
+/** Per-kind counts of the visible active agents — drives the mobile info chips. */
+export function useActiveAgentKindCounts(threadId: string): Record<ActiveAgentKind, number> {
+  const { kinds } = useVisibleActiveAgents(threadId);
+  const counts: Record<ActiveAgentKind, number> = { subagent: 0, crossagent: 0, workflow: 0 };
+  for (const kind of kinds) counts[kind] += 1;
+  return counts;
+}
+
 interface ActiveSubAgentTileProps {
   threadId: string;
   projectLocation?: ProjectLocation;
+  registrationOnly?: boolean;
+  /** Restrict to these dock kinds (default: all). */
+  kinds?: readonly ActiveAgentKind[];
 }
 
-export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgentTileProps) {
-  const { t } = useLingui();
-  const ids = useAppStore((s) => selectActiveSubAgentParentItemIds(s, threadId));
-  const dismissed = useThreadSubAgentDockStore((s) => s.dismissedByThread[threadId]);
+export function ActiveSubAgentTile({
+  threadId,
+  projectLocation,
+  registrationOnly = false,
+  kinds: kindFilter,
+}: ActiveSubAgentTileProps) {
   const dismissMany = useThreadSubAgentDockStore((s) => s.dismissMany);
+  const { visibleIds, kinds } = useVisibleActiveAgents(threadId);
 
-  const visibleIds = dismissed ? ids.filter((id) => !dismissed[id]) : ids;
+  if (visibleIds.length === 0) return null;
 
+  if (registrationOnly) {
+    return visibleIds.map((id) => (
+      <ActiveSubAgentRow
+        key={id}
+        threadId={threadId}
+        itemId={id}
+        registrationOnly
+        {...(projectLocation ? { projectLocation } : {})}
+      />
+    ));
+  }
+
+  return (
+    <>
+      {(["subagent", "crossagent", "workflow"] as const)
+        .filter((kind) => !kindFilter || kindFilter.includes(kind))
+        .map((kind) => {
+          const sectionIds = visibleIds.filter((_, index) => kinds[index] === kind);
+          return sectionIds.length > 0 ? (
+            <ActiveAgentSection
+              key={kind}
+              kind={kind}
+              threadId={threadId}
+              ids={sectionIds}
+              dismissMany={dismissMany}
+              {...(projectLocation ? { projectLocation } : {})}
+            />
+          ) : null;
+        })}
+    </>
+  );
+}
+
+function ActiveAgentSection({
+  kind,
+  threadId,
+  ids,
+  dismissMany,
+  projectLocation,
+}: {
+  kind: "subagent" | "crossagent" | "workflow";
+  threadId: string;
+  ids: readonly string[];
+  dismissMany: (threadId: string, itemIds: readonly string[]) => void;
+  projectLocation?: ProjectLocation;
+}) {
+  const { t } = useLingui();
   const completedCount = useAppStore(
     (s) =>
-      visibleIds.filter((id) => {
+      ids.filter((id) => {
         const item = getRuntimeItemStoreSelector(threadId, id)(s);
         if (!item) return false;
         const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
         return item.state === "completed" && payload?.status !== "running";
       }).length,
   );
-  const workflowCount = useAppStore(
-    (s) =>
-      visibleIds.filter((id) => {
-        const item = getRuntimeItemStoreSelector(threadId, id)(s);
-        if (!item) return false;
-        return isWorkflowTool(getRuntimeItemPayload<ToolCallPayload>(item, "tool_call"));
-      }).length,
-  );
-
-  if (visibleIds.length === 0) return null;
   const title =
-    workflowCount === visibleIds.length
-      ? t`Workflows`
-      : workflowCount > 0
-        ? t`Background tasks`
-        : t`Subagents`;
-  const HeaderIcon = workflowCount === visibleIds.length ? GitBranch : Bot;
+    kind === "workflow" ? t`Workflows` : kind === "crossagent" ? t`Crossagents` : t`Subagents`;
+  const closePanelLabel =
+    kind === "workflow"
+      ? t`Close workflows panel`
+      : kind === "crossagent"
+        ? t`Close Crossagents panel`
+        : t`Close subagents panel`;
+  const closeLabel =
+    kind === "workflow"
+      ? t`Close workflows`
+      : kind === "crossagent"
+        ? t`Close Crossagents`
+        : t`Close subagents`;
 
   return (
     <ThreadDockSection placement="composer" collapsed={false}>
       <ThreadDockHeader
-        icon={HeaderIcon}
+        icon={kind === "workflow" ? GitBranch : Bot}
         title={title}
-        countLabel={`${completedCount}/${visibleIds.length}`}
+        countLabel={<AnimatedFraction value={completedCount} total={ids.length} />}
         actions={
-          <Tooltip delay={0}>
-            <Tooltip.Trigger>
-              <button
-                aria-label={t`Close subagents panel`}
-                className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-                type="button"
-                onClick={() => dismissMany(threadId, visibleIds)}
-              >
-                <X className="size-3.5" />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content>
-              <Trans>Close subagents</Trans>
-            </Tooltip.Content>
-          </Tooltip>
+          <ThreadDockIconButton
+            label={closePanelLabel}
+            tooltip={closeLabel}
+            danger
+            onPress={() => dismissMany(threadId, ids)}
+          >
+            <X className="size-3.5" />
+          </ThreadDockIconButton>
         }
       />
       <ThreadDockList placement="composer" collapsed={false} gap="1">
-        {visibleIds.map((id) => (
+        {ids.map((id) => (
           <ActiveSubAgentRow
             key={id}
             threadId={threadId}
@@ -108,10 +190,12 @@ function ActiveSubAgentRow({
   threadId,
   itemId,
   projectLocation,
+  registrationOnly = false,
 }: {
   threadId: string;
   itemId: string;
   projectLocation?: ProjectLocation;
+  registrationOnly?: boolean;
 }) {
   const { t } = useLingui();
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
@@ -194,86 +278,91 @@ function ActiveSubAgentRow({
   ]);
 
   const isRunning = item?.state !== "completed" || payload?.status === "running" || workflowIsLive;
-  if (!item || !payload?.name) return null;
+  if (registrationOnly || !item || !payload?.name) return null;
 
   const display = deriveToolDisplay(payload);
+  const args =
+    payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
+      ? (payload.args as Record<string, unknown>)
+      : undefined;
+  const description = typeof args?.description === "string" ? args.description.trim() : undefined;
+  const rowTitle = description || display.title;
   const isDone = !isRunning;
   const progress = payload?.progress;
   const stepCount = progress?.stepCount ?? childCount;
   const liveLabel = readSubAgentLiveLabel(progress, display.title);
 
-  const innerClass = `flex items-center gap-2 rounded px-2 py-1 leading-5 ${
-    isDone ? "opacity-60" : ""
-  } ${!isDone ? "bg-accent/10" : ""}`;
-
   return (
-    <li className="group relative flex">
-      <button
-        type="button"
-        onClick={() => openSubAgent(threadId, item.id)}
-        className={`poracode-subagent-dock-row flex min-w-0 flex-1 text-left transition-[padding,background-color] duration-150 hover:bg-foreground/5 group-hover:pr-8 ${innerClass}`}
-        aria-label={display.title}
-        title={display.title}
+    <ThreadDockActionRow
+      title={rowTitle}
+      onClick={() => openSubAgent(threadId, item.id)}
+      className={`${isDone ? "opacity-60" : ""} ${!isDone ? "bg-accent/10" : ""}`}
+      action={<X className="size-3" />}
+      actionLabel={t`Remove ${rowTitle} from panel`}
+      actionTitle={t`Remove from panel`}
+      onAction={() => dismiss(threadId, itemId)}
+    >
+      {isDone ? (
+        <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
+      ) : (
+        <Bot className="size-3.5 shrink-0 text-foreground-muted" />
+      )}
+      <span
+        className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
       >
-        {isDone ? (
-          <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
-        ) : (
-          <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
-            <PixelLoader size="xxs" className="text-foreground" />
-          </span>
-        )}
-        <span
-          className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
-        >
-          {display.title}
+        {rowTitle}
+      </span>
+      {workflow && workflowRun ? (
+        <WorkflowDockStats run={workflowRun} />
+      ) : workflowIsLive ? (
+        <span className="shrink-0 text-foreground-muted opacity-80">
+          <Trans>starting…</Trans>
         </span>
-        {workflow && workflowRun ? (
-          <WorkflowDockStats run={workflowRun} />
-        ) : workflowIsLive ? (
-          <span className="shrink-0 text-foreground-muted opacity-80">
-            <Trans>starting…</Trans>
-          </span>
-        ) : isRunning ? (
-          <SubAgentProgressMeta
-            progress={progress}
-            liveLabel={liveLabel}
-            stepCount={stepCount}
-            includeStepCount
-            className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
-            liveMaxClassName="max-w-[20ch]"
-          />
-        ) : hasSubAgentProgressMeta(progress) ? (
-          <SubAgentProgressMeta
-            progress={progress}
-            className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
-          />
-        ) : null}
-      </button>
-      <button
-        type="button"
-        aria-label={t`Remove ${display.title} from panel`}
-        title={t`Remove from panel`}
-        onClick={(e) => {
-          e.stopPropagation();
-          dismiss(threadId, itemId);
-        }}
-        className="poracode-subagent-dismiss absolute right-1 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-0.5 text-muted/70 opacity-0 transition-opacity duration-150 hover:bg-danger-500/10 hover:text-danger-500 group-hover:opacity-100 focus:opacity-100"
-      >
-        <X className="size-3" />
-      </button>
-    </li>
+      ) : isRunning ? (
+        <SubAgentProgressMeta
+          progress={progress}
+          liveLabel={liveLabel}
+          stepCount={stepCount}
+          includeStepCount
+          className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
+          liveMaxClassName="max-w-[20ch]"
+        />
+      ) : hasSubAgentProgressMeta(progress) ? (
+        <SubAgentProgressMeta
+          progress={progress}
+          className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
+        />
+      ) : null}
+    </ThreadDockActionRow>
   );
+}
+
+export function ThreadLiveWorkflowTracker(props: {
+  threadId: string;
+  projectLocation: ProjectLocation;
+}) {
+  return <ActiveSubAgentTile {...props} registrationOnly />;
 }
 
 function WorkflowDockStats({ run }: { run: WorkflowRun }) {
   const completed = countDoneWorkflowAgents(run);
-  const parts: string[] = [];
-  if (run.agentCount > 0) parts.push(`${completed}/${run.agentCount}`);
+  // The done/total pair animates because it ticks up while the run streams; the
+  // token and duration strings stay plain text — they are pre-formatted labels,
+  // not bare numbers.
+  const parts: ReactNode[] = [];
+  if (run.agentCount > 0) {
+    parts.push(<AnimatedFraction key="progress" value={completed} total={run.agentCount} />);
+  }
   if (run.totalTokens !== undefined) parts.push(`${formatTokenCount(run.totalTokens)} tok`);
   if (run.durationMs !== undefined) parts.push(formatDockDuration(run.durationMs));
   return (
-    <span className="shrink-0 tabular-nums text-foreground-muted opacity-80">
-      {parts.join(" · ")}
+    <span className="flex shrink-0 items-center gap-1 tabular-nums text-foreground-muted opacity-80">
+      {parts.map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 ? <span aria-hidden="true">·</span> : null}
+          {part}
+        </Fragment>
+      ))}
     </span>
   );
 }

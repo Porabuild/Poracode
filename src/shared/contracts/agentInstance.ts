@@ -150,6 +150,12 @@ export const claudeProfileInstanceConfigSchema = z.object({
    * from the picker. When omitted, all built-in tiers are offered.
    */
   efforts: z.array(z.string().min(1).max(40)).max(20).optional(),
+  /** Default effort selected for new threads when the profile exposes effort choices. */
+  defaultEffort: z.string().min(1).max(40).optional(),
+  /** Optional per-model effort choices for external-provider model ids. */
+  modelEfforts: z
+    .record(z.string().min(1).max(200), z.array(z.string().min(1).max(40)).max(20))
+    .optional(),
 });
 export type ClaudeProfileInstanceConfig = z.infer<typeof claudeProfileInstanceConfigSchema>;
 

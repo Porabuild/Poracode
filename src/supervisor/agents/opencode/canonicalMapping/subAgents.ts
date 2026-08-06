@@ -8,7 +8,7 @@
  * overlay buffer.
  */
 
-import type { EventSubscribeResponse } from "@opencode-ai/sdk/v2";
+import type { EventSubscribeResponse } from "../legacySdk";
 import type { RuntimeEvent } from "@/shared/contracts";
 import type {
   OpenCodeMapperState,

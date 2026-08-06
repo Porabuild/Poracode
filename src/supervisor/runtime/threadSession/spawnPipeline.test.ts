@@ -1,44 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { LoadedPlugin, ThreadConfig } from "@/shared/contracts";
-import type { AgentAdapter } from "../../agents/base";
-import { installPlugin, resolvePluginAppsForThreadConfig } from "@/shared/plugins/catalog";
-import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
-
-const BROWSER_TOOLS: LoadedPlugin = {
-  name: "browser-tools",
-  source: "bundled",
-  root: "/plugins/browser-tools",
-  manifest: { $schema: AGENT_PLUGINS_MANIFEST_SCHEMA_URL, name: "browser-tools", version: "1.0.0" },
-  poracode: {
-    category: "developer-tools",
-    featured: false,
-    communityMaintained: false,
-    apps: [
-      {
-        id: "browser",
-        name: "Browser",
-        description: "Control the in-app browser.",
-        builtInMcpServerId: "browser",
-      },
-    ],
-    skills: {},
-  },
-  skills: [],
-  mcpServers: [],
-  diagnostics: [],
-};
+import type { ThreadConfig } from "@/shared/contracts";
 import {
+  applyAgentSettingsMcpFlags,
+  composeResolvedMcpServers,
   effectiveLaunchConfig,
-  effectiveStructuredTurnConfig,
-  mergeBuiltInMcpDisabledTools,
-  resolveAttachedAppLaunchConfig,
-  SpawnPipeline,
+  usesProviderSessionCrossagentRouting,
 } from "./spawnPipeline";
 
 const baseConfig: ThreadConfig = {
   model: "test-model",
   browserMcp: true,
-  subagentMcp: true,
+  crossagentMcp: true,
   computerUse: true,
   chromeMcp: true,
 };
@@ -60,7 +32,7 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
   it("clears every flag-mapped server when all are disabled", () => {
     const result = effectiveLaunchConfig(baseConfig, [
       "browser",
-      "subagents",
+      "crossagents",
       "computer-use",
       "chrome",
       "app-controls",
@@ -68,7 +40,7 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
     expect(result).toEqual({
       ...baseConfig,
       browserMcp: false,
-      subagentMcp: false,
+      crossagentMcp: false,
       computerUse: false,
       chromeMcp: false,
     });
@@ -78,97 +50,95 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
     effectiveLaunchConfig(baseConfig, ["browser"]);
     expect(baseConfig.browserMcp).toBe(true);
   });
+});
 
-  it("lets installed plugin apps opt in before global MCP disables are enforced", () => {
-    const config: ThreadConfig = { model: "test-model" };
-    const pluginConfig = resolvePluginAppsForThreadConfig(
-      config,
-      [BROWSER_TOOLS],
-      installPlugin({}, BROWSER_TOOLS),
-      {
-        capabilities: { browserMcpScope: { terminal: "launch" } },
-        presentationMode: "terminal",
-        projectLocation: { kind: "windows", path: "C:\\repo" },
-        hostPlatform: "win32",
-      },
-    ).config;
+describe("applyAgentSettingsMcpFlags", () => {
+  it("maps agentSettings booleans and keeps Crossagents off without provider-session routing", () => {
+    const result = applyAgentSettingsMcpFlags(baseConfig, { browserMcp: true }, [], false);
+    expect(result).toEqual({
+      ...baseConfig,
+      browserMcp: true,
+      chromeMcp: false,
+      computerUse: false,
+      crossagentMcp: false,
+    });
+  });
 
-    expect(effectiveLaunchConfig(pluginConfig, []).browserMcp).toBe(true);
-    expect(effectiveLaunchConfig(pluginConfig, ["browser"]).browserMcp).toBe(false);
-    expect(config.browserMcp).toBeUndefined();
+  it("enables provider-level Crossagents when trusted provider-session routing is available", () => {
+    const result = applyAgentSettingsMcpFlags(baseConfig, { crossagentMcp: true }, [], true);
+    expect(result.crossagentMcp).toBe(true);
+  });
+
+  it("keeps globally disabled servers off when provider settings enable them", () => {
+    const result = applyAgentSettingsMcpFlags(
+      baseConfig,
+      { browserMcp: true, crossagentMcp: true, chromeMcp: true, computerUse: true },
+      ["browser", "crossagents", "chrome", "computer-use"],
+      true,
+    );
+    expect(result).toEqual({
+      ...baseConfig,
+      browserMcp: false,
+      chromeMcp: false,
+      computerUse: false,
+      crossagentMcp: false,
+    });
   });
 });
 
-describe("runtime App launch config", () => {
-  it("keeps plugin master-disable authoritative over legacy Browser settings", async () => {
-    const pipeline = new SpawnPipeline({
-      options: {
-        applyPluginAppsToConfig: (config: ThreadConfig) => ({
-          config: { ...config, browserMcp: false },
-          disabledConfigKeys: ["browserMcp"],
-        }),
-      },
-      isBrowserMcpEnabledForLaunch: () => true,
-    } as never);
-    const adapter = {
-      capabilities: { browserMcpScope: { terminal: "launch" } },
-    } as unknown as AgentAdapter;
+describe("usesProviderSessionCrossagentRouting", () => {
+  const adapter = {
+    capabilities: {
+      presentationMode: "terminal",
+      crossagentMcpRouting: "provider-session",
+    },
+  } as const;
 
-    const resolved = pipeline.resolveConfigForLaunch(
-      { model: "test-model" },
-      adapter,
-      { kind: "windows", path: "C:\\repo" },
-      "terminal",
-      [],
-    );
-    expect(resolved.launchConfig.browserMcp).toBe(false);
-    await expect(
-      pipeline.resolveBrowserMcpForLaunch(
-        adapter,
-        { kind: "windows", path: "C:\\repo" },
-        resolved.launchConfig,
-        { mcpServers: [], disabledBuiltInMcpServerIds: [] },
-        undefined,
-        resolved.pluginDisabledConfigKeys,
-      ),
-    ).resolves.toBeUndefined();
+  it("uses provider-session routing for a GUI thread", () => {
+    expect(usesProviderSessionCrossagentRouting(adapter, "gui", "thread-1")).toBe(true);
   });
 
-  it("unions caller and supervisor disabled-tool policy", () => {
-    expect(
-      mergeBuiltInMcpDisabledTools(
-        { browser: ["navigate", "shared"] },
-        { browser: ["shared", "click"], chrome: ["open_tab"] },
-      ),
-    ).toEqual({ browser: ["navigate", "shared", "click"], chrome: ["open_tab"] });
+  it("keeps terminal threads on direct routing", () => {
+    expect(usesProviderSessionCrossagentRouting(adapter, "terminal", "thread-1")).toBe(false);
+    expect(usesProviderSessionCrossagentRouting(adapter, undefined, "thread-1")).toBe(false);
   });
 
-  it("uses actual attachments while preserving explicit hard-disabled flags", () => {
+  it("requires a thread id and provider support", () => {
+    expect(usesProviderSessionCrossagentRouting(adapter, "gui", undefined)).toBe(false);
     expect(
-      resolveAttachedAppLaunchConfig(
-        { model: "test-model", browserMcp: true, computerUse: false },
-        {
-          browserMcp: false,
-          subagentMcp: false,
-          computerUse: false,
-          chromeMcp: true,
-        },
+      usesProviderSessionCrossagentRouting(
+        { capabilities: { presentationMode: "gui" } },
+        "gui",
+        "thread-1",
       ),
-    ).toEqual({ model: "test-model", computerUse: false, chromeMcp: true });
+    ).toBe(false);
   });
+});
 
-  it("overlays immutable App state onto the latest structured turn config", () => {
-    expect(
-      effectiveStructuredTurnConfig(
-        {
-          runtimeLaunchConfig: {
-            model: "original-model",
-            browserMcp: true,
-            computerUse: false,
+describe("composeResolvedMcpServers", () => {
+  it("combines custom and built-in servers before the provider boundary", () => {
+    const servers = composeResolvedMcpServers(
+      {
+        mcpServers: [
+          {
+            id: "custom",
+            name: "custom",
+            description: "",
+            enabled: true,
+            timeoutMs: 15_000,
+            transport: { type: "stdio", command: "custom", args: [], env: {} },
           },
-        },
-        { model: "updated-model", browserMcp: false, computerUse: true },
-      ),
-    ).toEqual({ model: "updated-model", browserMcp: true, computerUse: false });
+        ],
+        disabledBuiltInMcpServerIds: [],
+      },
+      { url: "http://browser/mcp", token: "b", headers: { Authorization: "Bearer b" } },
+      { url: "http://agents/mcp", token: "a", headers: { Authorization: "Bearer a" } },
+      undefined,
+      undefined,
+      undefined,
+    );
+
+    expect(servers.map((server) => server.name)).toEqual(["custom", "browser", "crossagents"]);
+    expect(servers[2]).toMatchObject({ timeoutMs: 300_000, approvalMode: "approve" });
   });
 });

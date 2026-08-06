@@ -12,8 +12,7 @@
  */
 
 /**
- * Pull a flat lowercase message out of any error-like value. Mirrors the
- * extraction t3code does in `openCodeRuntimeErrorDetail`. Keeps the test
+ * Pull a flat lowercase message out of any error-like value. Keeps the test
  * surface narrow: every classifier branch checks this string only.
  */
 export function readOpenCodeErrorText(cause: unknown): string {

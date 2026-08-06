@@ -29,7 +29,6 @@ export interface LocalizedPlugin {
   description: string;
   category: string;
   skills: LocalizedPluginContribution[];
-  apps: LocalizedPluginContribution[];
   mcpServers: LocalizedPluginContribution[];
 }
 
@@ -107,37 +106,6 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
       }
     });
 
-    const apps = plugin.poracode.apps.map((app): LocalizedPluginContribution => {
-      switch (app.id) {
-        case "browser":
-          return {
-            id: app.id,
-            name: t`Browser`,
-            description: t`Control Poracode's isolated in-app browser.`,
-          };
-        case "chrome":
-          return {
-            id: app.id,
-            name: t`Chrome`,
-            description: t`Control the user's Chrome browser through Poracode.`,
-          };
-        case "computer-use":
-          return {
-            id: app.id,
-            name: t`Computer Use`,
-            description: t`Control supported desktop apps and windows.`,
-          };
-        case "subagents":
-          return {
-            id: app.id,
-            name: t`Subagents`,
-            description: t`Create and coordinate Poracode agent threads.`,
-          };
-        default:
-          return { id: app.id, name: app.name, description: app.description };
-      }
-    });
-
     // Server transport detail is author-supplied and identifies the endpoint, so
     // it is shown verbatim rather than translated.
     const mcpServers = plugin.mcpServers.map((server): LocalizedPluginContribution => {
@@ -158,7 +126,7 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
             ? t`Communication`
             : t`Productivity`;
 
-    return { plugin, name, description, category, skills, apps, mcpServers };
+    return { plugin, name, description, category, skills, mcpServers };
   });
 }
 

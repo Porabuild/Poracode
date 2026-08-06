@@ -58,3 +58,10 @@ export function useIsActiveBufferDirty(): boolean {
 export function useIsPathOpenInTab(path: string): boolean {
   return useFileEditorStore((s) => s.tabs.includes(path));
 }
+
+/** Imperative check: any open buffer has unsaved changes. */
+export function hasDirtyEditorBuffers(): boolean {
+  return Object.values(useFileEditorStore.getState().buffers).some(
+    (buffer) => buffer.status === "ready" && buffer.isDirty,
+  );
+}

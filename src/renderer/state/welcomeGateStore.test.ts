@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useWelcomeGateStore, WELCOME_SEEN_STORAGE_KEY } from "./welcomeGateStore";
+import { isWelcomeSeen, useWelcomeGateStore, WELCOME_SEEN_STORAGE_KEY } from "./welcomeGateStore";
 
 describe("welcomeGateStore", () => {
   beforeEach(() => {
@@ -8,6 +8,7 @@ describe("welcomeGateStore", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.resetModules();
   });
 
@@ -36,5 +37,21 @@ describe("welcomeGateStore", () => {
     localStorage.setItem(WELCOME_SEEN_STORAGE_KEY, "true");
     const mod = await import("./welcomeGateStore");
     expect(mod.useWelcomeGateStore.getState().backgroundWorkReleased).toBe(true);
+  });
+
+  it("treats a manual test launch as welcome-seen without persisting the flag", async () => {
+    vi.stubEnv("VITE_PORACODE_SKIP_WELCOME", "1");
+    vi.resetModules();
+    localStorage.clear();
+
+    const mod = await import("./welcomeGateStore");
+
+    expect(mod.isWelcomeSeen()).toBe(true);
+    expect(mod.useWelcomeGateStore.getState().backgroundWorkReleased).toBe(true);
+    expect(localStorage.getItem(WELCOME_SEEN_STORAGE_KEY)).toBeNull();
+  });
+
+  it("does not bypass welcome during an ordinary dev launch", () => {
+    expect(isWelcomeSeen()).toBe(false);
   });
 });

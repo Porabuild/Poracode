@@ -1,23 +1,39 @@
 import { useEffect, useRef } from "react";
-import { Tooltip } from "@heroui/react";
 import { ArrowRightLeft, Check, ChevronDown, Hourglass, ListChecks, X } from "lucide-react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import type { ThreadTodoDockPlacement } from "@/renderer/state/threadTodoDockStore";
+import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import type { ThreadTodoDockState, ThreadTodoStepStatus } from "./threadTodoState";
-import { ThreadDockHeader, ThreadDockList, ThreadDockRow, ThreadDockSection } from "./ThreadDockUI";
+import {
+  ThreadDockHeader,
+  ThreadDockIconButton,
+  ThreadDockList,
+  ThreadDockRow,
+  ThreadDockSection,
+} from "./ThreadDockUI";
 
 interface ThreadTodoDockProps {
   state: ThreadTodoDockState;
   placement: ThreadTodoDockPlacement;
   collapsed: boolean;
+  /** Hide the composer↔right-panel move action (no right panel on mobile). */
+  canMove?: boolean;
   onPlacementChange: (placement: ThreadTodoDockPlacement) => void;
   onCollapsedChange: (collapsed: boolean) => void;
   onRetire: () => void;
 }
 
 export function ThreadTodoDock(props: ThreadTodoDockProps) {
-  const { state, placement, collapsed, onPlacementChange, onCollapsedChange, onRetire } = props;
+  const {
+    state,
+    placement,
+    collapsed,
+    canMove = true,
+    onPlacementChange,
+    onCollapsedChange,
+    onRetire,
+  } = props;
   const { t } = useLingui();
   const activeRowRef = useRef<HTMLLIElement>(null);
 
@@ -46,61 +62,43 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
     (count, step) => (step.status === "completed" ? count + 1 : count),
     0,
   );
-  const countLabel = `${completedCount}/${state.steps.length}`;
+  const countLabel = <AnimatedFraction value={completedCount} total={state.steps.length} />;
 
   return (
-    <ThreadDockSection ariaLabel={t`Thread todo dock`} placement={placement} collapsed={collapsed}>
+    <ThreadDockSection
+      ariaLabel={t`Thread todo dock`}
+      placement={placement}
+      collapsed={collapsed}
+      className={
+        placement === "right" ? "rounded-none border-0 bg-[var(--content-background)]" : ""
+      }
+    >
       <ThreadDockHeader
         icon={ListChecks}
         title={t`Plan`}
         countLabel={countLabel}
         actions={
           <>
-            <Tooltip delay={0}>
-              <Tooltip.Trigger>
-                <button
-                  aria-label={moveLabel}
-                  className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
-                  type="button"
-                  onClick={() => onPlacementChange(placement === "composer" ? "right" : "composer")}
-                >
-                  <ArrowRightLeft className="size-3.5" />
-                </button>
-              </Tooltip.Trigger>
-              <Tooltip.Content>{moveLabel}</Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
-              <Tooltip.Trigger>
-                <button
-                  aria-label={collapsed ? t`Expand todo dock` : t`Collapse todo dock`}
-                  className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
-                  type="button"
-                  onClick={() => onCollapsedChange(!collapsed)}
-                >
-                  <ChevronDown
-                    className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-                  />
-                </button>
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                {collapsed ? <Trans>Expand</Trans> : <Trans>Collapse</Trans>}
-              </Tooltip.Content>
-            </Tooltip>
-            <Tooltip delay={0}>
-              <Tooltip.Trigger>
-                <button
-                  aria-label={t`Close plan`}
-                  className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
-                  type="button"
-                  onClick={onRetire}
-                >
-                  <X className="size-3.5" />
-                </button>
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <Trans>Close plan</Trans>
-              </Tooltip.Content>
-            </Tooltip>
+            {canMove ? (
+              <ThreadDockIconButton
+                label={moveLabel}
+                onPress={() => onPlacementChange(placement === "composer" ? "right" : "composer")}
+              >
+                <ArrowRightLeft className="size-3.5" />
+              </ThreadDockIconButton>
+            ) : null}
+            <ThreadDockIconButton
+              label={collapsed ? t`Expand todo dock` : t`Collapse todo dock`}
+              tooltip={collapsed ? t`Expand` : t`Collapse`}
+              onPress={() => onCollapsedChange(!collapsed)}
+            >
+              <ChevronDown
+                className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
+              />
+            </ThreadDockIconButton>
+            <ThreadDockIconButton label={t`Close plan`} danger onPress={onRetire}>
+              <X className="size-3.5" />
+            </ThreadDockIconButton>
           </>
         }
       />

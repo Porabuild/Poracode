@@ -1,20 +1,13 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
-import { isThreadConfigEqual } from "@/shared/contracts";
-import type {
-  ThreadAttention,
-  ThreadConfig,
-  ThreadRuntimeSnapshot,
-  ThreadStatus,
-  ThreadStatusSource,
-} from "@/shared/contracts";
+import type { ThreadAttention, ThreadStatus, ThreadStatusSource } from "@/shared/contracts";
 import { extractOscEventsFromPtyStream } from "@/shared/osc";
+import { TranscriptBuffer } from "@/shared/transcriptBuffer";
+import { isThreadConfigEqual } from "@/shared/contracts";
 import type { TerminalStatusHint } from "../agents/base";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import type { SessionRuntime, ThreadOutputPipelineCallbacks } from "./sessionTypes";
-import { TranscriptBuffer } from "./transcriptBuffer";
 import { writeSubmittedPrompt } from "./threadSessionManager";
-import { effectiveStructuredTurnConfig } from "./threadSession/spawnPipeline";
 
 const STATUS_STABILIZATION_DELAY: Partial<Record<ThreadStatus, number>> = {
   working: 150,
@@ -71,30 +64,6 @@ export function resolveThreadStatusSource(
     return "cli_hook";
   }
   return "terminal_parse";
-}
-
-export function resolveRuntimeLaunchConfig(session: SessionRuntime): ThreadConfig {
-  return effectiveStructuredTurnConfig(session, session.config);
-}
-
-export function buildThreadRuntimeSnapshot(
-  session: SessionRuntime,
-  disableCliHookPlugin: boolean = false,
-): ThreadRuntimeSnapshot {
-  const launchConfig = resolveRuntimeLaunchConfig(session);
-  return {
-    threadId: session.threadId,
-    status: session.status,
-    attention: session.attention,
-    config: session.config,
-    ...(session.status !== "inactive" && !isThreadConfigEqual(launchConfig, session.config)
-      ? { launchConfig }
-      : {}),
-    ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
-    ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
-    canResumeWithConfig: session.canResumeWithConfig,
-    threadStatusSource: resolveThreadStatusSource(session, disableCliHookPlugin),
-  };
 }
 
 export class ThreadOutputPipeline {
@@ -185,7 +154,17 @@ export class ThreadOutputPipeline {
   ): void {
     this.options.emit({
       type: "thread-state",
-      ...buildThreadRuntimeSnapshot(session, this.options.readDisableCliHookPlugin()),
+      threadId: session.threadId,
+      status: session.status,
+      attention: session.attention,
+      config: session.config,
+      ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
+      ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
+      canResumeWithConfig: session.canResumeWithConfig,
+      threadStatusSource: resolveThreadStatusSource(
+        session,
+        this.options.readDisableCliHookPlugin(),
+      ),
       ...(errorMessage ? { errorMessage } : {}),
       ...(options.forceCloseActiveTurn ? { forceCloseActiveTurn: true } : {}),
     });

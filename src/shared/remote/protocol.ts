@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sensitiveAgentSettingKeys } from "../agentSecrets";
 import {
   agentStatusSchema,
   cloneRepoSourceSchema,
@@ -11,6 +12,7 @@ import {
   threadSchema,
 } from "../contracts";
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
+import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 1;
@@ -61,6 +63,35 @@ export function filterKnownRemoteAccessScopes(scopes: readonly string[]): Remote
  */
 export const advertisedRemoteAccessScopesSchema = z.array(z.string().min(1));
 
+export const remoteHostModeSchema = z.enum(["desktop", "helper"]);
+export type RemoteHostMode = z.infer<typeof remoteHostModeSchema>;
+
+export const remoteHostUpdateStatusSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("checking") }),
+  z.object({ type: z.literal("update-available"), version: z.string().min(1) }),
+  z.object({ type: z.literal("update-not-available") }),
+  z.object({
+    type: z.literal("downloading"),
+    percent: z.number(),
+    bytesPerSecond: z.number(),
+    transferred: z.number(),
+    total: z.number(),
+  }),
+  z.object({ type: z.literal("downloaded"), version: z.string().min(1) }),
+  z.object({
+    type: z.literal("error"),
+    message: z.string().optional(),
+    messageKey: z.string().optional(),
+  }),
+]);
+export type RemoteHostUpdateStatus = z.infer<typeof remoteHostUpdateStatusSchema>;
+
+export const remoteHostUpdateStateSchema = z.object({
+  currentVersion: z.string().min(1),
+  status: remoteHostUpdateStatusSchema.nullable(),
+});
+export type RemoteHostUpdateState = z.infer<typeof remoteHostUpdateStateSchema>;
+
 /** Derive the WebSocket base URL for a remote desktop's HTTP endpoint. */
 export function toWebSocketUrl(httpUrl: string | URL): URL {
   const url = new URL(httpUrl);
@@ -77,6 +108,11 @@ export type RemoteClientMetadata = z.infer<typeof remoteClientMetadataSchema>;
 
 export const remoteEnvironmentDescriptorSchema = z.object({
   protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
+  /**
+   * Process hosting the shared remote-access server. Optional on the wire for
+   * protocol-v1 servers released before standalone helpers advertised it.
+   */
+  hostMode: remoteHostModeSchema.optional(),
   desktopId: z.string().min(1),
   label: z.string().min(1),
   appVersion: z.string().min(1),
@@ -182,6 +218,12 @@ export const remoteGitSummariesEventSchema = z.object({
 });
 export type RemoteGitSummariesEvent = z.infer<typeof remoteGitSummariesEventSchema>;
 
+export const remoteGitStateEventSchema = z.object({
+  type: z.literal("remote-git-state"),
+  patch: gitStatePatchSchema,
+});
+export type RemoteGitStateEvent = z.infer<typeof remoteGitStateEventSchema>;
+
 /**
  * Remote project management. Lets a paired client add/clone/remove projects on
  * the desktop or a headless server. Locations are referenced by an absolute
@@ -211,8 +253,25 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     name: z.string().min(1),
     source: cloneRepoSourceSchema,
   }),
-  // Remove a project. Edits that reorder/cascade (rename, disable) still flow
-  // through the renderer store on the desktop; see Phase 2 in the design doc.
+  z.object({
+    kind: z.literal("update"),
+    projectId: z.string().min(1),
+    patch: z.object({
+      name: projectSchema.shape.name.optional(),
+      scripts: projectSchema.shape.scripts.unwrap().nullable().optional(),
+      searchSettings: projectSchema.shape.searchSettings.unwrap().nullable().optional(),
+      worktreeLocation: projectSchema.shape.worktreeLocation.unwrap().nullable().optional(),
+      // Project values default an omitted list to [], but a patch must
+      // distinguish "not supplied" from an explicit empty list.
+      mcpServers: projectSchema.shape.mcpServers.unwrap().removeDefault().nullable().optional(),
+      disabled: projectSchema.shape.disabled,
+    }),
+  }),
+  z.object({
+    kind: z.literal("relocate"),
+    projectId: z.string().min(1),
+    path: z.string().min(1),
+  }),
   z.object({ kind: z.literal("remove"), projectId: z.string().min(1) }),
 ]);
 export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
@@ -220,6 +279,10 @@ export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
 /** Project metadata safe to expose remotely; MCP definitions may contain secrets. */
 export const remoteProjectSchema = projectSchema.omit({ mcpServers: true });
 export type RemoteProject = z.infer<typeof remoteProjectSchema>;
+
+/** Sensitive project settings are fetched separately behind `projects:manage`. */
+export const remoteProjectSettingsSchema = projectSchema.pick({ mcpServers: true });
+export type RemoteProjectSettings = z.infer<typeof remoteProjectSettingsSchema>;
 
 /** Result of a project command: the full updated list plus the affected row. */
 export const remoteProjectCommandResultSchema = z.object({
@@ -251,11 +314,13 @@ export const remoteProjectsChangedEventSchema = z.object({
 export type RemoteProjectsChangedEvent = z.infer<typeof remoteProjectsChangedEventSchema>;
 
 /** Broadcast after durable thread metadata changes so remote clients refresh
- * the shell snapshot. The payload intentionally carries ids only; clients
- * already have a snapshot endpoint for current thread/project/runtime state. */
+ * the shell snapshot. `viewedThreadIds` is the explicit-read signal: unlike a
+ * normal persisted `idle` status, it authorizes clients to clear a locally
+ * derived `finished` badge. */
 export const remoteThreadsChangedEventSchema = z.object({
   type: z.literal("remote-threads-changed"),
   threadIds: z.array(z.string().min(1)),
+  viewedThreadIds: z.array(z.string().min(1)).optional(),
 });
 export type RemoteThreadsChangedEvent = z.infer<typeof remoteThreadsChangedEventSchema>;
 
@@ -348,42 +413,104 @@ export type RemotePortEnterResult = z.infer<typeof remotePortEnterResultSchema>;
  *
  * Platform tokens: iOS carries an APNs `deviceToken` (alerts) plus optional
  * `pushToStartToken` / `activityTokens` (Live Activities). Android carries its
- * FCM registration token in the same `deviceToken` field and has no
- * push-to-start / per-activity tokens (a `superRefine` rejects them so an
- * Android registration can't smuggle iOS-only fields).
+ * FCM registration token in the same `deviceToken` field. An installed web app
+ * carries the browser's Push API subscription plus the app base path used for
+ * notification-click routing. Platform-specific fields are rejected when they
+ * appear on the wrong registration type.
  *
  * Upsert semantics: any token field **present** in a registration replaces the
  * stored value for that field; **absent** fields are preserved. This lets the
  * app re-register a single rotated token without clobbering the others.
  */
+export const remoteWebPushSubscriptionSchema = z.object({
+  endpoint: z
+    .string()
+    .url()
+    .refine((value) => value.startsWith("https://"), "endpoint must use https"),
+  expirationTime: z.number().int().nonnegative().nullable(),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+});
+export type RemoteWebPushSubscription = z.infer<typeof remoteWebPushSubscriptionSchema>;
+
 export const remotePushRegistrationSchema = z
   .object({
     /** Stable per-device identity (survives token rotation); the upsert key. */
     deviceId: z.string().min(8),
-    platform: z.enum(["ios", "android"]),
+    platform: z.enum(["ios", "android", "web"]),
     /** APNs device token (iOS alerts) or FCM registration token (Android). */
     deviceToken: z.string().min(1).optional(),
     /** iOS 17.2+ push-to-start token for the desktop-session Live Activity. iOS only. */
     pushToStartToken: z.string().min(1).optional(),
     /** Per-activity update tokens, keyed by ActivityKit activity id. iOS only. */
     activityTokens: z.record(z.string().min(1), z.string().min(1)).optional(),
+    /** Standards-based Push API subscription. Installed web apps only. */
+    webPushSubscription: remoteWebPushSubscriptionSchema.optional(),
+    /** Browser-history base path (`/` or `/app`) for notification click routing. */
+    webAppBasePath: z
+      .string()
+      .regex(/^\/(?!\/)(?:[^?#]*)$/)
+      .optional(),
     appVersion: z.string().min(1).optional(),
   })
   .superRefine((registration, ctx) => {
-    if (registration.platform !== "android") return;
-    if (registration.pushToStartToken !== undefined) {
+    if (registration.platform === "android") {
+      if (registration.pushToStartToken !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pushToStartToken"],
+          message: "pushToStartToken is iOS-only",
+        });
+      }
+      if (registration.activityTokens !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["activityTokens"],
+          message: "activityTokens is iOS-only",
+        });
+      }
+    }
+    if (registration.platform !== "web") {
+      if (registration.webPushSubscription !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["webPushSubscription"],
+          message: "webPushSubscription is web-only",
+        });
+      }
+      if (registration.webAppBasePath !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["webAppBasePath"],
+          message: "webAppBasePath is web-only",
+        });
+      }
+      return;
+    }
+    if (!registration.webPushSubscription) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["pushToStartToken"],
-        message: "pushToStartToken is iOS-only",
+        path: ["webPushSubscription"],
+        message: "webPushSubscription is required on web",
       });
     }
-    if (registration.activityTokens !== undefined) {
+    if (!registration.webAppBasePath) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["activityTokens"],
-        message: "activityTokens is iOS-only",
+        path: ["webAppBasePath"],
+        message: "webAppBasePath is required on web",
       });
+    }
+    for (const field of ["deviceToken", "pushToStartToken", "activityTokens"] as const) {
+      if (registration[field] !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: `${field} is native-only`,
+        });
+      }
     }
   });
 export type RemotePushRegistration = z.infer<typeof remotePushRegistrationSchema>;
@@ -395,6 +522,11 @@ export const remotePushUnregisterSchema = z.object({
 export const remotePushRegistrationResultSchema = z.object({
   ok: z.literal(true),
 });
+
+export const remoteWebPushConfigResultSchema = z.object({
+  publicKey: z.string().min(1),
+});
+export type RemoteWebPushConfigResult = z.infer<typeof remoteWebPushConfigResultSchema>;
 
 /**
  * A single row in the Live Activity content-state, mirroring the Swift
@@ -427,6 +559,8 @@ export const remoteShellSnapshotSchema = z.object({
   runtimeSummariesByThread: z.record(z.string(), remoteRuntimeSummarySchema),
   /** Absent on desktops that predate git summaries. */
   gitSummariesByThread: remoteGitSummariesSchema.optional(),
+  /** Normalized host-owned Git/PR state. Absent on legacy hosts. */
+  gitState: gitStateSnapshotSchema.optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteShellSnapshot = z.infer<typeof remoteShellSnapshotSchema>;
@@ -442,6 +576,8 @@ export const remoteThreadSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
   thread: threadSchema,
   runtimeItems: z.array(persistedRuntimeItemSchema),
+  /** Cursor for older runtime items when the server returned a tail page. */
+  runtimeNextCursor: z.number().int().nonnegative().nullable().optional(),
   completedTurns: z.array(persistedCompletedTurnSchema),
   contextUsage: threadContextUsageSchema.nullable(),
   terminalScrollback: z.string().optional(),
@@ -450,47 +586,90 @@ export const remoteThreadSnapshotSchema = z.object({
 });
 export type RemoteThreadSnapshot = z.infer<typeof remoteThreadSnapshotSchema>;
 
+export const remoteTimelineEntryCountSchema = z.number().int().min(1).max(100);
+
+export const remoteRuntimeItemsPageRequestSchema = z.object({
+  threadId: z.string().min(1),
+  beforePosition: z.number().int().nonnegative().optional(),
+  limit: z.number().int().min(1).max(500),
+  targetTimelineEntryCount: remoteTimelineEntryCountSchema.optional(),
+});
+export type RemoteRuntimeItemsPageRequest = z.infer<typeof remoteRuntimeItemsPageRequestSchema>;
+
+export const remoteRuntimeItemsPageSchema = z.object({
+  items: z.array(persistedRuntimeItemSchema),
+  nextCursor: z.number().int().nonnegative().nullable(),
+});
+export type RemoteRuntimeItemsPage = z.infer<typeof remoteRuntimeItemsPageSchema>;
+
 /**
  * Desktop settings editable from a remote client ("Remote settings" in the
  * PWA, as opposed to its device-local settings). Only settings the desktop
  * itself acts on belong here — the AI helpers (title/commit generation,
- * conflict resolver) and the agent/model configuration (each desktop has its
- * own set of agents and models). Deliberately excludes secrets
- * (providerConfigs) and device-local preferences (theme, fonts, audio, …).
+ * conflict resolver), agent/model configuration (each desktop has its own set
+ * of agents and models), and persistent composer MCP enablement. Deliberately
+ * excludes secrets (providerConfigs and custom MCP definitions) and
+ * device-local preferences (theme, fonts, audio, …).
  */
-export const remoteSettingsSchema = sharedSettingsSchema.pick({
-  agentSettings: true,
-  hiddenModels: true,
-  disabledAgents: true,
-  providerOrder: true,
-  titleGenProvider: true,
-  titleGenModel: true,
-  titleGenEffort: true,
-  commitGenProvider: true,
-  commitGenModel: true,
-  commitGenEffort: true,
-  conflictResolverProvider: true,
-  conflictResolverModel: true,
-  conflictResolverEffort: true,
-  conflictResolverPresentationMode: true,
-  wslTitleGenProvider: true,
-  wslTitleGenModel: true,
-  wslTitleGenEffort: true,
-  wslCommitGenProvider: true,
-  wslCommitGenModel: true,
-  wslCommitGenEffort: true,
-  wslConflictResolverProvider: true,
-  wslConflictResolverModel: true,
-  wslConflictResolverEffort: true,
-  wslConflictResolverPresentationMode: true,
-});
+const remoteAgentSettingsSchema = sharedSettingsSchema.shape.agentSettings.transform((settings) =>
+  Object.fromEntries(
+    Object.entries(settings).map(([agentKind, values]) => {
+      const next = { ...values };
+      for (const key of sensitiveAgentSettingKeys(agentKind)) delete next[key];
+      return [agentKind, next];
+    }),
+  ),
+);
+
+export const remoteSettingsSchema = sharedSettingsSchema
+  .pick({
+    agentSettings: true,
+    hiddenModels: true,
+    disabledAgents: true,
+    providerOrder: true,
+    enabledMcpServers: true,
+    disabledBuiltInMcpServers: true,
+    titleGenProvider: true,
+    titleGenModel: true,
+    titleGenEffort: true,
+    commitGenProvider: true,
+    commitGenModel: true,
+    commitGenEffort: true,
+    conflictResolverProvider: true,
+    conflictResolverModel: true,
+    conflictResolverEffort: true,
+    conflictResolverPresentationMode: true,
+    wslTitleGenProvider: true,
+    wslTitleGenModel: true,
+    wslTitleGenEffort: true,
+    wslCommitGenProvider: true,
+    wslCommitGenModel: true,
+    wslCommitGenEffort: true,
+    wslConflictResolverProvider: true,
+    wslConflictResolverModel: true,
+    wslConflictResolverEffort: true,
+    wslConflictResolverPresentationMode: true,
+    prAutomationDefault: true,
+    prMergeMethod: true,
+  })
+  .extend({ agentSettings: remoteAgentSettingsSchema });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 
 export const REMOTE_SETTINGS_KEYS = Object.keys(
   remoteSettingsSchema.shape,
 ) as readonly (keyof RemoteSettings)[];
 
-export const remoteSettingsPatchSchema = remoteSettingsSchema.partial();
+export const remoteSettingsPatchSchema = remoteSettingsSchema
+  .omit({ enabledMcpServers: true, disabledBuiltInMcpServers: true })
+  .partial()
+  .extend({
+    // These full-settings fields have `{}` defaults. Remove them for the patch
+    // shape so an unrelated remote edit cannot silently clear desktop MCP state.
+    enabledMcpServers: sharedSettingsSchema.shape.enabledMcpServers.removeDefault().optional(),
+    disabledBuiltInMcpServers: sharedSettingsSchema.shape.disabledBuiltInMcpServers
+      .removeDefault()
+      .optional(),
+  });
 export type RemoteSettingsPatch = z.infer<typeof remoteSettingsPatchSchema>;
 
 /** Extracts the remote-editable subset from a full settings object (zod
@@ -529,8 +708,12 @@ export const remoteAccessPairingInfoSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("ready"),
     httpBaseUrl: z.string().url(),
+    localHttpBaseUrl: z.string().url(),
+    tailscaleHttpBaseUrl: z.string().url().optional(),
     wsBaseUrl: z.string().url(),
     pairingUrl: z.string().url(),
+    /** When the credential inside `pairingUrl` stops being redeemable. */
+    pairingExpiresAt: z.string().datetime(),
     sessions: z.array(remoteAccessSessionSchema),
   }),
 ]);
@@ -627,6 +810,8 @@ export const remoteBrowserMirrorStatusSchema = z.object({
 });
 export type RemoteBrowserMirrorStatus = z.infer<typeof remoteBrowserMirrorStatusSchema>;
 
+export const remoteThreadItemInterestsSchema = z.array(z.string().min(1)).max(200);
+
 export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("ping"),
@@ -643,6 +828,29 @@ export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
   // they only stream to clients that opted in via terminal-watch.
   z.object({ type: z.literal("terminal-watch"), id: z.string().min(1) }),
   z.object({ type: z.literal("terminal-unwatch"), id: z.string().min(1) }),
+  z.object({
+    type: z.literal("git-state-interests"),
+    interests: z.array(gitStateInterestSchema).max(500),
+  }),
+  /**
+   * Threads this client wants live transcript *content* for. Runtime item and
+   * text-delta events for any other thread are withheld — a phone viewing one
+   * thread otherwise downloads every other thread's tool payloads too.
+   *
+   * Scoped to bulk content ONLY. Lifecycle and interaction events
+   * (`request.opened`/`request.resolved`, `turn.*`, `session.*`, warnings,
+   * errors, context/usage) always reach every client regardless of this list:
+   * a permission prompt on a thread the user is not looking at must still
+   * surface, and `RemoteThreadSnapshot` carries no open-requests field to
+   * recover it from later.
+   *
+   * A client that never sends this message keeps receiving everything, so older
+   * clients are unaffected.
+   */
+  z.object({
+    type: z.literal("thread-item-interests"),
+    threadIds: remoteThreadItemInterestsSchema,
+  }),
 ]);
 export type RemoteWebSocketClientMessage = z.infer<typeof remoteWebSocketClientMessageSchema>;
 

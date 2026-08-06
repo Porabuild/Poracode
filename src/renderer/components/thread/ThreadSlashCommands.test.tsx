@@ -11,12 +11,14 @@ import type {
 } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDraftComposerArea } from "./ThreadDraftComposerArea";
 import type { ComposerControl } from "./ThreadComposer";
 import { ThreadView } from "./ThreadView";
 import {
   bindLeadingSkillInvocation,
+  filterSlashCommands,
   rebindSkillSegments,
   resolveAvailableSlashCommands,
 } from "./threadSlashCommands";
@@ -146,12 +148,14 @@ async function renderDraftComposer(
   config: Thread["config"] = {
     model: selectedAgent.capabilities.models[0]?.id ?? "gemini-2.5-pro",
   },
+  paneId?: string,
 ) {
   await act(async () => {
     render(
       <AppProvider>
         <ThreadDraftComposerArea
           project={draftProject}
+          {...(paneId ? { paneId } : {})}
           selectedAgent={selectedAgent}
           controls={controls}
           config={config}
@@ -196,6 +200,7 @@ describe("ThreadSlashCommands", () => {
     vi.unstubAllGlobals();
     useAppStore.getState().clearDraftContent(draftProject.id);
     useAppStore.setState({ draftContentDiscardRequests: {} });
+    useComposerInputInbox.setState({ itemsByComposer: {} });
     useSharedSettings.setState({ collapseTerminalComposer: false });
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
@@ -230,7 +235,7 @@ describe("ThreadSlashCommands", () => {
     expect(screen.queryByText("/help")).not.toBeInTheDocument();
   });
 
-  it("renders a localized skill name while filtering by its stable invocation id", async () => {
+  it("renders localized skill copy while filtering by its stable invocation id", async () => {
     await renderThread(
       makeThread({
         slashCommands: [
@@ -255,7 +260,6 @@ describe("ThreadSlashCommands", () => {
     typeSlashQuery(editor, "/browser");
 
     expect(screen.getByText("/browser-control")).toBeInTheDocument();
-    expect(screen.getByText("Control del navegador")).toBeInTheDocument();
     expect(
       screen.getByText("Navega, inspecciona y prueba páginas con el MCP del navegador integrado."),
     ).toBeInTheDocument();
@@ -600,6 +604,141 @@ describe("ThreadSlashCommands", () => {
     ).toEqual([]);
   });
 
+  it("dedupes same-named provider commands and lets the skill entry win the name", () => {
+    const commands = resolveAvailableSlashCommands(
+      [
+        {
+          id: "simplify",
+          label: "simplify — Review changed code",
+          description: "Review changed code",
+        },
+        {
+          id: "simplify",
+          label: "simplify — Review changed code (user)",
+          description: "Review changed code (user)",
+        },
+        { id: "security-review", label: "security-review" },
+      ],
+      undefined,
+      {
+        skillCommands: [
+          {
+            id: "simplify",
+            label: "simplify",
+            section: "skills",
+            skillName: "simplify",
+            skillPath: "/skills/simplify/SKILL.md",
+            skillInvocation: "/simplify",
+            skillProvider: "Claude Code",
+            skillScope: "global",
+          },
+        ],
+      },
+    );
+    expect(commands.map((command) => `${command.id}:${command.section ?? "commands"}`)).toEqual([
+      "security-review:commands",
+      "simplify:skills",
+    ]);
+  });
+
+  it("prefers an ACP-provided skill command over the same locally scanned skill", () => {
+    const commands = resolveAvailableSlashCommands(
+      [
+        {
+          id: "skill:simplify",
+          label: "skill:simplify — Review changed code",
+          description: "Review changed code",
+          section: "skills",
+          skillName: "simplify",
+        },
+      ],
+      undefined,
+      {
+        skillCommands: [
+          {
+            id: "simplify",
+            label: "simplify — Local skill",
+            description: "Local skill",
+            section: "skills",
+            skillName: "simplify",
+            skillPath: "/skills/simplify/SKILL.md",
+            skillInvocation: "/simplify",
+            skillProvider: "Shared agents",
+            skillScope: "project",
+          },
+        ],
+      },
+    );
+
+    expect(commands).toEqual([
+      {
+        id: "skill:simplify",
+        label: "skill:simplify — Review changed code",
+        description: "Review changed code",
+        section: "skills",
+        skillName: "simplify",
+      },
+    ]);
+  });
+
+  it("finds ACP skill commands by their short display name", () => {
+    const command = {
+      id: "skill:simplify",
+      label: "skill:simplify — Review changed code",
+      description: "Review changed code",
+      section: "skills" as const,
+      skillName: "simplify",
+    };
+
+    expect(filterSlashCommands([command], "sim")).toEqual([command]);
+    expect(filterSlashCommands([command], "skill:sim")).toEqual([command]);
+  });
+
+  it("shows the short skill name but submits the ACP-native command", async () => {
+    const baseCapabilities = makeAgentStatus().capabilities;
+    const onStart = await renderDraftComposer(
+      makeAgentStatus({
+        kind: "kimi",
+        label: "Kimi Code",
+        capabilities: {
+          ...baseCapabilities,
+          liveInputMode: "server",
+          presentationMode: "gui",
+          presentationModes: ["terminal", "gui"],
+          slashCommands: [
+            {
+              id: "skill:simplify",
+              label: "skill:simplify — Review changed code",
+              description: "Review changed code",
+              section: "skills",
+              skillName: "simplify",
+            },
+          ],
+        },
+      }),
+      undefined,
+      "gui",
+    );
+
+    const editor = screen.getByRole("textbox");
+    typeSlashQuery(editor, "/sim");
+
+    expect(screen.getByText("/simplify")).toBeInTheDocument();
+    expect(screen.queryByText("/skill:simplify")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(editor.textContent).toBe("/simplify ");
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentKind: "kimi",
+        prompt: "/skill:simplify",
+        presentationMode: "gui",
+      }),
+    );
+  });
+
   it("does not reintroduce locally discovered skills when the provider catalog is authoritative", async () => {
     bridge.scanSkills.mockResolvedValue({
       skills: [
@@ -873,6 +1012,58 @@ describe("ThreadSlashCommands", () => {
     expect(useAppStore.getState().draftContents[draftProject.id]).toMatchObject({
       segments: [{ kind: "text", content: "ordinary draft" }],
     });
+  });
+
+  it("appends queued input after restored draft content", async () => {
+    useAppStore.setState({
+      draftContents: {
+        [draftProject.id]: {
+          segments: [{ kind: "text", content: "existing draft" }],
+          attachments: [],
+        },
+      },
+    });
+    useComposerInputInbox
+      .getState()
+      .enqueue(`draft:${draftProject.id}`, [{ kind: "text", content: "review note" }]);
+
+    const onStart = await renderDraftComposer(makeAgentStatus(), vi.fn(), "gui");
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "existing draft\n\nreview note",
+        segments: [{ kind: "text", content: "existing draft\n\nreview note" }],
+      }),
+    );
+  });
+
+  it("consumes the project fallback inbox from a unique draft pane", async () => {
+    useComposerInputInbox
+      .getState()
+      .enqueue(`draft:${draftProject.id}`, [{ kind: "text", content: "fallback note" }]);
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    await renderDraftComposer(
+      makeAgentStatus(),
+      onStart,
+      "gui",
+      vi.fn(),
+      [],
+      { model: "gemini-2.5-pro" },
+      "unique-draft-pane",
+    );
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "fallback note",
+        segments: [{ kind: "text", content: "fallback note" }],
+      }),
+    );
+    expect(
+      useComposerInputInbox.getState().itemsByComposer[`draft:${draftProject.id}`],
+    ).toBeUndefined();
   });
 
   it("discards draft composer content when project switching requests it", () => {

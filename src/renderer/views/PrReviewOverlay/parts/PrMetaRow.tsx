@@ -3,7 +3,12 @@ import { Chip } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { usePrState } from "@/renderer/state/gitSelectors";
+import {
+  usePrMergeStateStatus,
+  usePrMergeable,
+  usePrReviewDecision,
+  usePrState,
+} from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { getPrStatusTone, PR_TONE_BG_CLASS, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
@@ -20,10 +25,17 @@ export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
   const { prKey, cacheKey } = props;
   const { t } = useLingui();
   const state = usePrState(prKey);
+  const reviewDecision = usePrReviewDecision(prKey);
+  const mergeable = usePrMergeable(prKey);
+  const mergeStateStatus = usePrMergeStateStatus(prKey);
   const checksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
   const details = useGitStore((s) => s.prDetails[cacheKey]);
 
-  const tone = getPrStatusTone(state, checksStatus);
+  const tone = getPrStatusTone(state, checksStatus, {
+    reviewDecision,
+    mergeable,
+    mergeStateStatus,
+  });
   const stateLabel = state ? t(STATE_LABEL[state]) : "—";
   const head = details?.headBranch;
   const base = details?.baseBranch;

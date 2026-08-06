@@ -114,7 +114,7 @@ describe("SupervisorClient.call", () => {
     const { client, child } = makeClient({
       prepareStartThread: (payload) => ({
         ...payload,
-        invariantDisabledBuiltInMcpServerIds: ["subagents"],
+        invariantDisabledBuiltInMcpServerIds: ["crossagents"],
       }),
     });
     let request: { id: string; payload: unknown } | undefined;
@@ -133,7 +133,7 @@ describe("SupervisorClient.call", () => {
     });
     await vi.waitFor(() => expect(request).toBeDefined());
     expect(request?.payload).toMatchObject({
-      invariantDisabledBuiltInMcpServerIds: ["subagents"],
+      invariantDisabledBuiltInMcpServerIds: ["crossagents"],
     });
     child.emit("message", { replyTo: request!.id, ok: true, data: { threadId: "child-thread" } });
     await expect(promise).resolves.toEqual({ threadId: "child-thread" });

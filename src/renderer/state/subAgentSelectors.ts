@@ -1,19 +1,29 @@
 import type { Thread, ToolCallPayload } from "@/shared/contracts";
-import { isSubAgentTool, isWorkflowTool } from "@/shared/toolCallClassification";
+import { isDelegatedAgentTool, isWorkflowTool } from "@/shared/toolCallClassification";
 import type { AppStoreState } from "./slices/shared";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
 
 function classifyActiveSubAgent(item: RuntimeChatItem): "workflow" | "native" | null {
+  // Nested delegated agents belong to their owning Agent/Crossagent overlay.
+  // Only root-level agent rows may affect the parent thread's composer dock or
+  // sidebar liveness. Forwarded requests use a separate request channel and
+  // intentionally remain visible at the parent level.
+  if (item.parentItemId) return null;
   if (item.type !== "tool_call") return null;
   const payload = item.payload as ToolCallPayload | undefined;
-  if (!payload || !isSubAgentTool(payload)) return null;
+  if (!payload || !isDelegatedAgentTool(payload)) return null;
   // Workflow tools complete on the parent SDK stream the moment they're
   // launched (background), but the real work continues for minutes. Keep
   // them in the active list as long as the SDK didn't reject the launch —
   // ActiveSubAgentTile subscribes to the manifest and auto-dismisses once
-  // it sees a terminal status.
-  if (isWorkflowTool(payload)) return payload.status === "error" ? null : "workflow";
-  if (item.state === "completed" && payload.status !== "running") return null;
+  // it sees a terminal status. Only for items streamed live THIS session:
+  // a workflow replayed from history on thread reopen belongs to a process
+  // that is gone (or long finished) and must not resurrect the composer dock.
+  if (isWorkflowTool(payload)) {
+    if (payload.status === "error" || item.observedLive !== true) return null;
+    return "workflow";
+  }
+  if (item.state === "completed") return null;
   return "native";
 }
 

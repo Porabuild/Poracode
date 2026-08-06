@@ -25,6 +25,7 @@ import {
 } from "./processRuntime";
 import {
   buildPosixExportPrefix,
+  buildWindowsCommandLine,
   getPosixLoginShellArgs,
   getWslCommand,
   quotePosixShellArg,
@@ -42,6 +43,7 @@ import type {
 } from "./types";
 
 export type {
+  AcpEmptyResponseErrorResolver,
   AcpSessionUpdateTransform,
   AgentAcpAuth,
   AgentAdapter,
@@ -84,6 +86,7 @@ export type {
   ThreadHistoryEntry,
 } from "./types";
 export * from "./terminalHints";
+export * from "./expectedRuntimeError";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
@@ -122,6 +125,28 @@ export function injectWslEnv(
   return { ...spec, args };
 }
 
+export function buildWslLoginShellCommand(
+  distro: string,
+  cwd: string,
+  script: string,
+): CommandSpec {
+  return {
+    command: getWslCommand(),
+    args: [
+      "-d",
+      distro,
+      "--cd",
+      cwd,
+      "--exec",
+      resolveWslShellPath(distro),
+      "-l",
+      "-i",
+      "-c",
+      script,
+    ],
+  };
+}
+
 /**
  * Drop `undefined` values so an `env` record matches the `Record<string, string>`
  * shape that `buildAgentCommand` expects (the SDK's `SpawnOptions.env` allows
@@ -143,18 +168,74 @@ function isWindowsDirectExecutable(command: string): boolean {
   return /^(?:[a-zA-Z]:[\\/]|\\\\)/.test(command) && /\.(?:exe|com)$/i.test(command);
 }
 
-/** Detect the best available shell. Returns a shell path on Windows (pwsh > powershell > cmd), or `true` on Unix (default shell). */
+/** A resolved Windows PowerShell host: modern pwsh 7+ or legacy 5.1. */
+export interface DetectedPowerShell {
+  path: string;
+  kind: "pwsh" | "powershell";
+}
+
+/**
+ * Detect the best available PowerShell host, preserving which one matched
+ * (pwsh > powershell). Callers fall back to the platform shell when none resolves.
+ */
 export function detectShell(
   resolvePath: ResolveExecutablePath = resolveExecutablePath,
-): string | true {
-  if (process.platform !== "win32") return true;
-  return (
-    resolvePath("pwsh.exe") ??
-    resolvePath("pwsh") ??
-    resolvePath("powershell.exe") ??
-    resolvePath("powershell") ??
-    true
-  );
+): DetectedPowerShell | undefined {
+  if (process.platform !== "win32") return undefined;
+  const pwsh = resolvePath("pwsh.exe") ?? resolvePath("pwsh");
+  if (pwsh) return { path: pwsh, kind: "pwsh" };
+  const powershell = resolvePath("powershell.exe") ?? resolvePath("powershell");
+  if (powershell) return { path: powershell, kind: "powershell" };
+  return undefined;
+}
+
+/**
+ * Windows PowerShell 5.1 rebuilds the native command line from `@args`
+ * naively (quotes only around whitespace, embedded quotes not escaped), so
+ * `& $cmd @args` corrupts args containing quotes or newlines — e.g. a diff
+ * embedded in a one-shot prompt. pwsh 7.3+ passes native args correctly and
+ * keeps the simple splatting script. For 5.1 we pre-build the child command
+ * line in Node with exact MSVC quoting and hand it to `ProcessStartInfo`,
+ * which forwards the string to `CreateProcess` untouched.
+ */
+function buildLegacyPowerShellScript(command: string, args: string[]): string {
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    // 5.1 serializes its progress stream ("Preparing modules for first use.")
+    // to stderr as CLIXML when redirected; silence it so callers that surface
+    // stderr in error messages see only the child's real output.
+    "$ProgressPreference = 'SilentlyContinue'",
+    `$cmd = ${quotePowerShellLiteral(command)}`,
+    "$exe = (Get-Command $cmd).Source",
+    "if (-not $exe) { $exe = $cmd }",
+    "$psi = New-Object System.Diagnostics.ProcessStartInfo",
+    "$psi.FileName = $exe",
+    `$psi.Arguments = ${quotePowerShellLiteral(buildWindowsCommandLine(args))}`,
+    "$psi.UseShellExecute = $false",
+    "$psi.WorkingDirectory = (Get-Location).Path",
+    "$p = [System.Diagnostics.Process]::Start($psi)",
+    "$p.WaitForExit()",
+    "exit $p.ExitCode",
+  ].join("; ");
+}
+
+/**
+ * Build the PowerShell script that invokes a native command with args,
+ * picking the arg-passing strategy that is faithful for the resolved host:
+ * plain splatting on pwsh 7+, the `ProcessStartInfo` bypass on legacy 5.1.
+ */
+export function buildPowerShellInvocationScript(
+  shell: DetectedPowerShell,
+  command: string,
+  args: string[],
+): string {
+  if (shell.kind === "powershell") return buildLegacyPowerShellScript(command, args);
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    `$cmd = ${quotePowerShellLiteral(command)}`,
+    `$args = @(${args.map(quotePowerShellLiteral).join(", ")})`,
+    "& $cmd @args",
+  ].join("; ");
 }
 
 export function buildWindowsCommand(
@@ -168,16 +249,10 @@ export function buildWindowsCommand(
   }
 
   const shell = detectShell(resolvePath);
-  if (typeof shell === "string") {
-    const script = [
-      "$ErrorActionPreference = 'Stop'",
-      `$cmd = ${quotePowerShellLiteral(command)}`,
-      `$args = @(${args.map(quotePowerShellLiteral).join(", ")})`,
-      "& $cmd @args",
-    ].join("; ");
-
+  if (shell) {
+    const script = buildPowerShellInvocationScript(shell, command, args);
     return {
-      command: shell,
+      command: shell.path,
       args: ["-NoLogo", "-NoProfile", "-EncodedCommand", encodePowerShellCommand(script)],
       cwd,
     };
@@ -192,6 +267,7 @@ function resolveWindowsNodeCmdShim(commandPath: string):
       argsPrefix: string[];
     }
   | undefined {
+  if (isWindowsDirectExecutable(commandPath)) return undefined;
   let effectivePath = commandPath;
   if (!/\.cmd$/i.test(commandPath)) {
     // Bare command names like "npx" resolve to "npx.cmd" via PATHEXT.
@@ -281,25 +357,16 @@ export function buildAgentCommand(
     // tooling reachable via `/mnt/c` interop can shadow Linux node from a
     // version manager and break things like `npx` (e.g. fnm shims that exec a
     // node not on PATH).
-    const shellPath = resolveWslShellPath(location.distro);
     const execCommand = resolvedExecPath ?? command;
     const exports = buildPosixExportPrefix(env);
     const script = `${exports}exec ${[execCommand, ...args].map(quotePosixShellArg).join(" ")}`;
-    return {
-      command: getWslCommand(),
-      args: [
-        "-d",
-        location.distro,
-        "--cd",
-        location.linuxPath,
-        "--",
-        shellPath,
-        "-l",
-        "-i",
-        "-c",
-        script,
-      ],
-    };
+    // `--exec` (not `--`) is required: `--` routes the command line through the
+    // user's default WSL shell, which re-parses the already-quoted script. Any
+    // `$(`, backtick, or unbalanced quote inside `args` (e.g. a diff embedded
+    // in a one-shot prompt) then breaks bash parsing ("unexpected EOF while
+    // looking for matching …") or, worse, executes as command substitution.
+    // `--exec` passes argv straight to execvp, so the script arrives verbatim.
+    return buildWslLoginShellCommand(location.distro, location.linuxPath, script);
   }
 
   if (location.kind === "windows") {
@@ -438,21 +505,34 @@ export function buildAgentLogoutCommand(
 
 async function resolveDetectedBinary(
   ctx: AgentEnvContext | undefined,
-  binary: string,
+  spec: DetectionSpec,
 ): Promise<string | undefined> {
+  const { binary } = spec;
   if (ctx?.envKind === "wsl" && ctx.wslDistro) {
-    const [result] = await batchWslCommandsAsync(ctx.wslDistro, [`command -v ${binary}`]);
+    const commands = [`command -v ${quotePosixShellArg(binary)}`];
+    if (spec.wslBinaryHome) {
+      const { env, defaultSubpath } = spec.wslBinaryHome;
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(env)) {
+        throw new Error(`Invalid WSL binary-home environment variable: ${env}`);
+      }
+      commands.push(
+        `home="\${${env}:-}"; if [ -z "$home" ]; then home="$HOME"/${quotePosixShellArg(defaultSubpath)}; fi; candidate="$home/bin/"${quotePosixShellArg(binary)}; if [ -x "$candidate" ]; then printf '%s\\n' "$candidate"; fi`,
+      );
+    }
+    const results = await batchWslCommandsAsync(ctx.wslDistro, commands);
     // A `/mnt/...` result is a Windows binary surfaced via PATH interop, not a
     // real Linux install — reject it so detection matches launch-time
     // resolution (see isWslInteropBinaryPath).
-    const path = result?.ok && !isWslInteropBinaryPath(result.stdout) ? result.stdout : undefined;
+    const path = results
+      .map((result) => (result?.ok ? result.stdout.trim() : ""))
+      .find((candidate) => candidate.length > 0 && !isWslInteropBinaryPath(candidate));
     primeAgentBinaryPath(ctx.wslDistro, binary, path);
     return path;
   }
   return resolveExecutablePathAsync(binary);
 }
 
-function extractSemverFromVersionOutput(raw: string | undefined): string | undefined {
+export function extractSemverFromVersionOutput(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   // Allow a leading `v` ("v24.14.0"): without it, `\b` cannot match between
   // `v` and the first digit, so the regex would skip past the major segment
@@ -461,7 +541,7 @@ function extractSemverFromVersionOutput(raw: string | undefined): string | undef
   return match ? match[1] : raw.trim() || undefined;
 }
 
-async function readDetectedVersion(
+export async function readDetectedVersion(
   location: ProjectLocation,
   executablePath: string | undefined,
   versionArgs: string[],
@@ -626,10 +706,17 @@ export async function detectAgentInstall(
   spec: DetectionSpec,
 ): Promise<AgentStatus> {
   const location = detectProbeLocation(ctx);
-  const executablePath = await resolveDetectedBinary(ctx, spec.binary);
+  const executablePath = await resolveDetectedBinary(ctx, spec);
 
   const versionArgs = spec.versionArgs ?? ["--version"];
-  const version = await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
+  const version = spec.versionProbe
+    ? await spec.versionProbe({
+        location,
+        executablePath,
+        ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+        ...(spec.probeEnv ? { probeEnv: spec.probeEnv } : {}),
+      })
+    : await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;
@@ -639,7 +726,13 @@ export async function detectAgentInstall(
   let probedProviderMetadata: AgentProviderMetadata | undefined;
   let probedPreferTerminalLogin: boolean | undefined;
   if (executablePath) {
-    const probeCtx: DetectProbeCtx = { location, executablePath, version, probeEnv: spec.probeEnv };
+    const probeCtx: DetectProbeCtx = {
+      location,
+      executablePath,
+      version,
+      ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+      probeEnv: spec.probeEnv,
+    };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
       spec.capabilitiesProbe ? spec.capabilitiesProbe(probeCtx) : Promise.resolve(undefined),
       spec.statusProbe ? spec.statusProbe(probeCtx) : Promise.resolve(undefined),
@@ -673,7 +766,12 @@ export async function detectAgentInstall(
     statusProbeResult = nextStatusProbeResult;
   }
 
-  const probeCtx: DetectProbeCtx = { location, executablePath, version };
+  const probeCtx: DetectProbeCtx = {
+    location,
+    executablePath,
+    version,
+    ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+  };
 
   let authState: AuthState;
   if (!executablePath) {

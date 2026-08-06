@@ -36,7 +36,6 @@ export function PluginMarketplace(props: {
       entry.category,
       ...(entry.plugin.manifest.keywords ?? []),
       ...entry.skills.map((skill) => skill.name),
-      ...entry.apps.map((app) => app.name),
       ...entry.mcpServers.map((server) => server.name),
     ]
       .join(" ")
@@ -165,7 +164,7 @@ function PluginCard(props: {
   const supported = isPluginSupportedOnHost(plugin, props.hostPlatform);
   const titleId = `plugin-${plugin.name}-title`;
   const actionLabelId = `plugin-${plugin.name}-action`;
-  const serverCount = props.entry.apps.length + props.entry.mcpServers.length;
+  const serverCount = props.entry.mcpServers.length;
 
   return (
     <Card className="min-h-40 items-stretch gap-3 border border-[var(--hairline)] p-4">

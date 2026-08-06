@@ -6,7 +6,7 @@ import type {
   AgentCapability,
   AgentInstanceConfig,
   ClaudeProfileModel,
-  McpServer,
+  ResolvedMcpServer,
   ProjectLocation,
   PromptSegment,
 } from "@/shared/contracts";
@@ -29,7 +29,7 @@ import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForCon
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
 import { ClaudeSdkSession } from "./sdkSession";
-import { buildClaudeUserMcpServers } from "../userMcp";
+import { buildClaudeMcpServers } from "../userMcp";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
   getClaudePluginPaths,
@@ -60,6 +60,10 @@ interface ClaudeAdapterOptions {
   models?: ClaudeProfileModel[];
   /** Profile-specific effort allow-list (hides built-in tiers outside it). */
   efforts?: string[];
+  /** Profile-specific default effort. */
+  defaultEffort?: string;
+  /** Per-model effort choices for external-provider model ids. */
+  modelEfforts?: Record<string, string[]>;
 }
 
 function resolveTildePath(rawPath: string, location: ProjectLocation): string {
@@ -110,20 +114,23 @@ function resolveInstanceEnv(
  * Apply a profile's optional model additions / effort allow-list on top of the
  * built-in Claude capabilities. A no-op when neither override is set (so the
  * default adapter is unaffected). Custom models are *appended* to the built-in
- * list (the user can still pick the Claude models); they aren't in the built-in
- * per-model maps, so the picker falls back to the global effort/context lists.
+ * list (the user can still pick the Claude models). Profiles may also provide
+ * per-model effort choices for their external model ids.
  */
 function overrideProfileCapabilities(
   base: AgentCapability,
   models: ClaudeProfileModel[] | undefined,
   efforts: readonly string[] | undefined,
+  defaultEffort: string | undefined,
+  modelEfforts: Readonly<Record<string, readonly string[]>> | undefined,
 ): AgentCapability {
+  const keep = (list: readonly string[], allowed: ReadonlySet<string>) =>
+    list.filter((effort) => allowed.has(effort));
   let caps = base;
 
   if (efforts && efforts.length > 0) {
     const allowed = new Set(efforts);
-    const keep = (list: readonly string[]) => list.filter((effort) => allowed.has(effort));
-    const nextEfforts = keep(caps.efforts);
+    const nextEfforts = keep(caps.efforts, allowed);
     // If a hand-edited config lists only unknown tier names, the allow-list is
     // empty — keep the full built-in list rather than leaving the picker with no
     // efforts to choose from. (The UI only ever writes valid tiers.)
@@ -136,7 +143,7 @@ function overrideProfileCapabilities(
             ? caps.defaultEffort
             : nextEfforts[0],
         modelEfforts: Object.fromEntries(
-          Object.entries(caps.modelEfforts).map(([id, list]) => [id, keep(list)]),
+          Object.entries(caps.modelEfforts).map(([id, list]) => [id, keep(list, allowed)]),
         ),
       };
     }
@@ -156,6 +163,23 @@ function overrideProfileCapabilities(
     }
   }
 
+  if (defaultEffort && caps.efforts.includes(defaultEffort)) {
+    caps = { ...caps, defaultEffort };
+  }
+
+  if (modelEfforts) {
+    const allowed = new Set(caps.efforts);
+    caps = {
+      ...caps,
+      modelEfforts: {
+        ...caps.modelEfforts,
+        ...Object.fromEntries(
+          Object.entries(modelEfforts).map(([modelId, list]) => [modelId, keep(list, allowed)]),
+        ),
+      },
+    };
+  }
+
   return caps;
 }
 
@@ -170,6 +194,8 @@ export function createClaudeProfileAdapter(instance: AgentInstanceConfig): Agent
     ...(customEnv ? { customEnv } : {}),
     ...(cfg.models && cfg.models.length > 0 ? { models: cfg.models } : {}),
     ...(cfg.efforts && cfg.efforts.length > 0 ? { efforts: cfg.efforts } : {}),
+    ...(cfg.defaultEffort ? { defaultEffort: cfg.defaultEffort } : {}),
+    ...(cfg.modelEfforts ? { modelEfforts: cfg.modelEfforts } : {}),
   });
 }
 
@@ -182,7 +208,48 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     claudeCapabilities,
     options.models,
     options.efforts,
+    options.defaultEffort,
+    options.modelEfforts,
   );
+
+  function buildClaudeOneShotCommand(
+    model: string,
+    effort: string | undefined,
+    prompt: string | undefined,
+    location: ProjectLocation | undefined,
+    fast: boolean | undefined,
+    extraArgs: readonly string[] = [],
+  ) {
+    if (!prompt) return undefined;
+    // --no-session-persistence keeps title/commit/PR-summary calls out of
+    // the `/resume` picker. --fallback-model auto-degrades to Haiku if the
+    // primary is overloaded so async title generation does not silently
+    // fail when the API throttles.
+    const args = [
+      "-p",
+      prompt,
+      "--model",
+      model,
+      "--fallback-model",
+      "haiku",
+      "--no-session-persistence",
+      ...extraArgs,
+    ];
+    if (effort) args.push("--effort", effort);
+    if (fast) {
+      // Fast mode is a session flag, not a model/effort value. On the CLI it
+      // rides on --settings JSON (the SDK path uses applyFlagSettings). One-shot
+      // calls pass no other --settings, so a single inline flag is safe here.
+      args.push("--settings", JSON.stringify({ fastMode: true }));
+    }
+    const env = location ? profileEnv(location) : undefined;
+    return {
+      command: "claude",
+      args,
+      stdin: "",
+      ...(env ? { env } : {}),
+    };
+  }
 
   return {
     kind,
@@ -207,6 +274,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
           projectPath: ".claude/skills",
           ...(options.configDir ? { globalBasePath: options.configDir } : {}),
           globalOverride: { env: "CLAUDE_CONFIG_DIR", path: "skills" },
+          linkProjectionFromVersion: "2.1.203",
         },
       ],
       invocation: "slash",
@@ -279,13 +347,15 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
           status.capabilities,
           options.models,
           options.efforts,
+          options.defaultEffort,
+          options.modelEfforts,
         ),
       };
     },
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const assignedId = randomUUID();
       const args = buildClaudeArgs(config, prompt, undefined, assignedId);
-      appendClaudeUserMcpArgs(args, prompt, launchOptions?.mcpServers ?? []);
+      appendClaudeMcpArgs(args, prompt, launchOptions?.mcpServers ?? []);
       const env = profileEnv(location);
       return {
         binary: "claude",
@@ -296,7 +366,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
-      appendClaudeUserMcpArgs(args, prompt, launchOptions?.mcpServers ?? []);
+      appendClaudeMcpArgs(args, prompt, launchOptions?.mcpServers ?? []);
       const env = profileEnv(location);
       return { binary: "claude", args, ...(env ? { env } : {}) };
     },
@@ -341,37 +411,37 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     oscHintsDeferToHookPlugin: true,
     workingSilenceTimeoutMs: null,
     defaultOneShotModel: "haiku",
-    buildOneShotCommand(model, effort, prompt, location, fast) {
-      if (!prompt) return undefined;
-      // --no-session-persistence keeps title/commit/PR-summary calls out of
-      // the `/resume` picker. --fallback-model auto-degrades to Haiku if the
-      // primary is overloaded so async title generation does not silently
-      // fail when the API throttles.
-      const args = [
-        "-p",
-        prompt,
-        "--model",
+    buildOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
+      return buildClaudeOneShotCommand(
         model,
-        "--fallback-model",
-        "haiku",
-        "--no-session-persistence",
-      ];
-      if (effort) {
-        args.push("--effort", effort);
-      }
-      if (fast) {
-        // Fast mode is a session flag, not a model/effort value. On the CLI it
-        // rides on --settings JSON (the SDK path uses applyFlagSettings). One-shot
-        // calls pass no other --settings, so a single inline flag is safe here.
-        args.push("--settings", JSON.stringify({ fastMode: true }));
-      }
-      const env = location ? profileEnv(location) : undefined;
-      return {
-        command: "claude",
-        args,
-        stdin: "",
-        ...(env ? { env } : {}),
-      };
+        effort,
+        prompt,
+        location,
+        fast,
+        oneShotOptions?.readOnlyWorkspace
+          ? [
+              "--permission-mode",
+              "plan",
+              "--allowedTools",
+              "Read,Glob,Grep",
+              "--disallowedTools",
+              "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill",
+              "--mcp-config",
+              JSON.stringify({ mcpServers: {} }),
+              "--strict-mcp-config",
+            ]
+          : [],
+      );
+    },
+    buildTextOnlyOneShotCommand(model, effort, prompt, location, fast) {
+      return buildClaudeOneShotCommand(model, effort, prompt, location, fast, [
+        "--safe-mode",
+        "--tools",
+        "",
+        "--mcp-config",
+        JSON.stringify({ mcpServers: {} }),
+        "--strict-mcp-config",
+      ]);
     },
     buildContextExtractionCommand(sessionRef, location, model) {
       // The resumed session is read-only here; --no-session-persistence
@@ -394,8 +464,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
   };
 }
 
-function appendClaudeUserMcpArgs(args: string[], prompt: string, servers: McpServer[]): void {
-  const mcpServers = buildClaudeUserMcpServers(servers);
+function appendClaudeMcpArgs(
+  args: string[],
+  prompt: string,
+  servers: readonly ResolvedMcpServer[],
+): void {
+  const mcpServers = buildClaudeMcpServers(servers);
   if (Object.keys(mcpServers).length === 0) return;
   args.splice(
     claudeExtraArgsPosition(args, prompt),

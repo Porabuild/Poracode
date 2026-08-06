@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import type { WorktreeStorageMode } from "@/shared/contracts";
-import { useAppStore } from "@/renderer/state/appStore";
+import { updateProjectWorktreeLocation } from "@/renderer/actions/projectActions";
 import { useProject } from "@/renderer/state/useThread";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select } from "@/renderer/components/common";
@@ -16,7 +16,6 @@ import {
 export function ProjectWorktreeLocation(props: { projectId: string }) {
   const { t } = useLingui();
   const project = useProject(props.projectId);
-  const updateProjectWorktreeLocation = useAppStore((s) => s.updateProjectWorktreeLocation);
   const globalMode = useSharedSettings((s) => s.worktreeStorageMode);
   const globalNativeBase = useSharedSettings((s) => s.worktreeBasePath);
   const globalWslBase = useSharedSettings((s) => s.wslWorktreeBasePath);

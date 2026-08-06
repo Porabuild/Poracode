@@ -1,6 +1,7 @@
 import type { RuntimeEvent, ToolCallPayload, ToolCallProgress } from "@/shared/contracts";
 import {
   createCodexMapperState,
+  CodexUsageScopeTracker,
   mapCodexNotification,
   type CodexMapperState,
 } from "./canonicalMapping";
@@ -33,6 +34,7 @@ export class CodexSubAgentRouter {
   private mainThreadId: string | undefined;
   private readonly children = new Map<string, CodexChildThread>();
   private readonly parentPayloads = new Map<string, ToolCallPayload>();
+  private readonly completedParentItemIds = new Set<string>();
   private readonly collabItems = new Map<string, string>();
   private readonly activityItems = new Map<string, string>();
   private readonly pendingChildNotifications = new Map<
@@ -128,15 +130,10 @@ export class CodexSubAgentRouter {
       const result = this.readParentResult(child);
       return [
         ...childCompletionEvents,
-        {
-          type: "item.completed",
-          threadId: this.localThreadId,
-          itemId: child.parentItemId,
-          payload: {
-            status: this.hasFailedSiblingOrSelf(child) ? "error" : "success",
-            ...(result ? { result } : {}),
-          },
-        },
+        this.completeParent(child, {
+          status: this.hasFailedSiblingOrSelf(child) ? "error" : "success",
+          ...(result ? { result } : {}),
+        }),
       ];
     }
 
@@ -145,15 +142,10 @@ export class CodexSubAgentRouter {
       child.failed = true;
       if (this.hasActiveSibling(child)) return [];
       return [
-        {
-          type: "item.completed",
-          threadId: this.localThreadId,
-          itemId: child.parentItemId,
-          payload: {
-            status: "error",
-            result: readCodexErrorMessage(params) ?? "Codex child thread error",
-          },
-        },
+        this.completeParent(child, {
+          status: "error",
+          result: readCodexErrorMessage(params) ?? "Codex child thread error",
+        }),
       ];
     }
 
@@ -166,7 +158,11 @@ export class CodexSubAgentRouter {
         event.type === "item.started" ||
         event.type === "item.updated" ||
         event.type === "item.completed" ||
-        event.type === "content.delta",
+        event.type === "content.delta" ||
+        // Child tokenUsage flows to the usage ledger as usage.spent (scoped to
+        // the child codex thread); child context.updated stays dropped so the
+        // dock keeps showing the main thread's occupancy.
+        event.type === "usage.spent",
     );
     const routed: RuntimeEvent[] = [];
     let progressChanged = false;
@@ -253,15 +249,9 @@ export class CodexSubAgentRouter {
         child.active = false;
         return this.hasActiveSibling(child)
           ? []
-          : [
-              {
-                type: "item.completed",
-                threadId: this.localThreadId,
-                itemId: child.parentItemId,
-                payload: { status: "error" },
-              },
-            ];
+          : [this.completeParent(child, { status: "error" })];
       }
+      if (this.completedParentItemIds.has(child.parentItemId)) return [];
       child.active = true;
       return [this.updateParent(child, { status: "running" })];
     }
@@ -273,6 +263,10 @@ export class CodexSubAgentRouter {
         event.type === "item.started" && isSubAgentPayload(event.payload),
     );
     if (method === "item/started" && parentStarted) {
+      // A failed parallel spawn can emit provisional collab items before any
+      // child thread exists, then abort without a matching item/completed.
+      // Do not turn those childless attempts into permanently-running rows.
+      if (!hasCollabChild(item)) return [];
       const payload = mergeParentPayload(parentStarted.payload as ToolCallPayload, {
         progress: {
           ...this.defaultProgress,
@@ -323,6 +317,13 @@ export class CodexSubAgentRouter {
       }
     }
     if (!receiverThreadIds.some((threadId) => this.children.get(threadId)?.active)) {
+      const parentCompletion = events.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.completed" }> =>
+          event.type === "item.completed" && event.itemId === parentItemId,
+      );
+      if (parentCompletion) {
+        this.recordParentCompletion(parentCompletion.itemId, parentCompletion.payload);
+      }
       return [...routed, ...events];
     }
 
@@ -350,9 +351,13 @@ export class CodexSubAgentRouter {
       existing.active = active;
       return [];
     }
+    const mapperState = createCodexMapperState(this.localThreadId);
+    // Child threads are brand-new provider threads (counter starts at 0), so
+    // their usage scope is fresh with its own epoch tracking.
+    mapperState.usageScope = new CodexUsageScopeTracker(threadId, true);
     this.children.set(threadId, {
       parentItemId,
-      mapperState: createCodexMapperState(this.localThreadId),
+      mapperState,
       itemIds: new Set(),
       active,
       failed: false,
@@ -422,7 +427,12 @@ export class CodexSubAgentRouter {
       status: "running",
       isSubAgent: true,
     };
-    const payload = mergeParentPayload(current, patch);
+    const payload = mergeParentPayload(current, {
+      ...(!this.completedParentItemIds.has(child.parentItemId) && patch.status
+        ? { status: patch.status }
+        : {}),
+      ...(patch.progress ? { progress: patch.progress } : {}),
+    });
     this.parentPayloads.set(child.parentItemId, payload);
     return {
       type: "item.updated",
@@ -430,6 +440,33 @@ export class CodexSubAgentRouter {
       itemId: child.parentItemId,
       payload,
     };
+  }
+
+  private completeParent(
+    child: CodexChildThread,
+    payload: Pick<ToolCallPayload, "status"> & { result?: unknown },
+  ): Extract<RuntimeEvent, { type: "item.completed" }> {
+    this.recordParentCompletion(child.parentItemId, payload);
+    return {
+      type: "item.completed",
+      threadId: this.localThreadId,
+      itemId: child.parentItemId,
+      payload,
+    };
+  }
+
+  private recordParentCompletion(itemId: string, payload: unknown): void {
+    const current = this.parentPayloads.get(itemId) ?? {
+      name: "spawnAgent",
+      status: "running",
+      isSubAgent: true,
+    };
+    const completedPayload =
+      payload && typeof payload === "object"
+        ? ({ ...current, ...(payload as Partial<ToolCallPayload>) } as ToolCallPayload)
+        : current;
+    this.parentPayloads.set(itemId, completedPayload);
+    this.completedParentItemIds.add(itemId);
   }
 }
 
@@ -494,6 +531,17 @@ function readCollabChildActive(item: CodexItemPayload, childThreadId: string): b
     status === "pendingInit" ||
     status === "pending_init" ||
     status === "running"
+  );
+}
+
+function hasCollabChild(item: CodexItemPayload): boolean {
+  if (readStringArray(item.receiverThreadIds ?? item.receiver_thread_ids).length > 0) return true;
+  const states = item.agentsStates ?? item.agents_states;
+  return Boolean(
+    states &&
+    typeof states === "object" &&
+    !Array.isArray(states) &&
+    Object.keys(states as Record<string, unknown>).length > 0,
   );
 }
 

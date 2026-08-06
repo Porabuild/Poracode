@@ -65,15 +65,37 @@ export type BuildModelPickerControlsInput = {
 function makeMenuProvider(
   agent: AgentStatus,
   presentationMode: ThreadPresentationMode,
+  runtimeVariant?: string,
 ): ProviderModelMenuProvider {
+  const presentationCapabilities = capabilitiesForPresentation(
+    agent.capabilities,
+    presentationMode,
+  );
+  // A surface is runtime-scoped when the adapter declares a runtime badge that
+  // names one of its runtime variants for this presentation mode.
+  const declaredRuntimeVariant = presentationCapabilities.runtimeLabel?.toLowerCase();
+  const resolvedRuntimeVariant =
+    runtimeVariant ??
+    (declaredRuntimeVariant &&
+    agent.runtimeVariants?.[declaredRuntimeVariant]?.presentationMode === presentationMode
+      ? declaredRuntimeVariant
+      : undefined);
+  const runtime = resolvedRuntimeVariant
+    ? agent.runtimeVariants?.[resolvedRuntimeVariant]
+    : undefined;
   const provider: ProviderModelMenuProvider = {
     kind: agent.kind,
     label: agent.label,
     presentationMode,
+    ...(resolvedRuntimeVariant ? { runtimeVariant: resolvedRuntimeVariant } : {}),
     ...(agent.icon ? { icon: agent.icon } : {}),
-    modelPickerKey: providerMenuKey({ kind: agent.kind, presentationMode }),
-    hiddenModelsKey: modelVisibilityKey(agent.kind, presentationMode),
-    capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
+    modelPickerKey: providerMenuKey({
+      kind: agent.kind,
+      presentationMode,
+      ...(resolvedRuntimeVariant ? { runtimeVariant: resolvedRuntimeVariant } : {}),
+    }),
+    hiddenModelsKey: modelVisibilityKey(agent.kind, presentationMode, resolvedRuntimeVariant),
+    capabilities: runtime?.capabilities ?? presentationCapabilities,
   };
   return { ...provider, label: providerLabelForPresentation(provider) };
 }
@@ -107,19 +129,35 @@ export function buildProviderModelMenuProviders(
 }
 
 /**
- * Expand an agent into one menu provider per model-visibility surface. Most
- * agents have a single surface; Cursor exposes separate CLI (terminal) and ACP
- * (gui) surfaces, each with its own hidden-model persistence key. Surfaces whose
- * only model is the synthetic "auto" entry are dropped — they have nothing to
- * toggle.
+ * Expand an agent into one menu provider per model-visibility surface. Only
+ * providers that declare named runtime variants have more than one surface (for
+ * example a CLI terminal surface plus independently detected structured
+ * runtimes), each with its own hidden-model persistence key. Surfaces whose only
+ * model is the synthetic "auto" entry are dropped — they have nothing to toggle.
  */
 export function expandAgentToVisibilityProviders(agent: AgentStatus): ProviderModelMenuProvider[] {
-  if (agent.kind !== "cursor") return [statusToMenuProvider(agent)];
+  const runtimeVariants = agent.runtimeVariants;
+  if (!runtimeVariants || Object.keys(runtimeVariants).length === 0) {
+    return [statusToMenuProvider(agent)];
+  }
 
   const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-  return supported
-    .map((presentationMode) => makeMenuProvider(agent, presentationMode))
-    .filter((provider) => provider.capabilities.models.some((model) => model.id !== "auto"));
+  const providers = supported.flatMap((presentationMode) => {
+    const runtimeProviders = Object.entries(runtimeVariants)
+      .filter(
+        ([, runtime]) =>
+          runtime.installed &&
+          runtime.authState === "authenticated" &&
+          runtime.presentationMode === presentationMode,
+      )
+      .map(([runtimeVariant]) => makeMenuProvider(agent, presentationMode, runtimeVariant));
+    return runtimeProviders.length > 0
+      ? runtimeProviders
+      : [makeMenuProvider(agent, presentationMode)];
+  });
+  return providers.filter((provider) =>
+    provider.capabilities.models.some((model) => model.id !== "auto"),
+  );
 }
 
 export function patchConfigForModelChange(
@@ -132,16 +170,20 @@ export function patchConfigForModelChange(
     thinking?: boolean;
   },
 ): ModelPickerConfigPatch {
-  const nextEfforts = capabilities.modelEfforts?.[model] ?? capabilities.efforts ?? [];
-  const effortValid = current.effort ? nextEfforts.includes(current.effort) : true;
+  const nextReasoning = modelSelectionFor(capabilities, model).reasoning;
+  const effortValid = current.effort ? nextReasoning.values.includes(current.effort) : true;
   const nextContextIds = capabilities.modelContextSizes?.[model];
   const nextContextDefault = nextContextIds?.[0] ?? capabilities.defaultContextSize;
   return {
     model,
-    ...(!effortValid && nextEfforts.length > 0 ? { effort: nextEfforts[0] } : {}),
+    // Reset to the new model's declared default, not the first tier in its
+    // list. A model with no tiers at all clears the effort rather than
+    // inheriting the previous model's — an effort it does not support would
+    // otherwise be sent to the agent, which is free to apply its own default.
+    ...(effortValid ? {} : { effort: nextReasoning.default ?? "" }),
     ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
     ...(supportsUsableFastMode(capabilities, model) ? {} : { fast: false }),
-    ...(capabilities.thinkingModels?.includes(model) ? {} : { thinking: false }),
+    thinking: capabilities.thinkingModels?.includes(model) ?? false,
   };
 }
 
@@ -201,6 +243,8 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       ...(lockedAgentKind ? { lockedAgentKind } : {}),
       ...(presentationMode ? { presentationMode } : {}),
       ...(isDisabled !== undefined ? { isDisabled } : {}),
+      // Rows mark Fast mode filled while it is on for this draft.
+      ...(fast === true ? { isFastEnabled: true } : {}),
       hideLabelOnWrap,
       tier: 5,
       onChange: onProviderModelChange,
@@ -225,7 +269,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       icon:
         selectableEfforts.length > 0 ? (
           <EffortIcon
-            className="size-4 text-foreground"
+            className="poracode-composer-effort-icon size-4 text-foreground"
             effort={effort ?? ""}
             efforts={selectableEfforts.map((entry) => entry.id)}
           />
@@ -240,6 +284,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       label: "Fast",
       displayLabel: msg`Fast`,
       icon: <Zap className="size-3.5" />,
+      iconKind: "fast",
       iconOnly: true,
       fillIconOnSelect: true,
       tier: 3,
@@ -280,9 +325,10 @@ export function appendProviderComposerControls(
 
 function normalizeCursorComposerConfig(
   agentKind: string,
-  config: ThreadConfig,
+  config: ThreadConfig | undefined,
   capabilities: AgentStatus["capabilities"],
 ): ThreadConfig {
+  if (!config) return { model: capabilities.models[0]?.id ?? "auto" };
   if (agentKind !== "cursor" || capabilities.models.some((model) => model.id === config.model)) {
     return config;
   }

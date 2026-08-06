@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { isLoopbackHostname } from "@/shared/http";
 import { REMOTE_COMMAND_ID_HEADER, type RemoteAccessScope } from "@/shared/remote";
 import { parseBearerAuthorizationHeader, RemoteHttpError, type RemoteAuthStore } from "../auth";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
@@ -56,21 +57,16 @@ function resolveRateLimitClient(req: IncomingMessage): string {
 
 /**
  * A loopback web origin (any port), e.g. `http://localhost:3100` or
- * `http://127.0.0.1:8080`. Trusted only in dev so the Vite-served mobile PWA can
- * pair against a loopback headless server without a hardcoded origin entry.
+ * `http://127.0.0.1:8080`. The page itself is local, but its target Poracode
+ * app may be any paired desktop/headless host. Pairing still requires the
+ * one-time credential, and the resulting access token remains isolated to the
+ * page's exact browser origin.
  */
 function isLoopbackWebOrigin(origin: string): boolean {
   try {
     const url = new URL(origin);
     if (url.protocol !== "http:" && url.protocol !== "https:") return false;
-    const host = url.hostname;
-    return (
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host === "::1" ||
-      host === "[::1]" ||
-      host.endsWith(".localhost")
-    );
+    return isLoopbackHostname(url.hostname);
   } catch {
     return false;
   }
@@ -140,7 +136,7 @@ export class RemoteServerSecurity {
 
   private isTrustedCorsOrigin(origin: string): boolean {
     if (NATIVE_WEBVIEW_ORIGINS.has(origin)) return true;
-    if (this.ctx.options.isDev && isLoopbackWebOrigin(origin)) return true;
+    if (isLoopbackWebOrigin(origin)) return true;
     const key = this.ctx.getHttpBaseUrl();
     let cache = this.trustedCorsOrigins;
     if (!cache || cache.key !== key) {

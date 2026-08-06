@@ -47,8 +47,8 @@ export function shouldSkipScrollToBottomWrite(input: {
 /**
  * During a thread-open measurement storm, trust a recent "already at bottom"
  * result so we do not re-read scroll metrics on every ResizeObserver /
- * totalSize callback — but only while `scrollHeight` is unchanged. If content
- * grew (virtualizer measured taller rows), we must re-pin or the chat opens
+ * totalSize callback — but only while the content and viewport heights are
+ * unchanged. If either changes, we must re-pin or the chat can open or remain
  * mid-transcript.
  *
  * Never trust the cache when `reconcileVirtualizer` is requested: the initial
@@ -59,10 +59,13 @@ export function shouldTrustCachedAtBottom(input: {
   cachedUntil: number;
   scrollHeight: number;
   lastPinnedScrollHeight: number;
+  clientHeight: number;
+  lastPinnedClientHeight: number;
   reconcileVirtualizer?: boolean;
 }): boolean {
   if (input.reconcileVirtualizer) return false;
   if (input.scrollHeight !== input.lastPinnedScrollHeight) return false;
+  if (input.clientHeight !== input.lastPinnedClientHeight) return false;
   return input.now < input.cachedUntil;
 }
 
@@ -81,9 +84,9 @@ export function nextAtBottomCacheUntil(input: {
 
 /**
  * While sticky during a thread-open storm, only re-pin when the scrollable
- * content height changed. Re-reading distance-from-bottom on every callback is
- * wasted when `scrollHeight` is unchanged; grow or shrink both require a pin
- * (collapse must not leave the view stranded above the bottom).
+ * content or viewport height changed. Re-reading distance-from-bottom on every
+ * callback is wasted when both are unchanged; grow or shrink both require a
+ * pin (collapse and composer resize must not leave the view stranded).
  */
 export function shouldRepinForContentGrowth(input: {
   stickToBottom: boolean;
@@ -91,10 +94,15 @@ export function shouldRepinForContentGrowth(input: {
   coalesceUntil: number;
   scrollHeight: number;
   lastPinnedScrollHeight: number;
+  clientHeight: number;
+  lastPinnedClientHeight: number;
 }): boolean {
   if (!input.stickToBottom) return true;
   if (input.now >= input.coalesceUntil) return true;
-  return input.scrollHeight !== input.lastPinnedScrollHeight;
+  return (
+    input.scrollHeight !== input.lastPinnedScrollHeight ||
+    input.clientHeight !== input.lastPinnedClientHeight
+  );
 }
 
 /**
@@ -118,9 +126,16 @@ export function shouldIgnoreProgrammaticPinScroll(input: {
  *
  * Layout clamps (content height shrinks and the browser lowers scrollTop) must
  * not release sticky — those are filtered via `scrollHeightShrunk`. Height
- * growth during a live stream must NOT block release: a thumb drag on a
- * working thread often coincides with growing scrollHeight. Our own scrollTop
- * writes are filtered via `isProgrammaticScroll`.
+ * growth can also make the virtualizer adjust scrollTop upward while it
+ * preserves its visible-content anchor. Treat that as layout-driven unless a
+ * wheel/touch/pointer gesture already established user intent. The same is true
+ * when a growing composer shrinks the viewport and the virtualizer compensates
+ * its anchor before ResizeObserver re-pins the tail. A native
+ * scrollbar drag that emits no pointer event still releases on its next
+ * stable-height scroll event. LegendList can also move scrollTop before the
+ * browser exposes the corresponding scrollHeight change, so its explicit
+ * layout window gets the same treatment. Our own scrollTop writes are filtered
+ * via `isProgrammaticScroll`.
  */
 export function shouldReleaseStickToBottom(input: {
   prevScrollTop: number;
@@ -128,9 +143,16 @@ export function shouldReleaseStickToBottom(input: {
   isAtBottom: boolean;
   isProgrammaticScroll: boolean;
   scrollHeightShrunk: boolean;
+  scrollHeightGrew: boolean;
+  viewportHeightChanged: boolean;
+  isVirtualizerLayoutChange: boolean;
+  hasRecentUserScrollIntent: boolean;
 }): boolean {
   if (input.isProgrammaticScroll) return false;
   if (input.scrollHeightShrunk) return false;
+  if (input.viewportHeightChanged && !input.hasRecentUserScrollIntent) return false;
+  if (input.isVirtualizerLayoutChange && !input.hasRecentUserScrollIntent) return false;
+  if (input.scrollHeightGrew && !input.hasRecentUserScrollIntent) return false;
   return input.nextScrollTop < input.prevScrollTop && !input.isAtBottom;
 }
 

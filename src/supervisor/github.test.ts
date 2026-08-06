@@ -12,6 +12,9 @@ const buildAgentCommandMock = vi.hoisted(() =>
     ) => { command: string; args: string[] }
   >(),
 );
+const primeProjectShellEnvMock = vi.hoisted(() =>
+  vi.fn<(cwd: string) => Promise<Record<string, string> | undefined>>(),
+);
 const mkdtempMock = vi.hoisted(() => vi.fn<(prefix: string) => Promise<string>>());
 const rmMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>());
 const writeFileMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>());
@@ -42,6 +45,7 @@ vi.mock("node:fs/promises", () => ({
 
 vi.mock("./agents/base", () => ({
   buildAgentCommand: buildAgentCommandMock,
+  primeProjectShellEnv: primeProjectShellEnvMock,
 }));
 
 import {
@@ -50,10 +54,11 @@ import {
   mapGitHubApiRepo,
   parseGhAuthAccounts,
 } from "./github";
-import { mapStatusCheck } from "./githubMappers";
+import { mapGitHubActionsRun, mapGitHubActionsWorkflow, mapStatusCheck } from "./githubMappers";
 import { resolveClonedProjectPath } from "./git/exec";
 
 const location = { kind: "windows" as const, path: "C:\\Users\\demo\\repo" };
+const posixLocation = { kind: "posix" as const, path: "/Users/demo/repo" };
 const wslLocation = {
   kind: "wsl" as const,
   distro: "Ubuntu",
@@ -71,6 +76,7 @@ describe("GitHubService", () => {
     mkdtempMock.mockImplementation(async (prefix) => `${prefix}abc123`);
     rmMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue(undefined);
+    primeProjectShellEnvMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -100,6 +106,19 @@ describe("GitHubService", () => {
       const result = await new GitHubService().checkGhAvailable(location);
 
       expect(result).toEqual({ available: false });
+    });
+
+    it("does not inherit GH_REPO when running a project-scoped gh command", async () => {
+      const prior = process.env.GH_REPO;
+      process.env.GH_REPO = "ambient/override";
+      execFileAsyncMock.mockResolvedValue({ stdout: "gh version 2.50.0\n" });
+
+      await new GitHubService().checkGhAvailable(location);
+
+      const options = execFileAsyncMock.mock.calls[0]?.[2] as { env?: NodeJS.ProcessEnv };
+      expect(options.env?.GH_REPO).toBeUndefined();
+      if (prior === undefined) delete process.env.GH_REPO;
+      else process.env.GH_REPO = prior;
     });
   });
 
@@ -289,12 +308,14 @@ describe("GitHubService", () => {
               expect.stringContaining("statusCheckRollup"),
             ],
             loginEnv: true,
+            env: { GH_REPO: "" },
           },
           {
             command: "gh",
             cwd: "/home/demo/repo",
             args: ["api", "user", "--jq", ".login"],
             loginEnv: true,
+            env: { GH_REPO: "" },
           },
         ],
       });
@@ -391,6 +412,63 @@ describe("GitHubService", () => {
       const result = await new GitHubService().listPrs(location);
 
       expect(result).toEqual({});
+    });
+
+    it.each([
+      "failed to run git: fatal: not a git repository (or any parent): .git",
+      "no repository configured for this command",
+    ])("returns an empty map for a non-repository project: %s", async (message) => {
+      execFileAsyncMock.mockRejectedValue(new Error(message));
+
+      await expect(new GitHubService().listPrs(location)).resolves.toEqual({});
+    });
+
+    it("does not hide unrelated gh failures", async () => {
+      execFileAsyncMock.mockRejectedValue(new Error("GraphQL: API rate limit exceeded"));
+
+      await expect(new GitHubService().listPrs(location)).rejects.toThrow(
+        "gh pr list failed: GraphQL: API rate limit exceeded",
+      );
+    });
+
+    it("bypasses login shells so OSC 1337 startup output cannot contaminate JSON", async () => {
+      buildAgentCommandMock.mockReturnValue({
+        command: "/bin/zsh",
+        args: ["-l", "-i", "-c", "\u001b]1337;RemoteHost=test\u0007"],
+      });
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+
+      await new GitHubService().listPrs(location);
+
+      expect(execFileAsyncMock.mock.calls[0]?.[0]).toBe("gh");
+      expect(execFileAsyncMock.mock.calls[0]?.[1]).toEqual(
+        expect.arrayContaining(["pr", "list", "--json"]),
+      );
+    });
+
+    it("captures the login-shell PATH before directly running machine-readable gh", async () => {
+      let primed = false;
+      primeProjectShellEnvMock.mockImplementation(async () => {
+        primed = true;
+        return { PATH: "/opt/homebrew/bin:/usr/bin:/bin" };
+      });
+      buildAgentCommandMock.mockImplementation((_location, command, args) => ({
+        command: "/bin/zsh",
+        args: ["-l", "-i", "-c", command, ...args],
+        ...(primed ? { env: { PATH: "/opt/homebrew/bin:/usr/bin:/bin" } } : {}),
+      }));
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+
+      await new GitHubService().listPrs(posixLocation);
+
+      expect(primeProjectShellEnvMock).toHaveBeenCalledWith(posixLocation.path);
+      expect(execFileAsyncMock).toHaveBeenCalledWith(
+        "gh",
+        expect.arrayContaining(["pr", "list", "--json"]),
+        expect.objectContaining({
+          env: expect.objectContaining({ PATH: "/opt/homebrew/bin:/usr/bin:/bin" }),
+        }),
+      );
     });
   });
 
@@ -561,12 +639,14 @@ describe("GitHubService", () => {
             cwd: "/home/demo/repo",
             args: expect.arrayContaining(["pr", "list", "open"]),
             loginEnv: true,
+            env: { GH_REPO: "" },
           }),
           {
             command: "gh",
             cwd: "/home/demo/repo",
             args: ["api", "user", "--jq", ".login"],
             loginEnv: true,
+            env: { GH_REPO: "" },
           },
         ],
       });
@@ -959,6 +1039,9 @@ describe("GitHubService", () => {
 
       expect(buildAgentCommandMock.mock.calls[0]![2]).toEqual(["pr", "diff", "42"]);
       expect(result.diff).toBe("diff --git a/x b/x\n");
+      expect(execFileAsyncMock.mock.calls[0]?.[2]).toMatchObject({
+        maxBuffer: 50 * 1024 * 1024,
+      });
     });
   });
 
@@ -1146,19 +1229,79 @@ describe("GitHubService", () => {
   });
 
   describe("getPrChecks", () => {
-    it("returns parsed check results", async () => {
+    it("maps gh check buckets into canonical pass, fail, and pending results", async () => {
       const checksJson = JSON.stringify([
-        { name: "CI", state: "completed", conclusion: "success" },
-        { name: "Lint", state: "completed", conclusion: "failure" },
+        {
+          name: "CI",
+          state: "SUCCESS",
+          bucket: "pass",
+          link: "https://github.com/owner/repo/actions/runs/1",
+          workflow: "CI",
+          startedAt: "2026-07-27T10:00:00Z",
+          completedAt: "2026-07-27T10:01:00Z",
+        },
+        { name: "Lint", state: "FAILURE", bucket: "fail" },
+        { name: "Build", state: "IN_PROGRESS", bucket: "pending" },
+        { name: "Queued", state: "QUEUED", bucket: "pending" },
       ]);
       execFileAsyncMock.mockResolvedValue({ stdout: checksJson });
 
       const result = await new GitHubService().getPrChecks(location, "feature/x");
 
       expect(result.checks).toEqual([
-        { name: "CI", state: "completed", conclusion: "success" },
-        { name: "Lint", state: "completed", conclusion: "failure" },
+        {
+          name: "CI",
+          state: "COMPLETED",
+          conclusion: "SUCCESS",
+          url: "https://github.com/owner/repo/actions/runs/1",
+          workflowName: "CI",
+          startedAt: "2026-07-27T10:00:00Z",
+          completedAt: "2026-07-27T10:01:00Z",
+        },
+        { name: "Lint", state: "COMPLETED", conclusion: "FAILURE" },
+        { name: "Build", state: "IN_PROGRESS", conclusion: "" },
+        { name: "Queued", state: "QUEUED", conclusion: "" },
       ]);
+
+      const args = execFileAsyncMock.mock.calls[0]?.[1] as string[];
+      expect(args).toEqual([
+        "pr",
+        "checks",
+        "feature/x",
+        "--json",
+        "name,state,bucket,link,startedAt,completedAt,workflow",
+      ]);
+      expect(args.join(",")).not.toContain("conclusion");
+    });
+
+    it("maps cancelled and skipped buckets to completed outcomes", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify([
+          { name: "Cancelled", state: "CANCELLED", bucket: "cancel" },
+          { name: "Skipped", state: "SKIPPED", bucket: "skipping" },
+        ]),
+      });
+
+      const result = await new GitHubService().getPrChecks(location, "feature/x");
+
+      expect(result.checks).toEqual([
+        { name: "Cancelled", state: "COMPLETED", conclusion: "CANCELLED" },
+        { name: "Skipped", state: "COMPLETED", conclusion: "SKIPPED" },
+      ]);
+    });
+
+    it("parses pending check JSON returned with gh exit code 8", async () => {
+      const pendingJson = JSON.stringify([{ name: "Build", state: "PENDING", bucket: "pending" }]);
+      execFileAsyncMock.mockRejectedValue(
+        Object.assign(new Error("Command failed with exit code 8"), {
+          code: 8,
+          stdout: pendingJson,
+        }),
+      );
+
+      const result = await new GitHubService().getPrChecks(location, "feature/x");
+
+      expect(result.checks).toEqual([{ name: "Build", state: "PENDING", conclusion: "" }]);
     });
 
     it("returns empty checks when gh returns empty array", async () => {
@@ -1167,6 +1310,274 @@ describe("GitHubService", () => {
       const result = await new GitHubService().getPrChecks(location, "feature/x");
 
       expect(result.checks).toEqual([]);
+    });
+
+    it("keeps unsupported gh field failures observable", async () => {
+      execFileAsyncMock.mockRejectedValue(new Error("Unknown JSON field: futureField"));
+
+      await expect(new GitHubService().getPrChecks(location, "feature/x")).rejects.toThrow(
+        "gh pr checks failed: Unknown JSON field: futureField",
+      );
+    });
+  });
+
+  describe("GitHub Actions", () => {
+    it("lists workflows for the project repository", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify([
+          { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+        ]),
+      });
+
+      const result = await new GitHubService().listWorkflows(location);
+
+      expect(result.workflows).toEqual([
+        { id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+      ]);
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual([
+        "workflow",
+        "list",
+        "--all",
+        "--limit",
+        "100",
+        "--json",
+        "id,name,path,state",
+      ]);
+    });
+
+    it("lists recent workflow runs", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify([
+          {
+            databaseId: 501,
+            workflowDatabaseId: 11,
+            workflowName: "CI",
+            name: "CI",
+            number: 7,
+            displayTitle: "Test changes",
+            event: "push",
+            headBranch: "main",
+            headSha: "abc123",
+            status: "in_progress",
+            conclusion: "",
+            createdAt: "2026-07-25T10:00:00Z",
+            startedAt: "2026-07-25T10:00:01Z",
+            updatedAt: "2026-07-25T10:00:02Z",
+            url: "https://github.com/owner/repo/actions/runs/501",
+          },
+        ]),
+      });
+
+      const result = await new GitHubService().listWorkflowRuns(location, 11);
+
+      expect(result.runs[0]).toMatchObject({
+        id: 501,
+        workflowId: 11,
+        workflowName: "CI",
+        attempt: 1,
+        status: "in_progress",
+        jobs: [],
+      });
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual(
+        expect.arrayContaining(["run", "list", "--workflow", "11"]),
+      );
+    });
+
+    it("loads a workflow definition from the selected ref", async () => {
+      execFileAsyncMock.mockResolvedValueOnce({ stdout: "main\n" }).mockResolvedValueOnce({
+        stdout: `
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+`,
+      });
+
+      const result = await new GitHubService().getWorkflowDefinition(location, 11, "release");
+
+      expect(result.definition).toEqual({
+        workflowId: 11,
+        ref: "release",
+        defaultBranch: "main",
+        dispatchable: true,
+        triggers: ["workflow_dispatch"],
+        inputs: [
+          {
+            name: "version",
+            description: "",
+            required: true,
+            type: "string",
+            options: [],
+          },
+        ],
+      });
+      expect(execFileAsyncMock.mock.calls[1]![1]).toEqual([
+        "workflow",
+        "view",
+        "11",
+        "--yaml",
+        "--ref",
+        "release",
+      ]);
+    });
+
+    it("uses the default branch when loading a workflow definition without a ref", async () => {
+      execFileAsyncMock.mockResolvedValueOnce({ stdout: "main\n" }).mockResolvedValueOnce({
+        stdout: "name: CI\non: push\n",
+      });
+
+      await new GitHubService().getWorkflowDefinition(location, 11);
+
+      expect(execFileAsyncMock.mock.calls[1]![1]).toEqual([
+        "workflow",
+        "view",
+        "11",
+        "--yaml",
+        "--ref",
+        "main",
+      ]);
+    });
+
+    it("treats dynamic workflows without a repository file as non-dispatchable", async () => {
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: "main\n" })
+        .mockRejectedValueOnce(new Error("could not find workflow file dependabot-updates"));
+
+      const result = await new GitHubService().getWorkflowDefinition(location, 44);
+
+      expect(result.definition).toEqual({
+        workflowId: 44,
+        ref: "main",
+        defaultBranch: "main",
+        dispatchable: false,
+        triggers: [],
+        inputs: [],
+      });
+    });
+
+    it("loads jobs and steps for one workflow run", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout: JSON.stringify({
+          databaseId: 501,
+          workflowDatabaseId: 11,
+          workflowName: "CI",
+          name: "CI",
+          number: 7,
+          displayTitle: "Test changes",
+          status: "in_progress",
+          jobs: [
+            {
+              databaseId: 9001,
+              name: "Typecheck",
+              status: "in_progress",
+              conclusion: "",
+              steps: [
+                {
+                  number: 1,
+                  name: "Checkout",
+                  status: "completed",
+                  conclusion: "success",
+                },
+                {
+                  number: 2,
+                  name: "Typecheck",
+                  status: "in_progress",
+                  conclusion: "",
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const result = await new GitHubService().getWorkflowRun(location, 501);
+
+      expect(result.run.jobs[0]).toMatchObject({
+        id: 9001,
+        name: "Typecheck",
+        status: "in_progress",
+        steps: [
+          { number: 1, name: "Checkout", status: "completed", conclusion: "success" },
+          { number: 2, name: "Typecheck", status: "in_progress", conclusion: "" },
+        ],
+      });
+      expect(execFileAsyncMock.mock.calls[0]![1]).toContain("501");
+    });
+
+    it("dispatches a workflow with an optional ref and inputs", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "" });
+
+      await new GitHubService().dispatchWorkflow(location, 11, "release", {
+        channel: "nightly",
+        dry_run: "true",
+      });
+
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual([
+        "workflow",
+        "run",
+        "11",
+        "--ref",
+        "release",
+        "--raw-field",
+        "channel=nightly",
+        "--raw-field",
+        "dry_run=true",
+      ]);
+    });
+
+    it("reruns, cancels, and deletes workflow runs", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "" });
+      const service = new GitHubService();
+
+      await service.rerunWorkflowRun(location, 501, false);
+      await service.rerunWorkflowRun(location, 501, true);
+      await service.cancelWorkflowRun(location, 501);
+      await service.deleteWorkflowRun(location, 501);
+
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual(["run", "rerun", "501"]);
+      expect(execFileAsyncMock.mock.calls[1]![1]).toEqual(["run", "rerun", "501", "--failed"]);
+      expect(execFileAsyncMock.mock.calls[2]![1]).toEqual(["run", "cancel", "501"]);
+      expect(execFileAsyncMock.mock.calls[3]![1]).toEqual(["run", "delete", "501"]);
+    });
+  });
+
+  describe("getPrReviewThreads", () => {
+    it("returns inline comments grouped by review-thread resolution state", async () => {
+      execFileAsyncMock.mockResolvedValue({
+        stdout:
+          '{"id":"thread-1","isResolved":false,"isOutdated":false,"path":"src/app.ts","line":42,"comments":{"nodes":[{"id":"comment-99","author":{"login":"reviewer","avatarUrl":"https://example.com/a.png"},"body":"Please handle null.","createdAt":"2026-07-25T00:00:00Z","url":"https://github.com/o/r/pull/1#discussion_r99"}]}}\n',
+      });
+
+      const result = await new GitHubService().getPrReviewThreads(location, 1);
+
+      expect(result.comments).toEqual([
+        {
+          id: "comment-99",
+          author: { login: "reviewer", avatarUrl: "https://example.com/a.png" },
+          body: "Please handle null.",
+          createdAt: "2026-07-25T00:00:00Z",
+          url: "https://github.com/o/r/pull/1#discussion_r99",
+        },
+      ]);
+      expect(result.threads).toEqual([
+        {
+          id: "thread-1",
+          isResolved: false,
+          isOutdated: false,
+          path: "src/app.ts",
+          line: 42,
+          comments: result.comments,
+        },
+      ]);
+      const args = buildAgentCommandMock.mock.calls[0]?.[2] as string[];
+      expect(args).toContain("graphql");
+      expect(args).toContain("owner={owner}");
+      expect(args).toContain("name={repo}");
+      expect(args).toContain("number=1");
+      expect(args.find((arg) => arg.startsWith("query="))).toContain("reviewThreads");
     });
   });
 
@@ -1350,6 +1761,31 @@ describe("mapGitHubApiRepo", () => {
   it("returns null without a full_name", () => {
     expect(mapGitHubApiRepo({})).toBeNull();
     expect(mapGitHubApiRepo(null)).toBeNull();
+  });
+});
+
+describe("GitHub Actions mappers", () => {
+  it("rejects workflows without an id or name", () => {
+    expect(mapGitHubActionsWorkflow({ id: 1 })).toBeNull();
+    expect(mapGitHubActionsWorkflow({ name: "CI" })).toBeNull();
+  });
+
+  it("ignores malformed jobs and steps", () => {
+    expect(
+      mapGitHubActionsRun({
+        databaseId: 1,
+        jobs: [{ databaseId: 2, name: "Build", steps: [{ number: 1, name: "Compile" }, {}] }, {}],
+      }),
+    ).toMatchObject({
+      id: 1,
+      jobs: [
+        {
+          id: 2,
+          name: "Build",
+          steps: [{ number: 1, name: "Compile" }],
+        },
+      ],
+    });
   });
 });
 

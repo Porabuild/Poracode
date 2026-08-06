@@ -157,5 +157,7 @@ export interface UsageProviderDescriptor {
   mechanism: UsageMechanism;
   /** True when a token/cookie may need to be captured via a login flow. */
   needsLogin: boolean;
+  /** A cookie-backed provider also accepts a pasted API key. */
+  apiKeyFallback?: boolean;
   windowIds: UsageWindowId[];
 }

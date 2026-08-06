@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button, ButtonGroup, Dropdown, Input, Label, TextField } from "@heroui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Bot, CalendarClock, ChevronDown, Clock3, Loader2, Plus, Sparkles } from "lucide-react";
-import type { ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
+import type { AgentCapability, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
+import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
+import { agentConfigProductProperties } from "@/renderer/analytics/threadAnalyticsProperties";
 import { readBridge } from "@/renderer/bridge";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { LightballTabs } from "@/renderer/components/common/LightballTabs";
@@ -10,6 +14,7 @@ import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useProjectIdsHiddenByWorkspace } from "@/renderer/state/workspaceSelectors";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import { ScheduleEditor } from "./ScheduleEditor";
 import { PreviousRunsModal } from "./parts/PreviousRunsModal";
@@ -30,6 +35,23 @@ function replaceTask(tasks: ScheduledTask[], next: ScheduledTask): ScheduledTask
   return tasks.map((task) => (task.id === next.id ? next : task));
 }
 
+function scheduleAnalyticsProperties(
+  task: ScheduledTaskInput,
+  capabilities: AgentCapability | undefined,
+) {
+  return {
+    ...agentConfigProductProperties({
+      agentKind: task.agentKind,
+      config: task.config,
+      ...(capabilities ? { capabilities } : {}),
+    }),
+    enabled: task.enabled,
+    has_project: Boolean(task.projectId),
+    provider: normalizeAnalyticsProvider(task.agentKind),
+    recurrence: task.recurrence.kind,
+  };
+}
+
 export function SchedulesView() {
   const { t, i18n } = useLingui();
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
@@ -41,14 +63,28 @@ export function SchedulesView() {
   const [draft, setDraft] = useState<ScheduleDraft | null>(null);
   const [deleteTask, setDeleteTask] = useState<ScheduledTask | null>(null);
   const [runsTaskId, setRunsTaskId] = useState<string | null>(null);
+  /**
+   * Only projects the active workspace hides are excluded, which lets both the
+   * device-wide schedules (no project) and schedules whose project was deleted
+   * stay visible without needing their own special cases.
+   */
+  const hiddenProjectIds = useProjectIdsHiddenByWorkspace();
   const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
-  const agents = agentStatuses.filter(
-    (agent) =>
-      agent.installed &&
-      agent.authState !== "missing" &&
-      agent.capabilities.supportsOneShot === true &&
-      agent.capabilities.models.length > 0,
-  );
+  const agents = agentStatuses
+    .filter((agent) => {
+      const presentationModes = agent.capabilities.presentationModes ?? [
+        agent.capabilities.presentationMode,
+      ];
+      return presentationModes.includes("gui");
+    })
+    .map((agent) => agentStatusForPresentation(agent, "gui"))
+    .filter(
+      (agent) =>
+        agent.installed &&
+        agent.authState !== "missing" &&
+        agent.capabilities.supportsOneShot === true &&
+        agent.capabilities.models.length > 0,
+    );
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +121,11 @@ export function SchedulesView() {
   }, [hasRunningTask]);
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleTasks = tasks.filter((task) => {
+  const workspaceTasks = tasks.filter(
+    (task) => !task.projectId || !hiddenProjectIds.has(task.projectId),
+  );
+  const hiddenByWorkspaceCount = tasks.length - workspaceTasks.length;
+  const visibleTasks = workspaceTasks.filter((task) => {
     if (filter === "active" && !task.enabled) return false;
     if (filter === "paused" && task.enabled) return false;
     return (
@@ -146,7 +186,16 @@ export function SchedulesView() {
     setError("");
     void readBridge()
       .runScheduleNow({ id: task.id })
-      .then((next) => setTasks((current) => replaceTask(current, next)))
+      .then((next) => {
+        setTasks((current) => replaceTask(current, next));
+        captureProductEvent("schedule.run_requested", {
+          ...scheduleAnalyticsProperties(
+            task,
+            agents.find((agent) => agent.kind === task.agentKind)?.capabilities,
+          ),
+          source: "manual",
+        });
+      })
       .catch((runError: unknown) =>
         setError(runError instanceof Error ? runError.message : String(runError)),
       );
@@ -185,6 +234,13 @@ export function SchedulesView() {
       } else {
         const next = await readBridge().createSchedule(input);
         setTasks((current) => [...current, next]);
+        captureProductEvent("schedule.created", {
+          ...scheduleAnalyticsProperties(
+            input,
+            agents.find((agent) => agent.kind === input.agentKind)?.capabilities,
+          ),
+          source: "editor",
+        });
       }
       setDraft(null);
     } catch (saveError) {
@@ -198,8 +254,16 @@ export function SchedulesView() {
     setBusy(true);
     setError("");
     try {
-      const next = await readBridge().createSchedule(scheduleDraftInput(preset));
+      const input = scheduleDraftInput(preset);
+      const next = await readBridge().createSchedule(input);
       setTasks((current) => [...current, next]);
+      captureProductEvent("schedule.created", {
+        ...scheduleAnalyticsProperties(
+          input,
+          agents.find((agent) => agent.kind === input.agentKind)?.capabilities,
+        ),
+        source: "preset",
+      });
     } catch (presetError) {
       setError(presetError instanceof Error ? presetError.message : String(presetError));
     } finally {
@@ -388,7 +452,7 @@ export function SchedulesView() {
         </div>
       ) : (
         <>
-          {tasks.length === 0 ? (
+          {workspaceTasks.length === 0 ? (
             <div className="py-4 text-center">
               <Sparkles className="mx-auto mb-3 size-8 text-muted" />
               <p className="text-sm font-medium text-foreground">
@@ -422,6 +486,16 @@ export function SchedulesView() {
               ))}
             </div>
           )}
+
+          {hiddenByWorkspaceCount > 0 ? (
+            <p className="text-center text-xs text-muted">
+              <Plural
+                value={hiddenByWorkspaceCount}
+                one="# schedule belongs to a project in another workspace."
+                other="# schedules belong to projects in another workspace."
+              />
+            </p>
+          ) : null}
 
           {suggestions}
 

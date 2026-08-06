@@ -38,6 +38,20 @@ function artifactPrefixFor(channel) {
   return channel === "nightly" ? "Poracode-Nightly" : "Poracode";
 }
 
+/**
+ * Squirrel.Mac cannot relaunch when an update changes the outer bundle and
+ * executable name: it moves the old bundle away, then tries to spawn its
+ * relaunch helper from the path it just removed. Keep updater ZIPs on the
+ * pre-rebrand executable name so both Lightcode and already-migrated Poracode
+ * installs update in place. DMGs remain fully Poracode-branded.
+ */
+function macExecutableNameFor(channel, artifactKind) {
+  if (artifactKind === "updater") {
+    return channel === "nightly" ? "Lightcode Nightly" : "Lightcode";
+  }
+  return productNameFor(channel);
+}
+
 module.exports = {
   CHANNELS,
   PACKAGED_DIST_DIRS,
@@ -48,4 +62,5 @@ module.exports = {
   userDataDirNameFor,
   updaterChannelFor,
   artifactPrefixFor,
+  macExecutableNameFor,
 };

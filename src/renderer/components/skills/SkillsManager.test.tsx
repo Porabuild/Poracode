@@ -406,7 +406,7 @@ describe("SkillsManager", () => {
 
     expect(newThreadFromTextMock).toHaveBeenCalledWith(
       "demo",
-      "/skill-creator Create a new managed skill for this project.",
+      "/skill-creator-poracode Create a new managed skill for this project.",
       { bindLeadingSkill: true },
     );
   });
@@ -445,7 +445,7 @@ describe("SkillsManager", () => {
     await waitFor(() =>
       expect(newThreadFromTextMock).toHaveBeenCalledWith(
         "home",
-        "/skill-creator Create a new managed skill for the Windows user.",
+        "/skill-creator-poracode Create a new managed skill for the Windows user.",
         { bindLeadingSkill: true },
       ),
     );
@@ -471,7 +471,7 @@ describe("SkillsManager", () => {
     await waitFor(() =>
       expect(newThreadFromTextMock).toHaveBeenCalledWith(
         "home",
-        "/skill-creator Create a new managed skill for the global Ubuntu WSL scope.",
+        "/skill-creator-poracode Create a new managed skill for the global Ubuntu WSL scope.",
         { bindLeadingSkill: true },
       ),
     );

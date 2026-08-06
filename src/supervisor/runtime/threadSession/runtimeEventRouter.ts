@@ -37,8 +37,19 @@ export class RuntimeEventRouter {
     this.runtimeEvents.append(threadId, event);
   }
 
+  /**
+   * Subscribe a sub-agent overlay. Buffered child history is drained and
+   * re-emitted onto the normal runtime event channel (persisted + broadcast);
+   * the returned array is empty so clients receive history through that single
+   * ordered stream. The empty `history` return is intentional — older clients
+   * still accept an empty RPC history as a no-op.
+   */
   subscribe(threadId: string, parentItemId: string): RuntimeEvent[] {
-    return this.subAgents.subscribe(threadId, parentItemId);
+    const drained = this.subAgents.subscribe(threadId, parentItemId);
+    for (const event of drained) {
+      this.runtimeEvents.append(threadId, event);
+    }
+    return [];
   }
 
   unsubscribe(threadId: string, parentItemId: string): void {

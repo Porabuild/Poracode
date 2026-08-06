@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage";
 import type { AgentInstanceConfig } from "@/shared/contracts";
-import { isEncryptedSecret } from "@/shared/secretStorage";
+import { decryptSecret, isEncryptedSecret } from "@/shared/secretStorage";
 import {
   DEFAULT_USAGE_DISABLED_PROVIDER_IDS,
   DEFAULT_USAGE_ENABLED_PROVIDER_IDS,
@@ -12,7 +12,10 @@ import {
   type SharedSettings,
 } from "@/shared/settings";
 import {
+  applyAgentSecretSetting,
   applyClaudeProfileEnvironment,
+  mergeManagedSharedSettings,
+  patchSharedSettingsFile,
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "./sharedSettingsFile";
@@ -36,6 +39,43 @@ afterEach(() => {
 });
 
 describe("sharedSettingsFile", () => {
+  it("preserves supervisor-managed Crossagents routing data during renderer writes", () => {
+    const onDisk: SharedSettings = {
+      ...defaultSharedSettings,
+      crossagentSelectionUsage: [
+        {
+          agentKind: "kimi",
+          modelId: "k3",
+          effort: "max",
+          fast: false,
+          tags: ["mobile", "simulator"],
+          count: 4,
+          lastUsedAt: 10,
+        },
+      ],
+      crossagentRoutingOverrides: [
+        {
+          tags: ["frontend", "design"],
+          agentKind: "claude",
+          modelId: "opus",
+          effort: "max",
+          fast: false,
+          updatedAt: 11,
+        },
+      ],
+    };
+    const {
+      agentHookSupport: _agentHookSupport,
+      crossagentSelectionUsage: _crossagentSelectionUsage,
+      crossagentRoutingOverrides: _crossagentRoutingOverrides,
+      ...incoming
+    } = defaultSharedSettings;
+
+    const merged = mergeManagedSharedSettings(onDisk, incoming);
+    expect(merged.crossagentSelectionUsage).toEqual(onDisk.crossagentSelectionUsage);
+    expect(merged.crossagentRoutingOverrides).toEqual(onDisk.crossagentRoutingOverrides);
+  });
+
   it("writes and reads shared settings as readable JSON", () => {
     const settingsPath = join(makeTempDir(), "settings.json");
     writeSharedSettingsFile(settingsPath, {
@@ -56,6 +96,10 @@ describe("sharedSettingsFile", () => {
       conflictResolverModel: "",
       conflictResolverEffort: "",
       conflictResolverFast: false,
+      experimentJudgeProvider: "",
+      experimentJudgeModel: "",
+      experimentJudgeEffort: "",
+      experimentJudgeFast: false,
       conflictResolverPresentationMode: "gui",
       wslCommitGenProvider: "auto",
       wslCommitGenModel: "",
@@ -84,7 +128,7 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleepWhileWorking: true,
+      preventSleep: "while-remote-access",
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -92,8 +136,11 @@ describe("sharedSettingsFile", () => {
       remoteAccessTailscaleHttps: false,
       remoteAccessAdvertisedUrl: "",
       threadRemoveAction: "archive",
+      autoMarkDoneOnPrMerge: true,
       newThreadMode: "page",
       homeScopeEnabled: true,
+      sidebarHiddenShortcuts: ["githubActions"],
+      sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       sidebarTranslucency: false,
       sidebarGlassTint: { light: null, dark: null },
       autoShowTerminalPanel: true,
@@ -102,6 +149,8 @@ describe("sharedSettingsFile", () => {
       wslWorktreeBasePath: "",
       gitReviewMode: "panel",
       prCreateMode: "dialog",
+      prAutomationDefault: "off",
+      prMergeMethod: "squash",
       commitDefaultAction: "commit-push",
       providerConfigs: {},
       lastPresentationModeByAgent: {},
@@ -118,8 +167,14 @@ describe("sharedSettingsFile", () => {
       notifyL2Cli: true,
       remotePushEnabled: true,
       remotePushRedactContent: false,
+      workspaces: [],
       favoriteModels: [],
       recentModels: [],
+      agentSelectionUsage: [],
+      crossagentSelectionUsage: [],
+      crossagentRoutingOverrides: [],
+      crossagentPausedProviders: [],
+      crossagentHiddenModels: {},
       agentHookSupport: {},
       enabledMcpServers: {},
       mcpServers: [],
@@ -151,7 +206,7 @@ describe("sharedSettingsFile", () => {
         collapsedProviders: [],
         selectedRingGroups: {},
       },
-      subagentRoutingGuide: "",
+      crossagentRoutingGuide: "",
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -172,6 +227,10 @@ describe("sharedSettingsFile", () => {
       conflictResolverModel: "",
       conflictResolverEffort: "",
       conflictResolverFast: false,
+      experimentJudgeProvider: "",
+      experimentJudgeModel: "",
+      experimentJudgeEffort: "",
+      experimentJudgeFast: false,
       conflictResolverPresentationMode: "gui",
       wslCommitGenProvider: "auto",
       wslCommitGenModel: "",
@@ -200,7 +259,7 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleepWhileWorking: true,
+      preventSleep: "while-remote-access",
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -208,8 +267,11 @@ describe("sharedSettingsFile", () => {
       remoteAccessTailscaleHttps: false,
       remoteAccessAdvertisedUrl: "",
       threadRemoveAction: "archive",
+      autoMarkDoneOnPrMerge: true,
       newThreadMode: "page",
       homeScopeEnabled: true,
+      sidebarHiddenShortcuts: ["githubActions"],
+      sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       sidebarTranslucency: false,
       sidebarGlassTint: { light: null, dark: null },
       autoShowTerminalPanel: true,
@@ -218,6 +280,8 @@ describe("sharedSettingsFile", () => {
       wslWorktreeBasePath: "",
       gitReviewMode: "panel",
       prCreateMode: "dialog",
+      prAutomationDefault: "off",
+      prMergeMethod: "squash",
       commitDefaultAction: "commit-push",
       providerConfigs: {},
       lastPresentationModeByAgent: {},
@@ -234,10 +298,16 @@ describe("sharedSettingsFile", () => {
       notifyL2Cli: true,
       remotePushEnabled: true,
       remotePushRedactContent: false,
+      workspaces: [],
       favoriteModels: [],
       recentModels: [],
+      agentSelectionUsage: [],
+      crossagentSelectionUsage: [],
+      crossagentRoutingOverrides: [],
+      crossagentPausedProviders: [],
+      crossagentHiddenModels: {},
       agentHookSupport: {},
-      enabledMcpServers: {},
+      enabledMcpServers: { crossagents: true },
       mcpServers: [],
       disabledBuiltInMcpServers: {},
       disabledBuiltInMcpTools: {},
@@ -267,7 +337,7 @@ describe("sharedSettingsFile", () => {
         collapsedProviders: [],
         selectedRingGroups: {},
       },
-      subagentRoutingGuide: "",
+      crossagentRoutingGuide: "",
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
@@ -278,6 +348,23 @@ describe("sharedSettingsFile", () => {
     expect(readSharedSettingsFile(settingsPath).usage.disabledProviders).toEqual([
       ...DEFAULT_USAGE_DISABLED_PROVIDER_IDS,
     ]);
+  });
+
+  it("migrates legacy prevent-sleep booleans from a previous released settings shape", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        preventSleepWhileWorking: true,
+        remoteAccessPreventSleep: false,
+      }),
+      "utf8",
+    );
+
+    const settings = readSharedSettingsFile(settingsPath);
+    expect(settings.preventSleep).toBe("while-working");
+    expect(settings).not.toHaveProperty("preventSleepWhileWorking");
+    expect(settings).not.toHaveProperty("remoteAccessPreventSleep");
   });
 
   it("defaults usage tracking to Claude and Codex only", () => {
@@ -430,6 +517,81 @@ describe("sharedSettingsFile", () => {
       transcriptionLanguage: "es",
       transcriptionModel: "tiny",
       useWebGpu: true,
+    });
+  });
+});
+
+describe("applyAgentSecretSetting", () => {
+  it("seals Cursor SDK API keys and lets the supervisor decrypt the stored value", () => {
+    const dir = makeTempDir();
+    const { settings, storedValue } = applyAgentSecretSetting(
+      defaultSharedSettings,
+      { agentKind: "cursor", key: "sdkApiKey", value: " cursor-secret " },
+      dir,
+    );
+
+    expect(storedValue).not.toBeNull();
+    expect(isEncryptedSecret(storedValue ?? "")).toBe(true);
+    expect(storedValue).not.toContain("cursor-secret");
+    expect(settings.agentSettings.cursor?.sdkApiKey).toBe(storedValue);
+    expect(decryptSecret(dir, storedValue ?? "")).toBe("cursor-secret");
+  });
+
+  it("pins encrypted agent secrets during ordinary renderer settings writes", () => {
+    const dir = makeTempDir();
+    const { settings: onDisk, storedValue } = applyAgentSecretSetting(
+      defaultSharedSettings,
+      { agentKind: "cursor", key: "sdkApiKey", value: "cursor-secret" },
+      dir,
+    );
+    const incoming = {
+      ...defaultSharedSettings,
+      agentSettings: {
+        cursor: { sdkApiKey: "plaintext-overwrite", structuredRuntime: "sdk" },
+      },
+    };
+
+    const merged = mergeManagedSharedSettings(onDisk, incoming);
+    expect(merged.agentSettings.cursor).toEqual({
+      sdkApiKey: storedValue,
+      structuredRuntime: "sdk",
+    });
+  });
+
+  it("clears a saved key only through the dedicated secret path", () => {
+    const dir = makeTempDir();
+    const saved = applyAgentSecretSetting(
+      defaultSharedSettings,
+      { agentKind: "cursor", key: "sdkApiKey", value: "cursor-secret" },
+      dir,
+    );
+    const cleared = applyAgentSecretSetting(
+      saved.settings,
+      { agentKind: "cursor", key: "sdkApiKey", value: "" },
+      dir,
+    );
+
+    expect(cleared.storedValue).toBeNull();
+    expect(cleared.settings.agentSettings.cursor?.sdkApiKey).toBeUndefined();
+  });
+
+  it("preserves a saved key when a remote patch replaces ordinary agent settings", () => {
+    const dir = makeTempDir();
+    const settingsPath = join(dir, "settings.json");
+    const saved = applyAgentSecretSetting(
+      defaultSharedSettings,
+      { agentKind: "cursor", key: "sdkApiKey", value: "cursor-secret" },
+      dir,
+    );
+    writeSharedSettingsFile(settingsPath, saved.settings);
+
+    const patched = patchSharedSettingsFile(settingsPath, {
+      agentSettings: { cursor: { structuredRuntime: "acp" } },
+    });
+
+    expect(patched.agentSettings.cursor).toEqual({
+      structuredRuntime: "acp",
+      sdkApiKey: saved.storedValue,
     });
   });
 });

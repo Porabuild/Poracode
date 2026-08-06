@@ -3,9 +3,9 @@ import type { AgentEventIntent } from "@/shared/contracts";
 /**
  * Map a Command Code hook event name to a Poracode universal intent.
  *
- * Command Code exposes a Claude-Code-compatible hook system, but only THREE
- * events are validated by the CLI: `PreToolUse`, `PostToolUse`, `Stop`. There
- * is no turn-start (`UserPromptSubmit`) or `Notification` event, so:
+ * Command Code exposes a Claude-Code-compatible hook system. Poracode uses
+ * `PreToolUse`, `PostToolUse`, and `Stop`; v1 also exposes session-level events,
+ * but still has no turn-start (`UserPromptSubmit`) or `Notification` event, so:
  *
  *   - `Stop` is the authoritative turn-finished edge → `idle`. Unlike Copilot
  *     (which has no finish event and must run `partialL1`), this lets Command

@@ -8,7 +8,6 @@ export function useSourceBranchData(params: {
   project: { location: ProjectLocation };
   effectiveBranch: string | undefined;
   effectivePrKey: string | undefined;
-  worktreePath: string | undefined;
   isGitHub: boolean;
   ghAvailable: boolean;
   /** When set (e.g. PR base), overrides the inferred source branch. */
@@ -19,7 +18,6 @@ export function useSourceBranchData(params: {
     project,
     effectiveBranch,
     effectivePrKey,
-    worktreePath,
     isGitHub,
     ghAvailable,
     preferredSourceBranch,
@@ -30,6 +28,7 @@ export function useSourceBranchData(params: {
   const projectLocationPath = getProjectPosixPath(project.location);
   const projectLocationDistro = project.location.kind === "wsl" ? project.location.distro : null;
   const projectLocationUncPath = project.location.kind === "wsl" ? project.location.uncPath : null;
+  const projectRemoteServerId = project.location.remoteServerId;
 
   const [sourceBranchLoading, setSourceBranchLoading] = useState(false);
 
@@ -46,10 +45,19 @@ export function useSourceBranchData(params: {
             distro: projectLocationDistro!,
             linuxPath: projectLocationPath,
             uncPath: projectLocationUncPath!,
+            ...(projectRemoteServerId ? { remoteServerId: projectRemoteServerId } : {}),
           }
         : projectLocationKind === "posix"
-          ? { kind: "posix", path: projectLocationPath }
-          : { kind: "windows", path: projectLocationPath };
+          ? {
+              kind: "posix",
+              path: projectLocationPath,
+              ...(projectRemoteServerId ? { remoteServerId: projectRemoteServerId } : {}),
+            }
+          : {
+              kind: "windows",
+              path: projectLocationPath,
+              ...(projectRemoteServerId ? { remoteServerId: projectRemoteServerId } : {}),
+            };
     setSourceBranchLoading(true);
     readBridge()
       .gitGetWorktreeSourceBranch({
@@ -88,13 +96,18 @@ export function useSourceBranchData(params: {
     projectLocationDistro,
     projectLocationKind,
     projectLocationPath,
+    projectRemoteServerId,
     projectLocationUncPath,
     refreshKey,
   ]);
 
-  // Fetch PR data for non-worktree mode (worktree PR data is polled elsewhere)
+  // Fetch PR data on mount / refreshKey change for both worktree and
+  // non-worktree modes.  Worktree PR data is also polled by the periodic
+  // refreshGitProject cycle, but that cycle may not have run yet when the
+  // panel is first opened — leaving the PR section blank after a "commit &
+  // create PR" action or when reopening the panel.
   useEffect(() => {
-    if (worktreePath || !isGitHub || !ghAvailable || !effectiveBranch || !effectivePrKey) return;
+    if (!isGitHub || !ghAvailable || !effectiveBranch || !effectivePrKey) return;
     let isActive = true;
     readBridge()
       .ghGetPrForBranch({ projectLocation: project.location, branch: effectiveBranch })
@@ -106,15 +119,7 @@ export function useSourceBranchData(params: {
     return () => {
       isActive = false;
     };
-  }, [
-    worktreePath,
-    isGitHub,
-    ghAvailable,
-    effectiveBranch,
-    effectivePrKey,
-    project.location,
-    refreshKey,
-  ]);
+  }, [isGitHub, ghAvailable, effectiveBranch, effectivePrKey, project.location, refreshKey]);
 
   return { sourceBranchLoading };
 }

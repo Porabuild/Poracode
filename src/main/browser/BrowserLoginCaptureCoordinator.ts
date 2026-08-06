@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { session as electronSession } from "electron";
+import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import type { UsageLoginConfirmationAction, UsageLoginDeviceCode } from "@/shared/contracts";
 import type { BrowserEvent, BrowserTabInfo } from "@/shared/ipc";
 import type { BrowserTab } from "./BrowserTab";
@@ -323,7 +324,7 @@ export class BrowserLoginCaptureCoordinator {
   }
 
   async clearLoginCookies(opts: { cookieUrl: string; authCookiePattern: RegExp }): Promise<void> {
-    const ses = electronSession.fromPartition("persist:lightcode-browser");
+    const ses = electronSession.fromPartition(BROWSER_SESSION_PARTITION);
     const cookies = await ses.cookies.get({ url: opts.cookieUrl });
     await Promise.all(
       cookies

@@ -4,9 +4,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FilePlus2,
-  File,
-  Folder,
-  FolderOpen,
   FolderPlus,
   Loader2,
   Pencil,
@@ -21,6 +18,7 @@ import type {
   ProjectLocation,
   ProjectTreeEntry,
 } from "@/shared/contracts";
+import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { screenStateTransition } from "../navHelpers";
 import { useGuardedInputKeyboard } from "../useGuardedInputKeyboard";
@@ -305,15 +303,12 @@ function FileRow(props: {
           )
         ) : null}
       </span>
-      {isDirectory ? (
-        props.expanded ? (
-          <FolderOpen className="size-4 shrink-0 text-accent" />
-        ) : (
-          <Folder className="size-4 shrink-0 text-muted" />
-        )
-      ) : (
-        <File className="size-4 shrink-0 text-muted" />
-      )}
+      <img
+        src={getEntryIconUrl(props.entry.name, isDirectory)}
+        alt=""
+        aria-hidden
+        className="size-4 shrink-0"
+      />
       <span className="m-file-row__name">{props.entry.name}</span>
       {props.entry.path !== props.entry.name ? (
         <span className="m-file-row__path">{parentPath(props.entry.path)}</span>

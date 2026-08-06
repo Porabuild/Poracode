@@ -23,7 +23,7 @@ describe("QuestionAnswer", () => {
       streams: {},
     };
 
-    render(
+    const { container } = render(
       <QuestionAnswer
         item={item}
         checkpointRevert={{ itemId: "qa-1", onRequestRevert: () => {} }}
@@ -34,10 +34,32 @@ describe("QuestionAnswer", () => {
     expect(screen.getByText("Allow this command?")).toBeInTheDocument();
     expect(screen.getByText("Allow once")).toBeInTheDocument();
     expect(screen.getByText("Only for this run")).toBeInTheDocument();
-    expect(screen.getByText("Use README.md instead.")).toBeInTheDocument();
+    expect(container).toHaveTextContent("Use README.md instead.");
     const revertButton = screen.getByRole("button", { name: "Revert to this checkpoint" });
     expect(revertButton).toBeInTheDocument();
     expect(revertButton.closest(".poracode-message-action-strip")).not.toBeNull();
+  });
+
+  it("renders the question only once when the header repeats it (Kimi ACP shape)", () => {
+    const item: RuntimeChatItem = {
+      id: "qa-1",
+      type: "question_answer",
+      state: "completed",
+      payload: {
+        questions: [
+          {
+            header: "Which scope should be implemented?",
+            question: "Which scope should be implemented?",
+            selected: [{ label: "Focused" }],
+          },
+        ],
+      },
+      streams: {},
+    };
+
+    render(<QuestionAnswer item={item} checkpointRevert={null} />);
+
+    expect(screen.getAllByText("Which scope should be implemented?")).toHaveLength(1);
   });
 
   it("renders nothing when the payload has no questions", () => {

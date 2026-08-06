@@ -10,6 +10,11 @@ import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import { registerProviderIcon } from "../ProviderIcon";
 import { registerComposerControls, registerConfigNormalizer } from "../providerComposer";
 import { registerGuiSlashCommands } from "../providerSlashCommands";
+import {
+  buildStandardGuiSlashCommands,
+  guiSlashCommand,
+  resolveStandardLocalSlashAction,
+} from "../standardGuiSlashCommands";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
@@ -17,35 +22,25 @@ import { registerTitleGenDefaults } from "../titleGen";
 const PROVIDER_KIND = providerManifest.kind;
 
 registerProviderIcon(PROVIDER_KIND, CodexStatusIcon);
-// Title/commit defaults were chosen by an empirical benchmark (latency + blind
-// quality judging) across the Codex model/effort matrix on real prompts and
-// diffs — not by model-tier intuition. Two findings drove these:
-//   1. The dominant latency cost is reasoning effort, not model size. The old
-//      mini-at-xhigh commit default ran ~13-20x slower (≈54s median, 116s max)
-//      than low effort for no quality gain.
-//   2. gpt-5.4-mini at low effort scored in the top quality cluster on BOTH
-//      tasks while being the most consistent (no case bombed) and the cheapest.
-//      Bigger models did not reliably win: gpt-5.4 and gpt-5.3-codex-spark
-//      mislabeled a feature commit as "fix", and the fast lane / xhigh added
-//      latency without quality. So we keep mini and only fix the effort.
-// Frontier gpt-5.5 stays for the conflict resolver (a real interactive task).
+// Codex 5.6 utility defaults: Luna for cheap title gen, Terra for commit
+// messages, Sol for interactive conflict resolution.
 registerCommitGenDefaults(PROVIDER_KIND, {
   label: "Codex",
-  hint: "GPT-5.4 Mini low",
-  model: "gpt-5.4-mini",
+  hint: "GPT-5.6 Terra low",
+  model: "gpt-5.6-terra",
   effort: "low",
 });
 registerTitleGenDefaults(PROVIDER_KIND, {
   label: "Codex",
-  hint: "GPT-5.4 Mini low",
-  model: "gpt-5.4-mini",
+  hint: "GPT-5.6 Luna low",
+  model: "gpt-5.6-luna",
   effort: "low",
 });
 registerConflictResolverDefaults(PROVIDER_KIND, {
   label: "Codex",
-  hint: "GPT-5.5 high",
-  model: "gpt-5.5",
-  effort: "high",
+  hint: "GPT-5.6 Sol medium",
+  model: "gpt-5.6-sol",
+  effort: "medium",
 });
 
 registerConfigNormalizer(PROVIDER_KIND, ({ config, presentationMode }) => {
@@ -56,32 +51,13 @@ registerConfigNormalizer(PROVIDER_KIND, ({ config, presentationMode }) => {
   return {};
 });
 
-// A slash command's label is its id followed by the (translated) description, so
-// the description is translated once and the `/id` keyword stays untranslatable.
-const codexCommand = (id: string, description: string) => ({
-  id,
-  description,
-  label: `${id} - ${description}`,
-});
-
 registerGuiSlashCommands(PROVIDER_KIND, {
-  buildCommands: ({ hasEffort, supportsFast }) => [
-    codexCommand("model", i18n._(msg`Open the model picker`)),
-    codexCommand("plan", i18n._(msg`Switch this chat to plan mode`)),
-    codexCommand("agent", i18n._(msg`Switch this chat to agent mode`)),
-    codexCommand("goal", i18n._(msg`Set or view an experimental goal`)),
-    ...(hasEffort ? [codexCommand("effort", i18n._(msg`Open the effort picker`))] : []),
-    ...(supportsFast ? [codexCommand("fast", i18n._(msg`Toggle Fast mode`))] : []),
-  ],
-  resolveLocalAction: (typed) => {
-    const normalized = typed.trim().toLowerCase();
-    if (normalized === "/model") return { kind: "open-control", target: "model" };
-    if (normalized === "/effort") return { kind: "open-control", target: "effort" };
-    if (normalized === "/fast") return { kind: "toggle-fast" };
-    if (normalized === "/plan") return { kind: "set-mode", mode: "plan" };
-    if (normalized === "/agent") return { kind: "set-mode", mode: "agent" };
-    return null;
-  },
+  buildCommands: (ctx) =>
+    buildStandardGuiSlashCommands(ctx, [
+      // `/goal` has no local action: it submits to the provider.
+      guiSlashCommand("goal", i18n._(msg`Set or view an experimental goal`)),
+    ]),
+  resolveLocalAction: resolveStandardLocalSlashAction,
 });
 
 const CODEX_PERMISSION_PRESETS = [

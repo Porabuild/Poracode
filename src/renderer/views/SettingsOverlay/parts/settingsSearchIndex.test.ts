@@ -11,7 +11,7 @@ import { SETTINGS_SEARCH_INDEX, searchSettings } from "./settingsSearchIndex";
 function anchorsDeclaredInComponents(): Set<string> {
   const dir = import.meta.dirname;
   const anchorAttr =
-    /(?:anchorId|data-settings-anchor|useIgnoreFilesAnchorId|excludePatternsAnchorId)="([^"]+)"/g;
+    /(?:anchorId|data-settings-anchor|useIgnoreFilesAnchorId|excludePatternsAnchorId)(?:=|:\s*)"([^"]+)"/g;
   const anchors = new Set<string>();
   for (const file of readdirSync(dir)) {
     if (!file.endsWith(".tsx") || file.includes(".test.")) continue;
@@ -68,16 +68,16 @@ describe("searchSettings", () => {
 
   it("matches a setting title and shows no snippet (the title is the line)", () => {
     const results = searchSettings("prevent sleep", t);
-    const hit = results.find((r) => r.anchor === "general.preventSleepWhileWorking");
+    const hit = results.find((r) => r.anchor === "general.preventSleep");
     expect(hit).toBeDefined();
-    expect(hit?.title).toBe("Prevent sleep while working");
+    expect(hit?.title).toBe("Prevent sleep");
     expect(hit?.snippet).toBeNull();
   });
 
   it("matches description-only and surfaces the description snippet", () => {
     // "awake" is in the description, not the title.
     const results = searchSettings("awake", t);
-    const hit = results.find((r) => r.anchor === "general.preventSleepWhileWorking");
+    const hit = results.find((r) => r.anchor === "general.preventSleep");
     expect(hit).toBeDefined();
     expect(hit?.snippet).not.toBeNull();
     expect(hit?.snippet?.toLowerCase()).toContain("awake");
@@ -103,7 +103,7 @@ describe("searchSettings", () => {
     expect(searchSettings("skills", t).map((result) => result.anchor)).toContain("skills.manage");
     expect(searchSettings("shared", t).map((result) => result.anchor)).toContain("skills.manage");
     expect(searchSettings("mcp", t).map((result) => result.anchor)).toContain("mcpServers.manage");
-    expect(searchSettings("subagent routing", t).map((result) => result.anchor)).toContain(
+    expect(searchSettings("crossagent routing", t).map((result) => result.anchor)).toContain(
       "mcpServers.manage",
     );
   });

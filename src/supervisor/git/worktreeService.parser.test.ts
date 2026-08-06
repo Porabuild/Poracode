@@ -16,7 +16,7 @@ describe("buildBranchListArgs", () => {
   it("emits format + sort flags and omits -a when includeRemote=false", () => {
     expect(buildBranchListArgs(false)).toEqual([
       "branch",
-      "--format=%(refname)\t%(objectname:short)\t%(HEAD)",
+      "--format=%(refname)\t%(objectname)\t%(HEAD)",
       "--sort=-HEAD",
     ]);
   });

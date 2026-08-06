@@ -1,18 +1,33 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Columns2 } from "lucide-react";
+import {
+  productSurfaceView,
+  useProductViewTracking,
+} from "@/renderer/analytics/useProductViewTracking";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
+import { clearEagerShellStart, wasShellStartedEagerly } from "@/renderer/utils/shellUtils";
+import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import type { TerminalSize } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
+import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { BottomTerminalLayout } from "./parts/BottomTerminalLayout";
 import { RightTerminalLayout } from "./parts/RightTerminalLayout";
 
-export function DevTerminalPanel(props: { hideHeader?: boolean }) {
-  const { hideHeader } = props;
+export function DevTerminalPanel(props: {
+  hideHeader?: boolean;
+  positionOverride?: "bottom" | "right";
+  onEmpty?: () => void;
+  watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
+}) {
+  const { hideHeader, onEmpty } = props;
   const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const tabs = useDevTerminalStore((s) => s.tabs);
@@ -27,7 +42,8 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
   const closeSplitAction = useDevTerminalStore((s) => s.closeSplit);
   const markTabActive = useDevTerminalStore((s) => s.markTabActive);
   const updateTabTitle = useDevTerminalStore((s) => s.updateTabTitle);
-  const terminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const savedTerminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const terminalPosition = props.positionOverride ?? savedTerminalPosition;
   const spawnedRef = useRef(new Set<string>());
 
   const projectTabs = tabs.filter((tab) => {
@@ -36,6 +52,16 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
     return !tab.worktreePath;
   });
   const activeProject = projects.find((p) => p.id === activeProjectId);
+  const remoteServerId = activeProject?.remoteServerId;
+  const watchTerminal =
+    props.watchTerminal ??
+    (remoteServerId
+      ? (terminalId: string, listener: TerminalFeedListener) =>
+          watchRemoteTerminal(remoteServerId, terminalId, listener)
+      : undefined);
+  const activeScopeLabel = activeProject
+    ? formatProjectScopeLabel(activeProject.name, activeWorktreePath ?? undefined)
+    : undefined;
   const selectedTabId =
     projectTabs.find((tab) => tab.id === activeTabId)?.id ?? projectTabs.at(-1)?.id ?? "__add__";
   const activeTab = projectTabs.find((tab) => tab.id === selectedTabId);
@@ -44,6 +70,10 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
 
   // Cross-fade when switching between project and worktree contexts.
   const isOpen = useDevTerminalStore((s) => s.isOpen);
+  useProductViewTracking(productSurfaceView("terminal", "panel"), "panel", {
+    active: isOpen && !hideHeader,
+    finishWhenInactive: true,
+  });
   const contextKey = `${activeProjectId}:${activeWorktreePath ?? ""}`;
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const prevContextRef = useRef(contextKey);
@@ -71,6 +101,10 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
   // pre-wrapped scrollback, so getting the very first lines right matters.
   function handleTerminalResize(terminalId: string, size: TerminalSize) {
     if (spawnedRef.current.has(terminalId)) return;
+    // Run actions and setup scripts start their shell before the surface
+    // mounts; re-issuing startShell would kill that PTY (and the command or
+    // process running in it). The surface resizes the live PTY on its own.
+    if (wasShellStartedEagerly(terminalId)) return;
     const owningTab = tabs.find((tab) => tab.id === terminalId || tab.splitId === terminalId);
     if (!owningTab) return;
     const project = projects.find((p) => p.id === owningTab.projectId);
@@ -86,7 +120,10 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
         ...(owningTab.worktreePath ? { worktreePath: owningTab.worktreePath } : {}),
         initialSize: size,
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        spawnedRef.current.delete(terminalId);
+        toast.danger(friendlyError(error));
+      });
   }
 
   function handleCloseTab(tab: DevTerminalTab) {
@@ -96,12 +133,14 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
         .closeThread({ threadId: tab.splitId })
         .catch(() => undefined);
       spawnedRef.current.delete(tab.splitId);
+      clearEagerShellStart(tab.splitId);
     }
     removeTab(tab.id);
     void readBridge()
       .closeThread({ threadId: tab.id })
       .catch(() => undefined);
     spawnedRef.current.delete(tab.id);
+    clearEagerShellStart(tab.id);
 
     const remainingInContext = remaining.filter((other) => {
       if (other.projectId !== tab.projectId) return false;
@@ -111,6 +150,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
     if (remainingInContext.length === 0) {
       if (!isBottom) closeAllPanels();
       useDevTerminalStore.getState().closePanel();
+      onEmpty?.();
     }
   }
 
@@ -184,7 +224,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
       <BottomTerminalLayout
         tabs={tabs}
         projectTabs={projectTabs}
-        activeProject={activeProject}
+        activeScopeLabel={activeScopeLabel}
         selectedTabId={selectedTabId}
         activeTab={activeTab}
         focusRequestId={focusRequestId}
@@ -198,6 +238,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
         getTabContextItems={getTabContextItems}
         handleTabContextAction={handleTabContextAction}
         onTerminalResize={handleTerminalResize}
+        {...(watchTerminal ? { watchTerminal } : {})}
       />
     );
   }
@@ -206,7 +247,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
     <RightTerminalLayout
       tabs={tabs}
       projectTabs={projectTabs}
-      activeProject={activeProject}
+      activeScopeLabel={activeScopeLabel}
       selectedTabId={selectedTabId}
       activeTab={activeTab}
       focusRequestId={focusRequestId}
@@ -218,6 +259,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
       handleCloseTab={handleCloseTab}
       handleSelectionChange={handleSelectionChange}
       onTerminalResize={handleTerminalResize}
+      {...(watchTerminal ? { watchTerminal } : {})}
     />
   );
 }

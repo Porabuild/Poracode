@@ -1,47 +1,24 @@
 import { describe, expect, it } from "vitest";
-import type { AgentCapability, LoadedPlugin, ThreadConfig } from "../contracts";
+import type { LoadedPlugin } from "../contracts";
 import { installedPluginsSchema } from "../contracts/plugin";
+import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL, type PluginSkillPolicyEntry } from "./spec";
 import {
-  AGENT_PLUGINS_MANIFEST_SCHEMA_URL,
-  type PluginAppContribution,
-  type PluginSkillPolicyEntry,
-} from "./spec";
-import {
-  arePluginSkillRequiredAppsEnabled,
-  getGloballyDisabledPluginConfigKeys,
-  getInstalledPluginForMcpServer,
   installPlugin,
-  isBrowserMcpEnabledByAgentSettings,
-  isBrowserMcpEnabledByConfigOrAgentSettings,
-  isBuiltInMcpServerEnabledByPlugin,
+  isPluginMcpServerEnabled,
+  isPluginSkillEnabled,
   isPluginSkillSupportedForLaunch,
   isPluginSupportedForProject,
-  type PluginAppLaunchContext,
-  resolvePluginAppsForThreadConfig,
-  resolvePluginLaunchPreview,
   setInstalledPluginEnabled,
-  setPluginAppEnabled,
+  setPluginMcpServerEnabled,
   setPluginSkillEnabled,
   uninstallPlugin,
 } from "./catalog";
 
-const SUPPORTED_TERMINAL_CONTEXT = {
-  capabilities: {
-    browserMcpScope: { terminal: "launch" },
-    subagentMcpScope: { terminal: "launch" },
-    chromeMcpScope: { terminal: "launch" },
-    computerUseMcpScope: { terminal: "launch" },
-  },
-  presentationMode: "terminal",
-  projectLocation: { kind: "windows", path: "C:\\repo" },
-  hostPlatform: "win32",
-} satisfies PluginAppLaunchContext;
-
 function makePlugin(
   name: string,
-  poracode: {
-    apps?: PluginAppContribution[];
+  options: {
     skills?: Record<string, PluginSkillPolicyEntry>;
+    mcpServers?: string[];
     platforms?: ("win32" | "darwin" | "linux")[];
     projectKinds?: ("windows" | "posix" | "wsl")[];
   } = {},
@@ -55,42 +32,40 @@ function makePlugin(
       category: "developer-tools",
       featured: false,
       communityMaintained: false,
-      apps: poracode.apps ?? [],
-      skills: poracode.skills ?? {},
-      ...(poracode.platforms ? { platforms: poracode.platforms } : {}),
-      ...(poracode.projectKinds ? { projectKinds: poracode.projectKinds } : {}),
+      skills: options.skills ?? {},
+      ...(options.platforms ? { platforms: options.platforms } : {}),
+      ...(options.projectKinds ? { projectKinds: options.projectKinds } : {}),
     },
-    skills: Object.keys(poracode.skills ?? {}).map((folder) => ({
+    skills: Object.keys(options.skills ?? {}).map((folder) => ({
       folder,
       path: `/plugins/${name}/skills/${folder}`,
     })),
-    mcpServers: [],
+    mcpServers: (options.mcpServers ?? []).map((serverName) => ({
+      name: serverName,
+      entry: { type: "stdio" as const, command: "server", args: [], env: {} },
+    })),
     diagnostics: [],
   };
 }
 
-const app = (id: string, builtInMcpServerId: PluginAppContribution["builtInMcpServerId"]) => ({
-  id,
-  name: id,
-  description: id,
-  builtInMcpServerId,
-});
-
-const BROWSER_TOOLS = makePlugin("browser-tools", {
-  apps: [app("browser", "browser")],
-  skills: { "browser-control": { requiredAppIds: ["browser"] } },
-});
-const SUBAGENTS = makePlugin("subagent-delegation", { apps: [app("subagents", "subagents")] });
+const BROWSER_TOOLS = makePlugin("browser-tools", { skills: { "browser-control": {} } });
 const CHROME_TOOLS = makePlugin("chrome-tools", {
-  apps: [app("chrome", "chrome")],
+  skills: { "chrome-control": {} },
   projectKinds: ["windows", "posix"],
 });
 const COMPUTER_USE = makePlugin("computer-use", {
-  apps: [app("computer-use", "computer-use")],
+  skills: { "computer-use": {} },
   platforms: ["win32", "darwin"],
   projectKinds: ["windows", "posix"],
 });
-const ALL_PLUGINS = [BROWSER_TOOLS, SUBAGENTS, CHROME_TOOLS, COMPUTER_USE];
+const GITHUB = makePlugin("github", { skills: { github: {} }, mcpServers: ["github"] });
+
+const WSL_PROJECT = {
+  kind: "wsl",
+  distro: "Ubuntu",
+  linuxPath: "/repo",
+  uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+} as const;
 
 describe("plugin contracts", () => {
   it("defaults persisted plugin state fields", () => {
@@ -99,7 +74,6 @@ describe("plugin contracts", () => {
         version: "1.0.0",
         enabled: true,
         disabledSkillIds: [],
-        disabledAppIds: [],
         disabledMcpServerNames: [],
       },
     });
@@ -111,50 +85,6 @@ describe("plugin contracts", () => {
 });
 
 describe("plugin catalog", () => {
-  it("resolves Browser MCP from either thread config or provider settings", () => {
-    expect(isBrowserMcpEnabledByAgentSettings({ browserMcp: true })).toBe(true);
-    expect(isBrowserMcpEnabledByConfigOrAgentSettings({ browserMcp: true }, undefined)).toBe(true);
-    expect(isBrowserMcpEnabledByConfigOrAgentSettings({}, { browserMcp: true })).toBe(true);
-    expect(
-      isBrowserMcpEnabledByConfigOrAgentSettings({ browserMcp: false }, { browserMcp: false }),
-    ).toBe(false);
-  });
-
-  it("previews provider Browser settings while preserving hard disables", () => {
-    const installed = setPluginAppEnabled(
-      installPlugin({}, BROWSER_TOOLS),
-      "browser-tools",
-      "browser",
-      false,
-    );
-    const context = {
-      capabilities: { browserMcpScope: { terminal: "none" } },
-      presentationMode: "terminal",
-      projectLocation: { kind: "windows", path: "C:\\repo" },
-      hostPlatform: "win32",
-      disabledBuiltInMcpServers: {},
-      agentSettings: { browserMcp: true },
-    } satisfies Parameters<typeof resolvePluginLaunchPreview>[3];
-
-    expect(
-      resolvePluginLaunchPreview({ model: "test" }, ALL_PLUGINS, installed, context).browserMcp,
-    ).toBe(true);
-    expect(
-      resolvePluginLaunchPreview({ model: "test" }, ALL_PLUGINS, installed, {
-        ...context,
-        disabledBuiltInMcpServers: { browser: true },
-      }).browserMcp,
-    ).toBe(false);
-    expect(
-      resolvePluginLaunchPreview(
-        { model: "test" },
-        ALL_PLUGINS,
-        setInstalledPluginEnabled(installed, "browser-tools", false),
-        context,
-      ).browserMcp,
-    ).toBe(false);
-  });
-
   it("installs and uninstalls a plugin", () => {
     const installed = installPlugin({}, BROWSER_TOOLS);
 
@@ -163,184 +93,70 @@ describe("plugin catalog", () => {
         version: "1.0.0",
         enabled: true,
         disabledSkillIds: [],
-        disabledAppIds: [],
         disabledMcpServerNames: [],
       },
     });
-    expect(getInstalledPluginForMcpServer(ALL_PLUGINS, installed, "browser")?.name).toBe(
-      "browser-tools",
-    );
     expect(installPlugin(installed, BROWSER_TOOLS)).toBe(installed);
     expect(uninstallPlugin(installed, "browser-tools")).toEqual({});
   });
 
-  it("toggles the plugin and its skill and app contributions independently", () => {
-    const installed = installPlugin({}, BROWSER_TOOLS);
-    const disabledSkill = setPluginSkillEnabled(
-      installed,
-      "browser-tools",
-      "browser-control",
-      false,
-    );
-    const disabledApp = setPluginAppEnabled(disabledSkill, "browser-tools", "browser", false);
-    const disabledPlugin = setInstalledPluginEnabled(disabledApp, "browser-tools", false);
+  it("toggles the plugin and its contributions independently", () => {
+    const installed = installPlugin({}, GITHUB);
+    const disabledSkill = setPluginSkillEnabled(installed, "github", "github", false);
+    const disabledServer = setPluginMcpServerEnabled(disabledSkill, "github", "github", false);
 
-    expect(disabledPlugin["browser-tools"]).toEqual({
+    expect(disabledServer.github).toEqual({
       version: "1.0.0",
-      enabled: false,
-      disabledSkillIds: ["browser-control"],
-      disabledAppIds: ["browser"],
-      disabledMcpServerNames: [],
+      enabled: true,
+      disabledSkillIds: ["github"],
+      disabledMcpServerNames: ["github"],
     });
-    expect(
-      setPluginAppEnabled(
-        setPluginSkillEnabled(disabledPlugin, "browser-tools", "browser-control", true),
-        "browser-tools",
-        "browser",
-        true,
-      )["browser-tools"],
-    ).toMatchObject({ disabledSkillIds: [], disabledAppIds: [] });
+    expect(isPluginSkillEnabled(GITHUB, disabledServer.github!, "github")).toBe(false);
+    expect(isPluginMcpServerEnabled(GITHUB, disabledServer.github!, "github")).toBe(false);
+
+    const reenabled = setPluginMcpServerEnabled(
+      setPluginSkillEnabled(disabledServer, "github", "github", true),
+      "github",
+      "github",
+      true,
+    );
+    expect(reenabled.github).toMatchObject({ disabledSkillIds: [], disabledMcpServerNames: [] });
+    expect(isPluginSkillEnabled(GITHUB, reenabled.github!, "github")).toBe(true);
   });
 
-  it("requires a skill's companion apps to be launch-compatible", () => {
+  it("treats a disabled plugin as disabling every contribution", () => {
+    const installed = setInstalledPluginEnabled(installPlugin({}, GITHUB), "github", false);
+
+    expect(isPluginSkillEnabled(GITHUB, installed.github!, "github")).toBe(false);
+    expect(isPluginMcpServerEnabled(GITHUB, installed.github!, "github")).toBe(false);
+  });
+
+  it("reports an unknown contribution as disabled", () => {
+    const installed = installPlugin({}, GITHUB);
+
+    expect(isPluginSkillEnabled(GITHUB, installed.github!, "not-a-skill")).toBe(false);
+    expect(isPluginMcpServerEnabled(GITHUB, installed.github!, "not-a-server")).toBe(false);
+  });
+
+  it("gates plugins on host platform and project kind", () => {
+    expect(isPluginSupportedForProject(COMPUTER_USE, "linux", undefined)).toBe(false);
+    expect(isPluginSupportedForProject(COMPUTER_USE, "win32", undefined)).toBe(true);
+    expect(isPluginSupportedForProject(CHROME_TOOLS, "win32", WSL_PROJECT)).toBe(false);
+    expect(isPluginSupportedForProject(BROWSER_TOOLS, "win32", WSL_PROJECT)).toBe(true);
+  });
+
+  it("offers a skill only where its plugin is supported", () => {
     expect(
-      isPluginSkillSupportedForLaunch(BROWSER_TOOLS, "browser-control", {
+      isPluginSkillSupportedForLaunch(CHROME_TOOLS, {
         hostPlatform: "win32",
-        projectLocation: SUPPORTED_TERMINAL_CONTEXT.projectLocation,
-        capabilities: {
-          ...SUPPORTED_TERMINAL_CONTEXT.capabilities,
-          presentationMode: "terminal",
-        } as AgentCapability,
-        presentationMode: "terminal",
-      }),
-    ).toBe(true);
-    expect(
-      isPluginSkillSupportedForLaunch(BROWSER_TOOLS, "browser-control", {
-        hostPlatform: "win32",
-        projectLocation: SUPPORTED_TERMINAL_CONTEXT.projectLocation,
-        capabilities: { presentationMode: "terminal" } as AgentCapability,
-        presentationMode: "terminal",
+        projectLocation: WSL_PROJECT,
       }),
     ).toBe(false);
-  });
-
-  it("requires a skill's companion Apps in the effective launch config", () => {
     expect(
-      arePluginSkillRequiredAppsEnabled(BROWSER_TOOLS, "browser-control", {
-        model: "test-model",
-        browserMcp: true,
+      isPluginSkillSupportedForLaunch(BROWSER_TOOLS, {
+        hostPlatform: "win32",
+        projectLocation: WSL_PROJECT,
       }),
     ).toBe(true);
-    expect(
-      arePluginSkillRequiredAppsEnabled(BROWSER_TOOLS, "browser-control", {
-        model: "test-model",
-        browserMcp: false,
-      }),
-    ).toBe(false);
-  });
-
-  it("applies enabled app contributions to thread config", () => {
-    const config: ThreadConfig = { model: "test-model" };
-    const installed = ALL_PLUGINS.reduce(installPlugin, {});
-
-    expect(
-      resolvePluginAppsForThreadConfig(config, ALL_PLUGINS, installed, SUPPORTED_TERMINAL_CONTEXT)
-        .config,
-    ).toEqual({
-      model: "test-model",
-      browserMcp: true,
-      subagentMcp: true,
-      chromeMcp: true,
-      computerUse: true,
-    });
-    expect(isBuiltInMcpServerEnabledByPlugin(ALL_PLUGINS, installed, "browser")).toBe(true);
-
-    const disabled = setPluginAppEnabled(installed, "browser-tools", "browser", false);
-    expect(
-      resolvePluginAppsForThreadConfig(config, ALL_PLUGINS, disabled, SUPPORTED_TERMINAL_CONTEXT)
-        .config,
-    ).toEqual({
-      model: "test-model",
-      subagentMcp: true,
-      chromeMcp: true,
-      computerUse: true,
-    });
-    expect(isBuiltInMcpServerEnabledByPlugin(ALL_PLUGINS, disabled, "browser")).toBe(false);
-    expect(
-      resolvePluginAppsForThreadConfig(config, ALL_PLUGINS, {}, SUPPORTED_TERMINAL_CONTEXT).config,
-    ).toBe(config);
-
-    const disabledPlugin = setInstalledPluginEnabled(installed, "browser-tools", false);
-    expect(getGloballyDisabledPluginConfigKeys(ALL_PLUGINS, disabledPlugin)).toEqual([
-      "browserMcp",
-    ]);
-    expect(
-      resolvePluginAppsForThreadConfig(
-        config,
-        ALL_PLUGINS,
-        disabledPlugin,
-        SUPPORTED_TERMINAL_CONTEXT,
-      ),
-    ).toMatchObject({ disabledConfigKeys: ["browserMcp"] });
-    expect(
-      resolvePluginAppsForThreadConfig(
-        config,
-        ALL_PLUGINS,
-        disabledPlugin,
-        SUPPORTED_TERMINAL_CONTEXT,
-      ).config,
-    ).toEqual({
-      model: "test-model",
-      browserMcp: false,
-      subagentMcp: true,
-      chromeMcp: true,
-      computerUse: true,
-    });
-    expect(
-      resolvePluginAppsForThreadConfig(
-        { ...config, browserMcp: true },
-        ALL_PLUGINS,
-        disabledPlugin,
-        SUPPORTED_TERMINAL_CONTEXT,
-      ).config,
-    ).toEqual({
-      model: "test-model",
-      browserMcp: false,
-      subagentMcp: true,
-      chromeMcp: true,
-      computerUse: true,
-    });
-  });
-
-  it("does not apply plugin apps outside the provider or host launch scope", () => {
-    const config: ThreadConfig = { model: "test-model" };
-    const installed = ALL_PLUGINS.reduce(installPlugin, {});
-
-    expect(
-      resolvePluginAppsForThreadConfig(config, ALL_PLUGINS, installed, {
-        ...SUPPORTED_TERMINAL_CONTEXT,
-        capabilities: {},
-      }).config,
-    ).toBe(config);
-    expect(
-      resolvePluginAppsForThreadConfig(config, ALL_PLUGINS, installed, {
-        ...SUPPORTED_TERMINAL_CONTEXT,
-        projectLocation: {
-          kind: "wsl",
-          distro: "Ubuntu",
-          linuxPath: "/repo",
-          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
-        },
-      }).config,
-    ).toEqual({ model: "test-model", browserMcp: true, subagentMcp: true });
-
-    const wslProject = {
-      kind: "wsl",
-      distro: "Ubuntu",
-      linuxPath: "/repo",
-      uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
-    } as const;
-    expect(isPluginSupportedForProject(CHROME_TOOLS, "win32", wslProject)).toBe(false);
-    expect(isPluginSupportedForProject(BROWSER_TOOLS, "win32", wslProject)).toBe(true);
   });
 });

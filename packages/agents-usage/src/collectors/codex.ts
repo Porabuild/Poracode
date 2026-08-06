@@ -28,12 +28,12 @@ const SESSION_WINDOW_MINUTES = 300;
 const WEEKLY_WINDOW_MINUTES = 10_080;
 
 interface CodexWindowRaw {
-  used_percent?: number;
-  reset_at?: number;
-  resets_at?: number;
-  reset_after_seconds?: number;
-  limit_window_seconds?: number;
-  window_minutes?: number;
+  used_percent?: number | string;
+  reset_at?: number | string;
+  resets_at?: number | string;
+  reset_after_seconds?: number | string;
+  limit_window_seconds?: number | string;
+  window_minutes?: number | string;
 }
 
 interface CodexUsageResponse {
@@ -50,7 +50,7 @@ interface CodexUsageResponse {
       secondary_window?: CodexWindowRaw;
     };
   }>;
-  credits?: { has_credits?: boolean; unlimited?: boolean; balance?: number };
+  credits?: { has_credits?: boolean; unlimited?: boolean; balance?: number | string };
 }
 
 const CODEX_PLAN_LABELS: Record<string, string> = {
@@ -75,9 +75,8 @@ export function formatCodexPlanLabel(value: string | undefined): string | undefi
 function resetFrom(raw: CodexWindowRaw | undefined, nowMs: number): number | undefined {
   const explicit = toEpochMs(raw?.reset_at ?? raw?.resets_at);
   if (explicit !== undefined) return explicit;
-  if (raw?.reset_after_seconds !== undefined && Number.isFinite(raw.reset_after_seconds)) {
-    return nowMs + raw.reset_after_seconds * 1000;
-  }
+  const resetAfterSeconds = numericValue(raw?.reset_after_seconds);
+  if (resetAfterSeconds !== undefined) return nowMs + resetAfterSeconds * 1000;
   return undefined;
 }
 
@@ -88,7 +87,7 @@ function codexWindow(
   headerPercent: number | undefined,
   nowMs: number,
 ): UsageWindow | undefined {
-  const usedPercent = codexPercent(raw?.used_percent ?? headerPercent);
+  const usedPercent = codexPercent(numericValue(raw?.used_percent) ?? headerPercent);
   if (usedPercent === undefined) return undefined;
   const resetsAt = resetFrom(raw, nowMs);
   return {
@@ -104,9 +103,10 @@ function codexWindowCadence(
   raw: CodexWindowRaw | undefined,
   fallback: "session-5h" | "weekly",
 ): "session-5h" | "weekly" {
+  const limitSeconds = numericValue(raw?.limit_window_seconds);
   const windowMinutes =
-    raw?.window_minutes ??
-    (raw?.limit_window_seconds !== undefined ? raw.limit_window_seconds / 60 : undefined);
+    numericValue(raw?.window_minutes) ??
+    (limitSeconds === undefined ? undefined : limitSeconds / 60);
   if (windowMinutes === WEEKLY_WINDOW_MINUTES) return "weekly";
   if (windowMinutes === SESSION_WINDOW_MINUTES) return "session-5h";
   return fallback;
@@ -115,6 +115,16 @@ function codexWindowCadence(
 function codexPercent(value: number | undefined): number | undefined {
   if (value === undefined || !Number.isFinite(value) || value < 0) return undefined;
   return Math.min(100, Math.max(0, Math.round(value * 10) / 10));
+}
+
+function numericValue(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim().length > 0
+        ? Number(value)
+        : undefined;
+  return parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function codexLimitId(value: string | undefined): string {
@@ -158,16 +168,27 @@ function codexLimitLabel(limitName: string | undefined): string {
   return formatCodexFamilyModelLabel(codexUsageModelId(base)) ?? base;
 }
 
-function readHeaderPercent(headers: Record<string, string>, name: string): number | undefined {
+function readHeaderNumber(headers: Record<string, string>, name: string): number | undefined {
   // Headers may arrive with any casing; scan case-insensitively.
   const target = name.toLowerCase();
   for (const [key, value] of Object.entries(headers)) {
     if (key.toLowerCase() === target) {
-      const parsed = Number.parseFloat(value);
-      return Number.isFinite(parsed) ? parsed : undefined;
+      return numericValue(value);
     }
   }
   return undefined;
+}
+
+function readCodexCreditBalance(
+  data: CodexUsageResponse,
+  headers: Record<string, string>,
+): number | undefined {
+  const bodyBalance = numericValue(data.credits?.balance);
+  if (bodyBalance !== undefined) return Math.max(0, bodyBalance);
+  if (data.credits?.has_credits === false) return 0;
+
+  const headerBalance = readHeaderNumber(headers, "x-codex-credits-balance");
+  return headerBalance === undefined ? undefined : Math.max(0, headerBalance);
 }
 
 /** Pure: map a parsed `/wham/usage` body + response headers to a snapshot. */
@@ -177,8 +198,8 @@ export function parseCodexUsage(
   nowMs: number,
 ): UsageSnapshot {
   const data = (body ?? {}) as CodexUsageResponse;
-  const primaryHeader = readHeaderPercent(headers, "x-codex-primary-used-percent");
-  const secondaryHeader = readHeaderPercent(headers, "x-codex-secondary-used-percent");
+  const primaryHeader = readHeaderNumber(headers, "x-codex-primary-used-percent");
+  const secondaryHeader = readHeaderNumber(headers, "x-codex-secondary-used-percent");
 
   const windows: UsageWindow[] = [];
   const primaryCadence = codexWindowCadence(data.rate_limit?.primary_window, "session-5h");
@@ -223,7 +244,14 @@ export function parseCodexUsage(
   }
 
   const plan = formatCodexPlanLabel(data.plan_type);
-  const balance = data.credits?.balance;
+  const balance = readCodexCreditBalance(data, headers);
+  const credits =
+    balance !== undefined || data.credits?.unlimited === true
+      ? {
+          balance: balance ?? 0,
+          ...(data.credits?.unlimited === true ? { unlimited: true } : {}),
+        }
+      : undefined;
 
   return {
     providerId: "codex",
@@ -231,9 +259,7 @@ export function parseCodexUsage(
     windows,
     fetchedAt: nowMs,
     ...(plan ? { plan } : {}),
-    ...(typeof balance === "number"
-      ? { credits: { balance, ...(data.credits?.unlimited ? { unlimited: true } : {}) } }
-      : {}),
+    ...(credits ? { credits } : {}),
   };
 }
 

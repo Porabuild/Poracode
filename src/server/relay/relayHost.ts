@@ -85,6 +85,14 @@ interface LocalWsChannel {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 const WEB_SOCKET_OPEN = 1;
+const DROPPABLE_STREAM_SOFT_BUFFER_BYTES = 1_500_000;
+
+function isDroppableStreamFrame(data: string): boolean {
+  const parsed = safeJsonParse(data);
+  if (!parsed || typeof parsed !== "object") return false;
+  const type = (parsed as { type?: unknown }).type;
+  return type === "terminal-output" || type === "browser-frame";
+}
 
 /**
  * Build the synthetic `x-forwarded-for` value the host forwards to its own
@@ -111,6 +119,10 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     options.maxWebSocketPayloadBytes ?? relayWebSocketPayloadLimit(maxBodyBytes);
   const maxWebSocketOutboundBufferBytes =
     options.maxWebSocketOutboundBufferBytes ?? relayWebSocketPayloadLimit(maxBodyBytes);
+  const droppableStreamSoftBufferBytes = Math.min(
+    DROPPABLE_STREAM_SOFT_BUFFER_BYTES,
+    Math.floor(maxWebSocketOutboundBufferBytes / 2),
+  );
 
   let disposed = false;
   let control: RelaySocket | null = null;
@@ -194,7 +206,13 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
           lower === "host" ||
           lower === "content-length" ||
           lower === "connection" ||
-          lower === "x-forwarded-for"
+          lower === "x-forwarded-for" ||
+          // The hop to the local server is loopback, and `fetch` transparently
+          // decodes whatever comes back — so forwarding the visitor's
+          // `accept-encoding` would only make the origin spend CPU compressing
+          // bytes this process immediately decompresses. The visitor's own hop
+          // is compressed by the relay/WS transport instead.
+          lower === "accept-encoding"
         )
           continue;
         requestHeaders[key] = value;
@@ -234,6 +252,13 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
       // the one API that returns every value intact.
       const responseHeaders = headersToRecord(response.headers);
       delete responseHeaders["set-cookie"];
+      // `readBoundedResponseBody` reads the DECODED body (`fetch` undoes any
+      // `content-encoding` transparently), so echoing the origin's
+      // `content-encoding` would label plaintext bytes as gzip and the visitor
+      // would fail to parse them. `content-length` describes the encoded body
+      // and is equally stale. Both must go now that the origin can compress.
+      delete responseHeaders["content-encoding"];
+      delete responseHeaders["content-length"];
       const setCookies = response.headers.getSetCookie();
       if (control === sourceControl) {
         sendOn(sourceControl, {
@@ -325,7 +350,14 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     };
     local.onmessage = (event) => {
       if (control === sourceControl) {
-        if (!sendOn(sourceControl, { t: "ws-data", id: frame.id, data: String(event.data) })) {
+        const data = String(event.data);
+        if (
+          (sourceControl.bufferedAmount ?? 0) > droppableStreamSoftBufferBytes &&
+          isDroppableStreamFrame(data)
+        ) {
+          return;
+        }
+        if (!sendOn(sourceControl, { t: "ws-data", id: frame.id, data })) {
           if (wsChannels.delete(frame.id)) closeSocket(local);
         }
       }

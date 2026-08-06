@@ -4,6 +4,7 @@ import "@git-diff-view/react/styles/diff-view.css";
 import { Trans } from "@lingui/react/macro";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
+import { DiffStat } from "@/renderer/components/common/DiffStat";
 import { PathDisplay } from "@/renderer/components/common/PathDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
@@ -156,10 +157,11 @@ function DiffCard(props: { entry: RenderedEntry; mode: number; theme: "light" | 
           className="min-w-0 flex-1"
           basenameClassName="font-medium text-foreground"
         />
-        <span className="ml-auto flex shrink-0 gap-2 text-[10px] font-medium">
-          {entry.additions > 0 && <span className="text-success">+{entry.additions}</span>}
-          {entry.deletions > 0 && <span className="text-danger">-{entry.deletions}</span>}
-        </span>
+        <DiffStat
+          className="ml-auto flex shrink-0 gap-2 text-[10px] font-medium"
+          insertions={entry.additions}
+          deletions={entry.deletions}
+        />
       </div>
       {!collapsed && (
         <>

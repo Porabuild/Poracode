@@ -23,7 +23,8 @@ export function useUsageProviderLogin(id: string) {
   const isRemote = isRemoteSession();
 
   const isApiKeyLogin = supportsApiKeyLogin(id);
-  const supportsLogin = !isRemote && (supportsBrowserLogin(id) || isApiKeyLogin);
+  const isBrowserLogin = supportsBrowserLogin(id);
+  const supportsLogin = !isRemote && (isBrowserLogin || isApiKeyLogin);
   // A stored session the latest fetch reports as rejected (expired cookie) still
   // warrants a "Sign in" to re-auth; an unauthenticated provider always does. But
   // never prompt sign-in once a fetch succeeds ("ok"): a provider authenticated
@@ -32,6 +33,8 @@ export function useUsageProviderLogin(id: string) {
   const sessionRejected = snapshot?.status === "auth-missing";
   const canSignIn =
     supportsLogin && snapshot?.status !== "ok" && (!hasStoredSession || sessionRejected);
+  const canBrowserSignIn = canSignIn && isBrowserLogin;
+  const canApiKeySignIn = canSignIn && isApiKeyLogin;
   const canSignOut = supportsLogin && hasStoredSession;
 
   const mergeFreshSnapshot = async () => {
@@ -109,9 +112,10 @@ export function useUsageProviderLogin(id: string) {
   };
 
   return {
-    isApiKeyLogin,
     supportsLogin,
     canSignIn,
+    canBrowserSignIn,
+    canApiKeySignIn,
     canSignOut,
     signingIn,
     signingOut,

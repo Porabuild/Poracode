@@ -6,8 +6,12 @@ import { isHomeProject } from "@/shared/homeScope";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { useWelcomeGateStore, WELCOME_SEEN_STORAGE_KEY } from "@/renderer/state/welcomeGateStore";
-import { readStoredBoolean, writeStoredBoolean } from "@/renderer/utils/localStorage";
+import {
+  isWelcomeSeen,
+  useWelcomeGateStore,
+  WELCOME_SEEN_STORAGE_KEY,
+} from "@/renderer/state/welcomeGateStore";
+import { writeStoredBoolean } from "@/renderer/utils/localStorage";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
 import { WELCOME_BACKGROUND_CODE } from "./welcomeBackgroundCode";
@@ -48,12 +52,11 @@ export function WelcomeOverlay() {
   const setHomeScopeEnabled = useSharedSettings((state) => state.setHomeScopeEnabled);
   const openDraft = useAppStore((state) => state.openDraft);
 
-  // `welcomeSeen` is read synchronously from localStorage so the overlay's
-  // open state is known on the very first render — no async settings gate, so
-  // the main UI never paints uncovered behind the overlay on first launch.
-  const [welcomeSeen, setWelcomeSeen] = useState(() =>
-    readStoredBoolean(WELCOME_SEEN_STORAGE_KEY, false),
-  );
+  // `welcomeSeen` is resolved synchronously from localStorage (or the dev-only
+  // manual-test bypass) so the overlay's open state is known on the very first
+  // render — no async settings gate, so the main UI never paints uncovered
+  // behind the overlay on first launch.
+  const [welcomeSeen, setWelcomeSeen] = useState(isWelcomeSeen);
   const open = !welcomeSeen;
   const [mounted, setMounted] = useState(open);
   // Initialize `visible` to `open` so the overlay is fully opaque on first

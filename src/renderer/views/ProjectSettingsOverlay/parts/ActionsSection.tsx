@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus, Trash2 } from "lucide-react";
 import type { ProjectAction } from "@/shared/contracts";
-import { useAppStore } from "@/renderer/state/appStore";
+import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { useProject } from "@/renderer/state/useThread";
 import { Button, Input, TextArea } from "@/renderer/components/common";
 import { ActionIconPicker } from "./ActionIconPicker";
@@ -10,7 +10,6 @@ import { ActionIconPicker } from "./ActionIconPicker";
 export function ActionsSection(props: { projectId: string }) {
   const { t } = useLingui();
   const project = useProject(props.projectId);
-  const updateProjectScripts = useAppStore((s) => s.updateProjectScripts);
 
   const scripts = project?.scripts ?? { actions: [] };
   const actions = scripts.actions ?? [];

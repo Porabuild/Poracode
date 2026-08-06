@@ -2,6 +2,7 @@
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setTouchCapableOverrideForTests } from "./pointerModality";
 import { resetComposerKeyboardMemoryForTests, useComposerKeyboard } from "./useComposerKeyboard";
 
 const keyboardMock = vi.hoisted(() => ({
@@ -143,6 +144,9 @@ describe("useComposerKeyboard", () => {
     });
     render(<ComposerKeyboardHarness onBeforeGuardedFocus={() => focusOrder.push("expand")} />);
     const input = screen.getByRole("textbox");
+    input.innerHTML = "First line<div>Second line</div>";
+    Object.defineProperty(input, "scrollHeight", { configurable: true, value: 120 });
+    input.scrollTop = 0;
 
     const pointerDown = createEvent.pointerDown(input, {
       pointerType: "touch",
@@ -151,6 +155,10 @@ describe("useComposerKeyboard", () => {
     fireEvent(input, pointerDown);
 
     expect(focusOrder).toEqual(["expand", "sentinel", "input"]);
+    const selection = window.getSelection();
+    expect(selection?.anchorNode).toBe(input);
+    expect(selection?.anchorOffset).toBe(input.childNodes.length);
+    expect(input.scrollTop).toBe(120);
   });
 
   it("uses the guarded focus path when the unfocused input shield is tapped", () => {
@@ -428,6 +436,56 @@ describe("useComposerKeyboard", () => {
     } finally {
       vi.useRealTimers();
       restoreVisualViewport();
+    }
+  });
+
+  it("ignores mouse pointerdown on a mouse-only device (native focus path)", () => {
+    setTouchCapableOverrideForTests(false);
+    try {
+      render(<ComposerKeyboardHarness />);
+      const input = screen.getByRole("textbox");
+
+      const pointerDown = createEvent.pointerDown(input, {
+        pointerType: "mouse",
+        cancelable: true,
+      });
+      fireEvent(input, pointerDown);
+
+      // No guarded choreography: the click keeps its default so the browser
+      // focuses the input natively with correct caret placement.
+      expect(pointerDown.defaultPrevented).toBe(false);
+      expect(scrollLockMock.focusWithoutScroll).not.toHaveBeenCalled();
+      expect(scrollLockMock.lockComposeScroll).not.toHaveBeenCalled();
+
+      // The native focus that follows must not engage the scroll lock either.
+      act(() => input.focus());
+      expect(scrollLockMock.lockComposeScroll).not.toHaveBeenCalled();
+    } finally {
+      setTouchCapableOverrideForTests(null);
+    }
+  });
+
+  it("focuses directly without primer or scroll lock for mouse pointerdown on a hybrid device", () => {
+    setTouchCapableOverrideForTests(true);
+    try {
+      const onBeforeGuardedFocus = vi.fn<() => void>();
+      render(<ComposerKeyboardHarness onBeforeGuardedFocus={onBeforeGuardedFocus} />);
+      const input = screen.getByRole("textbox");
+
+      const pointerDown = createEvent.pointerDown(input, {
+        pointerType: "mouse",
+        cancelable: true,
+      });
+      fireEvent(input, pointerDown);
+
+      // Hybrids keep the touch tap shield, so the mouse click is intercepted —
+      // but it lands as a plain programmatic focus (no primer probe).
+      expect(pointerDown.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(input);
+      expect(onBeforeGuardedFocus).toHaveBeenCalledTimes(1);
+      expect(scrollLockMock.focusWithoutScroll).not.toHaveBeenCalled();
+    } finally {
+      setTouchCapableOverrideForTests(null);
     }
   });
 

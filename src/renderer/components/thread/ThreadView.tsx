@@ -11,28 +11,20 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import {
-  DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE,
-  resolveMcpLaunchSnapshot,
-} from "@/shared/contracts";
-import { isHomeProjectId } from "@/shared/homeScope";
-import { buildPromptContentBlocks } from "@/shared/promptContent";
+import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/contracts";
 
 import { useAppStore } from "@/renderer/state/appStore";
-import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
-import { ComputerUseChip, McpChip } from "@/renderer/components/composer/AttachmentBar";
-import { browserMcpServer } from "@/renderer/components/composer/composerMcpServers";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { readBridge } from "@/renderer/bridge";
-import { captureThreadStarted } from "@/renderer/analytics/posthog";
-import { setRendererRuntimeDiagnosticContext } from "@/renderer/diagnostics/sentry";
+import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
-import type { TerminalPaneHandle } from "./TerminalPane";
+import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
+import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
+import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
 import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
+import { ThreadToolRail } from "./ThreadToolRail";
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix
@@ -75,8 +67,6 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.thread.done === next.thread.done &&
     prev.thread.canResumeWithConfig === next.thread.canResumeWithConfig &&
     prev.thread.sessionRef?.providerSessionId === next.thread.sessionRef?.providerSessionId &&
-    prev.thread.config.browserMcp === next.thread.config.browserMcp &&
-    prev.thread.config.computerUse === next.thread.config.computerUse &&
     (!configAffectsLaunch || prev.thread.config === next.thread.config) &&
     prev.agentStatus === next.agentStatus &&
     prev.projectLocation === next.projectLocation &&
@@ -86,6 +76,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
     prev.paneAlign === next.paneAlign &&
+    prev.hidden === next.hidden &&
     prev.isDragging === next.isDragging &&
     prev.dropIndicator === next.dropIndicator &&
     prev.paneCount === next.paneCount &&
@@ -93,7 +84,13 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.dragHandleRef === next.dragHandleRef &&
     prev.droppableRef === next.droppableRef &&
     prev.installedAgents === next.installedAgents &&
-    prev.onContinueInProvider === next.onContinueInProvider
+    prev.onContinueInProvider === next.onContinueInProvider &&
+    prev.onSubmitInput === next.onSubmitInput &&
+    prev.onOpenProjectRelativePath === next.onOpenProjectRelativePath &&
+    prev.checkpointActions === next.checkpointActions &&
+    prev.remoteTerminalTransport === next.remoteTerminalTransport &&
+    prev.pickFiles === next.pickFiles &&
+    prev.saveClipboardImage === next.saveClipboardImage
   );
 }
 
@@ -108,6 +105,8 @@ export type ThreadViewProps = {
   showCloseButton?: boolean;
   paneAlign?: "left" | "center" | "right";
   isDragging?: boolean;
+  /** Mounted but hidden for keep-alive. */
+  hidden?: boolean;
   dropIndicator?:
     | false
     | "replace"
@@ -142,6 +141,12 @@ export type ThreadViewProps = {
     | undefined;
   onLaunchConsumed?: (() => void) | undefined;
   onLaunchFailed?: ((message: string) => void) | undefined;
+  onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
+  onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
+  checkpointActions?: CheckpointRevertActions | undefined;
+  remoteTerminalTransport?: RemoteTerminalTransport | undefined;
+  pickFiles?: (() => Promise<string[] | null>) | undefined;
+  saveClipboardImage?: SaveClipboardImage | undefined;
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
@@ -156,6 +161,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     showCloseButton,
     paneAlign = "center",
     isDragging,
+    hidden = false,
     dropIndicator,
     paneIndex: _paneIndex,
     paneCount = 1,
@@ -168,6 +174,12 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onContinueInProvider,
     onLaunchConsumed,
     onLaunchFailed,
+    onSubmitInput,
+    onOpenProjectRelativePath,
+    checkpointActions,
+    remoteTerminalTransport,
+    pickFiles,
+    saveClipboardImage,
   } = props;
   const { t } = useLingui();
   const terminalPaneRef = useRef<TerminalPaneHandle>(null);
@@ -177,8 +189,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const launchRequestRef = useRef<string | null>(null);
   const titleRef = useRef<HTMLSpanElement>(null);
   const [isTitleTooltipOpen, setIsTitleTooltipOpen] = useState(false);
-  const runtimeLaunchConfig = useAppStore((s) => s.runtimeLaunchConfigByThreadId[thread.id]);
-  const activeMcpConfig = runtimeLaunchConfig ?? thread.config;
 
   // Thread-level mode wins over the adapter-declared default. Existing rows
   // load from DB with `presentationMode: "terminal"` thanks to the schema
@@ -187,26 +197,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     (thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal") ===
     "terminal";
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
-  // Browser MCP is bound at session-create time for every provider (Claude SDK
-  // `mcpServers` baked into `query()`, Codex `-c` overrides, ACP `newSession`).
-  // Toggling mid-thread can't re-attach the server, so the indicator in the
-  // active-thread header is informational only — disabling it would mislead
-  // the user into thinking the tool is no longer in scope. The toggle lives
-  // exclusively in the draft composer's ComposerAddMenu.
-  const showBrowserChip = activeMcpConfig.browserMcp === true;
-  const showComputerUseChip =
-    activeMcpConfig.computerUse === true && !isWsl && readBridge().platform !== "linux";
-
-  useEffect(() => {
-    const presentation =
-      thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
-    setRendererRuntimeDiagnosticContext({
-      provider: thread.agentKind,
-      presentation,
-      runtimeKind: presentation === "terminal" ? "pty" : "structured",
-      featureArea: "thread",
-    });
-  }, [agentStatus?.capabilities.presentationMode, thread.agentKind, thread.presentationMode]);
 
   useLayoutEffect(() => {
     setContinueDialogOpen(false);
@@ -239,86 +229,14 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     launchRequestRef.current = launchKey;
     onLaunchConsumed?.();
 
-    // Optimistic user_message for the FIRST prompt in a fresh GUI thread.
-    // Without this the chat sits empty for the duration of the supervisor's
-    // structured-session bringup (process spawn + ACP handshake +
-    // newSession), which can be a noticeable delay. The supervisor reuses
-    // this id when it emits its own canonical user_message events so the
-    // renderer's per-id dedupe drops the duplicate.
-    const presentation = thread.presentationMode ?? "terminal";
-    if (thread.config.model) {
-      useSharedSettings
-        .getState()
-        .pushRecentModel(thread.agentKind, thread.config.model, presentation);
-    }
-
-    let optimisticUserMessageItemId: string | undefined;
-    if (
-      presentation === "gui" &&
-      pendingLaunchPrompt.length > 0 &&
-      thread.sessionRef === undefined
-    ) {
-      optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
-      useAppStore.getState().applyRuntimeEvent(thread.id, {
-        type: "item.started",
-        threadId: thread.id,
-        itemId: optimisticUserMessageItemId,
-        itemType: "user_message",
-        payload: { content: buildPromptContentBlocks(pendingLaunchPrompt, pendingLaunchSegments) },
-      });
-      useAppStore.getState().applyRuntimeEvent(thread.id, {
-        type: "item.completed",
-        threadId: thread.id,
-        itemId: optimisticUserMessageItemId,
-      });
-      useAppStore.getState().updateThreadRuntime(thread.id, {
-        status: "working",
-        attention: "working",
-        canResumeWithConfig: thread.canResumeWithConfig,
-        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      });
-    }
-
     void (async () => {
-      if (optimisticUserMessageItemId && !isHomeProjectId(thread.projectId)) {
-        await captureFileCheckpoint({
-          threadId: thread.id,
-          checkpointItemId: optimisticUserMessageItemId,
-          projectLocation,
-        });
-      }
-      const sharedSettings = useSharedSettings.getState();
-      const projectMcpServers =
-        useAppStore.getState().projects.find((project) => project.id === thread.projectId)
-          ?.mcpServers ?? [];
-      const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(sharedSettings, projectMcpServers);
-      await readBridge().startThread({
-        threadId: thread.id,
+      await performInitialThreadLaunch({
+        thread,
         projectLocation,
-        agentKind: thread.agentKind,
-        ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
-        config: thread.config,
         prompt: pendingLaunchPrompt,
         ...(pendingLaunchSegments ? { segments: pendingLaunchSegments } : {}),
         initialSize: launchTerminalSize,
-        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-        ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-        ...(thread.parentThreadId
-          ? { invariantDisabledBuiltInMcpServerIds: ["subagents" as const] }
-          : {}),
-        ...mcpLaunchSnapshot,
-        ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
       });
-      captureThreadStarted(
-        {
-          agentKind: thread.agentKind,
-          config: thread.config,
-          ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-          ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-          ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-        },
-        pendingLaunchSegments,
-      );
     })().catch((error) => {
       launchRequestRef.current = null;
       onLaunchFailed?.(formatLaunchError(error, t`Thread failed to start.`));
@@ -331,16 +249,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     pendingLaunchSegments,
     projectLocation,
     launchTerminalSize,
-    thread.agentKind,
-    thread.agentInstanceId,
-    thread.canResumeWithConfig,
-    thread.config,
-    thread.id,
-    thread.parentThreadId,
-    thread.presentationMode,
-    thread.projectId,
-    thread.sessionRef,
-    thread.worktreePath,
+    thread,
   ]);
 
   const alignClass =
@@ -353,7 +262,8 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     <>
       <div
         ref={droppableRef}
-        className={`relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
+        data-poracode-thread-pane=""
+        className={`group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
       >
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
         <div className={`px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}>
@@ -397,16 +307,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   {thread.title}
                 </Tooltip.Content>
               </Tooltip>
-              {showBrowserChip ? (
-                <McpChip
-                  descriptor={browserMcpServer}
-                  variant="header"
-                  {...(thread.agentKind === "opencode"
-                    ? { title: t`Browser MCP enabled for OpenCode` }
-                    : {})}
-                />
-              ) : null}
-              {showComputerUseChip ? <ComputerUseChip variant="header" /> : null}
               <div className="flex shrink-0 items-center">
                 {projectName ? (
                   <span className="px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
@@ -479,6 +379,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     <CircleCheck className="size-3.5" />
                   </button>
                 ) : null}
+                <ThreadToolRail
+                  projectId={thread.projectId}
+                  paneCount={paneCount}
+                  {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                />
                 {showCloseButton ? (
                   <button
                     type="button"
@@ -539,6 +444,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 onTerminalResize={setTerminalSize}
+                hidden={hidden}
+                {...(onSubmitInput ? { onSubmitInput } : {})}
+                {...(remoteTerminalTransport ? { remoteTerminalTransport } : {})}
+                {...(pickFiles ? { pickFiles } : {})}
+                {...(saveClipboardImage ? { saveClipboardImage } : {})}
               />
             ) : (
               <GuiThreadContent
@@ -549,6 +459,12 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 runtimeDebugOpen={import.meta.env.DEV && runtimeDebugOpen}
+                {...(onSubmitInput ? { onSubmitInput } : {})}
+                {...(onOpenProjectRelativePath ? { onOpenProjectRelativePath } : {})}
+                {...(checkpointActions ? { checkpointActions } : {})}
+                {...(thread.remoteServerId ? { checkpointProjectLocation: projectLocation } : {})}
+                {...(pickFiles ? { pickFiles } : {})}
+                {...(saveClipboardImage ? { saveClipboardImage } : {})}
               />
             )}
           </div>

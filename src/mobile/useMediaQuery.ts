@@ -9,3 +9,7 @@ export const WIDE_SHELL_QUERY = "(min-width: 768px)";
 
 /** Menus use anchored popovers only when the browser has desktop-like input. */
 export const DESKTOP_POINTER_QUERY = "(min-width: 768px) and (hover: hover) and (pointer: fine)";
+
+/** Enough room for sidebar + thread + a docked auxiliary panel. */
+export const DESKTOP_RIGHT_PANEL_QUERY =
+  "(min-width: 1200px) and (hover: hover) and (pointer: fine)";

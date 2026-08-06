@@ -1,10 +1,20 @@
 import type { ReactNode } from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PrData, PrDetails } from "@/shared/contracts";
+import type { PrData, PrDetails, PrWatch } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { PrSection } from "./PrSection";
+
+const prWatchControls = vi.hoisted(() => vi.fn<(props: unknown) => void>());
+
+vi.mock("./PrWatchControls", () => ({
+  PrWatchControls: (props: unknown) => {
+    prWatchControls(props);
+    return <div data-testid="pr-watch-controls" />;
+  },
+}));
 
 vi.mock("@heroui/react", () => {
   function Wrapper(props: { children?: ReactNode }) {
@@ -106,14 +116,39 @@ const baseProps = {
 describe("PrSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prWatchControls.mockClear();
     useGitStore.setState({ prData: { [prKey]: pr }, prDetails: {} });
+    useSharedSettings.setState({ prMergeMethod: "squash" });
   });
 
   it("shows target branch, diff totals, and passed checks", () => {
     useGitStore.getState().setPrDetails(`${projectId}#${pr.number}`, details);
     const onRefreshPr = vi.fn<() => Promise<void>>(async () => undefined);
+    const onInitialWatchUsed = vi.fn<() => void>();
+    const initialWatch = {
+      projectId,
+      prNumber: pr.number,
+      headBranch: details.headBranch,
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.7" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    } satisfies PrWatch;
 
-    render(<PrSection {...baseProps} onRefreshPr={onRefreshPr} />);
+    render(
+      <PrSection
+        {...baseProps}
+        onRefreshPr={onRefreshPr}
+        initialWatch={initialWatch}
+        onInitialWatchUsed={onInitialWatchUsed}
+      />,
+    );
 
     const branch = screen.getByLabelText("Target branch: main");
     expect(branch).toHaveTextContent("main");
@@ -124,6 +159,16 @@ describe("PrSection", () => {
     expect(screen.getByText("Lint").parentElement).toHaveTextContent("46s · Passed");
     expect(screen.getByText("Test").parentElement).toHaveTextContent("Running");
     expect(onRefreshPr).not.toHaveBeenCalled();
+    expect(screen.getByTestId("pr-watch-controls")).toBeInTheDocument();
+    expect(prWatchControls).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        prNumber: 42,
+        headBranch: "feature/pr-summary",
+        initialWatch,
+        onInitialWatchUsed,
+      }),
+    );
   });
 
   it("requests details once when the compact PR data has no details", async () => {
@@ -135,5 +180,88 @@ describe("PrSection", () => {
 
     view.rerender(<PrSection {...baseProps} onRefreshPr={onRefreshPr} />);
     expect(onRefreshPr).toHaveBeenCalledOnce();
+  });
+
+  it("shows a danger status when merge conflicts must be resolved", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          ...pr,
+          checksStatus: "SUCCESS",
+          mergeable: "CONFLICTING",
+          mergeStateStatus: "DIRTY",
+        },
+      },
+    });
+
+    render(<PrSection {...baseProps} />);
+
+    const indicator = screen
+      .getByText("#42 - Improve PR summary")
+      .parentElement?.querySelector(".rounded-full");
+    expect(indicator).toHaveClass("bg-danger");
+    expect(indicator).not.toHaveClass("bg-success");
+  });
+
+  it("shows pending checks instead of a danger status when GitHub blocks a running check", () => {
+    useGitStore.setState({
+      prData: {
+        [prKey]: {
+          ...pr,
+          checksStatus: "PENDING",
+          mergeStateStatus: "BLOCKED",
+        },
+      },
+    });
+    useGitStore.getState().setPrDetails(`${projectId}#${pr.number}`, details);
+
+    render(<PrSection {...baseProps} />);
+
+    const indicator = screen
+      .getByText("#42 - Improve PR summary")
+      .parentElement?.querySelector(".rounded-full");
+    expect(indicator).toHaveClass("bg-warning");
+    expect(indicator).not.toHaveClass("bg-danger");
+    expect(screen.getByText("Checks pending").parentElement).toHaveClass("text-warning");
+    expect(screen.queryByText("Merging is blocked")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Merge PR: Squash" })).toBeDisabled();
+  });
+
+  it.each(["CHANGES_REQUESTED", "REVIEW_REQUIRED"])(
+    "shows a danger status for %s when merge-state data is missing",
+    (reviewDecision) => {
+      useGitStore.setState({
+        prData: {
+          [prKey]: {
+            number: pr.number,
+            state: pr.state,
+            title: pr.title,
+            url: pr.url,
+            baseBranch: pr.baseBranch,
+            isDraft: pr.isDraft,
+            checksStatus: "SUCCESS",
+            reviewDecision,
+            updatedAt: pr.updatedAt,
+          },
+        },
+      });
+
+      render(<PrSection {...baseProps} />);
+
+      const indicator = screen
+        .getByText("#42 - Improve PR summary")
+        .parentElement?.querySelector(".rounded-full");
+      expect(indicator).toHaveClass("bg-danger");
+      expect(indicator).not.toHaveClass("bg-success");
+    },
+  );
+
+  it("uses the selected merge method for the primary merge action", () => {
+    useSharedSettings.setState({ prMergeMethod: "merge" });
+    render(<PrSection {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Merge PR: Commit" }));
+
+    expect(baseProps.handleMergePr).toHaveBeenCalledWith("merge", false);
   });
 });

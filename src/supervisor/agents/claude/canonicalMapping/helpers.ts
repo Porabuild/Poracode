@@ -7,6 +7,13 @@ import type { FileChangeMetadata } from "../sdkCanonicalMappingState";
 
 export { newItemId } from "../../contextUsage";
 
+/** The API message id (`msg_…`) of a BetaMessage-ish payload, when present. */
+export function readClaudeAssistantMessageId(message: unknown): string | undefined {
+  if (!message || typeof message !== "object") return undefined;
+  const value = (message as { id?: unknown }).id;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 /**
  * Collect inline images out of a Claude `tool_result` content (Anthropic image
  * blocks: `{ type: "image", source: { type: "base64", media_type, data } }`) as

@@ -21,8 +21,8 @@ describe("commandCodeIntentFor", () => {
   });
 
   it("returns undefined for unmapped events", () => {
-    // Command Code validates only PreToolUse / PostToolUse / Stop. Anything
-    // else (incl. would-be UserPromptSubmit / Notification) is unmapped.
+    // Poracode installs only PreToolUse / PostToolUse / Stop. Other v1 events
+    // (including session-level ones) must not fabricate a turn transition.
     expect(commandCodeIntentFor("UserPromptSubmit")).toBeUndefined();
     expect(commandCodeIntentFor("Notification")).toBeUndefined();
     expect(commandCodeIntentFor("SessionStart")).toBeUndefined();

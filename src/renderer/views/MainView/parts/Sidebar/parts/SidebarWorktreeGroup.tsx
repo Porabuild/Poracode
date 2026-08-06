@@ -22,7 +22,7 @@ import {
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
 import { openWorktreeTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
-import { openNewThreadInWorktree, toggleMarkThreadDone } from "@/renderer/actions/threadActions";
+import { markThreadDone, openNewThreadInWorktree } from "@/renderer/actions/threadActions";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -39,6 +39,8 @@ export function SidebarWorktreeGroup(props: {
   project: Project;
   sortableGroup: string;
   sortDisabled?: boolean;
+  /** Trailing project label for cross-project (flat) lists. */
+  projectTag?: React.ReactNode;
 }) {
   const { group, project, sortDisabled = false } = props;
   const { t } = useLingui();
@@ -133,7 +135,7 @@ export function SidebarWorktreeGroup(props: {
             deleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds);
           if (key === "mark-all-done") {
             for (const thread of group.threads) {
-              if (!thread.done) toggleMarkThreadDone(thread.id);
+              markThreadDone(thread.id);
             }
           }
           if (key === "git-sync") gitSync(project.id, group.worktreePath);
@@ -173,6 +175,7 @@ export function SidebarWorktreeGroup(props: {
           isDraggingAnything={!!source}
           isDone={isDone}
           updatedAt={latestThreadUpdatedAt}
+          {...(props.projectTag !== undefined ? { projectTag: props.projectTag } : {})}
         />
       </ContextMenu>
     </div>

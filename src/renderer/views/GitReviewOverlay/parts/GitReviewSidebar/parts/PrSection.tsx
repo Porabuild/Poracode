@@ -23,6 +23,7 @@ import {
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
+import type { PrMergeMethod, PrWatch } from "@/shared/contracts";
 import { PixelLoader, PrCheckStatusText } from "@/renderer/components/common";
 import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
@@ -31,15 +32,23 @@ import {
   usePrMergeable,
   usePrBaseBranch,
   usePrNumber,
+  usePrReviewDecision,
   usePrState,
   usePrTitle,
   usePrUrl,
 } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
-import { countPassedPrChecks, getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
+import {
+  countPassedPrChecks,
+  getPrStatusTone,
+  isPrBlockedOnlyByPendingChecks,
+  PR_TONE_BG_CLASS,
+} from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
+import { PrWatchControls } from "./PrWatchControls";
 
 const BLOCK_REASON: Record<string, MessageDescriptor> = {
   BLOCKED: msg`Required reviews, conversations, or status checks not met.`,
@@ -57,13 +66,15 @@ export function PrSection(props: {
   prLoading: boolean;
   /** Which write action is in flight, so only its button spins (others stay disabled). */
   pendingAction?: PrWriteAction | null | undefined;
-  handleMergePr: (method: "merge" | "squash" | "rebase", admin?: boolean) => Promise<void>;
+  handleMergePr: (method: PrMergeMethod, admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
   handleUpdatePrBranch?: ((rebase?: boolean) => Promise<void>) | undefined;
   /** Refetch live PR data, hydrate missing details once, and power the refresh icon. */
   onRefreshPr?: (() => void | Promise<void>) | undefined;
   isRefreshingPr?: boolean | undefined;
+  initialWatch?: PrWatch | null | undefined;
+  onInitialWatchUsed?: (() => void) | undefined;
 }) {
   const {
     prKey,
@@ -78,6 +89,8 @@ export function PrSection(props: {
     handleUpdatePrBranch,
     onRefreshPr,
     isRefreshingPr,
+    initialWatch,
+    onInitialWatchUsed,
   } = props;
   const { t } = useLingui();
   const state = usePrState(prKey);
@@ -88,8 +101,10 @@ export function PrSection(props: {
   const cacheKey = number !== undefined ? `${projectId}#${number}` : undefined;
   const details = useGitStore((s) => (cacheKey ? s.prDetails[cacheKey] : undefined));
   const combinedChecksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
+  const reviewDecision = usePrReviewDecision(prKey);
   const mergeStateStatus = usePrMergeStateStatus(prKey);
   const mergeable = usePrMergeable(prKey);
+  const prMergeMethod = useSharedSettings((s) => s.prMergeMethod);
   const requestedDetailsKey = useRef<string | undefined>(undefined);
   const [bypass, setBypass] = useState(false);
 
@@ -109,9 +124,20 @@ export function PrSection(props: {
     void onRefreshPr();
   }, [cacheKey, details, isRefreshingPr, onRefreshPr, state]);
 
-  const indicatorColor = PR_TONE_BG_CLASS[getPrStatusTone(state, combinedChecksStatus)];
-
   const reasonKey = mergeable === "CONFLICTING" ? "DIRTY" : mergeStateStatus;
+  const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(combinedChecksStatus, {
+    reviewDecision,
+    mergeable,
+    mergeStateStatus,
+  });
+  const indicatorColor =
+    PR_TONE_BG_CLASS[
+      getPrStatusTone(state, combinedChecksStatus, {
+        reviewDecision,
+        mergeable,
+        mergeStateStatus,
+      })
+    ];
   const isBlocked =
     reasonKey !== undefined &&
     reasonKey !== "CLEAN" &&
@@ -124,7 +150,14 @@ export function PrSection(props: {
 
   const stateBadge = state === "draft" ? t`(Draft)` : "";
   const fallbackTitle =
-    title || (state === "merged" ? t`Merged` : state === "draft" ? "" : t`Open`);
+    title ||
+    (state === "merged"
+      ? t`Merged`
+      : state === "closed"
+        ? t`Closed`
+        : state === "draft"
+          ? ""
+          : t`Open`);
 
   const canReview = number !== undefined && state !== "merged" && state !== "closed";
   // Offer refresh for live PRs only — a merged/closed PR's head branch is often
@@ -165,6 +198,17 @@ export function PrSection(props: {
             </Tooltip.Trigger>
             <Tooltip.Content placement="top">{t`Refresh`}</Tooltip.Content>
           </Tooltip>
+        )}
+        {canReview && details?.headBranch && (
+          <PrWatchControls
+            projectId={projectId}
+            prNumber={number}
+            headBranch={details.headBranch}
+            {...(worktreePath ? { worktreePath } : {})}
+            {...(onRefreshPr ? { onRefreshPr } : {})}
+            {...(initialWatch !== undefined ? { initialWatch } : {})}
+            {...(onInitialWatchUsed ? { onInitialWatchUsed } : {})}
+          />
         )}
         {canReview && (
           <Tooltip delay={300}>
@@ -290,14 +334,20 @@ export function PrSection(props: {
           </Dropdown>
         </ButtonGroup>
       )}
-      {state !== "merged" && state !== "draft" && (
+      {state === "open" && (
         <>
           {isBlocked && (
             <div className="flex flex-col gap-1 text-xs">
-              <div className="flex items-center gap-2 text-danger">
+              <div
+                className={`flex items-center gap-2 ${isPendingChecksBlock ? "text-warning" : "text-danger"}`}
+              >
                 <AlertTriangle className="size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate font-medium">
-                  <Trans>Merging is blocked</Trans>
+                  {isPendingChecksBlock ? (
+                    <Trans>Checks pending</Trans>
+                  ) : (
+                    <Trans>Merging is blocked</Trans>
+                  )}
                 </span>
                 {canBypass && (
                   <Tooltip>
@@ -309,7 +359,11 @@ export function PrSection(props: {
                       onChange={setBypass}
                       isDisabled={prLoading}
                       aria-label={t`Bypass branch protection rules`}
-                      className="size-5 shrink-0 text-danger data-[selected=true]:bg-danger data-[selected=true]:text-white"
+                      className={`size-5 shrink-0 ${
+                        isPendingChecksBlock
+                          ? "text-warning data-[selected=true]:bg-warning data-[selected=true]:text-warning-foreground"
+                          : "text-danger data-[selected=true]:bg-danger data-[selected=true]:text-white"
+                      }`}
                     >
                       <ShieldOff className="size-3" />
                     </ToggleButton>
@@ -319,7 +373,9 @@ export function PrSection(props: {
                   </Tooltip>
                 )}
               </div>
-              {blockReason && <span className="text-muted">{blockReason}</span>}
+              {!isPendingChecksBlock && blockReason && (
+                <span className="text-muted">{blockReason}</span>
+              )}
             </div>
           )}
           {mergeStateStatus === "BEHIND" && handleUpdatePrBranch && (
@@ -377,12 +433,18 @@ export function PrSection(props: {
               className="flex-1"
               isDisabled={prLoading || (isBlocked && !bypass)}
               isPending={pendingAction === "merge"}
-              onPress={() => void handleMergePr("squash", bypass)}
+              onPress={() => void handleMergePr(prMergeMethod, bypass)}
             >
               {({ isPending }) => (
                 <>
                   {isPending ? <PixelLoader size="xs" /> : <GitMerge className="size-3.5" />}
-                  <Trans>Merge PR: Squash</Trans>
+                  {prMergeMethod === "merge" ? (
+                    <Trans>Merge PR: Commit</Trans>
+                  ) : prMergeMethod === "rebase" ? (
+                    <Trans>Merge PR: Rebase</Trans>
+                  ) : (
+                    <Trans>Merge PR: Squash</Trans>
+                  )}
                 </>
               )}
             </Button>
@@ -402,12 +464,17 @@ export function PrSection(props: {
                   disabledKeys={isBlocked && !bypass ? ["merge", "squash", "rebase"] : []}
                   onAction={(key) => {
                     if (key === "close") void handleClosePr();
-                    else void handleMergePr(key as "merge" | "squash" | "rebase", bypass);
+                    else void handleMergePr(key as PrMergeMethod, bypass);
                   }}
                 >
                   <Dropdown.Item id="merge" textValue={t`Merge PR: Commit`}>
                     <Label>
                       <Trans>Merge PR: Commit</Trans>
+                    </Label>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="squash" textValue={t`Merge PR: Squash`}>
+                    <Label>
+                      <Trans>Merge PR: Squash</Trans>
                     </Label>
                   </Dropdown.Item>
                   <Dropdown.Item id="rebase" textValue={t`Merge PR: Rebase`}>

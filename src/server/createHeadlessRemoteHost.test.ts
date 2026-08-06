@@ -1,26 +1,19 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { StartThreadPayload, Thread } from "@/shared/contracts";
 import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadlessRemoteHost";
 
 // Mutable state shared with the hoisted vi.mock factories.
 const h = vi.hoisted(() => ({
   tmpBase: "",
   capturedOnEvent: undefined as ((event: unknown) => void) | undefined,
-  capturedPrepareStartThread: undefined as
-    | ((payload: StartThreadPayload) => StartThreadPayload)
-    | undefined,
   supervisorStart: vi.fn<(baseDir: string) => void>(),
   supervisorDispose: vi.fn<() => void>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
   initDatabase: vi.fn<(dbPath: string) => void>(),
   closeDatabase: vi.fn<() => void>(),
-  dbUpsertThread: vi.fn<(thread: Thread, sortOrder?: number) => void>(),
-  dbDeleteThread: vi.fn<(threadId: string) => void>(),
   projects: [] as unknown[],
-  threads: [] as Thread[],
   sharedSettings: {
     mcpServers: [] as unknown[],
     disabledBuiltInMcpServers: {} as Record<string, boolean>,
@@ -43,10 +36,15 @@ vi.mock("@/main/db", () => ({
           project.id === projectId,
       ) ?? null,
   ),
-  dbGetThreads: vi.fn<() => Thread[]>(() => h.threads),
-  dbGetThread: vi.fn<(threadId: string) => Thread | null>(
-    (threadId) => h.threads.find((thread) => thread.id === threadId) ?? null,
-  ),
+  dbGetProjectNotes: vi.fn<() => string>(() => ""),
+  dbUpsertProject: vi.fn<() => void>(),
+  dbDeleteProject: vi.fn<() => void>(),
+  dbGetPrWatches: vi.fn<() => unknown[]>(() => []),
+  dbGetPrWatch: vi.fn<() => unknown>(() => null),
+  dbUpsertPrWatch: vi.fn<() => void>(),
+  dbDeletePrWatch: vi.fn<() => void>(),
+  dbGetThreads: vi.fn<() => unknown[]>(() => []),
+  dbGetThread: vi.fn<() => unknown>(() => null),
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
   dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
   dbGetThreadContextUsage: vi.fn<() => unknown>(() => null),
@@ -57,9 +55,9 @@ vi.mock("@/main/db", () => ({
   dbCompleteRemoteCommand: vi.fn<() => void>(),
   dbFailRemoteCommand: vi.fn<() => void>(),
   dbReplaceThreadRuntimeSnapshot: vi.fn<() => void>(),
-  dbUpsertThread: (thread: Thread, sortOrder?: number) => h.dbUpsertThread(thread, sortOrder),
+  dbUpsertThread: vi.fn<() => void>(),
   dbMarkLiveThreadsInactive: vi.fn<() => void>(),
-  dbDeleteThread: (threadId: string) => h.dbDeleteThread(threadId),
+  dbDeleteThread: vi.fn<() => void>(),
   dbGetSchedules: vi.fn<() => unknown[]>(() => []),
   dbGetSchedule: vi.fn<() => unknown>(() => null),
   dbUpsertSchedule: vi.fn<() => void>(),
@@ -76,12 +74,8 @@ vi.mock("@/main/supervisor/SupervisorClient", () => ({
     start = h.supervisorStart;
     dispose = h.supervisorDispose;
     call = h.supervisorCall;
-    constructor(options: {
-      onEvent: (event: unknown) => void;
-      prepareStartThread?: (payload: StartThreadPayload) => StartThreadPayload;
-    }) {
+    constructor(options: { onEvent: (event: unknown) => void }) {
       h.capturedOnEvent = options.onEvent;
-      h.capturedPrepareStartThread = options.prepareStartThread;
     }
   },
 }));
@@ -93,6 +87,7 @@ vi.mock("@/main/poracodeData", () => ({
       baseDir: base,
       dbPath: join(base, "state.sqlite"),
       settingsPath: join(base, "settings.json"),
+      attachmentsDir: join(base, "attachments"),
     };
   },
 }));
@@ -120,17 +115,13 @@ describe("createHeadlessRemoteHost", () => {
   beforeEach(() => {
     h.tmpBase = mkdtempSync(join(tmpdir(), "lc-headless-"));
     h.capturedOnEvent = undefined;
-    h.capturedPrepareStartThread = undefined;
     h.supervisorStart.mockReset();
     h.supervisorDispose.mockReset();
     h.initDatabase.mockReset();
     h.closeDatabase.mockReset();
     h.supervisorCall.mockReset();
     h.supervisorCall.mockResolvedValue({});
-    h.dbUpsertThread.mockReset();
-    h.dbDeleteThread.mockReset();
     h.projects = [];
-    h.threads = [];
     h.sharedSettings = { mcpServers: [], disabledBuiltInMcpServers: {} };
   });
 
@@ -148,6 +139,14 @@ describe("createHeadlessRemoteHost", () => {
     expect(info.wsBaseUrl).toMatch(/^ws:\/\/127\.0\.0\.1:\d+\/$/);
     // The startup pairing link is minted against the advertised loopback host.
     expect(info.pairingUrl).toContain("token=");
+    const descriptor = await fetch(
+      new URL("/.well-known/poracode/environment", info.httpBaseUrl),
+    ).then((response) => response.json());
+    expect(descriptor).toMatchObject({
+      protocolVersion: 1,
+      hostMode: "helper",
+      appVersion: "9.9.9-test",
+    });
 
     await host.dispose();
   });
@@ -169,75 +168,6 @@ describe("createHeadlessRemoteHost", () => {
     h.capturedOnEvent?.({ type: "thread-status" });
 
     expect(publish).toHaveBeenCalledWith({ type: "thread-status" });
-    await host.dispose();
-  });
-
-  it("derives child recursion invariants from the persisted thread row", async () => {
-    h.threads = [{ id: "child-thread", parentThreadId: "parent-thread" } as Thread];
-    const host = await makeHost();
-    const payload: StartThreadPayload = {
-      threadId: "child-thread",
-      projectLocation: { kind: "posix", path: "/repo" },
-      agentKind: "codex",
-      config: { model: "test" },
-      prompt: "Inspect this.",
-      initialSize: { cols: 120, rows: 40 },
-    };
-
-    expect(h.capturedPrepareStartThread?.(payload)).toMatchObject({
-      invariantDisabledBuiltInMcpServerIds: ["subagents"],
-    });
-    await host.dispose();
-  });
-
-  it("consumes orchestrator child events and launches the persisted child", async () => {
-    h.threads = [{ id: "parent-thread", projectId: "project-1" } as Thread];
-    const host = await makeHost();
-    const publish = vi.spyOn(host.server, "publishSupervisorEvent");
-    const start: StartThreadPayload = {
-      threadId: "child-thread",
-      projectLocation: { kind: "posix", path: "/repo" },
-      agentKind: "codex",
-      config: { model: "test" },
-      prompt: "Inspect this.",
-      initialSize: { cols: 120, rows: 40 },
-      invariantDisabledBuiltInMcpServerIds: ["subagents"],
-    };
-    const event = {
-      type: "orchestrator-thread-created",
-      parentThreadId: "parent-thread",
-      thread: {
-        id: "child-thread",
-        title: "Inspect this.",
-        agentKind: "codex",
-        config: { model: "test" },
-        status: "launching",
-        attention: "none",
-        canResumeWithConfig: false,
-        archived: false,
-        done: false,
-        starred: false,
-        presentationMode: "gui",
-        parentThreadId: "parent-thread",
-        createdAt: "2026-07-15T00:00:00.000Z",
-        updatedAt: "2026-07-15T00:00:00.000Z",
-      },
-      start,
-    };
-
-    h.capturedOnEvent?.(event);
-    await vi.waitFor(() =>
-      expect(h.dbUpsertThread).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "child-thread",
-          projectId: "project-1",
-          parentThreadId: "parent-thread",
-        }),
-        expect.any(Number),
-      ),
-    );
-    expect(h.supervisorCall).toHaveBeenCalledWith("startThread", start);
-    expect(publish).not.toHaveBeenCalledWith(event);
     await host.dispose();
   });
 
@@ -284,6 +214,29 @@ describe("createHeadlessRemoteHost", () => {
       mcpServers: [projectServer],
       disabledBuiltInMcpServerIds: ["chrome"],
     });
+    await host.dispose();
+  });
+
+  it("persists remote attachment uploads without Electron", async () => {
+    const host = await makeHost();
+    const save = (
+      host.server as unknown as {
+        options: {
+          attachments?: {
+            save(input: { threadId: string; fileName: string; data: Uint8Array }): string;
+          };
+        };
+      }
+    ).options.attachments?.save;
+
+    const path = save?.({
+      threadId: "thread-1",
+      fileName: "notes.md",
+      data: new TextEncoder().encode("helper upload"),
+    });
+
+    expect(path).toBe(join(h.tmpBase, "attachments", "thread-1", "notes.md"));
+    expect(readFileSync(path!, "utf8")).toBe("helper upload");
     await host.dispose();
   });
 

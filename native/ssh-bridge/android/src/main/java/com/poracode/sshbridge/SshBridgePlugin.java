@@ -22,7 +22,6 @@ import java.security.Provider;
 import java.security.PublicKey;
 import java.security.Security;
 import java.util.ArrayList;
-import java.util.Base64.Encoder;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +37,7 @@ import net.schmizz.sshj.connection.channel.direct.Session;
 import net.schmizz.sshj.sftp.SFTPClient;
 import net.schmizz.sshj.transport.verification.HostKeyVerifier;
 import net.schmizz.sshj.transport.verification.FingerprintVerifier;
+import net.schmizz.sshj.userauth.UserAuthException;
 import net.schmizz.sshj.userauth.keyprovider.KeyProvider;
 import net.schmizz.sshj.xfer.InMemorySourceFile;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -81,8 +81,7 @@ public class SshBridgePlugin extends Plugin {
                 Buffer.PlainBuffer buffer = new Buffer.PlainBuffer();
                 buffer.putPublicKey(key);
                 byte[] digest = MessageDigest.getInstance("SHA-256").digest(buffer.getCompactData());
-                Encoder encoder = java.util.Base64.getEncoder().withoutPadding();
-                fingerprint = "SHA256:" + encoder.encodeToString(digest);
+                fingerprint = "SHA256:" + Base64.encodeToString(digest, Base64.NO_WRAP | Base64.NO_PADDING);
                 algorithm = key.getAlgorithm();
                 return true;
             } catch (Exception error) {
@@ -140,7 +139,7 @@ public class SshBridgePlugin extends Plugin {
                 if (client != null) {
                     try { client.close(); } catch (IOException ignored) {}
                 }
-                call.reject(message(error, "Unable to connect over SSH."), "SSH_CONNECT_FAILED", asException(error));
+                call.reject(message(error, "Unable to connect over SSH."), connectErrorCode(error), asException(error));
             }
         });
     }
@@ -297,9 +296,14 @@ public class SshBridgePlugin extends Plugin {
             try (FileOutputStream output = new FileOutputStream(keyFile)) {
                 output.write(privateKey.getBytes(StandardCharsets.UTF_8));
             }
-            KeyProvider provider = passphrase.isEmpty()
-                ? client.loadKeys(keyFile.getAbsolutePath())
-                : client.loadKeys(keyFile.getAbsolutePath(), passphrase);
+            KeyProvider provider;
+            try {
+                provider = passphrase.isEmpty()
+                    ? client.loadKeys(keyFile.getAbsolutePath())
+                    : client.loadKeys(keyFile.getAbsolutePath(), passphrase);
+            } catch (IOException error) {
+                throw new UserAuthException(error);
+            }
             client.authPublickey(username, provider);
         } finally {
             if (keyFile.exists() && !keyFile.delete()) {
@@ -318,7 +322,7 @@ public class SshBridgePlugin extends Plugin {
                     int remaining = MAX_OUTPUT_BYTES - output.size();
                     if (remaining > 0) output.write(buffer, 0, Math.min(read, remaining));
                 }
-                return output.toString(StandardCharsets.UTF_8);
+                return new String(output.toByteArray(), StandardCharsets.UTF_8);
             } catch (IOException error) {
                 throw new RuntimeException(error);
             }
@@ -357,6 +361,15 @@ public class SshBridgePlugin extends Plugin {
     private static String message(Throwable error, String fallback) {
         String value = error.getMessage();
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    static String connectErrorCode(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof UserAuthException) return "SSH_AUTHENTICATION_FAILED";
+            current = current.getCause();
+        }
+        return "SSH_CONNECT_FAILED";
     }
 
     private static Exception asException(Throwable error) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildLineUnifiedDiff,
   countLineChangeStats,
+  countUnifiedDiffStats,
   normalizeDiffFilePath,
 } from "./lineUnifiedDiff";
 
@@ -45,6 +46,27 @@ describe("countLineChangeStats", () => {
       added: 2,
       removed: 2,
     });
+  });
+});
+
+describe("countUnifiedDiffStats", () => {
+  it("counts files and changed lines without treating diff headers as changes", () => {
+    const diff = [
+      "diff --git a/src/one.ts b/src/one.ts",
+      "--- a/src/one.ts",
+      "+++ b/src/one.ts",
+      "@@ -1 +1,2 @@",
+      "-old",
+      "+new",
+      "+added",
+      "diff --git a/src/two.ts b/src/two.ts",
+      "--- a/src/two.ts",
+      "+++ b/src/two.ts",
+      "@@ -1 +0,0 @@",
+      "-removed",
+    ].join("\r\n");
+
+    expect(countUnifiedDiffStats(diff)).toEqual({ files: 2, insertions: 2, deletions: 2 });
   });
 });
 

@@ -76,6 +76,38 @@ describe("FilesView", () => {
     vi.restoreAllMocks();
   });
 
+  it("renders shared material icons for folders and files in the PWA tree", async () => {
+    bridge.listProjectTree.mockResolvedValue({
+      directoryPath: "",
+      entries: [
+        { name: "src", path: "src", type: "directory", hasChildren: true },
+        { name: "package.json", path: "package.json", type: "file" },
+      ] satisfies ProjectTreeEntry[],
+    });
+
+    render(
+      <FilesView
+        target={{
+          project,
+          projectLocation: project.location,
+          rootLabel: project.name,
+        }}
+        refreshSignal={0}
+      />,
+    );
+
+    const folderRow = await screen.findByRole("button", { name: "src" });
+    const fileRow = screen.getByRole("button", { name: "package.json" });
+    expect(folderRow.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/assets/material-icons/"),
+    );
+    expect(fileRow.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/assets/material-icons/nodejs.svg"),
+    );
+  });
+
   it("opens absolute initial files through the absolute reader as read-only", async () => {
     const planPath = "C:\\Users\\sdsle\\.claude\\plans\\plan.md";
     render(

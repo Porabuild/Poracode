@@ -20,7 +20,7 @@ import { DESKTOP_SETTINGS_SECTIONS, type MobileSettingsSectionId } from "../sett
 import type { ThreadAction } from "../useRemoteDesktop";
 
 export interface SettingsThreadHandlers {
-  readonly threads: readonly Thread[];
+  readonly archivedThreads: readonly Thread[];
   readonly projects: readonly Project[];
   readonly onThreadAction: (thread: Thread, action: ThreadAction) => void;
 }
@@ -32,20 +32,16 @@ export interface SettingsThreadHandlers {
  */
 function RemoteArchivedThreads(props: SettingsThreadHandlers) {
   const { t } = useLingui();
-  const archivedThreads = props.threads.filter((thread) => thread.archived);
 
   return (
     <SettingsPage title={t`Archived Threads`} bodyClassName="">
-      {archivedThreads.length === 0 ? (
+      {props.archivedThreads.length === 0 ? (
         <p className="text-sm text-muted">
-          <Trans>
-            Archived threads are managed from the desktop app. Restoring or deleting them from this
-            device isn&apos;t available yet.
-          </Trans>
+          <Trans>No archived threads.</Trans>
         </p>
       ) : (
         <Surface variant="secondary" className="divide-y divide-[var(--hairline)] rounded-xl">
-          {archivedThreads.map((thread) => {
+          {props.archivedThreads.map((thread) => {
             const project = props.projects.find((p) => p.id === thread.projectId);
             return (
               <div key={thread.id} className="flex items-center gap-3 px-4 py-3">

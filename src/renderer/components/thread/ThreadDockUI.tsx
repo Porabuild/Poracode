@@ -1,5 +1,7 @@
-import { forwardRef, type ReactNode } from "react";
+import { forwardRef, type MouseEventHandler, type ReactNode } from "react";
+import { Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Button } from "@/renderer/components/common";
 
 export function ThreadDockSection({
   children,
@@ -64,6 +66,51 @@ export function ThreadDockHeader({
       </div>
       {actions}
     </div>
+  );
+}
+
+export function ThreadDockIconButton({
+  label,
+  tooltip = label,
+  danger = false,
+  isDisabled = false,
+  isPending = false,
+  onMouseDown,
+  onPress,
+  children,
+}: {
+  label: string;
+  tooltip?: ReactNode;
+  danger?: boolean;
+  isDisabled?: boolean;
+  isPending?: boolean;
+  onMouseDown?: MouseEventHandler<HTMLButtonElement>;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip delay={0}>
+      <Tooltip.Trigger>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-label={label}
+          className={`h-6 w-6 min-w-0 shrink-0 text-muted/70 ${
+            danger
+              ? "hover:bg-danger-500/10 hover:text-danger-500"
+              : "hover:bg-foreground/5 hover:text-foreground"
+          }`}
+          isDisabled={isDisabled}
+          isPending={isPending}
+          {...(onMouseDown ? { onMouseDown } : {})}
+          onPress={onPress}
+        >
+          {children}
+        </Button>
+      </Tooltip.Trigger>
+      <Tooltip.Content>{tooltip}</Tooltip.Content>
+    </Tooltip>
   );
 }
 
@@ -139,3 +186,60 @@ export const ThreadDockRow = forwardRef<
     </li>
   );
 });
+
+export function ThreadDockActionRow({
+  children,
+  title,
+  onClick,
+  className = "",
+  action,
+  actionLabel,
+  actionTitle,
+  onAction,
+  isActionDisabled = false,
+}: {
+  children: ReactNode;
+  title?: string;
+  onClick?: () => void;
+  className?: string;
+  action: ReactNode;
+  actionLabel: string;
+  actionTitle?: string;
+  onAction: () => void;
+  isActionDisabled?: boolean;
+}) {
+  const contentClass = `poracode-subagent-dock-row flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1 text-left leading-5 transition-[padding,background-color] duration-150 hover:bg-foreground/5 group-hover:pr-8 ${className}`;
+
+  return (
+    <li className="group relative flex">
+      {onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className={contentClass}
+          aria-label={title}
+          title={title}
+        >
+          {children}
+        </button>
+      ) : (
+        <div className={contentClass} title={title}>
+          {children}
+        </div>
+      )}
+      <button
+        type="button"
+        aria-label={actionLabel}
+        title={actionTitle}
+        disabled={isActionDisabled}
+        onClick={(event) => {
+          event.stopPropagation();
+          onAction();
+        }}
+        className="poracode-subagent-dismiss absolute right-1 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-0.5 text-muted/70 opacity-0 transition-opacity duration-150 hover:bg-danger-500/10 hover:text-danger-500 focus:opacity-100 group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-40"
+      >
+        {action}
+      </button>
+    </li>
+  );
+}

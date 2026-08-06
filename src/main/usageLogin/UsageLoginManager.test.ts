@@ -110,6 +110,34 @@ describe("UsageLoginManager cookie flow", () => {
     expect(panel.captureLoginCookies.mock.calls[0]?.[0]).not.toHaveProperty("validateSession");
     expect(hasUsageSecret(cacheDir, "grok")).toBe(true);
   });
+
+  it("captures an authenticated Alibaba console session for Qwen usage", async () => {
+    const panel = makePanel();
+    panel.captureLoginCookies.mockResolvedValue({
+      ok: true,
+      cookie: "login_aliyunid_ticket=ticket; login_aliyunid_pk=account",
+    });
+    const manager = newManager(panel);
+
+    await expect(manager.startLogin("qwen")).resolves.toEqual({ ok: true });
+
+    const options = panel.captureLoginCookies.mock.calls[0]?.[0] as {
+      loginUrl: string;
+      cookieUrl: string;
+      authCookiePattern: RegExp;
+      providerLabel: string;
+      validateSession(cookieHeader: string): Promise<boolean>;
+    };
+    expect(options.loginUrl).toContain("modelstudio.console.alibabacloud.com");
+    expect(options.cookieUrl).toBe("https://modelstudio.console.alibabacloud.com/");
+    expect(options.authCookiePattern.test("login_aliyunid_ticket")).toBe(true);
+    expect(options.providerLabel).toBe("Alibaba Token Plan");
+    await expect(
+      options.validateSession("login_aliyunid_ticket=t; login_aliyunid_pk=p"),
+    ).resolves.toBe(true);
+    await expect(options.validateSession("login_aliyunid_ticket=t")).resolves.toBe(false);
+    expect(hasUsageSecret(cacheDir, "qwen")).toBe(true);
+  });
 });
 
 describe("UsageLoginManager GitHub device flow", () => {
@@ -163,6 +191,18 @@ describe("UsageLoginManager API-key flow", () => {
     const manager = newManager(makePanel());
     await expect(manager.submitApiKey("zai", "  zai-secret  ")).resolves.toEqual({ ok: true });
     expect(hasUsageSecret(cacheDir, "zai")).toBe(true);
+  });
+
+  it("seals a pasted Kimi Code key and reports it stored", async () => {
+    const manager = newManager(makePanel());
+    await expect(manager.submitApiKey("kimi", "kimi-secret")).resolves.toEqual({ ok: true });
+    expect(hasUsageSecret(cacheDir, "kimi")).toBe(true);
+  });
+
+  it("keeps the API-key fallback for hybrid Alibaba Token Plan login", async () => {
+    const manager = newManager(makePanel());
+    await expect(manager.submitApiKey("qwen", "qwen-secret")).resolves.toEqual({ ok: true });
+    expect(hasUsageSecret(cacheDir, "qwen")).toBe(true);
   });
 
   it("rejects an empty key without storing anything", async () => {

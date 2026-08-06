@@ -15,6 +15,7 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildGrokAcpArgs, buildGrokArgs } from "./argv";
+import { createGrokAcpSessionUpdateTransform } from "./acpTransform";
 import { buildGrokCommand, grokDefaultCapabilities, grokDetectionSpec } from "./detection";
 import {
   installGrokPlugin,
@@ -70,13 +71,6 @@ export function createGrokAdapter(): AgentAdapter {
           projectPath: ".agents/skills",
         },
       ],
-      projectionRoots: [
-        {
-          id: "grok",
-          label: grokDetectionSpec.label,
-          projectPath: ".grok/skills",
-        },
-      ],
       invocation: "slash",
       precedence: {
         global: ["grok", "agents", "claude"],
@@ -97,6 +91,12 @@ export function createGrokAdapter(): AgentAdapter {
     // — do not set oscHintsDeferToHookPlugin.
     handleOscNotification: iterm2ProgressOscHint,
     handleOscTitle: brailleSpinnerOscTitleHint,
+
+    buildGoalControlPrompt(control) {
+      return control.action === "pause" || control.action === "resume" || control.action === "clear"
+        ? `/goal ${control.action}`
+        : undefined;
+    },
 
     pluginId: "poracode-status@grok",
     pluginVersion: GROK_PLUGIN_VERSION,
@@ -139,7 +139,7 @@ export function createGrokAdapter(): AgentAdapter {
       snapshotGrokPreSpawnSessions(location, cwd);
 
       // Resolve the session ID before spawning the PTY: resume a known one
-      // with `-r`, otherwise pre-assign a fresh UUID with `-s` (grok 0.2.93,
+      // with `-r`, otherwise pre-assign a fresh UUID with `-s` (grok 0.2.118,
       // works on native and WSL alike). Grok normally materializes the
       // session dir within ~1s of boot; a known id whose dir never appeared
       // (launch died at startup) is re-assigned via `-s`
@@ -179,14 +179,17 @@ export function createGrokAdapter(): AgentAdapter {
         [...acpArgs, "agent", "stdio"],
         resolveAgentBinaryPath(input.projectLocation, "grok"),
       );
-      return createAcpStructuredSession(command, input);
+      return createAcpStructuredSession(command, {
+        ...input,
+        acpSessionUpdateTransform: createGrokAcpSessionUpdateTransform(),
+      });
     },
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
       return buildGrokCommand(
         location,
-        ["agent", "stdio"],
+        ["--no-auto-update", "agent", "stdio"],
         resolveAgentBinaryPath(location, "grok"),
       );
     },
@@ -219,7 +222,7 @@ export function createGrokAdapter(): AgentAdapter {
       if (t.includes("grok build")) return true;
       if (/type @|mention files|\/ commands/i.test(text)) return true;
       // 0.2.x composer footer ("Shift+Tab:mode") — present on both the
-      // welcome screen and resumed sessions (verified live on 0.2.93).
+      // welcome screen and resumed sessions (verified live on 0.2.118).
       if (t.includes("shift+tab")) return true;
       return false;
     },
@@ -244,12 +247,12 @@ export function createGrokAdapter(): AgentAdapter {
     // One-shot (title / commit) generation reuses Grok's documented headless
     // path: `grok -p <prompt>`. `--always-approve` keeps the non-interactive run
     // from blocking on a tool-approval prompt it cannot answer (mirrors the
-    // launch/ACP bypass in argv.ts). The default is Grok's own default model —
-    // fast and subscription-covered, ideal for lightweight one-shots.
-    defaultOneShotModel: "grok-composer-2.5-fast",
+    // launch/ACP bypass in argv.ts). Grok 0.2.118 advertises grok-4.5 as its
+    // supported model, so utility runs use the same live catalog entry.
+    defaultOneShotModel: "grok-4.5",
     buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
-      const args = ["-p", prompt];
+      const args = ["--no-auto-update", "-p", prompt];
       if (model) args.push("-m", model);
       if (effort) args.push("--reasoning-effort", effort);
       args.push("--always-approve");

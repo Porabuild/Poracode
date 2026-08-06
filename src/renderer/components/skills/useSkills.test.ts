@@ -26,6 +26,7 @@ const invocationByProvider = {
   cursor: "slash",
   grok: "slash",
   antigravity: "prompt",
+  pi: "skill",
 } as const;
 
 function emptyScan(): SkillScanResult {
@@ -144,48 +145,6 @@ describe("useSkills", () => {
     });
   });
 
-  it("shows a plugin skill only when its required App is effective for the launch", async () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
-    scanSkillsMock.mockResolvedValueOnce(pluginSkillScan());
-    const projectLocation = { kind: "windows" as const, path: "C:\\RequiredAppSkillTest" };
-    const hook = renderHook(
-      ({ browserMcp }: { browserMcp: boolean }) =>
-        useSkillSlashCommandState(projectLocation, "codex", "terminal", {
-          model: "codex-test",
-          browserMcp,
-        }),
-      { initialProps: { browserMcp: false }, wrapper: I18nWrapper },
-    );
-
-    await waitFor(() => expect(hook.result.current.resolved).toBe(true));
-    expect(hook.result.current.commands).toEqual([]);
-
-    hook.rerender({ browserMcp: true });
-    expect(hook.result.current.commands).toHaveLength(1);
-  });
-
-  it("does not rescan skill files when only a plugin App toggle changes", async () => {
-    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
-    scanSkillsMock.mockResolvedValueOnce(pluginSkillScan());
-    const hook = renderHook(
-      () =>
-        useSkillSlashCommandState(
-          { kind: "windows", path: "C:\\PluginAppToggleScanTest" },
-          "codex",
-        ),
-      { wrapper: I18nWrapper },
-    );
-
-    await waitFor(() => expect(hook.result.current.resolved).toBe(true));
-    act(() =>
-      useSharedSettings
-        .getState()
-        .setPluginAppEnabled(pluginFixture("browser-tools"), "browser", false),
-    );
-
-    expect(scanSkillsMock).toHaveBeenCalledTimes(1);
-  });
-
   it("localizes plugin command display metadata without changing its invocation identity", async () => {
     await dynamicActivate("es");
     useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
@@ -257,9 +216,11 @@ describe("buildSkillSlashCommands", () => {
           skillInvocation:
             invocation === "dollar"
               ? "$unique-managed-skill"
-              : invocation === "prompt"
-                ? "Use the unique-managed-skill skill."
-                : "/unique-managed-skill",
+              : invocation === "skill"
+                ? "/skill:unique-managed-skill"
+                : invocation === "prompt"
+                  ? "Use the unique-managed-skill skill."
+                  : "/unique-managed-skill",
         }),
       ]);
       expect(provider).toBeTruthy();

@@ -10,11 +10,13 @@ import {
 import { friendlyError } from "@/shared/messages";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
+import { ItemMarkdown } from "../ChatPane/parts/items/ItemMarkdown";
 import { ThreadDockSection } from "../ThreadDockUI";
 import {
   asOpenCodePermissionDetails,
   formatRawDetails,
   getDefaultApprovalOptions,
+  isPlanApprovalAccepted,
   isPlanApprovalRequest,
   outcomeForSelection,
   readInputString,
@@ -38,6 +40,10 @@ interface ThreadRuntimeRequestPanelProps {
     requestId: ThreadServerRequestId;
     method: string;
     response: unknown;
+    analytics: {
+      outcome: RequestOutcome;
+      requestType: string;
+    };
   }) => Promise<void>;
   onPlanApproved?: (optionId: string) => void;
   onOpenPlanFile?: ((path: string) => void) | undefined;
@@ -69,6 +75,10 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       requestId: request.requestId,
       method: "requestPermission",
       response,
+      analytics: {
+        outcome,
+        requestType: request.requestType,
+      },
     }).catch((err) => {
       console.error("[chat] request resolution failed", err);
       rollback();
@@ -83,7 +93,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
     if (!primaryOptionId) return;
     const isPlanApproval = isPlanApprovalRequest(request);
     const outcome = outcomeForSelection(request.requestType, primaryOptionId, isPlanApproval);
-    if (outcome === "accepted" && isPlanApproval) {
+    if (outcome === "accepted" && isPlanApproval && isPlanApprovalAccepted(primaryOptionId)) {
       onPlanApproved?.(primaryOptionId);
     }
     submitRaw(
@@ -116,6 +126,10 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
   const planFilePath =
     isPlanApproval && permissionDetails
       ? readInputString(permissionDetails.input, "planFilePath", "plan_filename")
+      : undefined;
+  const planText =
+    isPlanApproval && permissionDetails
+      ? readInputString(permissionDetails.input, "plan")
       : undefined;
   const opencodePermission =
     !permissionDetails && !isCustomForm
@@ -215,12 +229,13 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           ) : contextLine ? (
             <div className="text-[11px] text-[color:var(--muted)]">{contextLine}</div>
           ) : null}
-          {requestDetails || planFilePath ? (
+          {requestDetails || planFilePath || planText ? (
             <div
               role="region"
               aria-label={t`Request details`}
               className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable]"
             >
+              {planText ? <ItemMarkdown text={planText} /> : null}
               {requestDetails}
               {planFilePath ? <PlanFileLine path={planFilePath} /> : null}
             </div>
@@ -252,6 +267,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           formId={formId}
           controller={userInputFormController}
           isDisabled={resolving}
+          {...(summary !== undefined ? { summary } : {})}
           onSubmit={(response, outcome) => submitRaw(response, outcome)}
         />
       ) : isQuestion ? (

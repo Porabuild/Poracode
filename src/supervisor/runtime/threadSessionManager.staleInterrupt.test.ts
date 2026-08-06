@@ -6,7 +6,6 @@ import type { AgentKind } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
-import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
 
 vi.mock("../agents/base", async (importActual) => {
   const actual = await importActual<typeof import("../agents/base")>();
@@ -19,7 +18,7 @@ vi.mock("../agents/base", async (importActual) => {
 });
 
 import { ThreadSessionManager } from "./threadSessionManager";
-import { STRUCTURED_INTERRUPT_STALE_KILL_MS } from "./threadSession/userInterrupt";
+import { STRUCTURED_INTERRUPT_FORCE_STOP_MS } from "./threadSession/userInterrupt";
 
 vi.mock("node-pty", () => ({
   spawn: vi.fn<() => unknown>(() => ({
@@ -33,10 +32,9 @@ vi.mock("node-pty", () => ({
 
 /**
  * Covers the structured force-stop watchdog (`ThreadSessionManager`): a GUI
- * thread only leaves `working` once the agent acks the cancel, so a stale or
- * disconnected session would otherwise spin on "waiting for agent to stop"
- * forever. The watchdog disposes the dead session and forces `error` after the
- * grace window, and bails if the turn already ended (the cancel was honored).
+ * thread only leaves `working` once the agent acks the cancel. The watchdog's
+ * fixed deadline disposes an agent that ignores Stop, closes the turn locally,
+ * and bails if the turn already ended (the cancel was honored).
  */
 
 const AGENT_KIND: AgentKind = "grok";
@@ -69,6 +67,7 @@ function createStructuredSession(
     interruptTurn: vi.fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>(
       async () => undefined,
     ),
+    forceCompleteTurn: vi.fn<NonNullable<StructuredSessionHandle["forceCompleteTurn"]>>(),
     setListener: vi.fn<StructuredSessionHandle["setListener"]>(),
     dispose: vi.fn<StructuredSessionHandle["dispose"]>(async () => undefined),
     ...overrides,
@@ -114,10 +113,7 @@ function createAdapter(structuredSession: StructuredSessionHandle): AgentAdapter
   };
 }
 
-function createManager(
-  adapter: AgentAdapter,
-  extraOptions: Partial<ThreadSessionManagerOptions> = {},
-): {
+function createManager(adapter: AgentAdapter): {
   manager: ThreadSessionManager;
   events: SupervisorEvent[];
 } {
@@ -134,7 +130,6 @@ function createManager(
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[AGENT_KIND, adapter]]),
     windowsShell: { shell: "powershell.exe", kind: "powershell", args: ["-NoLogo"] },
-    ...extraOptions,
   });
   managersToDispose.push(manager);
   return { manager, events };
@@ -151,7 +146,6 @@ function createWorkingSession(
     adapter,
     projectLocation: { kind: "windows", path: "C:\\repo" },
     config: { model: `${AGENT_KIND}/model` },
-    runtimeLaunchConfig: { model: `${AGENT_KIND}/model` },
     terminalSize: { cols: 80, rows: 24 },
     launchPrompt: "",
     sessionRef: { providerSessionId: "ses_existing" },
@@ -169,7 +163,7 @@ function createWorkingSession(
 }
 
 describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
-  it("force-stops a stale session after the grace window: disposes it and forces error", async () => {
+  it("force-stops an unacknowledged interrupt after the fixed deadline", async () => {
     const structuredSession = createStructuredSession();
     const adapter = createAdapter(structuredSession);
     const { manager, events } = createManager(adapter);
@@ -181,19 +175,25 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     expect(session.structuredTurnInterruptRequested).toBe(true);
     expect(session.structuredInterruptWatchdog).toBeDefined();
 
-    // No status update arrives (stale/disconnected) — almost expire, still stuck.
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS - 1);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS - 1);
     expect(session.status).toBe("working");
     expect(structuredSession.dispose).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);
     expect(structuredSession.dispose).toHaveBeenCalledTimes(1);
+    expect(structuredSession.forceCompleteTurn).toHaveBeenCalledTimes(1);
     expect(session.structuredSession).toBeUndefined();
-    expect(session.status).toBe("error");
+    expect(session.status).toBe("idle");
+    expect(session.ignoreExit).toBe(true);
     expect(session.structuredTurnInterruptRequested).toBe(false);
     expect(session.structuredInterruptWatchdog).toBeUndefined();
     expect(events).toContainEqual(
-      expect.objectContaining({ type: "thread-state", threadId: THREAD_ID, status: "error" }),
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: THREAD_ID,
+        status: "idle",
+        forceCloseActiveTurn: true,
+      }),
     );
   });
 
@@ -208,10 +208,50 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     // Agent acknowledged the cancel: the turn ended before the watchdog fired.
     session.status = "idle";
 
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS + 1);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS + 1);
     expect(structuredSession.dispose).not.toHaveBeenCalled();
     expect(session.structuredSession).toBe(structuredSession);
     expect(session.status).toBe("idle");
+  });
+
+  it("treats an exact no-active-turn response as an acknowledged late Stop", async () => {
+    const interruptTurn = vi
+      .fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>()
+      .mockRejectedValue(new Error("no active turn to interrupt"));
+    const structuredSession = createStructuredSession({ interruptTurn });
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await expect(manager.interruptThread({ threadId: THREAD_ID })).resolves.toBeUndefined();
+
+    expect(session.structuredTurnInterruptRequested).toBe(false);
+    expect(session.structuredInterruptWatchdog).toBeUndefined();
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
+    expect(structuredSession.dispose).not.toHaveBeenCalled();
+  });
+
+  it("still rejects other and near-miss interrupt failures", async () => {
+    const errors = [
+      new Error("provider interrupt failed"),
+      new Error("no active turn to interrupt because the provider disconnected"),
+    ];
+
+    for (const error of errors) {
+      const interruptTurn = vi
+        .fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>()
+        .mockRejectedValue(error);
+      const structuredSession = createStructuredSession({ interruptTurn });
+      const adapter = createAdapter(structuredSession);
+      const { manager } = createManager(adapter);
+      const session = createWorkingSession(adapter, structuredSession);
+      manager.sessions.set(THREAD_ID, session);
+
+      await expect(manager.interruptThread({ threadId: THREAD_ID })).rejects.toBe(error);
+      expect(session.structuredTurnInterruptRequested).toBe(false);
+      expect(session.structuredInterruptWatchdog).toBeUndefined();
+    }
   });
 
   it("ignores a stale session whose interrupt is no longer pending", async () => {
@@ -224,7 +264,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     await manager.interruptThread({ threadId: THREAD_ID });
     session.structuredTurnInterruptRequested = false;
 
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS + 1);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS + 1);
     expect(structuredSession.dispose).not.toHaveBeenCalled();
     expect(session.status).toBe("working");
   });
@@ -237,7 +277,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     manager.sessions.set(THREAD_ID, session);
 
     await manager.interruptThread({ threadId: THREAD_ID });
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
 
     const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
       async () => undefined,
@@ -245,72 +285,106 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     const replacementSession = createStructuredSession({ startTurn });
     vi.mocked(adapter.createStructuredSession).mockResolvedValue(replacementSession);
 
+    const segments = [
+      { kind: "text" as const, content: "after force stop" },
+      { kind: "attachment" as const, path: "/tmp/reference.png", mimeType: "image/png" },
+    ];
     await manager.sendThreadInput({
       threadId: THREAD_ID,
       prompt: "after force stop",
+      segments,
       config: { model: `${AGENT_KIND}/model` },
+      userMessageItemId: "user-after-force-stop",
     });
 
     expect(startTurn).toHaveBeenCalledTimes(1);
     expect(startTurn).toHaveBeenCalledWith(
-      "after force stop",
+      "after force stop\n\n@/tmp/reference.png ",
       { model: `${AGENT_KIND}/model` },
-      undefined,
-      expect.objectContaining({ userMessageItemId: expect.any(String) }),
+      segments,
+      { userMessageItemId: "user-after-force-stop" },
     );
     expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacementSession);
   });
 
-  it("preserves plugin skill segments when resuming an inactive GUI session", async () => {
-    const oldSession = createStructuredSession();
+  it("preserves and immediately resumes a pending steer when force-stop recovery replaces the provider", async () => {
+    const structuredSession = createStructuredSession();
+    const adapter = createAdapter(structuredSession);
+    const { manager, events } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    const segments = [
+      { kind: "attachment" as const, path: "/tmp/reference.png", mimeType: "image/png" },
+      { kind: "text" as const, content: "redirect with this image" },
+    ];
+    session.pendingSteer = {
+      id: "steer-pending",
+      stagedAt: 123,
+      prompt: "redirect with this image\n\n@/tmp/reference.png",
+      config: { model: `${AGENT_KIND}/model` },
+      segments,
+    };
+    manager.sessions.set(THREAD_ID, session);
+
     const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
       async () => undefined,
     );
     const replacementSession = createStructuredSession({ startTurn });
-    const adapter = createAdapter(replacementSession);
-    const buildSkillTurnInjection = vi.fn<
-      NonNullable<ThreadSessionManagerOptions["buildSkillTurnInjection"]>
-    >(async () => "Inline browser skill instructions");
-    const { manager } = createManager(adapter, { buildSkillTurnInjection });
-    const session = createWorkingSession(adapter, oldSession);
-    session.status = "inactive";
-    session.attention = "none";
-    session.structuredSession = undefined;
-    manager.sessions.set(THREAD_ID, session);
-    const segments = [
-      {
-        kind: "skill" as const,
-        name: "browser-control",
-        path: "C:\\plugins\\browser-control\\SKILL.md",
-        invocation: "/browser-control",
-        provider: "Browser Tools",
-        scope: "global" as const,
+    vi.mocked(adapter.createStructuredSession).mockResolvedValue(replacementSession);
+
+    await manager.interruptThread({ threadId: THREAD_ID });
+    await vi.advanceTimersByTimeAsync(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const optimisticStart = events.find(
+      (event) =>
+        event.type === "thread-runtime-event" &&
+        event.event.type === "item.started" &&
+        event.event.itemType === "user_message",
+    );
+    expect(optimisticStart).toMatchObject({
+      event: {
+        payload: {
+          content: [
+            expect.objectContaining({ kind: "image", path: "/tmp/reference.png" }),
+            { kind: "text", text: "redirect with this image" },
+          ],
+        },
       },
-      { kind: "text" as const, content: " resume work" },
-    ];
-
-    await manager.sendThreadInput({
-      threadId: THREAD_ID,
-      prompt: "/browser-control resume work",
-      config: { model: `${AGENT_KIND}/model` },
-      segments,
-      userMessageItemId: "user-resume",
     });
+    if (
+      !optimisticStart ||
+      optimisticStart.type !== "thread-runtime-event" ||
+      optimisticStart.event.type !== "item.started"
+    ) {
+      throw new Error("Expected an optimistic steer user message.");
+    }
+    const optimisticItemId = optimisticStart.event.itemId;
 
-    expect(buildSkillTurnInjection).toHaveBeenCalledWith({
-      agentKind: AGENT_KIND,
-      projectLocation: session.projectLocation,
-      segments,
-    });
+    expect(
+      events.filter(
+        (event) =>
+          event.type === "thread-runtime-event" &&
+          event.event.type === "item.started" &&
+          event.event.itemType === "user_message" &&
+          event.event.itemId === optimisticItemId,
+      ),
+    ).toHaveLength(1);
+
+    expect(startTurn).toHaveBeenCalledTimes(1);
     expect(startTurn).toHaveBeenCalledWith(
-      "/browser-control resume work",
+      "redirect with this image\n\n@/tmp/reference.png",
       { model: `${AGENT_KIND}/model` },
       segments,
-      {
-        userMessageItemId: "user-resume",
-        inlineInstructions: "Inline browser skill instructions",
-      },
+      { userMessageItemId: optimisticItemId },
     );
+    expect(session.pendingSteer).toBeUndefined();
+    expect(events).toContainEqual({
+      type: "thread-pending-steer",
+      threadId: THREAD_ID,
+      pending: null,
+    });
+    expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacementSession);
   });
 
   it("clears the watchdog when the manager is disposed", async () => {
@@ -327,7 +401,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     expect(session.structuredInterruptWatchdog).toBeUndefined();
 
     events.length = 0;
-    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_STALE_KILL_MS);
+    vi.advanceTimersByTime(STRUCTURED_INTERRUPT_FORCE_STOP_MS);
     expect(events).toEqual([]);
   });
 });
@@ -351,100 +425,6 @@ describe("ThreadSessionManager steer capability", () => {
       steerTurn?: typeof steerTurn;
     };
   }
-
-  it("reapplies plugin-managed apps to later turns without persisting them", async () => {
-    const structuredSession = steerableSession(true);
-    const adapter = createAdapter(structuredSession);
-    const { manager } = createManager(adapter);
-    const session = createWorkingSession(adapter, structuredSession);
-    session.status = "idle";
-    session.runtimeLaunchConfig = {
-      ...session.config,
-      browserMcp: true,
-      computerUse: false,
-    };
-    session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds = ["computer-use"];
-    manager.sessions.set(THREAD_ID, session);
-
-    await manager.sendThreadInput({
-      threadId: THREAD_ID,
-      prompt: "next turn",
-      config: { model: `${AGENT_KIND}/updated` },
-    });
-
-    expect(structuredSession.startTurn).toHaveBeenCalledWith(
-      "next turn",
-      {
-        model: `${AGENT_KIND}/updated`,
-        browserMcp: true,
-        computerUse: false,
-      },
-      undefined,
-      expect.objectContaining({ userMessageItemId: expect.any(String) }),
-    );
-    expect(session.config).toEqual({ model: `${AGENT_KIND}/updated` });
-  });
-
-  it("keeps apps from a globally disabled plugin off on later turns", async () => {
-    const structuredSession = steerableSession(true);
-    const adapter = createAdapter(structuredSession);
-    const applyPluginAppsToConfig = vi.fn<
-      NonNullable<ThreadSessionManagerOptions["applyPluginAppsToConfig"]>
-    >((config) => ({
-      config: { ...config, browserMcp: false },
-      disabledConfigKeys: ["browserMcp"],
-    }));
-    const { manager } = createManager(adapter, { applyPluginAppsToConfig });
-    await manager.startThread({
-      threadId: THREAD_ID,
-      agentKind: AGENT_KIND,
-      projectLocation: { kind: "windows", path: "C:\\repo" },
-      config: { model: `${AGENT_KIND}/model` },
-      prompt: "",
-      initialSize: { cols: 80, rows: 24 },
-      presentationMode: "gui",
-    });
-    const session = manager.sessions.get(THREAD_ID)!;
-
-    expect(session.runtimeLaunchConfig.browserMcp).toBe(false);
-
-    await manager.sendThreadInput({
-      threadId: THREAD_ID,
-      prompt: "next turn",
-      config: { model: `${AGENT_KIND}/updated`, browserMcp: true },
-    });
-
-    expect(structuredSession.startTurn).toHaveBeenCalledWith(
-      "next turn",
-      { model: `${AGENT_KIND}/updated`, browserMcp: false },
-      undefined,
-      expect.objectContaining({ userMessageItemId: expect.any(String) }),
-    );
-    expect(session.config).toEqual({ model: `${AGENT_KIND}/updated`, browserMcp: true });
-  });
-
-  it("reapplies plugin-managed apps to non-interrupting steers", async () => {
-    const structuredSession = steerableSession(true);
-    const adapter = createAdapter(structuredSession);
-    const { manager } = createManager(adapter);
-    const session = createWorkingSession(adapter, structuredSession);
-    session.runtimeLaunchConfig = { ...session.config, chromeMcp: true };
-    manager.sessions.set(THREAD_ID, session);
-
-    await manager.sendThreadInput({
-      threadId: THREAD_ID,
-      prompt: "steer with plugins",
-      config: { model: `${AGENT_KIND}/updated` },
-    });
-
-    expect(structuredSession.steerTurn).toHaveBeenCalledWith(
-      "steer with plugins",
-      { model: `${AGENT_KIND}/updated`, chromeMcp: true },
-      undefined,
-      undefined,
-    );
-    expect(session.config).toEqual({ model: `${AGENT_KIND}/updated` });
-  });
 
   it("submit-while-working uses steerTurn without interrupting when available", async () => {
     const structuredSession = steerableSession(true);
@@ -502,45 +482,6 @@ describe("ThreadSessionManager steer capability", () => {
 
     expect(structuredSession.steerTurn).toHaveBeenCalledTimes(1);
     expect(structuredSession.interruptTurn).not.toHaveBeenCalled();
-  });
-
-  it("filters pending steer skills against the immutable runtime App snapshot", async () => {
-    const structuredSession = steerableSession(true);
-    const adapter = createAdapter(structuredSession);
-    const filterPluginSkillSegments = vi.fn<
-      NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>
-    >((segments, context) => (context.launchConfig?.browserMcp === true ? segments : []));
-    const { manager } = createManager(adapter, { filterPluginSkillSegments });
-    const session = createWorkingSession(adapter, structuredSession);
-    session.runtimeLaunchConfig = { ...session.config, browserMcp: false };
-    manager.sessions.set(THREAD_ID, session);
-
-    await manager.setPendingSteer({
-      threadId: THREAD_ID,
-      prompt: "/browser-control",
-      config: session.config,
-      segments: [
-        {
-          kind: "skill",
-          name: "browser-control",
-          path: "C:\\plugins\\browser-control\\SKILL.md",
-          invocation: "/browser-control",
-          provider: "Browser Tools",
-          scope: "global",
-        },
-      ],
-    });
-
-    expect(filterPluginSkillSegments).toHaveBeenCalledWith(
-      expect.any(Array),
-      expect.objectContaining({ launchConfig: expect.objectContaining({ browserMcp: false }) }),
-    );
-    expect(structuredSession.steerTurn).toHaveBeenCalledWith(
-      "",
-      { ...session.config, browserMcp: false },
-      [],
-      undefined,
-    );
   });
 
   it("setPendingSteer falls back to interrupt-drain when steerTurn is absent", async () => {

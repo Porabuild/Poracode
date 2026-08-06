@@ -24,12 +24,7 @@ import type {
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
-import { buildClaudeChromeMcpServers } from "./mcpChrome";
-import { buildClaudeSubagentMcpServers } from "./mcpSubagent";
-import { buildClaudeComputerUseMcpServers } from "./mcpComputerUse";
-import { buildClaudeAppControlsMcpServers } from "./mcpAppControls";
-import { buildClaudeUserMcpServers } from "../userMcp";
+import { buildClaudeMcpServers } from "../userMcp";
 import {
   createKnownSessionRef,
   getPrimedPosixEnv,
@@ -50,10 +45,11 @@ import { DeferredTurnCompletion } from "./deferredTurnCompletion";
 import { applyClaudeContextSuffix } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
-  buildPromptContentBlocks,
+  ClaudeUsageScopeTracker,
   closeClaudeOpenItems,
+  completeActiveGoalOnTaskDrainEvents,
   createClaudeMapperState,
-  emitActiveGoalTokenUpdate,
+  emitActiveGoalTick,
   extractResultErrorMessage,
   isApiErrorResult,
   mapClaudePermissionRequest,
@@ -62,7 +58,6 @@ import {
   mapClaudeSdkMessage,
   nonDiagnosticErrors,
   parseClaudeQuestions,
-  readClaudeApiUsageSpendTokens,
   readParentToolUseId,
   startClaudeTurn,
   type ClaudeMapperState,
@@ -85,6 +80,14 @@ import {
 type CompletedClaudeTurn = {
   resumeSessionAt: string | undefined;
 };
+
+/**
+ * How long a drained deferred completion waits before settling the thread.
+ * Sized to cover the SDK's task_notification → model-wake gap (a
+ * session_state "running" restarts it, so it only needs to reach the wake
+ * signal, not the first streamed token).
+ */
+const DEFERRED_FLUSH_RESUME_GRACE_MS = 5000;
 
 export class ClaudeSdkSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions = { suppressResumeConfigOverrides: true };
@@ -121,6 +124,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   // thread finished mid-work. Hold the completion status here until the
   // live-task registry drains; flush it if the stream stops first.
   private readonly deferredCompletion = new DeferredTurnCompletion();
+  // Grace timer between the last task_notification draining the registry and
+  // the deferred completion actually flushing. The SDK usually wakes the model
+  // right after that notification to consume the results; flushing idle in
+  // that gap resets the thread's "Working for" timer and fires a premature
+  // done-notification. See flushDeferredCompletionIfDrained.
+  private deferredFlushTimer: ReturnType<typeof setTimeout> | undefined;
   // openThread() fires `startQuery` as a fire-and-forget IIFE and returns
   // synchronously, but the runtime calls `setListener` only afterwards from
   // `spawnThread`. Anything emitted in that window — early SDK system/stream
@@ -223,6 +232,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.currentConfig = config;
     this.sessionId = sessionRef?.providerSessionId ?? randomUUID();
     this.openedResumeSessionId = sessionRef?.providerSessionId;
+    // Usage scope for per-call spend events: fresh only when the SDK session
+    // starts brand-new (a resumed session's history is not new spend).
+    this.mapperState.usageScope = new ClaudeUsageScopeTracker(
+      this.sessionId,
+      this.openedResumeSessionId === undefined,
+    );
     this.startQuery(sessionRef?.providerSessionId);
     await this.requireQuery();
     return this.sessionId ?? "";
@@ -240,6 +255,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = true;
     this.deferredCompletion.clear();
+    this.clearDeferredFlushTimer();
     this.emitRuntimeEvents(
       startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
     );
@@ -266,45 +282,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * Steer the running turn by streaming a new user message into the SDK's input
-   * queue WITHOUT interrupting — the probed-safe steering mechanism: the running
-   * turn continues, background subagents are unaffected, and the message steers
-   * the current turn or is answered in the next one. No `turn.started` is
-   * emitted mid-turn (the message joins the open turn); if no turn is in flight
-   * (raced idle) we fall back to `startTurn` so turn accounting stays correct.
+   * Preserve Claude's foreground Bash commands and subagents before the shared
+   * steer lifecycle interrupts the main turn. The SDK turns them into
+   * background tasks, while Poracode stages the replacement prompt and opens it
+   * as a fresh turn after the interrupted result settles.
    */
-  async steerTurn(
-    prompt: string,
-    config: ThreadConfig,
-    segments?: PromptSegment[],
-    options?: StartTurnOptions,
-  ): Promise<void> {
-    if (this.disposed) return;
-    if (!this.currentTurnInFlight) {
-      await this.startTurn(prompt, config, segments, options);
-      return;
-    }
-    this.currentConfig = config;
-    // Optimistic user_message item only (no turn.started) so the chat paints the
-    // steer immediately; mirrors the emission startClaudeTurn performs.
-    const userItemId = options?.userMessageItemId ?? `user-${randomUUID()}`;
-    this.emitRuntimeEvents([
-      {
-        type: "item.started",
-        threadId: this.input.threadId,
-        itemId: userItemId,
-        itemType: "user_message",
-        payload: { content: buildPromptContentBlocks(prompt, segments) },
-      },
-      { type: "item.completed", threadId: this.input.threadId, itemId: userItemId },
-    ]);
-    const query = await this.requireQuery();
-    // The SDK never hot-swaps a running turn, but if the steer message ends up
-    // starting the NEXT turn (current turn settles before consuming it), the
-    // model change must already be applied — no startTurn runs for that message.
-    await this.syncModel(query, config);
-    const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
-    this.promptQueue.push(message);
+  async prepareSteerInterrupt(): Promise<void> {
+    await this.queryRuntime?.backgroundTasks();
   }
 
   /**
@@ -681,39 +665,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           void _exhaustive;
         }
       }
-      const browserMcpServers = buildClaudeBrowserMcpServers(
-        this.input.projectLocation,
-        this.currentConfig.browserMcp === true,
-        this.input.browserMcp,
-      );
-      const subagentMcpServers = buildClaudeSubagentMcpServers(
-        this.currentConfig.subagentMcp === true,
-        this.input.subagentMcp,
-      );
-      const chromeMcpServers = buildClaudeChromeMcpServers(
-        this.input.projectLocation,
-        this.currentConfig.chromeMcp === true,
-        this.input.chromeMcp,
-      );
-      const computerUseMcpServers = buildClaudeComputerUseMcpServers(
-        this.input.projectLocation,
-        this.currentConfig.computerUse === true,
-        this.input.computerUseMcp,
-      );
-      // The spawn pipeline withholds `appControlsMcp` when the server is
-      // hard-disabled; presence is the opt-in signal (there is no per-thread
-      // config flag for it).
-      const appControlsMcpServers = this.input.appControlsMcp
-        ? buildClaudeAppControlsMcpServers(this.input.projectLocation, this.input.appControlsMcp)
-        : undefined;
-      const mcpServers = {
-        ...buildClaudeUserMcpServers(this.input.mcpServers ?? []),
-        ...browserMcpServers,
-        ...subagentMcpServers,
-        ...chromeMcpServers,
-        ...computerUseMcpServers,
-        ...appControlsMcpServers,
-      };
+      const mcpServers = buildClaudeMcpServers(this.input.mcpServers ?? []);
       const hasMcpServers = Object.keys(mcpServers).length > 0;
       let spawnClaudeCodeProcess: ((spawnOptions: SpawnOptions) => SpawnedProcess) | undefined;
       switch (this.input.projectLocation.kind) {
@@ -894,6 +846,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.currentTurnInFlight = true;
     this.currentTurnAssistantUuid = undefined;
     this.deferredCompletion.clear();
+    this.clearDeferredFlushTimer();
+    delete this.mapperState.pendingGoalCompletionOnTaskDrain;
     // Seed the mapper's turn id so the eventual `result` emits the matching
     // `turn.completed`, re-closing the renderer's turn-open gate.
     this.mapperState.currentTurnId = turnId;
@@ -909,6 +863,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         : undefined;
     if (sessionId && sessionId !== this.sessionId && this.shouldAdoptSessionId(message)) {
       this.sessionId = sessionId;
+      // Same conversation under a new provider session id: new usage scope epoch.
+      this.mapperState.usageScope?.adoptScope(sessionId);
       this.emitUpdate({
         status: this.currentStatus,
         attention: this.currentAttention,
@@ -926,6 +882,18 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // states (working, needs_approval) still pass through.
       if (mapped.status !== "idle" || !this.deferredCompletion.hasPending) {
         this.emitUpdate(mapped);
+      }
+      // A running state while a drained completion sits in its grace window
+      // means the model is waking to consume the task results — restart the
+      // grace so the first assistant activity (beginResumedTurnIfNeeded) can
+      // clear the stale completion instead of it flushing mid-resume.
+      if (
+        mapped.status === "working" &&
+        this.deferredCompletion.hasPending &&
+        this.deferredFlushTimer !== undefined
+      ) {
+        this.clearDeferredFlushTimer();
+        this.scheduleDeferredFlush();
       }
     }
 
@@ -978,9 +946,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // Stop the 15s goal-tracking poller on every turn end — including
       // interrupts and steers — so it does not keep firing context-usage
       // round-trips while the thread sits idle. The goal itself is NOT cleared
-      // here: it stays active (completeActiveGoalEvents only completes it on a
-      // clean turn end, and `/clear` clears it explicitly), and the next turn
-      // restarts tracking via startGoalTracking().
+      // here: completion is driven by the SDK's `active_goal` Stop-hook
+      // verdict (see applyActiveGoalMessage; clean turn end is only a
+      // fallback for CLIs that never emit it), and the next turn restarts
+      // tracking via startGoalTracking().
       this.stopGoalTracking();
       const completion: StructuredSessionUpdate = {
         status: failed ? "error" : "idle",
@@ -1006,11 +975,37 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * registry has drained. Called after every SDK message so the authoritative
    * `task_notification` that closes the last subagent task flips the thread to
    * its held idle/error state.
+   *
+   * The release is not immediate: the SDK typically wakes the model right
+   * after that notification to consume the task's results. Settling idle in
+   * that gap resets the renderer's "Working for" timer to zero and fires a
+   * premature done-notification, only for the thread to flip back to working
+   * a moment later. A short grace window lets the resume win: assistant
+   * activity clears the held completion (beginResumedTurnIfNeeded) and the
+   * thread stays continuously live. If nothing resumes, the held status
+   * flushes when the grace expires.
    */
   private flushDeferredCompletionIfDrained(): void {
     if (!this.deferredCompletion.hasPending || this.hasLiveSubAgentTasks()) return;
-    const update = this.deferredCompletion.take();
-    if (update) this.emitUpdate(update);
+    this.scheduleDeferredFlush();
+  }
+
+  private scheduleDeferredFlush(): void {
+    if (this.deferredFlushTimer !== undefined) return;
+    this.deferredFlushTimer = setTimeout(() => {
+      this.deferredFlushTimer = undefined;
+      if (this.disposed || this.hasLiveSubAgentTasks()) return;
+      this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
+      const update = this.deferredCompletion.take();
+      if (update) this.emitUpdate(update);
+    }, DEFERRED_FLUSH_RESUME_GRACE_MS);
+  }
+
+  private clearDeferredFlushTimer(): void {
+    if (this.deferredFlushTimer !== undefined) {
+      clearTimeout(this.deferredFlushTimer);
+      this.deferredFlushTimer = undefined;
+    }
   }
 
   /**
@@ -1019,6 +1014,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * live, so the thread never stays stuck `working`.
    */
   private flushDeferredCompletion(): void {
+    this.clearDeferredFlushTimer();
+    this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
     const update = this.deferredCompletion.take();
     if (update) this.emitUpdate(update);
   }
@@ -1045,17 +1042,17 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       if (this.disposed) return;
       const event = mapClaudeContextUsageResponse(this.input.threadId, usage);
       if (event) this.emitRuntimeEvents([event]);
+      // Goal token spend accumulates from per-call assistant-message usage
+      // (see accumulateActiveGoalAssistantSpend); the `apiUsage` snapshot on
+      // this response is the LAST call's usage, not spend, so it must not feed
+      // the goal total. The tick just rolls the dock's elapsed time forward.
       if (this.mapperState.activeGoalItemId) {
-        const spendTokens = readClaudeApiUsageSpendTokens(usage.apiUsage);
-        const goalUpdate =
-          spendTokens !== undefined
-            ? emitActiveGoalTokenUpdate(this.mapperState, spendTokens)
-            : undefined;
-        if (goalUpdate) this.emitRuntimeEvents([goalUpdate]);
+        const tick = emitActiveGoalTick(this.mapperState);
+        if (tick) this.emitRuntimeEvents([tick]);
       }
     } catch {
       // Older transports can reject this control call. In that case, keep the
-      // existing context and goal-spend state until a result message arrives.
+      // existing context snapshot; assistant messages still update goal spend.
     }
   }
 

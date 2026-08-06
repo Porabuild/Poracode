@@ -23,14 +23,14 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { usePlugins } from "@/renderer/state/pluginsStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
-import { isBuiltInMcpServerAvailableByPlugin } from "@/shared/plugins/catalog";
 import {
   appendProviderComposerControls,
   buildModelPickerControls,
   buildProviderModelMenuProviders,
+  patchConfigForModelChange,
 } from "./buildModelPickerControls";
 import {
   agentWithCapabilities,
@@ -49,6 +49,7 @@ import { friendlyError } from "@/shared/messages";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
+import type { SaveClipboardImage } from "../composer/useAttachments";
 import { AgentDiscoveryScreen } from "./AgentDiscoveryScreen";
 import {
   isDiscoveryActiveForLocation,
@@ -159,7 +160,11 @@ export function ThreadDraftView(props: {
   compact?: boolean;
   quickComposer?: boolean;
   composerPlaceholder?: string;
+  restoreWorktreeSelectionToken?: number;
+  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  submitOnEnter?: boolean;
   pickFiles?: () => Promise<string[] | null>;
+  saveClipboardImage?: SaveClipboardImage;
   paneAlign?: "left" | "center" | "right";
   showCloseButton?: boolean;
   isDragging?: boolean;
@@ -195,6 +200,12 @@ export function ThreadDraftView(props: {
   );
   const isHomeScope = isHomeProjectId(project.id);
   const scopeLabel = isHomeScope ? HOME_PROJECT_NAME : undefined;
+  const remoteConnection = useRemoteServersStore((state) => {
+    const { remoteServerId } = project;
+    if (!remoteServerId) return "local";
+    if (!state.servers.some((server) => server.desktopId === remoteServerId)) return "missing";
+    return state.runtime[remoteServerId]?.status ?? "connecting";
+  });
 
   // Debugging showed config-only edits were rebuilding the provider/model
   // payload. Keep the installed-agent list stable unless the source inputs
@@ -225,7 +236,7 @@ export function ThreadDraftView(props: {
   // mention in this draft and reset with every new thread. The effective launch
   // flag is `mention || (persistent && scope available)`, computed below.
   const [browserMcpMention, setBrowserMcpMention] = useState(false);
-  const [subagentMcpMention, setSubagentMcpMention] = useState(false);
+  const [crossagentMcpMention, setCrossagentMcpMention] = useState(false);
   const [chromeMcpMention, setChromeMcpMention] = useState(false);
   const [computerUseMention, setComputerUseMention] = useState(false);
   const [worktreeMode, setWorktreeMode] = useState(
@@ -243,8 +254,6 @@ export function ThreadDraftView(props: {
   // Persistent composer MCP enablement (standing default across new threads).
   const enabledMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
-  const installedPlugins = useSharedSettings((s) => s.installedPlugins);
-  const plugins = usePlugins((state) => state.plugins);
   const supportedPresentationModes = selectedAgent
     ? (selectedAgent.capabilities.presentationModes ?? [
         selectedAgent.capabilities.presentationMode,
@@ -403,8 +412,8 @@ export function ThreadDraftView(props: {
       model: nextModel,
       effort: nextEffort,
       ...(nextContext ? { contextSize: nextContext } : {}),
-      ...(nextFast ? { fast: nextFast } : {}),
-      ...(nextThinking ? { thinking: nextThinking } : {}),
+      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
       mode: nextMode,
       approvalPolicy: nextApproval,
       approvalsReviewer: nextReviewer,
@@ -454,8 +463,8 @@ export function ThreadDraftView(props: {
         model: nextModel,
         effort: nextEffort,
         ...(nextContext ? { contextSize: nextContext } : {}),
-        ...(nextFast ? { fast: nextFast } : {}),
-        ...(nextThinking ? { thinking: nextThinking } : {}),
+        fast: nextFast,
+        thinking: nextThinking,
       };
       providerConfigsRef.current[effectiveAgentKind] = corrected;
       if (!isHomeScope) {
@@ -466,8 +475,8 @@ export function ThreadDraftView(props: {
         model: nextModel,
         effort: nextEffort,
         ...(nextContext ? { contextSize: nextContext } : {}),
-        ...(nextFast ? { fast: nextFast } : {}),
-        ...(nextThinking ? { thinking: nextThinking } : {}),
+        fast: nextFast,
+        thinking: nextThinking,
         mode,
         approvalPolicy,
         approvalsReviewer,
@@ -567,8 +576,8 @@ export function ThreadDraftView(props: {
       model: nextModel,
       effort: nextEffort,
       ...(nextContext ? { contextSize: nextContext } : {}),
-      ...(nextFast ? { fast: nextFast } : {}),
-      ...(nextThinking ? { thinking: nextThinking } : {}),
+      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
       mode: nextMode,
       approvalPolicy: nextApproval,
       approvalsReviewer: nextReviewer,
@@ -598,7 +607,13 @@ export function ThreadDraftView(props: {
 
   const hiddenModelIds = useSharedSettings((s) =>
     selectedAgent
-      ? s.hiddenModels[modelVisibilityKey(selectedAgent.kind, presentationMode)]
+      ? s.hiddenModels[
+          modelVisibilityKey(
+            selectedAgent.kind,
+            presentationMode,
+            selectedAgentForConfig?.capabilities.runtimeLabel,
+          )
+        ]
       : undefined,
   );
   const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
@@ -636,9 +651,9 @@ export function ThreadDraftView(props: {
       setBrowserMcpMention(patch.browserMcp === true);
       return;
     }
-    if ("subagentMcp" in patch) {
+    if ("crossagentMcp" in patch) {
       // Per-draft mention flag — same bypass as browserMcp above.
-      setSubagentMcpMention(patch.subagentMcp === true);
+      setCrossagentMcpMention(patch.crossagentMcp === true);
       return;
     }
     if ("chromeMcp" in patch) {
@@ -687,8 +702,8 @@ export function ThreadDraftView(props: {
         model: resolved.model,
         effort: resolved.effort,
         ...(resolved.contextSize ? { contextSize: resolved.contextSize } : {}),
-        ...(resolved.fast ? { fast: resolved.fast } : {}),
-        ...(resolved.thinking ? { thinking: resolved.thinking } : {}),
+        ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+        ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
         mode: resolved.mode,
         approvalPolicy: resolved.approvalPolicy,
         approvalsReviewer: resolved.approvalsReviewer,
@@ -704,7 +719,7 @@ export function ThreadDraftView(props: {
     model: nextModel,
     presentationMode: nextPresentationMode,
   }) => {
-    if (!selectedAgent) return;
+    if (!selectedAgent || !selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
     const targetPresentationMode = nextPresentationMode ?? presentationMode;
     if (targetPresentationMode !== presentationMode) {
@@ -720,8 +735,8 @@ export function ThreadDraftView(props: {
           model,
           effort,
           ...(contextSize ? { contextSize } : {}),
-          ...(fast ? { fast } : {}),
-          ...(thinking ? { thinking } : {}),
+          fast,
+          thinking,
           mode,
           approvalPolicy,
           approvalsReviewer,
@@ -751,8 +766,8 @@ export function ThreadDraftView(props: {
         model: resolved.model,
         effort: resolved.effort,
         ...(resolved.contextSize ? { contextSize: resolved.contextSize } : {}),
-        ...(resolved.fast ? { fast: resolved.fast } : {}),
-        ...(resolved.thinking ? { thinking: resolved.thinking } : {}),
+        ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
+        ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
         mode: resolved.mode,
         approvalPolicy: resolved.approvalPolicy,
         approvalsReviewer: resolved.approvalsReviewer,
@@ -760,7 +775,12 @@ export function ThreadDraftView(props: {
         worktreeMode: effectiveWorktreeMode,
       });
     } else {
-      latestConfigPatchRef.current({ model: nextModel });
+      latestConfigPatchRef.current(
+        patchConfigForModelChange(selectedAgentForConfig.capabilities, nextModel, {
+          ...(effort ? { effort } : {}),
+          ...(contextSize ? { contextSize } : {}),
+        }),
+      );
     }
   };
 
@@ -850,6 +870,29 @@ export function ThreadDraftView(props: {
     spacerRef: anchorSpacerRef,
   });
 
+  if (remoteConnection === "connecting") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+        <PixelLoader size="md" />
+        <p className="text-sm text-muted">
+          <Trans>Connecting…</Trans>
+        </p>
+      </div>
+    );
+  }
+  if (remoteConnection !== "local" && remoteConnection !== "online") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          <Trans>Connection error</Trans>
+        </h1>
+        <p className="text-muted">
+          <Trans>This project's remote server is offline. Reconnect it to start a thread.</Trans>
+        </p>
+      </div>
+    );
+  }
+
   if (!selectedAgent) {
     if (props.isDetectingAgents) {
       // First-launch fancy reveal: tiles fade in as `agent-detected` events
@@ -936,25 +979,17 @@ export function ThreadDraftView(props: {
   // persistent standing default whose scope the current provider/presentation
   // actually supports. A persistent enable with a "none" scope must NOT set the
   // config flag — otherwise the composer would show a phantom "on" state and the
-  // scope-reset effect there would fight it. Plugin-managed apps are applied by
-  // the supervisor at launch so their flags never become persisted thread choices.
+  // scope-reset effect there would fight it.
   const hostPlatform = readBridge()?.platform;
-  const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) => {
-    return (
-      disabledBuiltInMcpServers[id] !== true &&
-      isBuiltInMcpServerAvailableByPlugin(plugins, installedPlugins, id) &&
-      (mention || (enabledMcpServers[id] === true && scope !== "none"))
-    );
-  };
-  const effectiveBrowserMcp = effectiveMcp(
-    "browser",
-    browserMcpMention,
-    resolveMcpScope(selectedAgent.capabilities.browserMcpScope, presentationMode),
-  );
-  const effectiveSubagentMcp = effectiveMcp(
-    "subagents",
-    subagentMcpMention,
-    resolveMcpScope(selectedAgent.capabilities.subagentMcpScope, presentationMode),
+  const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) =>
+    disabledBuiltInMcpServers[id] !== true &&
+    (mention || (enabledMcpServers[id] === true && scope !== "none"));
+  const selectedMcpScope = resolveMcpScope(selectedAgent.capabilities.mcpScope, presentationMode);
+  const effectiveBrowserMcp = effectiveMcp("browser", browserMcpMention, selectedMcpScope);
+  const effectiveCrossagentMcp = effectiveMcp(
+    "crossagents",
+    crossagentMcpMention,
+    selectedMcpScope,
   );
   const effectiveChromeMcp = effectiveMcp(
     "chrome",
@@ -1029,8 +1064,12 @@ export function ThreadDraftView(props: {
           </div>
           <ThreadDraftComposerArea
             project={project}
+            isRemote={project.remoteServerId !== undefined}
             {...(props.paneId ? { paneId: props.paneId } : {})}
-            selectedAgent={selectedAgent}
+            {...(props.restoreWorktreeSelectionToken !== undefined
+              ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
+              : {})}
+            selectedAgent={selectedAgentForConfig ?? selectedAgent}
             controls={draftControls}
             config={{
               model,
@@ -1043,7 +1082,7 @@ export function ThreadDraftView(props: {
               ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
               ...(effectiveBrowserMcp ? { browserMcp: true } : {}),
-              ...(effectiveSubagentMcp ? { subagentMcp: true } : {}),
+              ...(effectiveCrossagentMcp ? { crossagentMcp: true } : {}),
               ...(effectiveChromeMcp ? { chromeMcp: true } : {}),
               ...(effectiveComputerUse ? { computerUse: true } : {}),
             }}
@@ -1054,7 +1093,9 @@ export function ThreadDraftView(props: {
             supportsModePicker={supportsModePicker}
             presentationMode={presentationMode}
             {...(props.composerPlaceholder ? { placeholder: props.composerPlaceholder } : {})}
+            {...(props.submitOnEnter !== undefined ? { submitOnEnter: props.submitOnEnter } : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
+            {...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {})}
             onConfigChange={onConfigPatch}
             onWorktreeModeChange={setWorktreeMode}
             onSwitchBranch={handleSwitchBranch}

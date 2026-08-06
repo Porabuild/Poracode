@@ -19,6 +19,8 @@ const emptyTodoComposerProps = {
 export function TerminalThreadContent(
   props: ThreadContentCommonProps & {
     onTerminalResize: (size: { cols: number; rows: number }) => void;
+    /** Mounted but hidden for keep-alive. */
+    hidden?: boolean;
   },
 ) {
   const thread = useThread(props.threadId) ?? props.fallbackThread;
@@ -26,14 +28,21 @@ export function TerminalThreadContent(
   return (
     <>
       <div className="relative min-h-0 flex-1 overflow-visible">
-        <TerminalPane
-          ref={props.terminalPaneRef}
-          key={thread.id}
-          onTerminalResize={props.onTerminalResize}
-          status={thread.status}
-          threadId={thread.id}
-        />
-        {thread.status === "launching" ? (
+        {thread.remoteServerId && !props.remoteTerminalTransport ? null : (
+          <TerminalPane
+            ref={props.terminalPaneRef}
+            key={thread.id}
+            onTerminalResize={props.onTerminalResize}
+            status={thread.status}
+            threadId={thread.id}
+            {...(props.hidden ? { hidden: true } : {})}
+            {...(props.remoteTerminalTransport
+              ? { remoteTransport: props.remoteTerminalTransport }
+              : {})}
+          />
+        )}
+        {thread.status === "launching" ||
+        (thread.remoteServerId && !props.remoteTerminalTransport) ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <PixelLoader size="md" />
           </div>

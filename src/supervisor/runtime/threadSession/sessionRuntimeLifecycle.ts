@@ -3,7 +3,6 @@ import {
   isThreadConfigEqual,
   type RuntimeEvent,
 } from "@/shared/contracts";
-import { PLUGIN_MCP_CONFIG_ENTRIES } from "@/shared/plugins/catalog";
 import type { StructuredSessionUpdate } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import type { SessionRuntime } from "../sessionTypes";
@@ -27,29 +26,13 @@ export interface SessionRuntimeLifecycleContext {
   steerCoordinator: Pick<SteerCoordinator, "maybeDrainPendingSteer">;
   structuredInterruptWatchdog: Pick<
     StructuredInterruptWatchdog,
-    "clearStructuredInterruptWatchdog" | "touchStructuredInterruptWatchdog"
+    "clearStructuredInterruptWatchdog"
   >;
   emit: ThreadSessionManagerOptions["emit"];
   isCurrentSession(session: SessionRuntime): boolean;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   indexSessionRef(session: SessionRuntime, prevId: string | undefined): void;
   pollSessionRefDiscovery(session: SessionRuntime): void;
-}
-
-function withoutLaunchManagedConfig(
-  session: SessionRuntime,
-  config: NonNullable<StructuredSessionUpdate["config"]>,
-): NonNullable<StructuredSessionUpdate["config"]> {
-  const keys = PLUGIN_MCP_CONFIG_ENTRIES.map(([, key]) => key);
-  const next = { ...config };
-  for (const key of keys) {
-    if (Object.hasOwn(session.config, key)) {
-      next[key] = session.config[key];
-    } else {
-      delete next[key];
-    }
-  }
-  return next;
 }
 
 /** Registers a newly-created runtime and owns its structured-session / PTY event bindings. */
@@ -109,18 +92,17 @@ export class SessionRuntimeLifecycle {
     const context = this.context;
     const wasWorking = session.status === "working";
     const hadInterruptRequest = session.structuredTurnInterruptRequested === true;
+    let sessionRefChanged = false;
     if (update.sessionRef) {
       const prevId = session.sessionRef?.providerSessionId;
+      sessionRefChanged = prevId !== update.sessionRef.providerSessionId;
       session.sessionRef = update.sessionRef;
       session.canResumeWithConfig = true;
       context.indexSessionRef(session, prevId);
     }
 
-    const nextConfig = update.config
-      ? withoutLaunchManagedConfig(session, update.config)
-      : undefined;
     const configChanged =
-      nextConfig !== undefined && !isThreadConfigEqual(session.config, nextConfig);
+      update.config !== undefined && !isThreadConfigEqual(session.config, update.config);
     const slashCommandsChanged =
       update.slashCommands !== undefined &&
       !areAgentSlashCommandsEqual(session.slashCommands, update.slashCommands);
@@ -128,8 +110,8 @@ export class SessionRuntimeLifecycle {
       session.status !== update.status ||
       session.attention !== update.attention ||
       update.errorMessage !== undefined;
-    if (nextConfig) {
-      session.config = nextConfig;
+    if (update.config) {
+      session.config = update.config;
     }
     if (update.slashCommands !== undefined) {
       session.slashCommands = update.slashCommands;
@@ -166,8 +148,6 @@ export class SessionRuntimeLifecycle {
     if (update.status !== "working") {
       session.structuredTurnInterruptRequested = false;
       context.structuredInterruptWatchdog.clearStructuredInterruptWatchdog(session);
-    } else {
-      context.structuredInterruptWatchdog.touchStructuredInterruptWatchdog(session);
     }
     if (
       session.presentationMode === "gui" &&
@@ -177,7 +157,7 @@ export class SessionRuntimeLifecycle {
       context.steerCoordinator.maybeDrainPendingSteer(session);
     }
     if (
-      (configChanged || slashCommandsChanged) &&
+      (sessionRefChanged || configChanged || slashCommandsChanged) &&
       !stateChanged &&
       update.errorMessage === undefined
     ) {
@@ -192,7 +172,6 @@ export class SessionRuntimeLifecycle {
     ) {
       session.suppressInitialStructuredIdle = undefined;
     }
-    this.context.structuredInterruptWatchdog.touchStructuredInterruptWatchdog(session);
     this.context.runtimeEventRouter.append(session.threadId, event);
   }
 
@@ -209,9 +188,11 @@ export class SessionRuntimeLifecycle {
           `[supervisor] uncaught error in onData for thread ${session.threadId}:`,
           error,
         );
-        captureSupervisorException(error, {
-          "poracode.feature_area": "supervisor-runtime",
+        captureSupervisorException(new Error("PTY output pipeline failed."), {
+          "poracode.feature_area": "thread-session-lifecycle",
+          "poracode.presentation": session.presentationMode ?? "terminal",
           "poracode.provider": session.agentKind,
+          "poracode.runtime_kind": "pty",
         });
       }
     });
@@ -246,7 +227,12 @@ export class SessionRuntimeLifecycle {
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {
     if (session.status === "inactive") return;
-    this.context.outputPipeline.updateState(session, "inactive", "none");
+    // onError is the authoritative non-clean boundary. A derivative transport
+    // close must tear down the backing PTY without overwriting the visible
+    // error state or manufacturing a second failure.
+    if (session.status !== "error") {
+      this.context.outputPipeline.updateState(session, "inactive", "none");
+    }
     this.context.emit({
       type: "thread-exited",
       threadId: session.threadId,

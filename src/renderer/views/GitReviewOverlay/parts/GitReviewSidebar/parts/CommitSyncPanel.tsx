@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  Archive,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -29,6 +30,7 @@ const COMMIT_ACTION_ICONS: Record<CommitDefaultAction, ReactNode> = {
 
 export function CommitSyncPanel(props: {
   hasAnyChanges: boolean;
+  hasPendingPullStash: boolean;
   hasStagedChanges: boolean;
   hasRemote: boolean;
   hasTracking: boolean;
@@ -59,6 +61,7 @@ export function CommitSyncPanel(props: {
 }) {
   const {
     hasAnyChanges,
+    hasPendingPullStash,
     hasStagedChanges,
     hasRemote,
     hasTracking,
@@ -117,7 +120,7 @@ export function CommitSyncPanel(props: {
     <GitReviewSection gap={1}>
       {hasAnyChanges ? (
         <>
-          <div className="relative">
+          <div className="relative flex">
             <TextArea
               fullWidth
               autoSize
@@ -126,7 +129,13 @@ export function CommitSyncPanel(props: {
               placeholder={t`Commit message (Ctrl+Enter)`}
               rows={1}
               value={commitMessage}
-              className={`lc-commit-message ${canGenerateMessage ? "pr-8" : ""}`}
+              className={`lc-commit-message ${
+                canGenerateMessage && hasPendingPullStash
+                  ? "pr-14"
+                  : canGenerateMessage || hasPendingPullStash
+                    ? "pr-8"
+                    : ""
+              }`}
               variant="secondary"
               disabled={isCommitting}
               onChange={(e) => {
@@ -145,7 +154,7 @@ export function CommitSyncPanel(props: {
                   isIconOnly
                   size="sm"
                   variant="ghost"
-                  className="lc-commit-generate !absolute top-1.5 right-1 size-6 min-w-0"
+                  className="lc-commit-field-action lc-commit-generate !absolute top-1.5 right-1 size-6 min-w-0"
                   isDisabled={isGenerating || !hasAnyChanges}
                   isPending={isGenerating}
                   onPress={() => void handleGenerateMessage()}
@@ -156,6 +165,27 @@ export function CommitSyncPanel(props: {
                 </Button>
                 <Tooltip.Content>
                   <Trans>Generate commit message</Trans>
+                </Tooltip.Content>
+              </Tooltip>
+            )}
+            {hasPendingPullStash && (
+              <Tooltip delay={0}>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  aria-label={t`Stashed changes pending`}
+                  className={`lc-commit-field-action !absolute top-1.5 size-6 min-w-0 text-muted ${
+                    canGenerateMessage ? "right-8" : "right-1"
+                  }`}
+                >
+                  <Archive className="size-3.5" />
+                </Button>
+                <Tooltip.Content>
+                  <Trans>
+                    Your local changes are stashed and will be re-applied when you commit or abort
+                    this merge.
+                  </Trans>
                 </Tooltip.Content>
               </Tooltip>
             )}

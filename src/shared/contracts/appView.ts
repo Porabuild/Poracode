@@ -5,6 +5,7 @@ export type AppView =
   | { kind: "pullRequests" }
   | { kind: "schedules" }
   | { kind: "draft"; projectId: string }
+  | { kind: "experiment"; experimentId: string; projectId: string }
   | {
       kind: "thread";
       panes: [string, ...string[]];

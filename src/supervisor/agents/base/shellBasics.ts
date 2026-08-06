@@ -48,4 +48,35 @@ export function quotePosixShellArg(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
+/**
+ * Quote a single argument for a Windows `CreateProcess` command line so the
+ * child's C runtime (`CommandLineToArgvW` rules) parses it back verbatim:
+ * wrap in double quotes, double every backslash run that precedes a quote
+ * (or the closing quote), and backslash-escape embedded quotes. Newlines are
+ * legal inside the quoted region and round-trip unchanged.
+ */
+export function quoteWindowsCommandLineArg(arg: string): string {
+  if (arg.length > 0 && !/[ \t\r\n"]/.test(arg)) return arg;
+  let out = '"';
+  let backslashes = 0;
+  for (const ch of arg) {
+    if (ch === "\\") {
+      backslashes++;
+      continue;
+    }
+    if (ch === '"') {
+      out += "\\".repeat(backslashes * 2 + 1) + '"';
+    } else {
+      out += "\\".repeat(backslashes) + ch;
+    }
+    backslashes = 0;
+  }
+  return out + "\\".repeat(backslashes * 2) + '"';
+}
+
+/** Join args into a `CreateProcess`-ready command line (MSVC quoting rules). */
+export function buildWindowsCommandLine(args: readonly string[]): string {
+  return args.map(quoteWindowsCommandLineArg).join(" ");
+}
+
 export { getWindowsSystemCommand };

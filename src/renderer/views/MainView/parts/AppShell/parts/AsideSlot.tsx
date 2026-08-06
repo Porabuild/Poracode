@@ -37,6 +37,10 @@ export function AsideSlot(props: {
 
   const isHorizontal = orientation === "horizontal";
   const showHandle = isOpen && !overlay;
+  // The overlay panel is `position: fixed` and clips its children, so its handle
+  // lives *inside* the aside on the left edge instead of as a flex sibling —
+  // that way it slides with the panel and needs no separate positioning.
+  const showOverlayHandle = isOpen && overlay && !isHorizontal;
 
   // Docked path: width/height animates open <-> closed.
   const dockedDisplayWidth = !isHorizontal ? (isOpen ? targetWidth : 0) : undefined;
@@ -68,12 +72,22 @@ export function AsideSlot(props: {
     // The background layer (this <aside>) stays fully opaque while the panel
     // animates open, so the OS blur material (Windows acrylic / macOS vibrancy)
     // never shows through. Only the size animates here; the panel *content*
-    // cross-fades on the inner layer below. Collapse the border to transparent
-    // while closed so the 0-size panel leaves no 1px hairline at the edge.
-    const borderColorClass = isOpen ? "border-[color:var(--border)]" : "border-transparent";
+    // cross-fades on the inner layer below.
+    //
+    // Drop the border *width* (not just its color) while closed: with the global
+    // `box-sizing: border-box`, a 0-width aside with a 1px border still occupies
+    // 1px of the flex row, so `main` gained/lost that pixel whenever the panel
+    // flipped to the fixed right overlay (which leaves the flow entirely) and
+    // the centered content column shifted by half a pixel. The transparent
+    // closed color is kept alongside the 0 width so the hairline still fades in
+    // and out with `border-color` (see the transition list below) instead of
+    // popping to full strength the moment the border exists.
+    const borderClass = isOpen
+      ? `${isHorizontal ? "border-t" : "border-l"} border-[color:var(--border)]`
+      : `${isHorizontal ? "border-t-0" : "border-l-0"} border-transparent`;
     asideClassName = `relative overflow-hidden bg-[var(--content-background)] ${
-      isHorizontal ? `min-w-0 border-t ${borderColorClass}` : `min-h-0 border-l ${borderColorClass}`
-    }`;
+      isHorizontal ? "min-w-0" : "min-h-0"
+    } ${borderClass}`;
     asideStyle = {
       ...(isHorizontal
         ? { height: dockedDisplayHeight, minHeight: dockedDisplayHeight }
@@ -128,6 +142,19 @@ export function AsideSlot(props: {
         />
       )}
       <aside key={asideKey} ref={panelRef} className={asideClassName} style={asideStyle}>
+        {showOverlayHandle && (
+          <div
+            key="overlay-handle"
+            className="poracode-resize-handle-overlay"
+            style={{ top: overlayTop }}
+            onMouseDown={onResizeStart}
+            onKeyDown={onResizeKeyDown}
+            role="separator"
+            tabIndex={0}
+            aria-orientation={orientation}
+            aria-label={ariaLabel}
+          />
+        )}
         <div ref={panelInnerRef} className="h-full w-full" style={innerStyle}>
           {children}
         </div>

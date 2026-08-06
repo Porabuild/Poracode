@@ -9,15 +9,15 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { processEnvRecord } from "@/supervisor/processEnv";
 import {
   buildPosixExportPrefix,
+  buildPowerShellInvocationScript,
+  buildWslLoginShellCommand,
+  type DetectedPowerShell,
   detectShell,
   getPosixLoginShellArgs,
   getProjectShellEnv,
   getWindowsSystemCommand,
   getWindowsPathOverrideEnv,
-  getWslCommand,
   quotePosixShellArg,
-  quotePowerShellLiteral,
-  resolveWslShellPath,
 } from "../base";
 import { resolveAcpHostFsPath, resolveAcpProjectPath } from "./sessionPaths";
 import type { AcpTerminalRecord } from "./sessionTerminal";
@@ -63,14 +63,16 @@ function encodePowerShellCommand(script: string): string {
   return Buffer.from(script, "utf16le").toString("base64");
 }
 
-function buildWindowsTerminalScript(command: string, args: string[]): string {
+function buildWindowsTerminalScript(
+  shell: DetectedPowerShell,
+  command: string,
+  args: string[],
+): string {
+  // With no args the command is an entire shell line by contract — run it as
+  // PowerShell source. With args it is a native command + argv, so route
+  // through the host-appropriate faithful arg-passing strategy.
   if (args.length === 0) return `$ErrorActionPreference = 'Stop'; ${command}`;
-  return [
-    "$ErrorActionPreference = 'Stop'",
-    `$cmd = ${quotePowerShellLiteral(command)}`,
-    `$args = @(${args.map(quotePowerShellLiteral).join(", ")})`,
-    "& $cmd @args",
-  ].join("; ");
+  return buildPowerShellInvocationScript(shell, command, args);
 }
 
 function buildPosixTerminalScript(command: string, args: string[]): string {
@@ -107,14 +109,14 @@ export function buildAcpTerminalLaunch(
   if (location.kind === "windows") {
     const env = { ...buildAcpTerminalEnv(location), ...requestEnv };
     const shell = detectShell();
-    if (typeof shell === "string") {
+    if (shell) {
       return {
-        command: shell,
+        command: shell.path,
         args: [
           "-NoLogo",
           "-NoProfile",
           "-EncodedCommand",
-          encodePowerShellCommand(buildWindowsTerminalScript(command, args)),
+          encodePowerShellCommand(buildWindowsTerminalScript(shell, command, args)),
         ],
         cwd,
         env,
@@ -132,19 +134,7 @@ export function buildAcpTerminalLaunch(
     const exports = buildPosixExportPrefix({ TERM: "xterm-256color", ...requestEnv });
     const script = `${exports}${buildPosixTerminalScript(command, args)}`;
     return {
-      command: getWslCommand(),
-      args: [
-        "-d",
-        location.distro,
-        "--cd",
-        cwd,
-        "--",
-        resolveWslShellPath(location.distro),
-        "-l",
-        "-i",
-        "-c",
-        script,
-      ],
+      ...buildWslLoginShellCommand(location.distro, cwd, script),
       env: processEnvRecord(),
     };
   }

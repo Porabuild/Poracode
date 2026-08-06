@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronRight, CornerLeftUp, File, Folder, House, Loader2 } from "lucide-react";
-import type { HostDirectoryEntry } from "@/shared/contracts";
+import { HOST_DRIVE_LIST_PATH, type HostDirectoryEntry } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 
@@ -62,6 +62,8 @@ export function HostFolderPicker(props: {
 
   const directories = listing?.entries.filter((entry) => entry.type === "directory") ?? [];
   const files = listing?.entries.filter((entry) => entry.type === "file") ?? [];
+  // The synthetic drive list (Windows) is a navigation stop, not a folder.
+  const isDriveList = listing?.path === HOST_DRIVE_LIST_PATH;
 
   // Portaled to <body> like BottomSheet: the trigger lives inside `.m-main`,
   // whose view-transition-name forces a stacking context, so an inline backdrop
@@ -100,8 +102,8 @@ export function HostFolderPicker(props: {
           >
             <House className="size-4" />
           </button>
-          <span className="m-picker__path" title={listing?.path}>
-            {listing?.path ?? "…"}
+          <span className="m-picker__path" title={isDriveList ? undefined : listing?.path}>
+            {isDriveList ? t`Drives` : (listing?.path ?? "…")}
           </span>
         </div>
 
@@ -153,9 +155,9 @@ export function HostFolderPicker(props: {
             className="w-full text-foreground"
             size="sm"
             variant="tertiary"
-            isDisabled={!listing?.path}
+            isDisabled={!listing?.path || isDriveList}
             onPress={() => {
-              if (!listing?.path) return;
+              if (!listing?.path || isDriveList) return;
               props.onSelect(listing.path);
               props.onClose();
             }}

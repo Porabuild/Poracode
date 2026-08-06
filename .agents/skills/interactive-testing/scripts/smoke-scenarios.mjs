@@ -60,6 +60,13 @@ export const functionalAreas = [
     manual: ["git-mutations"],
   },
   {
+    id: "github-actions",
+    title: "GitHub Actions workflows, runs, dispatch, and PR check navigation",
+    patterns: [/GitHubActions/i, /githubWorkflowDefinition/i, /contracts\/github/i],
+    automated: ["baseline", "github-actions"],
+    manual: ["github-actions-live", "ipc-roundtrip"],
+  },
+  {
     id: "file-editor",
     title: "Project tree, file editor, Monaco, and file mutations",
     patterns: [/FileEditor/i, /fileEditor/i, /projectTree/i, /FileIndex/i],
@@ -167,6 +174,8 @@ export const manualGates = {
   "changed-surface": "Exercise the changed renderer surface through its real controls.",
   "file-editor": "Open, edit, save, rename, and close a fixture file.",
   "git-mutations": "Stage/unstage a fixture file and open Git Review without touching user data.",
+  "github-actions-live":
+    "Against an isolated GitHub fixture, list workflows and runs, dispatch a safe workflow, then verify rerun and delete controls.",
   "ipc-roundtrip":
     "Exercise one real renderer-to-main/supervisor round-trip per changed IPC family.",
   "mcp-extension":
@@ -180,7 +189,8 @@ export const manualGates = {
     "Launch a fresh isolated thread with each changed provider and observe first output.",
   "provider-skill-delivery":
     "Launch each supported provider with an isolated managed skill and verify the provider discovers and invokes it.",
-  "remote-mobile": "Pair an isolated mobile client and verify reconnect plus one read-only action.",
+  "remote-mobile":
+    "Pair an isolated mobile client and verify reconnect plus one read-only action; for push changes, verify background delivery and notification-tap routing.",
   "runtime-requests": "Trigger approval and structured-input requests; deny or submit safely.",
   "terminal-pty": "Launch a terminal thread, send input, resize, interrupt, and stop the real PTY.",
   "skills-manager":

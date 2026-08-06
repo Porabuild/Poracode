@@ -1,5 +1,45 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RemoteDesktopClient } from "./client";
+import {
+  isRemoteTransportFailure,
+  isUnauthorizedRemoteError,
+  RemoteClientError,
+  RemoteDesktopClient,
+} from "./client";
+
+describe("remote error classification", () => {
+  it("separates transport failures from reachable application errors", () => {
+    expect(isRemoteTransportFailure(new RemoteClientError("timed out", 0, "timeout"))).toBe(true);
+    expect(isRemoteTransportFailure(new TypeError("Failed to fetch"))).toBe(true);
+    expect(
+      isRemoteTransportFailure(
+        new Error("wrapped", { cause: new RemoteClientError("offline", 0, "offline") }),
+      ),
+    ).toBe(true);
+    expect(isRemoteTransportFailure(new RemoteClientError("constraint", 409, "conflict"))).toBe(
+      false,
+    );
+    expect(isRemoteTransportFailure(new RemoteClientError("server offline", 502, "relay"))).toBe(
+      true,
+    );
+    expect(
+      isRemoteTransportFailure(
+        new RemoteClientError("desktop unavailable", 503, "desktop_unavailable"),
+      ),
+    ).toBe(false);
+  });
+
+  it("recognizes authorization failures without treating other HTTP errors as expired", () => {
+    expect(isUnauthorizedRemoteError(new RemoteClientError("expired", 401, "unauthorized"))).toBe(
+      true,
+    );
+    expect(isUnauthorizedRemoteError(new RemoteClientError("forbidden", 403, "forbidden"))).toBe(
+      true,
+    );
+    expect(isUnauthorizedRemoteError(new RemoteClientError("conflict", 409, "conflict"))).toBe(
+      false,
+    );
+  });
+});
 
 describe("RemoteDesktopClient", () => {
   afterEach(() => {
@@ -14,7 +54,7 @@ describe("RemoteDesktopClient", () => {
       "http://127.0.0.1:38987/",
       undefined,
       async (_url, init) => {
-        body = JSON.parse(init?.body ?? "{}") as unknown;
+        body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
         return new Response(
           JSON.stringify({
             accessToken: "lc_access_test",
@@ -42,6 +82,36 @@ describe("RemoteDesktopClient", () => {
         deviceType: "browser",
       },
     });
+  });
+
+  it("reports successful and failed requests through the client lifecycle hooks", async () => {
+    const onRequestSuccess = vi.fn<() => void>();
+    const onRequestError = vi.fn<(error: unknown) => void>();
+    const successClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(
+          JSON.stringify({ ticket: "lc_ws_test", expiresAt: "2099-01-01T00:00:00.000Z" }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      { onRequestSuccess, onRequestError },
+    );
+
+    await expect(successClient.websocketTicket()).resolves.toBe("lc_ws_test");
+    expect(onRequestSuccess).toHaveBeenCalledOnce();
+    expect(onRequestError).not.toHaveBeenCalled();
+
+    const transportError = new TypeError("Failed to fetch");
+    const failureClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () => Promise.reject(transportError),
+      { onRequestSuccess, onRequestError },
+    );
+
+    await expect(failureClient.websocketTicket()).rejects.toBe(transportError);
+    expect(onRequestError).toHaveBeenLastCalledWith(transportError);
   });
 
   it("keeps profile-stats fields beyond the light shape check (loose parse)", async () => {
@@ -97,6 +167,195 @@ describe("RemoteDesktopClient", () => {
     expect(authorization).toBe("Bearer lc_access_test");
   });
 
+  it("checks and installs updates on the remote host", async () => {
+    const requests: Array<{ url: string; method: string }> = [];
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({ url: String(url), method: init?.method ?? "GET" });
+        const isInstall = String(url).endsWith("/install");
+        return new Response(
+          JSON.stringify(
+            isInstall
+              ? {}
+              : { currentVersion: "1.0.0", status: { type: "downloaded", version: "1.1.0" } },
+          ),
+          { status: isInstall ? 202 : 200, headers: { "content-type": "application/json" } },
+        );
+      },
+    );
+
+    await expect(client.checkHostUpdate()).resolves.toEqual({
+      currentVersion: "1.0.0",
+      status: { type: "downloaded", version: "1.1.0" },
+    });
+    await expect(client.installHostUpdate()).resolves.toBeUndefined();
+    expect(requests).toEqual([
+      { url: "https://relay.example.test/s/server-1/api/host-update/check", method: "POST" },
+      { url: "https://relay.example.test/s/server-1/api/host-update/install", method: "POST" },
+    ]);
+  });
+
+  it("reads and writes encoded project notes paths", async () => {
+    const requests: Array<{ url: string; method: string; body: unknown }> = [];
+    const notes = {
+      projectId: "project one",
+      doc: { type: "doc", content: [] },
+      todos: [],
+      updatedAt: "2026-07-23T00:00:00.000Z",
+    };
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({
+          url: String(url),
+          method: init?.method ?? "GET",
+          body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined,
+        });
+        return new Response(JSON.stringify((init?.method ?? "GET") === "GET" ? { notes } : {}), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(client.projectNotes(notes.projectId)).resolves.toEqual(notes);
+    await expect(client.setProjectNotes(notes)).resolves.toBeUndefined();
+
+    expect(requests).toEqual([
+      {
+        url: "https://relay.example.test/s/server-1/api/projects/project%20one/notes",
+        method: "GET",
+        body: undefined,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/projects/project%20one/notes",
+        method: "POST",
+        body: notes,
+      },
+    ]);
+  });
+
+  it("reads, checks, enables, and deletes PR automation through the remote API", async () => {
+    const requests: Array<{ url: string; method: string; body: unknown }> = [];
+    const watch = {
+      projectId: "project one",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      worktreePath: "/repo/worktree",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol", effort: "high" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+    } as const;
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        const method = init?.method ?? "GET";
+        requests.push({
+          url: String(url),
+          method,
+          body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined,
+        });
+        return new Response(JSON.stringify(method === "DELETE" ? { ok: true } : { watch }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    const input = {
+      projectId: watch.projectId,
+      prNumber: watch.prNumber,
+      headBranch: watch.headBranch,
+      worktreePath: watch.worktreePath,
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: watch.agentKind,
+      config: watch.config,
+    };
+    await expect(
+      client.getPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toEqual(watch);
+    await expect(
+      client.checkPrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toBeUndefined();
+    await expect(client.upsertPrWatch(input)).resolves.toEqual(watch);
+    await expect(
+      client.deletePrWatch({ projectId: watch.projectId, prNumber: watch.prNumber }),
+    ).resolves.toBeUndefined();
+
+    expect(requests).toEqual([
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches?projectId=project+one&prNumber=42",
+        method: "GET",
+        body: undefined,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches/check",
+        method: "POST",
+        body: { projectId: watch.projectId, prNumber: watch.prNumber },
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches",
+        method: "POST",
+        body: input,
+      },
+      {
+        url: "https://relay.example.test/s/server-1/api/pr-watches",
+        method: "DELETE",
+        body: { projectId: watch.projectId, prNumber: watch.prNumber },
+      },
+    ]);
+  });
+
+  it("requests a tail snapshot and encodes older runtime page cursors", async () => {
+    const requestedUrls: string[] = [];
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url) => {
+        requestedUrls.push(String(url));
+        return new Response(JSON.stringify({ items: [], nextCursor: null }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(
+      client.threadRuntimeItemsPage({
+        threadId: "thread one",
+        beforePosition: 42,
+        limit: 500,
+        targetTimelineEntryCount: 40,
+      }),
+    ).resolves.toEqual({ items: [], nextCursor: null });
+    await client.threadHistory("thread one").catch(() => undefined);
+    await client
+      .threadHistory("thread one", { targetTimelineEntryCount: 20 })
+      .catch(() => undefined);
+
+    expect(requestedUrls[0]).toBe(
+      "https://relay.example.test/s/server-1/api/threads/thread%20one/history/items?limit=500&beforePosition=42&targetTimelineEntryCount=40",
+    );
+    expect(requestedUrls[1]).toBe(
+      "https://relay.example.test/s/server-1/api/threads/thread%20one/history?runtimePage=1",
+    );
+    expect(requestedUrls[2]).toBe(
+      "https://relay.example.test/s/server-1/api/threads/thread%20one/history?runtimePage=1&targetTimelineEntryCount=20",
+    );
+  });
+
   it("passes an abort signal to remote fetches", async () => {
     let signal: AbortSignal | undefined;
     const client = new RemoteDesktopClient(
@@ -147,6 +406,32 @@ describe("RemoteDesktopClient", () => {
     expect(commandId).toBe("user-message-1");
   });
 
+  it("forwards goal controls to the paired desktop", async () => {
+    let requestUrl = "";
+    let requestBody: unknown;
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.controlThreadGoal({
+      threadId: "thread-1",
+      action: "edit",
+      objective: "Ship edited goal",
+    });
+
+    expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-1/goal");
+    expect(requestBody).toEqual({ action: "edit", objective: "Ship edited goal" });
+  });
+
   it("times out requests even when the transport ignores abort signals", async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | undefined;
@@ -175,6 +460,23 @@ describe("RemoteDesktopClient", () => {
     });
   });
 
+  it("allows WebSocket ticket requests to use the connection deadline", async () => {
+    vi.useFakeTimers();
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      undefined,
+      () => new Promise<Response>(() => {}),
+    );
+
+    const request = client.websocketTicket(15).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(15);
+
+    await expect(request).resolves.toMatchObject({
+      code: "timeout",
+      message: "Remote request timed out after 15ms.",
+    });
+  });
+
   it("rejects direct remote responses above the configured body limit", async () => {
     const client = new RemoteDesktopClient(
       "http://127.0.0.1:38987/",
@@ -195,6 +497,15 @@ describe("RemoteDesktopClient", () => {
     expect(client.websocketUrl("lc_ws_test", 42)).toBe(
       "wss://relay.example.test/s/server-1/ws?ticket=lc_ws_test&lastSeenSeq=42",
     );
+  });
+
+  it("includes initial thread interests so replay is scoped before open", () => {
+    const client = new RemoteDesktopClient("https://relay.example.test/s/server-1");
+    const url = new URL(
+      client.websocketUrl("lc_ws_test", 42, { threadItemInterests: ["thread-1"] }),
+    );
+
+    expect(url.searchParams.get("threadItemInterests")).toBe('["thread-1"]');
   });
 
   it("sends lastSeenSeq=0 (replay-from-start) but omits it for the no-snapshot sentinel", () => {
@@ -305,7 +616,9 @@ describe("RemoteDesktopClient", () => {
       "http://127.0.0.1:38987/",
       undefined,
       async (_url, init) => {
-        body = JSON.parse(init?.body ?? "{}") as { client?: unknown };
+        body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as {
+          client?: unknown;
+        };
         return new Response(
           JSON.stringify({
             accessToken: "lc_access_test",
@@ -325,7 +638,30 @@ describe("RemoteDesktopClient", () => {
     expect(body.client).toEqual({ label: "My Mac", deviceType: "desktop" });
   });
 
-  it("gives long-running git operations a larger timeout than ordinary requests", async () => {
+  it.each(["gitPush", "waitMcpServerOauth"])(
+    "gives long-running %s operations a larger timeout than ordinary requests",
+    async (procedure) => {
+      vi.useFakeTimers();
+      const client = new RemoteDesktopClient(
+        "http://127.0.0.1:38987/",
+        "lc_access_test",
+        () => new Promise<Response>(() => {}),
+        { requestTimeoutMs: 10 },
+      );
+
+      const operation = client.callRemoteProcedure(procedure, {}).then(
+        () => "resolved",
+        (error: unknown) => error,
+      );
+      await vi.advanceTimersByTimeAsync(60_000);
+      await expect(Promise.race([operation, Promise.resolve("pending")])).resolves.toBe("pending");
+
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      await expect(operation).resolves.toMatchObject({ code: "timeout" });
+    },
+  );
+
+  it("gives repository clones the long-running request timeout", async () => {
     vi.useFakeTimers();
     const client = new RemoteDesktopClient(
       "http://127.0.0.1:38987/",
@@ -334,19 +670,72 @@ describe("RemoteDesktopClient", () => {
       { requestTimeoutMs: 10 },
     );
 
-    const push = client
-      .gitCall("gitPush", { projectLocation: { kind: "posix", path: "/tmp/x" } })
+    const clone = client
+      .projectCommand({
+        kind: "clone",
+        parentPath: "/tmp",
+        name: "repo",
+        source: { kind: "url", url: "https://example.test/repo.git" },
+      })
       .then(
         () => "resolved",
         (error: unknown) => error,
       );
-    // Ordinary 10ms deadline has long passed, but the push uses the 5-minute
-    // long-op deadline, so it must still be pending.
     await vi.advanceTimersByTimeAsync(60_000);
-    await expect(Promise.race([push, Promise.resolve("pending")])).resolves.toBe("pending");
+    await expect(Promise.race([clone, Promise.resolve("pending")])).resolves.toBe("pending");
 
-    // Once the long deadline elapses it times out (rather than never).
     await vi.advanceTimersByTimeAsync(5 * 60_000);
-    await expect(push).resolves.toMatchObject({ code: "timeout" });
+    await expect(clone).resolves.toMatchObject({ code: "timeout" });
+  });
+
+  it("builds authenticated local image URLs against the endpoint", () => {
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+    );
+
+    const url = new URL(client.localImageUrl("C:\\Users\\me\\img one.png"));
+
+    expect(url.origin).toBe("https://relay.example.test");
+    expect(url.pathname).toBe("/s/server-1/api/files/image");
+    expect(url.searchParams.get("path")).toBe("C:\\Users\\me\\img one.png");
+    expect(url.searchParams.get("access_token")).toBe("lc_access_test");
+  });
+
+  it("returns an empty local image URL without an access token", () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/");
+
+    expect(client.localImageUrl("/tmp/img.png")).toBe("");
+  });
+
+  it("uploads attachment bytes to the paired desktop", async () => {
+    let requestUrl = "";
+    let requestBody: Uint8Array | undefined;
+    const client = new RemoteDesktopClient(
+      "https://desktop.example.test",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = init?.body instanceof Uint8Array ? init.body : undefined;
+        return new Response(JSON.stringify({ path: "C:\\attachments\\photo one.png" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(
+      client.uploadAttachment({
+        threadId: "thread/one",
+        fileName: "photo one.png",
+        data: new Uint8Array([1, 2, 3]),
+      }),
+    ).resolves.toBe("C:\\attachments\\photo one.png");
+
+    const url = new URL(requestUrl);
+    expect(url.pathname).toBe("/api/files/attachment");
+    expect(url.searchParams.get("threadId")).toBe("thread/one");
+    expect(url.searchParams.get("name")).toBe("photo one.png");
+    expect(Array.from(requestBody!)).toEqual([1, 2, 3]);
   });
 });

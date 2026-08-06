@@ -2,7 +2,9 @@ import { asc, eq, notInArray } from "drizzle-orm";
 import type { Project, Thread } from "@/shared/contracts";
 import * as schema from "../db.schema";
 import { getDb } from "./connection";
-import { locationToRow, rowToProject, rowToThread } from "./rowMappers";
+import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
+import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
+import { projectMutableRow, rowToProject, rowToThread } from "./rowMappers";
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
@@ -57,34 +59,41 @@ export function dbUpsertProject(project: Project, sortOrder: number): void {
   db.insert(schema.projects)
     .values({
       id: project.id,
-      name: project.name,
-      ...locationToRow(project.location),
-      lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
-      scripts: project.scripts ? JSON.stringify(project.scripts) : null,
-      searchSettings: project.searchSettings ? JSON.stringify(project.searchSettings) : null,
-      mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
-      disabled: !!project.disabled,
+      ...projectMutableRow(project),
       sortOrder,
       createdAt: project.createdAt,
     })
     .onConflictDoUpdate({
       target: schema.projects.id,
       set: {
-        name: project.name,
-        ...locationToRow(project.location),
-        lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
-        scripts: project.scripts ? JSON.stringify(project.scripts) : null,
-        searchSettings: project.searchSettings ? JSON.stringify(project.searchSettings) : null,
-        mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
-        disabled: !!project.disabled,
+        ...projectMutableRow(project),
         sortOrder,
       },
     })
     .run();
+  notifyProjectThreadDataChanged();
+}
+
+export function dbUpdateProject(project: Project): void {
+  getDb()
+    .update(schema.projects)
+    .set(projectMutableRow(project))
+    .where(eq(schema.projects.id, project.id))
+    .run();
+  notifyProjectThreadDataChanged();
 }
 
 export function dbUpsertThread(thread: Thread, sortOrder: number): void {
   const db = getDb();
+  // A row main inserts on its own is invisible to the renderer's store until the
+  // forwarded command reaches it, so shield it from `dbSyncAll`'s delete pass
+  // (see mainCreatedThreads).
+  const isNewRow =
+    db
+      .select({ id: schema.threads.id })
+      .from(schema.threads)
+      .where(eq(schema.threads.id, thread.id))
+      .get() === undefined;
   db.insert(schema.threads)
     .values({
       id: thread.id,
@@ -104,6 +113,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       prNumber: thread.prNumber ?? null,
       groupId: thread.groupId ?? null,
       groupName: thread.groupName ?? null,
+      parentThreadId: thread.parentThreadId ?? null,
       archived: thread.archived,
       done: thread.done,
       doneAt: thread.doneAt ?? null,
@@ -133,6 +143,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
         prNumber: thread.prNumber ?? null,
         groupId: thread.groupId ?? null,
         groupName: thread.groupName ?? null,
+        parentThreadId: thread.parentThreadId ?? null,
         archived: thread.archived,
         done: thread.done,
         doneAt: thread.doneAt ?? null,
@@ -146,6 +157,22 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       },
     })
     .run();
+  if (isNewRow) noteMainCreatedThread(thread.id);
+  notifyProjectThreadDataChanged();
+}
+
+/**
+ * Assign a thread to a sidebar group without touching its sort order (unlike
+ * `dbUpsertThread`, which requires one). Fallback for orchestrator grouping
+ * when no renderer window is up to own the metadata write.
+ */
+export function dbSetThreadGroup(threadId: string, groupId: string, groupName: string): void {
+  const db = getDb();
+  db.update(schema.threads)
+    .set({ groupId, groupName })
+    .where(eq(schema.threads.id, threadId))
+    .run();
+  notifyProjectThreadDataChanged();
 }
 
 /**
@@ -160,15 +187,19 @@ export function dbMarkLiveThreadsInactive(): void {
     .set({ status: "inactive", attention: "none", activeTurnStartedAt: null })
     .where(notInArray(schema.threads.status, ["inactive", "error"]))
     .run();
+  notifyProjectThreadDataChanged();
 }
 
 export function dbDeleteThread(threadId: string): void {
   const db = getDb();
   db.delete(schema.threads).where(eq(schema.threads.id, threadId)).run();
+  forgetMainCreatedThread(threadId);
+  notifyProjectThreadDataChanged();
 }
 
 export function dbDeleteProject(projectId: string): void {
   const db = getDb();
   db.delete(schema.projects).where(eq(schema.projects.id, projectId)).run();
   db.delete(schema.projectNotes).where(eq(schema.projectNotes.projectId, projectId)).run();
+  notifyProjectThreadDataChanged();
 }

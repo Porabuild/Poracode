@@ -19,6 +19,7 @@ import { NewThreadFlow } from "./NewThreadFlow";
  */
 export function QuickCompose(props: {
   readonly expanded: boolean;
+  readonly restoreWorktreeSelectionToken: number;
   readonly onExpandedChange: (expanded: boolean) => void;
   readonly onStarted: (threadId: string) => void;
 }) {
@@ -42,7 +43,10 @@ export function QuickCompose(props: {
       collapsedTapLabel={t`New thread`}
       onExpandedChange={onExpandedChange}
     >
-      <NewThreadFlow onStarted={onStarted} />
+      <NewThreadFlow
+        restoreWorktreeSelectionToken={props.restoreWorktreeSelectionToken}
+        onStarted={onStarted}
+      />
     </FloatingComposerDock>
   );
 }

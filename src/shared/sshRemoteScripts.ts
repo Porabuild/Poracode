@@ -1,3 +1,5 @@
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./remote/protocol";
+
 export const REMOTE_NODE_ENV_SCRIPT = String.raw`
 prepend_path_if_dir() {
   if [ -d "$1" ]; then
@@ -158,14 +160,32 @@ LOG_FILE="$STATE/server.log"
 DATA_DIR="$STATE/data"
 mkdir -p "$STATE" "$DATA_DIR"
 test -f "$RUNTIME/.ready" || { printf 'Poracode remote runtime is not installed.\n' >&2; exit 45; }
+APP_VERSION="$("$NODE" -p 'require(process.argv[1]).version' "$RUNTIME/package.json")"
 
 server_ready() {
-  "$NODE" - "$1" <<'NODE'
+  "$NODE" - "$1" "$2" <<'NODE'
 const http = require("node:http");
 const port = Number(process.argv[2]);
+const appVersion = process.argv[3];
 const req = http.get({ host: "127.0.0.1", port, path: "/.well-known/poracode/environment", timeout: 800 }, (res) => {
-  res.resume();
-  res.on("end", () => process.exit(res.statusCode === 200 ? 0 : 1));
+  let body = "";
+  res.setEncoding("utf8");
+  res.on("data", (chunk) => { body += chunk; });
+  res.on("end", () => {
+    try {
+      const descriptor = JSON.parse(body);
+      process.exit(
+        res.statusCode === 200 &&
+        descriptor.protocolVersion === ${PORACODE_REMOTE_PROTOCOL_VERSION} &&
+        descriptor.hostMode === "helper" &&
+        descriptor.appVersion === appVersion
+          ? 0
+          : 1
+      );
+    } catch {
+      process.exit(1);
+    }
+  });
 });
 req.on("timeout", () => { req.destroy(); process.exit(1); });
 req.on("error", () => process.exit(1));
@@ -192,7 +212,7 @@ NODE
 PID="$(cat "$PID_FILE" 2>/dev/null || true)"
 PORT="$(cat "$PORT_FILE" 2>/dev/null || true)"
 CURRENT_RUNTIME="$(cat "$RUNTIME_FILE" 2>/dev/null || true)"
-if [ -n "$PID" ] && [ -n "$PORT" ] && [ "$CURRENT_RUNTIME" = "$RUNTIME_HASH" ] && kill -0 "$PID" 2>/dev/null && server_ready "$PORT"; then
+if [ -n "$PID" ] && [ -n "$PORT" ] && [ "$CURRENT_RUNTIME" = "$RUNTIME_HASH" ] && kill -0 "$PID" 2>/dev/null && server_ready "$PORT" "$APP_VERSION"; then
   :
 else
   if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
@@ -205,7 +225,7 @@ else
     PORACODE_REMOTE_ACCESS_HOST=127.0.0.1 \
     PORACODE_REMOTE_ACCESS_ADVERTISED_HOST=127.0.0.1 \
     PORACODE_REMOTE_ACCESS_PORT="$PORT" \
-    PORACODE_APP_VERSION="$RUNTIME_HASH" \
+    PORACODE_APP_VERSION="$APP_VERSION" \
     PORACODE_WSL_HELPERS_DIR="$RUNTIME/wsl-helpers" \
     PORACODE_BUNDLED_SKILLS_DIR="$RUNTIME/skills" \
     PORACODE_BUNDLED_PLUGINS_DIR="$RUNTIME/plugins" \
@@ -217,13 +237,13 @@ else
   READY=0
   ATTEMPT=0
   while [ "$ATTEMPT" -lt 100 ]; do
-    if server_ready "$PORT"; then READY=1; break; fi
+    if server_ready "$PORT" "$APP_VERSION"; then READY=1; break; fi
     if ! kill -0 "$PID" 2>/dev/null; then break; fi
     ATTEMPT=$((ATTEMPT + 1))
     sleep 0.2
   done
   if [ "$READY" -ne 1 ]; then
-    printf 'The remote Poracode server did not become ready.\n' >&2
+    printf 'Poracode Helper failed to start or returned an incompatible protocol.\n' >&2
     tail -n 80 "$LOG_FILE" >&2 2>/dev/null || true
     kill "$PID" 2>/dev/null || true
     rm -f "$PID_FILE" "$PORT_FILE" "$RUNTIME_FILE"

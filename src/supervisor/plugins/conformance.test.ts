@@ -284,7 +284,6 @@ describe("mcp runtime", () => {
       version: "1.0.0",
       enabled: true,
       disabledSkillIds: [],
-      disabledAppIds: [],
       disabledMcpServerNames: [],
     },
   });
@@ -526,11 +525,7 @@ describe("shipped packages", () => {
       expect(result.diagnostics, `${name}: ${JSON.stringify(result.diagnostics)}`).toEqual([]);
       expect(result.plugin?.name).toBe(name);
       expect(result.plugin?.skills.length).toBeGreaterThan(0);
-      // Each package contributes at least one runnable server, either a
-      // Poracode-owned app or an mcp.json entry.
-      expect(
-        (result.plugin?.poracode.apps.length ?? 0) + (result.plugin?.mcpServers.length ?? 0),
-      ).toBeGreaterThan(0);
+      expect(result.plugin?.poracode.title).toBeTruthy();
     }
   });
 });

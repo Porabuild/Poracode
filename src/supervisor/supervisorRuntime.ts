@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { BUILT_IN_MCP_SERVER_IDS } from "@/shared/contracts";
 import type {
   AgentKind,
+  CaptureExperimentSnapshotPayload,
+  CaptureExperimentSnapshotResult,
   CloneRepoPayload,
   CloneRepoResult,
   DetectSetupScriptPayload,
@@ -14,11 +15,19 @@ import type {
   GitRemoveWorktreePayload,
   GitSyncPayload,
   GitSyncResult,
+  JudgeExperimentSnapshotPayload,
+  JudgeExperimentSnapshotResult,
   ProjectLocation,
+  RemoveExperimentWorktreesPayload,
+  RemoveExperimentWorktreesResult,
   RelocateProjectPayload,
   RelocateProjectResult,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
+import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
+import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
+import { msg } from "@/shared/messages";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { joinProjectPosixPath } from "@/shared/wsl";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
@@ -29,8 +38,8 @@ import {
 } from "./agents/base";
 import { setWslAttachmentBridgeClient } from "./runtime/threadAttachments";
 import { FileIndexService } from "./fileIndex";
-import { GitService, resolveBuiltInWorktreeRoot } from "./git";
-import { resolveWorktreePlacement } from "@/shared/worktree";
+import { GitService, resolveBuiltInWorktreeRoot, type CapturedExperimentSnapshot } from "./git";
+import { normalizeWorktreePathForComparison, resolveWorktreePlacement } from "@/shared/worktree";
 import { GitCheckpointService } from "./git/checkpointService";
 import { GitHubService } from "./github";
 import { ProjectWatcher } from "./projectWatcher";
@@ -40,15 +49,24 @@ import { detectWindowsShell, type WindowsShellPreference } from "./shellPreferen
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
+import { setWslCredentialProjectScope } from "./runtime/wslCredentials";
 import { AgentRegistryService } from "./runtime/agentRegistryService";
 import { GenerationService } from "./runtime/generationService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
-import { OrchestratorThreadManager } from "./subagentMcp/OrchestratorThreadManager";
-import { SubagentMcpIngress } from "./subagentMcp/SubagentMcpIngress";
-import { SubagentRunManager } from "./subagentMcp/SubagentRunManager";
-import { buildSpawnableAgents } from "./subagentMcp/toolRegistry";
+import { CrossagentMcpIngress } from "./crossagentMcp/CrossagentMcpIngress";
+import { SubagentRunManager } from "./crossagentMcp/SubagentRunManager";
+import { RoutingOverridePersistence } from "./crossagentMcp/RoutingOverridePersistence";
+import {
+  visibleCrossagentCapabilitiesForAdapter,
+  type CrossagentVisibilitySettings,
+} from "./crossagentMcp/availability";
+import { buildSpawnableAgents } from "./crossagentMcp/toolRegistry";
+import {
+  crossagentRoutingSnapshot,
+  listCrossagentEligibleProviders,
+} from "./crossagentMcp/routingSnapshot";
 import { dispatchAgentEvent } from "./runtime/agentEventDispatcher";
 import { hookDebugEnvelope, isPoracodeHookDebug } from "./runtime/hookDebug";
 import { SupervisorSharedSettingsCache } from "./runtime/supervisorSharedSettings";
@@ -61,10 +79,19 @@ import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 import { SkillsService } from "./skills/SkillsService";
-import { resolvePluginAppsForThreadConfig } from "@/shared/plugins/catalog";
 import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
+import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
+
+function toPublicExperimentSnapshot(
+  snapshot: CapturedExperimentSnapshot,
+): CaptureExperimentSnapshotResult {
+  return {
+    hash: snapshot.hash,
+    candidates: snapshot.candidates.map(({ diff: _diff, ...candidate }) => candidate),
+  };
+}
 
 export class SupervisorRuntime {
   private readonly isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -97,9 +124,10 @@ export class SupervisorRuntime {
   readonly skillsService: SkillsService;
   readonly pluginRegistry: PluginRegistry;
   private readonly pluginDataDir: string;
-  private readonly subagentMcpIngress: SubagentMcpIngress;
+  private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
-  private readonly orchestratorThreadManager: OrchestratorThreadManager;
+  private readonly routingOverridePersistence: RoutingOverridePersistence;
+  private readonly disposeWslCredentialProjectScope: () => void;
   private wslHookBridge: WslBridgeServer | undefined;
 
   readonly sessions: Map<string, SessionRuntime>;
@@ -144,6 +172,10 @@ export class SupervisorRuntime {
     this.settingsPath = paths.settingsPath;
     this.acpIconsDir = paths.acpIconsDir;
     this.sharedSettingsCache = new SupervisorSharedSettingsCache(this.settingsPath);
+    this.routingOverridePersistence = new RoutingOverridePersistence({
+      emit,
+      invalidateSettings: () => this.sharedSettingsCache.invalidate(),
+    });
     // The agent/ACP registry cluster. Constructed up front so the initial
     // adapter build below can run before the later-created services exist; those
     // dependencies (status/usage/hook-plugin/sessions) resolve lazily at call
@@ -157,16 +189,6 @@ export class SupervisorRuntime {
       getAgentStatusService: () => this.agentStatusService,
     });
     this.agentRegistryService.refreshAgentRegistryAdapters();
-    this.pluginRegistry = new PluginRegistry({
-      bundledPluginsDir: () => process.env.PORACODE_BUNDLED_PLUGINS_DIR?.trim() || undefined,
-      userPluginsDir: () => paths.pluginsDir,
-    });
-    this.pluginDataDir = paths.pluginDataDir;
-    this.skillsService = new SkillsService({
-      adapters: this.adapters,
-      readInstalledPlugins: () => this.sharedSettingsCache.readFresh().installedPlugins,
-      readPlugins: () => this.pluginRegistry.listPlugins(),
-    });
     mkdirSync(paths.cacheDir, { recursive: true });
     mkdirSync(this.logsDir, { recursive: true });
 
@@ -187,6 +209,18 @@ export class SupervisorRuntime {
       settingsPath: this.settingsPath,
       statusCachePath: paths.statusCachePath,
       emit,
+    });
+    this.pluginRegistry = new PluginRegistry({
+      bundledPluginsDir: () => process.env.PORACODE_BUNDLED_PLUGINS_DIR?.trim() || undefined,
+      userPluginsDir: () => paths.pluginsDir,
+    });
+    this.pluginDataDir = paths.pluginDataDir;
+    this.skillsService = new SkillsService({
+      adapters: this.adapters,
+      resolveAgentVersion: (kind, wslDistro) =>
+        this.agentStatusService.getCachedVersion(kind, wslDistro),
+      readInstalledPlugins: () => this.sharedSettingsCache.readFresh().installedPlugins,
+      readPlugins: () => this.pluginRegistry.listPlugins(),
     });
 
     // Boot the CLI hook plugin coordinator BEFORE the thread session manager so
@@ -284,7 +318,7 @@ export class SupervisorRuntime {
 
     this.cliHookPluginCoordinator.startIngress();
 
-    // Cross-provider subagents: an in-process MCP server (SubagentMcpIngress)
+    // Crossagents: an in-process MCP server (CrossagentMcpIngress)
     // lets any agent spawn the other connected agents as subagents. The run
     // manager owns child structured sessions; the ingress mints per-thread
     // tokens and routes tools/call to the caller's parent thread. The run
@@ -292,141 +326,105 @@ export class SupervisorRuntime {
     // closures resolve it lazily at call time).
     this.subagentRunManager = new SubagentRunManager({
       adapters: this.adapters,
+      // Validate spawn selections against the persisted status pipeline — the
+      // same source list_agents/get_agent (and the composer) are served from —
+      // so the executor never disagrees with the roster it advertised.
+      getStatusCapabilities: (kind) => {
+        const adapter = this.adapters.get(kind);
+        if (!adapter) return null;
+        const settings = this.sharedSettingsCache.read();
+        const cachedCapabilities = this.agentStatusService.getCachedCapabilities(kind);
+        if (cachedCapabilities === null) return null;
+        return visibleCrossagentCapabilitiesForAdapter(adapter, cachedCapabilities, settings);
+      },
       host: {
         getParentContext: (threadId) =>
           this.threadSessionManager.getSubagentParentContext(threadId),
-        applyPluginAppsToChild: (threadId, agentKind, config) =>
-          this.threadSessionManager.applyPluginAppsToSubagent(threadId, agentKind, config),
-        resolveParentMcpAccess: (threadId, identity, agentKind, config, disabledConfigKeys) =>
+        resolveParentMcpAccess: (threadId, identity, targetAgentKind) =>
           this.threadSessionManager.resolveSubagentParentMcpAccess(
             threadId,
             identity,
-            agentKind,
-            config,
-            disabledConfigKeys,
+            targetAgentKind,
           ),
         appendRuntimeEvent: (parentThreadId, event) =>
           this.threadSessionManager.appendSubagentRuntimeEvent(parentThreadId, event),
       },
     });
-    // Orchestrator lane of the subagents MCP: creates first-class child
-    // threads. Creation is main-orchestrated — the manager emits an
-    // `orchestrator-thread-created` supervisor event; main upserts the DB row,
-    // mirrors it to the renderer, and calls startThread back into this
-    // process. Host closures resolve the thread session manager lazily, same
-    // as the run manager above.
-    this.orchestratorThreadManager = new OrchestratorThreadManager({
-      adapters: this.adapters,
-      emit: (event) => this.emit(event),
-      host: {
-        getParentContext: (threadId) =>
-          this.threadSessionManager.getSubagentParentContext(threadId),
-        getThreadState: (threadId) =>
-          this.threadSessionManager.getOrchestratorThreadState(threadId),
-        readThreadHistory: (threadId) => this.threadSessionManager.readThreadHistory(threadId),
-        sendThreadInput: (payload) => this.threadSessionManager.sendThreadInput(payload),
-        interruptThread: (threadId) => this.threadSessionManager.interruptThread({ threadId }),
-        // Tear down the child's runtime session to free a cap slot. Reuses the
-        // same closeThread that removes the session from the TSM map (which is
-        // what makes getOrchestratorThreadState — and thus the live-child count
-        // — drop the child). The persisted thread row + worktree remain.
-        closeThread: (threadId) => this.threadSessionManager.closeThread({ threadId }),
-      },
-      // Same worktree pipeline the renderer-driven `gitAddWorktree` procedure
-      // uses, with placement resolved from global settings (per-project
-      // overrides live in the renderer DB and aren't visible here).
-      createWorktree: async ({ location, branch, baseBranch }) => {
-        const placement = resolveWorktreePlacement(
-          this.sharedSettingsCache.read(),
-          undefined,
-          location,
-        );
-        const result = await this.gitService.addWorktree(
-          location,
-          undefined,
-          branch,
-          true,
-          baseBranch,
-          undefined,
-          false,
-          false,
-          {
-            ...(placement.root ? { root: placement.root } : {}),
-            ...(placement.omitRepoDir ? { omitRepoDir: true } : {}),
-          },
-        );
-        return { path: result.path };
-      },
-      // Roll back a worktree created by a create_thread call that then failed to
-      // launch (force removal + branch delete), so a ticket-keyed retry isn't
-      // poisoned by a leftover branch.
-      removeWorktree: async ({ location, path }) => {
-        await this.gitService.removeWorktree(location, path, true, true);
-      },
-    });
-    this.subagentMcpIngress = new SubagentMcpIngress({
+    this.crossagentMcpIngress = new CrossagentMcpIngress({
       runManager: this.subagentRunManager,
-      orchestrator: this.orchestratorThreadManager,
-      getSpawnableAgents: async () => {
-        const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
-        return buildSpawnableAgents(this.adapters, windows);
-      },
+      getSpawnableAgents: (tags) => this.getCrossagentSpawnableAgents(tags),
+      resolveProviderSessionThreadId: (sessionId) =>
+        this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
       // User-configured routing guidance, read live from shared settings (the
       // cache invalidates on file change) so edits take effect on the next turn
       // without a supervisor restart. Empty/whitespace-only = no guidance.
       getRoutingGuide: () => {
-        const guide = this.sharedSettingsCache.read().subagentRoutingGuide.trim();
+        const guide = this.sharedSettingsCache.read().crossagentRoutingGuide.trim();
         return guide.length > 0 ? guide : undefined;
       },
+      recordExplicitSelections: (selections) => {
+        const validSelections = selections.flatMap(({ selection, explicitFields, tags }) =>
+          selection.model
+            ? [
+                {
+                  agentKind: selection.agent,
+                  modelId: selection.model,
+                  ...(selection.effort ? { effort: selection.effort } : {}),
+                  fast: selection.fast === true,
+                  ...(tags.length > 0 ? { tags } : {}),
+                  explicitFields,
+                },
+              ]
+            : [],
+        );
+        if (validSelections.length === 0) return;
+        emit({
+          type: "crossagent-selection-used",
+          selections: validSelections,
+        });
+      },
+      listRoutingOverrides: () => this.sharedSettingsCache.read().crossagentRoutingOverrides,
+      setRoutingOverride: (override) => {
+        return this.routingOverridePersistence.persist({ action: "set", override });
+      },
+      removeRoutingOverride: (tags) => {
+        return this.routingOverridePersistence.persist({
+          action: "remove",
+          tags: [...tags],
+        });
+      },
     });
-    void this.subagentMcpIngress.start().catch((error) => {
-      console.warn("[supervisor] subagent MCP ingress failed to start:", error);
+    void this.crossagentMcpIngress.start().catch((error) => {
+      console.warn("[supervisor] Crossagents MCP ingress failed to start:", error);
     });
 
     this.threadSessionManager = new ThreadSessionManager({
-      // Tap the outbound stream so the orchestrator lane can track child
-      // thread-state transitions (wait_for_thread) without polling.
-      emit: (event) => {
-        this.orchestratorThreadManager.observeSupervisorEvent(event);
-        emit(event);
-      },
+      emit,
       isDev: this.isDev,
       logsDir: this.logsDir,
       settingsPath: this.settingsPath,
       readDisableCliHookPlugin: () => this.sharedSettingsCache.read().disableCliHookPlugin,
-      readDisabledBuiltInMcpServerIds: () => {
-        const disabled = this.sharedSettingsCache.readFresh().disabledBuiltInMcpServers;
-        return BUILT_IN_MCP_SERVER_IDS.filter((id) => disabled[id] === true);
-      },
-      readDisabledBuiltInMcpTools: () =>
-        this.sharedSettingsCache.readFresh().disabledBuiltInMcpTools,
       adapters: this.adapters,
       windowsShell: this.windowsShell,
       ...(this.wslHookBridge ? { wslBridge: this.wslHookBridge } : {}),
       resolvePluginEnvForSpawn: (input) =>
         this.cliHookPluginCoordinator.resolvePluginEnvForSpawn(input),
-      subagentMcp: {
+      crossagentMcp: {
         register: (threadId, disabledTools) =>
-          this.subagentMcpIngress.registerThread(threadId, disabledTools),
-        unregister: (threadId) => this.subagentMcpIngress.unregisterThread(threadId),
+          this.crossagentMcpIngress.registerThread(threadId, disabledTools),
+        registerProviderSession: (threadId, disabledTools) =>
+          this.crossagentMcpIngress.registerProviderSessionThread(threadId, disabledTools),
+        unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
+        cancelForeground: (threadId) => this.subagentRunManager.cancelForegroundForThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
         resolveChildRequest: (requestId, response) =>
           this.subagentRunManager.resolveChildServerRequest(requestId, response),
       },
-      subagentMcpHostAccess: {
+      wslHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
       },
       applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
       prepareMcpToolFilters,
-      applyPluginAppsToConfig: (config, context) => {
-        const installedPlugins = this.sharedSettingsCache.readFresh().installedPlugins;
-        return resolvePluginAppsForThreadConfig(
-          config,
-          this.pluginRegistry.listPlugins(),
-          installedPlugins,
-          { ...context, hostPlatform: process.platform },
-        );
-      },
       resolvePluginMcpServers: () =>
         resolvePluginMcpServers(
           this.pluginRegistry.listPlugins(),
@@ -440,8 +438,6 @@ export class SupervisorRuntime {
           console.warn("[skills] failed to prepare provider skill projections:", error);
         }
       },
-      filterPluginSkillSegments: (segments, context) =>
-        this.skillsService.filterPluginSkillSegments(segments, context),
       buildSkillTurnInjection: async (input) => {
         try {
           return await this.skillsService.buildTurnSkillInjection(input);
@@ -464,6 +460,13 @@ export class SupervisorRuntime {
     this.sessions = this.threadSessionManager.sessions;
     this.shellSessions = this.threadSessionManager.shellSessions;
 
+    // The usage credential WSL fallback boots every installed distro (and
+    // keeps its VM alive via the resident bridge) just to look for tokens.
+    // Restrict it to when the user actually uses WSL — a watched WSL project
+    // or a live WSL session — so a Windows-only setup never spins up VmmemWSL.
+    this.disposeWslCredentialProjectScope = setWslCredentialProjectScope(() =>
+      this.hasActiveWslContext(),
+    );
     this.usageService = new UsageService({
       emit,
       cachePath: join(paths.cacheDir, "provider-usage.json"),
@@ -479,6 +482,7 @@ export class SupervisorRuntime {
       adapters: this.adapters,
       readTerminalScrollback: (threadId) =>
         this.threadSessionManager.readTerminalScrollback(threadId),
+      wslBridgeClient: this.wslBridgeClient,
     });
 
     // One-time-per-machine icon repair: localize any acp-generic icon still on
@@ -486,6 +490,28 @@ export class SupervisorRuntime {
     // through a network round-trip on every start. No-op (no network) once all
     // icons are local. Fire-and-forget — never blocks the window from opening.
     void this.agentRegistryService.cacheLocalAcpIconsOnLaunch();
+  }
+
+  async getCrossagentSpawnableAgents(contextTags: readonly string[] = []) {
+    const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
+    const settings: CrossagentVisibilitySettings = this.sharedSettingsCache.read();
+    return buildSpawnableAgents(this.adapters, windows, settings, contextTags);
+  }
+
+  async getCrossagentRoutingSnapshot(): Promise<CrossagentRoutingState> {
+    const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
+    const settings = this.sharedSettingsCache.read();
+    return {
+      ranked: crossagentRoutingSnapshot(
+        buildSpawnableAgents(this.adapters, windows, settings),
+        crossagentRankingPreferences(settings),
+      ),
+      providers: listCrossagentEligibleProviders(this.adapters, windows, settings),
+    };
+  }
+
+  confirmCrossagentRoutingOverride(payload: ConfirmCrossagentRoutingOverridePayload): void {
+    this.routingOverridePersistence.confirm(payload);
   }
 
   /** Distinct WSL distros hosting a live `antigravity` session (the only
@@ -499,42 +525,157 @@ export class SupervisorRuntime {
     return [...distros];
   }
 
+  /**
+   * True when the user actively uses WSL: a watched (non-disabled) project
+   * lives in a distro, or a live session does. Gates the usage credential
+   * WSL fallback so it never boots a distro on its own.
+   */
+  private hasActiveWslContext(): boolean {
+    if (this._projectWatcher?.hasWslProjects()) return true;
+    for (const session of this.sessions.values()) {
+      if (!session.ptyExited && session.projectLocation.kind === "wsl") return true;
+    }
+    return false;
+  }
+
   async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {
-    const normalizedTarget = payload.path.replace(/\\/g, "/").toLowerCase();
+    await this.prepareWorktreeRemovals([payload.path]);
+    return this.gitService.removeWorktree(
+      payload.projectLocation,
+      payload.path,
+      payload.force,
+      payload.deleteBranch,
+      payload.expectedBranch,
+      payload.expectedOwnerToken,
+    );
+  }
+
+  async removeExperimentWorktrees(
+    payload: RemoveExperimentWorktreesPayload,
+  ): Promise<RemoveExperimentWorktreesResult> {
+    return this.gitService.removeExperimentWorktrees(payload, async (worktrees) => {
+      await this.prepareWorktreeRemovals(worktrees.map((worktree) => worktree.path));
+    });
+  }
+
+  async captureExperimentSnapshot(
+    payload: CaptureExperimentSnapshotPayload,
+  ): Promise<CaptureExperimentSnapshotResult> {
+    const snapshot = await this.gitService.captureExperimentSnapshot(payload);
+    return toPublicExperimentSnapshot(snapshot);
+  }
+
+  async judgeExperimentSnapshot(
+    payload: JudgeExperimentSnapshotPayload,
+  ): Promise<JudgeExperimentSnapshotResult> {
+    if (payload.mode === "responses") {
+      const snapshot = captureExperimentResponseSnapshot(
+        payload,
+        (threadId) => this.threadSessionManager.readTerminalScrollback(threadId),
+        (candidate) => {
+          this.emit({
+            type: "experiment-judge-progress",
+            experimentId: payload.experimentId,
+            progress: {
+              kind: "captured-response",
+              threadId: candidate.threadId,
+              characters: candidate.characters,
+            },
+          });
+        },
+      );
+      this.emit({
+        type: "experiment-judge-progress",
+        experimentId: payload.experimentId,
+        progress: { kind: "judging" },
+      });
+      const judgement = await this.generationService.judgeExperiment({
+        experimentId: payload.experimentId,
+        projectLocation: payload.projectLocation,
+        agentKind: payload.agentKind,
+        ...(payload.model ? { model: payload.model } : {}),
+        ...(payload.effort ? { effort: payload.effort } : {}),
+        ...(payload.fast !== undefined ? { fast: payload.fast } : {}),
+        mode: "responses",
+        prompt: payload.prompt,
+        candidates: snapshot.candidates,
+      });
+      return { hash: snapshot.hash, ...judgement };
+    }
+
+    const snapshot = await this.gitService.captureExperimentSnapshot(payload, (candidate) => {
+      this.emit({
+        type: "experiment-judge-progress",
+        experimentId: payload.experimentId,
+        progress: {
+          kind: "captured",
+          threadId: candidate.threadId,
+          files: candidate.files,
+          insertions: candidate.insertions,
+          deletions: candidate.deletions,
+          ...(candidate.omittedFiles ? { omittedFiles: candidate.omittedFiles } : {}),
+        },
+      });
+    });
+    if (snapshot.candidates.every((candidate) => !candidate.diff.trim())) {
+      throw new Error(msg("experiment.judge.noChanges"));
+    }
+    this.emit({
+      type: "experiment-judge-progress",
+      experimentId: payload.experimentId,
+      progress: { kind: "judging" },
+    });
+    const judgement = await this.generationService.judgeExperiment({
+      experimentId: payload.experimentId,
+      projectLocation: payload.projectLocation,
+      agentKind: payload.agentKind,
+      ...(payload.model ? { model: payload.model } : {}),
+      ...(payload.effort ? { effort: payload.effort } : {}),
+      ...(payload.fast !== undefined ? { fast: payload.fast } : {}),
+      mode: "changes",
+      prompt: payload.prompt,
+      candidates: snapshot.candidates.map((candidate) => ({
+        threadId: candidate.threadId,
+        diff: candidate.diff,
+        ...(candidate.omittedFiles ? { omittedFiles: candidate.omittedFiles } : {}),
+      })),
+    });
+    return { ...toPublicExperimentSnapshot(snapshot), ...judgement };
+  }
+
+  private async prepareWorktreeRemovals(paths: readonly string[]): Promise<void> {
+    const normalizePath = (path: string) => normalizeWorktreePathForComparison(path, true);
+    const normalizedTargets = new Set(paths.map(normalizePath));
+    const threadIds = new Set<string>();
 
     for (const [threadId, session] of this.sessions) {
       const sessionPath =
         session.projectLocation.kind === "wsl"
           ? session.projectLocation.uncPath
           : session.projectLocation.path;
-      if (sessionPath.replace(/\\/g, "/").toLowerCase() === normalizedTarget) {
-        await this.threadSessionManager.closeThread({ threadId }).catch((error) => {
-          console.warn(
-            `[supervisor] failed to close thread ${threadId} during worktree removal:`,
-            error,
-          );
-        });
+      if (normalizedTargets.has(normalizePath(sessionPath))) {
+        threadIds.add(threadId);
       }
     }
 
     for (const [threadId, shell] of this.shellSessions) {
-      if (shell.worktreePath?.replace(/\\/g, "/").toLowerCase() === normalizedTarget) {
-        await this.threadSessionManager.closeThread({ threadId }).catch((error) => {
-          console.warn(
-            `[supervisor] failed to close shell thread ${threadId} during worktree removal:`,
-            error,
-          );
-        });
+      const shellPath = shell.worktreePath ? normalizePath(shell.worktreePath) : undefined;
+      if (shellPath && normalizedTargets.has(shellPath)) {
+        threadIds.add(threadId);
       }
     }
 
-    await this.projectWatcher.unwatchWorktree(payload.path);
-    return this.gitService.removeWorktree(
-      payload.projectLocation,
-      payload.path,
-      payload.force,
-      payload.deleteBranch,
+    await Promise.all(
+      [...threadIds].map((threadId) =>
+        this.threadSessionManager.closeThread({ threadId }).catch((error) => {
+          console.warn(
+            `[supervisor] failed to close thread ${threadId} during worktree removal:`,
+            error,
+          );
+        }),
+      ),
     );
+    await Promise.all(paths.map((path) => this.projectWatcher.unwatchWorktree(path)));
   }
 
   async gitPruneWorktrees(payload: GitPruneWorktreesPayload): Promise<void> {
@@ -687,24 +828,40 @@ export class SupervisorRuntime {
     return {};
   }
 
+  releaseWslBridgeIfUnused(distro: string): void {
+    const hasLiveSession = [...this.sessions.values()].some(
+      (session) =>
+        session.status !== "inactive" &&
+        session.projectLocation.kind === "wsl" &&
+        session.projectLocation.distro === distro,
+    );
+    if (!hasLiveSession) {
+      this.wslHookBridge?.releaseBridge(distro);
+    }
+  }
+
   dispose(): void {
     void this.disposeAsync();
   }
 
   async disposeAsync(): Promise<void> {
+    this.disposeWslCredentialProjectScope();
+    this.routingOverridePersistence.dispose();
     this.usageService.stop();
     this.mcpProbeService.dispose();
     this.mcpOAuthService.dispose();
     this.lspManager.dispose();
     await this._projectWatcher?.dispose();
     await this.threadSessionManager.dispose();
-    this.subagentMcpIngress.dispose();
+    this.crossagentMcpIngress.dispose();
     this.sharedSettingsCache.dispose();
     await this.cliHookPluginCoordinator.dispose().catch((error) => {
       console.warn("[supervisor] CLI hook plugin coordinator dispose failed:", error);
     });
     const { shutdownSpawnedOpenCodeServers } = await import("./agents/opencode/sdkClient");
     shutdownSpawnedOpenCodeServers();
+    const { shutdownSpawnedCodexAppServers } = await import("./agents/codex/serverPool");
+    shutdownSpawnedCodexAppServers();
   }
 
   private handlePtyData(session: SessionRuntime, data: string): void {

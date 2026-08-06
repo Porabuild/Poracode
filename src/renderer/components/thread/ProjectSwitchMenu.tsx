@@ -1,19 +1,29 @@
 import { startTransition, useState } from "react";
 import { Check, ChevronDown, FolderOpen, House, Monitor } from "lucide-react";
-import { Dropdown, Label } from "@heroui/react";
-import { useLingui } from "@lingui/react/macro";
-import { useShallow } from "zustand/shallow";
+import { Description, Dropdown, Header, Label } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { makeDraftPaneId } from "@/shared/paneId";
+import { switchWorkspaceForProject } from "@/renderer/actions/workspaceActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { rememberWorkspaceProject } from "@/renderer/state/workspaceStore";
 import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
 } from "@/renderer/components/common/ResponsiveMenuSurface";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import {
+  ProjectRemoteServerIcon,
+  useProjectRemoteServerLookup,
+  type ProjectRemoteServerInfo,
+} from "@/renderer/components/common/ProjectRemoteServer";
+import { useProjectSwitchGroups, type ProjectSwitchEntry } from "./projectSwitchGroups";
 
-function LocationIcon(props: { kind: Project["location"]["kind"]; className?: string }) {
+function LocationIcon(props: {
+  kind: Project["location"]["kind"];
+  className?: string | undefined;
+}) {
   if (props.kind === "wsl") {
     return (
       <span className={`${props.className ?? "size-3.5"} relative shrink-0 text-muted`}>
@@ -28,6 +38,33 @@ function LocationIcon(props: { kind: Project["location"]["kind"]; className?: st
   return <FolderOpen className={className} />;
 }
 
+/**
+ * Leading glyph for a project row. A mirrored project is marked by the machine
+ * hosting it rather than by its path kind — which machine it lives on is what
+ * distinguishes it from the same-named project on this one.
+ */
+function ProjectIcon(props: {
+  project: Project;
+  remote: ProjectRemoteServerInfo;
+  className?: string | undefined;
+}) {
+  if (isHomeProject(props.project)) {
+    return <House className={`${props.className ?? "size-4"} shrink-0 text-muted`} />;
+  }
+  if (props.remote.isRemote) {
+    // The compact glyph with the small status light — same treatment as the
+    // flat list's row tags, a step below the location/Home glyphs beside it.
+    return (
+      <ProjectRemoteServerIcon
+        info={props.remote}
+        className={`${props.className ?? "size-3.5"} text-muted`}
+        dotClassName="size-1"
+      />
+    );
+  }
+  return <LocationIcon kind={props.project.location.kind} className={props.className} />;
+}
+
 export function ProjectSwitchMenu(props: {
   currentProjectId: string;
   variant: "hero" | "compact";
@@ -38,31 +75,45 @@ export function ProjectSwitchMenu(props: {
 }) {
   const { currentProjectId, variant, paneId, onSelectProject } = props;
   const { t } = useLingui();
-  // Show every selectable project. Home is intentionally stored with
-  // `disabled: true` as an internal marker (it's not a user-disabled
-  // project), so we let it through the filter and only exclude
-  // user-disabled regular projects.
-  const projects = useAppStore(
-    useShallow((state) => state.projects.filter((p) => isHomeProject(p) || !p.disabled)),
-  );
+  // Projects the active workspace hides are grouped under their own heading
+  // rather than dropped: switching workspaces should not make a project
+  // unreachable from the composer, and picking one moves the workspace along
+  // with the draft (see `handleSelect`).
+  const { all, inWorkspace, others, activeWorkspaceName } = useProjectSwitchGroups();
+  const remoteServerFor = useProjectRemoteServerLookup();
   const openDraft = useAppStore((state) => state.openDraft);
   const replacePaneId = useAppStore((state) => state.replacePaneId);
   const discardDraftContent = useAppStore((state) => state.discardDraftContent);
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
 
-  const current = projects.find((p) => p.id === currentProjectId);
+  // Sectioned only when there is something to separate; a single-workspace
+  // install keeps the plain list it has always had.
+  const sectioned = others.length > 0 && activeWorkspaceName !== undefined;
+  const current = all.find((entry) => entry.project.id === currentProjectId)?.project;
   const isHomeCurrent = isHomeProjectId(currentProjectId);
   const label = isHomeCurrent ? HOME_PROJECT_NAME : (current?.name ?? t`Select project`);
+  const currentRemote = remoteServerFor(current);
   const triggerIcon = isHomeCurrent ? (
     <House className="size-3.5 shrink-0 text-muted" />
   ) : current ? (
-    <LocationIcon kind={current.location.kind} className="size-3.5" />
+    <ProjectIcon project={current} remote={currentRemote} className="size-3.5" />
   ) : null;
-  const isDisabled = projects.length <= 1;
+  // The machine trails the name, so the project stays the thing you read first.
+  const triggerMachine = currentRemote.serverName ? (
+    <span className="min-w-0 shrink truncate text-xs text-muted/60">
+      {currentRemote.serverName}
+    </span>
+  ) : null;
+  const isDisabled = all.length <= 1;
 
   function handleSelect(nextProjectId: string) {
     if (nextProjectId === currentProjectId) return;
+    // Follow the project into its workspace, otherwise the thread the user is
+    // about to start lands in a sidebar that does not list it. Done for the
+    // embedded surfaces too (Quick Composer) for the same reason.
+    switchWorkspaceForProject(nextProjectId);
+    rememberWorkspaceProject(nextProjectId);
     if (onSelectProject) {
       onSelectProject(nextProjectId);
       return;
@@ -74,6 +125,57 @@ export function ProjectSwitchMenu(props: {
       } else {
         openDraft(nextProjectId);
       }
+    });
+  }
+
+  /** Finger-sized rows for the mobile bottom drawer. */
+  function sheetRows(entries: readonly ProjectSwitchEntry[]) {
+    return entries.map(({ project, otherWorkspaceName }) => {
+      const isHome = isHomeProject(project);
+      const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
+      const selected = project.id === currentProjectId;
+      const remote = remoteServerFor(project);
+      return (
+        <button
+          key={project.id}
+          type="button"
+          className="m-sheet-action"
+          aria-pressed={selected || undefined}
+          onClick={() => {
+            setIsOpen(false);
+            handleSelect(project.id);
+          }}
+        >
+          <ProjectIcon project={project} remote={remote} />
+          <span className="min-w-0 flex-1 truncate">{itemLabel}</span>
+          {remote.serverName ? (
+            <span className="max-w-28 shrink-0 truncate text-xs text-muted/60">
+              {remote.serverName}
+            </span>
+          ) : null}
+          {otherWorkspaceName ? (
+            <span className="shrink-0 truncate text-xs text-muted">{otherWorkspaceName}</span>
+          ) : null}
+          {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
+        </button>
+      );
+    });
+  }
+
+  function menuItems(entries: readonly ProjectSwitchEntry[]) {
+    return entries.map(({ project, otherWorkspaceName }) => {
+      const isHome = isHomeProject(project);
+      const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
+      const remote = remoteServerFor(project);
+      // Machine and workspace are both "where this project lives" — one slot.
+      const description = [remote.serverName, otherWorkspaceName].filter(Boolean).join(" · ");
+      return (
+        <Dropdown.Item key={project.id} id={project.id} textValue={itemLabel}>
+          <ProjectIcon project={project} remote={remote} />
+          <Label>{itemLabel}</Label>
+          {description ? <Description>{description}</Description> : null}
+        </Dropdown.Item>
+      );
     });
   }
 
@@ -109,6 +211,7 @@ export function ProjectSwitchMenu(props: {
               <>
                 {triggerIcon}
                 <span className="min-w-0 truncate">{label}</span>
+                {triggerMachine}
               </>
             )}
             {!isDisabled ? <ChevronDown className="size-3 shrink-0 text-muted/60" /> : null}
@@ -116,31 +219,18 @@ export function ProjectSwitchMenu(props: {
         }
       >
         <div className="m-sheet-list">
-          {projects.map((project) => {
-            const isHome = isHomeProject(project);
-            const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
-            const selected = project.id === currentProjectId;
-            return (
-              <button
-                key={project.id}
-                type="button"
-                className="m-sheet-action"
-                aria-pressed={selected || undefined}
-                onClick={() => {
-                  setIsOpen(false);
-                  handleSelect(project.id);
-                }}
-              >
-                {isHome ? (
-                  <House className="size-4 shrink-0 text-muted" />
-                ) : (
-                  <LocationIcon kind={project.location.kind} />
-                )}
-                <span className="flex-1 truncate">{itemLabel}</span>
-                {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
-              </button>
-            );
-          })}
+          {sectioned ? (
+            <>
+              <div className="m-sheet-section">{activeWorkspaceName}</div>
+              {sheetRows(inWorkspace)}
+              <div className="m-sheet-section">
+                <Trans>Other workspaces</Trans>
+              </div>
+              {sheetRows(others)}
+            </>
+          ) : (
+            sheetRows(all)
+          )}
         </div>
       </ResponsiveMenuSurface>
     );
@@ -154,20 +244,20 @@ export function ProjectSwitchMenu(props: {
       onAction={(key) => handleSelect(String(key))}
       className="poracode-menu min-w-56"
     >
-      {projects.map((project) => {
-        const isHome = isHomeProject(project);
-        const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
-        return (
-          <Dropdown.Item key={project.id} id={project.id} textValue={itemLabel}>
-            {isHome ? (
-              <House className="size-4 shrink-0 text-muted" />
-            ) : (
-              <LocationIcon kind={project.location.kind} />
-            )}
-            <Label>{itemLabel}</Label>
-          </Dropdown.Item>
-        );
-      })}
+      {sectioned
+        ? [
+            <Dropdown.Section key="active-workspace">
+              <Header>{activeWorkspaceName}</Header>
+              {menuItems(inWorkspace)}
+            </Dropdown.Section>,
+            <Dropdown.Section key="other-workspaces">
+              <Header>
+                <Trans>Other workspaces</Trans>
+              </Header>
+              {menuItems(others)}
+            </Dropdown.Section>,
+          ]
+        : menuItems(all)}
     </Dropdown.Menu>
   );
 
@@ -200,6 +290,7 @@ export function ProjectSwitchMenu(props: {
       >
         {triggerIcon}
         <span className="min-w-0 truncate">{label}</span>
+        {triggerMachine}
         {!isDisabled ? (
           <ChevronDown className="size-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
         ) : null}

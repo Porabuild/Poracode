@@ -8,8 +8,11 @@ import {
   remotePortUnforwardRequestSchema,
   remotePortsStateSchema,
   remoteProjectCommandSchema,
+  remoteProjectSettingsSchema,
   remotePushRegistrationSchema,
   remotePushUnregisterSchema,
+  remoteRuntimeItemsPageRequestSchema,
+  remoteTimelineEntryCountSchema,
   remoteSettingsPatchSchema,
   remoteScheduleCommandSchema,
   remoteTokenExchangePayloadSchema,
@@ -19,9 +22,13 @@ import {
 import {
   closeThreadPayloadSchema,
   clearPendingSteerPayloadSchema,
+  controlThreadGoalPayloadSchema,
   interruptThreadPayloadSchema,
+  prWatchInputSchema,
+  prWatchKeySchema,
   profileIdentitySchema,
   profileStatsRequestSchema,
+  projectNotesSchema,
   emptyMcpLaunchSnapshot,
   remoteThreadCommandSchema,
   resizeTerminalPayloadSchema,
@@ -32,11 +39,17 @@ import {
   startThreadPayloadSchema,
   writeTerminalPayloadSchema,
 } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
+import { dbTruncateRuntimeItemsPayloadSchema } from "@/shared/ipc/schemas";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
+  dbGetProject,
+  dbGetProjectNotes,
   dbGetThread,
+  dbSetProjectNotes,
+  dbTruncateThreadRuntimeAfter,
 } from "../../db";
 import {
   getProfileCoreStats,
@@ -44,7 +57,11 @@ import {
   getProfileTokenStats,
   setProfileIdentityResponse,
 } from "../../profile";
-import { RemoteHttpError } from "../auth";
+import { parseBearerAuthorizationHeader, RemoteHttpError } from "../auth";
+import {
+  assertRemoteThreadCommandExperimentSafe,
+  assertRemoteThreadStartExperimentSafe,
+} from "../experimentOwnership";
 import {
   buildForwardEnterErrorPageHtml,
   buildLocalPairingIconSvg,
@@ -54,21 +71,30 @@ import {
 } from "../pairingPage";
 import { tryServeBuiltMobileApp } from "../staticMobileApp";
 import type { RemoteServerContext } from "./context";
-import { writeError, writeHtml, writeJson, writeText } from "./httpResponses";
+import {
+  writeError,
+  writeHtml,
+  writeJson,
+  writeNegotiatedJsonResponse,
+  writeText,
+} from "./httpResponses";
+import { writeLocalImageFile } from "./localImageFile";
+import { parseImageRefPath, resolveImageRef } from "./imageRefProjection";
 import {
   buildForwardSessionCookieHeader,
   isReservedForwardProxyPath,
   proxyForwardedHttpRequest,
 } from "./portForwardProxy";
-import { readJsonBody } from "./requestBody";
+import { readAttachmentBody, readJsonBody } from "./requestBody";
 import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT } from "./security";
 import {
   buildAgentStatuses,
   buildShellSnapshot,
   buildThreadSnapshot,
+  buildThreadRuntimeItemsPage,
   descriptor,
 } from "./snapshots";
-import { applyRemoteThreadCommand, runGitCall, runProjectCommand } from "./threadCommands";
+import { applyRemoteThreadCommand, runProjectCommand, runRemoteProcedure } from "./threadCommands";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
 
 export function threadIdFromPath(pathname: string, suffix: string): string | null {
@@ -81,6 +107,17 @@ export function threadIdFromPath(pathname: string, suffix: string): string | nul
   try {
     const threadId = decodeURIComponent(raw);
     return threadId.includes("/") ? null : threadId;
+  } catch {
+    return null;
+  }
+}
+
+function projectIdFromPath(pathname: string, suffix: string): string | null {
+  const match = new RegExp(`^/api/projects/([^/]+)/${suffix}$`).exec(pathname);
+  if (!match?.[1]) return null;
+  try {
+    const projectId = decodeURIComponent(match[1]);
+    return projectId.includes("/") ? null : projectId;
   } catch {
     return null;
   }
@@ -109,6 +146,11 @@ const THREAD_POST_ROUTES: ReadonlyArray<{
     suffix: "/interrupt",
     scope: "session:operate",
     dispatch: (call, body) => call("interruptThread", interruptThreadPayloadSchema.parse(body)),
+  },
+  {
+    suffix: "/goal",
+    scope: "session:operate",
+    dispatch: (call, body) => call("controlThreadGoal", controlThreadGoalPayloadSchema.parse(body)),
   },
   {
     suffix: "/close",
@@ -290,7 +332,7 @@ export async function handleHttp(
       writeText(
         res,
         200,
-        buildLocalPairingServiceWorkerJs(),
+        buildLocalPairingServiceWorkerJs(ctx.options.appVersion),
         "application/javascript; charset=utf-8",
       );
       return;
@@ -330,7 +372,7 @@ export async function handleHttp(
       writeJson(
         res,
         200,
-        ctx.auth.exchangePairingCredential({
+        ctx.exchangePairingCredential({
           credential: payload.credential,
           ...(payload.scopes ? { scopes: payload.scopes } : {}),
           ...(payload.client ? { client: payload.client } : {}),
@@ -345,17 +387,183 @@ export async function handleHttp(
     }
     if (req.method === "GET" && url.pathname === "/api/snapshot") {
       ctx.security.requireBearer(req, ["session:read"]);
-      writeJson(res, 200, buildShellSnapshot(ctx));
+      await writeNegotiatedJsonResponse(req, res, 200, buildShellSnapshot(ctx));
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/agent-statuses") {
       ctx.security.requireBearer(req, ["session:read"]);
-      writeJson(res, 200, await buildAgentStatuses(ctx));
+      await writeNegotiatedJsonResponse(req, res, 200, await buildAgentStatuses(ctx));
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/host-update") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const updates = ctx.options.updates;
+      if (!updates) {
+        throw new RemoteHttpError(
+          "host_update_unavailable",
+          "This host cannot update itself remotely.",
+          503,
+        );
+      }
+      writeJson(res, 200, {
+        currentVersion: updates.currentVersion(),
+        status: updates.status(),
+      });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/host-update/check") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const updates = ctx.options.updates;
+      if (!updates) {
+        throw new RemoteHttpError(
+          "host_update_unavailable",
+          "This host cannot update itself remotely.",
+          503,
+        );
+      }
+      if (updates.status()?.type !== "downloaded") {
+        await updates.check();
+      }
+      writeJson(res, 200, {
+        currentVersion: updates.currentVersion(),
+        status: updates.status(),
+      });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/host-update/install") {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const updates = ctx.options.updates;
+      if (!updates) {
+        throw new RemoteHttpError(
+          "host_update_unavailable",
+          "This host cannot update itself remotely.",
+          503,
+        );
+      }
+      if (updates.status()?.type !== "downloaded") {
+        throw new RemoteHttpError(
+          "host_update_not_ready",
+          "No host update is ready to install.",
+          409,
+        );
+      }
+      writeJson(res, 202, {});
+      setImmediate(() => updates.install());
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/provider-usage") {
       ctx.security.requireBearer(req, ["session:read"]);
       writeJson(res, 200, await ctx.options.callSupervisor("getProviderUsage", {}));
+      return;
+    }
+    const notesProjectId = projectIdFromPath(url.pathname, "notes");
+    if (notesProjectId && req.method === "GET") {
+      ctx.security.requireBearer(req, ["session:read"]);
+      if (!dbGetProject(notesProjectId)) {
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+      }
+      writeJson(res, 200, { notes: dbGetProjectNotes(notesProjectId) });
+      return;
+    }
+    if (notesProjectId && req.method === "POST") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      if (!dbGetProject(notesProjectId)) {
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+      }
+      const notes = projectNotesSchema.parse(await readJsonBody(req));
+      if (notes.projectId !== notesProjectId) {
+        throw new RemoteHttpError(
+          "project_notes_mismatch",
+          "Project notes do not match the requested project.",
+          400,
+        );
+      }
+      dbSetProjectNotes(notes);
+      writeJson(res, 200, {});
+      return;
+    }
+    // Serves local images (chat attachments, markdown images) to paired
+    // devices, standing in for the desktop-only `poracode-local` protocol.
+    // <img> tags can't send Authorization headers, so this endpoint uniquely
+    // also accepts the access token as an `access_token` query param; the
+    // serving helper restricts reads to image file extensions.
+    if (req.method === "GET" && url.pathname === "/api/files/image") {
+      const header = Array.isArray(req.headers.authorization)
+        ? req.headers.authorization[0]
+        : req.headers.authorization;
+      const token = parseBearerAuthorizationHeader(header) ?? url.searchParams.get("access_token");
+      if (!token) {
+        throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
+      }
+      ctx.auth.authenticateBearerToken(token, ["session:read"]);
+      await writeLocalImageFile(res, url.searchParams.get("path"));
+      return;
+    }
+    // Resolves a host-minted image reference back to bytes. Unlike
+    // `/api/files/image` this takes NO caller-supplied filesystem path: it
+    // addresses a location inside the thread's own persisted runtime payload and
+    // re-verifies that the addressed value really is an inline image, so a
+    // prompt-injected tool result cannot steer it at the filesystem or network.
+    // Shares the `access_token` query-param affordance because <img> tags cannot
+    // send an Authorization header.
+    const refImageMatch = /^\/api\/threads\/([^/]+)\/items\/([^/]+)\/image$/.exec(url.pathname);
+    if (req.method === "GET" && refImageMatch) {
+      const header = Array.isArray(req.headers.authorization)
+        ? req.headers.authorization[0]
+        : req.headers.authorization;
+      const token = parseBearerAuthorizationHeader(header) ?? url.searchParams.get("access_token");
+      if (!token) {
+        throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
+      }
+      ctx.auth.authenticateBearerToken(token, ["session:read"]);
+      const path = parseImageRefPath(url.searchParams.get("path"));
+      if (!path) {
+        throw new RemoteHttpError("invalid_path", "An image reference path is required.", 400);
+      }
+      const resolved = resolveImageRef(
+        decodeURIComponent(refImageMatch[1]!),
+        decodeURIComponent(refImageMatch[2]!),
+        path,
+      );
+      if (!resolved) {
+        throw new RemoteHttpError("image_not_found", "No inline image at that reference.", 404);
+      }
+      res.writeHead(200, {
+        "content-type": resolved.mime,
+        "content-length": resolved.data.length,
+        // Immutable: a runtime item's image bytes never change under the same
+        // id, so the client can reuse it for the life of the transcript.
+        "cache-control": "private, max-age=31536000, immutable",
+      });
+      res.end(resolved.data);
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/files/attachment") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const threadId = url.searchParams.get("threadId")?.trim();
+      const fileName = url.searchParams.get("name")?.trim();
+      if (!threadId || !fileName || fileName.length > 255) {
+        throw new RemoteHttpError(
+          "invalid_attachment",
+          "An attachment thread id and file name are required.",
+          400,
+        );
+      }
+      const attachments = ctx.options.attachments;
+      if (!attachments) {
+        throw new RemoteHttpError(
+          "attachments_unavailable",
+          "Remote attachment uploads are unavailable.",
+          503,
+        );
+      }
+      const data = await readAttachmentBody(req);
+      if (data.length === 0) {
+        throw new RemoteHttpError("empty_attachment", "The attachment is empty.", 400);
+      }
+      writeJson(res, 200, {
+        path: attachments.save({ threadId, fileName, data }),
+      });
       return;
     }
     // Profile: identity + local usage stats, computed straight from this
@@ -419,6 +627,37 @@ export async function handleHttp(
       writeJson(res, 200, { schedule, schedules: schedules.list() });
       return;
     }
+    if (req.method === "GET" && url.pathname === "/api/pr-watches") {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const key = prWatchKeySchema.parse({
+        projectId: url.searchParams.get("projectId"),
+        prNumber: Number(url.searchParams.get("prNumber")),
+      });
+      writeJson(res, 200, {
+        watch: ctx.requirePrWatchesGateway().get(key.projectId, key.prNumber),
+      });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/pr-watches/check") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const key = prWatchKeySchema.parse(await readJsonBody(req));
+      ctx.requirePrWatchesGateway().requestCheck(key.projectId, key.prNumber);
+      writeJson(res, 200, { ok: true });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/pr-watches") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const input = prWatchInputSchema.parse(await readJsonBody(req));
+      writeJson(res, 200, { watch: ctx.requirePrWatchesGateway().upsert(input) });
+      return;
+    }
+    if (req.method === "DELETE" && url.pathname === "/api/pr-watches") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const key = prWatchKeySchema.parse(await readJsonBody(req));
+      ctx.requirePrWatchesGateway().delete(key.projectId, key.prNumber);
+      writeJson(res, 200, { ok: true });
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/browser/state") {
       ctx.security.requireBearer(req, ["session:read"]);
       writeJson(res, 200, { state: ctx.requireBrowserGateway().state() });
@@ -477,7 +716,7 @@ export async function handleHttp(
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/git/call") {
-      writeJson(res, 200, { result: await runGitCall(ctx, req) });
+      writeJson(res, 200, { result: await runRemoteProcedure(ctx, req) });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/projects/command") {
@@ -487,14 +726,41 @@ export async function handleHttp(
       // Tell every connected client to refresh its shell snapshot.
       ctx.publishSupervisorEvent({
         type: "remote-projects-changed",
-        projects: result.projects,
+        projects: result.response.projects,
       });
-      writeJson(res, 200, result);
+      // Remote responses deliberately omit sensitive project settings such as
+      // MCP server definitions. The host renderer persists this internal
+      // notification, so give it the authoritative rows rather than the
+      // redacted response or it would write the omitted settings back as null.
+      ctx.options.onProjectsChanged?.(result.projects);
+      writeJson(res, 200, result.response);
       return;
     }
-    // Push registration is gated on session:operate (no separate push scope),
+    const projectSettingsId = projectIdFromPath(url.pathname, "settings");
+    if (req.method === "GET" && projectSettingsId) {
+      ctx.security.requireBearer(req, ["projects:manage"]);
+      const project = dbGetProject(projectSettingsId);
+      if (!project) {
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+      }
+      writeJson(
+        res,
+        200,
+        remoteProjectSettingsSchema.parse({
+          ...(project.mcpServers ? { mcpServers: project.mcpServers } : {}),
+        }),
+      );
+      return;
+    }
+    // Push config/registration is gated on session:operate (no separate push scope),
     // so already-paired devices register without re-pairing. POST (not
     // DELETE) for both, matching the existing endpoint conventions.
+    if (req.method === "GET" && url.pathname === "/api/push/config") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const publicKey = await ctx.requirePushRegistrations().webPublicKey();
+      writeJson(res, 200, { publicKey });
+      return;
+    }
     if (req.method === "POST" && url.pathname === "/api/push/register") {
       ctx.security.requireBearer(req, ["session:operate"]);
       const registration = remotePushRegistrationSchema.parse(await readJsonBody(req));
@@ -509,10 +775,41 @@ export async function handleHttp(
       writeJson(res, 200, { ok: true });
       return;
     }
+    const historyItemsThreadId = threadIdFromPath(url.pathname, "/history/items");
+    if (req.method === "GET" && historyItemsThreadId) {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const beforePosition = url.searchParams.get("beforePosition");
+      const targetTimelineEntryCount = url.searchParams.get("targetTimelineEntryCount");
+      const input = remoteRuntimeItemsPageRequestSchema.parse({
+        threadId: historyItemsThreadId,
+        limit: Number(url.searchParams.get("limit")),
+        ...(beforePosition !== null ? { beforePosition: Number(beforePosition) } : {}),
+        ...(targetTimelineEntryCount !== null
+          ? { targetTimelineEntryCount: Number(targetTimelineEntryCount) }
+          : {}),
+      });
+      await writeNegotiatedJsonResponse(req, res, 200, buildThreadRuntimeItemsPage(input));
+      return;
+    }
     const historyThreadId = threadIdFromPath(url.pathname, "/history");
     if (req.method === "GET" && historyThreadId) {
       ctx.security.requireBearer(req, ["session:read"]);
-      writeJson(res, 200, await buildThreadSnapshot(ctx, historyThreadId));
+      const targetTimelineEntryCount = url.searchParams.get("targetTimelineEntryCount");
+      await writeNegotiatedJsonResponse(
+        req,
+        res,
+        200,
+        await buildThreadSnapshot(ctx, historyThreadId, {
+          runtimePage: url.searchParams.get("runtimePage") === "1",
+          ...(targetTimelineEntryCount !== null
+            ? {
+                targetTimelineEntryCount: remoteTimelineEntryCountSchema.parse(
+                  Number(targetTimelineEntryCount),
+                ),
+              }
+            : {}),
+        }),
+      );
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/threads/start") {
@@ -529,6 +826,7 @@ export async function handleHttp(
       if (!thread) {
         throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
       }
+      assertRemoteThreadStartExperimentSafe(payload.threadId);
       const mcpSnapshot =
         ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
       const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
@@ -547,6 +845,19 @@ export async function handleHttp(
       return;
     }
     const commandThreadId = threadIdFromPath(url.pathname, "/command");
+    const truncateThreadId = threadIdFromPath(url.pathname, "/runtime/truncate");
+    if (req.method === "POST" && truncateThreadId) {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const body = await readJsonBody(req);
+      const payload = dbTruncateRuntimeItemsPayloadSchema.parse({
+        ...(typeof body === "object" && body !== null ? body : {}),
+        threadId: truncateThreadId,
+      });
+      dbTruncateThreadRuntimeAfter(payload.threadId, payload.itemId);
+      ctx.publishThreadsChanged([payload.threadId]);
+      writeJson(res, 200, { ok: true });
+      return;
+    }
     if (req.method === "POST" && commandThreadId) {
       ctx.security.requireBearer(req, ["session:operate"]);
       const body = await readJsonBody(req);
@@ -554,7 +865,36 @@ export async function handleHttp(
         ...(typeof body === "object" && body !== null ? body : {}),
         threadId: commandThreadId,
       });
+      assertRemoteThreadCommandExperimentSafe(command);
       const dispatch = async () => {
+        if (command.kind === "delete-worktree-group") {
+          if (ctx.options.dispatchThreadCommand?.(command) !== true) {
+            throw new RemoteHttpError(
+              "desktop_unavailable",
+              "The desktop app is not available to apply this change.",
+              503,
+            );
+          }
+          await applyRemoteThreadCommand(ctx, command);
+          ctx.publishThreadsChanged(command.threadIds);
+          return { ok: true };
+        }
+        if (command.kind === "start" && command.isNewWorktree && command.worktreePath) {
+          const prepared =
+            ctx.options.dispatchThreadCommand?.({
+              kind: "prepare-worktree",
+              threadId: command.threadId,
+              projectId: command.projectId,
+              worktreePath: command.worktreePath,
+            }) ?? false;
+          if (!prepared) {
+            throw new RemoteHttpError(
+              "desktop_unavailable",
+              "The desktop app is not available to prepare the worktree.",
+              503,
+            );
+          }
+        }
         const requiresRenderer = await applyRemoteThreadCommand(ctx, command);
         if (requiresRenderer && ctx.options.dispatchThreadCommand?.(command) !== true) {
           throw new RemoteHttpError(
@@ -564,10 +904,21 @@ export async function handleHttp(
           );
         }
         if (!requiresRenderer) {
-          const rendererCommand =
-            command.kind === "start" ? { ...command, launchRuntime: false } : command;
+          const rendererCommand = (() => {
+            if (command.kind !== "start") return command;
+            const { isNewWorktree: _isNewWorktree, ...startCommand } = command;
+            return { ...startCommand, launchRuntime: false };
+          })();
           ctx.options.dispatchThreadCommand?.(rendererCommand);
-          ctx.publishThreadsChanged([command.threadId]);
+          if (command.kind === "acknowledge") {
+            ctx.publishSupervisorEvent({
+              type: "remote-threads-changed",
+              threadIds: [command.threadId],
+              viewedThreadIds: [command.threadId],
+            });
+          } else {
+            ctx.publishThreadsChanged([command.threadId]);
+          }
         }
         return { ok: true };
       };

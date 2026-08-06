@@ -3,6 +3,22 @@ import { Tooltip } from "@heroui/react";
 import type { StatusTone } from "@/renderer/components/providers/statusTone";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 
+/**
+ * The idle sidebar-row treatment, shared with rows that can't be a
+ * `SidebarButton` because they are a menu trigger and must own their own
+ * element (e.g. the workspace switcher). Keeping one definition means padding,
+ * radius, and hover can't drift between neighbouring rows.
+ */
+export function sidebarRowClass(
+  options: { density?: "default" | "compact"; size?: "md" | "xs" } = {},
+): string {
+  const compact = options.density === "compact";
+  const sizeClass = options.size === "xs" ? "text-xs" : "text-sm";
+  return `flex w-full shrink-0 cursor-default items-center gap-2 rounded-3xl px-2 ${
+    compact ? "py-1" : "py-1.5"
+  } text-left ${sizeClass} text-muted outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:focus-ring`;
+}
+
 export function SidebarButton(props: {
   ref?: React.Ref<HTMLDivElement>;
   icon: React.ReactNode;
@@ -14,6 +30,12 @@ export function SidebarButton(props: {
   iconOnly?: boolean;
   /** Row text size. `xs` is used for thread and worktree list rows. */
   size?: "md" | "xs";
+  /**
+   * Row height. `compact` trims the vertical padding (32px → 28px rows) and the
+   * icon-rail button box so long navigation lists — e.g. the settings sidebar —
+   * fit without scrolling, while keeping the icon/label gap of a normal row.
+   */
+  density?: "default" | "compact";
   /**
    * When set, `liveText` defaults to on unless the state is `inactive` or `done`
    * (same rule as list rows for thread status). Overridden by an explicit `liveText` prop.
@@ -38,6 +60,7 @@ export function SidebarButton(props: {
     isActive = false,
     iconOnly = false,
     size = "md",
+    density = "default",
     statusTone,
     tooltip,
     suffix,
@@ -69,6 +92,7 @@ export function SidebarButton(props: {
         : `${inactiveText} ${!isDraggingAnything ? "hover:bg-[var(--row-hover)] hover:text-foreground" : ""}`;
 
   const sizeClass = size === "xs" ? "text-xs" : "text-sm";
+  const compact = density === "compact";
   const dragRowDim = isDragging && !iconOnly && !isDisabled ? " opacity-60" : "";
 
   if (iconOnly) {
@@ -79,7 +103,7 @@ export function SidebarButton(props: {
           <button
             ref={ref as React.Ref<HTMLButtonElement>}
             aria-label={typeof label === "string" ? label : undefined}
-            className={`flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-3xl outline-none transition-colors focus-visible:focus-ring ${stateClass} ${className ?? ""}`}
+            className={`flex ${compact ? "h-7 w-7" : "h-8 w-8"} shrink-0 cursor-default items-center justify-center rounded-3xl outline-none transition-colors focus-visible:focus-ring ${stateClass} ${className ?? ""}`}
             disabled={isDisabled}
             onClick={onPress}
             onContextMenu={onContextMenu}
@@ -102,7 +126,7 @@ export function SidebarButton(props: {
       tabIndex={isDisabled ? -1 : 0}
       aria-disabled={isDisabled || undefined}
       aria-grabbed={isDragging}
-      className={`group relative flex w-full shrink-0 cursor-default items-center gap-2 rounded-3xl px-2 py-1.5 text-left ${sizeClass} outline-none transition-colors ${stateClass}${dragRowDim} ${className ?? ""}`}
+      className={`group relative flex w-full shrink-0 cursor-default items-center gap-2 ${compact ? "py-1" : "py-1.5"} rounded-3xl px-2 text-left ${sizeClass} outline-none transition-colors ${stateClass}${dragRowDim} ${className ?? ""}`}
       onClick={isDisabled ? undefined : onPress}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
@@ -150,7 +174,7 @@ export function SidebarButton(props: {
       <Tooltip.Trigger className="flex w-full min-h-0 flex-col" tabIndex={-1} role="none">
         {row}
       </Tooltip.Trigger>
-      <Tooltip.Content placement="right" showArrow className="max-w-[28rem] break-all text-xs">
+      <Tooltip.Content placement="right" showArrow className="max-w-[28rem] text-xs">
         {tooltip}
       </Tooltip.Content>
     </Tooltip>

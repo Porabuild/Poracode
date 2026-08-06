@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { Eye, GitBranch, ImageIcon, Pencil, SearchCode, Sparkles, Terminal } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
-import { deriveToolDisplay, isSubAgentTool } from "./toolDisplay";
+import { isCrossagentSpawnAgentTool } from "@/shared/toolCallClassification";
+import {
+  deriveToolDisplay,
+  isCrossagentTool,
+  isDelegatedAgentTool,
+  isSubAgentTool,
+} from "./toolDisplay";
 
 function makePayload(payload: Partial<ToolCallPayload>): ToolCallPayload {
   return {
@@ -208,6 +214,24 @@ describe("deriveToolDisplay", () => {
     expect(deriveToolDisplay(payload).title).toBe("Agent (rubber-duck): Critiquing path fixes");
   });
 
+  it("keeps Crossagents distinct from native subagents", () => {
+    const payload = makePayload({
+      name: "Critiquing path fixes",
+      isCrossagent: true,
+      args: {
+        description: "Critiquing path fixes",
+        agent_type: "rubber-duck",
+      },
+    });
+
+    expect(isCrossagentTool(payload)).toBe(true);
+    expect(isSubAgentTool(payload)).toBe(false);
+    expect(isDelegatedAgentTool(payload)).toBe(true);
+    expect(deriveToolDisplay(payload).title).toBe(
+      "Crossagent (rubber-duck): Critiquing path fixes",
+    );
+  });
+
   it("recognizes Claude Workflow tool calls as background work", () => {
     const payload = makePayload({
       name: "Workflow",
@@ -220,7 +244,7 @@ describe("deriveToolDisplay", () => {
     expect(display.Icon).toBe(GitBranch);
   });
 
-  it("does not treat any subagents MCP call as the agent itself", () => {
+  it("does not treat any Crossagents MCP call as the agent itself", () => {
     for (const tool of [
       "list_agents",
       "get_agent",
@@ -235,15 +259,36 @@ describe("deriveToolDisplay", () => {
       expect(
         isSubAgentTool(
           makePayload({
-            name: `mcp__subagents__${tool}`,
+            name: `mcp__crossagents__${tool}`,
             isSubAgent: true,
           }),
         ),
       ).toBe(false);
     }
     expect(
-      isSubAgentTool(makePayload({ name: "spawn_agent", serverId: "subagents", isSubAgent: true })),
+      isSubAgentTool(
+        makePayload({ name: "spawn_agent", serverId: "crossagents", isSubAgent: true }),
+      ),
     ).toBe(false);
+  });
+
+  it.each([
+    ["mcp__crossagents__run_agent", undefined, true],
+    ["mcp__crossagents__spawn_agent", undefined, true],
+    ["crossagents-mcp-server-run_agent", undefined, true],
+    ["crossagents-mcp-server-spawn_agent", undefined, true],
+    ["crossagents__run_agent", undefined, true],
+    ["crossagents__spawn_agent", undefined, true],
+    ["crossagents_run_agent", undefined, true],
+    ["crossagents_spawn_agent", undefined, true],
+    ["run_agent", "crossagents", true],
+    ["spawn_agent", "crossagents", true],
+    ["mcp__other__run_agent", undefined, false],
+    ["mcp__crossagents__list_agents", undefined, false],
+  ])("classifies the Crossagents spawn transport %s", (name, serverId, expected) => {
+    expect(
+      isCrossagentSpawnAgentTool(makePayload({ name, ...(serverId ? { serverId } : {}) })),
+    ).toBe(expected);
   });
 
   it("labels Droid ApplyPatch as edit even when kind is other", () => {

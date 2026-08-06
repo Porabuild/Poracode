@@ -4,6 +4,7 @@ import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
+import type { ButtonProps } from "@/renderer/components/common/Button";
 import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
 import { OptionMenu } from "@/renderer/components/common/OptionMenu";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
@@ -20,7 +21,7 @@ import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 export type OptionMenuOption = string | { id: string; label: string; hint?: string };
 
 /** Semantic icon kinds resolved automatically by the composer. */
-export type ComposerIconKind = "effort" | "permission";
+export type ComposerIconKind = "effort" | "fast" | "mode" | "permission";
 
 const COLLAPSE_LEVELS = [0, 1, 2, 3, 4, 5] as const;
 const DEFAULT_LABEL_COLLAPSE_LEVEL = 1;
@@ -84,6 +85,7 @@ export type ComposerControl =
       lockedAgentKind?: string;
       presentationMode?: ThreadPresentationMode;
       isDisabled?: boolean;
+      isFastEnabled?: boolean;
       hideLabelOnWrap?: boolean;
       openSignal?: number;
       onChange: (next: {
@@ -111,7 +113,7 @@ export type ComposerControl =
       tier?: number | undefined;
     };
 
-function resolveIcon(control: ComposerControl): ReactNode | undefined {
+export function resolveComposerControlIcon(control: ComposerControl): ReactNode | undefined {
   if (control.kind === "static") return control.icon;
   if (control.kind === "provider-model" || control.kind === "effort-context") {
     return undefined;
@@ -223,6 +225,8 @@ export function ThreadComposer(props: {
   promptDisabled?: boolean;
   hideSubmitButton?: boolean;
   submitLabel: string;
+  submitContent?: ReactNode;
+  submitVariant?: ButtonProps["variant"];
   submitDisabled: boolean;
   submitPending?: boolean;
   stopPending?: boolean;
@@ -250,6 +254,8 @@ export function ThreadComposer(props: {
     promptDisabled = false,
     hideSubmitButton = false,
     submitLabel,
+    submitContent,
+    submitVariant,
     submitDisabled,
     submitPending = false,
     stopPending = false,
@@ -437,6 +443,7 @@ export function ThreadComposer(props: {
           {...(control.lockedAgentKind ? { lockedAgentKind: control.lockedAgentKind } : {})}
           {...(control.presentationMode ? { presentationMode: control.presentationMode } : {})}
           {...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {})}
+          {...(control.isFastEnabled !== undefined ? { isFastEnabled: control.isFastEnabled } : {})}
           {...(control.openSignal !== undefined ? { openSignal: control.openSignal } : {})}
           {...(hideOnWrap || shouldHideLabel
             ? {
@@ -542,7 +549,7 @@ export function ThreadComposer(props: {
           variant="ghost"
           onChange={gated ? () => undefined : (control.onChange ?? (() => undefined))}
         >
-          {resolveIcon(control)}
+          {resolveComposerControlIcon(control)}
           {!control.iconOnly && (
             <span data-collapse-tier={collapseTier} className={labelClassName}>
               {toggleLabel}
@@ -573,7 +580,7 @@ export function ThreadComposer(props: {
       return toggle;
     }
 
-    const resolvedIcon = resolveIcon(control);
+    const resolvedIcon = resolveComposerControlIcon(control);
     const optionalProps = {
       ...(resolvedIcon ? { icon: resolvedIcon } : {}),
       ...(control.iconOnly ? { iconOnly: control.iconOnly } : {}),
@@ -671,7 +678,7 @@ export function ThreadComposer(props: {
               style={{ position: "absolute", inset: 0 }}
             >
               {leadingControls && (
-                <div className="flex shrink-0 items-end gap-2">
+                <div className="flex shrink-0 items-end gap-1">
                   {typeof leadingControls === "function" ? leadingControls(level) : leadingControls}
                 </div>
               )}
@@ -681,7 +688,7 @@ export function ThreadComposer(props: {
               >
                 {renderProbeControlsList(level)}
               </div>
-              <div className="flex shrink-0 items-end gap-2">
+              <div className="flex shrink-0 items-end gap-1">
                 {typeof afterControls === "function" ? afterControls(level) : afterControls}
                 {!hideSubmitButton && <div className="size-8 shrink-0" />}
               </div>
@@ -763,16 +770,17 @@ export function ThreadComposer(props: {
     }
     return (
       <Button
-        isIconOnly
+        isIconOnly={!submitContent}
         aria-label={submitLabel}
-        className="poracode-composer-send"
+        className={submitContent ? "h-9 px-3" : "poracode-composer-send"}
         isDisabled={submitDisabled || promptDisabled}
         isPending={submitPending}
         onPress={onSubmit}
         size="sm"
+        {...(submitVariant ? { variant: submitVariant } : {})}
       >
         {({ isPending }) =>
-          isPending ? <PixelLoader size="xs" /> : <ArrowUp className="size-4" />
+          isPending ? <PixelLoader size="xs" /> : (submitContent ?? <ArrowUp className="size-4" />)
         }
       </Button>
     );
@@ -832,12 +840,12 @@ export function ThreadComposer(props: {
   const toolbar = (
     <div ref={toolbarRef} className={toolbarClassName} data-wrap-level={wrapLevelRef.current}>
       {leadingControls && (
-        <div className="flex shrink-0 items-end gap-2">
+        <div className="flex shrink-0 items-end gap-1">
           {typeof leadingControls === "function" ? leadingControls(0) : leadingControls}
         </div>
       )}
       {renderControls()}
-      <div className="flex shrink-0 items-end gap-2">
+      <div className="flex shrink-0 items-end gap-1">
         {typeof afterControls === "function" ? afterControls(0) : afterControls}
         {renderSendButton()}
       </div>

@@ -1,10 +1,12 @@
 import type { ClientSideConnection, SessionUpdate } from "@agentclientprotocol/sdk";
 import { isThreadConfigEqual, type ThreadConfig } from "@/shared/contracts";
 import { toErrorMessage } from "@/shared/errorMessage";
+import { normalizeAcpModeId } from "./probe";
 import {
   applyAcpModeUpdateToConfig,
   findSelectConfigOption,
   findThoughtLevelConfig,
+  listSelectConfigOptionValues,
   resolveAcpMode,
   resolveModelConfigValue,
 } from "./sessionConfig";
@@ -29,6 +31,15 @@ type ConfigOptionUpdateWaiter = {
  */
 export class AcpSessionConfigSync {
   private _availableModeIds: string[] = [];
+  /**
+   * The mode the agent last told us it is in — from `SessionModeState` at
+   * session open, from a `current_mode_update` notification, or from a mode we
+   * successfully pushed. Used to skip re-asserting a mode the agent already
+   * holds: a redundant `session/set_mode` is not a no-op for every agent (Kimi
+   * records a `plan_mode.cancel` for it), so pushing one on resume can drop
+   * session state the agent had restored.
+   */
+  private agentCurrentModeId: string | undefined;
   private currentConfigOptions: unknown[] = [];
   private modeConfigId: string | undefined;
   private modelConfigValue: string | undefined;
@@ -45,8 +56,56 @@ export class AcpSessionConfigSync {
     this._availableModeIds = availableModeIds;
   }
 
+  /** Record `SessionModeState.currentModeId` from a session open/load/resume. */
+  rememberCurrentMode(modeId: string | undefined): void {
+    this.agentCurrentModeId = modeId;
+  }
+
+  /**
+   * Fold an agent-reported mode change into the thread config. Returns
+   * `undefined` when the config is already in that mode.
+   */
+  reduceModeChange(
+    currentConfig: ThreadConfig | undefined,
+    modeId: string,
+  ): ThreadConfig | undefined {
+    this.agentCurrentModeId = modeId;
+    if (!currentConfig) return undefined;
+    const nextConfig = applyAcpModeUpdateToConfig(currentConfig, modeId);
+    return isThreadConfigEqual(currentConfig, nextConfig) ? undefined : nextConfig;
+  }
+
+  /**
+   * Fold an agent-reported plan-mode *exit* into the thread config. Unlike
+   * {@link reduceModeChange} this keeps the thread's approval policy: leaving
+   * plan mode says nothing about which approvals the user picked, and mapping
+   * through a mode id would rewrite `auto` to `default`. The agent's mode is
+   * then unknown again — it left plan mode for whatever it was in before — so
+   * the remembered mode is cleared rather than guessed.
+   */
+  reduceLeavePlanMode(currentConfig: ThreadConfig | undefined): ThreadConfig | undefined {
+    this.agentCurrentModeId = undefined;
+    if (!currentConfig || currentConfig.mode !== "plan") return undefined;
+    return { ...currentConfig, mode: "agent" };
+  }
+
+  /** True when the agent already reported being in `modeId`. */
+  private agentHoldsMode(modeId: string): boolean {
+    if (!this.agentCurrentModeId) return false;
+    return (
+      normalizeAcpModeId(this.agentCurrentModeId).toLowerCase() ===
+      normalizeAcpModeId(modeId).toLowerCase()
+    );
+  }
+
+  /** The Poracode mode id for plan mode as this agent names it. */
+  resolvePlanModeId(): string {
+    return resolveAcpMode({ model: "", mode: "plan" }, this._availableModeIds) ?? "plan";
+  }
+
   rememberOptions(availableModeIds: string[], configOptions: unknown): void {
-    this.rememberAvailableModes(availableModeIds);
+    const configModeIds = listSelectConfigOptionValues(configOptions, "mode");
+    this.rememberAvailableModes(configModeIds.length > 0 ? configModeIds : availableModeIds);
     this.currentConfigOptions = Array.isArray(configOptions) ? configOptions : [];
     this.modeConfigId = findSelectConfigOption(configOptions, "mode")?.id;
     const modelConfig = findSelectConfigOption(configOptions, "model");
@@ -68,10 +127,18 @@ export class AcpSessionConfigSync {
     const previousModeId = previousConfig
       ? resolveAcpMode(previousConfig, this._availableModeIds)
       : undefined;
+    // The agent's own report wins over `previousConfig` for "is a push needed?".
+    // On the first turn after a session open there is no previous config, so
+    // without this every open re-asserted a mode the agent already held.
+    const modeChangeNeeded =
+      Boolean(nextModeId) &&
+      nextModeId !== previousModeId &&
+      !this.agentHoldsMode(nextModeId as string);
 
-    if (nextModeId && nextModeId !== previousModeId && this.modeConfigId) {
+    if (modeChangeNeeded && this.modeConfigId) {
       try {
-        await this.setConfigOptionAndRefresh(sessionId, this.modeConfigId, nextModeId);
+        await this.setConfigOptionAndRefresh(sessionId, this.modeConfigId, nextModeId as string);
+        this.agentCurrentModeId = nextModeId;
         console.log("[acp] mode config set to:", nextModeId);
       } catch (error) {
         console.log(
@@ -79,9 +146,10 @@ export class AcpSessionConfigSync {
           toErrorMessage(error),
         );
       }
-    } else if (nextModeId && nextModeId !== previousModeId) {
+    } else if (modeChangeNeeded) {
       try {
-        await this.connection.setSessionMode({ sessionId, modeId: nextModeId });
+        await this.connection.setSessionMode({ sessionId, modeId: nextModeId as string });
+        this.agentCurrentModeId = nextModeId;
         console.log("[acp] mode set to:", nextModeId);
       } catch (error) {
         console.log("[acp] live mode change rejected, continuing: %s", toErrorMessage(error));
@@ -168,8 +236,7 @@ export class AcpSessionConfigSync {
       if (!("currentModeId" in update) || typeof update.currentModeId !== "string") {
         return undefined;
       }
-      const nextConfig = applyAcpModeUpdateToConfig(currentConfig, update.currentModeId);
-      return isThreadConfigEqual(currentConfig, nextConfig) ? undefined : nextConfig;
+      return this.reduceModeChange(currentConfig, update.currentModeId);
     }
 
     return undefined;

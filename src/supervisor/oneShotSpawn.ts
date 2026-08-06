@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { spawn as spawnPty } from "node-pty";
 import { stripAnsi } from "@/shared/ansi";
 import type { ProjectLocation } from "@/shared/contracts";
+import { terminateProcessTree } from "@/shared/processTree";
 import { buildAgentCommand, type CommandSpec } from "./agents/base";
 import { ensureNodePtySpawnHelperExecutable } from "./nodePty";
 import { processEnvRecord } from "./processEnv";
@@ -152,12 +153,19 @@ export function spawnAgentPty(
     let output = "";
     let timedOut = false;
 
-    const onAbort = () => {
+    const killPty = () => {
+      if (process.platform === "win32") {
+        terminateProcessTree(pty.pid);
+        return;
+      }
       pty.kill();
+    };
+    const onAbort = () => {
+      killPty();
     };
     const timer = setTimeout(() => {
       timedOut = true;
-      pty.kill();
+      killPty();
     }, timeoutMs);
     if (typeof timer.unref === "function") timer.unref();
 

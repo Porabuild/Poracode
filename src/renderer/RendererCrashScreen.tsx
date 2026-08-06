@@ -3,6 +3,7 @@ import { Copy, RefreshCw } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { Button } from "./components/common/Button";
+import { readBridge } from "./bridge";
 import { captureRendererException } from "./diagnostics/sentry";
 import { i18n } from "./i18n/i18n";
 
@@ -152,7 +153,10 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
   }
 
   return (
-    <main className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+    <main
+      data-renderer-crash-screen=""
+      className="flex h-screen w-screen overflow-hidden bg-background text-foreground"
+    >
       <div className="flex min-h-0 w-full flex-col gap-4 px-8 pt-14 pb-8">
         <header className="flex shrink-0 items-start justify-between gap-4">
           <div className="min-w-0">
@@ -165,7 +169,11 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button size="sm" variant="secondary" onPress={() => window.location.reload()}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() => void readBridge().reloadRenderer()}
+            >
               <RefreshCw className="size-3.5" />
               {i18n._(msg`Reload`)}
             </Button>
@@ -191,6 +199,12 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
 
 type RendererErrorBoundaryProps = {
   children: ReactNode;
+  /**
+   * The desktop root owns caught-error reporting through React's
+   * `onCaughtError` callback so it can attach the complete component stack
+   * exactly once. Standalone/mobile roots keep this fallback enabled.
+   */
+  captureCaughtErrors?: boolean;
 };
 
 type RendererErrorBoundaryState = {
@@ -215,7 +229,9 @@ export class RendererErrorBoundary extends Component<
   }
 
   override componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
-    captureRendererException(error, { featureArea: "react" });
+    if (this.props.captureCaughtErrors ?? true) {
+      captureRendererException(error, { featureArea: "react" }, errorInfo.componentStack?.trim());
+    }
     this.setState({
       report: createRendererCrashReport({
         kind: "react",

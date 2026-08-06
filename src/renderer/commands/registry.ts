@@ -6,7 +6,7 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import type { AgentSlashCommand, Project, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
-import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
+import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { addExistingProject } from "@/renderer/actions/createProjectActions";
 import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
 import {
@@ -335,7 +335,8 @@ function baseCommands(): AppCommand[] {
       when: "hasProject",
       run: () => {
         const active = resolveActiveContext();
-        if (active.project) openGitReview(active.project.id, active.worktreePath);
+        if (active.project)
+          openGitReview(active.project.id, active.worktreePath, active.thread?.id);
       },
     },
     {
@@ -454,12 +455,13 @@ function activeChatCommands(): AppCommand[] {
 }
 
 function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
+  const displayId = command.section === "skills" ? (command.skillName ?? command.id) : command.id;
   return {
     id: `chat.command.${command.id}`,
-    title: `/${command.id}`,
+    title: `/${displayId}`,
     group: msg`Chat Commands`,
     subtitle: command.description ?? command.label,
-    keywords: [command.label, command.description ?? ""],
+    keywords: [displayId, command.id, command.label, command.description ?? ""],
     when: "hasThread",
     showInShortcuts: false,
     run: async () => {
@@ -468,7 +470,7 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
         prompt: `/${command.id}`,
         config: thread.config,
       });
-      captureThreadInputSubmitted(thread);
+      captureThreadPromptSubmitted(thread, `/${command.id}`, undefined, "command_palette");
       useAppStore.getState().touchThread(thread.id);
     },
   };
@@ -633,7 +635,7 @@ function runTerminalCommand(args: unknown): void {
     },
     title,
   );
-  writeScriptToShell(tab.id, command);
+  writeScriptToShell(tab.id, command, active.project.remoteServerId);
 }
 
 function isTextInputElement(element: Element | null): boolean {

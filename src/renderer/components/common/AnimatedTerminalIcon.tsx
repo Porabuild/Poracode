@@ -4,6 +4,19 @@ interface AnimatedTerminalIconProps extends SVGProps<SVGSVGElement> {
   isBusy?: boolean | undefined;
 }
 
+/**
+ * Lucide's `square-terminal`, hand-inlined only so the cursor stroke can breathe
+ * while the terminal is busy — `<SquareTerminal />` offers no handle on an
+ * individual path.
+ *
+ * Keep the geometry byte-identical to upstream. It is tempting to shift these
+ * coordinates onto the odd values that let a 1px stroke snap to a single pixel
+ * column at small sizes, but this icon always sits beside stock lucide icons
+ * (folder, archive, trash) that cannot be snapped the same way — and one crisp
+ * glyph among softly-antialiased neighbours reads far worse than a uniformly
+ * soft set. Sharpness at small sizes is a whole-icon-set decision, not one this
+ * component should make alone.
+ */
 export function AnimatedTerminalIcon({ isBusy, className, ...props }: AnimatedTerminalIconProps) {
   return (
     <svg
@@ -30,9 +43,9 @@ export function AnimatedTerminalIcon({ isBusy, className, ...props }: AnimatedTe
           }
         `}</style>
       )}
-      <rect width="20" height="20" x="2" y="2" rx="2" />
-      <path d="m7 8 3 3-3 3" />
-      <path d="m12 14 h4" className={isBusy ? "anim-cursor-breath" : undefined} />
+      <path d="m7 11 2-2-2-2" />
+      <path d="M11 13h4" className={isBusy ? "anim-cursor-breath" : undefined} />
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
     </svg>
   );
 }

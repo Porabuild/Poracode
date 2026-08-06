@@ -8,22 +8,22 @@
  * (`unstable_setSessionModel`).
  *
  * Some agent CLIs still speak that wire shape. cursor-agent advertises its
- * model list *only* through it (verified live: its `session/new` response
- * carries `models.availableModels` and no `"model"`-category config option),
- * and the Copilot per-model effort probe drives model switches through
- * `session/set_model`. The wire protocol itself is unchanged — the SDK just
- * no longer types it and the `ClientSideConnection` passes responses through
- * without stripping unknown fields — so this module re-declares the removed
- * shapes locally (with safe `unknown` narrowing, mirroring the existing
- * `configOptions` pattern) and sends the removed request through the SDK's
- * raw `request()` escape hatch.
+ * model list through `session/new.models`, while Grok 0.2.x advertises the
+ * same shape through `initialize._meta.modelState`; neither exposes a
+ * `"model"`-category config option. The Copilot per-model effort probe also
+ * drives model switches through `session/set_model`. The wire protocol itself
+ * is unchanged — the SDK just no longer types it and the
+ * `ClientSideConnection` passes responses through without stripping unknown
+ * fields — so this module re-declares the removed shapes locally (with safe
+ * `unknown` narrowing, mirroring the existing `configOptions` pattern) and
+ * sends the removed request through the SDK's raw `request()` escape hatch.
  *
  * The generic `configOptions` `"model"` category remains the primary path
  * wherever an agent provides it; callers use this shim only as the fallback,
  * exactly as with the 0.x SDK.
  *
- * TODO: remove once cursor-agent (and any other holdouts, e.g. Grok) expose
- * a `"model"` config option in `configOptions`.
+ * TODO: remove once cursor-agent, Grok, and other holdouts expose a `"model"`
+ * config option in `configOptions`.
  */
 
 import type { ClientSideConnection } from "@agentclientprotocol/sdk";
@@ -53,6 +53,24 @@ function isUnstableModelInfo(value: unknown): value is UnstableModelInfo {
   return typeof candidate.modelId === "string" && typeof candidate.name === "string";
 }
 
+/** Safely narrow the removed ACP model-state wire shape from any container. */
+export function readUnstableModelState(value: unknown): UnstableSessionModelState | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  const { currentModelId, availableModels } = value as {
+    currentModelId?: unknown;
+    availableModels?: unknown;
+  };
+  if (!Array.isArray(availableModels)) {
+    return undefined;
+  }
+  return {
+    ...(typeof currentModelId === "string" ? { currentModelId } : {}),
+    availableModels: availableModels.filter(isUnstableModelInfo),
+  };
+}
+
 /**
  * Read the unstable `models` field from a `session/new` / `session/load`
  * response. The 1.x SDK no longer types the field, but agents that still
@@ -66,20 +84,18 @@ export function readUnstableSessionModels(
     return undefined;
   }
   const models = (response as { models?: unknown }).models;
-  if (typeof models !== "object" || models === null) {
+  return readUnstableModelState(models);
+}
+
+/**
+ * Grok 0.2.x advertises the same removed model-state shape in
+ * `initialize._meta.modelState` instead of `session/new.models`.
+ */
+export function readUnstableInitializeModels(meta: unknown): UnstableSessionModelState | undefined {
+  if (typeof meta !== "object" || meta === null) {
     return undefined;
   }
-  const { currentModelId, availableModels } = models as {
-    currentModelId?: unknown;
-    availableModels?: unknown;
-  };
-  if (!Array.isArray(availableModels)) {
-    return undefined;
-  }
-  return {
-    ...(typeof currentModelId === "string" ? { currentModelId } : {}),
-    availableModels: availableModels.filter(isUnstableModelInfo),
-  };
+  return readUnstableModelState((meta as { modelState?: unknown }).modelState);
 }
 
 /**

@@ -72,14 +72,13 @@ export type ListPluginsResult = z.infer<typeof listPluginsResultSchema>;
 
 /**
  * Per-plugin user state, keyed by the manifest `name`. Contribution ids are the
- * skill folder name, the extension app id, and the `mcp.json` server key.
+ * skill folder name and the `mcp.json` server key.
  */
 export const installedPluginStateSchema = z
   .object({
     version: z.string().min(1).default("0.0.0"),
     enabled: z.boolean().default(true),
     disabledSkillIds: z.array(z.string().min(1)).default([]),
-    disabledAppIds: z.array(z.string().min(1)).default([]),
     disabledMcpServerNames: z.array(z.string().min(1)).default([]),
   })
   .strict();
@@ -88,9 +87,4 @@ export type InstalledPluginState = z.infer<typeof installedPluginStateSchema>;
 export const installedPluginsSchema = z.record(z.string(), installedPluginStateSchema).default({});
 export type InstalledPlugins = z.infer<typeof installedPluginsSchema>;
 
-export type {
-  PluginCategory,
-  PluginPlatform,
-  PluginProjectKind,
-  PluginAppContribution,
-} from "../plugins/spec";
+export type { PluginCategory, PluginPlatform, PluginProjectKind } from "../plugins/spec";

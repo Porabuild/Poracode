@@ -81,13 +81,12 @@ function acpSchemaOptions(schema: ElicitationPropertySchema): QuestionAnswerSour
 }
 
 function readEnumLikeOptions(source: Record<string, unknown>): QuestionAnswerSourceOption[] {
-  if (Array.isArray(source.oneOf)) {
-    return source.oneOf.flatMap((entry) => {
-      if (!entry || typeof entry !== "object") return [];
-      const o = entry as { const?: unknown; title?: unknown };
-      if (typeof o.const !== "string") return [];
-      return [{ optionId: o.const, label: typeof o.title === "string" ? o.title : o.const }];
-    });
+  // JSON Schema choice lists arrive under either combinator: `oneOf` (e.g.
+  // single-select questions) or `anyOf` (e.g. the `items` schema of a
+  // multi-select array). Both carry `{ const, title }` entries.
+  for (const entries of [source.oneOf, source.anyOf]) {
+    const combinator = readConstTitleOptions(entries);
+    if (combinator.length > 0) return combinator;
   }
   if (Array.isArray(source.enum)) {
     const names = Array.isArray(source.enumNames) ? source.enumNames : [];
@@ -98,6 +97,24 @@ function readEnumLikeOptions(source: Record<string, unknown>): QuestionAnswerSou
     });
   }
   return [];
+}
+
+function readConstTitleOptions(entries: unknown): QuestionAnswerSourceOption[] {
+  if (!Array.isArray(entries)) return [];
+  return entries.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const o = entry as { const?: unknown; title?: unknown; description?: unknown };
+    if (typeof o.const !== "string") return [];
+    return [
+      {
+        optionId: o.const,
+        label: typeof o.title === "string" ? o.title : o.const,
+        ...(typeof o.description === "string" && o.description.length > 0
+          ? { description: o.description }
+          : {}),
+      },
+    ];
+  });
 }
 
 function acpResponseAnswers(response: unknown): Record<string, unknown> {

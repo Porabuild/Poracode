@@ -22,8 +22,6 @@ export function readComputerUseMcpEnv(): ComputerUseMcpEnv | null {
   return { url, token };
 }
 
-export const COMPUTER_USE_MCP_SERVER_NAME = "computer_use";
-
 export interface ComputerUseMcpHttpConfig {
   url: string;
   token: string;
@@ -47,21 +45,6 @@ export function resolveComputerUseMcpHttpConfig(
     token: env.token,
     headers: { Authorization: `Bearer ${env.token}` },
   };
-}
-
-/**
- * Resolve a ComputerUseMcpHttpConfig from an optional pre-resolved config or by
- * falling back to the environment. Returns `undefined` when the config cannot
- * be resolved (WSL without a launch-time config, or env vars absent).
- *
- * Shared guard used by every provider's `buildXxxComputerUseMcp*()` function.
- */
-export function resolveOrFallbackComputerUseMcpConfig(
-  location: ComputerUseMcpLocation,
-  computerUseMcp?: ComputerUseMcpHttpConfig,
-): ComputerUseMcpHttpConfig | undefined {
-  if (location.kind === "wsl" && !computerUseMcp) return undefined;
-  return computerUseMcp ?? resolveComputerUseMcpHttpConfig(location) ?? undefined;
 }
 
 export function resolveComputerUseMcpHttpConfigForLaunch(

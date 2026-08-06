@@ -12,14 +12,19 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-nightly
+  cancel-in-progress: false
+
 jobs:
-  # ── Step 1: Read master version, compute timestamped tag, push ───
+  # ── Step 1: Read master version and compute timestamped release ──
   prepare:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
       version: ${{ steps.resolve.outputs.version }}
       base_version: ${{ steps.resolve.outputs.base_version }}
+      source_ref: ${{ steps.resolve.outputs.source_ref }}
 
     steps:
       - name: Checkout master
@@ -55,28 +60,8 @@ jobs:
           echo "base_version=$BASE" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "Resolved nightly tag: $TAG"
-
-      - name: Stage nightly commit (not pushed to master)
-        run: |
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            p.version = '${{ steps.resolve.outputs.version }}';
-            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
-          "
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          git commit -m "release: ${{ steps.resolve.outputs.tag }}"
-          git tag "${{ steps.resolve.outputs.tag }}"
-
-      - name: Push tag only
-        if: ${{ !inputs.dry_run }}
-        run: |
-          # Push the tag without updating master — the transient commit is
-          # reachable only via the tag. master remains at plain X.Y.Z.
-          git push origin "${{ steps.resolve.outputs.tag }}"
 
   # ── Step 2: Build installers for each platform ───────────────────
   build:
@@ -84,7 +69,8 @@ jobs:
     if: ${{ !inputs.dry_run }}
     uses: ./.github/workflows/_build.yml
     with:
-      tag: ${{ needs.prepare.outputs.tag }}
+      ref: ${{ needs.prepare.outputs.source_ref }}
+      version: ${{ needs.prepare.outputs.version }}
       channel: nightly
       sentry_environment: nightly
     secrets:
@@ -105,22 +91,23 @@ jobs:
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
         with:
-          path: release-assets
+          path: ${{ runner.temp }}/release-assets
           pattern: dist-*
           merge-multiple: true
 
       - name: List release assets
-        run: ls -lh release-assets
+        run: ls -lh "${{ runner.temp }}/release-assets"
 
       - name: Generate release notes since previous nightly
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CURRENT_TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
         run: |
           previous_tag=$(gh release list --repo "${{ github.repository }}" --json tagName,isPrerelease,createdAt --limit 1000 \
             --jq '[.[] | select(.isPrerelease and .tagName != env.CURRENT_TAG and (.tagName | test("-nightly\\.")))] | sort_by(.createdAt) | last | .tagName // empty')
 
-          args=(-f "tag_name=$CURRENT_TAG" -f "target_commitish=$CURRENT_TAG")
+          args=(-f "tag_name=$CURRENT_TAG" -f "target_commitish=$SOURCE_REF")
           if [ -n "$previous_tag" ]; then
             echo "Generating release notes since $previous_tag"
             args+=(-f "previous_tag_name=$previous_tag")
@@ -128,34 +115,102 @@ jobs:
             echo "No previous nightly release found; generating default release notes."
           fi
 
-          gh api repos/${{ github.repository }}/releases/generate-notes "${args[@]}" --jq .body > release-notes.md
+          gh api repos/${{ github.repository }}/releases/generate-notes "${args[@]}" \
+            --jq .body > "$RUNNER_TEMP/release-notes.md"
 
-      # Upload every asset to a DRAFT release first. A draft is invisible to
-      # electron-updater (it isn't in releases.atom and its assets aren't
-      # publicly downloadable), so clients never observe a release whose
-      # channel manifest (nightly-mac.yml) is still mid-upload — the partial
-      # publish that surfaces as "Cannot find latest-mac.yml" 404s.
+      # electron-updater treats bare semver tags in GitHub's releases.atom feed
+      # as releases. Stage the commit under a deliberately non-semver tag while
+      # the draft assets upload, then create the final tag only when the complete
+      # release is published below.
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - name: Create release commit and staging tag
+        id: stage_release
+        env:
+          DRAFT_TAG: release-draft-${{ github.run_id }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            p.version = process.env.RELEASE_VERSION;
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "release: ${{ needs.prepare.outputs.tag }}"
+          echo "release_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git tag "$DRAFT_TAG"
+          git push origin "$DRAFT_TAG"
+
+      # Upload every asset to a draft associated with the non-semver staging tag.
+      # Clients ignore that tag, and the final semver tag does not exist yet.
       - name: Create GitHub prerelease (draft)
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ needs.prepare.outputs.tag }}
+          tag_name: release-draft-${{ github.run_id }}
           name: Poracode Nightly ${{ needs.prepare.outputs.tag }}
           prerelease: true
           draft: true
           make_latest: false
-          body_path: release-notes.md
+          body_path: ${{ runner.temp }}/release-notes.md
           fail_on_unmatched_files: true
-          files: release-assets/*
+          files: ${{ runner.temp }}/release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Flip draft → published only after all assets (manifests included) are
-      # uploaded. This is the single atomic moment the release becomes visible
-      # to the updater. prerelease stays true so nightly clients still match it.
-      - name: Publish the release
+      # Rename the draft to the final tag and publish it in one API update. The
+      # final tag and complete release therefore become visible together.
+      - name: Publish release atomically
         env:
+          DRAFT_TAG: release-draft-${{ github.run_id }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_COMMIT: ${{ steps.stage_release.outputs.release_commit }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          gh release edit "${{ needs.prepare.outputs.tag }}" \
+          release_id=$(gh api "repos/${{ github.repository }}/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$DRAFT_TAG\") | .id")
+          if [ -z "$release_id" ]; then
+            echo "::error::Draft release for $DRAFT_TAG was not found."
+            exit 1
+          fi
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$release_id" \
+            -f tag_name="$RELEASE_TAG" \
+            -f target_commitish="$RELEASE_COMMIT" \
+            -F draft=false \
+            -F prerelease=true \
+            -f make_latest=false
+          gh api --method DELETE \
+            "repos/${{ github.repository }}/git/refs/tags/$DRAFT_TAG" ||
+            echo "::warning::Published successfully but could not delete staging tag $DRAFT_TAG."
+
+  cleanup-failed-release:
+    needs: [prepare, build, release]
+    if: ${{ always() && !inputs.dry_run && (needs.release.result == 'failure' || needs.release.result == 'cancelled') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Remove failed release and tag
+        env:
+          DRAFT_TAG: release-draft-${{ github.run_id }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          gh release delete "$DRAFT_TAG" \
             --repo "${{ github.repository }}" \
-            --draft=false --prerelease
+            --cleanup-tag --yes 2>/dev/null || true
+          gh release delete "$RELEASE_TAG" \
+            --repo "${{ github.repository }}" \
+            --cleanup-tag --yes 2>/dev/null || true
+          if gh api "repos/${{ github.repository }}/git/ref/tags/$DRAFT_TAG" >/dev/null 2>&1; then
+            gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$DRAFT_TAG"
+          fi
+          if gh api "repos/${{ github.repository }}/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG"
+          fi

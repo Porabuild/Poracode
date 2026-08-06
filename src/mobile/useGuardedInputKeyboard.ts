@@ -17,6 +17,7 @@ import {
   rememberKeyboardHeight,
 } from "./keyboardFocusShared";
 import { isAndroidRuntime } from "./mobilePlatform";
+import { isTouchCapableDevice, isTouchLikePointerEvent } from "./pointerModality";
 import { suppressNextGhostTap } from "./suppressGhostTap";
 import { useKeyboardGeometry } from "./useKeyboardOffset";
 
@@ -55,6 +56,7 @@ export function useGuardedInputKeyboard(
   const keyboardLiftOffset =
     rawKeyboardLiftOffset > KEYBOARD_OPEN_THRESHOLD_PX ? rawKeyboardLiftOffset : 0;
   const useColdKeyboardPrimer = !isAndroidRuntime();
+  const touchCapable = isTouchCapableDevice();
   const keyboardOffsetRef = useRef(keyboardOffset);
   const keyboardLiftOffsetRef = useRef(keyboardLiftOffset);
   keyboardOffsetRef.current = keyboardOffset;
@@ -213,6 +215,9 @@ export function useGuardedInputKeyboard(
       runGuardedFocus(event);
     };
     const handlePointerDown = (event: PointerEvent) => {
+      // Mouse clicks focus the plain input natively — the guarded dance only
+      // exists for the software keyboard a touch tap summons.
+      if (!isTouchLikePointerEvent(event)) return;
       // The pointerdown mirroring a just-handled touchstart must not re-run
       // the guard (or hand the input its native focus) — swallow it.
       if (lastTouchStartAt > 0 && Date.now() - lastTouchStartAt < MIRRORED_POINTER_WINDOW_MS) {
@@ -226,7 +231,8 @@ export function useGuardedInputKeyboard(
     };
     const handleFocusIn = (event: FocusEvent) => {
       if (event.target !== inputRef.current) return;
-      lockComposeScroll(anchor);
+      // No software keyboard means no post-focus viewport churn to fight.
+      if (touchCapable) lockComposeScroll(anchor);
       setInputFocused(true);
     };
     const handleFocusOut = (event: FocusEvent) => {

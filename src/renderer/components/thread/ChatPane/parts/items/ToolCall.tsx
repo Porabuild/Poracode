@@ -4,7 +4,6 @@ import { useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
-import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatItemAccordion } from "./ChatItemAccordion";
@@ -78,13 +77,15 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
     header.hasAuxDetails || fetchTarget !== null || header.hasDiffText || header.hasReadResult;
   const display = header.display;
   const Icon = display.Icon;
-  const status = resolveToolStatus(item, header.payloadStatus, header.diffSummary, t);
+  const isRunning = item.state !== "completed" || header.payloadStatus === "running";
+  const status = resolveToolStatus(isRunning, header.payloadStatus, header.diffSummary, t);
 
   return (
     <ChatItemAccordion
       icon={<Icon className="size-3" />}
       title={display.title}
       {...(display.parts ? { titleParts: display.parts } : {})}
+      isRunning={isRunning}
       rightLabel={status.rightLabel}
       rightLabelClassName={status.rightLabelClassName}
       hasBody={hasDetails}
@@ -121,17 +122,15 @@ interface ToolStatusDisplay {
 }
 
 function resolveToolStatus(
-  item: RuntimeChatItem,
+  isRunning: boolean,
   payloadStatus: ToolCallPayload["status"] | undefined,
   diffSummary: DiffSummary | undefined,
   t: TranslateFn,
 ): ToolStatusDisplay {
-  const isRunning = item.state !== "completed" || payloadStatus === "running";
+  // Running state is signalled by the shimmering title (ChatItemAccordion's
+  // `isRunning`), matching grouped tool rows — no spinner on the right.
   if (isRunning) {
-    return {
-      rightLabel: <PixelLoader size="xxs" className="text-[color:var(--muted)]" />,
-      rightLabelClassName: "!text-[color:var(--muted)]",
-    };
+    return { rightLabel: null, rightLabelClassName: "!text-[color:var(--muted)]" };
   }
   if (payloadStatus === "error") {
     return {

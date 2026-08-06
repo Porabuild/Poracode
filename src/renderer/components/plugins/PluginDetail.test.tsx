@@ -29,15 +29,9 @@ describe("PluginDetail", () => {
     useSharedSettings.setState({ installedPlugins: {} });
   });
 
-  it("updates plugin, app, and skill toggles and uninstalls the bundle", () => {
+  it("updates plugin and skill toggles and uninstalls the bundle", () => {
     useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     render(<BrowserPluginDetail />);
-
-    fireEvent.click(screen.getByRole("switch", { name: "Browser MCP" }));
-    expect(useSharedSettings.getState().installedPlugins["browser-tools"]?.disabledAppIds).toEqual([
-      "browser",
-    ]);
-    expect(screen.getByRole("switch", { name: "Browser MCP" })).not.toBeChecked();
 
     fireEvent.click(screen.getByRole("switch", { name: "Browser Control Skill" }));
     expect(
@@ -47,7 +41,6 @@ describe("PluginDetail", () => {
 
     fireEvent.click(screen.getByRole("switch", { name: "Browser Tools Enable plugin" }));
     expect(useSharedSettings.getState().installedPlugins["browser-tools"]?.enabled).toBe(false);
-    expect(screen.getByRole("switch", { name: "Browser MCP" })).toBeDisabled();
     expect(screen.getByRole("switch", { name: "Browser Control Skill" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Uninstall" }));

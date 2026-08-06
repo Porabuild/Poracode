@@ -15,10 +15,12 @@ function parseBatchBody(
 
 describe("posthog product analytics sender", () => {
   function createClient(config: PostHogClientConfig, fetchMock: typeof fetch) {
+    let eventIndex = 0;
     return createPostHogClient({
       resolveConfig: () => config,
       resolveInstallId: () => "install-id",
-      buildBaseProperties: (sessionId) => ({ session_id: sessionId }),
+      buildBaseProperties: (sessionId) => ({ $session_id: sessionId }),
+      createEventId: () => `event-${++eventIndex}`,
       createSessionId: () => "session-id",
       now: () => "2026-07-09T00:00:00.000Z",
       fetch: fetchMock,
@@ -60,6 +62,21 @@ describe("posthog product analytics sender", () => {
     await Promise.all([first, second]);
   });
 
+  it("drains every queued batch in one flush", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+    const client = createClient(enabledConfig, fetchMock);
+
+    for (let index = 0; index < 45; index += 1) {
+      client.capture("git.sync_action", { action: `event-${index}` });
+    }
+    await client.flush();
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(
+      fetchMock.mock.calls.map((_, index) => parseBatchBody(fetchMock, index).batch.length),
+    ).toEqual([20, 20, 5]);
+  });
+
   it("retries failed batches before newer events", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
@@ -77,5 +94,7 @@ describe("posthog product analytics sender", () => {
       "first",
       "second",
     ]);
+    expect(parseBatchBody(fetchMock, 0).batch[0]?.properties.$insert_id).toBe("event-1");
+    expect(parseBatchBody(fetchMock, 1).batch[0]?.properties.$insert_id).toBe("event-1");
   });
 });

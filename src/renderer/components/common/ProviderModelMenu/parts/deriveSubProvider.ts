@@ -36,6 +36,21 @@ export function deriveSubProvider(
 }
 
 /**
+ * Sub-provider label for a model, dropped when it merely restates the provider
+ * it belongs to (Kimi's `kimi-code/…` ids derive a "Kimi Code" sub-provider).
+ * Use this wherever the provider name is already shown beside the model, so the
+ * label only appears when it adds information.
+ */
+export function distinctSubProviderLabel(
+  modelId: string,
+  capability: AgentCapability,
+  providerLabel: string,
+): string | undefined {
+  const label = deriveSubProvider(modelId, capability)?.label;
+  return label && label.toLowerCase() !== providerLabel.toLowerCase() ? label : undefined;
+}
+
+/**
  * Order sub-providers using the explicit list first, then any derived ids
  * that weren't pre-declared. Stable across renders.
  */
