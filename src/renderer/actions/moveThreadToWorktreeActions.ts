@@ -6,7 +6,8 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { reopenStoredThread, unloadStoredThread } from "./threadActions";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { reopenStoredThread, setThreadWorktree, unloadStoredThread } from "./threadActions";
 import {
   createWorktree,
   primeWorktreeGitState,
@@ -20,6 +21,9 @@ const movingThreadIds = new Set<string>();
  * Active threads are relaunched there. `withChanges` MOVES the project's
  * uncommitted changes into the worktree, leaving the current branch clean.
  * Failures are toasted here.
+ *
+ * Local and remote share this path. Git create and thread metadata updates go
+ * through helpers that route to the host when the project is projected.
  */
 export async function moveThreadToWorktree(threadId: string, withChanges: boolean): Promise<void> {
   if (movingThreadIds.has(threadId)) return;
@@ -34,10 +38,14 @@ export async function moveThreadToWorktree(threadId: string, withChanges: boolea
     return;
   }
 
+  const wasActive = thread.status !== "inactive";
+  // Host-owned threads: `set-worktree` with isNewWorktree already primes git and
+  // runs setup on the desktop — do not double-run those from the client.
+  const hostFollowUp = remoteOwner(thread) !== undefined;
   movingThreadIds.add(threadId);
   try {
     // Re-tagging only sticks for a stopped thread — unload any live runtime first.
-    if (thread.status !== "inactive") {
+    if (wasActive) {
       await unloadStoredThread(threadId);
     }
     const currentBranch = useGitStore.getState().statuses[project.id]?.branch;
@@ -49,14 +57,16 @@ export async function moveThreadToWorktree(threadId: string, withChanges: boolea
       transferUncommitted: withChanges,
       keepChangesInSource: false,
     });
-    useAppStore.getState().setThreadWorktree(threadId, result.path, branch);
-    if (thread.status !== "inactive") reopenStoredThread(threadId);
-    void primeWorktreeGitState(project, result.path);
-    void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-    const setupScript = project.scripts?.setupScript;
-    if (setupScript) {
-      void runWorktreeSetupScript(project, result.path, setupScript);
+    await setThreadWorktree(threadId, result.path, branch, { isNewWorktree: true });
+    if (wasActive) reopenStoredThread(threadId);
+    if (!hostFollowUp) {
+      void primeWorktreeGitState(project, result.path);
+      const setupScript = project.scripts?.setupScript;
+      if (setupScript) {
+        void runWorktreeSetupScript(project, result.path, setupScript);
+      }
     }
+    void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
 
     if (withChanges) {
       // `newBranch` keeps the msgid identical to the BranchSelector conflict

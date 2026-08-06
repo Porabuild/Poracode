@@ -530,6 +530,39 @@ export function renameThread(threadId: string, title: string): void {
   store.renameThread(threadId, title);
 }
 
+/**
+ * Tag a thread with worktree metadata. Local threads update the store (and
+ * persist via the app DB); remote projected threads go through the host's
+ * existing `set-worktree` command so the durable row is updated on the machine
+ * that owns the project.
+ */
+export async function setThreadWorktree(
+  threadId: string,
+  worktreePath: string,
+  worktreeBranch?: string,
+  options?: { isNewWorktree?: boolean },
+): Promise<void> {
+  const store = useAppStore.getState();
+  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  if (!thread) return;
+
+  const apply = () => {
+    useAppStore.getState().setThreadWorktree(threadId, worktreePath, worktreeBranch);
+  };
+
+  const owner = remoteOwner(thread);
+  if (owner) {
+    await useRemoteServersStore.getState().sendThreadCommand(owner.desktopId, {
+      kind: "set-worktree",
+      threadId: owner.remoteId,
+      worktreePath,
+      ...(worktreeBranch ? { worktreeBranch } : {}),
+      ...(options?.isNewWorktree ? { isNewWorktree: true } : {}),
+    });
+  }
+  apply();
+}
+
 /** Clear the unread completion marker without navigating the source desktop. */
 export function acknowledgeThread(threadId: string): void {
   const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
