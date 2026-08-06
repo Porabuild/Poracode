@@ -314,7 +314,7 @@ export function SidebarProjectFilter(props: {
             type="button"
             aria-label={t`Filter by project`}
             aria-expanded={isOpen}
-            className={sidebarRowClass()}
+            className={sidebarRowClass({ size: "xs" })}
             onClick={() => setIsOpen(true)}
           >
             {triggerContent}
@@ -417,7 +417,7 @@ export function SidebarProjectFilter(props: {
         <Dropdown.Trigger
           {...{ [TRIGGER_ATTR]: true }}
           aria-label={t`Filter by project`}
-          className={sidebarRowClass()}
+          className={sidebarRowClass({ size: "xs" })}
         >
           {triggerContent}
         </Dropdown.Trigger>
