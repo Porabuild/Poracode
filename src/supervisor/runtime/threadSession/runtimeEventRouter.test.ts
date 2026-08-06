@@ -124,6 +124,97 @@ describe("RuntimeEventRouter", () => {
     ).toEqual([`item.started:${parentId}`, `item.completed:${parentId}`]);
     expect(router.subscribe(threadId, parentId)).toEqual([]);
   });
+
+  it("replays buffered child history onto the runtime stream on subscribe", () => {
+    const { router, emit } = makeRouter();
+    const threadId = "t1";
+    const parentId = "task-1";
+
+    router.append(threadId, {
+      type: "item.started",
+      threadId,
+      itemId: parentId,
+      itemType: "tool_call",
+      payload: { name: "Task", status: "running" },
+    });
+    router.append(threadId, {
+      type: "item.started",
+      threadId,
+      itemId: "child-1",
+      itemType: "assistant_message",
+      parentItemId: parentId,
+    });
+    router.append(threadId, {
+      type: "content.delta",
+      threadId,
+      itemId: "child-1",
+      stream: "assistant_text",
+      delta: "hi",
+    });
+    router.append(threadId, {
+      type: "item.started",
+      threadId,
+      itemId: "child-2",
+      itemType: "tool_call",
+      parentItemId: parentId,
+      payload: { name: "Read", status: "running" },
+    });
+    vi.runAllTimers();
+    emit.mockClear();
+
+    // Subscribe drains the buffer onto the normal stream and returns empty history.
+    expect(router.subscribe(threadId, parentId)).toEqual([]);
+    vi.runAllTimers();
+
+    const replayed = collectEmittedRuntimeEvents(emit);
+    expect(replayed).toEqual([
+      {
+        type: "item.started",
+        threadId,
+        itemId: "child-1",
+        itemType: "assistant_message",
+        parentItemId: parentId,
+      },
+      {
+        type: "content.delta",
+        threadId,
+        itemId: "child-1",
+        stream: "assistant_text",
+        delta: "hi",
+      },
+      {
+        type: "item.started",
+        threadId,
+        itemId: "child-2",
+        itemType: "tool_call",
+        parentItemId: parentId,
+        payload: { name: "Read", status: "running" },
+      },
+    ]);
+
+    // Subsequent child events stream live without re-buffering or duplicating
+    // the replayed history.
+    emit.mockClear();
+    router.append(threadId, {
+      type: "item.completed",
+      threadId,
+      itemId: "child-2",
+    });
+    vi.runAllTimers();
+    expect(collectEmittedRuntimeEvents(emit)).toEqual([
+      {
+        type: "item.completed",
+        threadId,
+        itemId: "child-2",
+      },
+    ]);
+
+    // Second subscribe returns empty and does not re-emit.
+    emit.mockClear();
+    expect(router.subscribe(threadId, parentId)).toEqual([]);
+    vi.runAllTimers();
+    expect(collectEmittedRuntimeEvents(emit)).toEqual([]);
+  });
 });
 
 describe("SubAgentRegistry", () => {

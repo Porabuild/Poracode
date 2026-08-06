@@ -120,7 +120,12 @@ export function applyThreadSnapshot(
         [threadId]: (current.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
       },
     }));
-    state.reconcileStaleSubAgents(threadId);
+    // Active remote threads legitimately have running delegated-agent rows;
+    // terminating them paints a false "session ended" error while the host is
+    // still working. Inactive threads keep the reconcile (orphaned rows).
+    if (!threadActive) {
+      state.reconcileStaleSubAgents(threadId);
+    }
   } else if (options.fromServer) {
     mergeMissedOlderSnapshotItems(threadId, snapshotItems);
   }
