@@ -129,6 +129,67 @@ describe("ProjectSwitchMenu", () => {
     expect(items.map((item) => item.textContent)).toEqual(["Alpha", "AlphaMacBook 16"]);
   });
 
+  it("pins Home first, then local projects, then remote mirrors regardless of store order", async () => {
+    const remoteAlpha = {
+      ...project("r1", "RemoteAlpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+    } as Project;
+    const remoteGamma = {
+      ...project("r2", "RemoteGamma"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-2",
+    } as Project;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    // Store order interleaves remote mirrors among local projects — the
+    // selector must ignore it and bucket Home, local, then remote.
+    useAppStore.setState({
+      projects: [
+        remoteAlpha,
+        homeProject,
+        project("l1", "LocalBeta"),
+        remoteGamma,
+        project("l2", "LocalDelta"),
+      ],
+    });
+
+    render(<ProjectSwitchMenu currentProjectId="l1" variant="compact" />);
+    const menu = await openMenu();
+    const items = within(menu).getAllByRole("menuitemradio");
+    expect(items.map((item) => item.textContent)).toEqual([
+      HOME_PROJECT_NAME,
+      "LocalBeta",
+      "LocalDelta",
+      "RemoteAlphaMacBook 16",
+      "RemoteGammaMacBook 16",
+    ]);
+  });
+
+  it("omits Home from the selector when the Home scope setting is off", async () => {
+    useSharedSettings.setState({ homeScopeEnabled: false });
+    render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+    const menu = await openMenu();
+
+    expect(
+      within(menu).queryByRole("menuitemradio", { name: HOME_PROJECT_NAME }),
+    ).not.toBeInTheDocument();
+    // Active workspace still leads, then the other workspace's projects.
+    const groups = within(menu).getAllByRole("group");
+    expect(
+      within(groups[0]!)
+        .getAllByRole("menuitemradio")
+        .map((item) => item.textContent),
+    ).toEqual(["Alpha", "Gamma"]);
+    expect(
+      within(groups[1]!)
+        .getAllByRole("menuitemradio")
+        .map((item) => item.textContent),
+    ).toEqual(["BetaSide Hustle"]);
+  });
+
   it("labels the trigger with a draft that outlived a workspace switch", async () => {
     render(<ProjectSwitchMenu currentProjectId="b" variant="compact" />);
 
