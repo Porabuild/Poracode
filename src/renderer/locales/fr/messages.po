@@ -1719,6 +1719,8 @@ msgstr "Ramener dans le panneau"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Ramenez-le dans ce panneau ou accédez à la fenêtre dans laquelle il s’exécute."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "Apporter les modifications non validées"
@@ -2223,6 +2225,8 @@ msgstr "Nom du profil Claude"
 msgid "Claude profile removed."
 msgstr "Profil de Claude supprimé."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "Worktree propre"
@@ -3151,6 +3155,10 @@ msgstr "Impossible de charger la compétence."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Impossible de charger vos statistiques de profil."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't move the thread to a worktree."
+msgstr "Impossible de déplacer le fil de discussion vers un worktree."
 
 #: src/mobile/routeComponents.tsx
 msgid "Couldn't reach the desktop from this HTTPS page."
@@ -6613,13 +6621,23 @@ msgstr "Déplacer le navigateur vers une fenêtre"
 msgid "Move changes to a new worktree"
 msgstr "Déplacer les modifications vers un nouvel arbre de travail"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to clean worktree"
+msgstr "Déplacer vers un worktree propre"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Déplacer vers un espace de travail"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "Déplacer vers un worktree"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to worktree with changes"
+msgstr "Déplacer vers un worktree avec les modifications"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "Move to Worktree…"
@@ -12440,6 +12458,7 @@ msgstr "Attendez que tous les candidats aient terminé avant de fusionner un gag
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Attendez que tous les candidats aient terminé avant d’ouvrir une pull request."
 
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Attendez que le fil de discussion ait fini de démarrer avant de le déplacer vers un worktree."

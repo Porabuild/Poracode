@@ -68,6 +68,7 @@ function renderView(
       worktreePath: string;
       threadIds: readonly string[];
     }) => void;
+    onMoveThreadToWorktree?: (thread: Thread, withChanges: boolean) => void;
     onOpenTerminal?: (input: {
       projectId: string;
       worktreePath?: string;
@@ -95,6 +96,7 @@ function renderView(
       onNew={() => {}}
       onNewThreadInWorktree={handlers?.onNewThreadInWorktree ?? (() => {})}
       onDeleteWorktreeGroup={handlers?.onDeleteWorktreeGroup ?? (() => {})}
+      onMoveThreadToWorktree={handlers?.onMoveThreadToWorktree ?? (() => {})}
       onOpenTerminal={handlers?.onOpenTerminal ?? (() => {})}
       onRunProjectAction={handlers?.onRunProjectAction ?? (() => {})}
       {...(handlers?.emptyStateOverride ? { emptyStateOverride: handlers.emptyStateOverride } : {})}
@@ -243,6 +245,59 @@ describe("ThreadsView grouping", () => {
     expect(input.projectId).toBe("p1");
     expect(input.worktreePath).toBe("/repo/wt");
     expect([...input.threadIds].sort()).toEqual(["a", "b"]);
+  });
+
+  it("moves a main-checkout thread with its changes from the row menu", () => {
+    const onMoveThreadToWorktree = vi.fn<(thread: Thread, withChanges: boolean) => void>();
+    renderView([makeThread({ id: "a", title: "Alpha" })], { onMoveThreadToWorktree });
+
+    fireEvent.contextMenu(screen.getByText("Alpha").closest("button")!);
+    fireEvent.click(screen.getByText("Move to Worktree"));
+    fireEvent.click(screen.getByText("Bring Uncommitted Changes"));
+
+    expect(onMoveThreadToWorktree).toHaveBeenCalledTimes(1);
+    expect(onMoveThreadToWorktree.mock.calls[0]![0].id).toBe("a");
+    expect(onMoveThreadToWorktree.mock.calls[0]![1]).toBe(true);
+  });
+
+  it("moves a main-checkout thread to a clean worktree from the row menu", () => {
+    const onMoveThreadToWorktree = vi.fn<(thread: Thread, withChanges: boolean) => void>();
+    renderView([makeThread({ id: "a", title: "Alpha" })], { onMoveThreadToWorktree });
+
+    fireEvent.contextMenu(screen.getByText("Alpha").closest("button")!);
+    fireEvent.click(screen.getByText("Move to Worktree"));
+    fireEvent.click(screen.getByText("Clean Worktree"));
+
+    expect(onMoveThreadToWorktree).toHaveBeenCalledTimes(1);
+    expect(onMoveThreadToWorktree.mock.calls[0]![0].id).toBe("a");
+    expect(onMoveThreadToWorktree.mock.calls[0]![1]).toBe(false);
+  });
+
+  it("omits Move to Worktree for threads already in a worktree", () => {
+    renderView([
+      makeThread({
+        id: "a",
+        title: "Alpha",
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feature/x",
+      }),
+    ]);
+
+    fireEvent.contextMenu(screen.getByText("Alpha").closest("button")!);
+
+    expect(screen.queryByText("Move to Worktree")).toBeNull();
+  });
+
+  it("offers Move to Worktree as a desktop submenu entry", () => {
+    media.desktopPointer = true;
+    renderView([makeThread({ id: "a", title: "Alpha" })]);
+
+    fireEvent.contextMenu(screen.getByText("Alpha").closest("button")!, {
+      clientX: 120,
+      clientY: 80,
+    });
+
+    expect(screen.getByRole("menuitem", { name: "Move to Worktree" })).toBeTruthy();
   });
 
   it("collapses and re-expands the group when its header is tapped", () => {
@@ -939,6 +994,7 @@ describe("ThreadsView header-driven (floating) search", () => {
         onNew={() => {}}
         onNewThreadInWorktree={() => {}}
         onDeleteWorktreeGroup={() => {}}
+        onMoveThreadToWorktree={() => {}}
         onOpenTerminal={() => {}}
         onRunProjectAction={() => {}}
       />,
@@ -1000,6 +1056,7 @@ describe("ThreadsView header-driven (floating) search", () => {
         onNew={() => {}}
         onNewThreadInWorktree={() => {}}
         onDeleteWorktreeGroup={() => {}}
+        onMoveThreadToWorktree={() => {}}
         onOpenTerminal={() => {}}
         onRunProjectAction={() => {}}
       />,
@@ -1030,6 +1087,7 @@ describe("ThreadsView header-driven (floating) search", () => {
           onNew={() => {}}
           onNewThreadInWorktree={() => {}}
           onDeleteWorktreeGroup={() => {}}
+          onMoveThreadToWorktree={() => {}}
           onOpenTerminal={() => {}}
           onRunProjectAction={() => {}}
         />,

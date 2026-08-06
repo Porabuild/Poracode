@@ -1719,6 +1719,8 @@ msgstr "Đưa về bảng điều khiển"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Đưa trở lại bảng điều khiển này, hoặc chuyển đến cửa sổ đang chạy."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "Mang theo các thay đổi chưa được cam kết"
@@ -2223,6 +2225,8 @@ msgstr "Tên hồ sơ Claude"
 msgid "Claude profile removed."
 msgstr "Hồ sơ Claude đã bị xóa."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "Cây làm việc sạch"
@@ -3151,6 +3155,10 @@ msgstr "Không thể tải skill."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Không thể tải thống kê hồ sơ của bạn."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't move the thread to a worktree."
+msgstr "Không thể chuyển chủ đề sang cây làm việc."
 
 #: src/mobile/routeComponents.tsx
 msgid "Couldn't reach the desktop from this HTTPS page."
@@ -6614,13 +6622,23 @@ msgstr "Chuyển trình duyệt sang cửa sổ"
 msgid "Move changes to a new worktree"
 msgstr "Di chuyển các thay đổi sang một cây làm việc mới"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to clean worktree"
+msgstr "Chuyển sang cây làm việc sạch"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Chuyển tới không gian làm việc"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "Chuyển sang cây làm việc"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to worktree with changes"
+msgstr "Chuyển sang cây làm việc kèm thay đổi"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "Move to Worktree…"
@@ -12441,6 +12459,7 @@ msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi hợp nhất
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi mở pull request."
 
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Đợi luồng khởi động xong trước khi chuyển nó sang cây làm việc."

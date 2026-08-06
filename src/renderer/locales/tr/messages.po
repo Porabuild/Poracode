@@ -1719,6 +1719,8 @@ msgstr "Panele geri getir"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Bu panele geri getirin veya çalıştığı pencereye geçin."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "Kaydedilmemiş değişiklikleri getir"
@@ -2223,6 +2225,8 @@ msgstr "Claude profil adı"
 msgid "Claude profile removed."
 msgstr "Claude profili kaldırıldı."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "Temiz çalışma ağacı"
@@ -3151,6 +3155,10 @@ msgstr "Beceri yüklenemedi."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Profil istatistikleriniz yüklenemedi."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't move the thread to a worktree."
+msgstr "Konu çalışma ağacına taşınamadı."
 
 #: src/mobile/routeComponents.tsx
 msgid "Couldn't reach the desktop from this HTTPS page."
@@ -6614,13 +6622,23 @@ msgstr "Tarayıcıyı pencereye taşı"
 msgid "Move changes to a new worktree"
 msgstr "Değişiklikleri yeni bir çalışma ağacına taşı"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to clean worktree"
+msgstr "Temiz çalışma ağacına taşı"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Çalışma alanına taşı"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "Çalışma ağacına taşı"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to worktree with changes"
+msgstr "Değişikliklerle çalışma ağacına taşı"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "Move to Worktree…"
@@ -12441,6 +12459,7 @@ msgstr "Kazananı birleştirmeden önce tüm adayların çalışmasını tamamla
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Pull request açmadan önce tüm adayların çalışmasını tamamlamasını bekleyin."
 
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Çalışma ağacına taşımadan önce konunun başlamasının bitmesini bekleyin."

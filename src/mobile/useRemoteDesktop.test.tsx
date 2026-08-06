@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RemoteShellSnapshot } from "@/shared/remote";
 import { RemoteClientError } from "@/shared/remote/client";
+import { useGitSummariesStore } from "./gitSummaries";
 import type { StoredDesktop } from "./storage";
 
 /** The RemoteDesktopClient surface the hook touches, each method a spy. */
@@ -78,6 +79,10 @@ const h = vi.hoisted(() => {
     updateDesktopPlatform: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
     gitAddWorktree: vi.fn<(...a: unknown[]) => Promise<{ path: string }>>(async () => ({
       path: "/repo/.poracode/worktrees/mobile-fix",
+    })),
+    bridgeCloseThread: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+    bridgeStartThread: vi.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({
+      threadId: "t",
     })),
     captureFileCheckpoint: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
     setRemoteBridgeClient: vi.fn<(...a: unknown[]) => void>(),
@@ -261,7 +266,11 @@ vi.mock("./settingsSync", () => ({
   resetDesktopSettings: (...a: unknown[]) => h.resetDesktopSettings(...a),
 }));
 vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => ({ gitAddWorktree: h.gitAddWorktree }),
+  readBridge: () => ({
+    gitAddWorktree: h.gitAddWorktree,
+    closeThread: h.bridgeCloseThread,
+    startThread: h.bridgeStartThread,
+  }),
 }));
 vi.mock("./bridge", () => ({
   setRemoteBridgeClient: (...a: unknown[]) => h.setRemoteBridgeClient(...a),
@@ -388,11 +397,14 @@ describe("useRemoteDesktop", () => {
       h.updateDesktopEndpoint,
       h.updateDesktopPlatform,
       h.gitAddWorktree,
+      h.bridgeCloseThread,
+      h.bridgeStartThread,
       h.captureFileCheckpoint,
       h.setRemoteBridgeClient,
     ]) {
       fn.mockClear();
     }
+    useGitSummariesStore.getState().reset();
     h.applyShellSnapshot.mockImplementation(() => {});
     h.getSshCredential.mockResolvedValue(null);
     vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
@@ -707,6 +719,159 @@ describe("useRemoteDesktop", () => {
         isNewWorktree: true,
       }),
     );
+  });
+
+  describe("moveThreadToWorktree", () => {
+    const project = {
+      id: "p",
+      name: "Repo",
+      location: { kind: "posix" as const, path: "/repo" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    function makeMainThread(overrides: Record<string, unknown> = {}) {
+      return {
+        id: "t1",
+        projectId: "p",
+        title: "Thread",
+        agentKind: "codex" as const,
+        config: { model: "m" },
+        status: "inactive" as const,
+        attention: "none" as const,
+        canResumeWithConfig: false,
+        archived: false,
+        done: false,
+        starred: false,
+        presentationMode: "gui" as const,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        ...overrides,
+      };
+    }
+
+    it("re-tags an inactive thread through the host set-worktree command", async () => {
+      const desktop = makeDesktop("d1");
+      const client = clientFor("d1");
+      const view = await mountWith([desktop], "d1");
+      const thread = makeMainThread();
+      client.sendThreadCommand.mockClear();
+
+      await act(async () => {
+        useAppStore.setState({ projects: [project as never], threads: [thread as never] });
+        await view.result.current.moveThreadToWorktree(thread as never, false);
+      });
+
+      // Inactive thread: no close, no restart.
+      expect(h.bridgeCloseThread).not.toHaveBeenCalled();
+      expect(h.bridgeStartThread).not.toHaveBeenCalled();
+      expect(h.gitAddWorktree).toHaveBeenCalledTimes(1);
+      const addPayload = h.gitAddWorktree.mock.calls[0]![0] as Record<string, unknown>;
+      expect(addPayload).toMatchObject({
+        projectLocation: project.location,
+        createBranch: true,
+        transferUncommitted: false,
+        keepChangesInSource: false,
+      });
+      expect(addPayload.branch).toEqual(expect.stringMatching(/^poracode\//));
+      // No git summary for the thread → no startPoint (host falls back to HEAD).
+      expect(addPayload.startPoint).toBeUndefined();
+      expect(client.sendThreadCommand).toHaveBeenCalledWith({
+        kind: "set-worktree",
+        threadId: "t1",
+        worktreePath: "/repo/.poracode/worktrees/mobile-fix",
+        worktreeBranch: addPayload.branch,
+        isNewWorktree: true,
+      });
+      // Optimistic local mirror tags the thread right away.
+      const stored = useAppStore.getState().threads.find((entry) => entry.id === "t1");
+      expect(stored?.worktreePath).toBe("/repo/.poracode/worktrees/mobile-fix");
+      expect(stored?.worktreeBranch).toBe(addPayload.branch);
+    });
+
+    it("closes an active thread, moves its changes, and restarts it in the worktree", async () => {
+      const desktop = makeDesktop("d1");
+      const client = clientFor("d1");
+      const view = await mountWith([desktop], "d1");
+      const thread = makeMainThread({ status: "idle", sessionRef: "ses-1" });
+
+      await act(async () => {
+        useAppStore.setState({ projects: [project as never], threads: [thread as never] });
+        useGitSummariesStore.getState().setThread("t1", {
+          isRepo: true,
+          branch: "main",
+          totalInsertions: 0,
+          totalDeletions: 0,
+          ahead: 0,
+          behind: 0,
+          pr: null,
+        } as never);
+        await view.result.current.moveThreadToWorktree(thread as never, true);
+      });
+
+      expect(h.bridgeCloseThread).toHaveBeenCalledWith({ threadId: "t1" });
+      const addPayload = h.gitAddWorktree.mock.calls[0]![0] as Record<string, unknown>;
+      expect(addPayload).toMatchObject({
+        startPoint: "main",
+        transferUncommitted: true,
+        keepChangesInSource: false,
+      });
+      expect(client.sendThreadCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "set-worktree", threadId: "t1", isNewWorktree: true }),
+      );
+      expect(h.bridgeStartThread).toHaveBeenCalledWith(
+        expect.objectContaining({
+          threadId: "t1",
+          projectLocation: { kind: "posix", path: "/repo/.poracode/worktrees/mobile-fix" },
+          sessionRef: "ses-1",
+          presentationMode: "gui",
+        }),
+      );
+    });
+
+    it("reports the failure and refreshes without re-tagging when worktree creation fails", async () => {
+      const desktop = makeDesktop("d1");
+      const client = clientFor("d1");
+      const view = await mountWith([desktop], "d1");
+      const thread = makeMainThread();
+      client.sendThreadCommand.mockClear();
+      client.snapshot.mockClear();
+      h.gitAddWorktree.mockRejectedValueOnce(new Error("git boom"));
+
+      await act(async () => {
+        useAppStore.setState({ projects: [project as never], threads: [thread as never] });
+        await view.result.current.moveThreadToWorktree(thread as never, false);
+      });
+
+      expect(client.sendThreadCommand).not.toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "set-worktree" }),
+      );
+      expect(
+        useAppStore.getState().threads.find((entry) => entry.id === "t1")?.worktreePath,
+      ).toBeUndefined();
+      expect(view.result.current.message).toBe("git boom");
+      // The failure path re-pulls the desktop's truth.
+      await waitFor(() => expect(client.snapshot).toHaveBeenCalled());
+    });
+
+    it("refuses to move a thread that is still launching", async () => {
+      const desktop = makeDesktop("d1");
+      const client = clientFor("d1");
+      const view = await mountWith([desktop], "d1");
+      const thread = makeMainThread({ status: "launching" });
+      client.sendThreadCommand.mockClear();
+
+      await act(async () => {
+        useAppStore.setState({ projects: [project as never], threads: [thread as never] });
+        await view.result.current.moveThreadToWorktree(thread as never, false);
+      });
+
+      expect(h.gitAddWorktree).not.toHaveBeenCalled();
+      expect(h.bridgeCloseThread).not.toHaveBeenCalled();
+      expect(client.sendThreadCommand).not.toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "set-worktree" }),
+      );
+      expect(view.result.current.message).toContain("finish starting");
+    });
   });
 
   it("captures a pre-turn file checkpoint for a PWA prompt", async () => {

@@ -232,6 +232,9 @@ export function WideShell(props: {
             onDeleteWorktreeGroup={(input) => {
               void remote.deleteWorktreeGroup(input);
             }}
+            onMoveThreadToWorktree={(thread, withChanges) => {
+              void remote.moveThreadToWorktree(thread, withChanges);
+            }}
             onNew={() => void navigate({ to: "/new" })}
             onNewThreadInWorktree={(input) => {
               void openWorktreeDraft(input, () => navigate({ to: "/new" }));

@@ -1719,6 +1719,8 @@ msgstr "Zurück ins Panel holen"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Holen Sie ihn zurück in dieses Panel oder wechseln Sie zum Fenster, in dem er läuft."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "Nicht festgeschriebene Änderungen mitbringen"
@@ -2223,6 +2225,8 @@ msgstr "Claude-Profilname"
 msgid "Claude profile removed."
 msgstr "Claude-Profil entfernt."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "Sauberer Arbeitsbaum"
@@ -3151,6 +3155,10 @@ msgstr "Der Skill konnte nicht geladen werden."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Ihre Profilstatistiken konnten nicht geladen werden."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't move the thread to a worktree."
+msgstr "Thread konnte nicht in einen Arbeitsbaum verschoben werden."
 
 #: src/mobile/routeComponents.tsx
 msgid "Couldn't reach the desktop from this HTTPS page."
@@ -6614,13 +6622,23 @@ msgstr "Browser in Fenster verschieben"
 msgid "Move changes to a new worktree"
 msgstr "Änderungen in einen neuen Arbeitsbaum verschieben"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to clean worktree"
+msgstr "In sauberen Arbeitsbaum verschieben"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "In Arbeitsbereich verschieben"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "In Arbeitsbaum verschieben"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to worktree with changes"
+msgstr "Mit Änderungen in Arbeitsbaum verschieben"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "Move to Worktree…"
@@ -12441,6 +12459,7 @@ msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie einen Gewinner zu
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie einen Pull Request öffnen."
 
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Warten Sie, bis der Thread vollständig gestartet ist, bevor Sie ihn in einen Arbeitsbaum verschieben."
