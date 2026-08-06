@@ -2,7 +2,7 @@ import { mkdirSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { LoadedPlugin, PluginSource } from "@/shared/contracts";
 import { formatPluginDiagnostic, type PluginDiagnostic } from "@/shared/plugins/spec";
-import { loadPluginFromDirectory, PLUGIN_MANIFEST_FILE } from "./PluginLoader";
+import { loadPluginFromDirectory, PLUGIN_MANIFEST_FILE, PLUGIN_MCP_FILE } from "./PluginLoader";
 
 /**
  * Discovers Agent Plugins packages from the roots Poracode scans.
@@ -34,11 +34,18 @@ function rootFingerprint(directory: string): string {
     return `${directory}\0missing`;
   }
   const parts = entries.map((entry) => {
-    try {
-      return `${entry}:${statSync(join(directory, entry)).mtimeMs}`;
-    } catch {
-      return `${entry}:?`;
-    }
+    // A directory's mtime does not change when a file inside it is rewritten, so
+    // fold in the two manifests as well; otherwise editing a package in place
+    // keeps serving the stale parse to every launch and skill scan.
+    const stamp = (path: string): string => {
+      try {
+        return String(statSync(path).mtimeMs);
+      } catch {
+        return "?";
+      }
+    };
+    const dir = join(directory, entry);
+    return `${entry}:${stamp(dir)}:${stamp(join(dir, PLUGIN_MANIFEST_FILE))}:${stamp(join(dir, PLUGIN_MCP_FILE))}`;
   });
   return `${directory}\0${parts.join("\0")}`;
 }

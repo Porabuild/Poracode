@@ -6,7 +6,6 @@ import type {
   ProjectLocation,
   PromptSegment,
   SkillEntry,
-  ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { isPluginSkillEnabled, isPluginSkillSupportedForLaunch } from "@/shared/plugins/catalog";
@@ -39,7 +38,6 @@ export interface PluginSkillPolicyContext {
   projectLocation?: ProjectLocation;
   capabilities?: AgentCapability;
   presentationMode?: ThreadPresentationMode;
-  launchConfig?: ThreadConfig;
 }
 
 export interface PluginSkillPolicyOptions {
@@ -70,6 +68,17 @@ function relativePosixPolicyPath(root: string, target: string): string | undefin
     return undefined;
   }
   return candidate;
+}
+
+/**
+ * `C:\a\b` -> `/mnt/c/a/b`. Pure string mapping with no `wsl.exe` round-trip, so
+ * it still works when the distro cannot translate paths for us.
+ */
+function lexicalWslRootPath(hostRoot: string): string | undefined {
+  const match = /^([a-z]):[\\/](.*)$/iu.exec(hostRoot);
+  if (!match) return undefined;
+  const rest = match[2]!.replace(/\\/gu, "/");
+  return `/mnt/${match[1]!.toLowerCase()}${rest ? `/${rest}` : ""}`;
 }
 
 function relativeWslPolicyPath(root: string, target: string): string | undefined {
@@ -217,7 +226,13 @@ export class PluginSkillPolicy {
       [...unresolvedWslPaths].map(async ([distro, pending]) => {
         const wslRoots = await this.resolveWslRoots(distro, roots);
         if (wslRoots.length === 0) {
-          pending.forEach(({ segment }) => rejectedWslSegments.add(segment));
+          // The distro could not translate any plugin root (no /mnt automount,
+          // distro still starting, transient wsl.exe failure). Fail closed only
+          // for segments that lexically sit under a plugin root — dropping every
+          // WSL skill here would silently strip the user's own skills too.
+          pending.forEach(({ segment, linuxPath }) => {
+            if (this.matchLexicalWslPath(roots, linuxPath)) rejectedWslSegments.add(segment);
+          });
           return;
         }
         const resolvedPaths = await this.options
@@ -230,10 +245,11 @@ export class PluginSkillPolicy {
           distro,
           resolvedPaths.map((path) => path ?? "/"),
         ).catch(() => []);
-        pending.forEach(({ segment }, index) => {
+        pending.forEach(({ segment, linuxPath }, index) => {
           const resolvedPath = resolvedPaths[index];
           if (!resolvedPath) {
-            rejectedWslSegments.add(segment);
+            // Same reasoning as the empty-wslRoots branch above.
+            if (this.matchLexicalWslPath(roots, linuxPath)) rejectedWslSegments.add(segment);
             return;
           }
           const windowsPath = windowsPaths[index];
@@ -297,6 +313,16 @@ export class PluginSkillPolicy {
       if (relativePath) return { root, relativePath };
     }
     return undefined;
+  }
+
+  /** True when a distro path lexically sits under one of the plugin skill roots. */
+  private matchLexicalWslPath(roots: readonly PluginSkillRoot[], linuxPath: string): boolean {
+    return roots.some((root) => {
+      const lexicalRoot = lexicalWslRootPath(root.skillsRoot);
+      return (
+        lexicalRoot !== undefined && relativeWslPolicyPath(lexicalRoot, linuxPath) !== undefined
+      );
+    });
   }
 
   private async resolveWslRoots(

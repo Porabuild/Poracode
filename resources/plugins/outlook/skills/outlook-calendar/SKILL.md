@@ -1,5 +1,5 @@
 ---
-name: "Outlook Calendar"
+name: outlook-calendar
 description: "Read an Outlook calendar, find meeting times, and create or move events through the Microsoft 365 MCP server."
 ---
 

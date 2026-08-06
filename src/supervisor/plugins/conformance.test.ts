@@ -1,8 +1,10 @@
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { InstalledPlugins } from "@/shared/contracts";
+import { isValidSkillName } from "@/shared/contracts";
 import {
   AGENT_PLUGINS_MANIFEST_SCHEMA_URL,
   AGENT_PLUGINS_MCP_SCHEMA_URL,
@@ -486,6 +488,39 @@ describe("mcp runtime", () => {
     expect(codes(result.diagnostics)).toEqual(["mcp-entry-unresolvable"]);
   });
 
+  it("skips host-only stdio servers for a WSL project but keeps remote ones", async () => {
+    const plugin = await loadWithServers("wsl-mix", {
+      local: { type: "stdio", command: "server" },
+      remote: { type: "streamable-http", url: "https://tools.example.com/mcp" },
+    });
+    const context = { pluginDataRoot: join(root, "plugin-data") };
+    const wsl = {
+      kind: "wsl" as const,
+      distro: "Ubuntu",
+      linuxPath: "/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+    };
+
+    // A stdio server is launched by the CLI inside the distro; every path we
+    // would hand it is a Windows host path that cannot resolve there.
+    const onWsl = resolvePluginMcpServers([plugin], installed("wsl-mix"), {
+      ...context,
+      projectLocation: wsl,
+    });
+    expect(onWsl.servers.map((server) => server.name)).toEqual(["wsl-mix.remote"]);
+    expect(codes(onWsl.diagnostics)).toEqual(["mcp-entry-host-only"]);
+
+    const onWindows = resolvePluginMcpServers([plugin], installed("wsl-mix"), {
+      ...context,
+      projectLocation: { kind: "windows", path: "C:\repo" },
+    });
+    expect(onWindows.servers.map((server) => server.name)).toEqual([
+      "wsl-mix.local",
+      "wsl-mix.remote",
+    ]);
+    expect(onWindows.diagnostics).toEqual([]);
+  });
+
   it("skips servers a plugin is not installed or enabled for", async () => {
     const plugin = await loadWithServers("gated", {
       main: { type: "stdio", command: "server" },
@@ -602,6 +637,19 @@ describe("shipped packages", () => {
       expect(result.plugin?.name).toBe(name);
       expect(result.plugin?.skills.length).toBeGreaterThan(0);
       expect(result.plugin?.poracode.title).toBeTruthy();
+
+      // SkillsService rejects a SKILL.md whose frontmatter `name` is not the
+      // folder name, and the Skills list then shows the rejection reason where
+      // the description belongs. Prove every shipped skill passes that gate.
+      for (const skill of result.plugin?.skills ?? []) {
+        const frontmatter = readFileSync(join(skill.path, "SKILL.md"), "utf8");
+        const declared = /^name:[ \t]*"?([^"\r\n]+?)"?[ \t]*$/mu.exec(frontmatter)?.[1];
+        expect(declared, `${name}/${skill.folder} has no frontmatter name`).toBeTruthy();
+        expect(isValidSkillName(declared!), `${name}/${skill.folder} name '${declared}'`).toBe(
+          true,
+        );
+        expect(declared, `${name}/${skill.folder} name must match its folder`).toBe(skill.folder);
+      }
     }
   });
 });

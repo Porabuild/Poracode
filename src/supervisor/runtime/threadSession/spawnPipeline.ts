@@ -352,10 +352,16 @@ export class SpawnPipeline {
       threadId: payload.threadId,
       title: initialPrompt.split("\n", 1)[0]?.trim() ?? "",
     };
-    let mcpServers = resolveEnabledMcpServers([
-      ...(payload.mcpServers ?? []),
-      ...(this.ctx.options.resolvePluginMcpServers?.(payload.projectLocation) ?? []),
-    ]);
+    // Every provider translator keys its output record by `server.name`, so a
+    // plugin server sharing a name with a user-configured one would silently
+    // replace it — dropping the user's headers and tokens. The user's own
+    // servers win; the colliding plugin server is skipped.
+    const userMcpServers = payload.mcpServers ?? [];
+    const userMcpServerNames = new Set(userMcpServers.map((server) => server.name));
+    const pluginMcpServers = (
+      this.ctx.options.resolvePluginMcpServers?.(payload.projectLocation) ?? []
+    ).filter((server) => !userMcpServerNames.has(server.name));
+    let mcpServers = resolveEnabledMcpServers([...userMcpServers, ...pluginMcpServers]);
     if (this.ctx.options.applyMcpServerAuthorization) {
       mcpServers = await this.ctx.options.applyMcpServerAuthorization(mcpServers);
     }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Trans } from "@lingui/react/macro";
-import { Button } from "@/renderer/components/common";
+import { Button, PixelLoader } from "@/renderer/components/common";
 import { PluginDetail } from "@/renderer/components/plugins/PluginDetail";
 import { PluginMarketplace } from "@/renderer/components/plugins/PluginMarketplace";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
@@ -32,29 +32,18 @@ export function PluginsSettings() {
     const target = [...(marketplace?.querySelectorAll<HTMLElement>("[data-plugin-id]") ?? [])].find(
       (element) => element.dataset.pluginId === pluginId,
     );
-    (
-      target ?? marketplace?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')
-    )?.focus();
+    (target ?? marketplace?.querySelector<HTMLElement>('input[type="search"], input'))?.focus();
     returnFocusPluginId.current = undefined;
   }, [selectedPluginId]);
 
   if (!loaded) {
     return (
-      <div className="flex min-h-32 items-center justify-center text-sm text-muted" role="status">
-        <Trans>Loading…</Trans>
-      </div>
-    );
-  }
-
-  if (error && plugins.length === 0) {
-    return (
-      <div className="flex min-h-32 flex-col items-center justify-center gap-3 text-sm text-muted">
-        <p role="alert">
-          <Trans>Connection failed.</Trans>
-        </p>
-        <Button size="sm" variant="tertiary" onPress={() => void loadPlugins(true)}>
-          <Trans>Retry</Trans>
-        </Button>
+      <div
+        className="flex min-h-32 items-center justify-center gap-2 text-sm text-muted"
+        role="status"
+      >
+        <PixelLoader size="xs" />
+        <Trans>Loading plugins…</Trans>
       </div>
     );
   }
@@ -67,6 +56,24 @@ export function PluginsSettings() {
   return (
     <div data-settings-anchor="plugins.marketplace">
       <div hidden={selectedPlugin !== undefined}>
+        {error ? (
+          <div
+            className="mx-auto mb-4 max-w-[960px] rounded-xl border border-danger/40 bg-danger/10 px-3 py-3 text-sm text-danger"
+            role="alert"
+          >
+            <p>
+              <Trans>Couldn't load plugins.</Trans>
+            </p>
+            <Button
+              className="mt-2"
+              size="sm"
+              variant="tertiary"
+              onPress={() => void loadPlugins(true)}
+            >
+              <Trans>Retry</Trans>
+            </Button>
+          </div>
+        ) : null}
         <PluginMarketplace plugins={plugins} hostPlatform={hostPlatform} onOpen={openPlugin} />
       </div>
       {selectedPlugin ? (

@@ -8,7 +8,11 @@ import type {
   ProjectLocation,
 } from "@/shared/contracts";
 import { DEFAULT_MCP_SERVER_TIMEOUT_MS, isValidMcpServerName } from "@/shared/contracts";
-import { isPluginSupportedForProject } from "@/shared/plugins/catalog";
+import {
+  isPluginSupportedForProject,
+  pluginMcpServerId,
+  pluginMcpServerName,
+} from "@/shared/plugins/catalog";
 import {
   pluginDiagnostic,
   type PluginDiagnostic,
@@ -161,16 +165,6 @@ function buildTransport(
   };
 }
 
-/** Stable id so per-server settings survive a rescan. */
-export function pluginMcpServerId(pluginName: string, serverName: string): string {
-  return `plugin:${pluginName}:${serverName}`;
-}
-
-/** Provider-visible name. Namespaced by plugin so two plugins cannot collide. */
-export function pluginMcpServerName(pluginName: string, serverName: string): string {
-  return `${pluginName}.${serverName}`;
-}
-
 /**
  * Builds the MCP servers contributed by enabled plugins.
  *
@@ -220,6 +214,24 @@ export function resolvePluginMcpServers(
       }
 
       if (declaration.entry.type === "stdio") {
+        // A stdio server is launched by the provider CLI, which runs inside the
+        // distro for a WSL project. Every path we would hand it — `command`,
+        // `cwd`, PLUGIN_ROOT, PLUGIN_DATA — is a Windows host path resolved from
+        // the package directory, and nothing on the launch path rewrites them
+        // (`agents/userMcp/translate.ts` writes them verbatim). Skip rather than
+        // emit a config that cannot resolve inside the distro.
+        if (context.projectLocation?.kind === "wsl") {
+          diagnostics.push(
+            pluginDiagnostic(
+              "error",
+              "mcp-server",
+              "mcp-entry-host-only",
+              `Skipping server '${declaration.name}': stdio servers run on the host and cannot be reached from a WSL project`,
+              declaration.name,
+            ),
+          );
+          continue;
+        }
         dataReady ??= ensureDirectory(data);
         if (!dataReady) {
           diagnostics.push(

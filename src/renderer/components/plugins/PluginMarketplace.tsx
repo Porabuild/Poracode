@@ -93,8 +93,8 @@ export function PluginMarketplace(props: {
                 isIconOnly
                 size="sm"
                 variant="tertiary"
-                aria-label={entry.name}
-                data-plugin-id={entry.plugin.name}
+                aria-label={t`Open ${entry.name}`}
+                data-plugin-shortcut-id={entry.plugin.name}
                 className="size-10 rounded-xl border border-[var(--hairline)] bg-surface-secondary p-0 text-foreground hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
                 onPress={() => props.onOpen(entry.plugin.name)}
               >

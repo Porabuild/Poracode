@@ -1,5 +1,5 @@
 ---
-name: "Publish Changes"
+name: publish-changes
 description: "Commit work, push a branch, and open a pull request with an accurate description."
 ---
 

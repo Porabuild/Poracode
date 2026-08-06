@@ -25,6 +25,7 @@ export const pluginDiagnosticSchema = z
     target: z.string().min(1).optional(),
   })
   .strict();
+export type PluginDiagnostic = z.infer<typeof pluginDiagnosticSchema>;
 
 /** A `skills/<folder>/SKILL.md` discovered inside the package boundary. */
 export const pluginSkillRefSchema = z
@@ -73,15 +74,20 @@ export type ListPluginsResult = z.infer<typeof listPluginsResultSchema>;
 /**
  * Per-plugin user state, keyed by the manifest `name`. Contribution ids are the
  * skill folder name and the `mcp.json` server key.
+ *
+ * Deliberately NOT `.strict()`. This is persisted to `settings.json` and to the
+ * renderer's localStorage mirror, and `normalizeSharedSettings` parses the whole
+ * `installedPlugins` record as one setting — so a single entry carrying a field
+ * from an older build would reject the record and silently uninstall every
+ * plugin. Unknown keys are stripped per entry instead, which is the "tolerant
+ * parser" that `.agents/docs/versioning.md` requires for unversioned JSON stores.
  */
-export const installedPluginStateSchema = z
-  .object({
-    version: z.string().min(1).default("0.0.0"),
-    enabled: z.boolean().default(true),
-    disabledSkillIds: z.array(z.string().min(1)).default([]),
-    disabledMcpServerNames: z.array(z.string().min(1)).default([]),
-  })
-  .strict();
+export const installedPluginStateSchema = z.object({
+  version: z.string().min(1).default("0.0.0"),
+  enabled: z.boolean().default(true),
+  disabledSkillIds: z.array(z.string().min(1)).default([]),
+  disabledMcpServerNames: z.array(z.string().min(1)).default([]),
+});
 export type InstalledPluginState = z.infer<typeof installedPluginStateSchema>;
 
 export const installedPluginsSchema = z.record(z.string(), installedPluginStateSchema).default({});

@@ -5,7 +5,6 @@ import type {
   LoadedPlugin,
   PluginSkillRef,
 } from "../contracts/plugin";
-import type { PluginSkillPolicyEntry } from "./spec";
 
 /**
  * Policy over loaded Agent Plugins packages.
@@ -43,14 +42,6 @@ export function getPluginSkill(plugin: LoadedPlugin, folder: string): PluginSkil
   return plugin.skills.find((skill) => skill.folder === folder);
 }
 
-/** Display copy a plugin declares for a skill, if any. */
-export function getPluginSkillPolicy(
-  plugin: LoadedPlugin,
-  folder: string,
-): PluginSkillPolicyEntry | undefined {
-  return plugin.poracode.skills[folder];
-}
-
 export interface PluginSkillLaunchContext {
   hostPlatform: NodeJS.Platform;
   projectLocation?: ProjectLocation;
@@ -72,6 +63,16 @@ export function isPluginSkillEnabled(
   return Boolean(
     state.enabled && getPluginSkill(plugin, folder) && !state.disabledSkillIds.includes(folder),
   );
+}
+
+/** Stable id so per-server settings survive a rescan. */
+export function pluginMcpServerId(pluginName: string, serverName: string): string {
+  return `plugin:${pluginName}:${serverName}`;
+}
+
+/** Provider-visible name, namespaced by plugin. */
+export function pluginMcpServerName(pluginName: string, serverName: string): string {
+  return `${pluginName}.${serverName}`;
 }
 
 export function isPluginMcpServerEnabled(

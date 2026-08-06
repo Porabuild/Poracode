@@ -1,5 +1,5 @@
 ---
-name: "CI Debug"
+name: ci-debug
 description: "Diagnose a failing GitHub Actions check by reading the real logs and finding the first true failure."
 ---
 

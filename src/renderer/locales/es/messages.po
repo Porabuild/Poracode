@@ -693,6 +693,18 @@ msgstr "Un candidato ya no está en la rama de su experimento."
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "Una fuente de worktree inmovilizada requiere un hash de commit completo"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server could not be started and was skipped."
+msgstr "No se pudo iniciar un servidor y se omitió."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server has a name Poracode cannot use."
+msgstr "Un servidor tiene un nombre que Poracode no puede usar."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "A server is not configured correctly and was skipped."
+msgstr "Un servidor no está configurado correctamente y se omitió."
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "un agente de codificación compatible"
@@ -2921,7 +2933,6 @@ msgstr "Error de conexión."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/state/remoteServersStore.ts
-#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Connection failed."
 msgstr "Error de conexión."
 
@@ -3212,6 +3223,10 @@ msgstr "No se pudo instalar {0}."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "No se pudieron listar los repositorios."
+
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+msgid "Couldn't load plugins."
+msgstr "No se pudieron cargar los plugins."
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "Couldn't load the changelog. Check your connection, or view it on GitHub."
@@ -5439,6 +5454,10 @@ msgstr "Ruta del archivo de identidad"
 msgid "Idle"
 msgstr "Inactivo"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Ignored an unrecognized field in plugin.json."
+msgstr "Se ignoró un campo desconocido en plugin.json."
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Image"
@@ -6032,6 +6051,10 @@ msgstr "Cargando notas…"
 #~ msgid "Loading PDF…"
 #~ msgstr "Cargando PDF…"
 
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+msgid "Loading plugins…"
+msgstr "Cargando plugins…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "Cargando PR…"
@@ -6088,7 +6111,6 @@ msgstr "Cargando ejecuciones de flujos de trabajo"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
-#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "Cargando…"
@@ -6433,6 +6455,14 @@ msgstr "Llamadas a herramientas MCP"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "MCP transport type"
 msgstr "Tipo de transporte MCP"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "mcp.json could not be read, so this plugin's servers were skipped."
+msgstr "No se pudo leer mcp.json, así que se omitieron los servidores de este plugin."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "mcp.json targets an Agent Plugins version this build does not support."
+msgstr "mcp.json apunta a una versión de Agent Plugins que esta compilación no admite."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
@@ -7650,10 +7680,10 @@ msgstr "Solo cuando no esté en primer plano"
 msgid "Open"
 msgstr "Abrir"
 
-#. placeholder {0}: thread.title
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-#~ msgid "Open {0}"
-#~ msgstr "Abrir {0}"
+#. placeholder {0}: entry.name
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Open {0}"
+msgstr "Abrir {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -8297,6 +8327,22 @@ msgstr "Plugin"
 msgid "Plugin folder"
 msgstr "Carpeta de plugins"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json could not be read as JSON."
+msgstr "No se pudo leer plugin.json como JSON."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json is missing."
+msgstr "Falta plugin.json."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json is not valid for the Agent Plugins specification."
+msgstr "plugin.json no es válido para la especificación Agent Plugins."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "plugin.json targets an Agent Plugins version this build does not support."
+msgstr "plugin.json apunta a una versión de Agent Plugins que esta compilación no admite."
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8319,6 +8365,10 @@ msgstr "Temas populares de editores adaptados a Poracode. Cada uno sigue el modo
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode y tus agentes se ejecutan en la máquina remota. SSH solo se usa para iniciar el entorno remoto y proteger su túnel local."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Poracode could not create this plugin's data folder."
+msgstr "Poracode no pudo crear la carpeta de datos de este plugin."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
@@ -10170,6 +10220,38 @@ msgstr "Selección enviada al terminal."
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Separa las cuentas de Claude Code por directorio de configuración, o apunta un perfil a un proveedor externo (z.ai, …). Abre un perfil para configurar sus variables de entorno, modelos y esfuerzo."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "Server \"{target}\" could not be started and was skipped."
+#~ msgstr ""
+
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "Server \"{target}\" has a name Poracode cannot use."
+#~ msgstr ""
+
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "Server \"{target}\" is not configured correctly and was skipped."
+#~ msgstr ""
+
+#: src/renderer/components/plugins/pluginCopy.ts
+#~ msgid "Server \"{target}\" runs on this computer and is unavailable for WSL projects."
+#~ msgstr ""
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} could not be started and was skipped."
+msgstr "No se pudo iniciar el servidor {target} y se omitió."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} has a name Poracode cannot use."
+msgstr "El servidor {target} tiene un nombre que Poracode no puede usar."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} is not configured correctly and was skipped."
+msgstr "El servidor {target} no está configurado correctamente y se omitió."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Server {target} runs on this computer and is unavailable for WSL projects."
+msgstr "El servidor {target} se ejecuta en este equipo y no está disponible para proyectos WSL."
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "Servidores que este plugin declara en mcp.json. Poracode los pasa a todos los agentes compatibles."
@@ -10549,6 +10631,14 @@ msgstr "Skills.sh"
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Skipped"
 msgstr "Omitido"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Skipped {target} because it points outside the plugin folder."
+msgstr "Se omitió {target} porque apunta fuera de la carpeta del plugin."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Skipped a file because it points outside the plugin folder."
+msgstr "Se omitió un archivo porque apunta fuera de la carpeta del plugin."
 
 #. placeholder {0}: skippedProviderNames.join(", ")
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
@@ -11556,6 +11646,22 @@ msgstr "Esto elimina permanentemente la rama \"{0}\" de su remoto."
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "Esto elimina permanentemente la rama \"{0}\"."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin describes a skill it does not actually ship."
+msgstr "Este plugin describe una skill que en realidad no incluye."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's folder could not be read."
+msgstr "No se pudo leer la carpeta de este plugin."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's Poracode settings were ignored because they are not valid."
+msgstr "Se ignoraron los ajustes de Poracode de este plugin porque no son válidos."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This plugin's skills could not be read."
+msgstr "No se pudieron leer las skills de este plugin."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "este proyecto"
@@ -11591,6 +11697,10 @@ msgstr "Esto elimina el worktree en \"{0}\" y luego elimina la rama."
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
 msgstr "Este servidor requiere autenticación antes de que Poracode pueda comprobarlo."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "This server runs on this computer and is unavailable for WSL projects."
+msgstr "Este servidor se ejecuta en este equipo y no está disponible para proyectos WSL."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."

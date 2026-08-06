@@ -1149,7 +1149,6 @@ export class SkillsService {
       ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
       ...(adapter ? { capabilities: adapter.capabilities } : {}),
       ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
-      ...(context.launchConfig ? { launchConfig: context.launchConfig } : {}),
     });
   }
 

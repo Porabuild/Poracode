@@ -1,5 +1,5 @@
 ---
-name: "Review Follow-up"
+name: review-follow-up
 description: "Work through pull request review feedback: sort what is actionable, fix it, and reply accurately."
 ---
 

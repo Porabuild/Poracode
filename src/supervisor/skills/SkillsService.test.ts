@@ -696,7 +696,11 @@ describe("SkillsService", () => {
     ).toEqual([pluginAlias]);
   });
 
-  it("fails closed when a WSL skill path cannot be canonicalized", async () => {
+  it("fails closed per segment when a WSL skill path cannot be canonicalized", async () => {
+    // The distro cannot translate the plugin roots (no /mnt automount, distro
+    // still starting, transient wsl.exe failure). Rejecting every WSL segment
+    // here would silently strip the user's own distro-local skills, so only
+    // paths that lexically sit under a plugin root are dropped.
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
@@ -709,7 +713,13 @@ describe("SkillsService", () => {
       hostPlatform: "win32",
       resolveHostPathForWsl: async () => undefined,
     });
-    const segment = {
+    const wslProject = {
+      kind: "wsl" as const,
+      distro: "Ubuntu",
+      linuxPath: "/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+    };
+    const userSkill = {
       kind: "skill" as const,
       name: "review",
       path: "/home/alice/.agents/skills/review/SKILL.md",
@@ -717,15 +727,19 @@ describe("SkillsService", () => {
       provider: "User",
       scope: "global" as const,
     };
+    const pluginSkill = {
+      ...userSkill,
+      name: "browser-control",
+      path: "/mnt/e/Poracode/resources/plugins/browser-tools/skills/browser-control/SKILL.md",
+      invocation: "/browser-control",
+    };
 
     expect(
-      await bundledService.filterPluginSkillSegments([segment], {
-        projectLocation: {
-          kind: "wsl",
-          distro: "Ubuntu",
-          linuxPath: "/repo",
-          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
-        },
+      await bundledService.filterPluginSkillSegments([userSkill], { projectLocation: wslProject }),
+    ).toEqual([userSkill]);
+    expect(
+      await bundledService.filterPluginSkillSegments([pluginSkill], {
+        projectLocation: wslProject,
       }),
     ).toEqual([]);
   });

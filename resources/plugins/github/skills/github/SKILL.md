@@ -1,5 +1,5 @@
 ---
-name: "GitHub"
+name: github
 description: "Inspect repositories, review pull requests, triage issues, and follow CI through the GitHub MCP server."
 ---
 

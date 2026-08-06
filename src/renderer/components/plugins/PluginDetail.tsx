@@ -14,7 +14,7 @@ import {
 import { PluginIcon } from "./PluginIcon";
 import { PluginTag } from "./PluginTag";
 import { usePluginOauth } from "./usePluginOauth";
-import type { LocalizedPlugin } from "./pluginCopy";
+import { useLocalizedPluginDiagnostic, type LocalizedPlugin } from "./pluginCopy";
 
 export function PluginDetail(props: {
   plugin: LocalizedPlugin;
@@ -39,6 +39,7 @@ export function PluginDetail(props: {
   const examplePrompt = plugin.poracode.examplePrompt;
   const closeSettings = usePanelStore((panel) => panel.closeSettings);
   const oauth = usePluginOauth(plugin);
+  const describeDiagnostic = useLocalizedPluginDiagnostic();
   // Warnings are tolerated by the loader; errors mean something was dropped.
   const problems = plugin.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
 
@@ -146,7 +147,9 @@ export function PluginDetail(props: {
           </div>
           <ul className="space-y-1 text-xs text-muted">
             {problems.map((diagnostic, index) => (
-              <li key={`${diagnostic.code}-${diagnostic.target ?? index}`}>{diagnostic.message}</li>
+              <li key={`${diagnostic.code}-${diagnostic.target ?? index}`}>
+                {describeDiagnostic(diagnostic)}
+              </li>
             ))}
           </ul>
         </section>
@@ -224,7 +227,11 @@ export function PluginDetail(props: {
         </ContributionSection>
       ) : null}
 
-      {oauth.error ? <p className="text-xs text-warning">{oauth.error}</p> : null}
+      {oauth.error ? (
+        <p className="text-xs text-warning" role="alert">
+          {oauth.error}
+        </p>
+      ) : null}
 
       {props.plugin.skills.length > 0 ? (
         <ContributionSection

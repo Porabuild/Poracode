@@ -42,10 +42,3 @@ export const usePlugins = create<PluginsState>()((set, get) => ({
     }
   },
 }));
-
-export function findPlugin(
-  plugins: readonly LoadedPlugin[],
-  name: string,
-): LoadedPlugin | undefined {
-  return plugins.find((plugin) => plugin.name === name);
-}

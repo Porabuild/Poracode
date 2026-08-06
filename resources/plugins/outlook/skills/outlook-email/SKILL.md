@@ -1,5 +1,5 @@
 ---
-name: "Outlook Email"
+name: outlook-email
 description: "Triage an Outlook inbox, summarize threads, and draft replies through the Microsoft 365 MCP server."
 ---
 

@@ -54,11 +54,15 @@ describe("PluginMarketplace", () => {
     const onOpen = vi.fn<(pluginId: string) => void>();
     render(<Marketplace onOpen={onOpen} />);
 
+    // The shortcut is named distinctly from the card title so a screen reader
+    // does not read two identically-named controls for the same plugin.
     const strip = screen.getByRole("heading", { name: "Installed" }).closest("section")!;
-    expect(within(strip).getByRole("button", { name: "Chrome Tools" })).toBeInTheDocument();
-    expect(within(strip).queryByRole("button", { name: "Browser Tools" })).not.toBeInTheDocument();
+    expect(within(strip).getByRole("button", { name: "Open Chrome Tools" })).toBeInTheDocument();
+    expect(
+      within(strip).queryByRole("button", { name: "Open Browser Tools" }),
+    ).not.toBeInTheDocument();
 
-    fireEvent.click(within(strip).getByRole("button", { name: "Chrome Tools" }));
+    fireEvent.click(within(strip).getByRole("button", { name: "Open Chrome Tools" }));
     expect(onOpen).toHaveBeenCalledWith("chrome-tools");
   });
 

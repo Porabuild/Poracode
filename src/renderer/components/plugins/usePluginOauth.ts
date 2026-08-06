@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { LoadedPlugin, McpServer } from "@/shared/contracts";
 import { DEFAULT_MCP_SERVER_TIMEOUT_MS } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { pluginMcpServerId, pluginMcpServerName } from "@/shared/plugins/catalog";
 
 /**
  * Connection state for a plugin's remote MCP servers.
@@ -17,18 +18,33 @@ import { readBridge } from "@/renderer/bridge";
 type ConnectionState = "unknown" | "connected" | "disconnected" | "connecting";
 
 function remoteServerUrl(entry: LoadedPlugin["mcpServers"][number]["entry"]): string | undefined {
-  return entry.type === "stdio" ? undefined : entry.url;
+  // Must match what `pluginMcpRuntime.buildTransport` launches: the token store
+  // is keyed on the exact URL string.
+  return entry.type === "stdio" ? undefined : entry.url.trim();
 }
 
-/** Mirrors the shape `pluginMcpRuntime` builds, so the supervisor authorizes the same server. */
-function toMcpServer(plugin: LoadedPlugin, serverName: string, url: string): McpServer {
+/**
+ * Mirrors the record `pluginMcpRuntime` builds so the supervisor authorizes the
+ * same server. `McpOAuthService.begin` only reads `transport.url`, but the
+ * transport kind and headers are carried through so the two sides cannot drift.
+ */
+function toMcpServer(
+  plugin: LoadedPlugin,
+  declaration: LoadedPlugin["mcpServers"][number],
+  url: string,
+): McpServer {
+  const entry = declaration.entry;
   return {
-    id: `plugin:${plugin.name}:${serverName}`,
-    name: `${plugin.name}.${serverName}`,
+    id: pluginMcpServerId(plugin.name, declaration.name),
+    name: pluginMcpServerName(plugin.name, declaration.name),
     description: plugin.manifest.description ?? "",
     enabled: true,
     timeoutMs: DEFAULT_MCP_SERVER_TIMEOUT_MS,
-    transport: { type: "http", url, headers: {} },
+    transport: {
+      type: entry.type === "streamable-http" ? "http" : "sse",
+      url,
+      headers: entry.type === "stdio" ? {} : { ...entry.headers },
+    },
   };
 }
 
@@ -38,7 +54,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
   const [pending, setPending] = useState<string>();
   const [error, setError] = useState<string>();
 
-  const refresh = useCallback(async () => {
+  const refresh = async () => {
     try {
       const status = await readBridge().getMcpOauthStatus({});
       setAuthorizedUrls(status.authenticatedUrls);
@@ -46,13 +62,15 @@ export function usePluginOauth(plugin: LoadedPlugin) {
       // Leave the state unknown rather than claiming a server is disconnected.
       setAuthorizedUrls(undefined);
     }
-  }, []);
+  };
 
   const hasRemoteServer = plugin.mcpServers.some((server) => remoteServerUrl(server.entry));
 
   useEffect(() => {
     if (hasRemoteServer) void refresh();
-  }, [hasRemoteServer, refresh]);
+    // `refresh` only closes over setState, which is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasRemoteServer]);
 
   const stateFor = (serverName: string): ConnectionState => {
     const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
@@ -66,13 +84,13 @@ export function usePluginOauth(plugin: LoadedPlugin) {
   const connect = async (serverName: string) => {
     const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
     const url = server ? remoteServerUrl(server.entry) : undefined;
-    if (!url) return;
+    if (!server || !url) return;
     setPending(serverName);
     setError(undefined);
     try {
       const bridge = readBridge();
       const begin = await bridge.beginMcpServerOauth({
-        server: toMcpServer(plugin, serverName, url),
+        server: toMcpServer(plugin, server, url),
       });
       if (begin.status === "error") {
         setError(t`Could not sign in to ${serverName}.`);

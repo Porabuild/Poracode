@@ -3,7 +3,10 @@
   "name": "outlook",
   "version": "1.0.0",
   "description": "Triage Microsoft Outlook mail and manage your calendar.",
-  "author": { "name": "Softeria", "url": "https://github.com/softeria" },
+  "author": {
+    "name": "Softeria",
+    "url": "https://github.com/softeria"
+  },
   "homepage": "https://github.com/softeria/ms-365-mcp-server",
   "repository": "https://github.com/softeria/ms-365-mcp-server",
   "license": "MIT",
@@ -13,6 +16,7 @@
       "title": "Outlook",
       "category": "communication",
       "featured": true,
+      "projectKinds": ["windows", "posix"],
       "communityMaintained": true,
       "examplePrompt": "Triage my inbox, summarize the important threads, and show what's on my calendar today",
       "skills": {

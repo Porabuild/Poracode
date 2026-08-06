@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LoadedPlugin } from "../contracts";
 import { installedPluginsSchema } from "../contracts/plugin";
+import { normalizeSharedSettings } from "../settings";
 import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL, type PluginSkillPolicyEntry } from "./spec";
 import {
   installPlugin,
@@ -81,6 +82,36 @@ describe("plugin contracts", () => {
 
   it("defaults the version when a manifest omits it", () => {
     expect(installedPluginsSchema.parse({ "test-tools": {} })["test-tools"]?.version).toBe("0.0.0");
+  });
+
+  // An earlier build on this branch persisted `disabledAppIds`. `installedPlugins`
+  // is normalized as one setting, so a strict per-entry schema would reject the
+  // whole record and silently uninstall every plugin on upgrade.
+  it("keeps plugin state when an entry carries a field from an older build", () => {
+    const settings = normalizeSharedSettings({
+      installedPlugins: {
+        "browser-tools": {
+          version: "1.0.0",
+          enabled: false,
+          disabledSkillIds: ["browser-control"],
+          disabledAppIds: ["browser"],
+        },
+        github: {
+          version: "1.0.0",
+          enabled: true,
+          disabledSkillIds: [],
+          disabledMcpServerNames: ["github"],
+        },
+      },
+    });
+
+    expect(settings.installedPlugins["browser-tools"]).toEqual({
+      version: "1.0.0",
+      enabled: false,
+      disabledSkillIds: ["browser-control"],
+      disabledMcpServerNames: [],
+    });
+    expect(settings.installedPlugins.github?.disabledMcpServerNames).toEqual(["github"]);
   });
 });
 
