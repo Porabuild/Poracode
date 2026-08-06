@@ -41,7 +41,6 @@ export function SidebarProjectSection(props: {
         project={project}
         isCollapsed={isProjectCollapsed}
         isDragging={isDragging}
-        remoteStatus={remoteStatus}
         isUnreachable={isUnreachable}
       />
       {showBody ? <SidebarProjectThreadList project={project} sortMode={props.sortMode} /> : null}

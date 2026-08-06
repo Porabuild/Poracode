@@ -73,7 +73,6 @@ describe("SidebarProjectHeader", () => {
         project={project}
         isCollapsed
         isDragging={false}
-        remoteStatus="online"
         isUnreachable={false}
       />,
     );
@@ -88,7 +87,6 @@ describe("SidebarProjectHeader", () => {
         project={project}
         isCollapsed
         isDragging={false}
-        remoteStatus="online"
         isUnreachable={false}
       />,
     );
@@ -100,13 +98,7 @@ describe("SidebarProjectHeader", () => {
     seedRemote("offline");
 
     const { container } = render(
-      <SidebarProjectHeader
-        project={project}
-        isCollapsed
-        isDragging={false}
-        remoteStatus="offline"
-        isUnreachable
-      />,
+      <SidebarProjectHeader project={project} isCollapsed isDragging={false} isUnreachable />,
     );
 
     expect(screen.getByTitle("Offline")).toHaveClass("bg-default-400");

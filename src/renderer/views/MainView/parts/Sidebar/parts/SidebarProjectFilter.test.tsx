@@ -5,6 +5,7 @@ import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
 
 vi.mock("@/renderer/bridge", () => ({
@@ -51,6 +52,30 @@ function openMenu() {
 }
 
 describe("SidebarProjectFilter", () => {
+  it("names the hosting machine on mirrored rows and on a lone selection", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+    } as Project;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+
+    // Two projects named "Alpha": only the mirrored one carries the machine.
+    renderFilter(new Set(["r"]), vi.fn(), [projects[0]!, mirrored]);
+    expect(screen.getByRole("button", { name: "Filter by project" })).toHaveTextContent(
+      "Alpha · MacBook 16",
+    );
+
+    const menu = await openMenu();
+    const rows = [...menu.querySelectorAll('[role="menuitemcheckbox"]')].map((r) => r.textContent);
+    expect(rows.filter((row) => row?.includes("MacBook 16"))).toHaveLength(1);
+
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+  });
+
   it("labels the trigger with the current selection", () => {
     renderFilter(null);
     expect(screen.getByRole("button", { name: "Filter by project" })).toHaveTextContent(

@@ -1,12 +1,12 @@
-import { ChevronRight, FolderOpen, Server } from "lucide-react";
+import { ChevronRight, FolderOpen } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
-import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import { useRemoteServerStatusLabel } from "@/renderer/components/common/RemoteServerStatusDot";
 import {
-  RemoteServerStatusDot,
-  useRemoteServerStatusLabel,
-} from "@/renderer/components/common/RemoteServerStatusDot";
+  ProjectRemoteServerIcon,
+  useProjectRemoteServer,
+} from "@/renderer/components/common/ProjectRemoteServer";
 import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
@@ -25,17 +25,14 @@ import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
 import { useProjectMenu } from "./useProjectMenu";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import type { RemoteServerStatus } from "@/renderer/state/remoteServers/types";
 
 export function SidebarProjectHeader(props: {
   project: Project;
   isCollapsed: boolean;
   isDragging: boolean;
-  remoteStatus: RemoteServerStatus | undefined;
   isUnreachable: boolean;
 }) {
-  const { project, isCollapsed, isDragging, remoteStatus, isUnreachable } = props;
+  const { project, isCollapsed, isDragging, isUnreachable } = props;
   const { t } = useLingui();
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
   const hasTerminal = useIsProjectTerminalOpen(project.id);
@@ -45,14 +42,8 @@ export function SidebarProjectHeader(props: {
   const isActiveFilesPanel = useIsProjectFilesPanelActive(project.id);
   const projectLocation = formatProjectLocation(project);
   const isDisabled = !!project.disabled;
-  const remoteServer = useRemoteServersStore((state) =>
-    project.remoteServerId
-      ? state.servers.find((server) => server.desktopId === project.remoteServerId)
-      : undefined,
-  );
-  const remoteServerName = remoteServer ? desktopTitle(remoteServer.label) : undefined;
-  const remoteStatusLabel = useRemoteServerStatusLabel(remoteStatus ?? "offline");
-  const isRemote = project.remoteServerId !== undefined && project.remoteId !== undefined;
+  const remote = useProjectRemoteServer(project);
+  const remoteStatusLabel = useRemoteServerStatusLabel(remote.status ?? "offline");
   // Git, run-scripts and removal all execute on the project's host, so they are
   // unavailable while a mirrored project's server is unreachable. The row
   // tooltip carries the status, so the greyed-out items read as explained.
@@ -73,20 +64,12 @@ export function SidebarProjectHeader(props: {
         label={
           <span className="flex items-center gap-1.5">
             <span className="truncate text-xs font-semibold text-foreground">{project.name}</span>
-            {isRemote || remoteServerName ? (
-              <span className="relative flex shrink-0">
-                <Server className="size-3 text-muted/60" />
-                {remoteServerName ? (
-                  <RemoteServerStatusDot
-                    status={remoteStatus ?? "offline"}
-                    className="absolute -right-0.5 -bottom-0.5"
-                  />
-                ) : null}
-              </span>
-            ) : null}
-            {remoteServerName ? (
+            <ProjectRemoteServerIcon info={remote} />
+            {/* Own span rather than the shared chip: the machine name has to
+                undo the project name's `font-semibold` beside it. */}
+            {remote.serverName ? (
               <span className="max-w-24 truncate text-[10px] font-normal text-muted/60">
-                {remoteServerName}
+                {remote.serverName}
               </span>
             ) : null}
             {project.location.kind === "wsl" && (
@@ -97,8 +80,8 @@ export function SidebarProjectHeader(props: {
         tooltip={
           isDisabled
             ? t`${projectLocation} (disabled)`
-            : remoteServerName
-              ? `${projectLocation} · ${remoteServerName} · ${remoteStatusLabel}`
+            : remote.serverName
+              ? `${projectLocation} · ${remote.serverName} · ${remoteStatusLabel}`
               : projectLocation
         }
         className={`poracode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${

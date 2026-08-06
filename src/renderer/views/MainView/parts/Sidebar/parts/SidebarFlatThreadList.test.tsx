@@ -177,6 +177,27 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText(/thread:r1 in Mac Poracode/)).toBeInTheDocument();
   });
 
+  it("tags remote-project rows with the machine name; local rows carry none", () => {
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [homeProject, localProject, unreachableRemoteProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("r1", "remote-1", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const remoteRow = screen.getByText(/thread:r1 in Mac Poracode/).closest("[data-testid=row]");
+    expect(remoteRow).toHaveTextContent("MacBook 16");
+    const localRow = screen.getByText(/thread:p1 in Poracode/).closest("[data-testid=row]");
+    expect(localRow).not.toHaveTextContent("MacBook 16");
+  });
+
   it("hides Home threads when home scope is disabled", () => {
     useSharedSettings.setState({ homeScopeEnabled: false } as never);
     useAppStore.setState({
