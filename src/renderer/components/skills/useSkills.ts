@@ -160,7 +160,7 @@ export function buildSkillSlashCommands(
       launchConfig &&
       localizedPlugin &&
       pluginSkill &&
-      !arePluginSkillRequiredAppsEnabled(localizedPlugin.manifest, pluginSkill, launchConfig)
+      !arePluginSkillRequiredAppsEnabled(localizedPlugin.plugin, pluginSkill.folder, launchConfig)
     ) {
       return [];
     }

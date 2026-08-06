@@ -61,6 +61,12 @@ export interface SupervisorClientOptions {
    * `PORACODE_BUNDLED_SKILLS_DIR` so the skills service can surface them.
    */
   bundledSkillsDir?: string;
+  /**
+   * Directory containing the Agent Plugins packages shipped with the app.
+   * Forwarded as `PORACODE_BUNDLED_PLUGINS_DIR` so the plugin registry can
+   * discover them.
+   */
+  bundledPluginsDir?: string;
   secretStorageKey: string;
   /**
    * Optional resolver invoked at every supervisor spawn, returning extra env
@@ -129,6 +135,9 @@ export class SupervisorClient {
         PORACODE_WSL_WATCHER_DIR: this.options.wslHelpersDir,
         ...(this.options.bundledSkillsDir
           ? { PORACODE_BUNDLED_SKILLS_DIR: this.options.bundledSkillsDir }
+          : {}),
+        ...(this.options.bundledPluginsDir
+          ? { PORACODE_BUNDLED_PLUGINS_DIR: this.options.bundledPluginsDir }
           : {}),
         ...extraEnv,
       },

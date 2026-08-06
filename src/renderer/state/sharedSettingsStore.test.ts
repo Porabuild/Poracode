@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import { useSharedSettings } from "./sharedSettingsStore";
 
 describe("sharedSettingsStore", () => {
   beforeEach(() => {
     localStorage.clear();
+    seedBuiltInPlugins();
     useSharedSettings.setState({
       themeMode: "dark",
       staleThreadUnloadMinutes: 20,
@@ -95,27 +97,31 @@ describe("sharedSettingsStore", () => {
     const persistedPlugins = () =>
       JSON.parse(localStorage.getItem("poracode-shared-settings") ?? "null").installedPlugins;
 
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     expect(persistedPlugins()).toEqual({
       "browser-tools": {
         version: "1.0.0",
         enabled: true,
         disabledSkillIds: [],
         disabledAppIds: [],
+        disabledMcpServerNames: [],
       },
     });
 
-    useSharedSettings.getState().setPluginEnabled("browser-tools", false);
+    useSharedSettings.getState().setPluginEnabled(pluginFixture("browser-tools"), false);
     useSharedSettings.getState().setPluginSkillEnabled("browser-tools", "browser-control", false);
-    useSharedSettings.getState().setPluginAppEnabled("browser-tools", "browser", false);
+    useSharedSettings
+      .getState()
+      .setPluginAppEnabled(pluginFixture("browser-tools"), "browser", false);
     expect(persistedPlugins()["browser-tools"]).toEqual({
       version: "1.0.0",
       enabled: false,
       disabledSkillIds: ["browser-control"],
       disabledAppIds: ["browser"],
+      disabledMcpServerNames: [],
     });
 
-    useSharedSettings.getState().uninstallPlugin("browser-tools");
+    useSharedSettings.getState().uninstallPlugin(pluginFixture("browser-tools"));
     expect(useSharedSettings.getState().installedPlugins).toEqual({});
     expect(persistedPlugins()).toEqual({});
   });
@@ -125,7 +131,7 @@ describe("sharedSettingsStore", () => {
       enabledMcpServers: { browser: true, subagents: true },
     });
 
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
 
     expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
     expect(
@@ -134,34 +140,36 @@ describe("sharedSettingsStore", () => {
   });
 
   it("clears the legacy MCP setting when a plugin is disabled", () => {
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     useSharedSettings.setState({
       enabledMcpServers: { browser: true, subagents: true },
     });
 
-    useSharedSettings.getState().setPluginEnabled("browser-tools", false);
+    useSharedSettings.getState().setPluginEnabled(pluginFixture("browser-tools"), false);
 
     expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
   });
 
   it("clears the legacy MCP setting when a plugin app is disabled", () => {
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     useSharedSettings.setState({
       enabledMcpServers: { browser: true, subagents: true },
     });
 
-    useSharedSettings.getState().setPluginAppEnabled("browser-tools", "browser", false);
+    useSharedSettings
+      .getState()
+      .setPluginAppEnabled(pluginFixture("browser-tools"), "browser", false);
 
     expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
   });
 
   it("clears the legacy MCP setting when a plugin is uninstalled", () => {
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     useSharedSettings.setState({
       enabledMcpServers: { browser: true, subagents: true },
     });
 
-    useSharedSettings.getState().uninstallPlugin("browser-tools");
+    useSharedSettings.getState().uninstallPlugin(pluginFixture("browser-tools"));
 
     expect(useSharedSettings.getState().enabledMcpServers).toEqual({ subagents: true });
   });

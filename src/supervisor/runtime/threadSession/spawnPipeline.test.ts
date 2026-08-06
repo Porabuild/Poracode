@@ -1,7 +1,32 @@
 import { describe, expect, it } from "vitest";
-import type { ThreadConfig } from "@/shared/contracts";
+import type { LoadedPlugin, ThreadConfig } from "@/shared/contracts";
 import type { AgentAdapter } from "../../agents/base";
-import { installBuiltInPlugin, resolvePluginAppsForThreadConfig } from "@/shared/plugins/catalog";
+import { installPlugin, resolvePluginAppsForThreadConfig } from "@/shared/plugins/catalog";
+import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
+
+const BROWSER_TOOLS: LoadedPlugin = {
+  name: "browser-tools",
+  source: "bundled",
+  root: "/plugins/browser-tools",
+  manifest: { $schema: AGENT_PLUGINS_MANIFEST_SCHEMA_URL, name: "browser-tools", version: "1.0.0" },
+  poracode: {
+    category: "developer-tools",
+    featured: false,
+    communityMaintained: false,
+    apps: [
+      {
+        id: "browser",
+        name: "Browser",
+        description: "Control the in-app browser.",
+        builtInMcpServerId: "browser",
+      },
+    ],
+    skills: {},
+  },
+  skills: [],
+  mcpServers: [],
+  diagnostics: [],
+};
 import {
   effectiveLaunchConfig,
   effectiveStructuredTurnConfig,
@@ -58,7 +83,8 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
     const config: ThreadConfig = { model: "test-model" };
     const pluginConfig = resolvePluginAppsForThreadConfig(
       config,
-      installBuiltInPlugin({}, "browser-tools"),
+      [BROWSER_TOOLS],
+      installPlugin({}, BROWSER_TOOLS),
       {
         capabilities: { browserMcpScope: { terminal: "launch" } },
         presentationMode: "terminal",

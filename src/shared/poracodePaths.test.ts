@@ -26,6 +26,8 @@ describe("poracodePaths", () => {
       cacheDir: join(baseDir, "cache"),
       statusCachePath: join(baseDir, "cache", "agent-status-cache.json"),
       agentPluginsDir: join(baseDir, "agent-plugins"),
+      pluginsDir: join(baseDir, "plugins"),
+      pluginDataDir: join(baseDir, "plugin-data"),
       acpIconsDir: join(baseDir, "cache", "acp-icons"),
     });
   });

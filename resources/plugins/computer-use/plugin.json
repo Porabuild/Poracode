@@ -1,0 +1,34 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "computer-use",
+  "version": "1.0.0",
+  "description": "Control desktop apps and complete visual workflows.",
+  "author": { "name": "Poracode", "url": "https://poracode.com" },
+  "homepage": "https://poracode.com",
+  "license": "Apache-2.0",
+  "keywords": ["desktop", "automation", "computer-use"],
+  "extensions": {
+    "com.poracode.client": {
+      "title": "Computer Use",
+      "category": "automation",
+      "featured": true,
+      "platforms": ["win32", "darwin"],
+      "projectKinds": ["windows", "posix"],
+      "apps": [
+        {
+          "id": "computer-use",
+          "name": "Computer Use",
+          "description": "Control supported desktop apps and windows.",
+          "builtInMcpServerId": "computer-use"
+        }
+      ],
+      "skills": {
+        "computer-use": {
+          "name": "Computer Use",
+          "description": "Operate desktop apps through Poracode's desktop-control tools.",
+          "requiredAppIds": ["computer-use"]
+        }
+      }
+    }
+  }
+}

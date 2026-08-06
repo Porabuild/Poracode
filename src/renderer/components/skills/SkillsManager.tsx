@@ -120,7 +120,7 @@ export function SkillsManager(props: {
       return {
         key,
         title: first.pluginId
-          ? (localizedPlugins.find((plugin) => plugin.manifest.id === first.pluginId)?.name ??
+          ? (localizedPlugins.find((entry) => entry.plugin.name === first.pluginId)?.name ??
             first.pluginName ??
             first.providerLabel)
           : (skills.find((skill) => skill.providerGroupLabel)?.providerGroupLabel ??

@@ -592,11 +592,15 @@ async function pluginsSectionDeepDive(client) {
       client,
       `(() => {
         const store = window.__poracodeDev.stores.sharedSettings.getState();
+        const plugin = window.__poracodeDev.stores.plugins
+          .getState()
+          .plugins.find((candidate) => candidate.name === ${JSON.stringify(pluginId)});
+        if (!plugin) return;
         const installed = store.installedPlugins[${JSON.stringify(pluginId)}] !== undefined;
         if (${JSON.stringify(marketplaceState.initialInstalled)} && !installed) {
-          store.installPlugin(${JSON.stringify(pluginId)});
+          store.installPlugin(plugin);
         } else if (!${JSON.stringify(marketplaceState.initialInstalled)} && installed) {
-          store.uninstallPlugin(${JSON.stringify(pluginId)});
+          store.uninstallPlugin(plugin);
         }
       })()`,
     );

@@ -1,8 +1,8 @@
-import { realpathSync } from "node:fs";
-import { isAbsolute, posix, relative, resolve } from "node:path";
+import { posix } from "node:path";
 import type {
   AgentCapability,
   InstalledPlugins,
+  LoadedPlugin,
   ProjectLocation,
   PromptSegment,
   SkillEntry,
@@ -11,15 +11,33 @@ import type {
 } from "@/shared/contracts";
 import {
   arePluginSkillRequiredAppsEnabled,
-  getBundledPluginSkill,
   isPluginSkillEnabled,
   isPluginSkillSupportedForLaunch,
 } from "@/shared/plugins/catalog";
+import { relativePolicyPath } from "@/supervisor/plugins";
 import { parseWslUncPath } from "@/shared/wsl";
 import { batchWslCommandsAsync, quotePosixShellArg } from "../agents/base";
 
+/**
+ * Enforces plugin policy on skills contributed by Agent Plugins packages.
+ *
+ * Each package owns its own `skills/` root, so containment is checked against
+ * that package's boundary rather than a shared directory: a skill can only be
+ * attributed to — and injected on behalf of — the plugin it actually lives in.
+ */
+
 const SKILL_FILE = "SKILL.md";
-export const BUNDLED_PROVIDER_ID = "poracode-built-in";
+
+/** Provider id used for skills contributed by a plugin. */
+export function pluginSkillProviderId(pluginName: string): string {
+  return `plugin:${pluginName}`;
+}
+
+export interface PluginSkillRoot {
+  plugin: LoadedPlugin;
+  /** `<plugin.root>/skills`, the root a plugin's skill entries are scanned from. */
+  skillsRoot: string;
+}
 
 export interface PluginSkillPolicyContext {
   projectLocation?: ProjectLocation;
@@ -29,7 +47,7 @@ export interface PluginSkillPolicyContext {
 }
 
 export interface PluginSkillPolicyOptions {
-  bundledRoot: () => string | undefined;
+  readPluginRoots: () => readonly PluginSkillRoot[];
   readInstalledPlugins: () => InstalledPlugins;
   hostPlatform: NodeJS.Platform;
   resolveWslRealPaths: (
@@ -43,44 +61,11 @@ export interface PluginSkillPolicyOptions {
   ) => Promise<readonly (string | undefined)[]>;
 }
 
-function normalizeWindowsNamespacePath(path: string): string {
-  let normalized = path;
-  if (normalized.startsWith("\\\\?\\UNC\\")) normalized = `\\\\${normalized.slice(8)}`;
-  else if (normalized.startsWith("\\\\?\\")) normalized = normalized.slice(4);
-  else if (normalized.startsWith("//?/UNC/")) normalized = `//${normalized.slice(8)}`;
-  else if (normalized.startsWith("//?/")) normalized = normalized.slice(4);
-  return normalized;
-}
-
-function relativePathInside(root: string, target: string): string | undefined {
-  const candidate = relative(root, target);
-  if (!candidate || isAbsolute(candidate) || candidate.split(/[\\/]/u)[0] === "..") {
-    return undefined;
-  }
-  return candidate;
-}
-
-function relativePolicyPath(root: string, target: string): string | undefined {
-  const normalizedRoot = resolve(normalizeWindowsNamespacePath(root));
-  const normalizedTarget = resolve(normalizeWindowsNamespacePath(target));
-  try {
-    return relativePathInside(
-      resolve(realpathSync.native(root)),
-      resolve(realpathSync.native(target)),
-    );
-  } catch {
-    // Fall through to the normalized aliases for non-existent paths.
-  }
-  const direct = relativePathInside(normalizedRoot, normalizedTarget);
-  if (direct) return direct;
-  try {
-    return relativePathInside(
-      resolve(realpathSync.native(normalizedRoot)),
-      resolve(realpathSync.native(normalizedTarget)),
-    );
-  } catch {
-    return undefined;
-  }
+function normalizeRootKey(path: string): string {
+  return path
+    .replace(/[\\/]+$/u, "")
+    .replace(/\\/gu, "/")
+    .toLowerCase();
 }
 
 function relativePosixPolicyPath(root: string, target: string): string | undefined {
@@ -120,8 +105,14 @@ async function resolveWslWindowsPaths(
   return results.map((result) => (result?.ok && result.stdout ? result.stdout : undefined));
 }
 
+/** A skill segment matched to the plugin whose package boundary contains it. */
+interface MatchedSegment {
+  root: PluginSkillRoot;
+  relativePath: string;
+}
+
 export class PluginSkillPolicy {
-  private readonly bundledRootWslPaths = new Map<string, Promise<string | undefined>>();
+  private readonly wslRootPaths = new Map<string, Promise<string | undefined>>();
   private readonly resolveHostPathForWsl: (
     distro: string,
     hostPath: string,
@@ -136,63 +127,69 @@ export class PluginSkillPolicy {
     this.resolveWslWindowsPaths = options.resolveWslWindowsPaths ?? resolveWslWindowsPaths;
   }
 
+  /**
+   * Labels plugin-contributed entries and hides the ones whose plugin is not
+   * installed or cannot run in this environment.
+   */
   resolveScanEntries(
     entries: readonly SkillEntry[],
     context: PluginSkillPolicyContext,
   ): SkillEntry[] {
+    const roots = this.options.readPluginRoots();
+    if (roots.length === 0) return [...entries];
+    const byRoot = new Map(roots.map((root) => [normalizeRootKey(root.skillsRoot), root]));
     const installedPlugins = this.options.readInstalledPlugins();
+
     return entries.flatMap((skill) => {
-      if (skill.providerId !== BUNDLED_PROVIDER_ID) return [skill];
-      const bundledSkill = getBundledPluginSkill(skill.folderName);
-      if (!bundledSkill) return [skill];
-      const { manifest, contribution } = bundledSkill;
-      const state = installedPlugins[manifest.id];
+      const root = byRoot.get(normalizeRootKey(skill.rootPath));
+      if (!root) return [skill];
+      const { plugin } = root;
+      const state = installedPlugins[plugin.name];
       if (!state) return [];
-      if (
-        !isPluginSkillSupportedForLaunch(manifest, contribution, {
-          hostPlatform: this.options.hostPlatform,
-          ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
-          ...(context.capabilities ? { capabilities: context.capabilities } : {}),
-          ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
-        })
-      ) {
-        return [];
-      }
+      if (!this.isSupported(plugin, skill.folderName, context)) return [];
+      const label = plugin.poracode.title ?? plugin.name;
       return [
         {
           ...skill,
-          id: `${skill.scope}:plugin:${manifest.id}:${skill.folderName}`,
-          providerId: `plugin:${manifest.id}`,
-          providerLabel: manifest.name,
-          providerGroupId: `plugin:${manifest.id}`,
-          providerGroupLabel: manifest.name,
+          id: `${skill.scope}:plugin:${plugin.name}:${skill.folderName}`,
+          providerId: pluginSkillProviderId(plugin.name),
+          providerLabel: label,
+          providerGroupId: pluginSkillProviderId(plugin.name),
+          providerGroupLabel: label,
           providerGroupOrder: -2,
           origin: "plugin" as const,
-          pluginId: manifest.id,
-          pluginName: manifest.name,
-          enabled: isPluginSkillEnabled(manifest, state, contribution.id),
+          pluginId: plugin.name,
+          pluginName: label,
+          enabled: isPluginSkillEnabled(plugin, state, skill.folderName),
         },
       ];
     });
   }
 
+  /**
+   * Drops plugin skill segments that policy does not allow into a launch. A
+   * segment inside a plugin's boundary that no longer passes is removed; a
+   * segment that only *looks* like it belongs to a plugin is left alone.
+   */
   async filterSegments(
     segments: PromptSegment[],
     context: PluginSkillPolicyContext = {},
   ): Promise<PromptSegment[]> {
-    const bundledRoot = this.options.bundledRoot();
-    if (!bundledRoot || !segments.some((segment) => segment.kind === "skill")) return segments;
+    const roots = this.options.readPluginRoots();
+    if (roots.length === 0 || !segments.some((segment) => segment.kind === "skill")) {
+      return segments;
+    }
 
-    const relativePaths = new Map<PromptSegment, string>();
+    const matched = new Map<PromptSegment, MatchedSegment>();
     const unresolvedWslPaths = new Map<
       string,
       Array<{ segment: PromptSegment; linuxPath: string }>
     >();
     for (const segment of segments) {
       if (segment.kind !== "skill") continue;
-      const relativePath = relativePolicyPath(bundledRoot, segment.path);
-      if (relativePath) {
-        relativePaths.set(segment, relativePath);
+      const hostMatch = this.matchHostPath(roots, segment.path);
+      if (hostMatch) {
+        matched.set(segment, hostMatch);
         continue;
       }
       const parsedWslPath = parseWslUncPath(segment.path);
@@ -215,8 +212,8 @@ export class PluginSkillPolicy {
     const rejectedWslSegments = new Set<PromptSegment>();
     await Promise.all(
       [...unresolvedWslPaths].map(async ([distro, pending]) => {
-        const bundledWslRoot = await this.resolveBundledRootWslPath(distro, bundledRoot);
-        if (!bundledWslRoot) {
+        const wslRoots = await this.resolveWslRoots(distro, roots);
+        if (wslRoots.length === 0) {
           pending.forEach(({ segment }) => rejectedWslSegments.add(segment));
           return;
         }
@@ -237,10 +234,18 @@ export class PluginSkillPolicy {
             return;
           }
           const windowsPath = windowsPaths[index];
-          const relativePath =
-            (windowsPath ? relativePolicyPath(bundledRoot, windowsPath) : undefined) ??
-            relativeWslPolicyPath(bundledWslRoot, resolvedPath);
-          if (relativePath) relativePaths.set(segment, relativePath);
+          const hostMatch = windowsPath ? this.matchHostPath(roots, windowsPath) : undefined;
+          if (hostMatch) {
+            matched.set(segment, hostMatch);
+            return;
+          }
+          for (const { root, wslRoot } of wslRoots) {
+            const relativePath = relativeWslPolicyPath(wslRoot, resolvedPath);
+            if (relativePath) {
+              matched.set(segment, { root, relativePath });
+              return;
+            }
+          }
         });
       }),
     );
@@ -253,27 +258,20 @@ export class PluginSkillPolicy {
         changed = true;
         return false;
       }
-      const relativePath = relativePaths.get(segment);
-      if (!relativePath) return true;
-      const parts = relativePath.split(/[\\/]/u);
-      const folder = parts[0]!.toLowerCase();
-      const bundledSkill = getBundledPluginSkill(folder);
-      if (!bundledSkill) return true;
-      const { manifest, contribution } = bundledSkill;
-      const state = installedPlugins[manifest.id];
+      const match = matched.get(segment);
+      if (!match) return true;
+      const parts = match.relativePath.split(/[\\/]/u);
+      const folder = parts[0]!;
+      const { plugin } = match.root;
+      const state = installedPlugins[plugin.name];
       const allowed = Boolean(
         parts.length === 2 &&
         parts[1] === SKILL_FILE &&
         state &&
-        isPluginSkillSupportedForLaunch(manifest, contribution, {
-          hostPlatform: this.options.hostPlatform,
-          ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
-          ...(context.capabilities ? { capabilities: context.capabilities } : {}),
-          ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
-        }) &&
-        isPluginSkillEnabled(manifest, state, contribution.id) &&
+        this.isSupported(plugin, folder, context) &&
+        isPluginSkillEnabled(plugin, state, folder) &&
         (!context.launchConfig ||
-          arePluginSkillRequiredAppsEnabled(manifest, contribution, context.launchConfig)),
+          arePluginSkillRequiredAppsEnabled(plugin, folder, context.launchConfig)),
       );
       if (!allowed) changed = true;
       return allowed;
@@ -281,22 +279,57 @@ export class PluginSkillPolicy {
     return changed ? filtered : segments;
   }
 
-  private async resolveBundledRootWslPath(
+  private isSupported(
+    plugin: LoadedPlugin,
+    folder: string,
+    context: PluginSkillPolicyContext,
+  ): boolean {
+    return isPluginSkillSupportedForLaunch(plugin, folder, {
+      hostPlatform: this.options.hostPlatform,
+      ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
+      ...(context.capabilities ? { capabilities: context.capabilities } : {}),
+      ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
+    });
+  }
+
+  /** WSL skill folder names are case-sensitive, so match is case-preserving here. */
+  private matchHostPath(
+    roots: readonly PluginSkillRoot[],
+    path: string,
+  ): MatchedSegment | undefined {
+    for (const root of roots) {
+      const relativePath = relativePolicyPath(root.skillsRoot, path);
+      if (relativePath) return { root, relativePath };
+    }
+    return undefined;
+  }
+
+  private async resolveWslRoots(
     distro: string,
-    bundledRoot: string,
-  ): Promise<string | undefined> {
-    const key = `${distro.toLowerCase()}\0${bundledRoot}`;
-    const cached = this.bundledRootWslPaths.get(key);
+    roots: readonly PluginSkillRoot[],
+  ): Promise<Array<{ root: PluginSkillRoot; wslRoot: string }>> {
+    const resolved = await Promise.all(
+      roots.map(async (root) => {
+        const wslRoot = await this.resolveWslRootPath(distro, root.skillsRoot);
+        return wslRoot ? { root, wslRoot } : undefined;
+      }),
+    );
+    return resolved.filter((entry) => entry !== undefined);
+  }
+
+  private async resolveWslRootPath(distro: string, hostRoot: string): Promise<string | undefined> {
+    const key = `${distro.toLowerCase()}\0${hostRoot}`;
+    const cached = this.wslRootPaths.get(key);
     if (cached) return cached;
     const pending = (async () => {
-      const linuxPath = await this.resolveHostPathForWsl(distro, bundledRoot);
+      const linuxPath = await this.resolveHostPathForWsl(distro, hostRoot);
       if (!linuxPath) return undefined;
       const [resolvedPath] = await this.options.resolveWslRealPaths(distro, [linuxPath]);
       return resolvedPath;
     })().catch(() => undefined);
-    this.bundledRootWslPaths.set(key, pending);
+    this.wslRootPaths.set(key, pending);
     const resolvedPath = await pending;
-    if (!resolvedPath) this.bundledRootWslPaths.delete(key);
+    if (!resolvedPath) this.wslRootPaths.delete(key);
     return resolvedPath;
   }
 }

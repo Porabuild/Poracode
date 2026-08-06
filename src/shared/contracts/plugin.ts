@@ -1,70 +1,96 @@
 import { z } from "zod";
-import { BUILT_IN_MCP_SERVER_IDS } from "./mcpServer";
+import {
+  agentPluginManifestSchema,
+  pluginMcpEntrySchema,
+  poracodePluginExtensionSchema,
+} from "../plugins/spec";
 
-export const pluginCategorySchema = z.enum(["automation", "developer-tools", "productivity"]);
-export type PluginCategory = z.infer<typeof pluginCategorySchema>;
-export const pluginPlatformSchema = z.enum(["win32", "darwin", "linux"]);
-export type PluginPlatform = z.infer<typeof pluginPlatformSchema>;
-export const pluginProjectKindSchema = z.enum(["windows", "posix", "wsl"]);
-export type PluginProjectKind = z.infer<typeof pluginProjectKindSchema>;
+/**
+ * Contracts for Agent Plugins packages after loading.
+ *
+ * The manifest itself is defined by the specification (`src/shared/plugins/spec`).
+ * This module covers what Poracode adds on top: where a package was found, what
+ * the loader resolved out of it, and the per-plugin state the user controls.
+ */
 
-export const pluginSkillContributionSchema = z
+export const pluginSourceSchema = z.enum(["bundled", "user"]);
+export type PluginSource = z.infer<typeof pluginSourceSchema>;
+
+export const pluginDiagnosticSchema = z
   .object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    description: z.string().min(1),
-    folder: z
-      .string()
-      .min(1)
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u),
-    requiredAppIds: z.array(z.string().min(1)).default([]),
-    defaultEnabled: z.literal(true).default(true),
+    severity: z.enum(["error", "warning"]),
+    scope: z.enum(["plugin", "component-type", "skill", "mcp-server"]),
+    code: z.string().min(1),
+    message: z.string().min(1),
+    target: z.string().min(1).optional(),
   })
   .strict();
-export type PluginSkillContribution = z.infer<typeof pluginSkillContributionSchema>;
 
-export const pluginAppContributionSchema = z
+/** A `skills/<folder>/SKILL.md` discovered inside the package boundary. */
+export const pluginSkillRefSchema = z
   .object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    description: z.string().min(1),
-    builtInMcpServerId: z.enum(BUILT_IN_MCP_SERVER_IDS),
-    defaultEnabled: z.literal(true).default(true),
+    folder: z.string().min(1),
+    /** Absolute host path to the skill directory. */
+    path: z.string().min(1),
   })
   .strict();
-export type PluginAppContribution = z.infer<typeof pluginAppContributionSchema>;
+export type PluginSkillRef = z.infer<typeof pluginSkillRefSchema>;
 
-/** Provider-neutral Poracode plugin manifest. Runtime-owned apps are referenced by stable id. */
-export const pluginManifestSchema = z
+export const pluginMcpServerRefSchema = z
   .object({
-    manifestVersion: z.literal(1),
-    id: z
-      .string()
-      .min(1)
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u),
+    /** Key as authored in `mcp.json`. */
     name: z.string().min(1),
-    description: z.string().min(1),
-    version: z.string().min(1),
-    publisher: z.string().min(1),
-    category: pluginCategorySchema,
-    platforms: z.array(pluginPlatformSchema).optional(),
-    projectKinds: z.array(pluginProjectKindSchema).optional(),
-    featured: z.boolean().default(false),
-    skills: z.array(pluginSkillContributionSchema),
-    apps: z.array(pluginAppContributionSchema),
+    entry: pluginMcpEntrySchema,
   })
   .strict();
-export type PluginManifest = z.infer<typeof pluginManifestSchema>;
+export type PluginMcpServerRef = z.infer<typeof pluginMcpServerRefSchema>;
 
+/** A package that passed the loader's plugin-level checks. */
+export const loadedPluginSchema = z
+  .object({
+    name: z.string().min(1),
+    source: pluginSourceSchema,
+    /** Filesystem-resolved package boundary. */
+    root: z.string().min(1),
+    manifest: agentPluginManifestSchema,
+    poracode: poracodePluginExtensionSchema,
+    skills: z.array(pluginSkillRefSchema),
+    mcpServers: z.array(pluginMcpServerRefSchema),
+    diagnostics: z.array(pluginDiagnosticSchema),
+  })
+  .strict();
+export type LoadedPlugin = z.infer<typeof loadedPluginSchema>;
+
+export const listPluginsResultSchema = z
+  .object({
+    plugins: z.array(loadedPluginSchema),
+    /** Absolute path of the user plugin directory, for "open folder". */
+    userPluginsDir: z.string().min(1),
+  })
+  .strict();
+export type ListPluginsResult = z.infer<typeof listPluginsResultSchema>;
+
+/**
+ * Per-plugin user state, keyed by the manifest `name`. Contribution ids are the
+ * skill folder name, the extension app id, and the `mcp.json` server key.
+ */
 export const installedPluginStateSchema = z
   .object({
-    version: z.string().min(1),
+    version: z.string().min(1).default("0.0.0"),
     enabled: z.boolean().default(true),
     disabledSkillIds: z.array(z.string().min(1)).default([]),
     disabledAppIds: z.array(z.string().min(1)).default([]),
+    disabledMcpServerNames: z.array(z.string().min(1)).default([]),
   })
   .strict();
 export type InstalledPluginState = z.infer<typeof installedPluginStateSchema>;
 
 export const installedPluginsSchema = z.record(z.string(), installedPluginStateSchema).default({});
 export type InstalledPlugins = z.infer<typeof installedPluginsSchema>;
+
+export type {
+  PluginCategory,
+  PluginPlatform,
+  PluginProjectKind,
+  PluginAppContribution,
+} from "../plugins/spec";

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SkillScanResult } from "@/shared/contracts";
 import { dynamicActivate, i18n } from "@/renderer/i18n/i18n";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import { buildSkillSlashCommands, useSkills, useSkillSlashCommandState } from "./useSkills";
 
 const { scanSkillsMock } = vi.hoisted(() => ({
@@ -76,6 +77,7 @@ function I18nWrapper(props: PropsWithChildren) {
 describe("useSkills", () => {
   beforeEach(() => {
     scanSkillsMock.mockReset();
+    seedBuiltInPlugins();
     useSharedSettings.setState({ installedPlugins: {} });
   });
 
@@ -102,7 +104,7 @@ describe("useSkills", () => {
   });
 
   it("invalidates mounted composer skills immediately when plugin state changes", async () => {
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     const initial = pluginSkillScan();
     scanSkillsMock.mockResolvedValueOnce(initial);
     const hook = renderHook(
@@ -118,7 +120,7 @@ describe("useSkills", () => {
         resolveRefresh = resolve;
       }),
     );
-    act(() => useSharedSettings.getState().setPluginEnabled("browser-tools", false));
+    act(() => useSharedSettings.getState().setPluginEnabled(pluginFixture("browser-tools"), false));
 
     expect(hook.result.current.commands).toEqual([]);
     await waitFor(() => expect(scanSkillsMock).toHaveBeenCalledTimes(2));
@@ -143,7 +145,7 @@ describe("useSkills", () => {
   });
 
   it("shows a plugin skill only when its required App is effective for the launch", async () => {
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     scanSkillsMock.mockResolvedValueOnce(pluginSkillScan());
     const projectLocation = { kind: "windows" as const, path: "C:\\RequiredAppSkillTest" };
     const hook = renderHook(
@@ -163,7 +165,7 @@ describe("useSkills", () => {
   });
 
   it("does not rescan skill files when only a plugin App toggle changes", async () => {
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     scanSkillsMock.mockResolvedValueOnce(pluginSkillScan());
     const hook = renderHook(
       () =>
@@ -175,14 +177,18 @@ describe("useSkills", () => {
     );
 
     await waitFor(() => expect(hook.result.current.resolved).toBe(true));
-    act(() => useSharedSettings.getState().setPluginAppEnabled("browser-tools", "browser", false));
+    act(() =>
+      useSharedSettings
+        .getState()
+        .setPluginAppEnabled(pluginFixture("browser-tools"), "browser", false),
+    );
 
     expect(scanSkillsMock).toHaveBeenCalledTimes(1);
   });
 
   it("localizes plugin command display metadata without changing its invocation identity", async () => {
     await dynamicActivate("es");
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     scanSkillsMock.mockResolvedValueOnce(pluginSkillScan());
     const hook = renderHook(
       () =>

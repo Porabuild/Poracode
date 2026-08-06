@@ -59,6 +59,7 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePlugins } from "@/renderer/state/pluginsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import { useSkillSlashCommandState } from "@/renderer/components/skills/useSkills";
@@ -279,6 +280,7 @@ export function ThreadDraftComposerArea(props: {
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const installedPlugins = useSharedSettings((s) => s.installedPlugins);
+  const plugins = usePlugins((state) => state.plugins);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const agentSettings = useSharedSettings((s) => s.agentSettings[props.selectedAgent.kind]);
   const setMcpServerEnabled = useSharedSettings((s) => s.setMcpServerEnabled);
@@ -336,19 +338,20 @@ export function ThreadDraftComposerArea(props: {
   // id — not the per-thread config flag. A new MCP server means adding one
   // descriptor to the registry.
   const isPluginMcpAvailable = (id: BuiltInMcpServerId) =>
-    isBuiltInMcpServerAvailableByPlugin(installedPlugins, id);
+    isBuiltInMcpServerAvailableByPlugin(plugins, installedPlugins, id);
   const availableComposerMcpServers = composerMcpServers.filter(
     (descriptor) =>
       disabledBuiltInMcpServers[descriptor.id] !== true && isPluginMcpAvailable(descriptor.id),
   );
   const isPersistentlyEnabled = (id: BuiltInMcpServerId) =>
-    persistentMcpServers[id] === true || isBuiltInMcpServerEnabledByPlugin(installedPlugins, id);
+    persistentMcpServers[id] === true ||
+    isBuiltInMcpServerEnabledByPlugin(plugins, installedPlugins, id);
   const setPersistentEnabled = (id: BuiltInMcpServerId, enabled: boolean) => {
-    const manifest = getInstalledPluginForMcpServer(installedPlugins, id);
-    const state = manifest ? installedPlugins[manifest.id] : undefined;
-    const app = manifest?.apps.find((candidate) => candidate.builtInMcpServerId === id);
-    if (manifest && state && app) {
-      setPluginAppEnabled(manifest.id, app.id, enabled);
+    const owner = getInstalledPluginForMcpServer(plugins, installedPlugins, id);
+    const state = owner ? installedPlugins[owner.name] : undefined;
+    const app = owner?.poracode.apps.find((candidate) => candidate.builtInMcpServerId === id);
+    if (owner && state && app) {
+      setPluginAppEnabled(owner, app.id, enabled);
       if (!enabled && persistentMcpServers[id] === true) setMcpServerEnabled(id, false);
       return;
     }
@@ -464,6 +467,7 @@ export function ThreadDraftComposerArea(props: {
   };
   const draftLaunchConfig = resolvePluginLaunchPreview(
     props.config,
+    plugins,
     installedPlugins,
     launchContext,
   );

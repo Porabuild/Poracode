@@ -28,6 +28,7 @@ describe("SupervisorSharedSettingsCache", () => {
           enabled: true,
           disabledSkillIds: [],
           disabledAppIds: [],
+          disabledMcpServerNames: [],
         },
       });
       expect(cache.readFresh().installedPlugins["browser-tools"]?.enabled).toBe(true);
@@ -38,6 +39,7 @@ describe("SupervisorSharedSettingsCache", () => {
           enabled: false,
           disabledSkillIds: [],
           disabledAppIds: [],
+          disabledMcpServerNames: [],
         },
       });
       expect(cache.readFresh().installedPlugins["browser-tools"]?.enabled).toBe(false);

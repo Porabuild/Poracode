@@ -208,6 +208,7 @@ else
     PORACODE_APP_VERSION="$RUNTIME_HASH" \
     PORACODE_WSL_HELPERS_DIR="$RUNTIME/wsl-helpers" \
     PORACODE_BUNDLED_SKILLS_DIR="$RUNTIME/skills" \
+    PORACODE_BUNDLED_PLUGINS_DIR="$RUNTIME/plugins" \
     "$NODE" "$RUNTIME/server.cjs" >>"$LOG_FILE" 2>&1 </dev/null &
   PID="$!"
   printf '%s\n' "$PID" >"$PID_FILE"

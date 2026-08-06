@@ -106,6 +106,12 @@ export interface ThreadSessionManagerOptions {
       launchConfig?: ThreadConfig;
     },
   ): PromptSegment[] | Promise<PromptSegment[]>;
+  /**
+   * MCP servers contributed by enabled Agent Plugins packages via `mcp.json`.
+   * They join the user's own servers, so every provider translator picks them up
+   * without knowing the Agent Plugins specification exists.
+   */
+  resolvePluginMcpServers?(): McpServer[];
   /** Apply supported Poracode plugin app contributions before enforcing global MCP disables. */
   applyPluginAppsToConfig?(
     config: ThreadConfig,

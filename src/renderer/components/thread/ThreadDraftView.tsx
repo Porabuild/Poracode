@@ -23,6 +23,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePlugins } from "@/renderer/state/pluginsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
 import { isBuiltInMcpServerAvailableByPlugin } from "@/shared/plugins/catalog";
@@ -243,6 +244,7 @@ export function ThreadDraftView(props: {
   const enabledMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const installedPlugins = useSharedSettings((s) => s.installedPlugins);
+  const plugins = usePlugins((state) => state.plugins);
   const supportedPresentationModes = selectedAgent
     ? (selectedAgent.capabilities.presentationModes ?? [
         selectedAgent.capabilities.presentationMode,
@@ -940,7 +942,7 @@ export function ThreadDraftView(props: {
   const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) => {
     return (
       disabledBuiltInMcpServers[id] !== true &&
-      isBuiltInMcpServerAvailableByPlugin(installedPlugins, id) &&
+      isBuiltInMcpServerAvailableByPlugin(plugins, installedPlugins, id) &&
       (mention || (enabledMcpServers[id] === true && scope !== "none"))
     );
   };

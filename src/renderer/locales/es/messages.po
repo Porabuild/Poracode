@@ -32,8 +32,8 @@ msgstr "(sin mensaje)"
 
 #. placeholder {0}: plugin.apps.length
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "{0, plural, one {# app} other {# apps}}"
-msgstr "{0, plural, one {# aplicación} other {# aplicaciones}}"
+#~ msgid "{0, plural, one {# app} other {# apps}}"
+#~ msgstr "{0, plural, one {# aplicación} other {# aplicaciones}}"
 
 #. placeholder {0}: details.changedFiles
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -65,7 +65,12 @@ msgstr "{0, plural, one {# proyecto} other {# proyectos}}"
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# proveedor listo} other {# proveedores listos}}"
 
-#. placeholder {0}: plugin.skills.length
+#. placeholder {0}: entry.apps.length + entry.mcpServers.length
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#~ msgid "{0, plural, one {# server} other {# servers}}"
+#~ msgstr "{0, plural, one {# servidor} other {# servidores}}"
+
+#. placeholder {0}: props.entry.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -440,6 +445,10 @@ msgstr "{resultCount, plural, one {# resultado} other {# resultados}}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{seconds}s ago"
 msgstr "hace {seconds}s"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "{serverCount, plural, one {# server} other {# servers}}"
+msgstr "{serverCount, plural, one {# servidor} other {# servidores}}"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
@@ -1002,6 +1011,7 @@ msgid "Approved"
 msgstr "Aprobado"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
 msgid "Apps"
 msgstr "Aplicaciones"
 
@@ -1131,6 +1141,10 @@ msgstr "Autenticación requerida"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Authentication setup cannot be imported"
 msgstr "La configuración de autenticación no se puede importar"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Author"
+msgstr "Autor"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Authored"
@@ -1465,6 +1479,10 @@ msgstr "Poracode administra los servidores integrados. Se pueden deshabilitar gl
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Built-in shortcut — can't be changed"
 msgstr "Atajo integrado: no se puede cambiar"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
+msgstr "Paquetes de skills y servidores MCP que funcionan con todos los agentes compatibles. Poracode carga cualquier paquete creado según la especificación Agent Plugins."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
@@ -2186,6 +2204,16 @@ msgstr "Redactores de commit, PR y revisión"
 msgid "Commits"
 msgstr "Commits"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Communication"
+msgstr "Comunicación"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Community"
+msgstr "Comunidad"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "Compactando el contexto"
@@ -2300,6 +2328,7 @@ msgid "Conflicts with a managed skill"
 msgstr "Entra en conflicto con un skill gestionado"
 
 #: src/mobile/setupEmptyState.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Connect"
@@ -2338,12 +2367,17 @@ msgstr "Conecta los proveedores de IA que OpenCode puede usar y cierra sesión e
 #~ msgstr "Conéctate a otro escritorio de Poracode o a un servidor headless para explorar y gestionar sus proyectos desde aquí. Consigue su endpoint y token de emparejamiento en Ajustes → Acceso remoto en esa máquina."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connected"
 msgstr "Conectado"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Conectando al navegador del escritorio…"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Connecting..."
+msgstr "Conectando..."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -3194,12 +3228,12 @@ msgid "Disconnect server"
 msgstr "Desconectar servidor"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Discover"
-msgstr "Descubrir"
+#~ msgid "Discover"
+#~ msgstr "Descubrir"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Discover plugins"
-msgstr "Descubrir plugins"
+#~ msgid "Discover plugins"
+#~ msgstr "Descubrir plugins"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
@@ -3391,7 +3425,10 @@ msgstr "Niveles de esfuerzo"
 msgid "Electron"
 msgstr "Electron"
 
+#. placeholder {0}: entry.name
+#. placeholder {0}: row.contribution.name
 #. placeholder {0}: skill.name
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Enable {0}"
 msgstr "Activar {0}"
@@ -3641,6 +3678,8 @@ msgstr "Expandir panel de tareas"
 msgid "Export MCP servers"
 msgstr "Exportar servidores MCP"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "External"
 msgstr "Externo"
@@ -4090,6 +4129,10 @@ msgstr "Estado de Git para {0}"
 msgid "Git status for {0}: not a Git repository"
 msgstr "Estado de Git para {0}: no es un repositorio Git"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "GitHub"
+msgstr "GitHub"
+
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
@@ -4297,6 +4340,10 @@ msgstr "Carpeta de inicio"
 msgid "Home scope"
 msgstr "Ámbito de inicio"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Homepage"
+msgstr "Página principal"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com, alias o usuario@host.com"
@@ -4317,6 +4364,10 @@ msgstr "https://example.com/mcp"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
 msgstr "ID: {0}"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Identifier"
+msgstr "Identificador"
 
 #: src/mobile/settingsSections.ts
 msgid "Identity and usage stats"
@@ -4527,7 +4578,6 @@ msgstr "Instalar en Windows"
 msgid "Install packages"
 msgstr "Instalar paquetes"
 
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Install Poracode-managed bundles of skills and MCP-powered apps for every supported agent."
 msgstr "Instala paquetes gestionados por Poracode de Skills y aplicaciones con tecnología MCP para todos los agentes compatibles."
@@ -4689,6 +4739,7 @@ msgstr "Permite que los agentes llamen a <0>eval</0> para ejecutar JavaScript ar
 
 #. About page label: software license row
 #. Link to the license file
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "License"
 msgstr "Licencia"
@@ -4836,6 +4887,7 @@ msgstr "Es necesario guardar los cambios locales en stash antes de hacer pull de
 msgid "localhost:{0} on desktop"
 msgstr "localhost:{0} en el escritorio"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
@@ -4906,12 +4958,17 @@ msgid "Make the sidebar translucent — the system blur material on Windows 11, 
 msgstr "Hace translúcido el panel lateral: el efecto de desenfoque del sistema en Windows 11 y un tinte translúcido en otros casos."
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Manage"
 msgstr "Gestionar"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "Gestiona los skills globales y de proyecto de los agentes, incluidos los importados de otros proveedores."
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Manage installed plugins and the skills and servers they contribute."
+msgstr "Gestiona los plugins instalados y las skills y servidores que aportan."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "Manage remote environments"
@@ -5008,6 +5065,7 @@ msgid "Mark Done"
 msgstr "Marcar como hecho"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Marketplace"
 msgstr "Marketplace"
 
@@ -5099,6 +5157,7 @@ msgid "MCP server URL"
 msgstr "URL del servidor MCP"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "Servidores MCP"
@@ -5122,6 +5181,10 @@ msgstr "Tipo de transporte MCP"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "MCP-powered tools contributed by this plugin."
 msgstr "Herramientas con tecnología MCP aportadas por este plugin."
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "MCPs"
+msgstr "MCPs"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -5857,8 +5920,8 @@ msgid "No phases yet."
 msgstr "Aún no hay fases."
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "No plugins installed yet"
-msgstr "Aún no hay plugins instalados"
+#~ msgid "No plugins installed yet"
+#~ msgstr "Aún no hay plugins instalados"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
@@ -6008,6 +6071,7 @@ msgstr "No es un repositorio Git"
 msgid "Not found"
 msgstr "No encontrado"
 
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Not installed"
@@ -6030,6 +6094,10 @@ msgstr "No compatible"
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Notes"
 msgstr "Notas"
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Nothing here yet. Install a plugin to add contributions."
+msgstr "Aquí no hay nada todavía. Instala un plugin para añadir contribuciones."
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."
@@ -6408,6 +6476,10 @@ msgstr "Otras"
 msgid "Outcome"
 msgstr "Resultado"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Outlook"
+msgstr "Outlook"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "Por encima del ritmo — se agotará antes"
@@ -6659,10 +6731,23 @@ msgid "Plugin"
 msgstr "Plugin"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Plugin marketplace views"
-msgstr "Vistas del marketplace de plugins"
+msgid "Plugin folder"
+msgstr "Carpeta de plugins"
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Plugin management views"
+msgstr "Vistas de gestión de plugins"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#~ msgid "Plugin marketplace views"
+#~ msgstr "Vistas del marketplace de plugins"
+
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+msgid "Plugin settings views"
+msgstr "Vistas de ajustes de plugins"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Plugins"
@@ -6947,8 +7032,8 @@ msgid "Public URL updated."
 msgstr "URL pública actualizada."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
-msgid "Publisher"
-msgstr "Editor"
+#~ msgid "Publisher"
+#~ msgstr "Editor"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
@@ -7432,6 +7517,7 @@ msgstr "Informar de un problema"
 msgid "repository"
 msgstr "repositorio"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Repositorio"
@@ -7926,6 +8012,10 @@ msgstr "Buscar ramas..."
 msgid "Search files"
 msgstr "Buscar archivos"
 
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Search installed plugins"
+msgstr "Buscar plugins instalados"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Search marketplace skills"
 msgstr "Buscar skills en el marketplace"
@@ -7959,8 +8049,12 @@ msgid "Search plugins"
 msgstr "Buscar plugins"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Search plugins, skills, and apps..."
-msgstr "Buscar plugins, Skills y aplicaciones..."
+#~ msgid "Search plugins, skills, and apps..."
+#~ msgstr "Buscar plugins, Skills y aplicaciones..."
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Search plugins, skills, and servers..."
+msgstr "Buscar plugins, skills y servidores..."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
@@ -8015,6 +8109,10 @@ msgstr "Buscar hilos"
 #: src/renderer/commands/registry.ts
 msgid "Search Threads"
 msgstr "Buscar hilos"
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Search..."
+msgstr "Buscar..."
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
@@ -8152,6 +8250,10 @@ msgstr "Selección enviada al terminal."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Separa las cuentas de Claude Code por directorio de configuración, o apunta un perfil a un proveedor externo (z.ai, …). Abre un perfil para configurar sus variables de entorno, modelos y esfuerzo."
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
+msgstr "Servidores que este plugin declara en mcp.json. Poracode los pasa a todos los agentes compatibles."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
@@ -8457,6 +8559,7 @@ msgid "SKILL.md is too large."
 msgstr "SKILL.md es demasiado grande."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -8500,6 +8603,10 @@ msgstr "Comandos con barra"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Algunas comprobaciones están fallando o pendientes."
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Some contributions could not be loaded"
+msgstr "No se pudieron cargar algunas contribuciones"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
@@ -9196,6 +9303,10 @@ msgstr "La configuración del servidor no es válida."
 msgid "The server returned an invalid MCP response."
 msgstr "El servidor devolvió una respuesta MCP no válida."
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
+msgstr "El servidor que lanza este plugin lo mantiene un tercero, no el servicio al que se conecta. Revisa el código fuente antes de activarlo."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "The skill description is missing."
 msgstr "Falta la descripción del skill."
@@ -9568,6 +9679,14 @@ msgstr "Panel lateral translúcido"
 msgid "Trending now"
 msgstr "Tendencias actuales"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Triage Microsoft Outlook mail and manage your calendar."
+msgstr "Clasifica el correo de Microsoft Outlook y gestiona tu calendario."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Triage PRs, issues, CI, and publish flows."
+msgstr "Gestiona PRs, incidencias, CI y flujos de publicación."
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
 msgstr "Confiar y conectar"
@@ -9575,6 +9694,10 @@ msgstr "Confiar y conectar"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Try a different search or project filter."
 msgstr "Prueba con otra búsqueda o filtro de proyecto."
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Try now"
+msgstr "Probar ahora"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."

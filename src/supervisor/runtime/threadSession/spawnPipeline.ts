@@ -407,7 +407,10 @@ export class SpawnPipeline {
       threadId: payload.threadId,
       title: initialPrompt.split("\n", 1)[0]?.trim() ?? "",
     };
-    let mcpServers = resolveEnabledMcpServers(payload.mcpServers ?? []);
+    let mcpServers = resolveEnabledMcpServers([
+      ...(payload.mcpServers ?? []),
+      ...(this.ctx.options.resolvePluginMcpServers?.() ?? []),
+    ]);
     if (this.ctx.options.applyMcpServerAuthorization) {
       mcpServers = await this.ctx.options.applyMcpServerAuthorization(mcpServers);
     }

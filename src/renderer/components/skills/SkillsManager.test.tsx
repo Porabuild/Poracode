@@ -7,6 +7,7 @@ import type {
   SkillScanResult,
 } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import { seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import { SkillsManager } from "./SkillsManager";
 
 const {
@@ -109,6 +110,7 @@ function renderManager(
 
 describe("SkillsManager", () => {
   beforeEach(() => {
+    seedBuiltInPlugins();
     vi.clearAllMocks();
     bridge.listWslDistros.mockReturnValue(new Promise(() => undefined));
     ensureHomeScopeProjectMock.mockResolvedValue({ id: "home" });

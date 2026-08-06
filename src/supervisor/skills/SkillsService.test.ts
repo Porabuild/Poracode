@@ -1,4 +1,5 @@
 import {
+  copyFile,
   lstat,
   mkdtemp,
   mkdir,
@@ -12,15 +13,58 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, parse } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { LoadedPlugin, ProjectLocation } from "@/shared/contracts";
 import type { InstalledPlugins } from "@/shared/contracts/plugin";
 import {
-  installBuiltInPlugin,
+  installPlugin,
   setInstalledPluginEnabled,
   setPluginSkillEnabled,
 } from "@/shared/plugins/catalog";
+import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
+import { loadPluginFromDirectory } from "@/supervisor/plugins";
 import type { AgentAdapter } from "../agents/base";
 import { SkillsService } from "./SkillsService";
+
+/** Packages ship with the app; tests reuse the real manifests, not copies of them. */
+const SHIPPED_PLUGINS_DIR = join(process.cwd(), "resources", "plugins");
+
+async function writePluginPackage(root: string, name: string, skills: readonly string[]) {
+  const dir = join(root, "plugins", name);
+  const skillsDir = join(dir, "skills");
+  await mkdir(skillsDir, { recursive: true });
+  await copyFile(join(SHIPPED_PLUGINS_DIR, name, "plugin.json"), join(dir, "plugin.json"));
+  for (const skill of skills) await writeSkill(join(skillsDir, skill), skill);
+  const result = loadPluginFromDirectory(dir, "bundled");
+  if (!result.plugin) {
+    throw new Error(
+      `${name} failed to load: ${result.diagnostics.map((d) => d.message).join("; ")}`,
+    );
+  }
+  return { plugin: result.plugin, dir, skillsDir };
+}
+
+/**
+ * A package that is never read from disk. Used by the WSL canonicalization tests,
+ * which exercise path policy against a fixed Windows root.
+ */
+function fakePluginPackage(name: string, root: string, skills: readonly string[]): LoadedPlugin {
+  return {
+    name,
+    source: "bundled",
+    root,
+    manifest: { $schema: AGENT_PLUGINS_MANIFEST_SCHEMA_URL, name, version: "1.0.0" },
+    poracode: {
+      category: "developer-tools",
+      featured: false,
+      communityMaintained: false,
+      apps: [],
+      skills: {},
+    },
+    skills: skills.map((folder) => ({ folder, path: join(root, "skills", folder) })),
+    mcpServers: [],
+    diagnostics: [],
+  };
+}
 
 async function writeSkill(path: string, name: string, description = `${name} description`) {
   await mkdir(path, { recursive: true });
@@ -296,14 +340,13 @@ describe("SkillsService", () => {
   });
 
   it("shows installed plugin skills as immutable owned contributions and honors disablement", async () => {
-    const bundledDir = join(root, "bundled-skills");
-    await writeSkill(join(bundledDir, "browser-control"), "browser-control", "Control the browser");
+    const pkg = await writePluginPackage(root, "browser-tools", ["browser-control"]);
     let installedPlugins: InstalledPlugins = {};
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
       readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => [pkg.plugin],
     });
 
     expect(
@@ -312,7 +355,7 @@ describe("SkillsService", () => {
       ),
     ).toBeUndefined();
 
-    installedPlugins = installBuiltInPlugin(installedPlugins, "browser-tools");
+    installedPlugins = installPlugin(installedPlugins, pkg.plugin);
     const installedScan = await bundledService.scan({ projectLocation, agentKind: "claude" });
     const installedSkill = installedScan.skills.find((skill) => skill.name === "browser-control");
     expect(installedSkill).toMatchObject({
@@ -344,20 +387,20 @@ describe("SkillsService", () => {
   });
 
   it("filters bundled plugin skill segments against current installation state", async () => {
-    const bundledDir = join(root, "bundled-skills");
-    let installedPlugins = installBuiltInPlugin({}, "browser-tools");
+    const pkg = await writePluginPackage(root, "browser-tools", ["browser-control"]);
+    let installedPlugins = installPlugin({}, pkg.plugin);
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
       readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => [pkg.plugin],
       hostPlatform: "win32",
     });
     const textSegment = { kind: "text" as const, content: "Inspect this page." };
     const pluginSegment = {
       kind: "skill" as const,
       name: "browser-control",
-      path: join(bundledDir, "browser-control", "SKILL.md"),
+      path: join(pkg.skillsDir, "browser-control", "SKILL.md"),
       invocation: "/browser-control",
       provider: "Browser Tools",
       scope: "global" as const,
@@ -385,7 +428,7 @@ describe("SkillsService", () => {
     expect(await bundledService.filterPluginSkillSegments(segments)).toEqual([textSegment]);
 
     installedPlugins = setInstalledPluginEnabled(
-      installBuiltInPlugin({}, "browser-tools"),
+      installPlugin({}, pkg.plugin),
       "browser-tools",
       false,
     );
@@ -395,12 +438,12 @@ describe("SkillsService", () => {
     expect(await bundledService.filterPluginSkillSegments([pluginSegment])).toEqual([]);
     expect(
       await bundledService.filterPluginSkillSegments([
-        { ...pluginSegment, path: join(bundledDir, "Browser-Control", "SKILL.md") },
+        { ...pluginSegment, path: join(pkg.skillsDir, "Browser-Control", "SKILL.md") },
       ]),
     ).toEqual([]);
     expect(
       await bundledService.filterPluginSkillSegments([
-        { ...pluginSegment, path: join(bundledDir, "browser-control", "nested", "SKILL.md") },
+        { ...pluginSegment, path: join(pkg.skillsDir, "browser-control", "nested", "SKILL.md") },
       ]),
     ).toEqual([]);
   });
@@ -408,11 +451,10 @@ describe("SkillsService", () => {
   it("does not classify bundled-root links to outside skills as plugin skills", async ({
     skip,
   }) => {
-    const bundledDir = join(root, "bundled-skills");
+    const pkg = await writePluginPackage(root, "browser-tools", []);
     const outsideSkillDir = join(root, "outside-browser-control");
-    const linkedSkillDir = join(bundledDir, "browser-control");
+    const linkedSkillDir = join(pkg.skillsDir, "browser-control");
     await writeSkill(outsideSkillDir, "browser-control");
-    await mkdir(bundledDir, { recursive: true });
     try {
       await symlink(
         outsideSkillDir,
@@ -431,8 +473,8 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
       readInstalledPlugins: () => ({}),
+      readPlugins: () => [pkg.plugin],
       hostPlatform: "win32",
     });
     const segment = {
@@ -450,18 +492,17 @@ describe("SkillsService", () => {
   it.runIf(process.platform === "win32")(
     "filters Windows namespace and Volume GUID aliases for disabled plugin skills",
     async () => {
-      const bundledDir = join(root, "bundled-skills");
-      await writeSkill(join(bundledDir, "browser-control"), "browser-control");
-      const junction = join(bundledDir, "browser-alias");
-      await symlink(join(bundledDir, "browser-control"), junction, "junction");
+      const pkg = await writePluginPackage(root, "browser-tools", ["browser-control"]);
+      const junction = join(pkg.skillsDir, "browser-alias");
+      await symlink(join(pkg.skillsDir, "browser-control"), junction, "junction");
       const bundledService = new SkillsService({
         adapters,
         homeDirectory: () => home,
-        env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
         readInstalledPlugins: () => ({}),
+        readPlugins: () => [pkg.plugin],
         hostPlatform: "win32",
       });
-      const pluginPath = join(bundledDir, "browser-control", "SKILL.md");
+      const pluginPath = join(pkg.skillsDir, "browser-control", "SKILL.md");
       const driveRoot = parse(pluginPath).root;
       const volumeRoot = execFileSync("mountvol", [driveRoot, "/L"], {
         encoding: "utf8",
@@ -487,13 +528,12 @@ describe("SkillsService", () => {
   );
 
   it("hides and filters Computer Use plugin skills on unsupported Linux hosts", async () => {
-    const bundledDir = join(root, "bundled-skills");
-    await writeSkill(join(bundledDir, "computer-use"), "computer-use", "Control desktop apps");
+    const pkg = await writePluginPackage(root, "computer-use", ["computer-use"]);
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
-      readInstalledPlugins: () => installBuiltInPlugin({}, "computer-use"),
+      readInstalledPlugins: () => installPlugin({}, pkg.plugin),
+      readPlugins: () => [pkg.plugin],
       hostPlatform: "linux",
     });
 
@@ -508,7 +548,7 @@ describe("SkillsService", () => {
         {
           kind: "skill",
           name: "computer-use",
-          path: join(bundledDir, "computer-use", "SKILL.md"),
+          path: join(pkg.skillsDir, "computer-use", "SKILL.md"),
           invocation: "/computer-use",
           provider: "Computer Use",
           scope: "global",
@@ -518,16 +558,14 @@ describe("SkillsService", () => {
   });
 
   it("filters plugin skills whose companion apps cannot run in WSL projects", async () => {
-    const bundledDir = join(root, "bundled-skills");
-    const installedPlugins = installBuiltInPlugin(
-      installBuiltInPlugin({}, "chrome-tools"),
-      "computer-use",
-    );
+    const chrome = await writePluginPackage(root, "chrome-tools", ["chrome-control"]);
+    const computerUse = await writePluginPackage(root, "computer-use", ["computer-use"]);
+    const installedPlugins = [chrome.plugin, computerUse.plugin].reduce(installPlugin, {});
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
       readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => [chrome.plugin, computerUse.plugin],
       hostPlatform: "win32",
     });
     const wslProject = {
@@ -543,7 +581,7 @@ describe("SkillsService", () => {
           {
             kind: "skill",
             name: "chrome-control",
-            path: join(bundledDir, "chrome-control", "SKILL.md"),
+            path: join(chrome.skillsDir, "chrome-control", "SKILL.md"),
             invocation: "/chrome-control",
             provider: "Chrome Tools",
             scope: "global",
@@ -551,7 +589,7 @@ describe("SkillsService", () => {
           {
             kind: "skill",
             name: "computer-use",
-            path: join(bundledDir, "computer-use", "SKILL.md"),
+            path: join(computerUse.skillsDir, "computer-use", "SKILL.md"),
             invocation: "/computer-use",
             provider: "Computer Use",
             scope: "global",
@@ -563,8 +601,9 @@ describe("SkillsService", () => {
   });
 
   it("canonicalizes WSL aliases before applying bundled plugin policy", async () => {
-    const bundledDir = "E:\\Poracode\\resources\\skills";
-    const bundledWslRoot = "/mnt/e/Poracode/resources/skills";
+    const pluginRoot = "E:\\Poracode\\resources\\plugins\\browser-tools";
+    const pluginWslSkillsRoot = "/mnt/e/Poracode/resources/plugins/browser-tools/skills";
+    const plugin = fakePluginPackage("browser-tools", pluginRoot, ["browser-control"]);
     const wslProject: ProjectLocation = {
       kind: "wsl",
       distro: "Ubuntu",
@@ -574,17 +613,17 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
       readInstalledPlugins: () => ({}),
+      readPlugins: () => [plugin],
       hostPlatform: "win32",
-      resolveHostPathForWsl: async () => bundledWslRoot,
+      resolveHostPathForWsl: async () => pluginWslSkillsRoot,
       resolveWslWindowsPaths: async () => [],
       resolveWslRealPaths: async (_distro, paths) =>
         paths.map((path) =>
           path === "/tmp/plugin-alias/SKILL.md"
-            ? `${bundledWslRoot}/browser-control/SKILL.md`
+            ? `${pluginWslSkillsRoot}/browser-control/SKILL.md`
             : path === "/tmp/mixed-case-alias/SKILL.md"
-              ? "/mnt/e/PORACODE/RESOURCES/SKILLS/BROWSER-CONTROL/SKILL.MD"
+              ? "/MNT/E/PORACODE/RESOURCES/PLUGINS/BROWSER-TOOLS/SKILLS/BROWSER-CONTROL/SKILL.MD"
               : path,
         ),
     });
@@ -626,8 +665,12 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: "E:\\Poracode\\resources\\skills" },
       readInstalledPlugins: () => ({}),
+      readPlugins: () => [
+        fakePluginPackage("browser-tools", "E:\\Poracode\\resources\\plugins\\browser-tools", [
+          "browser-control",
+        ]),
+      ],
       hostPlatform: "win32",
       resolveHostPathForWsl: async () => undefined,
     });
@@ -653,8 +696,7 @@ describe("SkillsService", () => {
   });
 
   it("matches plugin skills to the active provider presentation", async () => {
-    const bundledDir = join(root, "bundled-skills");
-    await writeSkill(join(bundledDir, "browser-control"), "browser-control");
+    const pkg = await writePluginPackage(root, "browser-tools", ["browser-control"]);
     const adapter = {
       kind: "claude",
       label: "Claude Code",
@@ -672,14 +714,14 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters: new Map([["claude", adapter]]),
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
-      readInstalledPlugins: () => installBuiltInPlugin({}, "browser-tools"),
+      readInstalledPlugins: () => installPlugin({}, pkg.plugin),
+      readPlugins: () => [pkg.plugin],
       hostPlatform: "win32",
     });
     const pluginSegment = {
       kind: "skill" as const,
       name: "browser-control",
-      path: join(bundledDir, "browser-control", "SKILL.md"),
+      path: join(pkg.skillsDir, "browser-control", "SKILL.md"),
       invocation: "/browser-control",
       provider: "Browser Tools",
       scope: "global" as const,
@@ -855,8 +897,7 @@ describe("SkillsService", () => {
   });
 
   it("keeps plugin skills as the final fallback when provider precedence omits agents", async () => {
-    const bundledDir = join(root, "bundled-skills");
-    await writeSkill(join(bundledDir, "browser-control"), "browser-control", "Plugin copy");
+    const pkg = await writePluginPackage(root, "browser-tools", ["browser-control"]);
     await writeSkill(
       join(home, ".agents", "skills", "browser-control"),
       "browser-control",
@@ -876,8 +917,8 @@ describe("SkillsService", () => {
     const pluginService = new SkillsService({
       adapters: new Map([[adapter.kind, adapter]]),
       homeDirectory: () => home,
-      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
-      readInstalledPlugins: () => installBuiltInPlugin({}, "browser-tools"),
+      readInstalledPlugins: () => installPlugin({}, pkg.plugin),
+      readPlugins: () => [pkg.plugin],
     });
 
     const scan = await pluginService.scan({

@@ -4,6 +4,7 @@ import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import { usePlugins } from "@/renderer/state/pluginsStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
@@ -96,6 +97,10 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
         });
       }
     });
+
+    // Composer MCP toggles and skill lists both depend on the loaded plugin
+    // list, so it has to be there before the first thread renders.
+    void usePlugins.getState().load();
 
     void readBridge()
       .getThreadSnapshots()

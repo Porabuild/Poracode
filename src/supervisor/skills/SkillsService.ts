@@ -39,6 +39,7 @@ import type {
   SkillScanResult,
   SkillScope,
   InstalledPlugins,
+  LoadedPlugin,
 } from "@/shared/contracts";
 import {
   deleteSkillPayloadSchema,
@@ -65,15 +66,18 @@ import {
   isPathUnderAny,
   selectSkillSegmentsForInjection,
 } from "./skillPromptInjection";
+import { PLUGIN_SKILLS_DIR } from "@/supervisor/plugins";
 import {
-  BUNDLED_PROVIDER_ID,
+  pluginSkillProviderId,
   PluginSkillPolicy,
   type PluginSkillPolicyContext,
+  type PluginSkillRoot,
 } from "./pluginSkillPolicy";
 
 const SKILL_FILE = "SKILL.md";
 const MANIFEST_FILE = ".poracode-skill.json";
 /** Root id/label for read-only skills shipped with the app (resources/skills). */
+export const BUNDLED_PROVIDER_ID = "poracode-built-in";
 const BUNDLED_PROVIDER_LABEL = "Poracode built-ins";
 const PORACODE_PROVIDER_GROUP_ID = "poracode";
 const PORACODE_PROVIDER_GROUP_LABEL = "Poracode";
@@ -160,6 +164,8 @@ export interface SkillsServiceOptions {
   wslFsPath?: (distro: string, linuxPath: string) => string;
   fetch?: typeof fetch;
   readInstalledPlugins?: () => InstalledPlugins;
+  /** Agent Plugins packages discovered by the supervisor's plugin registry. */
+  readPlugins?: () => readonly LoadedPlugin[];
   hostPlatform?: NodeJS.Platform;
 }
 
@@ -466,6 +472,7 @@ export class SkillsService {
   private readonly wslFsPath: (distro: string, linuxPath: string) => string;
   private readonly fetchImpl: typeof fetch;
   private readonly pluginSkillPolicy: PluginSkillPolicy;
+  private readonly readPlugins: () => readonly LoadedPlugin[];
   private readonly marketplaceCache = new Map<
     string,
     { expiresAt: number; result: SkillMarketplaceResult }
@@ -481,8 +488,9 @@ export class SkillsService {
     this.resolveWslRealPaths = options.resolveWslRealPaths ?? resolveWslRealPaths;
     this.wslFsPath = options.wslFsPath ?? toWslUncPath;
     this.fetchImpl = options.fetch ?? fetch;
+    this.readPlugins = options.readPlugins ?? (() => []);
     this.pluginSkillPolicy = new PluginSkillPolicy({
-      bundledRoot: () => this.bundledRoot()?.fsPath,
+      readPluginRoots: () => this.pluginSkillRoots(),
       readInstalledPlugins: options.readInstalledPlugins ?? (() => ({})),
       hostPlatform: options.hostPlatform ?? process.platform,
       resolveWslRealPaths: this.resolveWslRealPaths,
@@ -1503,6 +1511,7 @@ export class SkillsService {
     }
     const bundledRoot = this.bundledRoot();
     if (bundledRoot) roots.push(bundledRoot);
+    roots.push(...this.pluginLocatedRoots());
     const seen = new Set(roots.map((root) => normalizePath(root.fsPath)));
 
     for (const adapter of selectedAdapters ?? this.adapters.values()) {
@@ -1602,6 +1611,38 @@ export class SkillsService {
       origin: "built-in",
       mutable: false,
     };
+  }
+
+  /**
+   * One scan root per loaded Agent Plugins package that ships skills. Each root
+   * is that package's own `skills/` directory, so containment and attribution
+   * follow the package boundary rather than a shared folder.
+   */
+  private pluginSkillRoots(): PluginSkillRoot[] {
+    return this.readPlugins().flatMap((plugin) =>
+      plugin.skills.length > 0
+        ? [{ plugin, skillsRoot: join(plugin.root, PLUGIN_SKILLS_DIR) }]
+        : [],
+    );
+  }
+
+  private pluginLocatedRoots(): LocatedRoot[] {
+    return this.pluginSkillRoots().map(({ plugin, skillsRoot }) => {
+      const label = plugin.poracode.title ?? plugin.name;
+      return {
+        providerId: pluginSkillProviderId(plugin.name),
+        providerLabel: label,
+        providerGroupId: pluginSkillProviderId(plugin.name),
+        providerGroupLabel: label,
+        providerGroupOrder: -2,
+        scope: "global",
+        scopeLabel: "Global",
+        fsPath: skillsRoot,
+        displayPath: skillsRoot.replace(/\\/gu, "/"),
+        origin: "plugin",
+        mutable: false,
+      };
+    });
   }
 
   private locateRoot(

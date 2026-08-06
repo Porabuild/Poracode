@@ -7,195 +7,74 @@ import {
   type ThreadConfig,
   type ThreadPresentationMode,
 } from "../contracts";
-import {
-  pluginManifestSchema,
-  type InstalledPluginState,
-  type InstalledPlugins,
-  type PluginManifest,
-  type PluginSkillContribution,
+import type {
+  InstalledPluginState,
+  InstalledPlugins,
+  LoadedPlugin,
+  PluginSkillRef,
 } from "../contracts/plugin";
+import type { PluginSkillPolicyEntry } from "./spec";
 
-const manifests = [
-  {
-    manifestVersion: 1,
-    id: "browser-tools",
-    name: "Browser Tools",
-    description: "Browse, inspect, and test websites in Poracode's isolated in-app browser.",
-    version: "1.0.0",
-    publisher: "Poracode",
-    category: "developer-tools",
-    featured: true,
-    skills: [
-      {
-        id: "browser-control",
-        name: "Browser Control",
-        description: "Navigate, inspect, and test pages with the in-app Browser MCP.",
-        folder: "browser-control",
-        requiredAppIds: ["browser"],
-        defaultEnabled: true,
-      },
-    ],
-    apps: [
-      {
-        id: "browser",
-        name: "Browser",
-        description: "Control Poracode's isolated in-app browser.",
-        builtInMcpServerId: "browser",
-        defaultEnabled: true,
-      },
-    ],
-  },
-  {
-    manifestVersion: 1,
-    id: "chrome-tools",
-    name: "Chrome Tools",
-    description: "Work with the pages and signed-in sessions already open in Chrome.",
-    version: "1.0.0",
-    publisher: "Poracode",
-    category: "automation",
-    projectKinds: ["windows", "posix"],
-    featured: true,
-    skills: [
-      {
-        id: "chrome-control",
-        name: "Chrome Control",
-        description: "Use Chrome safely when a task needs an existing browser session.",
-        folder: "chrome-control",
-        requiredAppIds: ["chrome"],
-        defaultEnabled: true,
-      },
-    ],
-    apps: [
-      {
-        id: "chrome",
-        name: "Chrome",
-        description: "Control the user's Chrome browser through Poracode.",
-        builtInMcpServerId: "chrome",
-        defaultEnabled: true,
-      },
-    ],
-  },
-  {
-    manifestVersion: 1,
-    id: "computer-use",
-    name: "Computer Use",
-    description: "Control desktop apps and complete visual workflows.",
-    version: "1.0.0",
-    publisher: "Poracode",
-    category: "automation",
-    platforms: ["win32", "darwin"],
-    projectKinds: ["windows", "posix"],
-    featured: true,
-    skills: [
-      {
-        id: "computer-use",
-        name: "Computer Use",
-        description: "Operate desktop apps through Poracode's desktop-control tools.",
-        folder: "computer-use",
-        requiredAppIds: ["computer-use"],
-        defaultEnabled: true,
-      },
-    ],
-    apps: [
-      {
-        id: "computer-use",
-        name: "Computer Use",
-        description: "Control supported desktop apps and windows.",
-        builtInMcpServerId: "computer-use",
-        defaultEnabled: true,
-      },
-    ],
-  },
-  {
-    manifestVersion: 1,
-    id: "subagent-delegation",
-    name: "Subagent Delegation",
-    description: "Delegate focused work to other installed agents and coordinate the results.",
-    version: "1.0.0",
-    publisher: "Poracode",
-    category: "productivity",
-    featured: true,
-    skills: [
-      {
-        id: "subagent-delegation",
-        name: "Subagent Delegation",
-        description: "Choose, brief, and coordinate subagents for parallel work.",
-        folder: "subagent-delegation",
-        requiredAppIds: ["subagents"],
-        defaultEnabled: true,
-      },
-    ],
-    apps: [
-      {
-        id: "subagents",
-        name: "Subagents",
-        description: "Create and coordinate Poracode agent threads.",
-        builtInMcpServerId: "subagents",
-        defaultEnabled: true,
-      },
-    ],
-  },
-] satisfies PluginManifest[];
-
-export const BUILT_IN_PLUGIN_MANIFESTS = manifests.map((manifest) =>
-  pluginManifestSchema.parse(manifest),
-);
-
-const manifestsById = new Map(BUILT_IN_PLUGIN_MANIFESTS.map((manifest) => [manifest.id, manifest]));
-const bundledSkillsByFolder = new Map(
-  BUILT_IN_PLUGIN_MANIFESTS.flatMap((manifest) =>
-    manifest.skills.map(
-      (contribution) => [contribution.folder, { manifest, contribution }] as const,
-    ),
-  ),
-);
-
-export function getBuiltInPluginManifest(pluginId: string): PluginManifest | undefined {
-  return manifestsById.get(pluginId);
-}
-
-export function getBundledPluginSkill(
-  folder: string,
-): { manifest: PluginManifest; contribution: PluginSkillContribution } | undefined {
-  return bundledSkillsByFolder.get(folder);
-}
+/**
+ * Policy over loaded Agent Plugins packages.
+ *
+ * Packages themselves are discovered on disk by the supervisor
+ * (`src/supervisor/plugins`); this module holds the provider-agnostic rules that
+ * both the supervisor and the renderer apply to them — host/project support,
+ * contribution enablement, and how a plugin's runtime-owned apps map onto thread
+ * launch config.
+ */
 
 export function isPluginSupportedOnHost(
-  manifest: PluginManifest,
+  plugin: LoadedPlugin,
   hostPlatform: NodeJS.Platform,
 ): boolean {
-  return (
-    !manifest.platforms || manifest.platforms.includes(hostPlatform as "win32" | "darwin" | "linux")
-  );
+  const platforms = plugin.poracode.platforms;
+  return !platforms || platforms.includes(hostPlatform as "win32" | "darwin" | "linux");
 }
 
 export function isPluginSupportedForProject(
-  manifest: PluginManifest,
+  plugin: LoadedPlugin,
   hostPlatform: NodeJS.Platform,
   projectLocation: ProjectLocation | undefined,
 ): boolean {
+  const projectKinds = plugin.poracode.projectKinds;
   return (
-    isPluginSupportedOnHost(manifest, hostPlatform) &&
-    (!projectLocation ||
-      !manifest.projectKinds ||
-      manifest.projectKinds.includes(projectLocation.kind))
+    isPluginSupportedOnHost(plugin, hostPlatform) &&
+    (!projectLocation || !projectKinds || projectKinds.includes(projectLocation.kind))
   );
 }
 
+export function getPluginSkill(plugin: LoadedPlugin, folder: string): PluginSkillRef | undefined {
+  return plugin.skills.find((skill) => skill.folder === folder);
+}
+
+/** Poracode-specific policy for a skill, defaulted when the plugin declares none. */
+export function getPluginSkillPolicy(plugin: LoadedPlugin, folder: string): PluginSkillPolicyEntry {
+  return plugin.poracode.skills[folder] ?? { requiredAppIds: [] };
+}
+
+export interface PluginSkillLaunchContext {
+  hostPlatform: NodeJS.Platform;
+  projectLocation?: ProjectLocation;
+  capabilities?: AgentCapability;
+  presentationMode?: ThreadPresentationMode;
+}
+
+/**
+ * True when a plugin skill can be offered for a launch: the plugin supports the
+ * host and project, and every app the skill requires can actually run there.
+ */
 export function isPluginSkillSupportedForLaunch(
-  manifest: PluginManifest,
-  skill: PluginSkillContribution,
-  context: {
-    hostPlatform: NodeJS.Platform;
-    projectLocation?: ProjectLocation;
-    capabilities?: AgentCapability;
-    presentationMode?: ThreadPresentationMode;
-  },
+  plugin: LoadedPlugin,
+  folder: string,
+  context: PluginSkillLaunchContext,
 ): boolean {
-  if (!isPluginSupportedForProject(manifest, context.hostPlatform, context.projectLocation)) {
+  if (!isPluginSupportedForProject(plugin, context.hostPlatform, context.projectLocation)) {
     return false;
   }
-  if (skill.requiredAppIds.length === 0 || !context.capabilities || !context.projectLocation) {
+  const requiredAppIds = getPluginSkillPolicy(plugin, folder).requiredAppIds;
+  if (requiredAppIds.length === 0 || !context.capabilities || !context.projectLocation) {
     return true;
   }
   const capabilities = context.capabilities;
@@ -203,8 +82,8 @@ export function isPluginSkillSupportedForLaunch(
   const modes = context.presentationMode
     ? [context.presentationMode]
     : (capabilities.presentationModes ?? [capabilities.presentationMode ?? "terminal"]);
-  return skill.requiredAppIds.every((appId) => {
-    const app = manifest.apps.find((candidate) => candidate.id === appId);
+  return requiredAppIds.every((appId) => {
+    const app = plugin.poracode.apps.find((candidate) => candidate.id === appId);
     return Boolean(
       app &&
       modes.some((presentationMode) =>
@@ -219,44 +98,121 @@ export function isPluginSkillSupportedForLaunch(
   });
 }
 
-export function getInstalledPluginForMcpServer(
-  installedPlugins: InstalledPlugins,
-  serverId: BuiltInMcpServerId,
-): PluginManifest | undefined {
-  return BUILT_IN_PLUGIN_MANIFESTS.find(
-    (manifest) =>
-      installedPlugins[manifest.id] !== undefined &&
-      manifest.apps.some((app) => app.builtInMcpServerId === serverId),
+export function isPluginSkillEnabled(
+  plugin: LoadedPlugin,
+  state: InstalledPluginState,
+  folder: string,
+): boolean {
+  return Boolean(
+    state.enabled && getPluginSkill(plugin, folder) && !state.disabledSkillIds.includes(folder),
   );
 }
 
-export function isPluginSkillEnabled(
-  manifest: PluginManifest,
-  state: InstalledPluginState,
-  skillId: string,
-): boolean {
-  const skill = manifest.skills.find((candidate) => candidate.id === skillId);
-  return Boolean(state.enabled && skill && !state.disabledSkillIds.includes(skill.id));
-}
-
 export function isPluginAppEnabled(
-  manifest: PluginManifest,
+  plugin: LoadedPlugin,
   state: InstalledPluginState,
   appId: string,
 ): boolean {
-  const app = manifest.apps.find((candidate) => candidate.id === appId);
+  const app = plugin.poracode.apps.find((candidate) => candidate.id === appId);
   return Boolean(state.enabled && app && !state.disabledAppIds.includes(app.id));
 }
 
+export function isPluginMcpServerEnabled(
+  plugin: LoadedPlugin,
+  state: InstalledPluginState,
+  serverName: string,
+): boolean {
+  const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
+  return Boolean(state.enabled && server && !state.disabledMcpServerNames.includes(serverName));
+}
+
+/**
+ * Maps a Poracode runtime-owned MCP server onto the thread config flag that
+ * turns it on. These servers mint a URL and bearer token per thread, so plugins
+ * reference them by stable id rather than declaring transport details.
+ */
+export const PLUGIN_MCP_CONFIG_ENTRIES = [
+  ["browser", "browserMcp"],
+  ["subagents", "subagentMcp"],
+  ["chrome", "chromeMcp"],
+  ["computer-use", "computerUse"],
+] as const satisfies readonly (readonly [BuiltInMcpServerId, keyof ThreadConfig])[];
+
+export type PluginMcpConfigKey = (typeof PLUGIN_MCP_CONFIG_ENTRIES)[number][1];
+
+/** The installed plugin that owns a built-in server, if any plugin claims it. */
+export function getInstalledPluginForMcpServer(
+  plugins: readonly LoadedPlugin[],
+  installedPlugins: InstalledPlugins,
+  serverId: BuiltInMcpServerId,
+): LoadedPlugin | undefined {
+  return plugins.find(
+    (plugin) =>
+      installedPlugins[plugin.name] !== undefined &&
+      plugin.poracode.apps.some((app) => app.builtInMcpServerId === serverId),
+  );
+}
+
 export function isBuiltInMcpServerEnabledByPlugin(
+  plugins: readonly LoadedPlugin[],
   installedPlugins: InstalledPlugins,
   serverId: BuiltInMcpServerId,
 ): boolean {
-  return BUILT_IN_PLUGIN_MANIFESTS.some((manifest) => {
-    const state = installedPlugins[manifest.id];
+  return plugins.some((plugin) => {
+    const state = installedPlugins[plugin.name];
     if (!state) return false;
-    const app = manifest.apps.find((candidate) => candidate.builtInMcpServerId === serverId);
-    return app ? isPluginAppEnabled(manifest, state, app.id) : false;
+    const app = plugin.poracode.apps.find((candidate) => candidate.builtInMcpServerId === serverId);
+    return app ? isPluginAppEnabled(plugin, state, app.id) : false;
+  });
+}
+
+/**
+ * True when nothing blocks the server: either no installed plugin claims it, or
+ * the plugin that does is enabled.
+ */
+export function isBuiltInMcpServerAvailableByPlugin(
+  plugins: readonly LoadedPlugin[],
+  installedPlugins: InstalledPlugins,
+  serverId: BuiltInMcpServerId,
+): boolean {
+  const plugin = getInstalledPluginForMcpServer(plugins, installedPlugins, serverId);
+  return !plugin || installedPlugins[plugin.name]?.enabled === true;
+}
+
+/** Config keys a disabled plugin hard-blocks, whatever provider settings say. */
+export function getGloballyDisabledPluginConfigKeys(
+  plugins: readonly LoadedPlugin[],
+  installedPlugins: InstalledPlugins,
+): PluginMcpConfigKey[] {
+  return PLUGIN_MCP_CONFIG_ENTRIES.flatMap(([serverId, key]) =>
+    isBuiltInMcpServerAvailableByPlugin(plugins, installedPlugins, serverId) ? [] : [key],
+  );
+}
+
+export function isBrowserMcpEnabledByAgentSettings(
+  agentSettings: Readonly<Record<string, boolean | string>> | undefined,
+): boolean {
+  return agentSettings?.browserMcp === true;
+}
+
+export function isBrowserMcpEnabledByConfigOrAgentSettings(
+  config: Pick<ThreadConfig, "browserMcp">,
+  agentSettings: Readonly<Record<string, boolean | string>> | undefined,
+): boolean {
+  return config.browserMcp === true || isBrowserMcpEnabledByAgentSettings(agentSettings);
+}
+
+export function arePluginSkillRequiredAppsEnabled(
+  plugin: LoadedPlugin,
+  folder: string,
+  config: ThreadConfig,
+): boolean {
+  return getPluginSkillPolicy(plugin, folder).requiredAppIds.every((appId) => {
+    const app = plugin.poracode.apps.find((candidate) => candidate.id === appId);
+    const configEntry = app
+      ? PLUGIN_MCP_CONFIG_ENTRIES.find(([serverId]) => serverId === app.builtInMcpServerId)
+      : undefined;
+    return configEntry ? config[configEntry[1]] === true : false;
   });
 }
 
@@ -273,58 +229,6 @@ export interface PluginAppLaunchContext {
 export interface PluginLaunchPreviewContext extends PluginAppLaunchContext {
   disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
   agentSettings: Readonly<Record<string, boolean | string>> | undefined;
-}
-
-export const PLUGIN_MCP_CONFIG_ENTRIES = [
-  ["browser", "browserMcp"],
-  ["subagents", "subagentMcp"],
-  ["chrome", "chromeMcp"],
-  ["computer-use", "computerUse"],
-] as const satisfies readonly (readonly [BuiltInMcpServerId, keyof ThreadConfig])[];
-
-export type PluginMcpConfigKey = (typeof PLUGIN_MCP_CONFIG_ENTRIES)[number][1];
-
-export function isBrowserMcpEnabledByAgentSettings(
-  agentSettings: Readonly<Record<string, boolean | string>> | undefined,
-): boolean {
-  return agentSettings?.browserMcp === true;
-}
-
-export function isBrowserMcpEnabledByConfigOrAgentSettings(
-  config: Pick<ThreadConfig, "browserMcp">,
-  agentSettings: Readonly<Record<string, boolean | string>> | undefined,
-): boolean {
-  return config.browserMcp === true || isBrowserMcpEnabledByAgentSettings(agentSettings);
-}
-
-export function arePluginSkillRequiredAppsEnabled(
-  manifest: PluginManifest,
-  skill: PluginSkillContribution,
-  config: ThreadConfig,
-): boolean {
-  return skill.requiredAppIds.every((appId) => {
-    const app = manifest.apps.find((candidate) => candidate.id === appId);
-    const configEntry = app
-      ? PLUGIN_MCP_CONFIG_ENTRIES.find(([serverId]) => serverId === app.builtInMcpServerId)
-      : undefined;
-    return configEntry ? config[configEntry[1]] === true : false;
-  });
-}
-
-export function getGloballyDisabledPluginConfigKeys(
-  installedPlugins: InstalledPlugins,
-): PluginMcpConfigKey[] {
-  return PLUGIN_MCP_CONFIG_ENTRIES.flatMap(([serverId, key]) =>
-    isBuiltInMcpServerAvailableByPlugin(installedPlugins, serverId) ? [] : [key],
-  );
-}
-
-export function isBuiltInMcpServerAvailableByPlugin(
-  installedPlugins: InstalledPlugins,
-  serverId: BuiltInMcpServerId,
-): boolean {
-  const manifest = getInstalledPluginForMcpServer(installedPlugins, serverId);
-  return !manifest || installedPlugins[manifest.id]?.enabled === true;
 }
 
 export function isBuiltInMcpServerSupportedForLaunch(
@@ -353,17 +257,18 @@ export function isBuiltInMcpServerSupportedForLaunch(
 /** Add installed plugin apps to a new launch without serializing live MCP transport details. */
 export function resolvePluginAppsForThreadConfig(
   config: ThreadConfig,
+  plugins: readonly LoadedPlugin[],
   installedPlugins: InstalledPlugins,
   context: PluginAppLaunchContext,
 ): { config: ThreadConfig; disabledConfigKeys: PluginMcpConfigKey[] } {
-  const disabledConfigKeys = getGloballyDisabledPluginConfigKeys(installedPlugins);
+  const disabledConfigKeys = getGloballyDisabledPluginConfigKeys(plugins, installedPlugins);
   let next = config;
   for (const key of disabledConfigKeys) {
     if (next[key] !== false) next = { ...next, [key]: false };
   }
   for (const [serverId, key] of PLUGIN_MCP_CONFIG_ENTRIES) {
     if (
-      isBuiltInMcpServerEnabledByPlugin(installedPlugins, serverId) &&
+      isBuiltInMcpServerEnabledByPlugin(plugins, installedPlugins, serverId) &&
       isBuiltInMcpServerSupportedForLaunch(serverId, context) &&
       next[key] !== true
     ) {
@@ -375,11 +280,12 @@ export function resolvePluginAppsForThreadConfig(
 
 export function resolvePluginLaunchPreview(
   config: ThreadConfig,
+  plugins: readonly LoadedPlugin[],
   installedPlugins: InstalledPlugins,
   context: PluginLaunchPreviewContext,
 ): ThreadConfig {
   const { config: appliedConfig, disabledConfigKeys: pluginDisabledConfigKeys } =
-    resolvePluginAppsForThreadConfig(config, installedPlugins, context);
+    resolvePluginAppsForThreadConfig(config, plugins, installedPlugins, context);
   let next = appliedConfig;
   for (const [serverId, key] of PLUGIN_MCP_CONFIG_ENTRIES) {
     if (
@@ -401,75 +307,91 @@ export function resolvePluginLaunchPreview(
   return next;
 }
 
-export function installBuiltInPlugin(
+export function installPlugin(
   installedPlugins: InstalledPlugins,
-  pluginId: string,
+  plugin: LoadedPlugin,
 ): InstalledPlugins {
-  if (installedPlugins[pluginId]) return installedPlugins;
-  const manifest = getBuiltInPluginManifest(pluginId);
-  if (!manifest) return installedPlugins;
+  if (installedPlugins[plugin.name]) return installedPlugins;
   return {
     ...installedPlugins,
-    [pluginId]: {
-      version: manifest.version,
+    [plugin.name]: {
+      version: plugin.manifest.version ?? "0.0.0",
       enabled: true,
       disabledSkillIds: [],
       disabledAppIds: [],
+      disabledMcpServerNames: [],
     },
   };
 }
 
-export function uninstallBuiltInPlugin(
+export function uninstallPlugin(
   installedPlugins: InstalledPlugins,
-  pluginId: string,
+  pluginName: string,
 ): InstalledPlugins {
-  if (!installedPlugins[pluginId]) return installedPlugins;
+  if (!installedPlugins[pluginName]) return installedPlugins;
   const next = { ...installedPlugins };
-  delete next[pluginId];
+  delete next[pluginName];
   return next;
 }
 
 export function setInstalledPluginEnabled(
   installedPlugins: InstalledPlugins,
-  pluginId: string,
+  pluginName: string,
   enabled: boolean,
 ): InstalledPlugins {
-  const current = installedPlugins[pluginId];
+  const current = installedPlugins[pluginName];
   if (!current || current.enabled === enabled) return installedPlugins;
-  return { ...installedPlugins, [pluginId]: { ...current, enabled } };
+  return { ...installedPlugins, [pluginName]: { ...current, enabled } };
 }
+
+type ContributionField = "disabledSkillIds" | "disabledAppIds" | "disabledMcpServerNames";
 
 function setContributionEnabled(
   installedPlugins: InstalledPlugins,
-  pluginId: string,
+  pluginName: string,
   contributionId: string,
   enabled: boolean,
-  field: "disabledSkillIds" | "disabledAppIds",
+  field: ContributionField,
 ): InstalledPlugins {
-  const current = installedPlugins[pluginId];
+  const current = installedPlugins[pluginName];
   if (!current) return installedPlugins;
   const wasDisabled = current[field].includes(contributionId);
   if (wasDisabled === !enabled) return installedPlugins;
   const disabled = new Set(current[field]);
   if (enabled) disabled.delete(contributionId);
   else disabled.add(contributionId);
-  return { ...installedPlugins, [pluginId]: { ...current, [field]: [...disabled] } };
+  return { ...installedPlugins, [pluginName]: { ...current, [field]: [...disabled] } };
 }
 
 export function setPluginSkillEnabled(
   installedPlugins: InstalledPlugins,
-  pluginId: string,
-  skillId: string,
+  pluginName: string,
+  folder: string,
   enabled: boolean,
 ): InstalledPlugins {
-  return setContributionEnabled(installedPlugins, pluginId, skillId, enabled, "disabledSkillIds");
+  return setContributionEnabled(installedPlugins, pluginName, folder, enabled, "disabledSkillIds");
 }
 
 export function setPluginAppEnabled(
   installedPlugins: InstalledPlugins,
-  pluginId: string,
+  pluginName: string,
   appId: string,
   enabled: boolean,
 ): InstalledPlugins {
-  return setContributionEnabled(installedPlugins, pluginId, appId, enabled, "disabledAppIds");
+  return setContributionEnabled(installedPlugins, pluginName, appId, enabled, "disabledAppIds");
+}
+
+export function setPluginMcpServerEnabled(
+  installedPlugins: InstalledPlugins,
+  pluginName: string,
+  serverName: string,
+  enabled: boolean,
+): InstalledPlugins {
+  return setContributionEnabled(
+    installedPlugins,
+    pluginName,
+    serverName,
+    enabled,
+    "disabledMcpServerNames",
+  );
 }

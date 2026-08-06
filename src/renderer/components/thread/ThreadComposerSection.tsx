@@ -40,6 +40,7 @@ import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { useComposerUiStore } from "@/renderer/state/composerUiStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePlugins } from "@/renderer/state/pluginsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useThread } from "@/renderer/state/useThread";
@@ -127,6 +128,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
   const runtimeLaunchConfig = useAppStore((s) => s.runtimeLaunchConfigByThreadId[thread.id]);
   const installedPlugins = useSharedSettings((s) => s.installedPlugins);
+  const plugins = usePlugins((state) => state.plugins);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const agentSettings = useSharedSettings((s) => s.agentSettings[thread.agentKind]);
   let anticipatedLaunchConfig = thread.config;
@@ -137,7 +139,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       projectLocation,
       hostPlatform: readBridge()?.platform ?? ("linux" as const),
     };
-    anticipatedLaunchConfig = resolvePluginLaunchPreview(thread.config, installedPlugins, {
+    anticipatedLaunchConfig = resolvePluginLaunchPreview(thread.config, plugins, installedPlugins, {
       ...launchContext,
       disabledBuiltInMcpServers,
       agentSettings,

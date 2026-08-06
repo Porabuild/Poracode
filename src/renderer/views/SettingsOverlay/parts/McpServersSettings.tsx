@@ -8,12 +8,14 @@ import { isHomeProject } from "@/shared/homeScope";
 import { SettingsPage } from "./SettingsForm";
 import { SubagentRoutingSection } from "./SubagentRoutingSection";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
+import { usePlugins } from "@/renderer/state/pluginsStore";
 import { getInstalledPluginForMcpServer } from "@/shared/plugins/catalog";
 import { BUILT_IN_MCP_SERVER_IDS } from "@/shared/contracts";
 
 export function McpServersSettings() {
   const { t } = useLingui();
   const localizedPlugins = useLocalizedPluginCatalog();
+  const plugins = usePlugins((state) => state.plugins);
   const servers = useSharedSettings((state) => state.mcpServers);
   const disabledBuiltIns = useSharedSettings((state) => state.disabledBuiltInMcpServers);
   const disabledBuiltInTools = useSharedSettings((state) => state.disabledBuiltInMcpTools);
@@ -39,11 +41,12 @@ export function McpServersSettings() {
     }));
   const managedBuiltIns = Object.fromEntries(
     BUILT_IN_MCP_SERVER_IDS.flatMap((serverId) => {
-      const manifest = getInstalledPluginForMcpServer(installedPlugins, serverId);
-      if (!manifest) return [];
+      const owner = getInstalledPluginForMcpServer(plugins, installedPlugins, serverId);
+      if (!owner) return [];
       const label =
-        localizedPlugins.find((plugin) => plugin.manifest.id === manifest.id)?.name ??
-        manifest.name;
+        localizedPlugins.find((entry) => entry.plugin.name === owner.name)?.name ??
+        owner.poracode.title ??
+        owner.name;
       return [[serverId, label]];
     }),
   );

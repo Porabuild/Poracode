@@ -32,8 +32,8 @@ msgstr "(メッセージはありません)"
 
 #. placeholder {0}: plugin.apps.length
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "{0, plural, one {# app} other {# apps}}"
-msgstr "{0, plural, one {# 個のアプリ} other {# 個のアプリ}}"
+#~ msgid "{0, plural, one {# app} other {# apps}}"
+#~ msgstr "{0, plural, one {# 個のアプリ} other {# 個のアプリ}}"
 
 #. placeholder {0}: details.changedFiles
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
@@ -65,7 +65,12 @@ msgstr "{0, plural, one {#件のプロジェクト} other {#件のプロジェ�
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {#プロバイダーの準備ができています} other {#プロバイダーの準備ができています}}"
 
-#. placeholder {0}: plugin.skills.length
+#. placeholder {0}: entry.apps.length + entry.mcpServers.length
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#~ msgid "{0, plural, one {# server} other {# servers}}"
+#~ msgstr "{0, plural, one {# 個のサーバー} other {# 個のサーバー}}"
+
+#. placeholder {0}: props.entry.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -439,6 +444,10 @@ msgstr "{resultCount, plural, one {#結果} other {#結果}}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{seconds}s ago"
 msgstr "{seconds}秒前"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "{serverCount, plural, one {# server} other {# servers}}"
+msgstr "{serverCount, plural, one {# 個のサーバー} other {# 個のサーバー}}"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
@@ -1001,6 +1010,7 @@ msgid "Approved"
 msgstr "承認済み"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
 msgid "Apps"
 msgstr "アプリ"
 
@@ -1130,6 +1140,10 @@ msgstr "認証が必要です"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Authentication setup cannot be imported"
 msgstr "認証設定はインポートできません"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Author"
+msgstr "作成者"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Authored"
@@ -1464,6 +1478,10 @@ msgstr "組み込みサーバーはPoracodeによって管理されます。グ�
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Built-in shortcut — can't be changed"
 msgstr "組み込みのショートカット — 変更できません"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
+msgstr "サポートされているすべてのエージェントで動作するスキルとMCPサーバーのバンドルです。Poracode は Agent Plugins 仕様に基づくパッケージをすべて読み込みます。"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
@@ -2185,6 +2203,16 @@ msgstr "コミット、PR、レビューのコンポーザー"
 msgid "Commits"
 msgstr "コミット"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Communication"
+msgstr "コミュニケーション"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Community"
+msgstr "コミュニティ"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "コンテキストの圧縮"
@@ -2299,6 +2327,7 @@ msgid "Conflicts with a managed skill"
 msgstr "管理対象スキルと競合しています"
 
 #: src/mobile/setupEmptyState.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Connect"
@@ -2337,12 +2366,17 @@ msgstr "OpenCode が使用できる AI プロバイダーをここで接続し�
 #~ msgstr "別の Poracode デスクトップまたはヘッドレスサーバーに接続すると、そのプロジェクトをここから参照・管理できます。エンドポイントとペアリングトークンは、その端末の「設定 → リモートアクセス」から取得してください。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connected"
 msgstr "接続済み"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "デスクトップのブラウザに接続しています…"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Connecting..."
+msgstr "接続中..."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -3193,12 +3227,12 @@ msgid "Disconnect server"
 msgstr "サーバーを切断"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Discover"
-msgstr "探す"
+#~ msgid "Discover"
+#~ msgstr "探す"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Discover plugins"
-msgstr "プラグインを探す"
+#~ msgid "Discover plugins"
+#~ msgstr "プラグインを探す"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
@@ -3390,7 +3424,10 @@ msgstr "推論レベル"
 msgid "Electron"
 msgstr "Electron"
 
+#. placeholder {0}: entry.name
+#. placeholder {0}: row.contribution.name
 #. placeholder {0}: skill.name
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Enable {0}"
 msgstr "{0} を有効化"
@@ -3640,6 +3677,8 @@ msgstr "Todo ドックを展開する"
 msgid "Export MCP servers"
 msgstr "MCPサーバーをエクスポート"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "External"
 msgstr "外部"
@@ -4089,6 +4128,10 @@ msgstr "{0}の Git ステータス"
 msgid "Git status for {0}: not a Git repository"
 msgstr "{0}の Git ステータス: Git リポジトリではありません"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "GitHub"
+msgstr "GitHub"
+
 #: src/renderer/components/providers/copilot/manifest.ts
 msgid "GitHub Copilot"
 msgstr "GitHub Copilot"
@@ -4296,6 +4339,10 @@ msgstr "ホームフォルダー"
 msgid "Home scope"
 msgstr "ホームスコープ"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Homepage"
+msgstr "ホームページ"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com、エイリアス、または user@host.com"
@@ -4316,6 +4363,10 @@ msgstr "https://example.com/mcp"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
 msgstr "ID:{0}"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Identifier"
+msgstr "識別子"
 
 #: src/mobile/settingsSections.ts
 msgid "Identity and usage stats"
@@ -4526,7 +4577,6 @@ msgstr "Windows にインストールする"
 msgid "Install packages"
 msgstr "パッケージをインストールする"
 
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Install Poracode-managed bundles of skills and MCP-powered apps for every supported agent."
 msgstr "Poracode が管理するスキルと MCP 対応アプリのバンドルを、対応するすべてのエージェント向けにインストールします。"
@@ -4688,6 +4738,7 @@ msgstr "エージェントが <0>eval</0> を呼び出して、埋め込みペ�
 
 #. About page label: software license row
 #. Link to the license file
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "License"
 msgstr "ライセンス"
@@ -4835,6 +4886,7 @@ msgstr "ローカルの変更は{branch}からプルする前に隠しておく�
 msgid "localhost:{0} on desktop"
 msgstr "デスクトップの localhost:{0}"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
@@ -4905,12 +4957,17 @@ msgid "Make the sidebar translucent — the system blur material on Windows 11, 
 msgstr "サイドバーを半透明にします。Windows 11ではシステムのぼかし素材を、それ以外では半透明の色付けを使用します。"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Manage"
 msgstr "管理"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "他のプロバイダーからインポートしたスキルを含む、グローバルおよびプロジェクトのエージェントスキルを管理します。"
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Manage installed plugins and the skills and servers they contribute."
+msgstr "インストール済みのプラグインと、それが提供するスキルやサーバーを管理します。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "Manage remote environments"
@@ -5007,6 +5064,7 @@ msgid "Mark Done"
 msgstr "完了マークを付ける"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Marketplace"
 msgstr "マーケットプレイス"
 
@@ -5098,6 +5156,7 @@ msgid "MCP server URL"
 msgstr "MCPサーバーのURL"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "MCPサーバー"
@@ -5121,6 +5180,10 @@ msgstr "MCPトランスポートタイプ"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "MCP-powered tools contributed by this plugin."
 msgstr "このプラグインが提供する MCP 対応ツール。"
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "MCPs"
+msgstr "MCP"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -5855,8 +5918,8 @@ msgid "No phases yet."
 msgstr "まだフェーズはありません。"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "No plugins installed yet"
-msgstr "まだプラグインがインストールされていません"
+#~ msgid "No plugins installed yet"
+#~ msgstr "まだプラグインがインストールされていません"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
@@ -6006,6 +6069,7 @@ msgstr "Git リポジトリではありません"
 msgid "Not found"
 msgstr "見つかりません"
 
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Not installed"
@@ -6028,6 +6092,10 @@ msgstr "サポートされていません"
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Notes"
 msgstr "注意事項"
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Nothing here yet. Install a plugin to add contributions."
+msgstr "まだ何もありません。プラグインをインストールしてコントリビューションを追加してください。"
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."
@@ -6406,6 +6474,10 @@ msgstr "その他"
 msgid "Outcome"
 msgstr "結果"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Outlook"
+msgstr "Outlook"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "オーバーペース — 早めに力尽きてしまう"
@@ -6657,10 +6729,23 @@ msgid "Plugin"
 msgstr "プラグイン"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Plugin marketplace views"
-msgstr "プラグインマーケットプレイスの表示"
+msgid "Plugin folder"
+msgstr "プラグインフォルダ"
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Plugin management views"
+msgstr "プラグイン管理ビュー"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#~ msgid "Plugin marketplace views"
+#~ msgstr "プラグインマーケットプレイスの表示"
+
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
+msgid "Plugin settings views"
+msgstr "プラグイン設定ビュー"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Plugins"
@@ -6945,8 +7030,8 @@ msgid "Public URL updated."
 msgstr "公開URLを更新しました。"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
-msgid "Publisher"
-msgstr "提供元"
+#~ msgid "Publisher"
+#~ msgstr "提供元"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
@@ -7430,6 +7515,7 @@ msgstr "問題を報告する"
 msgid "repository"
 msgstr "リポジトリ"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "リポジトリ"
@@ -7924,6 +8010,10 @@ msgstr "ブランチを検索..."
 msgid "Search files"
 msgstr "ファイルの検索"
 
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Search installed plugins"
+msgstr "インストール済みプラグインを検索"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Search marketplace skills"
 msgstr "マーケットプレイスのスキルを検索"
@@ -7957,8 +8047,12 @@ msgid "Search plugins"
 msgstr "プラグインを検索"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Search plugins, skills, and apps..."
-msgstr "プラグイン、スキル、アプリを検索..."
+#~ msgid "Search plugins, skills, and apps..."
+#~ msgstr "プラグイン、スキル、アプリを検索..."
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Search plugins, skills, and servers..."
+msgstr "プラグイン・スキル・サーバーを検索..."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
@@ -8013,6 +8107,10 @@ msgstr "スレッドを検索する"
 #: src/renderer/commands/registry.ts
 msgid "Search Threads"
 msgstr "スレッドの検索"
+
+#: src/renderer/components/plugins/PluginsManager.tsx
+msgid "Search..."
+msgstr "検索..."
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
@@ -8150,6 +8248,10 @@ msgstr "選択内容を端末に送信しました。"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Claude Codeのアカウントを設定ディレクトリごとに分離するか、プロファイルを外部プロバイダー（z.aiなど）に向けます。プロファイルを開くと、その環境変数・モデル・推論レベルを設定できます。"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
+msgstr "このプラグインが mcp.json で宣言しているサーバーです。Poracode はサポートされているすべてのエージェントに渡します。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
@@ -8455,6 +8557,7 @@ msgid "SKILL.md is too large."
 msgstr "SKILL.md が大きすぎます。"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginsManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -8498,6 +8601,10 @@ msgstr "スラッシュコマンド"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "一部のチェックが失敗または保留中です。"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Some contributions could not be loaded"
+msgstr "一部のコントリビューションを読み込めませんでした"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
@@ -9194,6 +9301,10 @@ msgstr "サーバー構成が無効です。"
 msgid "The server returned an invalid MCP response."
 msgstr "サーバーから無効なMCPレスポンスが返されました。"
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
+msgstr "このプラグインが起動するサーバーは、接続先のサービスではなく第三者によって保守されています。有効にする前にソースを確認してください。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "The skill description is missing."
 msgstr "スキルの説明がありません。"
@@ -9566,6 +9677,14 @@ msgstr "半透明のサイドバー"
 msgid "Trending now"
 msgstr "現在のトレンド"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Triage Microsoft Outlook mail and manage your calendar."
+msgstr "Microsoft Outlook のメールを整理し、カレンダーを管理します。"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Triage PRs, issues, CI, and publish flows."
+msgstr "PR、Issue、CI、公開フローを処理します。"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
 msgstr "信頼して接続"
@@ -9573,6 +9692,10 @@ msgstr "信頼して接続"
 #: src/mobile/views/ThreadsView.tsx
 msgid "Try a different search or project filter."
 msgstr "別の検索語句またはプロジェクトフィルターを試してください。"
+
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Try now"
+msgstr "試してみる"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."

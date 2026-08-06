@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "outlook": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@softeria/ms-365-mcp-server"],
+      "env": {
+        "MS365_MCP_CACHE_DIR": "${PLUGIN_DATA}"
+      }
+    }
+  }
+}

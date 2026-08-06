@@ -2,12 +2,13 @@ import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import { PluginDetail } from "./PluginDetail";
 import { useLocalizedPluginCatalog } from "./pluginCopy";
 
 function BrowserPluginDetail(props: { onBack?: () => void }) {
   const plugin = useLocalizedPluginCatalog().find(
-    (candidate) => candidate.manifest.id === "browser-tools",
+    (candidate) => candidate.plugin.name === "browser-tools",
   )!;
   return (
     <PluginDetail plugin={plugin} hostPlatform="win32" onBack={props.onBack ?? (() => undefined)} />
@@ -16,7 +17,7 @@ function BrowserPluginDetail(props: { onBack?: () => void }) {
 
 function ComputerUsePluginDetail() {
   const plugin = useLocalizedPluginCatalog().find(
-    (candidate) => candidate.manifest.id === "computer-use",
+    (candidate) => candidate.plugin.name === "computer-use",
   )!;
   return <PluginDetail plugin={plugin} hostPlatform="linux" onBack={() => undefined} />;
 }
@@ -24,11 +25,12 @@ function ComputerUsePluginDetail() {
 describe("PluginDetail", () => {
   beforeEach(() => {
     localStorage.clear();
+    seedBuiltInPlugins();
     useSharedSettings.setState({ installedPlugins: {} });
   });
 
   it("updates plugin, app, and skill toggles and uninstalls the bundle", () => {
-    useSharedSettings.getState().installPlugin("browser-tools");
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     render(<BrowserPluginDetail />);
 
     fireEvent.click(screen.getByRole("switch", { name: "Browser MCP" }));

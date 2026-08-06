@@ -7,6 +7,7 @@ import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 
 const { composerSpy } = vi.hoisted(() => ({
   composerSpy: vi.fn<(props: unknown) => void>(),
@@ -375,6 +376,7 @@ const singleEffortMultiContextCursorStatus: AgentStatus = {
 
 describe("ThreadDraftView", () => {
   beforeEach(() => {
+    seedBuiltInPlugins();
     composerSpy.mockClear();
     delete (window as unknown as { poracode?: unknown }).poracode;
     useAgentStatusesStore.setState({
@@ -664,6 +666,7 @@ describe("ThreadDraftView", () => {
           enabled: true,
           disabledSkillIds: [],
           disabledAppIds: [],
+          disabledMcpServerNames: [],
         },
       },
     });
@@ -692,6 +695,7 @@ describe("ThreadDraftView", () => {
           enabled: true,
           disabledSkillIds: [],
           disabledAppIds: ["browser"],
+          disabledMcpServerNames: [],
         },
       },
     });
@@ -739,6 +743,7 @@ describe("ThreadDraftView", () => {
           enabled: false,
           disabledSkillIds: [],
           disabledAppIds: [],
+          disabledMcpServerNames: [],
         },
       },
     });

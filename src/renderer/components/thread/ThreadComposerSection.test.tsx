@@ -366,6 +366,7 @@ describe("ThreadComposerSection", () => {
           enabled: true,
           disabledSkillIds: [],
           disabledAppIds: ["browser"],
+          disabledMcpServerNames: [],
         },
       },
     });

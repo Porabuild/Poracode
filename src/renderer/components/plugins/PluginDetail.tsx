@@ -1,14 +1,20 @@
-import { ArrowLeft, Box, Cable } from "lucide-react";
+import { ArrowLeft, ArrowRight, Box, Cable, Plug, Sparkles, TriangleAlert } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { Button, ToggleSwitch } from "@/renderer/components/common";
+import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
+import { newThreadFromText } from "@/renderer/actions/notesActions";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   isPluginAppEnabled,
+  isPluginMcpServerEnabled,
   isPluginSkillEnabled,
   isPluginSupportedOnHost,
 } from "@/shared/plugins/catalog";
 import { PluginIcon } from "./PluginIcon";
+import { PluginTag } from "./PluginTag";
+import { usePluginOauth } from "./usePluginOauth";
 import type { LocalizedPlugin } from "./pluginCopy";
 
 export function PluginDetail(props: {
@@ -17,19 +23,35 @@ export function PluginDetail(props: {
   onBack: () => void;
 }) {
   const { t } = useLingui();
-  const state = useSharedSettings(
-    (settings) => settings.installedPlugins[props.plugin.manifest.id],
-  );
+  const plugin = props.plugin.plugin;
+  const state = useSharedSettings((settings) => settings.installedPlugins[plugin.name]);
   const installPlugin = useSharedSettings((settings) => settings.installPlugin);
   const uninstallPlugin = useSharedSettings((settings) => settings.uninstallPlugin);
   const setPluginEnabled = useSharedSettings((settings) => settings.setPluginEnabled);
   const setPluginSkillEnabled = useSharedSettings((settings) => settings.setPluginSkillEnabled);
   const setPluginAppEnabled = useSharedSettings((settings) => settings.setPluginAppEnabled);
-  const manifest = props.plugin.manifest;
-  const supported = isPluginSupportedOnHost(manifest, props.hostPlatform);
+  const setPluginMcpServerEnabled = useSharedSettings(
+    (settings) => settings.setPluginMcpServerEnabled,
+  );
+  const supported = isPluginSupportedOnHost(plugin, props.hostPlatform);
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const pluginToggleLabelId = useId();
+  const author = plugin.manifest.author?.name;
+  const examplePrompt = plugin.poracode.examplePrompt;
+  const closeSettings = usePanelStore((panel) => panel.closeSettings);
+  const oauth = usePluginOauth(plugin);
+  // Warnings are tolerated by the loader; errors mean something was dropped.
+  const problems = plugin.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
+
+  // Seeds a draft composer rather than sending anything, so the user still
+  // reviews the prompt and picks a model before the thread starts.
+  const tryNow = async () => {
+    if (!examplePrompt) return;
+    const project = await ensureHomeScopeProject();
+    newThreadFromText(project.id, examplePrompt);
+    closeSettings();
+  };
 
   useEffect(() => {
     backButtonRef.current?.focus();
@@ -50,7 +72,7 @@ export function PluginDetail(props: {
 
       <div className="flex items-start gap-4 border-b border-[var(--hairline)] pb-6">
         <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--hairline)] bg-surface-secondary text-foreground">
-          <PluginIcon pluginId={manifest.id} className="size-7" />
+          <PluginIcon pluginId={plugin.name} className="size-7" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
@@ -60,22 +82,39 @@ export function PluginDetail(props: {
               </h1>
               <p className="mt-1 text-sm text-muted">{props.plugin.description}</p>
             </div>
-            {state ? (
-              <Button size="sm" variant="danger" onPress={() => uninstallPlugin(manifest.id)}>
-                <Trans>Uninstall</Trans>
-              </Button>
-            ) : (
-              <Button size="sm" isDisabled={!supported} onPress={() => installPlugin(manifest.id)}>
-                {supported ? <Trans>Install</Trans> : <Trans>Unavailable on this device</Trans>}
-              </Button>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {examplePrompt ? (
+                <Button size="sm" variant="tertiary" onPress={() => void tryNow()}>
+                  <Sparkles className="size-4" />
+                  <Trans>Try now</Trans>
+                </Button>
+              ) : null}
+              {state ? (
+                <Button size="sm" variant="danger" onPress={() => uninstallPlugin(plugin)}>
+                  <Trans>Uninstall</Trans>
+                </Button>
+              ) : (
+                <Button size="sm" isDisabled={!supported} onPress={() => installPlugin(plugin)}>
+                  {supported ? <Trans>Install</Trans> : <Trans>Unavailable on this device</Trans>}
+                </Button>
+              )}
+            </div>
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-muted">
-            <span>{manifest.publisher}</span>
+            <span>{author ?? plugin.name}</span>
+            {plugin.poracode.communityMaintained ? (
+              <PluginTag>
+                <Trans>Community</Trans>
+              </PluginTag>
+            ) : null}
             <span aria-hidden="true">·</span>
             <span>{props.plugin.category}</span>
-            <span aria-hidden="true">·</span>
-            <span>v{manifest.version}</span>
+            {plugin.manifest.version ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>v{plugin.manifest.version}</span>
+              </>
+            ) : null}
           </div>
           {!supported ? (
             <p className="mt-2 text-xs text-warning">
@@ -84,6 +123,45 @@ export function PluginDetail(props: {
           ) : null}
         </div>
       </div>
+
+      {examplePrompt ? (
+        <button
+          type="button"
+          className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-surface-secondary px-4 py-3 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
+          onClick={() => void tryNow()}
+        >
+          <span className="shrink-0 text-muted">
+            <PluginIcon pluginId={plugin.name} className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1 text-sm text-foreground">{examplePrompt}</span>
+          <ArrowRight className="size-4 shrink-0 text-muted" />
+        </button>
+      ) : null}
+
+      {problems.length > 0 ? (
+        <section className="border-b border-[var(--hairline)] py-5">
+          <div className="mb-2 flex items-center gap-2 text-warning">
+            <TriangleAlert className="size-4" />
+            <h2 className="text-sm font-semibold">
+              <Trans>Some contributions could not be loaded</Trans>
+            </h2>
+          </div>
+          <ul className="space-y-1 text-xs text-muted">
+            {problems.map((diagnostic, index) => (
+              <li key={`${diagnostic.code}-${diagnostic.target ?? index}`}>{diagnostic.message}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {plugin.poracode.communityMaintained ? (
+        <p className="mt-5 rounded-xl border border-[var(--hairline)] px-3 py-2.5 text-xs text-muted">
+          <Trans>
+            The server this plugin launches is maintained by a third party, not by the service it
+            connects to. Review the source before enabling it.
+          </Trans>
+        </p>
+      ) : null}
 
       {state ? (
         <section className="flex items-center justify-between gap-4 border-b border-[var(--hairline)] py-5">
@@ -99,80 +177,126 @@ export function PluginDetail(props: {
             aria-labelledby={`${titleId} ${pluginToggleLabelId}`}
             isSelected={state.enabled}
             isDisabled={!supported}
-            onChange={(enabled) => setPluginEnabled(manifest.id, enabled)}
+            onChange={(enabled) => setPluginEnabled(plugin, enabled)}
           />
         </section>
       ) : null}
 
-      <ContributionSection
-        icon={<Cable className="size-4" />}
-        title={t`Apps`}
-        description={t`MCP-powered tools contributed by this plugin.`}
-      >
-        {manifest.apps.map((app, index) => {
-          const copy = props.plugin.apps.find((candidate) => candidate.id === app.id)!;
-          const enabled = state ? isPluginAppEnabled(manifest, state, app.id) : app.defaultEnabled;
-          const labelId = `${titleId}-app-${app.id}`;
-          const badgeId = `${labelId}-kind`;
-          return (
-            <ContributionRow
-              key={app.id}
-              labelId={labelId}
-              badgeId={badgeId}
-              name={copy.name}
-              description={copy.description}
-              badge={t`MCP`}
-              last={index === manifest.apps.length - 1}
-              control={
-                state ? (
-                  <ToggleSwitch
-                    aria-labelledby={`${labelId} ${badgeId}`}
-                    isSelected={enabled}
-                    isDisabled={!supported || !state.enabled}
-                    onChange={(next) => setPluginAppEnabled(manifest.id, app.id, next)}
-                  />
-                ) : undefined
-              }
-            />
-          );
-        })}
-      </ContributionSection>
+      {props.plugin.apps.length > 0 ? (
+        <ContributionSection
+          icon={<Cable className="size-4" />}
+          title={t`Apps`}
+          description={t`MCP-powered tools contributed by this plugin.`}
+        >
+          {props.plugin.apps.map((app, index) => {
+            const enabled = state ? isPluginAppEnabled(plugin, state, app.id) : true;
+            const labelId = `${titleId}-app-${app.id}`;
+            const badgeId = `${labelId}-kind`;
+            return (
+              <ContributionRow
+                key={app.id}
+                labelId={labelId}
+                badgeId={badgeId}
+                name={app.name}
+                {...(app.description ? { description: app.description } : {})}
+                badge={t`MCP`}
+                last={index === props.plugin.apps.length - 1}
+                control={
+                  state ? (
+                    <ToggleSwitch
+                      aria-labelledby={`${labelId} ${badgeId}`}
+                      isSelected={enabled}
+                      isDisabled={!supported || !state.enabled}
+                      onChange={(next) => setPluginAppEnabled(plugin, app.id, next)}
+                    />
+                  ) : undefined
+                }
+              />
+            );
+          })}
+        </ContributionSection>
+      ) : null}
 
-      <ContributionSection
-        icon={<Box className="size-4" />}
-        title={t`Skills`}
-        description={t`Reusable guidance delivered across supported agents.`}
-      >
-        {manifest.skills.map((skill, index) => {
-          const copy = props.plugin.skills.find((candidate) => candidate.id === skill.id)!;
-          const enabled = state
-            ? isPluginSkillEnabled(manifest, state, skill.id)
-            : skill.defaultEnabled;
-          const labelId = `${titleId}-skill-${skill.id}`;
-          const badgeId = `${labelId}-kind`;
-          return (
-            <ContributionRow
-              key={skill.id}
-              labelId={labelId}
-              badgeId={badgeId}
-              name={copy.name}
-              description={copy.description}
-              badge={t`Skill`}
-              last={index === manifest.skills.length - 1}
-              control={
-                state ? (
-                  <ToggleSwitch
-                    aria-labelledby={`${labelId} ${badgeId}`}
-                    isSelected={enabled}
-                    isDisabled={!supported || !state.enabled}
-                    onChange={(next) => setPluginSkillEnabled(manifest.id, skill.id, next)}
-                  />
-                ) : undefined
-              }
-            />
-          );
-        })}
-      </ContributionSection>
+      {props.plugin.mcpServers.length > 0 ? (
+        <ContributionSection
+          icon={<Plug className="size-4" />}
+          title={t`MCP servers`}
+          description={t`Servers this plugin declares in mcp.json. Poracode passes them to every supported agent.`}
+        >
+          {props.plugin.mcpServers.map((server, index) => {
+            const enabled = state ? isPluginMcpServerEnabled(plugin, state, server.id) : true;
+            const labelId = `${titleId}-server-${server.id}`;
+            const badgeId = `${labelId}-kind`;
+            return (
+              <ContributionRow
+                key={server.id}
+                labelId={labelId}
+                badgeId={badgeId}
+                name={server.name}
+                {...(server.description ? { description: server.description } : {})}
+                badge={t`MCP`}
+                last={index === props.plugin.mcpServers.length - 1}
+                control={
+                  state ? (
+                    <div className="flex items-center gap-2">
+                      {oauth.isRemoteServer(server.id) ? (
+                        <ConnectControl
+                          state={oauth.stateFor(server.id)}
+                          onConnect={() => void oauth.connect(server.id)}
+                          onDisconnect={() => void oauth.disconnect(server.id)}
+                        />
+                      ) : null}
+                      <ToggleSwitch
+                        aria-labelledby={`${labelId} ${badgeId}`}
+                        isSelected={enabled}
+                        isDisabled={!supported || !state.enabled}
+                        onChange={(next) => setPluginMcpServerEnabled(plugin.name, server.id, next)}
+                      />
+                    </div>
+                  ) : undefined
+                }
+              />
+            );
+          })}
+        </ContributionSection>
+      ) : null}
+
+      {oauth.error ? <p className="text-xs text-warning">{oauth.error}</p> : null}
+
+      {props.plugin.skills.length > 0 ? (
+        <ContributionSection
+          icon={<Box className="size-4" />}
+          title={t`Skills`}
+          description={t`Reusable guidance delivered across supported agents.`}
+        >
+          {props.plugin.skills.map((skill, index) => {
+            const enabled = state ? isPluginSkillEnabled(plugin, state, skill.id) : true;
+            const labelId = `${titleId}-skill-${skill.id}`;
+            const badgeId = `${labelId}-kind`;
+            return (
+              <ContributionRow
+                key={skill.id}
+                labelId={labelId}
+                badgeId={badgeId}
+                name={skill.name}
+                {...(skill.description ? { description: skill.description } : {})}
+                badge={t`Skill`}
+                last={index === props.plugin.skills.length - 1}
+                control={
+                  state ? (
+                    <ToggleSwitch
+                      aria-labelledby={`${labelId} ${badgeId}`}
+                      isSelected={enabled}
+                      isDisabled={!supported || !state.enabled}
+                      onChange={(next) => setPluginSkillEnabled(plugin.name, skill.id, next)}
+                    />
+                  ) : undefined
+                }
+              />
+            );
+          })}
+        </ContributionSection>
+      ) : null}
 
       <section className="border-t border-[var(--hairline)] py-5">
         <h2 className="mb-3 text-sm font-semibold text-foreground">
@@ -180,20 +304,87 @@ export function PluginDetail(props: {
         </h2>
         <dl className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-2 text-xs">
           <dt className="text-muted">
-            <Trans>Publisher</Trans>
+            <Trans>Identifier</Trans>
           </dt>
-          <dd className="text-foreground">{manifest.publisher}</dd>
+          <dd className="break-all text-foreground">{plugin.name}</dd>
+          {author ? (
+            <>
+              <dt className="text-muted">
+                <Trans>Author</Trans>
+              </dt>
+              <dd className="text-foreground">{author}</dd>
+            </>
+          ) : null}
           <dt className="text-muted">
             <Trans>Category</Trans>
           </dt>
           <dd className="text-foreground">{props.plugin.category}</dd>
+          {plugin.manifest.version ? (
+            <>
+              <dt className="text-muted">
+                <Trans>Version</Trans>
+              </dt>
+              <dd className="text-foreground">{plugin.manifest.version}</dd>
+            </>
+          ) : null}
+          {plugin.manifest.license ? (
+            <>
+              <dt className="text-muted">
+                <Trans>License</Trans>
+              </dt>
+              <dd className="text-foreground">{plugin.manifest.license}</dd>
+            </>
+          ) : null}
+          {plugin.manifest.homepage ? (
+            <>
+              <dt className="text-muted">
+                <Trans>Homepage</Trans>
+              </dt>
+              <dd className="break-all text-foreground">{plugin.manifest.homepage}</dd>
+            </>
+          ) : null}
+          {plugin.manifest.repository ? (
+            <>
+              <dt className="text-muted">
+                <Trans>Repository</Trans>
+              </dt>
+              <dd className="break-all text-foreground">{plugin.manifest.repository}</dd>
+            </>
+          ) : null}
           <dt className="text-muted">
-            <Trans>Version</Trans>
+            <Trans>Location</Trans>
           </dt>
-          <dd className="text-foreground">{manifest.version}</dd>
+          <dd className="break-all text-foreground">{plugin.root}</dd>
         </dl>
       </section>
     </div>
+  );
+}
+
+function ConnectControl(props: {
+  state: "unknown" | "connected" | "disconnected" | "connecting";
+  onConnect: () => void;
+  onDisconnect: () => void;
+}) {
+  if (props.state === "connecting") {
+    return (
+      <span className="text-xs text-muted">
+        <Trans>Connecting...</Trans>
+      </span>
+    );
+  }
+  if (props.state === "connected") {
+    return (
+      <Button size="sm" variant="tertiary" onPress={props.onDisconnect}>
+        <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+        <Trans>Connected</Trans>
+      </Button>
+    );
+  }
+  return (
+    <Button size="sm" variant="tertiary" onPress={props.onConnect}>
+      <Trans>Connect</Trans>
+    </Button>
   );
 }
 
@@ -223,7 +414,7 @@ function ContributionRow(props: {
   labelId: string;
   badgeId: string;
   name: string;
-  description: string;
+  description?: string;
   badge: string;
   control?: ReactNode;
   last: boolean;
@@ -244,7 +435,9 @@ function ContributionRow(props: {
             {props.badge}
           </span>
         </div>
-        <p className="truncate text-xs text-muted">{props.description}</p>
+        {props.description ? (
+          <p className="truncate text-xs text-muted">{props.description}</p>
+        ) : null}
       </div>
       {props.control}
     </div>

@@ -35,6 +35,7 @@ export interface SshRuntimeBundleOptions {
   readonly agentPluginsDir: string;
   readonly wslHelpersDir: string;
   readonly bundledSkillsDir?: string;
+  readonly bundledPluginsDir?: string;
   readonly cacheDir: string;
   readonly tarCommand?: string;
 }
@@ -154,6 +155,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     options.agentPluginsDir,
     options.wslHelpersDir,
     options.bundledSkillsDir ?? null,
+    options.bundledPluginsDir ?? null,
     options.cacheDir,
     options.tarCommand ?? null,
   ]);
@@ -168,6 +170,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
       options.agentPluginsDir,
       options.wslHelpersDir,
       ...(options.bundledSkillsDir ? [options.bundledSkillsDir] : []),
+      ...(options.bundledPluginsDir ? [options.bundledPluginsDir] : []),
     ],
     runtimePackageJson(),
   );
@@ -213,6 +216,11 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
       cpSync(options.bundledSkillsDir, join(stage, "skills"), { recursive: true });
     } else {
       mkdirSync(join(stage, "skills"));
+    }
+    if (options.bundledPluginsDir && existsSync(options.bundledPluginsDir)) {
+      cpSync(options.bundledPluginsDir, join(stage, "plugins"), { recursive: true });
+    } else {
+      mkdirSync(join(stage, "plugins"));
     }
     writeFileSync(join(stage, "package.json"), runtimePackageJson(), "utf8");
 

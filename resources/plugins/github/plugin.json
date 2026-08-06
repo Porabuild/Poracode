@@ -1,0 +1,37 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "github",
+  "version": "1.0.0",
+  "description": "Triage PRs, issues, CI, and publish flows.",
+  "author": { "name": "GitHub", "url": "https://github.com" },
+  "homepage": "https://github.com/github/github-mcp-server",
+  "repository": "https://github.com/github/github-mcp-server",
+  "license": "MIT",
+  "keywords": ["github", "pull requests", "issues", "ci", "code review"],
+  "extensions": {
+    "com.poracode.client": {
+      "title": "GitHub",
+      "category": "developer-tools",
+      "featured": true,
+      "examplePrompt": "Inspect PRs, triage issues, debug failing checks, and prepare code changes for review",
+      "skills": {
+        "github": {
+          "name": "GitHub",
+          "description": "Inspect PRs, issues, CI, and publish flows."
+        },
+        "review-follow-up": {
+          "name": "Review Follow-up",
+          "description": "Address actionable PR feedback."
+        },
+        "ci-debug": {
+          "name": "CI Debug",
+          "description": "Debug failing GitHub Actions checks."
+        },
+        "publish-changes": {
+          "name": "Publish Changes",
+          "description": "Commit, push, and open a PR."
+        }
+      }
+    }
+  }
+}

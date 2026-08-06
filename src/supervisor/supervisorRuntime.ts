@@ -62,6 +62,7 @@ import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 import { SkillsService } from "./skills/SkillsService";
 import { resolvePluginAppsForThreadConfig } from "@/shared/plugins/catalog";
+import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
 
@@ -94,6 +95,8 @@ export class SupervisorRuntime {
   readonly mcpOAuthService: McpOAuthService;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
+  readonly pluginRegistry: PluginRegistry;
+  private readonly pluginDataDir: string;
   private readonly subagentMcpIngress: SubagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
   private readonly orchestratorThreadManager: OrchestratorThreadManager;
@@ -154,9 +157,15 @@ export class SupervisorRuntime {
       getAgentStatusService: () => this.agentStatusService,
     });
     this.agentRegistryService.refreshAgentRegistryAdapters();
+    this.pluginRegistry = new PluginRegistry({
+      bundledPluginsDir: () => process.env.PORACODE_BUNDLED_PLUGINS_DIR?.trim() || undefined,
+      userPluginsDir: () => paths.pluginsDir,
+    });
+    this.pluginDataDir = paths.pluginDataDir;
     this.skillsService = new SkillsService({
       adapters: this.adapters,
       readInstalledPlugins: () => this.sharedSettingsCache.readFresh().installedPlugins,
+      readPlugins: () => this.pluginRegistry.listPlugins(),
     });
     mkdirSync(paths.cacheDir, { recursive: true });
     mkdirSync(this.logsDir, { recursive: true });
@@ -411,11 +420,19 @@ export class SupervisorRuntime {
       prepareMcpToolFilters,
       applyPluginAppsToConfig: (config, context) => {
         const installedPlugins = this.sharedSettingsCache.readFresh().installedPlugins;
-        return resolvePluginAppsForThreadConfig(config, installedPlugins, {
-          ...context,
-          hostPlatform: process.platform,
-        });
+        return resolvePluginAppsForThreadConfig(
+          config,
+          this.pluginRegistry.listPlugins(),
+          installedPlugins,
+          { ...context, hostPlatform: process.platform },
+        );
       },
+      resolvePluginMcpServers: () =>
+        resolvePluginMcpServers(
+          this.pluginRegistry.listPlugins(),
+          this.sharedSettingsCache.readFresh().installedPlugins,
+          { pluginDataRoot: this.pluginDataDir },
+        ).servers,
       prepareSkillsForLaunch: async (projectLocation, agentKind) => {
         try {
           await this.skillsService.prepareForLaunch(projectLocation, agentKind);
