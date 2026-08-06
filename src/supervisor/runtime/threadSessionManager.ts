@@ -388,9 +388,11 @@ export class ThreadSessionManager {
   }
 
   /**
-   * Renderer-facing: subscribe a sub-agent overlay. Returns the buffered
-   * child-event history so the renderer can hydrate the overlay; subsequent
-   * child events stream live via the regular runtime-event channels.
+   * Renderer-facing: subscribe a sub-agent overlay. Buffered child history is
+   * replayed onto the normal runtime event stream (persisted + broadcast to WS
+   * clients); subsequent child events continue on that same stream. The RPC
+   * returns `history: []` — the field remains for backward compatibility with
+   * older clients/hosts that still deliver drained buffer events in the body.
    */
   subagentSubscribe(payload: { threadId: string; parentItemId: string }): {
     history: RuntimeEvent[];

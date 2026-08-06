@@ -82,25 +82,23 @@ export function SubAgentContent({
   const applyRuntimeEvents = useAppStore((s) => s.applyRuntimeEvents);
 
   // Subscribe to the supervisor's child-event stream for this sub-agent while
-  // the overlay is open. The supervisor buffers events when no renderer is
-  // subscribed (perf gate); on subscribe it drains the buffer as `history` and
-  // forwards the live tail through the regular runtime-event channels. Items
-  // already in the store are no-ops when replayed, so we keep the persisted
-  // child history intact and let any new events layer on top.
+  // the overlay is open. Current hosts drain the buffer and replay it onto the
+  // thread's regular runtime stream (events arrive via the standard channel);
+  // the RPC `history` payload is empty and is a fallback for older hosts that
+  // still return the drained buffer here. Late RPC responses are still applied
+  // so history is not lost if the panel remounts before the response arrives.
   useEffect(() => {
-    let cancelled = false;
     const bridge = readBridge();
     void bridge
       .subagentSubscribe({ threadId, parentItemId })
       .then((result) => {
-        if (cancelled || result.history.length === 0) return;
+        if (result.history.length === 0) return;
         applyRuntimeEvents(threadId, result.history);
       })
       .catch((err: unknown) => {
         console.warn("[subagent] subscribe failed", { threadId, parentItemId, err });
       });
     return () => {
-      cancelled = true;
       void bridge.subagentUnsubscribe({ threadId, parentItemId }).catch((err: unknown) => {
         console.warn("[subagent] unsubscribe failed", { threadId, parentItemId, err });
       });

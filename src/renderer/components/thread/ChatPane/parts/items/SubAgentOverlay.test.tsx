@@ -469,6 +469,57 @@ describe("SubAgentContent", () => {
     expect(useAppStore.getState().openSubAgentByThread[threadId]).toBeNull();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("still applies legacy-host subscribe history after the overlay unmounts", async () => {
+    const threadId = "thread-1";
+    const parentItem = makeSubAgentItem("parent-1");
+    let resolveSubscribe: ((value: { history: unknown[] }) => void) | undefined;
+    mockBridge.subagentSubscribe.mockReset().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSubscribe = resolve as (value: { history: unknown[] }) => void;
+        }),
+    );
+
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    const view = render(
+      <SubAgentContent threadId={threadId} parentItemId={parentItem.id} hideHeader />,
+    );
+
+    await waitFor(() => expect(mockBridge.subagentSubscribe).toHaveBeenCalled());
+    view.unmount();
+
+    resolveSubscribe?.({
+      history: [
+        {
+          type: "item.started",
+          threadId,
+          itemId: "child-late",
+          itemType: "assistant_message",
+          parentItemId: parentItem.id,
+        },
+        {
+          type: "content.delta",
+          threadId,
+          itemId: "child-late",
+          stream: "assistant_text",
+          delta: "preserved after unmount",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      const child = useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["child-late"];
+      expect(child).toBeDefined();
+      expect(child?.streams.assistant_text).toBe("preserved after unmount");
+      expect(child?.parentItemId).toBe(parentItem.id);
+    });
+  });
 });
 
 function makeSubAgentItem(id: string): RuntimeChatItem {
