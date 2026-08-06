@@ -50,6 +50,12 @@ export function SidebarProjectHeader(props: {
   const isUnavailable = isDisabled || isUnreachable;
   const showBody = !isCollapsed && !isUnavailable;
   const projectMenu = useProjectMenu(project, { isUnreachable });
+  // Same collapse footprint as thread / worktree panel buttons so idle icons
+  // free horizontal space for the project title.
+  const hiddenPanelButtonClass =
+    "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
+  const panelButtonBaseClass =
+    "flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing";
 
   return (
     <ContextMenu items={projectMenu.items} onAction={projectMenu.onAction}>
@@ -99,10 +105,10 @@ export function SidebarProjectHeader(props: {
                 panel="files"
                 projectId={project.id}
                 ariaLabel={t`Files for ${project.name}`}
-                className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+                className={`${panelButtonBaseClass} ${
                   isActiveFilesPanel
-                    ? "text-accent"
-                    : "text-muted/60 opacity-0 group-hover:opacity-100"
+                    ? "w-[18px] p-0.5 text-accent"
+                    : `text-muted/60 ${hiddenPanelButtonClass}`
                 }`}
                 onPress={() => openFilesPanel(project.id)}
               >
@@ -112,12 +118,12 @@ export function SidebarProjectHeader(props: {
                 panel="terminal"
                 projectId={project.id}
                 ariaLabel={t`Terminal for ${project.name}`}
-                className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+                className={`${panelButtonBaseClass} ${
                   isActiveTerminal
-                    ? "text-accent"
+                    ? "w-[18px] p-0.5 text-accent"
                     : hasTerminal
-                      ? "text-foreground"
-                      : "text-muted/60 opacity-0 group-hover:opacity-100"
+                      ? "w-[18px] p-0.5 text-foreground"
+                      : `text-muted/60 ${hiddenPanelButtonClass}`
                 }`}
                 onPress={() => openTerminal(project.id)}
               >
