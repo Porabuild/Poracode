@@ -83,6 +83,8 @@ export function ProjectRemoteServerIcon(props: {
    * icons it stands beside; the status light keeps its own palette.
    */
   className?: string | undefined;
+  /** Status-light diameter — shrinks with the glyph on dense rows. */
+  dotClassName?: string | undefined;
 }) {
   const { info } = props;
   if (!info.isRemote && !info.serverName) return null;
@@ -92,6 +94,7 @@ export function ProjectRemoteServerIcon(props: {
       {info.serverName ? (
         <RemoteServerStatusDot
           status={info.status ?? "offline"}
+          {...(props.dotClassName ? { sizeClassName: props.dotClassName } : {})}
           className="absolute -right-0.5 -bottom-0.5"
         />
       ) : null}
@@ -100,10 +103,12 @@ export function ProjectRemoteServerIcon(props: {
 }
 
 const CHIP_SIZE = {
+  /** The flat list's 10px row tags, where even the dense glyph reads heavy. */
+  xs: { icon: "size-2.5 text-muted/60", dot: "size-1", name: "max-w-20 text-muted/60" },
   /** Dense sidebar rows, where the chip inherits a 10px tag. */
-  sm: { icon: "size-3 text-muted/60", name: "max-w-20 text-muted/60" },
-  /** Menu rows, which set their own type scale. */
-  md: { icon: "size-3.5 text-muted/60", name: "max-w-24 text-xs text-muted/60" },
+  sm: { icon: "size-3 text-muted/60", dot: "size-1.5", name: "max-w-20 text-muted/60" },
+  /** Menu rows: own type scale for the name, but the same compact glyph. */
+  md: { icon: "size-2.5 text-muted/60", dot: "size-1", name: "max-w-24 text-xs text-muted/60" },
 } as const;
 
 /**
@@ -120,7 +125,7 @@ export function ProjectRemoteServerChip(props: {
   const size = CHIP_SIZE[props.size ?? "sm"];
   return (
     <>
-      <ProjectRemoteServerIcon info={info} className={size.icon} />
+      <ProjectRemoteServerIcon info={info} className={size.icon} dotClassName={size.dot} />
       {info.serverName ? (
         <span className={`shrink-0 truncate ${size.name}`}>{info.serverName}</span>
       ) : null}

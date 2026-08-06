@@ -9,11 +9,14 @@ import { handleKeyActivate } from "@/renderer/utils/a11y";
  * element (e.g. the workspace switcher). Keeping one definition means padding,
  * radius, and hover can't drift between neighbouring rows.
  */
-export function sidebarRowClass(options: { density?: "default" | "compact" } = {}): string {
+export function sidebarRowClass(
+  options: { density?: "default" | "compact"; size?: "md" | "xs" } = {},
+): string {
   const compact = options.density === "compact";
+  const sizeClass = options.size === "xs" ? "text-xs" : "text-sm";
   return `flex w-full shrink-0 cursor-default items-center gap-2 rounded-3xl px-2 ${
     compact ? "py-1" : "py-1.5"
-  } text-left text-sm text-muted outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:focus-ring`;
+  } text-left ${sizeClass} text-muted outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:focus-ring`;
 }
 
 export function SidebarButton(props: {

@@ -52,11 +52,13 @@ function ProjectIcon(props: {
     return <House className={`${props.className ?? "size-4"} shrink-0 text-muted`} />;
   }
   if (props.remote.isRemote) {
-    // Same weight as the location/Home glyphs it replaces in the same list.
+    // The compact glyph with the small status light — same treatment as the
+    // flat list's row tags, a step below the location/Home glyphs beside it.
     return (
       <ProjectRemoteServerIcon
         info={props.remote}
-        className={`${props.className ?? "size-4"} text-muted`}
+        className={`${props.className ?? "size-3.5"} text-muted`}
+        dotClassName="size-1"
       />
     );
   }

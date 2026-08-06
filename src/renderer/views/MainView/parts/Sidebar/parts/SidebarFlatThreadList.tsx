@@ -209,7 +209,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
                         className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} flex items-center gap-1 text-[10px] leading-4 text-muted/70`}
                       >
                         <span className="truncate">{project.name}</span>
-                        <ProjectRemoteServerChip info={remote} />
+                        <ProjectRemoteServerChip info={remote} size="xs" />
                       </span>
                     ),
                   }
