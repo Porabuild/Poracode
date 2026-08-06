@@ -27,6 +27,14 @@ interface SidebarUiState {
    * version stays 1.
    */
   flatListProjectFilter: string[] | null;
+  /**
+   * Footer nav (workspace switcher, shortcuts, Settings, Hide sidebar) shown
+   * as a compact icon row instead of labeled rows. Persisted; additive to the
+   * v1 envelope like `flatListProjectFilter` — older payloads lack the key and
+   * rehydrate to the default (false = labeled rows), older builds ignore the
+   * extra key, so the store version stays 1.
+   */
+  footerCollapsed: boolean;
   editingThreadId: string | null;
   setProjectCollapsed: (projectId: string, collapsed: boolean) => void;
   toggleProjectCollapsed: (projectId: string) => void;
@@ -35,6 +43,7 @@ interface SidebarUiState {
   toggleWorktreeCollapsed: (key: string) => void;
   revealMoreThreads: (projectId: string, pageSize?: number) => void;
   setFlatListProjectFilter: (projectIds: string[] | null) => void;
+  toggleFooterCollapsed: () => void;
   setEditingThreadId: (id: string | null) => void;
 }
 
@@ -62,6 +71,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
       collapsedWorktrees: {},
       threadListLimits: {},
       flatListProjectFilter: null,
+      footerCollapsed: false,
       editingThreadId: null,
 
       setProjectCollapsed: (projectId, collapsed) =>
@@ -137,6 +147,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
           }
           return { flatListProjectFilter: next };
         }),
+      toggleFooterCollapsed: () => set((state) => ({ footerCollapsed: !state.footerCollapsed })),
       setEditingThreadId: (editingThreadId) => set({ editingThreadId }),
     }),
     {
@@ -149,6 +160,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
         collapsedProjects: state.collapsedProjects,
         pinnedGitHubWorkflows: state.pinnedGitHubWorkflows,
         flatListProjectFilter: state.flatListProjectFilter,
+        footerCollapsed: state.footerCollapsed,
       }),
     },
   ),
