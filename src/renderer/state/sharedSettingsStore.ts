@@ -5,6 +5,7 @@ import {
   normalizeSidebarShortcutOrder,
   normalizeSharedSettings,
   type CliPickerTarget,
+  type PreventSleep,
   type SidebarShortcutId,
   type SharedSettings,
   type SharedSettingsInput,
@@ -82,8 +83,7 @@ interface SharedSettingsState extends SharedSettings {
   setAgentTerminalFontSize: (value: number) => void;
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
-  setPreventSleepWhileWorking: (value: boolean) => void;
-  setRemoteAccessPreventSleep: (value: boolean) => void;
+  setPreventSleep: (value: PreventSleep) => void;
   setLaunchAtStartup: (value: boolean) => void;
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
@@ -452,12 +452,8 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ terminalPanelFontSize });
     persistSettings(selectSharedSettings(get()));
   },
-  setPreventSleepWhileWorking: (preventSleepWhileWorking) => {
-    set({ preventSleepWhileWorking });
-    persistSettings(selectSharedSettings(get()));
-  },
-  setRemoteAccessPreventSleep: (remoteAccessPreventSleep) => {
-    set({ remoteAccessPreventSleep });
+  setPreventSleep: (preventSleep) => {
+    set({ preventSleep });
     persistSettings(selectSharedSettings(get()));
   },
   setLaunchAtStartup: (launchAtStartup) => {
@@ -902,8 +898,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     agentTerminalFontSize: state.agentTerminalFontSize,
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
-    preventSleepWhileWorking: state.preventSleepWhileWorking,
-    remoteAccessPreventSleep: state.remoteAccessPreventSleep,
+    preventSleep: state.preventSleep,
     launchAtStartup: state.launchAtStartup,
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,

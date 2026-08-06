@@ -20,12 +20,70 @@ describe("shared settings defaults", () => {
     expect(defaultSharedSettings.notificationFilter).toBe("all");
   });
 
-  it("prevents sleep during remote access by default and preserves opt-outs", () => {
-    expect(defaultSharedSettings.remoteAccessPreventSleep).toBe(true);
-    expect(normalizeSharedSettings({}).remoteAccessPreventSleep).toBe(true);
+  it("defaults preventSleep to while-remote-access", () => {
+    expect(defaultSharedSettings.preventSleep).toBe("while-remote-access");
+    expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
+  });
+
+  it("migrates legacy sleep booleans into preventSleep", () => {
     expect(
-      normalizeSharedSettings({ remoteAccessPreventSleep: false }).remoteAccessPreventSleep,
-    ).toBe(false);
+      normalizeSharedSettings({
+        preventSleepWhileWorking: true,
+        remoteAccessPreventSleep: false,
+      }).preventSleep,
+    ).toBe("while-working");
+    expect(
+      normalizeSharedSettings({
+        preventSleepWhileWorking: false,
+        remoteAccessPreventSleep: true,
+      }).preventSleep,
+    ).toBe("while-remote-access");
+    expect(normalizeSharedSettings({ remoteAccessPreventSleep: true }).preventSleep).toBe(
+      "while-remote-access",
+    );
+    expect(
+      normalizeSharedSettings({
+        preventSleepWhileWorking: false,
+        remoteAccessPreventSleep: false,
+      }).preventSleep,
+    ).toBe("while-working");
+  });
+
+  it("lets an explicit preventSleep value win over legacy booleans", () => {
+    const migrated = normalizeSharedSettings({
+      preventSleep: "always",
+      preventSleepWhileWorking: true,
+      remoteAccessPreventSleep: true,
+    });
+    expect(migrated.preventSleep).toBe("always");
+    expect(migrated).not.toHaveProperty("preventSleepWhileWorking");
+    expect(migrated).not.toHaveProperty("remoteAccessPreventSleep");
+  });
+
+  it("falls back via migration when preventSleep is invalid", () => {
+    expect(
+      normalizeSharedSettings({
+        preventSleep: "never",
+        preventSleepWhileWorking: true,
+        remoteAccessPreventSleep: false,
+      }).preventSleep,
+    ).toBe("while-working");
+    expect(
+      normalizeSharedSettings({
+        preventSleep: "never",
+        remoteAccessPreventSleep: true,
+      }).preventSleep,
+    ).toBe("while-remote-access");
+  });
+
+  it("drops legacy sleep keys from the normalized output", () => {
+    const migrated = normalizeSharedSettings({
+      preventSleepWhileWorking: true,
+      remoteAccessPreventSleep: true,
+    });
+    expect(migrated.preventSleep).toBe("while-remote-access");
+    expect(migrated).not.toHaveProperty("preventSleepWhileWorking");
+    expect(migrated).not.toHaveProperty("remoteAccessPreventSleep");
   });
 
   it("enables Crossagents as the standing MCP default and preserves opt-outs", () => {

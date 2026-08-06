@@ -482,7 +482,7 @@ describe("SettingsOverlay", () => {
       target: { value: "sleep" },
     });
 
-    expect(screen.getByText("Prevent sleep while working")).toBeInTheDocument();
+    expect(screen.getByText("Prevent sleep")).toBeInTheDocument();
     // The section list is replaced — unrelated sections are gone.
     expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();
   });
@@ -494,9 +494,7 @@ describe("SettingsOverlay", () => {
       target: { value: "awake" },
     });
 
-    expect(
-      screen.getByText("Keep the system awake while any thread is actively working."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Choose when this machine stays awake.")).toBeInTheDocument();
   });
 
   it("navigates to the section when a setting result is clicked", () => {
@@ -505,7 +503,7 @@ describe("SettingsOverlay", () => {
     fireEvent.change(screen.getByPlaceholderText("Search settings"), {
       target: { value: "sleep" },
     });
-    fireEvent.click(screen.getByText("Prevent sleep while working"));
+    fireEvent.click(screen.getByText("Prevent sleep"));
 
     expect(within(screen.getByRole("main")).getByText("General")).toBeInTheDocument();
   });

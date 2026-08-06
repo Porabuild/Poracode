@@ -1208,6 +1208,7 @@ msgid "Already used by {conflict}"
 msgstr "이미 {conflict}에서 사용 중"
 
 #. Notification filter: always notify
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Always"
 msgstr "항상"
@@ -2167,6 +2168,11 @@ msgstr "첨부할 스레드를 선택하세요."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세요: 아무 작업 안 함, 병합 차단 문제 수정, 또는 수정 후 병합."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose when this machine stays awake."
+msgstr "이 기기가 깨어 있는 상태를 유지할 시점을 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5695,13 +5701,13 @@ msgstr "시작 시 Poracode를 시스템 트레이에 둡니다."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any thread is actively working."
-msgstr "스레드가 활발하게 작동하는 동안 시스템을 활성 상태로 유지합니다."
+#~ msgid "Keep the system awake while any thread is actively working."
+#~ msgstr "스레드가 활발하게 작동하는 동안 시스템을 활성 상태로 유지합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while remote access is enabled."
-msgstr "원격 액세스가 활성화된 동안 시스템이 절전 모드로 전환되지 않도록 합니다."
+#~ msgid "Keep the system awake while remote access is enabled."
+#~ msgstr "원격 액세스가 활성화된 동안 시스템이 절전 모드로 전환되지 않도록 합니다."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8276,15 +8282,20 @@ msgstr "프리셋"
 msgid "Press shortcut…"
 msgstr "단축키를 누르세요…"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep"
+msgstr "절전 모드 방지"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep during remote access"
-msgstr "원격 액세스 중 절전 모드 방지"
+#~ msgid "Prevent sleep during remote access"
+#~ msgstr "원격 액세스 중 절전 모드 방지"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep while working"
-msgstr "작업 중 수면 방지"
+#~ msgid "Prevent sleep while working"
+#~ msgstr "작업 중 수면 방지"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -8824,6 +8835,10 @@ msgstr "브라우저 페이지 새로고침"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
 msgstr "원격"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Remote access"
+msgstr "원격 액세스"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -12614,6 +12629,10 @@ msgstr "실행의 대화가 생성되는 위치입니다."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "터미널 패널이 나타나는 위치."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "While working"
+msgstr "작업 중"
 
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx

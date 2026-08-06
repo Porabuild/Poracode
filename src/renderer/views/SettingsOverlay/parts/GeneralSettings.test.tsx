@@ -31,6 +31,8 @@ describe("GeneralSettings", () => {
     expect(screen.getByText("Start minimized")).toBeInTheDocument();
     expect(screen.getByText("Editor LSP")).toBeInTheDocument();
     expect(screen.getByText("Sidebar shortcuts")).toBeInTheDocument();
+    expect(screen.getByText("Prevent sleep")).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Prevent sleep" })).toBeInTheDocument();
     expect(screen.queryByText("Pull requests shortcut")).not.toBeInTheDocument();
   });
 
@@ -94,5 +96,6 @@ describe("GeneralSettings", () => {
     expect(screen.queryByText("Start minimized")).not.toBeInTheDocument();
     expect(screen.queryByText("Editor LSP")).not.toBeInTheDocument();
     expect(screen.queryByText("Sidebar shortcuts")).not.toBeInTheDocument();
+    expect(screen.queryByText("Prevent sleep")).not.toBeInTheDocument();
   });
 });

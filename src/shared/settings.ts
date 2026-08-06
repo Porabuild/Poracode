@@ -321,10 +321,13 @@ export const sharedSettingsSchema = z.object({
   guiChatFontSize: z.number().int().min(8).max(20),
   /** Base font size for the dev terminal panel. Auto-shrinks in narrow/short panes. */
   terminalPanelFontSize: z.number().int().min(8).max(20),
-  /** Prevent OS sleep while any thread is actively working. */
-  preventSleepWhileWorking: z.boolean(),
-  /** Prevent OS sleep while the desktop remote access server is enabled. */
-  remoteAccessPreventSleep: z.boolean(),
+  /**
+   * When to prevent the OS from sleeping while Poracode is running.
+   * - "while-working": only while a thread is actively working
+   * - "while-remote-access": while remote access is enabled or a thread is working
+   * - "always": keep the machine awake whenever the app is running
+   */
+  preventSleep: z.enum(["while-working", "while-remote-access", "always"]),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -571,6 +574,9 @@ export const sharedSettingsSchema = z.object({
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
+/** When to prevent the OS from sleeping while Poracode is running. */
+export type PreventSleep = SharedSettings["preventSleep"];
+
 /** Browser element-picker delivery target for terminal-native (CLI) threads. */
 export type CliPickerTarget = SharedSettings["cliPickerTarget"];
 
@@ -634,8 +640,7 @@ export const defaultSharedSettings: SharedSettings = {
   agentTerminalFontSize: 12,
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
-  preventSleepWhileWorking: true,
-  remoteAccessPreventSleep: true,
+  preventSleep: "while-remote-access",
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,
@@ -836,6 +841,19 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
       : parsed.data.prWatchDefault === true
         ? "fix"
         : "off";
+  // Unversioned settings file: migrate the two legacy sleep booleans into
+  // the single `preventSleep` enum. An explicit valid value always wins.
+  const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(
+    parsed.data.preventSleep,
+  ).success;
+  const hasLegacyPreventSleepKeys =
+    "preventSleepWhileWorking" in parsed.data || "remoteAccessPreventSleep" in parsed.data;
+  const migratedPreventSleep =
+    !hasPreventSleep && hasLegacyPreventSleepKeys
+      ? parsed.data.remoteAccessPreventSleep === true
+        ? ("while-remote-access" as const)
+        : ("while-working" as const)
+      : normalized.preventSleep;
   const usage = z.record(z.string(), z.unknown()).safeParse(parsed.data.usage);
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
@@ -844,6 +862,7 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
     ...normalized,
     sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
     prAutomationDefault: hasAutomationMode ? normalized.prAutomationDefault : legacyAutomationMode,
+    preventSleep: migratedPreventSleep,
     usage: {
       ...normalized.usage,
       disabledProviders: disabledProviders?.success ? disabledProviders.data : [],
