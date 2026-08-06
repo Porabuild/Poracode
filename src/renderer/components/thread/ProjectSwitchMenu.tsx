@@ -13,9 +13,17 @@ import {
   useResponsiveMenu,
 } from "@/renderer/components/common/ResponsiveMenuSurface";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import {
+  ProjectRemoteServerIcon,
+  useProjectRemoteServerLookup,
+  type ProjectRemoteServerInfo,
+} from "@/renderer/components/common/ProjectRemoteServer";
 import { useProjectSwitchGroups, type ProjectSwitchEntry } from "./projectSwitchGroups";
 
-function LocationIcon(props: { kind: Project["location"]["kind"]; className?: string }) {
+function LocationIcon(props: {
+  kind: Project["location"]["kind"];
+  className?: string | undefined;
+}) {
   if (props.kind === "wsl") {
     return (
       <span className={`${props.className ?? "size-3.5"} relative shrink-0 text-muted`}>
@@ -28,6 +36,31 @@ function LocationIcon(props: { kind: Project["location"]["kind"]; className?: st
     return <Monitor className={className} />;
   }
   return <FolderOpen className={className} />;
+}
+
+/**
+ * Leading glyph for a project row. A mirrored project is marked by the machine
+ * hosting it rather than by its path kind — which machine it lives on is what
+ * distinguishes it from the same-named project on this one.
+ */
+function ProjectIcon(props: {
+  project: Project;
+  remote: ProjectRemoteServerInfo;
+  className?: string | undefined;
+}) {
+  if (isHomeProject(props.project)) {
+    return <House className={`${props.className ?? "size-4"} shrink-0 text-muted`} />;
+  }
+  if (props.remote.isRemote) {
+    // Same weight as the location/Home glyphs it replaces in the same list.
+    return (
+      <ProjectRemoteServerIcon
+        info={props.remote}
+        className={`${props.className ?? "size-4"} text-muted`}
+      />
+    );
+  }
+  return <LocationIcon kind={props.project.location.kind} className={props.className} />;
 }
 
 export function ProjectSwitchMenu(props: {
@@ -45,6 +78,7 @@ export function ProjectSwitchMenu(props: {
   // unreachable from the composer, and picking one moves the workspace along
   // with the draft (see `handleSelect`).
   const { all, inWorkspace, others, activeWorkspaceName } = useProjectSwitchGroups();
+  const remoteServerFor = useProjectRemoteServerLookup();
   const openDraft = useAppStore((state) => state.openDraft);
   const replacePaneId = useAppStore((state) => state.replacePaneId);
   const discardDraftContent = useAppStore((state) => state.discardDraftContent);
@@ -57,10 +91,17 @@ export function ProjectSwitchMenu(props: {
   const current = all.find((entry) => entry.project.id === currentProjectId)?.project;
   const isHomeCurrent = isHomeProjectId(currentProjectId);
   const label = isHomeCurrent ? HOME_PROJECT_NAME : (current?.name ?? t`Select project`);
+  const currentRemote = remoteServerFor(current);
   const triggerIcon = isHomeCurrent ? (
     <House className="size-3.5 shrink-0 text-muted" />
   ) : current ? (
-    <LocationIcon kind={current.location.kind} className="size-3.5" />
+    <ProjectIcon project={current} remote={currentRemote} className="size-3.5" />
+  ) : null;
+  // The machine trails the name, so the project stays the thing you read first.
+  const triggerMachine = currentRemote.serverName ? (
+    <span className="min-w-0 shrink truncate text-xs text-muted/60">
+      {currentRemote.serverName}
+    </span>
   ) : null;
   const isDisabled = all.length <= 1;
 
@@ -91,6 +132,7 @@ export function ProjectSwitchMenu(props: {
       const isHome = isHomeProject(project);
       const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
       const selected = project.id === currentProjectId;
+      const remote = remoteServerFor(project);
       return (
         <button
           key={project.id}
@@ -102,12 +144,13 @@ export function ProjectSwitchMenu(props: {
             handleSelect(project.id);
           }}
         >
-          {isHome ? (
-            <House className="size-4 shrink-0 text-muted" />
-          ) : (
-            <LocationIcon kind={project.location.kind} />
-          )}
-          <span className="flex-1 truncate">{itemLabel}</span>
+          <ProjectIcon project={project} remote={remote} />
+          <span className="min-w-0 flex-1 truncate">{itemLabel}</span>
+          {remote.serverName ? (
+            <span className="max-w-28 shrink-0 truncate text-xs text-muted/60">
+              {remote.serverName}
+            </span>
+          ) : null}
           {otherWorkspaceName ? (
             <span className="shrink-0 truncate text-xs text-muted">{otherWorkspaceName}</span>
           ) : null}
@@ -121,15 +164,14 @@ export function ProjectSwitchMenu(props: {
     return entries.map(({ project, otherWorkspaceName }) => {
       const isHome = isHomeProject(project);
       const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
+      const remote = remoteServerFor(project);
+      // Machine and workspace are both "where this project lives" — one slot.
+      const description = [remote.serverName, otherWorkspaceName].filter(Boolean).join(" · ");
       return (
         <Dropdown.Item key={project.id} id={project.id} textValue={itemLabel}>
-          {isHome ? (
-            <House className="size-4 shrink-0 text-muted" />
-          ) : (
-            <LocationIcon kind={project.location.kind} />
-          )}
+          <ProjectIcon project={project} remote={remote} />
           <Label>{itemLabel}</Label>
-          {otherWorkspaceName ? <Description>{otherWorkspaceName}</Description> : null}
+          {description ? <Description>{description}</Description> : null}
         </Dropdown.Item>
       );
     });
@@ -167,6 +209,7 @@ export function ProjectSwitchMenu(props: {
               <>
                 {triggerIcon}
                 <span className="min-w-0 truncate">{label}</span>
+                {triggerMachine}
               </>
             )}
             {!isDisabled ? <ChevronDown className="size-3 shrink-0 text-muted/60" /> : null}
@@ -245,6 +288,7 @@ export function ProjectSwitchMenu(props: {
       >
         {triggerIcon}
         <span className="min-w-0 truncate">{label}</span>
+        {triggerMachine}
         {!isDisabled ? (
           <ChevronDown className="size-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
         ) : null}

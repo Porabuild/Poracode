@@ -1,6 +1,10 @@
 import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
+import {
+  ProjectRemoteServerChip,
+  useProjectRemoteServerLookup,
+} from "@/renderer/components/common/ProjectRemoteServer";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useDragSource } from "@/renderer/dnd";
 import {
@@ -11,7 +15,6 @@ import {
 } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentCandidateOrder } from "@/renderer/state/experimentStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
 import { useWorkspaceProjectIds } from "@/renderer/state/workspaceSelectors";
@@ -51,7 +54,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const workspaceProjectIds = useWorkspaceProjectIds();
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const projects = useAppStore(useShallow((s) => s.projects));
-  const remoteRuntime = useRemoteServersStore((s) => s.runtime);
+  const remoteServerFor = useProjectRemoteServerLookup();
   const experimentCandidateOrder = useExperimentCandidateOrder();
   const collapsedWorktrees = useSidebarUiStore((s) => s.collapsedWorktrees);
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);
@@ -78,7 +81,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     if (isHomeProject(project)) return homeScopeEnabled;
     if (!includedIds.has(project.id) || project.disabled) return false;
     if (!project.remoteServerId) return true;
-    return remoteRuntime[project.remoteServerId]?.status === "online";
+    return remoteServerFor(project).status === "online";
   });
   const projectsById = new Map(visibleProjects.map((project) => [project.id, project]));
 
@@ -189,6 +192,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
           // Thread rows and worktree headers stack the tag on a second line;
           // provider/experiment group headers keep the inline trailing form.
           const stackedTag = row.kind === "thread" || row.kind === "worktree-group";
+          // Remote mirrors carry the machine name so their rows read as
+          // non-local; mirrors the grouped project header's server chip.
+          const remote = remoteServerFor(project);
           return (
             <SidebarThreadRow
               key={row.key}
@@ -200,9 +206,10 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
                 ? {
                     projectTag: (
                       <span
-                        className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} truncate text-[10px] leading-4 text-muted/70`}
+                        className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} flex items-center gap-1 text-[10px] leading-4 text-muted/70`}
                       >
-                        {project.name}
+                        <span className="truncate">{project.name}</span>
+                        <ProjectRemoteServerChip info={remote} />
                       </span>
                     ),
                   }
