@@ -1208,6 +1208,7 @@ msgid "Already used by {conflict}"
 msgstr "Zaten {conflict} tarafından kullanılıyor"
 
 #. Notification filter: always notify
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Always"
 msgstr "Her zaman"
@@ -2167,6 +2168,11 @@ msgstr "Eklenecek konuyu seçin"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "Poracode'un yeni pull request'lerde ne yapacağını seçin: hiçbir şey, birleştirme engellerini düzelt veya düzeltip birleştir."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose when this machine stays awake."
+msgstr "Bu makinenin ne zaman uyanık kalacağını seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5695,13 +5701,13 @@ msgstr "Başlangıçta açıldığında Poracode'u sistem tepsisinde tutun."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any thread is actively working."
-msgstr "Herhangi bir konu aktif olarak çalışırken sistemi uyanık tutun."
+#~ msgid "Keep the system awake while any thread is actively working."
+#~ msgstr "Herhangi bir konu aktif olarak çalışırken sistemi uyanık tutun."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while remote access is enabled."
-msgstr "Uzaktan erişim etkinken sistemi uyanık tutun."
+#~ msgid "Keep the system awake while remote access is enabled."
+#~ msgstr "Uzaktan erişim etkinken sistemi uyanık tutun."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8276,15 +8282,20 @@ msgstr "Hazır ayarlar"
 msgid "Press shortcut…"
 msgstr "Kısayola basın…"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep"
+msgstr "Uykuyu önle"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep during remote access"
-msgstr "Uzaktan erişim sırasında uyku modunu engelle"
+#~ msgid "Prevent sleep during remote access"
+#~ msgstr "Uzaktan erişim sırasında uyku modunu engelle"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep while working"
-msgstr "Çalışırken uykuyu önleyin"
+#~ msgid "Prevent sleep while working"
+#~ msgstr "Çalışırken uykuyu önleyin"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -8824,6 +8835,10 @@ msgstr "Tarayıcı sayfasını yeniden yükle"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
 msgstr "Uzak"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Remote access"
+msgstr "Uzaktan erişim"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -12614,6 +12629,10 @@ msgstr "Çalıştırmanın konuşmasının oluşturulduğu yer."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Terminal panelinin göründüğü yer."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "While working"
+msgstr "Çalışırken"
 
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx

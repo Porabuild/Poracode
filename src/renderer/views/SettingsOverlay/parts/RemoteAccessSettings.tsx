@@ -709,10 +709,6 @@ function RemotePushSection() {
 
 export function RemoteAccessSettings() {
   const { t } = useLingui();
-  const remoteAccessPreventSleep = useSharedSettings((state) => state.remoteAccessPreventSleep);
-  const setRemoteAccessPreventSleep = useSharedSettings(
-    (state) => state.setRemoteAccessPreventSleep,
-  );
   const [state, setState] = useState<PairingViewState>({
     info: null,
     error: null,
@@ -861,18 +857,6 @@ export function RemoteAccessSettings() {
         ) : null
       }
     >
-      <SettingRow
-        anchorId="remoteAccess.preventSleep"
-        title={t`Prevent sleep during remote access`}
-        description={<Trans>Keep the system awake while remote access is enabled.</Trans>}
-      >
-        <ToggleSwitch
-          aria-label={t`Prevent sleep during remote access`}
-          isSelected={remoteAccessPreventSleep}
-          onChange={setRemoteAccessPreventSleep}
-        />
-      </SettingRow>
-
       {isLoading ? (
         <div className="flex items-center gap-3 text-sm text-muted">
           <PixelLoader size="sm" />

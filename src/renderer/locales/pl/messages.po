@@ -1208,6 +1208,7 @@ msgid "Already used by {conflict}"
 msgstr "Już używany przez {conflict}"
 
 #. Notification filter: always notify
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Always"
 msgstr "Zawsze"
@@ -2167,6 +2168,11 @@ msgstr "Wybierz wątek, do którego chcesz dołączyć"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "Wybierz, co Poracode ma robić z nowymi pull requestami: nic, naprawiać blokady scalania albo naprawiać i scalać."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose when this machine stays awake."
+msgstr "Wybierz, kiedy ten komputer pozostaje aktywny."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5695,13 +5701,13 @@ msgstr "Po uruchomieniu przy starcie pozostaw Poracode w zasobniku systemowym."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any thread is actively working."
-msgstr "Utrzymuj system w stanie czuwania, gdy dowolny wątek aktywnie działa."
+#~ msgid "Keep the system awake while any thread is actively working."
+#~ msgstr "Utrzymuj system w stanie czuwania, gdy dowolny wątek aktywnie działa."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while remote access is enabled."
-msgstr "Utrzymuj system w stanie aktywnym, gdy dostęp zdalny jest włączony."
+#~ msgid "Keep the system awake while remote access is enabled."
+#~ msgstr "Utrzymuj system w stanie aktywnym, gdy dostęp zdalny jest włączony."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8276,15 +8282,20 @@ msgstr "Ustawienia predefiniowane"
 msgid "Press shortcut…"
 msgstr "Naciśnij skrót…"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep"
+msgstr "Zapobiegaj zasypianiu"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep during remote access"
-msgstr "Zapobiegaj uśpieniu podczas dostępu zdalnego"
+#~ msgid "Prevent sleep during remote access"
+#~ msgstr "Zapobiegaj uśpieniu podczas dostępu zdalnego"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep while working"
-msgstr "Zapobiegaj zasypianiu podczas pracy"
+#~ msgid "Prevent sleep while working"
+#~ msgstr "Zapobiegaj zasypianiu podczas pracy"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -8824,6 +8835,10 @@ msgstr "Załaduj ponownie stronę przeglądarki"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
 msgstr "Zdalny"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Remote access"
+msgstr "Dostęp zdalny"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -12614,6 +12629,10 @@ msgstr "Gdzie tworzona jest rozmowa uruchomienia."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Gdzie pojawia się panel terminali."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "While working"
+msgstr "Podczas pracy"
 
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx

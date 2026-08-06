@@ -1207,6 +1207,7 @@ msgid "Already used by {conflict}"
 msgstr "{conflict}で既に使用されています"
 
 #. Notification filter: always notify
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Always"
 msgstr "いつも"
@@ -2166,6 +2167,11 @@ msgstr "接続するスレッドを選択してください"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "新しいプルリクエストに対するPoracodeの動作を選択します：何もしない、マージの妨げを修正する、または修正してマージする。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose when this machine stays awake."
+msgstr "このマシンをスリープさせないタイミングを選びます。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5694,13 +5700,13 @@ msgstr "スタートアップ時は Poracode をシステムトレイに格納�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any thread is actively working."
-msgstr "スレッドがアクティブに動作している間は、システムを起動したままにします。"
+#~ msgid "Keep the system awake while any thread is actively working."
+#~ msgstr "スレッドがアクティブに動作している間は、システムを起動したままにします。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while remote access is enabled."
-msgstr "リモートアクセスが有効な間、システムをスリープさせません。"
+#~ msgid "Keep the system awake while remote access is enabled."
+#~ msgstr "リモートアクセスが有効な間、システムをスリープさせません。"
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8274,15 +8280,20 @@ msgstr "プリセット"
 msgid "Press shortcut…"
 msgstr "ショートカットを押してください…"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep"
+msgstr "スリープを防止"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep during remote access"
-msgstr "リモートアクセス中のスリープを防止"
+#~ msgid "Prevent sleep during remote access"
+#~ msgstr "リモートアクセス中のスリープを防止"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep while working"
-msgstr "作業中のスリープを防止する"
+#~ msgid "Prevent sleep while working"
+#~ msgstr "作業中のスリープを防止する"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -8822,6 +8833,10 @@ msgstr "ブラウザのページをリロード"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
 msgstr "リモート"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Remote access"
+msgstr "リモートアクセス"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -12612,6 +12627,10 @@ msgstr "実行の会話が作成される場所。"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "ターミナルパネルが表示される場所。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "While working"
+msgstr "作業中"
 
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx

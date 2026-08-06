@@ -1208,6 +1208,7 @@ msgid "Already used by {conflict}"
 msgstr "Đã được dùng bởi {conflict}"
 
 #. Notification filter: always notify
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Always"
 msgstr "Luôn luôn"
@@ -2167,6 +2168,11 @@ msgstr "Chọn chủ đề để đính kèm"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose what Poracode does for new pull requests: nothing, fix merge blockers, or fix and merge."
 msgstr "Chọn việc Poracode sẽ làm với pull request mới: không làm gì, khắc phục các trở ngại hợp nhất, hoặc khắc phục rồi hợp nhất."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Choose when this machine stays awake."
+msgstr "Chọn khi máy này được giữ ở trạng thái hoạt động."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5695,13 +5701,13 @@ msgstr "Giữ Poracode trong khay hệ thống khi ứng dụng khởi chạy c�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any thread is actively working."
-msgstr "Giữ cho hệ thống luôn hoạt động trong khi bất kỳ luồng nào đang hoạt động tích cực."
+#~ msgid "Keep the system awake while any thread is actively working."
+#~ msgstr "Giữ cho hệ thống luôn hoạt động trong khi bất kỳ luồng nào đang hoạt động tích cực."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while remote access is enabled."
-msgstr "Giữ hệ thống luôn hoạt động khi truy cập từ xa được bật."
+#~ msgid "Keep the system awake while remote access is enabled."
+#~ msgstr "Giữ hệ thống luôn hoạt động khi truy cập từ xa được bật."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Keep waiting"
@@ -8276,15 +8282,20 @@ msgstr "Cấu hình sẵn"
 msgid "Press shortcut…"
 msgstr "Nhấn phím tắt…"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep"
+msgstr "Ngăn chế độ ngủ"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep during remote access"
-msgstr "Ngăn chế độ ngủ khi truy cập từ xa"
+#~ msgid "Prevent sleep during remote access"
+#~ msgstr "Ngăn chế độ ngủ khi truy cập từ xa"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep while working"
-msgstr "Ngăn chế độ ngủ khi đang làm việc"
+#~ msgid "Prevent sleep while working"
+#~ msgstr "Ngăn chế độ ngủ khi đang làm việc"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -8824,6 +8835,10 @@ msgstr "Tải lại trang trình duyệt"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
 msgstr "Từ xa"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Remote access"
+msgstr "Truy cập từ xa"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -12614,6 +12629,10 @@ msgstr "Nơi cuộc trò chuyện của lần chạy được tạo."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Nơi bảng điều khiển đầu cuối xuất hiện."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "While working"
+msgstr "Khi đang làm việc"
 
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx

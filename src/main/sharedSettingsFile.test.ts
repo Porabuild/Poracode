@@ -128,8 +128,7 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleepWhileWorking: true,
-      remoteAccessPreventSleep: true,
+      preventSleep: "while-remote-access",
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -259,8 +258,7 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleepWhileWorking: true,
-      remoteAccessPreventSleep: true,
+      preventSleep: "while-remote-access",
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -348,6 +346,23 @@ describe("sharedSettingsFile", () => {
     expect(readSharedSettingsFile(settingsPath).usage.disabledProviders).toEqual([
       ...DEFAULT_USAGE_DISABLED_PROVIDER_IDS,
     ]);
+  });
+
+  it("migrates legacy prevent-sleep booleans from a previous released settings shape", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        preventSleepWhileWorking: true,
+        remoteAccessPreventSleep: false,
+      }),
+      "utf8",
+    );
+
+    const settings = readSharedSettingsFile(settingsPath);
+    expect(settings.preventSleep).toBe("while-working");
+    expect(settings).not.toHaveProperty("preventSleepWhileWorking");
+    expect(settings).not.toHaveProperty("remoteAccessPreventSleep");
   });
 
   it("defaults usage tracking to Claude and Codex only", () => {
