@@ -7,6 +7,11 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 import { execSync, spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { resolveDevServerPort } from "./dev-server-port.mjs";
+import { sweepStaleSupervisors } from "./sweepStaleSupervisors.mjs";
+
+// Reap orphaned dev supervisors left behind by crashed / force-quit dev
+// instances before launching a new one. Best effort; never blocks launch.
+sweepStaleSupervisors();
 
 const env = {
   ...process.env,
