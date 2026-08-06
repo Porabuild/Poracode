@@ -134,6 +134,7 @@ export class InvalidSessionRecoveryCoordinator {
       launchPrompt: session.launchPrompt,
       command,
       mcpLaunchSnapshot,
+      launchConfig,
       ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
     });
   }

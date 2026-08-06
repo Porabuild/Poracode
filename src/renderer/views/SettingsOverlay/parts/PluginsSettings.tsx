@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Trans } from "@lingui/react/macro";
+import { Button } from "@/renderer/components/common";
 import { PluginDetail } from "@/renderer/components/plugins/PluginDetail";
 import { PluginMarketplace } from "@/renderer/components/plugins/PluginMarketplace";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
@@ -8,6 +10,8 @@ import { readBridge } from "@/renderer/bridge";
 export function PluginsSettings() {
   const plugins = useLocalizedPluginCatalog();
   const loadPlugins = usePlugins((state) => state.load);
+  const loaded = usePlugins((state) => state.loaded);
+  const error = usePlugins((state) => state.error);
   const [selectedPluginId, setSelectedPluginId] = useState<string>();
   const returnFocusPluginId = useRef<string | undefined>(undefined);
   const selectedPlugin = plugins.find((entry) => entry.plugin.name === selectedPluginId);
@@ -33,6 +37,27 @@ export function PluginsSettings() {
     )?.focus();
     returnFocusPluginId.current = undefined;
   }, [selectedPluginId]);
+
+  if (!loaded) {
+    return (
+      <div className="flex min-h-32 items-center justify-center text-sm text-muted" role="status">
+        <Trans>Loading…</Trans>
+      </div>
+    );
+  }
+
+  if (error && plugins.length === 0) {
+    return (
+      <div className="flex min-h-32 flex-col items-center justify-center gap-3 text-sm text-muted">
+        <p role="alert">
+          <Trans>Connection failed.</Trans>
+        </p>
+        <Button size="sm" variant="tertiary" onPress={() => void loadPlugins(true)}>
+          <Trans>Retry</Trans>
+        </Button>
+      </div>
+    );
+  }
 
   const openPlugin = (pluginId: string) => {
     returnFocusPluginId.current = pluginId;

@@ -123,17 +123,17 @@ export function PluginDetail(props: {
       </div>
 
       {examplePrompt ? (
-        <button
-          type="button"
-          className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-surface-secondary px-4 py-3 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
-          onClick={() => void tryNow()}
+        <Button
+          variant="tertiary"
+          className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-surface-secondary !px-4 !py-3 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
+          onPress={() => void tryNow()}
         >
           <span className="shrink-0 text-muted">
             <PluginIcon pluginId={plugin.name} className="size-4" />
           </span>
           <span className="min-w-0 flex-1 text-sm text-foreground">{examplePrompt}</span>
           <ArrowRight className="size-4 shrink-0 text-muted" />
-        </button>
+        </Button>
       ) : null}
 
       {problems.length > 0 ? (

@@ -652,6 +652,50 @@ describe("SkillsService", () => {
     ).toEqual([userSkill]);
   });
 
+  it("keeps an enabled plugin skill matched through the /mnt fallback", async () => {
+    // `wslpath -w` is unavailable here, so containment falls back to comparing
+    // the case-insensitive `/mnt` paths. That comparison must not leak its
+    // case folding into the relative path, or `SKILL.md` stops matching and an
+    // enabled skill is silently stripped from the prompt.
+    const pluginRoot = "E:\\Poracode\\resources\\plugins\\browser-tools";
+    const pluginWslSkillsRoot = "/mnt/e/Poracode/resources/plugins/browser-tools/skills";
+    const plugin = fakePluginPackage("browser-tools", pluginRoot, ["browser-control"]);
+    const bundledService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installPlugin({}, plugin),
+      readPlugins: () => [plugin],
+      hostPlatform: "win32",
+      resolveHostPathForWsl: async () => pluginWslSkillsRoot,
+      resolveWslWindowsPaths: async () => [],
+      resolveWslRealPaths: async (_distro, paths) =>
+        paths.map((path) =>
+          path === "/tmp/plugin-alias/SKILL.md"
+            ? `${pluginWslSkillsRoot}/browser-control/SKILL.md`
+            : path,
+        ),
+    });
+    const pluginAlias = {
+      kind: "skill" as const,
+      name: "browser-control",
+      path: "/tmp/plugin-alias/SKILL.md",
+      invocation: "/browser-control",
+      provider: "Browser Tools",
+      scope: "global" as const,
+    };
+
+    expect(
+      await bundledService.filterPluginSkillSegments([pluginAlias], {
+        projectLocation: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+        },
+      }),
+    ).toEqual([pluginAlias]);
+  });
+
   it("fails closed when a WSL skill path cannot be canonicalized", async () => {
     const bundledService = new SkillsService({
       adapters,

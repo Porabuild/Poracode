@@ -222,6 +222,7 @@ export class ThreadSessionManager {
       status: session.status,
       attention: session.attention,
       config: session.config,
+      ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
       canResumeWithConfig: session.canResumeWithConfig,
@@ -496,13 +497,14 @@ export class ThreadSessionManager {
     }
     const usesStructuredFlow =
       session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
-    const effectiveSegments = payload.segments
+    const wslSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
           preserveImageAttachments: usesStructuredFlow,
           preservePdfAttachments:
             usesStructuredFlow && session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
       : undefined;
+    const effectiveSegments = await this.filterPluginSkillSegments(session, wslSegments);
     const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
 
     const effectiveConfig =
@@ -707,7 +709,8 @@ export class ThreadSessionManager {
           preserveImageAttachments: false,
         })
       : undefined;
-    const effectiveSegments = await this.localizeWorkspaceAttachments(session, wslSegments);
+    const policySegments = await this.filterPluginSkillSegments(session, wslSegments);
+    const effectiveSegments = await this.localizeWorkspaceAttachments(session, policySegments);
     const formatted = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
     // Collapse newlines so a raw PTY write cannot accidentally submit the line
     // (a bare \n reads as Enter to most shells/TUIs); the user submits manually.
@@ -726,6 +729,24 @@ export class ThreadSessionManager {
     return segments && segments.length > 0
       ? (session.adapter.formatPromptSegments?.(segments) ?? defaultFormatPromptSegments(segments))
       : fallbackPrompt;
+  }
+
+  /** Enforce current plugin skill policy before a segment reaches a provider. */
+  private async filterPluginSkillSegments(
+    session: SessionRuntime,
+    segments: PromptSegment[] | undefined,
+  ): Promise<PromptSegment[] | undefined> {
+    if (!segments?.some((segment) => segment.kind === "skill")) return segments;
+    return (
+      (await this.options.filterPluginSkillSegments?.({
+        agentKind: session.agentKind,
+        projectLocation: session.projectLocation,
+        ...(session.presentationMode
+          ? { presentationMode: session.presentationMode }
+          : { presentationMode: session.adapter.capabilities.presentationMode }),
+        segments,
+      })) ?? segments
+    );
   }
 
   /** Portable-skills fallback for a structured turn (see managerOptions). */
@@ -822,7 +843,12 @@ export class ThreadSessionManager {
    */
   async setPendingSteer(payload: SetPendingSteerPayload): Promise<void> {
     const session = this.requireSession(payload.threadId);
-    await this.steerCoordinator.setPendingSteer(session, payload);
+    if (payload.segments === undefined) {
+      await this.steerCoordinator.setPendingSteer(session, payload);
+      return;
+    }
+    const segments = await this.filterPluginSkillSegments(session, payload.segments);
+    await this.steerCoordinator.setPendingSteer(session, { ...payload, segments });
   }
 
   /**

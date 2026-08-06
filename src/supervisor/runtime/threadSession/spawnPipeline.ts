@@ -98,6 +98,7 @@ export interface SpawnThreadInput {
   initialAttention?: ThreadAttention;
   suppressInitialStructuredIdle?: boolean;
   mcpLaunchSnapshot: McpLaunchSnapshot;
+  launchConfig?: ThreadConfig;
 }
 
 /**
@@ -275,14 +276,22 @@ export class SpawnPipeline {
     // Terminal skills fallback: skill segments the CLI can't resolve natively
     // become short path-hint text before the prompt is typed into the PTY.
     // Structured turns keep the raw segments (they use inline injection).
+    const policySegments = wslSegments?.some((segment) => segment.kind === "skill")
+      ? ((await ctx.options.filterPluginSkillSegments?.({
+          agentKind: payload.agentKind,
+          projectLocation: payload.projectLocation,
+          presentationMode: requestedPresentation,
+          segments: wslSegments,
+        })) ?? wslSegments)
+      : wslSegments;
     const effectiveSegments =
-      !useStructuredFlow && wslSegments?.some((segment) => segment.kind === "skill")
+      !useStructuredFlow && policySegments?.some((segment) => segment.kind === "skill")
         ? ((await ctx.options.rewriteTerminalSkillSegments?.({
             agentKind: payload.agentKind,
             projectLocation: payload.projectLocation,
-            segments: wslSegments,
-          })) ?? wslSegments)
-        : wslSegments;
+            segments: policySegments,
+          })) ?? policySegments)
+        : policySegments;
     const initialPrompt =
       effectiveSegments && effectiveSegments.length > 0
         ? (adapter.formatPromptSegments?.(effectiveSegments) ??
@@ -320,8 +329,12 @@ export class SpawnPipeline {
             payload.userMessageItemId,
           )
         : undefined;
+    const optimisticLaunchConfig = effectiveLaunchConfig(
+      payload.config,
+      payload.disabledBuiltInMcpServerIds ?? [],
+    );
     if (optimisticUserMessageItemId) {
-      this.emitOptimisticWorkingState(payload.threadId, payload.config);
+      this.emitOptimisticWorkingState(payload.threadId, payload.config, optimisticLaunchConfig);
     }
 
     // Prime the user's interactive-shell env (fnm / nvm / asdf / mise cd-hooks
@@ -341,7 +354,7 @@ export class SpawnPipeline {
     };
     let mcpServers = resolveEnabledMcpServers([
       ...(payload.mcpServers ?? []),
-      ...(this.ctx.options.resolvePluginMcpServers?.() ?? []),
+      ...(this.ctx.options.resolvePluginMcpServers?.(payload.projectLocation) ?? []),
     ]);
     if (this.ctx.options.applyMcpServerAuthorization) {
       mcpServers = await this.ctx.options.applyMcpServerAuthorization(mcpServers);
@@ -445,6 +458,7 @@ export class SpawnPipeline {
         suppressInitialStructuredIdle:
           optimisticUserMessageItemId !== undefined && !startInterrupted,
         mcpLaunchSnapshot,
+        launchConfig,
       });
       if (
         !startInterrupted &&
@@ -589,6 +603,7 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       mcpLaunchSnapshot,
+      launchConfig,
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
       presentationMode: requestedPresentation,
       ...(deferToTerminal && !useStructuredFlow
@@ -716,6 +731,7 @@ export class SpawnPipeline {
         structuredSession,
         sessionRef: session.sessionRef,
         mcpLaunchSnapshot,
+        launchConfig,
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
       });
       if (prompt.trim().length > 0 && structuredSession.startTurn) {
@@ -814,12 +830,15 @@ export class SpawnPipeline {
       ...(keepStructuredSession ? { structuredSession } : {}),
       sessionRef: session.sessionRef,
       mcpLaunchSnapshot,
+      launchConfig,
       ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
     });
   }
 
   spawnThread(input: SpawnThreadInput): SessionRuntime {
     const ctx = this.ctx;
+    const mcpLaunchSnapshot =
+      input.mcpLaunchSnapshot ?? ({ mcpServers: [], disabledBuiltInMcpServerIds: [] } as const);
     // `thread-reset` is only consumed by the terminal panel (renderer scrollback
     // reset) and the renderer-side runtime-event/server-request slice clear.
     // GUI threads have no terminal scrollback, and clearing the slice would
@@ -904,7 +923,10 @@ export class SpawnPipeline {
       ...(pty && command?.cleanup ? { launchCleanup: command.cleanup } : {}),
       projectLocation: input.projectLocation,
       config: input.config,
-      mcpLaunchSnapshot: input.mcpLaunchSnapshot,
+      mcpLaunchSnapshot,
+      launchConfig:
+        input.launchConfig ??
+        effectiveLaunchConfig(input.config, mcpLaunchSnapshot.disabledBuiltInMcpServerIds),
       terminalSize: input.initialSize,
       launchPrompt: input.launchPrompt,
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
@@ -1218,13 +1240,18 @@ export class SpawnPipeline {
     return true;
   }
 
-  private emitOptimisticWorkingState(threadId: string, config: ThreadConfig): void {
+  private emitOptimisticWorkingState(
+    threadId: string,
+    config: ThreadConfig,
+    launchConfig: ThreadConfig,
+  ): void {
     this.ctx.options.emit({
       type: "thread-state",
       threadId,
       status: "working",
       attention: "working",
       config,
+      launchConfig,
       canResumeWithConfig: false,
       threadStatusSource: "server",
     });

@@ -385,6 +385,82 @@ describe("mcp runtime", () => {
     expect(codes(rejected.diagnostics)).toEqual(["mcp-entry-unresolvable"]);
   });
 
+  it("skips MCP servers unsupported by the host or project", async () => {
+    const plugin = await writePackage("unsupported", {
+      manifest: manifest("unsupported", {
+        extensions: {
+          "com.poracode.client": {
+            platforms: ["darwin"],
+            projectKinds: ["windows"],
+          },
+        },
+      }),
+      mcp: {
+        $schema: AGENT_PLUGINS_MCP_SCHEMA_URL,
+        mcpServers: { main: { type: "stdio", command: "server" } },
+      },
+    });
+    const loaded = loadPluginFromDirectory(plugin, "bundled").plugin;
+    if (!loaded) throw new Error("plugin failed to load");
+    const context = {
+      pluginDataRoot: join(root, "plugin-data"),
+      hostPlatform: "win32" as const,
+      projectLocation: {
+        kind: "wsl" as const,
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+      },
+    };
+
+    expect(resolvePluginMcpServers([loaded], installed("unsupported"), context).servers).toEqual(
+      [],
+    );
+  });
+
+  it("rejects stdio command and cwd symlinks that escape the package", async ({ skip }) => {
+    const outside = join(root, "outside");
+    await mkdir(outside, { recursive: true });
+    await writeFile(join(outside, "server"), "", "utf8");
+    const commandDir = await writePackage("symlink-command", {
+      manifest: manifest("symlink-command"),
+      mcp: {
+        $schema: AGENT_PLUGINS_MCP_SCHEMA_URL,
+        mcpServers: { main: { type: "stdio", command: "./bin/server" } },
+      },
+    });
+    const cwdDir = await writePackage("symlink-cwd", {
+      manifest: manifest("symlink-cwd"),
+      mcp: {
+        $schema: AGENT_PLUGINS_MCP_SCHEMA_URL,
+        mcpServers: { main: { type: "stdio", command: "server", cwd: "./work" } },
+      },
+    });
+    try {
+      await symlink(outside, join(commandDir, "bin"), "junction");
+      await symlink(outside, join(cwdDir, "work"), "junction");
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (["EACCES", "ENOSYS", "ENOTSUP", "EPERM", "UNKNOWN"].includes(code ?? "")) {
+        skip();
+        return;
+      }
+      throw error;
+    }
+
+    const commandPlugin = loadPluginFromDirectory(commandDir, "bundled").plugin;
+    const cwdPlugin = loadPluginFromDirectory(cwdDir, "bundled").plugin;
+    if (!commandPlugin || !cwdPlugin) throw new Error("plugin failed to load");
+    const result = resolvePluginMcpServers(
+      [commandPlugin, cwdPlugin],
+      { ...installed("symlink-command"), ...installed("symlink-cwd") },
+      { pluginDataRoot: join(root, "plugin-data") },
+    );
+
+    expect(result.servers).toEqual([]);
+    expect(codes(result.diagnostics)).toEqual(["mcp-entry-unresolvable", "mcp-entry-unresolvable"]);
+  });
+
   it("rejects a cwd that escapes the package boundary", async () => {
     const plugin = await loadWithServers("bad-cwd", {
       main: { type: "stdio", command: "server", cwd: "../outside" },

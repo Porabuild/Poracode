@@ -48,6 +48,8 @@ export interface SessionRuntime {
   pty?: IPty;
   projectLocation: ProjectLocation;
   config: ThreadConfig;
+  /** Effective provider launch config with globally disabled MCP cleared. */
+  launchConfig?: ThreadConfig;
   /** MCP launch snapshot reused by restart and recovery paths. */
   mcpLaunchSnapshot: McpLaunchSnapshot;
   sessionRef?: SessionRef;

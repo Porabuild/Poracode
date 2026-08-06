@@ -6,6 +6,7 @@ import type {
   ProjectLocation,
   PromptSegment,
   ThreadServerRequestId,
+  ThreadPresentationMode,
 } from "@/shared/contracts";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
 import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
@@ -81,7 +82,7 @@ export interface ThreadSessionManagerOptions {
    * They join the user's own servers, so every provider translator picks them up
    * without knowing the Agent Plugins specification exists.
    */
-  resolvePluginMcpServers?(): McpServer[];
+  resolvePluginMcpServers?(projectLocation: ProjectLocation): McpServer[];
   /** Wrap servers with disabled tools in Poracode's same-environment filtering proxy. */
   prepareMcpToolFilters?(
     servers: McpServer[],
@@ -89,6 +90,13 @@ export interface ThreadSessionManagerOptions {
   ): Promise<McpServer[]>;
   /** Synchronize Poracode-owned provider skill projections before a new agent process starts. */
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;
+  /** Enforce plugin skill policy before a segment reaches a provider. */
+  filterPluginSkillSegments?(input: {
+    agentKind: AgentKind;
+    projectLocation: ProjectLocation;
+    presentationMode?: ThreadPresentationMode;
+    segments: PromptSegment[];
+  }): Promise<PromptSegment[]>;
   /**
    * Portable-skills fallback for structured turns: returns inline SKILL.md
    * instructions for skill segments the provider can't load natively, or

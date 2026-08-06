@@ -75,9 +75,16 @@ function relativePosixPolicyPath(root: string, target: string): string | undefin
 function relativeWslPolicyPath(root: string, target: string): string | undefined {
   const rootDrive = /^\/mnt\/([a-z])(?:\/|$)/iu.exec(root)?.[1];
   const targetDrive = /^\/mnt\/([a-z])(?:\/|$)/iu.exec(target)?.[1];
-  return rootDrive && targetDrive && rootDrive.toLowerCase() === targetDrive.toLowerCase()
-    ? relativePosixPolicyPath(root.toLowerCase(), target.toLowerCase())
-    : relativePosixPolicyPath(root, target);
+  if (!rootDrive || !targetDrive || rootDrive.toLowerCase() !== targetDrive.toLowerCase()) {
+    return relativePosixPolicyPath(root, target);
+  }
+  // A `/mnt` DrvFs mount is case-insensitive, so containment is decided on the
+  // case-folded paths. The relative path itself keeps the target's own casing:
+  // callers still have to see the authored skill folder and `SKILL.md`.
+  const folded = relativePosixPolicyPath(root.toLowerCase(), target.toLowerCase());
+  if (folded === undefined) return undefined;
+  const segments = posix.resolve(target).split("/");
+  return segments.slice(segments.length - folded.split("/").length).join("/");
 }
 
 async function resolveHostPathForWsl(

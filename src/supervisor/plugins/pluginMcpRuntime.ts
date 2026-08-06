@@ -1,14 +1,21 @@
 import { mkdirSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
-import type { InstalledPlugins, LoadedPlugin, McpServer, McpTransport } from "@/shared/contracts";
+import type {
+  InstalledPlugins,
+  LoadedPlugin,
+  McpServer,
+  McpTransport,
+  ProjectLocation,
+} from "@/shared/contracts";
 import { DEFAULT_MCP_SERVER_TIMEOUT_MS, isValidMcpServerName } from "@/shared/contracts";
+import { isPluginSupportedForProject } from "@/shared/plugins/catalog";
 import {
   pluginDiagnostic,
   type PluginDiagnostic,
   type PluginMcpEntry,
   type PluginMcpStdioEntry,
 } from "@/shared/plugins/spec";
-import { relativePathInside } from "./pathContainment";
+import { relativePolicyPath } from "./pathContainment";
 
 /**
  * Turns `mcp.json` declarations into the provider-agnostic `McpServer` records
@@ -32,6 +39,9 @@ import { relativePathInside } from "./pathContainment";
 export interface PluginMcpRuntimeContext {
   /** Parent directory holding one persistent data directory per plugin. */
   pluginDataRoot: string;
+  /** Host/project policy is optional for direct conformance helpers. */
+  hostPlatform?: NodeJS.Platform;
+  projectLocation?: ProjectLocation;
 }
 
 export interface ResolvedPluginMcpServers {
@@ -75,7 +85,7 @@ function resolveStdioCommand(
 ): { command: string } | { error: string } {
   if (command.startsWith("./") || command.startsWith(".\\")) {
     const target = resolve(root, command);
-    if (relativePathInside(root, target) === undefined) {
+    if (relativePolicyPath(root, target) === undefined) {
       return { error: `command '${command}' resolves outside the package boundary` };
     }
     return { command: target };
@@ -97,13 +107,13 @@ function resolveStdioCwd(
   const expanded = expandPlaceholders(cwd, root, data);
   // `${PLUGIN_DATA}` legitimately points outside the package, so it is the one
   // absolute working directory the spec permits.
-  if (expanded === data || relativePathInside(data, expanded) !== undefined) {
+  if (expanded === data || relativePolicyPath(data, expanded) !== undefined) {
     return { cwd: expanded };
   }
   const target = isAbsolute(expanded) ? resolve(expanded) : resolve(root, expanded);
   // The package root itself is inside the boundary; `relativePathInside` returns
   // an empty relative path for it, which is not a containment failure.
-  if (target !== resolve(root) && relativePathInside(root, target) === undefined) {
+  if (target !== resolve(root) && relativePolicyPath(root, target) === undefined) {
     return { error: `cwd '${cwd}' resolves outside the package boundary` };
   }
   return { cwd: target };
@@ -177,7 +187,17 @@ export function resolvePluginMcpServers(
 
   for (const plugin of plugins) {
     const state = installedPlugins[plugin.name];
-    if (!state?.enabled || plugin.mcpServers.length === 0) continue;
+    if (
+      !state?.enabled ||
+      plugin.mcpServers.length === 0 ||
+      !isPluginSupportedForProject(
+        plugin,
+        context.hostPlatform ?? process.platform,
+        context.projectLocation,
+      )
+    ) {
+      continue;
+    }
 
     const data = pluginDataDirectory(context.pluginDataRoot, plugin.name);
     let dataReady: boolean | undefined;

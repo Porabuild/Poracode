@@ -88,16 +88,18 @@ export function PluginMarketplace(props: {
           </h2>
           <div className="flex flex-wrap gap-2">
             {installed.map((entry) => (
-              <button
+              <Button
                 key={entry.plugin.name}
-                type="button"
+                isIconOnly
+                size="sm"
+                variant="tertiary"
                 aria-label={entry.name}
                 data-plugin-id={entry.plugin.name}
-                className="flex size-10 items-center justify-center rounded-xl border border-[var(--hairline)] bg-surface-secondary text-foreground hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
-                onClick={() => props.onOpen(entry.plugin.name)}
+                className="size-10 rounded-xl border border-[var(--hairline)] bg-surface-secondary p-0 text-foreground hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
+                onPress={() => props.onOpen(entry.plugin.name)}
               >
                 <PluginIcon pluginId={entry.plugin.name} />
-              </button>
+              </Button>
             ))}
           </div>
         </section>
@@ -174,15 +176,16 @@ function PluginCard(props: {
         </div>
         <Card.Header className="min-w-0 flex-1 gap-1 p-0">
           <Card.Title className="flex min-w-0 items-center gap-2 text-sm font-semibold">
-            <button
+            <Button
               id={titleId}
-              type="button"
+              size="sm"
+              variant="ghost"
               data-plugin-id={plugin.name}
-              className="truncate text-left hover:underline focus-visible:underline"
-              onClick={() => props.onOpen(plugin.name)}
+              className="min-w-0 truncate !p-0 text-left text-sm font-semibold hover:underline focus-visible:underline"
+              onPress={() => props.onOpen(plugin.name)}
             >
               {props.entry.name}
-            </button>
+            </Button>
             {plugin.source === "user" ? (
               <PluginTag>
                 <Trans>External</Trans>

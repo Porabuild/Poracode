@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import type { LoadedPlugin, McpServer } from "@/shared/contracts";
 import { DEFAULT_MCP_SERVER_TIMEOUT_MS } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -32,6 +33,7 @@ function toMcpServer(plugin: LoadedPlugin, serverName: string, url: string): Mcp
 }
 
 export function usePluginOauth(plugin: LoadedPlugin) {
+  const { t } = useLingui();
   const [authorizedUrls, setAuthorizedUrls] = useState<string[]>();
   const [pending, setPending] = useState<string>();
   const [error, setError] = useState<string>();
@@ -73,20 +75,20 @@ export function usePluginOauth(plugin: LoadedPlugin) {
         server: toMcpServer(plugin, serverName, url),
       });
       if (begin.status === "error") {
-        setError(begin.message);
+        setError(t`Could not sign in to ${serverName}.`);
         return;
       }
       if (begin.status === "redirect") {
-        await bridge.openExternal(begin.authorizationUrl);
+        await bridge.openExternalNative(begin.authorizationUrl);
         const result = await bridge.waitMcpServerOauth({ flowId: begin.flowId });
         if (result.status === "error") {
-          setError(result.message);
+          setError(t`Could not sign in to ${serverName}.`);
           return;
         }
       }
       await refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+    } catch {
+      setError(t`Could not sign in to ${serverName}.`);
     } finally {
       setPending(undefined);
     }
@@ -100,8 +102,8 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     try {
       await readBridge().clearMcpServerOauth({ url });
       await refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+    } catch {
+      setError(t`Could not sign out of ${serverName}.`);
     }
   };
 

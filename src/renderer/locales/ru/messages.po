@@ -2921,6 +2921,7 @@ msgstr "Ошибка подключения."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/state/remoteServersStore.ts
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Connection failed."
 msgstr "Не удалось подключиться."
 
@@ -3170,10 +3171,12 @@ msgid "Could not sign in to {serverName}: {message}"
 msgstr "Не удалось войти в {serverName}: {message}"
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
+#: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {serverName}."
 msgstr "Не удалось войти в {serverName}."
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
+#: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign out of {serverName}."
 msgstr "Не удалось выйти из {serverName}."
 
@@ -6085,6 +6088,7 @@ msgstr "Загрузка запусков рабочих процессов"
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
 msgstr "Загрузка…"
@@ -9442,6 +9446,7 @@ msgstr "Возобновить цель"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+#: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Retry"
 msgstr "Повторить"

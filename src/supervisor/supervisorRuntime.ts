@@ -425,17 +425,29 @@ export class SupervisorRuntime {
       },
       applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
       prepareMcpToolFilters,
-      resolvePluginMcpServers: () =>
+      resolvePluginMcpServers: (projectLocation) =>
         resolvePluginMcpServers(
           this.pluginRegistry.listPlugins(),
           this.sharedSettingsCache.readFresh().installedPlugins,
-          { pluginDataRoot: this.pluginDataDir },
+          {
+            pluginDataRoot: this.pluginDataDir,
+            hostPlatform: process.platform,
+            projectLocation,
+          },
         ).servers,
       prepareSkillsForLaunch: async (projectLocation, agentKind) => {
         try {
           await this.skillsService.prepareForLaunch(projectLocation, agentKind);
         } catch (error) {
           console.warn("[skills] failed to prepare provider skill projections:", error);
+        }
+      },
+      filterPluginSkillSegments: async (input) => {
+        try {
+          return await this.skillsService.filterPluginSkillSegments(input.segments, input);
+        } catch (error) {
+          console.warn("[skills] failed to apply plugin skill policy:", error);
+          return [...input.segments];
         }
       },
       buildSkillTurnInjection: async (input) => {
