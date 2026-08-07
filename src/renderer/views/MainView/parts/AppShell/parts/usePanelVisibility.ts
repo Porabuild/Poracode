@@ -1,24 +1,22 @@
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { useBottomDockedTabs } from "@/renderer/state/panelDockSelectors";
+import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { selectThreadTodoDockState } from "@/renderer/components/thread/threadTodoState";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
-export function usePanelVisibility() {
+/**
+ * Whether the dev terminal panel is currently shown to the user. An explicitly
+ * opened terminal shows regardless of the focused thread — the user asked for
+ * it. Once the follow lock re-scopes it (setPanelScope clears the marker),
+ * visibility depends on matching the focused thread's scope.
+ */
+export function useBottomTerminalVisible(): boolean {
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
   const devTerminalExplicitlyOpened = useDevTerminalStore((s) => s.explicitlyOpened);
-  const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
-  const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
-  const filesPanelContext = usePanelStore((s) => s.filesPanelContext);
-  const subAgentPanelContext = usePanelStore((s) => s.subAgentPanelContext);
-  const subAgentPanelOpen = usePanelStore((s) => s.subAgentPanelOpen);
-  const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
-  const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
-  const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
   const rightPanelFollowsThread = usePanelStore((s) => s.rightPanelFollowsThread);
-  const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const currentThreadId = useFocusedThreadId();
   const currentThreadScope = useAppStore((state) => {
     if (currentThreadId === null) return null;
@@ -37,6 +35,29 @@ export function usePanelVisibility() {
       )
     );
   });
+
+  return (
+    devTerminalOpen &&
+    (!rightPanelFollowsThread ||
+      devTerminalExplicitlyOpened ||
+      (currentThreadId !== null && activeTerminalScopeHasTabs))
+  );
+}
+
+export function usePanelVisibility() {
+  const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
+  const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
+  const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
+  const filesPanelContext = usePanelStore((s) => s.filesPanelContext);
+  const subAgentPanelContext = usePanelStore((s) => s.subAgentPanelContext);
+  const subAgentPanelOpen = usePanelStore((s) => s.subAgentPanelOpen);
+  const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
+  const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
+  const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const bottomDocks = useBottomDockedTabs();
+  const terminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const currentThreadId = useFocusedThreadId();
+  const bottomTerminalOpen = useBottomTerminalVisible();
   const todoDockPlacement = useThreadTodoDockStore((state) =>
     currentThreadId
       ? (state.byThreadId[currentThreadId]?.placement ?? state.defaultPlacement)
@@ -71,15 +92,10 @@ export function usePanelVisibility() {
     todoDockPlacement === "right" &&
     todoDockState !== null &&
     todoDockState.sourceItemId !== retiredTodoSourceItemId;
-  // An explicitly opened terminal shows regardless of the focused thread — the
-  // user asked for it. Once the follow lock re-scopes it (setPanelScope clears
-  // the marker), visibility depends on matching the focused thread's scope.
-  const bottomTerminalOpen =
-    devTerminalOpen &&
-    (!rightPanelFollowsThread ||
-      devTerminalExplicitlyOpened ||
-      (currentThreadId !== null && activeTerminalScopeHasTabs));
 
+  // Docked panels keep the bottom row open on their own, so a dropped Usage or
+  // Git stays on screen after the terminal is closed.
+  const hasBottomDocks = bottomDocks.left !== null || bottomDocks.right !== null;
   const rightPanelOpen = isTerminalRight
     ? devTerminalOpen ||
       gitPanelOpen ||
@@ -89,16 +105,19 @@ export function usePanelVisibility() {
       browserPanelOpen ||
       usagePanelOpen ||
       notesPanelOpen
-    : bottomTerminalOpen;
+    : bottomTerminalOpen || hasBottomDocks;
+  // A bottom-docked tab must not keep the right aside open on its own — it is
+  // already rendered in the bottom row.
+  const isDocked = (tab: RightPanelTab) => bottomDocks.left === tab || bottomDocks.right === tab;
   const sideGitPanelOpen =
     !isTerminalRight &&
-    (gitPanelOpen ||
-      filesPanelOpen ||
+    ((gitPanelOpen && !isDocked("git")) ||
+      (filesPanelOpen && !isDocked("files")) ||
       planPanelOpen ||
       scopedSubAgentPanelOpen ||
-      browserPanelOpen ||
-      usagePanelOpen ||
-      notesPanelOpen);
+      (browserPanelOpen && !isDocked("browser")) ||
+      (usagePanelOpen && !isDocked("usage")) ||
+      (notesPanelOpen && !isDocked("notes")));
   const sidePanelOpen = isTerminalRight ? rightPanelOpen : sideGitPanelOpen;
 
   return { rightPanelOpen, gitPanelOpen: sideGitPanelOpen, sidePanelOpen };

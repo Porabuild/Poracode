@@ -1,4 +1,5 @@
 import { type Thread, type ThreadStatus, isThreadTurnActive } from "@/shared/contracts";
+import { isVisibleRuntimeItem } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
 import type { CompletedTurnRecord } from "./runtimeEventSlice";
 import type { AppStoreState } from "./shared";
 
@@ -72,7 +73,12 @@ function resolveCompletedTurnAnchorItemId(state: AppStoreState, threadId: string
     // A short startup status blip can close before the provider emits any
     // assistant/tool output. Anchoring that synthetic window to the optimistic
     // user_message makes chat show a stale "Worked for 1s" under the prompt.
-    if (item.type === "user_message" || item.type === "plan" || item.type === "error") continue;
+    if (item.type === "user_message") continue;
+    // Items that chat filters out (goals/plans, errors, empty assistant
+    // boundaries, unnamed tool calls, sub-agent children) have no row to hang
+    // the indicator on. ACP turns routinely end on a goal update, so anchoring
+    // there would drop the turn's "Worked for X" line entirely.
+    if (item.parentItemId !== undefined || !isVisibleRuntimeItem(item)) continue;
     return itemId;
   }
 

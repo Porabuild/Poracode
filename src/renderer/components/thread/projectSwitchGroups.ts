@@ -13,12 +13,29 @@ export interface ProjectSwitchEntry {
 }
 
 export interface ProjectSwitchGroups {
-  /** Active-workspace projects first, then the rest — the flat fallback order. */
+  /**
+   * Home first (while the Home scope setting is on), then local projects,
+   * then projects mirrored from a remote server — the flat fallback order.
+   */
   all: readonly ProjectSwitchEntry[];
   inWorkspace: readonly ProjectSwitchEntry[];
   /** Projects filed to another workspace; picking one switches the workspace. */
   others: readonly ProjectSwitchEntry[];
   activeWorkspaceName: string | undefined;
+}
+
+/**
+ * Preferred selector order: the Home scope first, then local projects, then
+ * remote-mirrored ones. Store order alone would scatter newly added remote
+ * mirrors between local projects. Stable, so projects keep their store order
+ * within each bucket.
+ */
+function compareSelectorOrder(a: Project, b: Project): number {
+  const rank = (project: Project) => {
+    if (isHomeProject(project)) return 0;
+    return project.remoteServerId ? 2 : 1;
+  };
+  return rank(a) - rank(b);
 }
 
 /**
@@ -31,12 +48,16 @@ export interface ProjectSwitchGroups {
 export function useProjectSwitchGroups(): ProjectSwitchGroups {
   const isInWorkspace = useWorkspaceProjectFilter();
   const workspaces = useSharedSettings((state) => state.workspaces);
+  const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const activeWorkspaceId = useActiveWorkspaceId();
   // Home is persisted with `disabled: true` as an internal marker (it is not a
-  // user-disabled project), so it has to survive the disabled filter.
+  // user-disabled project), so it has to survive the disabled filter — but it
+  // is only offered while the Home scope setting is on.
   const projects = useAppStore(
     useShallow((state) =>
-      state.projects.filter((project) => isHomeProject(project) || !project.disabled),
+      state.projects
+        .filter((project) => (isHomeProject(project) ? homeScopeEnabled : !project.disabled))
+        .sort(compareSelectorOrder),
     ),
   );
 

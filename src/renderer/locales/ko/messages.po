@@ -1744,7 +1744,7 @@ msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세�
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2466,6 +2466,7 @@ msgstr "스캐너 닫기"
 msgid "Close search"
 msgstr "검색 닫기"
 
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
 msgstr "분할 닫기"
@@ -2563,6 +2564,10 @@ msgstr "오류 접기"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #~ msgid "Collapse experiment"
 #~ msgstr "실험 접기"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Collapse footer"
+msgstr "바닥글 접기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
@@ -3930,6 +3935,14 @@ msgstr "표시 이름(선택 사항)"
 msgid "Display name in the sidebar."
 msgstr "사이드바에 이름을 표시합니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock left"
+msgstr "왼쪽에 고정"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock right"
+msgstr "오른쪽에 고정"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Docs"
 msgstr "문서"
@@ -3970,7 +3983,7 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "“{0}”에 다운로드 중입니다. 대규모 리포지토리의 경우 시간이 걸릴 수 있습니다."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
 msgstr "업데이트 다운로드 중"
@@ -4011,6 +4024,10 @@ msgstr "드라이브"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
 msgstr "첨부하려면 여기에 드롭하세요."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+#~ msgid "Drop left or right to dock at the bottom"
+#~ msgstr "왼쪽 또는 오른쪽에 놓아 아래에 고정"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4376,6 +4393,10 @@ msgstr "확장 오류"
 #~ msgid "Expand experiment"
 #~ msgstr "실험 펼치기"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Expand footer"
+msgstr "바닥글 펼치기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
@@ -4635,7 +4656,7 @@ msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
 msgstr "파일"
@@ -4990,7 +5011,7 @@ msgstr "작업 가져오기"
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
@@ -5029,9 +5050,9 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "{0}에 대한 Git 상태: Git 저장소가 아닙니다."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
@@ -5247,7 +5268,7 @@ msgstr "런타임 디버그 패널 숨기기"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5601,7 +5622,7 @@ msgid "Install the package to add its API key."
 msgstr "패키지를 설치한 후 API 키를 추가하세요."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "업데이트 설치"
@@ -5611,7 +5632,7 @@ msgstr "업데이트 설치"
 msgid "Install v{0}"
 msgstr "v{0} 설치"
 
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 msgid "Install v{updateVersion}"
 msgstr "v{updateVersion} 설치"
 
@@ -6534,6 +6555,7 @@ msgid "Modes"
 msgstr "모드"
 
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "많음"
@@ -6621,6 +6643,10 @@ msgstr "브라우저를 창으로 이동"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "변경 사항을 새 작업 트리로 이동"
+
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
+msgid "Move panel"
+msgstr "패널 이동"
 
 #: src/mobile/ThreadTitleRow.tsx
 msgid "Move to clean worktree"
@@ -7398,7 +7424,7 @@ msgid "Not synced"
 msgstr "동기화되지 않음"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Notes"
@@ -7437,7 +7463,7 @@ msgid "off"
 msgstr "꺼짐"
 
 #: src/renderer/components/git/PrAutomationSlider.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "꺼짐"
@@ -7493,7 +7519,7 @@ msgid "One time"
 msgstr "한 번"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "온라인"
@@ -8124,7 +8150,7 @@ msgid "Pinned task routes"
 msgstr "고정된 작업 경로"
 
 #: src/mobile/ComposerInfoChips.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -8240,7 +8266,7 @@ msgstr "포트 포워딩이 활성화되지 않았습니다"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 msgid "Ports"
 msgstr "포트"
 
@@ -8591,7 +8617,7 @@ msgstr "Pull request가 병합되었습니다"
 msgid "Pull request options"
 msgstr "풀 요청 옵션"
 
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
@@ -8858,6 +8884,8 @@ msgstr "원격"
 msgid "Remote access"
 msgstr "원격 액세스"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9227,7 +9255,9 @@ msgstr "실행 세부 정보 크기 조절"
 msgid "Resize sidebar"
 msgstr "사이드바 크기 조정"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/TerminalSurfaces.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomPanelDockContainer.tsx
 msgid "Resize split"
 msgstr "분할 크기 조정"
 
@@ -9681,7 +9711,7 @@ msgstr "이 데스크톱의 예약 작업"
 #~ msgstr "예약 작업은 이 기기가 켜져 있고 Poracode가 열려 있을 때만 실행됩니다."
 
 #: src/mobile/settingsSections.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "일정"
@@ -10019,6 +10049,7 @@ msgstr "이 세션 시작 시 확정됨 — 서버를 변경하려면 새 스레
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -10619,7 +10650,7 @@ msgstr "{targetLabel} 스레드를 시작했습니다."
 
 #. Button label while the microphone test is starting
 #: src/mobile/remoteConnectionState.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
@@ -10740,7 +10771,7 @@ msgid "Structured runtime"
 msgstr "구조화 런타임"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "하위 에이전트"
@@ -11010,7 +11041,7 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12234,7 +12265,7 @@ msgstr "URL을 입력해야 합니다."
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx

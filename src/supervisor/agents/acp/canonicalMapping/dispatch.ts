@@ -100,11 +100,14 @@ export function mapAcpSessionUpdate(
         events.push(...closeAllOpenContentItems(state));
       }
       const content = (update as { content?: ContentBlock }).content;
-      // Some ACP agents emit an empty text chunk after every tool call. It is
-      // only a stream boundary, not an assistant message; opening an item for
-      // it leaves a completed blank row between the tool and the next thought.
-      if (content?.type === "text" && content.text.length === 0) {
-        break;
+      // Some ACP agents emit a blank text chunk after every tool call — empty
+      // for most, newline-only for Factory Droid on DeepSeek models. It is only
+      // a stream boundary, not an assistant message; opening an item for it
+      // leaves a completed blank row between the tool and the next thought.
+      if (content?.type === "text" && content.text.trim().length === 0) {
+        // A zero-length chunk is always a no-op. Whitespace is real spacing
+        // only once an assistant message is already streaming.
+        if (content.text.length === 0 || !contentState.openAssistantItemId) break;
       }
       // Gemini echoes `[MODE_UPDATE] <mode>` as an agent text chunk whenever the
       // session is launched (or switched) into a specific approval mode. The

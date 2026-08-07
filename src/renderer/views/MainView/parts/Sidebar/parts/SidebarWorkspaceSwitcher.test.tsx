@@ -67,4 +67,32 @@ describe("SidebarWorkspaceSwitcher", () => {
     expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("client");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
+
+  describe("iconOnly", () => {
+    it("switches directly to the other workspace when there are exactly two", () => {
+      render(<SidebarWorkspaceSwitcher iconOnly />);
+
+      // Icon mode drops the visible workspace name; the aria-label stays.
+      expect(screen.queryByText("Work")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Switch workspace" }));
+      expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("side");
+
+      fireEvent.click(screen.getByRole("button", { name: "Switch workspace" }));
+      expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("work");
+    });
+
+    it("opens the workspace picker when there are more than two", async () => {
+      useSharedSettings.setState((state) => ({
+        workspaces: [...state.workspaces, workspace("client", "Client", "palette")],
+      }));
+
+      render(<SidebarWorkspaceSwitcher iconOnly />);
+      fireEvent.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+      expect(await screen.findByRole("menu")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("menuitemradio", { name: "Client" }));
+      expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("client");
+    });
+  });
 });

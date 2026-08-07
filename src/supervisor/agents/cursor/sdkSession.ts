@@ -9,6 +9,7 @@ import type {
   ThreadConfig,
   ThreadStatus,
 } from "@/shared/contracts";
+import { toWslUncPath } from "@/shared/wsl";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
@@ -20,6 +21,8 @@ import {
   type ThreadHistory,
 } from "../base";
 import { resolveSessionCwd } from "../acp/sessionPaths";
+import { resolveWslHomeDirectoryAsync } from "../base/processRuntime";
+import { createContextUsageEvent } from "../contextUsage";
 import { buildCursorSdkMcpServers } from "../userMcp";
 import {
   closeCursorSdkOpenItems,
@@ -30,6 +33,7 @@ import {
   startCursorSdkTurn,
   type CursorSdkMapperState,
 } from "./sdkCanonicalMapping";
+import { readCursorSdkContextUsage } from "./sdkContextUsage";
 import {
   buildCursorSdkModelSelection,
   type CursorSdkModel,
@@ -239,6 +243,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
   private closeReported = false;
   private activated = false;
   private disposed = false;
+  private contextUsageRefreshGeneration = 0;
 
   private get apiKey(): string | undefined {
     // The shared GUI session factory normally leaves `input.env` absent and
@@ -375,6 +380,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       config,
       sessionRef: this.stableSessionRef,
     });
+    void this.refreshContextUsage();
     return prefixedId;
   }
 
@@ -800,6 +806,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
     } else {
       this.emitUpdate({ status: "idle", attention: "none" });
     }
+    void this.refreshContextUsage();
     turn.resolveCompletion();
   }
 
@@ -890,6 +897,45 @@ export class CursorSdkSession implements StructuredSessionHandle {
       return;
     }
     for (const event of events) this.listener.onRuntimeEvent(event);
+  }
+
+  /**
+   * The public SDK only reports billed per-turn spend; the context-window
+   * occupancy the Cursor app displays is read best-effort from the SDK's
+   * private checkpoint store. Failures leave context usage unavailable.
+   */
+  private async refreshContextUsage(): Promise<void> {
+    const agentId = this.sessionId;
+    if (!agentId || this.disposed) return;
+    const generation = ++this.contextUsageRefreshGeneration;
+    const cwd = resolveSessionCwd(this.input.projectLocation);
+    try {
+      const projectLocation = this.input.projectLocation;
+      const wslDistro = projectLocation.kind === "wsl" ? projectLocation.distro : undefined;
+      const wslHome = wslDistro ? await resolveWslHomeDirectoryAsync(wslDistro) : undefined;
+      if (wslDistro && !wslHome) return;
+      const usage = await readCursorSdkContextUsage({
+        cwd,
+        agentId,
+        ...(wslDistro && wslHome ? { homeDir: toWslUncPath(wslDistro, wslHome) } : {}),
+      });
+      if (
+        !usage ||
+        this.disposed ||
+        this.sessionId !== agentId ||
+        generation !== this.contextUsageRefreshGeneration
+      ) {
+        return;
+      }
+      const event = createContextUsageEvent(this.input.threadId, {
+        usedTokens: usage.usedTokens,
+        ...(usage.maxTokens !== undefined ? { maxTokens: usage.maxTokens } : {}),
+        ...(usage.categories.length > 0 ? { breakdown: usage.categories } : {}),
+      });
+      if (event) this.emitRuntimeEvents([event]);
+    } catch {
+      // Context usage is supplemental; the public per-turn spend stream remains authoritative.
+    }
   }
 
   private requireWorker(): CursorSdkWorkerHandle {

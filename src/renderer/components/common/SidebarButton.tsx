@@ -19,6 +19,20 @@ export function sidebarRowClass(
   } text-left ${sizeClass} text-muted outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:focus-ring`;
 }
 
+/**
+ * The icon-only `SidebarButton` box, exported for trigger elements that must
+ * own their own element (menu triggers like the workspace switcher or an
+ * overflow kebab) and therefore can't be a `SidebarButton` themselves.
+ * `isActive` mirrors the `SidebarButton` active treatment so an overflow
+ * trigger can still show that the current destination lives behind it.
+ */
+export function sidebarIconButtonClass(options: { isActive?: boolean } = {}): string {
+  const stateClass = options.isActive
+    ? "bg-[var(--row-active)] text-foreground"
+    : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground";
+  return `flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-3xl outline-none transition-colors focus-visible:focus-ring ${stateClass}`;
+}
+
 export function SidebarButton(props: {
   ref?: React.Ref<HTMLDivElement>;
   icon: React.ReactNode;
@@ -42,6 +56,12 @@ export function SidebarButton(props: {
    */
   statusTone?: StatusTone;
   tooltip?: React.ReactNode;
+  /**
+   * Icon-only tooltip placement. Defaults to "right" for the vertical icon
+   * rail; bottom icon rows (e.g. the collapsed footer nav) pass "top" so the
+   * tooltip opens over the sidebar instead of covering neighbouring icons.
+   */
+  tooltipPlacement?: "right" | "top";
   suffix?: React.ReactNode;
   className?: string;
   onDoubleClick?: () => void;
@@ -63,6 +83,7 @@ export function SidebarButton(props: {
     density = "default",
     statusTone,
     tooltip,
+    tooltipPlacement = "right",
     suffix,
     className,
     onDoubleClick,
@@ -114,7 +135,11 @@ export function SidebarButton(props: {
             {icon}
           </button>
         </Tooltip.Trigger>
-        <Tooltip.Content placement="right">{tooltipContent}</Tooltip.Content>
+        {/* pointer-events-none: hovering the tooltip itself is a no-op, so it
+            can't block the neighbouring icons it overlaps. */}
+        <Tooltip.Content placement={tooltipPlacement} className="pointer-events-none">
+          {tooltipContent}
+        </Tooltip.Content>
       </Tooltip>
     );
   }

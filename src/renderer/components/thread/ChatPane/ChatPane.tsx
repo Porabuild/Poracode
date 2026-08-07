@@ -33,7 +33,11 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
 import { ChatTurnElapsedFooter, type TurnTiming } from "./ChatTurnElapsed";
-import { selectVisibleThreadTimelineEntries, type ChatTimelineEntry } from "./chatPaneSelectors";
+import {
+  selectMostRecentDisplayableCompletedTurn,
+  selectVisibleThreadTimelineEntries,
+  type ChatTimelineEntry,
+} from "./chatPaneSelectors";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { normalizeChatProjectPath } from "./chatPathUtils";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
@@ -297,7 +301,7 @@ export function ChatPane(props: ChatPaneProps) {
   // turn.
   const turn = resolveTurnTiming(thread, showWorkingTimer);
   const mostRecentDisplayableCompletedTurn = useAppStore((s) =>
-    selectMostRecentDisplayableCompletedTurn(s.runtimeCompletedTurnsByThread[threadId]),
+    selectMostRecentDisplayableCompletedTurn(s, threadId),
   );
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
   const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
@@ -475,11 +479,6 @@ export function ChatPane(props: ChatPaneProps) {
   );
 }
 
-interface CompletedTurnTiming extends TurnTiming {
-  anchorItemId: string | null;
-  endedAt: number;
-}
-
 function parseTurnTimestamp(iso: string | undefined): number | null {
   if (!iso) return null;
   const ms = new Date(iso).getTime();
@@ -514,17 +513,6 @@ function resolveTurnTiming(thread: Thread, forceLive = false): TurnTiming | null
     startedAt,
     endedAt: Math.max(startedAt, endedAt),
   };
-}
-
-function selectMostRecentDisplayableCompletedTurn(
-  records: readonly CompletedTurnTiming[] | undefined,
-): CompletedTurnTiming | null {
-  if (!records) return null;
-  for (let index = records.length - 1; index >= 0; index -= 1) {
-    const record = records[index]!;
-    if (record.endedAt - record.startedAt >= 1000) return record;
-  }
-  return null;
 }
 
 function isScrollNavigationKey(key: string): boolean {

@@ -1744,7 +1744,7 @@ msgstr "Przeglądaj swoje repozytoria GitHub lub wklej adres URL do klonowania."
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2466,6 +2466,7 @@ msgstr "Zamknij skaner"
 msgid "Close search"
 msgstr "Zamknij wyszukiwanie"
 
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
 msgstr "Zamknij podział"
@@ -2563,6 +2564,10 @@ msgstr "Zwiń błąd"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #~ msgid "Collapse experiment"
 #~ msgstr "Zwiń eksperyment"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Collapse footer"
+msgstr "Zwiń stopkę"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
@@ -3930,6 +3935,14 @@ msgstr "Nazwa wyświetlana (opcjonalnie)"
 msgid "Display name in the sidebar."
 msgstr "Nazwa wyświetlana na pasku bocznym."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock left"
+msgstr "Zadokuj po lewej"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock right"
+msgstr "Zadokuj po prawej"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Docs"
 msgstr "Dokumentacja"
@@ -3970,7 +3983,7 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Pobieranie do „{0}”. W przypadku dużych repozytoriów może to chwilę potrwać."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
 msgstr "Pobieranie aktualizacji"
@@ -4011,6 +4024,10 @@ msgstr "Dyski"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
 msgstr "Upuść tutaj, aby dołączyć"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+#~ msgid "Drop left or right to dock at the bottom"
+#~ msgstr "Upuść po lewej lub prawej, aby zadokować na dole"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4376,6 +4393,10 @@ msgstr "Rozwiń błąd"
 #~ msgid "Expand experiment"
 #~ msgstr "Rozwiń eksperyment"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Expand footer"
+msgstr "Rozwiń stopkę"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
@@ -4635,7 +4656,7 @@ msgstr "Plik używa nieobsługiwanego kodowania."
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
 msgstr "Pliki"
@@ -4990,7 +5011,7 @@ msgstr "Pobierz zadanie"
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
@@ -5029,9 +5050,9 @@ msgid "Git status for {0}: not a Git repository"
 msgstr "Status Git dla {0}: to nie jest repozytorium Git"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
@@ -5247,7 +5268,7 @@ msgstr "Ukryj panel debugowania środowiska wykonawczego"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5601,7 +5622,7 @@ msgid "Install the package to add its API key."
 msgstr "Zainstaluj pakiet, aby dodać jego klucz API."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "Zainstaluj aktualizację"
@@ -5611,7 +5632,7 @@ msgstr "Zainstaluj aktualizację"
 msgid "Install v{0}"
 msgstr "Zainstaluj v{0}"
 
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 msgid "Install v{updateVersion}"
 msgstr "Zainstaluj v{updateVersion}"
 
@@ -6534,6 +6555,7 @@ msgid "Modes"
 msgstr "Tryby"
 
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Więcej"
@@ -6621,6 +6643,10 @@ msgstr "Przenieś przeglądarkę do okna"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "Przenieś zmiany do nowego drzewa roboczego"
+
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
+msgid "Move panel"
+msgstr "Przenieś panel"
 
 #: src/mobile/ThreadTitleRow.tsx
 msgid "Move to clean worktree"
@@ -7398,7 +7424,7 @@ msgid "Not synced"
 msgstr "Niezsynchronizowany"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Notes"
@@ -7437,7 +7463,7 @@ msgid "off"
 msgstr "wyłączone"
 
 #: src/renderer/components/git/PrAutomationSlider.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "Wył."
@@ -7493,7 +7519,7 @@ msgid "One time"
 msgstr "Jednorazowo"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Online"
@@ -8124,7 +8150,7 @@ msgid "Pinned task routes"
 msgstr "Przypięte trasy zadań"
 
 #: src/mobile/ComposerInfoChips.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -8240,7 +8266,7 @@ msgstr "Przekierowywanie portów nie jest włączone"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 msgid "Ports"
 msgstr "Porty"
 
@@ -8591,7 +8617,7 @@ msgstr "Żądanie ściągnięcia scalone"
 msgid "Pull request options"
 msgstr "Opcje żądania ściągnięcia"
 
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
@@ -8858,6 +8884,8 @@ msgstr "Zdalny"
 msgid "Remote access"
 msgstr "Dostęp zdalny"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9227,7 +9255,9 @@ msgstr "Zmień rozmiar szczegółów uruchomienia"
 msgid "Resize sidebar"
 msgstr "Zmień rozmiar paska bocznego"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/TerminalSurfaces.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomPanelDockContainer.tsx
 msgid "Resize split"
 msgstr "Zmień rozmiar podziału"
 
@@ -9681,7 +9711,7 @@ msgstr "Zaplanowane zadania na tym komputerze"
 #~ msgstr "Zaplanowane zadania są uruchamiane tylko wtedy, gdy urządzenie jest aktywne, a Poracode jest otwarty."
 
 #: src/mobile/settingsSections.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "Harmonogramy"
@@ -10019,6 +10049,7 @@ msgstr "Ustalone przy starcie tej sesji — aby zmienić serwery, rozpocznij now
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -10619,7 +10650,7 @@ msgstr "Rozpoczęto wątek {targetLabel}"
 
 #. Button label while the microphone test is starting
 #: src/mobile/remoteConnectionState.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
@@ -10740,7 +10771,7 @@ msgid "Structured runtime"
 msgstr "Środowisko strukturalne"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "Subagent"
@@ -11010,7 +11041,7 @@ msgstr "Powiedz dostawcy docelowemu, co ma dalej robić..."
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12234,7 +12265,7 @@ msgstr "Adres URL jest wymagany."
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
