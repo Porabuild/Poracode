@@ -37,6 +37,7 @@ import {
 } from "@/renderer/hooks/uiSelectors";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -190,7 +191,9 @@ export function Sidebar() {
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
-  const browserVisible = usePanelStore((s) => s.browserPanelOpen && s.rightPanelTab === "browser");
+  const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
+  const browserOnScreen = useIsPanelTabVisible("browser");
+  const browserVisible = browserPanelOpen && browserOnScreen;
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
