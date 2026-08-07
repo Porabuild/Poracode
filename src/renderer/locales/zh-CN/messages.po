@@ -12536,9 +12536,8 @@ msgstr "正在预热 WSL shell 环境..."
 msgid "We have a winner!"
 msgstr "优胜者诞生了！"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "网页搜索"
 

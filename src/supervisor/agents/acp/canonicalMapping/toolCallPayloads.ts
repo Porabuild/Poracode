@@ -125,6 +125,7 @@ export function buildAcpToolCallUpdatePayload(
   toolCall: {
     title?: string | null;
     kind?: string | null;
+    rawInput?: unknown;
     rawOutput?: unknown;
     content?: unknown;
     locations?: Array<{ path?: string | null; line?: number | null }> | null;
@@ -196,6 +197,13 @@ export function buildAcpToolCallUpdatePayload(
       payload.editOldText = primary.oldText;
       payload.editNewText = primary.newText;
     }
+  }
+  if (item.itemType === "web_search") {
+    // Servers that run the search remotely (Grok) only learn the query once the
+    // results come back, so a later `rawInput.query` / `title` has to replace
+    // the placeholder query captured when the call opened.
+    const query = readStringField(toolCall.rawInput, "query") ?? title;
+    if (query) payload.query = query;
   }
   return payload;
 }

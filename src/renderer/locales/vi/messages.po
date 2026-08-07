@@ -12537,9 +12537,8 @@ msgstr "Đang khởi động môi trường shell WSL…"
 msgid "We have a winner!"
 msgstr "Chúng ta đã có ứng viên thắng!"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "Tìm kiếm trên web"
 
