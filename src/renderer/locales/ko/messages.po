@@ -12568,9 +12568,8 @@ msgstr "WSL 셸 환경 준비 중…"
 msgid "We have a winner!"
 msgstr "우승자가 결정되었습니다!"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "웹 검색"
 

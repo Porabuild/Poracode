@@ -12568,9 +12568,8 @@ msgstr "Підготовка середовища оболонки WSL…"
 msgid "We have a winner!"
 msgstr "У нас є переможець!"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "Веб-пошук"
 

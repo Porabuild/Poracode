@@ -12566,9 +12566,8 @@ msgstr "WSL シェル環境をウォームアップしています…"
 msgid "We have a winner!"
 msgstr "勝者が決まりました！"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "ウェブ検索"
 
