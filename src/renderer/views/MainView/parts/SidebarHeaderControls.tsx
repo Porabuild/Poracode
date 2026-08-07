@@ -1,6 +1,7 @@
 import { FolderPlus, Globe, Search } from "lucide-react";
 import { Button, Dropdown, Label, Separator, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { toggleBrowserPanel } from "@/renderer/actions/panelActions";
 import {
@@ -19,8 +20,8 @@ export function SidebarHeaderControls() {
   const threadSortMode = usePanelStore((s) => s.threadSortMode);
   const threadListLayout = usePanelStore((s) => s.threadListLayout);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
-  const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
-  const browserVisible = browserPanelOpen && rightPanelTab === "browser";
+  const browserOnScreen = useIsPanelTabVisible("browser");
+  const browserVisible = browserPanelOpen && browserOnScreen;
 
   return (
     <div className="poracode-overlay-header__controls flex items-center gap-1.5">
