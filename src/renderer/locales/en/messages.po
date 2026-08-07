@@ -1724,6 +1724,8 @@ msgstr "Bring back to panel"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Bring it back into this panel, or jump to the window it’s running in."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "Bring Uncommitted Changes"
@@ -2228,6 +2230,8 @@ msgstr "Claude profile name"
 msgid "Claude profile removed."
 msgstr "Claude profile removed."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "Clean Worktree"
@@ -3156,6 +3160,10 @@ msgstr "Couldn't load the skill."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Couldn't load your profile stats."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't move the thread to a worktree."
+msgstr "Couldn't move the thread to a worktree."
 
 #: src/mobile/routeComponents.tsx
 msgid "Couldn't reach the desktop from this HTTPS page."
@@ -6619,13 +6627,23 @@ msgstr "Move browser to window"
 msgid "Move changes to a new worktree"
 msgstr "Move changes to a new worktree"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to clean worktree"
+msgstr "Move to clean worktree"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Move to Workspace"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "Move to Worktree"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to worktree with changes"
+msgstr "Move to worktree with changes"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "Move to Worktree…"
@@ -12446,6 +12464,7 @@ msgstr "Wait for every candidate to finish before merging a winner."
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Wait for every candidate to finish before opening a pull request."
 
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Wait for the thread to finish starting before moving it to a worktree."

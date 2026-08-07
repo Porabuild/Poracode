@@ -16,6 +16,7 @@ import {
   reopenPaneThreadsIfInactive,
   reopenStoredThread,
   setThreadRuntimeReopenEnabled,
+  setThreadWorktree,
   switchToAdjacentThread,
   toggleMarkThreadDone,
   toggleStarThread,
@@ -542,6 +543,37 @@ describe("threadActions", () => {
 
     resolveCommand();
     await waitFor(() => expect(useAppStore.getState().threads[0]?.archived).toBe(true));
+  });
+
+  it("tags a local thread with worktree metadata in the store", async () => {
+    const thread = makeThread();
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    await setThreadWorktree(thread.id, "/repo/wt", "feature/x", { isNewWorktree: true });
+
+    expect(sendThreadCommand).not.toHaveBeenCalled();
+    expect(useAppStore.getState().threads[0]?.worktreePath).toBe("/repo/wt");
+    expect(useAppStore.getState().threads[0]?.worktreeBranch).toBe("feature/x");
+  });
+
+  it("routes set-worktree through the host for remote threads before mirroring locally", async () => {
+    const thread = makeThread({
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    await setThreadWorktree(thread.id, "/repo/wt", "feature/x", { isNewWorktree: true });
+
+    expect(sendThreadCommand).toHaveBeenCalledWith("remote-server", {
+      kind: "set-worktree",
+      threadId: "remote-thread",
+      worktreePath: "/repo/wt",
+      worktreeBranch: "feature/x",
+      isNewWorktree: true,
+    });
+    expect(useAppStore.getState().threads[0]?.worktreePath).toBe("/repo/wt");
+    expect(useAppStore.getState().threads[0]?.worktreeBranch).toBe("feature/x");
   });
 
   it("unloads a remote thread through the central bridge before refreshing its host", async () => {

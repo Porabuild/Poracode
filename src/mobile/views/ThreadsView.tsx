@@ -587,6 +587,7 @@ export function ThreadsView(props: ThreadsViewProps) {
         onThreadAction={props.onThreadAction}
         onNewThreadInWorktree={props.onNewThreadInWorktree}
         onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
+        onMoveThreadToWorktree={props.onMoveThreadToWorktree}
         onOpenTerminal={props.onOpenTerminal}
         onRunProjectAction={props.onRunProjectAction}
       >
@@ -669,6 +670,7 @@ export function ThreadsView(props: ThreadsViewProps) {
           onAction={(action) => props.onThreadAction(menuThread, action)}
           onNewThreadInWorktree={props.onNewThreadInWorktree}
           onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
+          onMoveThreadToWorktree={props.onMoveThreadToWorktree}
           onOpenTerminal={props.onOpenTerminal}
           onRunProjectAction={props.onRunProjectAction}
           onClose={threadMenu.close}

@@ -1719,6 +1719,8 @@ msgstr "Вернуть на панель"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Верните его на эту панель или перейдите к окну, в котором он запущен."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "Перенести незакоммиченные изменения"
@@ -2223,6 +2225,8 @@ msgstr "Имя профиля Claude"
 msgid "Claude profile removed."
 msgstr "Профиль Claude удалён."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "Чистый worktree"
@@ -3151,6 +3155,10 @@ msgstr "Не удалось загрузить навык."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Не удалось загрузить статистику профиля."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't move the thread to a worktree."
+msgstr "Не удалось переместить тред в worktree."
 
 #: src/mobile/routeComponents.tsx
 msgid "Couldn't reach the desktop from this HTTPS page."
@@ -6614,13 +6622,23 @@ msgstr "Переместить браузер в окно"
 msgid "Move changes to a new worktree"
 msgstr "Переместить изменения в новый worktree"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to clean worktree"
+msgstr "Переместить в чистый worktree"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Переместить в рабочую область"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "Переместить в worktree"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to worktree with changes"
+msgstr "Переместить в worktree с изменениями"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "Move to Worktree…"
@@ -12441,6 +12459,7 @@ msgstr "Дождитесь завершения работы всех канди
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Дождитесь завершения работы всех кандидатов перед созданием pull request."
 
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Дождитесь завершения запуска треда, прежде чем перемещать его в worktree."
