@@ -6,7 +6,13 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { isTabBottomDocked } from "@/renderer/state/panelDockSelectors";
+import {
+  DOCKABLE_PANEL_TABS,
+  usePanelStore,
+  type PanelDockTarget,
+  type RightPanelTab,
+} from "@/renderer/state/panelStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -17,6 +23,7 @@ import {
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
 import { resolveActivePaneId } from "./currentProject";
+import { showTerminalPanel } from "./terminalActions";
 
 function panelContextMatchesThread(
   projectId: string,
@@ -102,20 +109,32 @@ export function openWorkspaceSettings(): void {
 /** Open the docked usage panel, or close all right-side panels if it is already active. */
 export function openUsagePanel(): void {
   const panelStore = usePanelStore.getState();
-  if (panelStore.usagePanelOpen && panelStore.rightPanelTab === "usage") {
+  // A docked Usage is not what the right panel is showing, so closing it here
+  // would be a no-op the user can see; bring it back instead.
+  if (
+    panelStore.usagePanelOpen &&
+    panelStore.rightPanelTab === "usage" &&
+    !isTabBottomDocked("usage")
+  ) {
     closeAllPanels();
     return;
   }
+  undockPanelTab("usage");
   panelStore.openUsagePanel();
 }
 
 /** Open the docked notes panel, or close all right-side panels if it is already active. */
 export function openNotesPanel(): void {
   const panelStore = usePanelStore.getState();
-  if (panelStore.notesPanelOpen && panelStore.rightPanelTab === "notes") {
+  if (
+    panelStore.notesPanelOpen &&
+    panelStore.rightPanelTab === "notes" &&
+    !isTabBottomDocked("notes")
+  ) {
     closeAllPanels();
     return;
   }
+  undockPanelTab("notes");
   panelStore.openNotesPanel();
 }
 
@@ -130,6 +149,7 @@ export function toggleBrowserPanel(): void {
   if (panelStore.browserPanelOpen && panelStore.rightPanelTab === "browser") {
     panelStore.setBrowserPanelOpen(false);
   } else {
+    undockPanelTab("browser");
     panelStore.setBrowserPanelOpen(true);
     panelStore.setRightPanelTab("browser");
   }
@@ -162,6 +182,12 @@ export function closeAllPanels(): void {
       resolveActivePaneId(appState.view.panes, appState.focusedPaneId),
       "composer",
     );
+  }
+  // Bottom docks survive this (they are their own surface), but only while
+  // there is a bottom row to hold them — drop stale slots first so they cannot
+  // pin a panel's open flag from a row that no longer renders.
+  if (useSharedSettings.getState().terminalPosition !== "bottom") {
+    usePanelStore.getState().clearBottomPanelDocks();
   }
   usePanelStore.getState().closeAllPanels();
 }
@@ -228,11 +254,16 @@ function applyFilesPanel(
       isSameContext &&
       filesPanelContext?.projectId === context.projectId &&
       filesPanelContext?.worktreePath === context.worktreePath &&
-      rightPanelTab === "files"
+      rightPanelTab === "files" &&
+      // A docked Files renders elsewhere, so `rightPanelTab` saying "files"
+      // does not mean the user is looking at it here — toggling would close
+      // nothing they can see. Pull it back into this panel instead.
+      !isTabBottomDocked("files")
     ) {
       closeAllPanels();
       return;
     }
+    undockPanelTab("files");
   }
 
   panelStore.setFilesPanelContext(context);
@@ -269,7 +300,8 @@ export function openGitReview(
       gitReviewContext?.projectId === projectId &&
       gitReviewContext?.worktreePath === worktreePath;
 
-    if (isSameContext && rightPanelTab === "git") {
+    // See `applyFilesPanel`: a docked Git is not what this panel is showing.
+    if (isSameContext && rightPanelTab === "git" && !isTabBottomDocked("git")) {
       closeAllPanels();
       return;
     }
@@ -277,6 +309,7 @@ export function openGitReview(
 
   panelStore.setGitReviewContext(nextContext);
   if (mode === "panel") {
+    undockPanelTab("git");
     panelStore.setGitReviewAsPanel(true);
     panelStore.setRightPanelTab("git");
   } else {
@@ -295,6 +328,116 @@ export function showGitReviewPanel(projectId: string, worktreePath?: string): vo
 
 export function openGitOverlay(): void {
   usePanelStore.getState().setGitOverlayOpen(true);
+}
+
+/** Project/worktree scope of the focused thread, falling back to the first project. */
+function resolveCurrentThreadScope(): { projectId: string; worktreePath?: string } | null {
+  const appState = useAppStore.getState();
+  if (appState.view.kind === "thread") {
+    const paneId = resolveActivePaneId(appState.view.panes, appState.focusedPaneId);
+    const thread = appState.threads.find((item) => item.id === paneId);
+    if (thread) {
+      return {
+        projectId: thread.projectId,
+        ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+      };
+    }
+  }
+  if (appState.view.kind === "draft" || appState.view.kind === "experiment") {
+    return { projectId: appState.view.projectId };
+  }
+  const firstProject = appState.projects[0];
+  return firstProject ? { projectId: firstProject.id } : null;
+}
+
+/**
+ * Open the given tab's content without stealing the active right-panel tab.
+ * The `show*` actions activate the tab they open; a drag-and-drop dock must
+ * leave the active tab alone, so the pre-call tab is restored afterwards.
+ */
+function ensurePanelTabContent(tab: RightPanelTab): void {
+  const panelStore = usePanelStore.getState();
+  const previousTab = panelStore.rightPanelTab;
+  switch (tab) {
+    case "usage":
+      panelStore.setUsagePanelOpen(true);
+      return;
+    case "notes":
+      panelStore.setNotesPanelOpen(true);
+      return;
+    case "browser":
+      panelStore.setBrowserPanelOpen(true);
+      return;
+    case "git": {
+      if (panelStore.gitReviewContext) {
+        panelStore.setGitReviewAsPanel(true);
+        panelStore.setGitOverlayOpen(false);
+        return;
+      }
+      const scope = resolveCurrentThreadScope();
+      if (!scope) return;
+      showGitReviewPanel(scope.projectId, scope.worktreePath);
+      usePanelStore.getState().setRightPanelTab(previousTab);
+      return;
+    }
+    case "files": {
+      if (panelStore.filesPanelContext) return;
+      const scope = resolveCurrentThreadScope();
+      if (!scope) return;
+      showFilesPanel(scope.projectId, scope.worktreePath);
+      usePanelStore.getState().setRightPanelTab(previousTab);
+      return;
+    }
+    case "terminal": {
+      if (useDevTerminalStore.getState().isOpen) return;
+      const scope = resolveCurrentThreadScope();
+      if (!scope) return;
+      showTerminalPanel(scope.projectId, scope.worktreePath);
+      usePanelStore.getState().setRightPanelTab(previousTab);
+      return;
+    }
+    default:
+      return;
+  }
+}
+
+/** Take a tab out of the right-panel split and any bottom dock slot holding it. */
+export function undockPanelTab(tab: RightPanelTab): void {
+  const panelStore = usePanelStore.getState();
+  if (panelStore.rightPanelSplit?.tab === tab) panelStore.setRightPanelSplit(null);
+  panelStore.clearBottomPanelDockTab(tab);
+}
+
+/** Apply a drag-and-drop dock of a right-panel tab icon onto a dock zone. */
+export function dockPanelTab(tab: RightPanelTab, target: PanelDockTarget): void {
+  if (!DOCKABLE_PANEL_TABS.has(tab)) return;
+  if (target.zone === "bottom-panel") {
+    // The terminal already owns the middle of the bottom row.
+    if (tab === "terminal") return;
+    const terminalStore = useDevTerminalStore.getState();
+    const { left, right } = usePanelStore.getState().bottomPanelDocks;
+    // Terminal can sit beside one dock (`left | terminal` or `terminal | right`),
+    // but not both. When the opposite slot is free the terminal keeps the
+    // remaining space; only close it when the other side is already filled.
+    if (terminalStore.isOpen) {
+      const oppositeOccupied = target.placement === "left" ? right !== null : left !== null;
+      if (oppositeOccupied) terminalStore.closePanel();
+    }
+    ensurePanelTabContent(tab);
+    const panelStore = usePanelStore.getState();
+    if (panelStore.rightPanelSplit?.tab === tab) panelStore.setRightPanelSplit(null);
+    panelStore.setBottomPanelDock(target.placement, tab);
+    return;
+  }
+  ensurePanelTabContent(tab);
+  const panelStore = usePanelStore.getState();
+  panelStore.clearBottomPanelDockTab(tab);
+  // The active tab cannot split with itself — pulling it back out is enough.
+  if (panelStore.rightPanelTab === tab) {
+    panelStore.setRightPanelSplit(null);
+    return;
+  }
+  panelStore.setRightPanelSplit({ tab, placement: target.placement });
 }
 
 export function closeGitPanel(): void {

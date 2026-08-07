@@ -54,7 +54,8 @@ export function MainView(props: {
   useRightPanelThreadLock();
   useBrowserSync();
 
-  const { handleSortEnd, handlePaneDrop, handleMainPanelDrop } = useDndHandlers();
+  const { handleSortEnd, handlePaneDrop, handleMainPanelDrop, handlePanelDockDrop } =
+    useDndHandlers();
 
   useEffect(() => {
     if (!storeHydrated || !sharedSettingsHydrated || !homeScopeEnabled) {
@@ -115,6 +116,7 @@ export function MainView(props: {
         onSidebarSortEnd={handleSortEnd}
         onPaneDrop={handlePaneDrop}
         onMainPanelDrop={handleMainPanelDrop}
+        onPanelDockDrop={handlePanelDockDrop}
         paneLayout={
           view.kind === "thread"
             ? (view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout))

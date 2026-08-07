@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
-import type { Project } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import {
   productSurfaceView,
@@ -30,11 +29,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
-import {
-  usePanelStore,
-  type FilesPanelContext,
-  type GitReviewContext,
-} from "@/renderer/state/panelStore";
+import { usePanelStore, type GitReviewContext } from "@/renderer/state/panelStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
@@ -43,14 +38,16 @@ import {
   moveThreadTodoDock,
   showFilesPanel,
   showGitReviewPanel,
+  undockPanelTab,
 } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { selectFocusedThreadId, useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 import { syncRightPanelTabToFocusedThread } from "@/renderer/hooks/useRightPanelThreadLock";
-import { buildFileEditorContext } from "@/renderer/utils/gitHelpers";
 import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
+import { useBottomDockedTabs } from "@/renderer/state/panelDockSelectors";
 import { GitReviewPanelContent } from "./RightPanel/parts/GitReviewPanelContent";
+import { resolveFilesRootContext } from "./RightPanel/parts/resolveFilesRootContext";
 
 interface PanelProjectScope {
   projectId: string;
@@ -73,19 +70,6 @@ function scopeFromFilesContext(context: FileEditorRootContext | null): PanelProj
   };
 }
 
-function resolveFilesRootContext(
-  context: FilesPanelContext | null,
-  projects: Project[],
-): FileEditorRootContext | null {
-  if (!context) return null;
-  const project = projects.find((p) => p.id === context.projectId);
-  if (!project) return null;
-  return {
-    ...buildFileEditorContext(project, context.worktreePath),
-    rootLabel: context.rootLabel,
-  };
-}
-
 export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible: boolean }) {
   const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
@@ -94,6 +78,12 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   const filesPanelContext = usePanelStore((s) => s.filesPanelContext);
   const subAgentPanelContext = usePanelStore((s) => s.subAgentPanelContext);
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
+  const rightPanelSplit = usePanelStore((s) => s.rightPanelSplit);
+  const bottomDocks = useBottomDockedTabs();
+  const dockedTabs = [bottomDocks.left, bottomDocks.right].filter(
+    (tab): tab is RightPanelTab => tab !== null,
+  );
+  const isBottomDocked = (tab: RightPanelTab) => dockedTabs.includes(tab);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
   const rightPanelFollowsThread = usePanelStore((s) => s.rightPanelFollowsThread);
   const toggleRightPanelFollowsThread = usePanelStore((s) => s.toggleRightPanelFollowsThread);
@@ -188,6 +178,8 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       : "git";
 
   function requestedTabIsAvailable(): boolean {
+    // A bottom-docked tab already renders in the bottom row.
+    if (isBottomDocked(requestedTab)) return false;
     if (requestedTab === "subagent") return subAgentInCurrentThread;
     if (requestedTab === "plan") return planInCurrentThread;
     // The browser panel is dismissed out-of-band when its last tab closes (the
@@ -206,11 +198,11 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   function fallbackActiveTab(): RightPanelTab {
     if (planInCurrentThread) return "plan";
     if (subAgentInCurrentThread) return "subagent";
-    if (filesPanelOpen) return "files";
-    if (gitPanelOpen) return "git";
-    if (browserPanelOpen) return "browser";
-    if (usagePanelOpen) return "usage";
-    if (notesPanelOpen) return "notes";
+    if (filesPanelOpen && !isBottomDocked("files")) return "files";
+    if (gitPanelOpen && !isBottomDocked("git")) return "git";
+    if (browserPanelOpen && !isBottomDocked("browser")) return "browser";
+    if (usagePanelOpen && !isBottomDocked("usage")) return "usage";
+    if (notesPanelOpen && !isBottomDocked("notes")) return "notes";
     if (props.includeTerminal && terminalOpen) return "terminal";
     return "git";
   }
@@ -314,6 +306,16 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     return activeProjectScope() ?? fallbackScope();
   }
 
+  /**
+   * Clicking a toolbar icon always lands the tab in this panel, so a tab that
+   * currently lives in the split half or the bottom row is pulled back first —
+   * otherwise the click would have no visible effect.
+   */
+  function pressTab(tab: RightPanelTab, open: () => void) {
+    undockPanelTab(tab);
+    open();
+  }
+
   function handleOpenGit() {
     const scope = resolveNextProjectScope();
     if (!scope) return;
@@ -344,12 +346,15 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     handleClose();
   }
 
+  // A bottom-docked tab renders in the bottom row; keep it out of this panel so
+  // singleton surfaces (the browser webview) are never mounted twice.
   const renderTerminalContent = props.includeTerminal && terminalOpen;
-  const renderGitContent = gitPanelOpen;
-  const renderFilesContent = filesPanelOpen;
-  const renderBrowserContent = browserPanelOpen;
-  const renderUsageContent = usagePanelOpen;
-  const renderNotesContent = notesPanelOpen && notesProjectId !== undefined;
+  const renderGitContent = gitPanelOpen && !isBottomDocked("git");
+  const renderFilesContent = filesPanelOpen && !isBottomDocked("files");
+  const renderBrowserContent = browserPanelOpen && !isBottomDocked("browser");
+  const renderUsageContent = usagePanelOpen && !isBottomDocked("usage");
+  const renderNotesContent =
+    notesPanelOpen && notesProjectId !== undefined && !isBottomDocked("notes");
   const renderPlanContent = planInCurrentThread;
   const renderSubAgentContent = subAgentInCurrentThread;
 
@@ -359,7 +364,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       onTabChange={(tab) => {
         if (tab === "subagent" && !renderSubAgentContent) return;
         if (tab === "plan" && !renderPlanContent) return;
-        setRightPanelTab(tab);
+        pressTab(tab, () => setRightPanelTab(tab));
       }}
       {...(renderTerminalContent
         ? {
@@ -476,27 +481,43 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
         setBrowserOverlayOpen(true);
       }}
       onExtractBrowserToWindow={extractBrowserToWindow}
-      onOpenGit={handleOpenGit}
-      onOpenFiles={handleOpenFiles}
-      {...(props.includeTerminal ? { onOpenTerminal: handleOpenTerminal } : {})}
-      onOpenBrowser={() => {
-        if (browserExtracted) {
-          extractBrowserToWindow();
-          return;
-        }
-        setBrowserPanelOpen(true);
-        setRightPanelTab("browser");
-      }}
-      onOpenUsage={() => {
-        setUsagePanelOpen(true);
-        setRightPanelTab("usage");
-      }}
-      onOpenNotes={() => {
-        setNotesPanelOpen(true);
-        setRightPanelTab("notes");
-      }}
+      onOpenGit={() => pressTab("git", handleOpenGit)}
+      onOpenFiles={() => pressTab("files", handleOpenFiles)}
+      {...(props.includeTerminal
+        ? { onOpenTerminal: () => pressTab("terminal", handleOpenTerminal) }
+        : {})}
+      onOpenBrowser={() =>
+        pressTab("browser", () => {
+          if (browserExtracted) {
+            extractBrowserToWindow();
+            return;
+          }
+          setBrowserPanelOpen(true);
+          setRightPanelTab("browser");
+        })
+      }
+      onOpenUsage={() =>
+        pressTab("usage", () => {
+          setUsagePanelOpen(true);
+          setRightPanelTab("usage");
+        })
+      }
+      onOpenNotes={() =>
+        pressTab("notes", () => {
+          setNotesPanelOpen(true);
+          setRightPanelTab("notes");
+        })
+      }
       followsThread={rightPanelFollowsThread}
       onToggleFollowsThread={toggleRightPanelFollowsThread}
+      dockedTabs={dockedTabs}
+      {...(rightPanelSplit && !isBottomDocked(rightPanelSplit.tab)
+        ? {
+            splitTab: rightPanelSplit.tab,
+            splitPlacement: rightPanelSplit.placement,
+            onCloseSplit: () => usePanelStore.getState().setRightPanelSplit(null),
+          }
+        : {})}
       onClose={handleClose}
     />
   );
