@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { Plugins } from "@dnd-kit/abstract";
-import { Feedback, PointerActivationConstraints } from "@dnd-kit/dom";
-import { DragDropProvider, DragOverlay, KeyboardSensor, PointerSensor } from "@dnd-kit/react";
+import {
+  AutoScroller,
+  Feedback,
+  PointerActivationConstraints,
+  type DragDropManager,
+} from "@dnd-kit/dom";
+import {
+  DragDropProvider,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useDragDropManager,
+} from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
 import type { PaneLayout, PaneLayoutAxis, PaneLayoutInsertTarget } from "@/shared/paneLayout";
 import { findPanePath } from "@/shared/paneLayout";
+import type { PanelDockTarget, PanelDockZone, RightPanelTab } from "./state/panelStore";
 import { useFileEditorStore } from "./state/fileEditorStore";
 import { useThread } from "./state/useThread";
 
@@ -27,7 +39,8 @@ export type DragSourceData =
       projectId: string;
       worktreePath?: string;
     }
-  | { type: "editor-tab"; path: string };
+  | { type: "editor-tab"; path: string }
+  | { type: "panel-tab"; tab: RightPanelTab };
 
 export type PaneDropIndicator =
   | { kind: "replace"; paneId: string }
@@ -38,11 +51,13 @@ type DndSnapshot = {
   source: DragSourceData | null;
   paneIndicator: PaneDropIndicator | null;
   mainPanelDropActive: boolean;
+  panelDockIndicator: PanelDockTarget | null;
 };
 const EMPTY_DND_SNAPSHOT: DndSnapshot = {
   source: null,
   paneIndicator: null,
   mainPanelDropActive: false,
+  panelDockIndicator: null,
 };
 
 let dndSnapshot: DndSnapshot = EMPTY_DND_SNAPSHOT;
@@ -63,7 +78,8 @@ function updateDndSnapshot(nextSnapshot: DndSnapshot) {
   if (
     dndSnapshot.source === nextSnapshot.source &&
     dndSnapshot.paneIndicator === nextSnapshot.paneIndicator &&
-    dndSnapshot.mainPanelDropActive === nextSnapshot.mainPanelDropActive
+    dndSnapshot.mainPanelDropActive === nextSnapshot.mainPanelDropActive &&
+    dndSnapshot.panelDockIndicator === nextSnapshot.panelDockIndicator
   ) {
     return;
   }
@@ -81,6 +97,10 @@ function setPaneIndicatorState(paneIndicator: PaneDropIndicator | null) {
 
 function setMainPanelDropActive(mainPanelDropActive: boolean) {
   updateDndSnapshot({ ...dndSnapshot, mainPanelDropActive });
+}
+
+function setPanelDockIndicatorState(panelDockIndicator: PanelDockTarget | null) {
+  updateDndSnapshot({ ...dndSnapshot, panelDockIndicator });
 }
 
 function useDndSelector<T>(selector: (snapshot: DndSnapshot) => T) {
@@ -128,6 +148,13 @@ export function useIsDraggingEditorTab(path: string) {
 
 export function useIsMainPanelDropActive() {
   return useDndSelector((snapshot) => snapshot.mainPanelDropActive);
+}
+
+/** The dragged panel-tab's projected placement in this zone, or null when not hovering it. */
+export function usePanelDockPlacement(zone: PanelDockZone) {
+  return useDndSelector((snapshot) =>
+    snapshot.panelDockIndicator?.zone === zone ? snapshot.panelDockIndicator.placement : null,
+  );
 }
 
 export function usePaneDropIndicatorState(paneId: string) {
@@ -189,6 +216,49 @@ type PaneDragSource = Extract<DragSourceData, { type: "pane" }>;
 
 function isPaneDragSource(source: DragSourceData | undefined): source is PaneDragSource {
   return source?.type === "pane";
+}
+
+export type PanelTabDragSource = Extract<DragSourceData, { type: "panel-tab" }>;
+
+const panelDockZoneElements = new Map<string, { zone: PanelDockZone; element: HTMLElement }>();
+
+/** Below this the zone is a collapsed panel (or an exit animation) — not a real target. */
+const MIN_DOCK_ZONE_SIZE_PX = 24;
+
+/**
+ * Registered by `PanelDockDropZone` via a ref callback, keyed per instance so a
+ * collapsing panel and the drag-time drop strip can both be registered for the
+ * same zone. Like the main-panel drop zone, panel-tab drags are hit-tested
+ * manually against the live rects so droppables nested inside panel content
+ * (usage sortables, editor tabs, …) cannot steal the drop target.
+ */
+export function setPanelDockZoneElement(
+  id: string,
+  zone: PanelDockZone,
+  element: HTMLElement | null,
+): void {
+  if (element) panelDockZoneElements.set(id, { zone, element });
+  else panelDockZoneElements.delete(id);
+}
+
+function hitTestPanelDockZones(pointerX: number, pointerY: number): PanelDockTarget | null {
+  for (const { zone, element } of panelDockZoneElements.values()) {
+    const rect = element.getBoundingClientRect();
+    if (rect.width < MIN_DOCK_ZONE_SIZE_PX || rect.height < MIN_DOCK_ZONE_SIZE_PX) continue;
+    if (
+      pointerX < rect.left ||
+      pointerX > rect.right ||
+      pointerY < rect.top ||
+      pointerY > rect.bottom
+    ) {
+      continue;
+    }
+    if (zone === "right-panel") {
+      return { zone, placement: pointerY < rect.top + rect.height / 2 ? "top" : "bottom" };
+    }
+    return { zone, placement: pointerX < rect.left + rect.width / 2 ? "left" : "right" };
+  }
+  return null;
 }
 
 function isPointerInMainPanelDropZone(pointerX: number, pointerY: number): boolean {
@@ -310,6 +380,23 @@ function resolveSiblingInsertTarget(
   return null;
 }
 
+/**
+ * Publishes the manager instance so drag handlers can reach its plugin registry
+ * synchronously. `useDragDropManager` only resolves inside the provider, so this
+ * runs as a child of it.
+ */
+function DndManagerBridge(props: { managerRef: React.RefObject<DragDropManager | null> }) {
+  const manager = useDragDropManager();
+  const managerRef = props.managerRef;
+  useEffect(() => {
+    managerRef.current = (manager as DragDropManager | null) ?? null;
+    return () => {
+      managerRef.current = null;
+    };
+  }, [manager, managerRef]);
+  return null;
+}
+
 export function AppDndProvider(props: {
   children: React.ReactNode;
   onSidebarSortEnd: (
@@ -322,12 +409,28 @@ export function AppDndProvider(props: {
   ) => void;
   onPaneDrop: (source: DragSourceData, target: PaneDropIndicator | null) => void;
   onMainPanelDrop: (source: MainPanelDropSource) => void;
+  onPanelDockDrop: (source: PanelTabDragSource, target: PanelDockTarget) => void;
   paneLayout: PaneLayout;
 }) {
   const pointer = useRef({ x: 0, y: 0 });
   const paneIndicatorRef = useRef<PaneDropIndicator | null>(null);
   const mainPanelDropActiveRef = useRef(false);
+  const panelDockIndicatorRef = useRef<PanelDockTarget | null>(null);
   const sidebarSortTargetRef = useRef<DragSourceData | null>(null);
+  const managerRef = useRef<DragDropManager | null>(null);
+
+  /**
+   * Panel-tab drops target whole panes, not positions inside a list, so
+   * dnd-kit's edge auto-scrolling only jerks the chat and panel scrollers out
+   * from under the pointer. Sortable drags (sidebar threads, editor tabs) still
+   * need it, so it is toggled per drag instead of configured away.
+   */
+  function setAutoScrollEnabled(enabled: boolean) {
+    const autoScroller = managerRef.current?.registry.plugins.get(AutoScroller);
+    if (!autoScroller) return;
+    if (enabled) autoScroller.enable();
+    else autoScroller.disable();
+  }
 
   const activePaneTarget = useRef<{
     paneId: string;
@@ -359,6 +462,14 @@ export function AppDndProvider(props: {
     );
     setPaneIndicatorState(next);
     paneIndicatorRef.current = next;
+  }
+
+  function updatePanelDockIndicator() {
+    const next = hitTestPanelDockZones(pointer.current.x, pointer.current.y);
+    const prev = panelDockIndicatorRef.current;
+    if (prev && next && prev.zone === next.zone && prev.placement === next.placement) return;
+    panelDockIndicatorRef.current = next;
+    setPanelDockIndicatorState(next);
   }
 
   function updateMainPanelDropState(source: DragSourceData | undefined) {
@@ -400,11 +511,16 @@ export function AppDndProvider(props: {
         if (data) setDragSource(data);
         sidebarSortTargetRef.current = null;
         mainPanelDropActiveRef.current = false;
+        setAutoScrollEnabled(data?.type !== "panel-tab");
         // Lets CSS opt chat scrollers out of dnd-kit's AutoScroller ancestor scan.
         document.documentElement.dataset.poracodeDragActive = "true";
       }}
       onDragMove={(event) => {
         const data = event.operation.source?.data as DragSourceData | undefined;
+        if (data?.type === "panel-tab") {
+          updatePanelDockIndicator();
+          return;
+        }
         if (isMainPanelDropSource(data)) {
           updateMainPanelDropState(data);
           return;
@@ -416,6 +532,10 @@ export function AppDndProvider(props: {
       onDragOver={(event) => {
         const target = event.operation.target;
         const data = event.operation.source?.data as DragSourceData | undefined;
+        if (data?.type === "panel-tab") {
+          updatePanelDockIndicator();
+          return;
+        }
         if (isMainPanelDropSource(data) && updateMainPanelDropState(data)) {
           activePaneTarget.current = null;
           setPaneIndicatorState(null);
@@ -519,7 +639,11 @@ export function AppDndProvider(props: {
         const data = src?.data as DragSourceData | undefined;
 
         if (!event.canceled && data) {
-          if (
+          if (data.type === "panel-tab") {
+            if (panelDockIndicatorRef.current) {
+              props.onPanelDockDrop(data, panelDockIndicatorRef.current);
+            }
+          } else if (
             (data.type === "pane" || data.type === "thread" || data.type === "new-thread") &&
             paneIndicatorRef.current
           ) {
@@ -544,12 +668,16 @@ export function AppDndProvider(props: {
         setDragSource(null);
         setPaneIndicatorState(null);
         setMainPanelDropActive(false);
+        setPanelDockIndicatorState(null);
         paneIndicatorRef.current = null;
         mainPanelDropActiveRef.current = false;
+        panelDockIndicatorRef.current = null;
         sidebarSortTargetRef.current = null;
+        setAutoScrollEnabled(true);
         delete document.documentElement.dataset.poracodeDragActive;
       }}
     >
+      <DndManagerBridge managerRef={managerRef} />
       {props.children}
       <DragOverlay
         disabled={(source) => !isPaneDragSource(source?.data as DragSourceData | undefined)}

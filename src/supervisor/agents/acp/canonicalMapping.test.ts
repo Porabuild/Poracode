@@ -426,6 +426,35 @@ describe("mapAcpSessionUpdate", () => {
     expect(state.suppressedToolCallIds.has("tc-question")).toBe(false);
   });
 
+  it("suppresses Factory droid's bare AskUser tool rows presented as reply forms", () => {
+    const state = createAcpMapperState("t-question-droid");
+
+    const started = mapAcpSessionUpdate(
+      {
+        sessionId: "s1",
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "tc-question-droid",
+          title: "AskUser",
+          kind: "other",
+          status: "pending",
+          rawInput: {
+            questionnaire: [
+              "1. [question] Which features do you want to enable? (multi)",
+              "[topic] Features",
+              "[option] Auth handling",
+              "[option] Login Page",
+            ].join("\n"),
+          },
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0],
+      state,
+    );
+
+    expect(started).toEqual([]);
+    expect(state.suppressedToolCallIds.has("tc-question-droid")).toBe(true);
+  });
+
   it("omits `name` on a bare tool_call so the renderer defers the unnamed row", () => {
     const state = createAcpMapperState("t-bare");
     const started = mapAcpSessionUpdate(

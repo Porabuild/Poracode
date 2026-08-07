@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
+import { useBottomTerminalVisible, usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
+import { BottomPanelDockContainer } from "./RightPanel/parts/PanelDock/BottomPanelDockContainer";
 import {
   DeferredDevTerminalPanel,
   DeferredProjectAuxiliaryPanel,
@@ -9,6 +10,7 @@ import {
 export function MainRightPanel() {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const { rightPanelOpen } = usePanelVisibility();
+  const terminalVisible = useBottomTerminalVisible();
   const [enabled, setEnabled] = useState(rightPanelOpen);
 
   useEffect(() => {
@@ -24,7 +26,9 @@ export function MainRightPanel() {
   return (
     <Suspense>
       {!isTerminalRight ? (
-        <DeferredDevTerminalPanel />
+        <BottomPanelDockContainer terminalVisible={terminalVisible}>
+          <DeferredDevTerminalPanel />
+        </BottomPanelDockContainer>
       ) : (
         <DeferredProjectAuxiliaryPanel includeTerminal visible={rightPanelOpen} />
       )}

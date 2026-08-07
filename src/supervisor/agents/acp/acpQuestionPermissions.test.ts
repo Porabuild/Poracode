@@ -56,6 +56,14 @@ describe("parseAcpPermissionQuestions (Kimi v2 content shape)", () => {
     expect(isAcpAskUserQuestionToolCall({ title: "Bash" })).toBe(false);
   });
 
+  it("recognizes Factory droid's bare AskUser tool call by title and name", () => {
+    expect(isAcpAskUserQuestionToolCall({ title: "AskUser" })).toBe(true);
+    expect(isAcpAskUserQuestionToolCall({ name: "ask_user" })).toBe(true);
+    expect(isAcpAskUserQuestionToolCall({ title: "AskUser", name: "ask_user" })).toBe(true);
+    expect(isAcpAskUserQuestionToolCall({ title: "TodoWrite" })).toBe(false);
+    expect(isAcpAskUserQuestionToolCall({ title: "Execute" })).toBe(false);
+  });
+
   it("does not reinterpret ordinary approvals as questions", () => {
     const approval: RequestPermissionRequest = {
       sessionId: "session-1",
@@ -68,6 +76,129 @@ describe("parseAcpPermissionQuestions (Kimi v2 content shape)", () => {
       options: [{ optionId: "approve_once", name: "Approve once", kind: "allow_once" }],
     };
     expect(parseAcpPermissionQuestions(approval)).toEqual([]);
+  });
+});
+
+/**
+ * The exact shape Factory droid 0.189.0 emits over ACP for its AskUser tool:
+ * the tool identity is the bare `AskUser` title, the question payload is a
+ * single plain-text `rawInput.questionnaire` string in the format from
+ * droid's AskUser tool description, and the ACP permission options are plain
+ * proceed/cancel choices (the answers are NOT the options).
+ */
+function droidQuestionnaireRequest(): RequestPermissionRequest {
+  return {
+    sessionId: "session-1",
+    toolCall: {
+      toolCallId: "tool-ask-droid",
+      title: "AskUser",
+      kind: "other",
+      rawInput: {
+        questionnaire: [
+          "1. [question] Which features do you want to enable? (multi)",
+          "[topic] Features",
+          "[option] Auth handling",
+          "[option] Login Page",
+          "2. [question] Which library should we use for date formatting?",
+          "[topic] Library",
+          "[option] Library ABC",
+          "[option] Library BlaBla",
+        ].join("\n"),
+      },
+    },
+    options: [
+      { optionId: "proceed_once", name: "Submit", kind: "allow_once" },
+      { optionId: "cancel", name: "Cancel", kind: "reject_once" },
+    ],
+  };
+}
+
+describe("parseAcpPermissionQuestions (droid questionnaire shape)", () => {
+  it("parses numbered questions, topics, options, and the (multi) flag", () => {
+    expect(parseAcpPermissionQuestions(droidQuestionnaireRequest())).toEqual([
+      {
+        id: "0",
+        header: "Features",
+        question: "Which features do you want to enable?",
+        options: [
+          { optionId: "Auth handling", label: "Auth handling" },
+          { optionId: "Login Page", label: "Login Page" },
+        ],
+        multiSelect: true,
+      },
+      {
+        id: "1",
+        header: "Library",
+        question: "Which library should we use for date formatting?",
+        options: [
+          { optionId: "Library ABC", label: "Library ABC" },
+          { optionId: "Library BlaBla", label: "Library BlaBla" },
+        ],
+        multiSelect: false,
+      },
+    ]);
+  });
+
+  it("falls back to the question text as header when no topic line is present", () => {
+    const request = droidQuestionnaireRequest();
+    (request.toolCall!.rawInput as { questionnaire: string }).questionnaire = [
+      "1. [question] Which scope?",
+      "[option] Focused",
+      "[option] Broad",
+    ].join("\n");
+    expect(parseAcpPermissionQuestions(request)).toEqual([
+      {
+        id: "0",
+        header: "Which scope?",
+        question: "Which scope?",
+        options: [
+          { optionId: "Focused", label: "Focused" },
+          { optionId: "Broad", label: "Broad" },
+        ],
+        multiSelect: false,
+      },
+    ]);
+  });
+
+  it("ignores notes and trailing prose lines outside the format", () => {
+    const request = droidQuestionnaireRequest();
+    (request.toolCall!.rawInput as { questionnaire: string }).questionnaire = [
+      "1. [question] Confirm the plan?",
+      "[topic] Plan",
+      "[option] Approve",
+      "[option] Adjust",
+      "Notes:",
+      "- Keep it short",
+    ].join("\n");
+    expect(parseAcpPermissionQuestions(request).map((q) => q.question)).toEqual([
+      "Confirm the plan?",
+    ]);
+  });
+});
+
+describe("normalizeAcpQuestionPermissionResponse (droid questionnaire ids)", () => {
+  it("answers through the allow_once fallback since droid options are not the choices", () => {
+    const request = droidQuestionnaireRequest();
+    expect(
+      normalizeAcpQuestionPermissionResponse(request, {
+        answers: { "0": "Auth handling", "1": "Library ABC" },
+      }),
+    ).toEqual({
+      outcome: { outcome: "selected", optionId: "proceed_once" },
+      answers: { "0": "Auth handling", "1": "Library ABC" },
+    });
+  });
+
+  it("joins multiple picked choices and keeps free-text custom answers verbatim", () => {
+    const request = droidQuestionnaireRequest();
+    expect(
+      normalizeAcpQuestionPermissionResponse(request, {
+        answers: { "0": ["Auth handling", "Login Page"], "1": "a bespoke library" },
+      }),
+    ).toEqual({
+      outcome: { outcome: "selected", optionId: "proceed_once" },
+      answers: { "0": "Auth handling, Login Page", "1": "a bespoke library" },
+    });
   });
 });
 

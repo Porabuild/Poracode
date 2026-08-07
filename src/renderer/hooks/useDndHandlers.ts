@@ -4,9 +4,15 @@ import { makeDraftPaneId } from "@/shared/paneId";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
-import type { DragSourceData, MainPanelDropSource, PaneDropIndicator } from "@/renderer/dnd";
+import type {
+  DragSourceData,
+  MainPanelDropSource,
+  PaneDropIndicator,
+  PanelTabDragSource,
+} from "@/renderer/dnd";
+import type { PanelDockTarget } from "@/renderer/state/panelStore";
 import type { ReorderPlacement } from "@/renderer/state/reorder";
-import { showFilesPanel, showGitReviewPanel } from "@/renderer/actions/panelActions";
+import { dockPanelTab, showFilesPanel, showGitReviewPanel } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
 
 type ThreadDragSource = Extract<DragSourceData, { type: "thread" }>;
@@ -186,6 +192,10 @@ export function useDndHandlers() {
     }
   }
 
+  function handlePanelDockDrop(source: PanelTabDragSource, target: PanelDockTarget) {
+    startTransition(() => dockPanelTab(source.tab, target));
+  }
+
   function handleMainPanelDrop(source: MainPanelDropSource) {
     if (source.type === "project") {
       showFilesPanel(source.projectId);
@@ -200,5 +210,5 @@ export function useDndHandlers() {
     }
   }
 
-  return { handleSortEnd, handlePaneDrop, handleMainPanelDrop };
+  return { handleSortEnd, handlePaneDrop, handleMainPanelDrop, handlePanelDockDrop };
 }

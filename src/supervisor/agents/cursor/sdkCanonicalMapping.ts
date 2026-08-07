@@ -468,8 +468,7 @@ function mapUsage(
   const runId = state.currentRunId ?? state.currentTurnId ?? state.threadId;
   const sampleId = `${runId}:turn-${state.usageSequence}`;
   // Cursor documents this as per-turn spend, which can aggregate several
-  // model/tool-loop calls. It is not current context-window occupancy, so the
-  // exact mapping is `usage.spent` only.
+  // model/tool-loop calls. It is not current context-window occupancy.
   return [
     {
       type: "usage.spent",

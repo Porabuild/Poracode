@@ -260,7 +260,12 @@ function hasVisibleText(text: string): boolean {
   return NON_WHITESPACE.test(text);
 }
 
-function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
+/**
+ * Whether an item gets its own row in the chat timeline. Anything that answers
+ * `false` here can never host an inline indicator, so callers that pick an
+ * anchor row (see `appendCompletedTurnIfClosed`) must consult this too.
+ */
+export function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // Plans and goals are rendered exclusively in composer docks — never inline
   // in chat. Empty completed reasoning items are already dropped at the data
   // layer.
@@ -437,34 +442,152 @@ export function getChildTimelineEntriesStoreSelector(
 }
 
 /**
- * Per-thread Map<anchorItemId, CompletedTurnRecord>. Cached against the source
- * array reference so per-row lookups stay O(1) without rebuilding the map on
- * every render. The most-recent record is intentionally included — callers can
- * skip it (e.g. when the live tail loader is already showing it).
+ * Frozen turn records with `anchorItemId` remapped onto the row that actually
+ * renders. A turn's raw anchor is the last item present when it closed, which
+ * is often filtered out of the timeline (goals/plans emitted at the end of an
+ * ACP turn, empty assistant boundaries, unnamed tool calls). An anchor that
+ * matches no rendered row drops the turn's "Worked for X" line entirely — both
+ * the inline indicator and the tail footer key off it — so each anchor is
+ * resolved back to the nearest preceding row that does render.
+ *
+ * `null` after resolution means "no row to hang it on"; the tail footer then
+ * renders it for the most recent turn. Anchoring onto a `user_message` is
+ * avoided so a synthetic window never shows a stale "Worked for" under a prompt.
  */
-const completedTurnsByAnchorCache = new WeakMap<
+interface ResolvedCompletedTurns {
+  byAnchor: ReadonlyMap<string, CompletedTurnRecord>;
+  mostRecentDisplayable: CompletedTurnRecord | null;
+}
+
+/**
+ * Keyed on the two source array identities (records, then the visible-id list),
+ * so entries are released automatically when the store replaces either — the
+ * same store-array-identity derivation pattern used elsewhere in the renderer.
+ */
+const resolvedCompletedTurnsCache = new WeakMap<
   ReadonlyArray<CompletedTurnRecord>,
-  ReadonlyMap<string, CompletedTurnRecord>
+  WeakMap<ReadonlyArray<string>, ResolvedCompletedTurns>
 >();
 
 const EMPTY_TURN_ANCHOR_MAP: ReadonlyMap<string, CompletedTurnRecord> = new Map();
+const EMPTY_RESOLVED_TURNS: ResolvedCompletedTurns = Object.freeze({
+  byAnchor: EMPTY_TURN_ANCHOR_MAP,
+  mostRecentDisplayable: null,
+});
 
+/** A turn shorter than a second has nothing worth showing. */
+function isDisplayableCompletedTurn(record: CompletedTurnRecord): boolean {
+  return record.endedAt - record.startedAt >= 1000;
+}
+
+function selectResolvedCompletedTurns(
+  state: AppStoreState,
+  threadId: string,
+): ResolvedCompletedTurns {
+  const sourceRecords = state.runtimeCompletedTurnsByThread[threadId];
+  if (!sourceRecords || sourceRecords.length === 0) return EMPTY_RESOLVED_TURNS;
+  // Reference-stable per (itemIds, structuralVersion); visibility only changes
+  // through structural events, so this doubles as the resolution's cache key.
+  const visibleItemIds = selectVisibleThreadRuntimeItemIds(state, threadId);
+  let byVisibleItemIds = resolvedCompletedTurnsCache.get(sourceRecords);
+  const cached = byVisibleItemIds?.get(visibleItemIds);
+  if (cached) return cached;
+
+  const resolved = buildResolvedCompletedTurns(state, threadId, sourceRecords, visibleItemIds);
+  if (!byVisibleItemIds) {
+    byVisibleItemIds = new WeakMap();
+    resolvedCompletedTurnsCache.set(sourceRecords, byVisibleItemIds);
+  }
+  byVisibleItemIds.set(visibleItemIds, resolved);
+  return resolved;
+}
+
+function buildResolvedCompletedTurns(
+  state: AppStoreState,
+  threadId: string,
+  sourceRecords: readonly CompletedTurnRecord[],
+  visibleItemIds: readonly string[],
+): ResolvedCompletedTurns {
+  const itemIds = state.runtimeItemIdsByThread[threadId] ?? EMPTY_THREAD_ITEM_IDS;
+  const items = state.runtimeItemsByIdByThread[threadId];
+  const visible = new Set(visibleItemIds);
+  const rawAnchors = new Set<string>();
+  for (const record of sourceRecords) {
+    if (record.anchorItemId) rawAnchors.add(record.anchorItemId);
+  }
+
+  // One pass: every raw anchor maps to the last anchorable row at or before it.
+  const anchorResolution = new Map<string, string | null>();
+  let lastAnchorable: string | null = null;
+  for (const itemId of itemIds) {
+    if (visible.has(itemId) && items?.[itemId]?.type !== "user_message") {
+      lastAnchorable = itemId;
+    }
+    if (rawAnchors.has(itemId)) anchorResolution.set(itemId, lastAnchorable);
+  }
+
+  // Records are chronological, so the first turn to claim a row is the one that
+  // actually ends there. A later turn that produced no row of its own (only a
+  // goal update, only an error) must not steal it — that would both hide the
+  // earlier duration and misattribute the later one. It falls back to `null`
+  // and still reaches the tail footer when it is the most recent turn.
+  const claimedAnchors = new Set<string>();
+  const records = sourceRecords.map((record) => {
+    // A sub-second turn renders nothing, so it neither needs nor claims a row.
+    if (!record.anchorItemId || !isDisplayableCompletedTurn(record)) return record;
+    // Anchors older than the hydrated window are left untouched — their row is
+    // simply not loaded yet, not filtered out.
+    if (!anchorResolution.has(record.anchorItemId)) {
+      claimedAnchors.add(record.anchorItemId);
+      return record;
+    }
+    const resolvedAnchor = anchorResolution.get(record.anchorItemId) ?? null;
+    const anchorItemId =
+      resolvedAnchor !== null && !claimedAnchors.has(resolvedAnchor) ? resolvedAnchor : null;
+    if (anchorItemId !== null) claimedAnchors.add(anchorItemId);
+    return anchorItemId === record.anchorItemId ? record : { ...record, anchorItemId };
+  });
+
+  const byAnchor = new Map<string, CompletedTurnRecord>();
+  for (const record of records) {
+    if (record.anchorItemId && isDisplayableCompletedTurn(record)) {
+      byAnchor.set(record.anchorItemId, record);
+    }
+  }
+
+  let mostRecentDisplayable: CompletedTurnRecord | null = null;
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    const record = records[index]!;
+    if (isDisplayableCompletedTurn(record)) {
+      mostRecentDisplayable = record;
+      break;
+    }
+  }
+
+  return { byAnchor, mostRecentDisplayable };
+}
+
+/**
+ * Per-thread Map<anchorItemId, CompletedTurnRecord> over resolved anchors, so
+ * per-row lookups stay O(1). The most-recent record is intentionally included —
+ * callers can skip it (e.g. when the live tail loader is already showing it).
+ */
 export function selectCompletedTurnsByAnchorItem(
   state: AppStoreState,
   threadId: string,
 ): ReadonlyMap<string, CompletedTurnRecord> {
-  const records = state.runtimeCompletedTurnsByThread[threadId];
-  if (!records || records.length === 0) return EMPTY_TURN_ANCHOR_MAP;
-  const cached = completedTurnsByAnchorCache.get(records);
-  if (cached) return cached;
-  const map = new Map<string, CompletedTurnRecord>();
-  for (const record of records) {
-    if (record.anchorItemId && record.endedAt - record.startedAt >= 1000) {
-      map.set(record.anchorItemId, record);
-    }
-  }
-  completedTurnsByAnchorCache.set(records, map);
-  return map;
+  return selectResolvedCompletedTurns(state, threadId).byAnchor;
+}
+
+/**
+ * The newest turn worth showing a "Worked for X" line for, with its anchor
+ * already resolved onto a rendered row (or `null` when no row can host it).
+ */
+export function selectMostRecentDisplayableCompletedTurn(
+  state: AppStoreState,
+  threadId: string,
+): CompletedTurnRecord | null {
+  return selectResolvedCompletedTurns(state, threadId).mostRecentDisplayable;
 }
 
 /**

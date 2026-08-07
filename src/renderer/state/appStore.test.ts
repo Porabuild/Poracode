@@ -970,6 +970,66 @@ describe("appStore runtime config sync", () => {
     });
   });
 
+  it("skips trailing goal items chat never renders when anchoring a completed turn", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "grok",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      itemType: "assistant_message",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "content.delta",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      stream: "assistant_text",
+      delta: "Done.",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.completed",
+      threadId: thread.id,
+      itemId: "assistant-1",
+    });
+    // ACP providers close a turn with a final plan/goal update; goals render in
+    // the composer dock, never as a chat row.
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.completed",
+      threadId: thread.id,
+      itemId: "goal-1",
+    });
+
+    vi.setSystemTime(new Date("2026-05-01T12:00:30.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]?.[0]).toMatchObject({
+      anchorItemId: "assistant-1",
+    });
+  });
+
   it("reopens a GUI turn when structured runtime activity arrives after a premature idle", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
