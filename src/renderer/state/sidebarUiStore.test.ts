@@ -10,6 +10,7 @@ beforeEach(() => {
     collapsedWorktrees: {},
     threadListLimits: {},
     flatListProjectFilter: null,
+    footerCollapsed: false,
     editingThreadId: null,
   });
 });
@@ -60,6 +61,42 @@ describe("sidebarUiStore persistence", () => {
     const merged = merge(newPayload, current) as State;
 
     expect(merged.flatListProjectFilter).toEqual(["a", "b"]);
+  });
+
+  it("persists footerCollapsed via partialize", () => {
+    useSidebarUiStore.setState({ footerCollapsed: true });
+    const partialize =
+      useSidebarUiStore.persist.getOptions().partialize ?? ((state: State) => state);
+    const partialized = partialize(useSidebarUiStore.getState());
+    expect(partialized).toHaveProperty("footerCollapsed", true);
+  });
+
+  it("rehydrates a v1 payload without footerCollapsed to the default false", () => {
+    // Simulates an upgrade: the persisted JSON was written by an older build
+    // that didn't know about footerCollapsed. The default merge
+    // ({ ...currentState, ...persistedState }) keeps the initial false for the
+    // absent key, so the footer keeps showing labeled rows.
+    const merge =
+      useSidebarUiStore.persist.getOptions().merge ??
+      ((persisted: unknown, current: State) => ({ ...current, ...(persisted as object) }));
+    const current = useSidebarUiStore.getState();
+    const oldPayload = {
+      collapsedProjects: { p1: true },
+      pinnedGitHubWorkflows: { p2: [1] },
+      flatListProjectFilter: null,
+    };
+    const merged = merge(oldPayload, current) as State;
+
+    expect(merged.footerCollapsed).toBe(false);
+  });
+});
+
+describe("toggleFooterCollapsed", () => {
+  it("flips the footer between labeled rows and the icon row", () => {
+    useSidebarUiStore.getState().toggleFooterCollapsed();
+    expect(useSidebarUiStore.getState().footerCollapsed).toBe(true);
+    useSidebarUiStore.getState().toggleFooterCollapsed();
+    expect(useSidebarUiStore.getState().footerCollapsed).toBe(false);
   });
 });
 

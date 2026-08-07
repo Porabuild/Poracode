@@ -11,9 +11,22 @@ import {
   parseWorkspaceMenuKey,
   workspaceMenuKey,
 } from "@/renderer/components/workspace/workspaceMenuKeys";
-import { sidebarRowClass } from "@/renderer/components/common/SidebarButton";
+import {
+  SidebarButton,
+  sidebarIconButtonClass,
+  sidebarRowClass,
+} from "@/renderer/components/common/SidebarButton";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useActiveWorkspaceId, useWorkspaceStore } from "@/renderer/state/workspaceStore";
+
+/**
+ * Whether the workspace switcher renders anything at all (it stays hidden
+ * with fewer than two workspaces). The collapsed footer nav reads this to
+ * keep its overflow math in sync with the switcher's own visibility rule.
+ */
+export function useHasSwitchableWorkspaces(): boolean {
+  return useSharedSettings((state) => state.workspaces.length >= 2);
+}
 
 interface MenuEntry {
   key: string;
@@ -28,7 +41,8 @@ interface MenuEntry {
  * is scoped to. Lives at the top of the sidebar footer nav so it reads as
  * ambient context for the navigation below it rather than another destination.
  */
-export function SidebarWorkspaceSwitcher() {
+export function SidebarWorkspaceSwitcher(props: { iconOnly?: boolean }) {
+  const { iconOnly = false } = props;
   const { t } = useLingui();
   const workspaces = useSharedSettings((state) => state.workspaces);
   const activeWorkspaceId = useActiveWorkspaceId();
@@ -58,7 +72,11 @@ export function SidebarWorkspaceSwitcher() {
     isSelected: workspace.id === active.id,
   }));
 
-  const triggerContent = (
+  // Icon mode (collapsed footer nav): just the active workspace's icon; the
+  // button chrome supplies the muted/hover color.
+  const triggerContent = iconOnly ? (
+    <WorkspaceIcon icon={active.icon} className="size-4" />
+  ) : (
     <>
       <span className="flex size-4 shrink-0 items-center justify-center">
         <WorkspaceIcon icon={active.icon} className="size-4 text-muted" />
@@ -76,12 +94,32 @@ export function SidebarWorkspaceSwitcher() {
 
   if (workspaces.length === 2) {
     const nextWorkspace = workspaces.find((workspace) => workspace.id !== active.id)!;
+    const switchToNext = () => useWorkspaceStore.getState().setActiveWorkspaceId(nextWorkspace.id);
+    if (iconOnly) {
+      // iconOnly exists for the collapsed footer nav (a bottom icon row), so
+      // the tooltip opens upward instead of over the neighbouring icons.
+      return (
+        <SidebarButton
+          iconOnly
+          icon={triggerContent}
+          label={t`Switch workspace`}
+          tooltip={
+            <span>
+              {active.name}
+              <span className="text-muted"> — {t`Switch workspace`}</span>
+            </span>
+          }
+          tooltipPlacement="top"
+          onPress={switchToNext}
+        />
+      );
+    }
     return (
       <button
         type="button"
         aria-label={t`Switch workspace`}
         className={sidebarRowClass()}
-        onClick={() => useWorkspaceStore.getState().setActiveWorkspaceId(nextWorkspace.id)}
+        onClick={switchToNext}
       >
         {triggerContent}
       </button>
@@ -93,7 +131,7 @@ export function SidebarWorkspaceSwitcher() {
       type="button"
       aria-label={t`Switch workspace`}
       aria-expanded={isOpen}
-      className={sidebarRowClass()}
+      className={iconOnly ? sidebarIconButtonClass() : sidebarRowClass()}
       // Desktop presses are wired by Popover.Trigger; the mobile sheet has no
       // trigger wiring of its own, so it opens the drawer directly.
       {...(mobile ? { onClick: () => setIsOpen(true) } : {})}
@@ -131,7 +169,10 @@ export function SidebarWorkspaceSwitcher() {
 
   return (
     <Dropdown isOpen={isOpen} onOpenChange={setIsOpen}>
-      <Dropdown.Trigger aria-label={t`Switch workspace`} className={sidebarRowClass()}>
+      <Dropdown.Trigger
+        aria-label={t`Switch workspace`}
+        className={iconOnly ? sidebarIconButtonClass() : sidebarRowClass()}
+      >
         {triggerContent}
       </Dropdown.Trigger>
       <Dropdown.Popover placement="top start">
