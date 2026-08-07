@@ -25,6 +25,7 @@ import {
   expandUntrackedEntries,
   LS_FILES_UNTRACKED_ARGS,
   nonRepoSummaryStatus,
+  numstatFromBatchResult,
   parseDiffNumstat,
   parseRemoteInfo,
   parseStatusPorcelainV2,
@@ -112,15 +113,17 @@ export class GitStatusService {
         console.warn("[git] 'remote -v' failed:", error);
         return "";
       }),
+      // `null` on failure, NOT "" — an empty numstat is a real answer ("no file
+      // has a diff") that `applyNumstatCounts` prunes against.
       execGit(location, ["diff", "--cached", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch(
         (error) => {
           console.warn("[git] 'diff --cached --numstat' failed:", error);
-          return "";
+          return null;
         },
       ),
       execGit(location, ["diff", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch((error) => {
         console.warn("[git] 'diff --numstat' failed:", error);
-        return "";
+        return null;
       }),
     ]);
 
@@ -277,8 +280,8 @@ export class GitStatusService {
       isRepo,
       statusOutput: results[1]!.stdout,
       remoteOutput: results[2]!.stdout,
-      stagedNumstat: results[3]!.stdout,
-      unstagedNumstat: results[4]!.stdout,
+      stagedNumstat: numstatFromBatchResult(results[3]),
+      unstagedNumstat: numstatFromBatchResult(results[4]),
     });
     if (!isRepo) return base;
     const enriched = await this.enrichStatusInternal(location, base);
@@ -318,8 +321,8 @@ export class GitStatusService {
           isRepo,
           statusOutput,
           remoteOutput: results[off + 2]!.stdout,
-          stagedNumstat: results[off + 3]!.stdout,
-          unstagedNumstat: results[off + 4]!.stdout,
+          stagedNumstat: numstatFromBatchResult(results[off + 3]),
+          unstagedNumstat: numstatFromBatchResult(results[off + 4]),
         });
         if (!isRepo) {
           out[path] = base;

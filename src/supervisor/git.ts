@@ -45,7 +45,11 @@ import {
   type WorktreePathOptions,
 } from "./git/exec";
 import { GitMergeService } from "./git/mergeService";
-import { buildGitStatusResultFromOutputs, parseStatusPorcelainV2 } from "./git/statusParsing";
+import {
+  buildGitStatusResultFromOutputs,
+  numstatFromBatchResult,
+  parseStatusPorcelainV2,
+} from "./git/statusParsing";
 import { GitExperimentService } from "./git/experimentService";
 import { GitStatusService } from "./git/statusService";
 import {
@@ -148,8 +152,8 @@ export class GitService {
       isRepo,
       statusOutput: results[1]!.stdout,
       remoteOutput: results[2]!.stdout,
-      stagedNumstat: results[3]!.stdout,
-      unstagedNumstat: results[4]!.stdout,
+      stagedNumstat: numstatFromBatchResult(results[3]),
+      unstagedNumstat: numstatFromBatchResult(results[4]),
     });
     const status = isRepo
       ? await this.statusService.applyMergeState(

@@ -394,6 +394,64 @@ describe("buildGitStatusResultFromOutputs", () => {
     expect(result.totalDeletions).toBe(2);
   });
 
+  it("drops tracked rows that `git diff --numstat` has no entry for", () => {
+    // Windows + core.autocrlf=true: a tool rewrote src/phantom.ts with LF
+    // endings, so its on-disk size no longer matches the CRLF size the index
+    // cached at checkout. `git status` reports it modified from that stale stat
+    // alone while `git diff` shows nothing — the row must not reach the panel.
+    const result = buildGitStatusResultFromOutputs({
+      isRepo: true,
+      statusOutput: [
+        "# branch.head main",
+        "1 M. N... 100644 100644 100644 aaa aaa src/staged-phantom.ts",
+        "1 M. N... 100644 100644 100644 bbb bbb src/staged-real.ts",
+        "1 .M N... 100644 100644 100644 ccc ccc src/phantom.ts",
+        "1 .M N... 100644 100644 100644 ddd ddd src/real.ts",
+        "? src/new.ts",
+      ].join("\n"),
+      remoteOutput: "",
+      stagedNumstat: "5\t1\tsrc/staged-real.ts",
+      unstagedNumstat: "2\t3\tsrc/real.ts",
+    });
+    expect(result.staged.map((f) => f.path)).toEqual(["src/staged-real.ts"]);
+    // The untracked row survives: it never appears in `git diff --numstat`.
+    expect(result.unstaged.map((f) => f.path)).toEqual(["src/real.ts", "src/new.ts"]);
+    expect(result.totalInsertions).toBe(7);
+    expect(result.totalDeletions).toBe(4);
+  });
+
+  it("keeps rows numstat reports with zero counts (binary and mode-only changes)", () => {
+    const result = buildGitStatusResultFromOutputs({
+      isRepo: true,
+      statusOutput: [
+        "# branch.head main",
+        "1 .M N... 100644 100755 100755 aaa aaa src/mode-only.sh",
+        "1 .M N... 100644 100644 100644 bbb bbb assets/logo.png",
+      ].join("\n"),
+      remoteOutput: "",
+      stagedNumstat: "",
+      unstagedNumstat: ["0\t0\tsrc/mode-only.sh", "-\t-\tassets/logo.png"].join("\n"),
+    });
+    expect(result.unstaged.map((f) => f.path)).toEqual(["src/mode-only.sh", "assets/logo.png"]);
+  });
+
+  it("keeps every row when a numstat command failed (null), rather than wiping the list", () => {
+    const result = buildGitStatusResultFromOutputs({
+      isRepo: true,
+      statusOutput: [
+        "# branch.head main",
+        "1 M. N... 100644 100644 100644 aaa aaa src/a.ts",
+        "1 .M N... 100644 100644 100644 bbb bbb src/b.ts",
+      ].join("\n"),
+      remoteOutput: "",
+      stagedNumstat: null,
+      unstagedNumstat: null,
+    });
+    expect(result.staged.map((f) => f.path)).toEqual(["src/a.ts"]);
+    expect(result.unstaged.map((f) => f.path)).toEqual(["src/b.ts"]);
+    expect(result.totalInsertions).toBe(0);
+  });
+
   it("returns hasRemote=false when remoteOutput is empty", () => {
     const result = buildGitStatusResultFromOutputs({
       isRepo: true,
