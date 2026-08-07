@@ -2,14 +2,14 @@
   "releases": [
     {
       "version": "1.6.1",
-      "date": "2026-08-05",
+      "date": "2026-08-07",
       "title": "Flat thread list, worktree moves & workspace switching",
-      "summary": "The sidebar can now show every project's threads in one flat, filterable list, and you can move an existing thread into a worktree straight from its context menu. Kimi Code sessions, Factory Droid subagents, and Windows agent launches are all more dependable.",
+      "summary": "The sidebar can now show every project's threads in one flat, filterable list, and you can move an existing thread into a worktree straight from its context menu. Remote-paired projects, Kimi Code sessions, Factory Droid subagents, and Windows agent launches are all more dependable.",
       "changes": [
         {
           "kind": "added",
           "label": "Sidebar",
-          "text": "Switch the thread list to a flat layout that shows every project's threads together, tagged by project and with Git status on each row, plus sort modes and per-project filters."
+          "text": "Switch the thread list to a flat layout that shows every project's threads together, tagged by project and with Git status on each row, plus per-project filters."
         },
         {
           "kind": "added",
@@ -29,12 +29,12 @@
         {
           "kind": "added",
           "label": "Cursor",
-          "text": "Cursor SDK chat gains the standard composer slash commands for model, effort, fast mode, plan mode, and agent selection — the same set Codex already uses."
+          "text": "Cursor SDK chat gains the standard composer slash commands for model, effort, fast mode, plan mode, and agent selection."
         },
         {
           "kind": "added",
           "label": "Plans",
-          "text": "When an ACP agent proposes a plan, the full plan shows in the approval request so you can read it before you accept."
+          "text": "When an ACP agent proposes a plan, the full plan shows in the approval request so you can read it before you accept, and plan mode stays in sync when the agent switches modes on its own."
         },
         {
           "kind": "improved",
@@ -44,17 +44,22 @@
         {
           "kind": "improved",
           "label": "Kimi",
-          "text": "Kimi Code handles workspace trust, signing out, thinking levels, question dialogs, and background tasks much more reliably."
+          "text": "Kimi Code handles workspace trust, signing out, thinking levels, question dialogs, and background tasks much more reliably, and a resumed thread now waits on 0.34's cache-expiry dialog instead of answering it by accident."
         },
         {
           "kind": "improved",
           "label": "Factory",
-          "text": "Factory Droid subagent transcripts now stream into the parent thread, and built-in HTTP MCP servers reach Droid sessions."
+          "text": "Factory Droid subagent transcripts now stream dependably into the parent thread, and built-in HTTP MCP servers reach Droid sessions."
         },
         {
           "kind": "improved",
-          "label": "Security",
-          "text": "ACP agents can no longer write through the filesystem bridge outside the project, except into an agent's own config folder such as Kimi's ~/.kimi-code."
+          "label": "Remote",
+          "text": "Mirrored projects are labeled with their server across the sidebar and project switcher, their threads launch on the host machine and reopen dependably, and you can move a remote thread into a worktree from the desktop or your phone."
+        },
+        {
+          "kind": "improved",
+          "label": "Settings",
+          "text": "A single Prevent sleep policy in General settings replaces the old scattered toggles — keep the machine awake while agents are working, while remote access is enabled, or always."
         },
         {
           "kind": "improved",
@@ -67,6 +72,10 @@
           "text": "Your saved Qwen model selections move from the retired Qwen 3.8 Max Preview to the released Qwen 3.8 Max."
         },
         {
+          "kind": "improved",
+          "text": "Idle Files and Terminal buttons on sidebar rows now tuck away until you hover, and workflow actions in the GitHub Actions view stand out better on hover."
+        },
+        {
           "kind": "fixed",
           "label": "Windows",
           "text": "Agent commands containing quotes, newlines, or shell metacharacters now launch correctly through WSL and PowerShell instead of failing to parse."
@@ -77,7 +86,16 @@
         },
         {
           "kind": "fixed",
+          "label": "Remote",
+          "text": "Pasted images now show a preview and reach the agent on remote threads, and threads created on the host no longer disappear during sync."
+        },
+        {
+          "kind": "fixed",
           "text": "Provider usage keeps reporting after a browser sign-in rotates its cookies, duplicated question headers are gone, and the model visibility list no longer overflows the window."
+        },
+        {
+          "kind": "fixed",
+          "text": "Closing the last browser tab no longer leaves the right panel stuck on a blank browser view, the side panel border no longer shifts the layout when it closes, and project settings open without a brief empty flash."
         }
       ]
     },
