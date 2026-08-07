@@ -9,6 +9,7 @@ import { AppContent } from "@/renderer/views/MainView/parts/AppContent/AppConten
 import { SidebarHeaderControls } from "@/renderer/views/MainView/parts/SidebarHeaderControls";
 import { MainRightPanel } from "@/renderer/views/MainView/parts/MainRightPanel";
 import { MainGitPanel } from "@/renderer/views/MainView/parts/MainGitPanel";
+import { BottomDockDropStrip } from "@/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProjectIds } from "@/renderer/state/useThread";
@@ -79,6 +80,7 @@ function MainPanelDropZone(props: { children: ReactNode }) {
   return (
     <div ref={elementRef} className="relative h-full min-h-0">
       {props.children}
+      <BottomDockDropStrip />
       {isActive ? (
         <div
           aria-hidden="true"
