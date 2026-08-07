@@ -41,26 +41,69 @@ export function parseRemoteInfo(remoteOutput: string): {
   return { hasRemote, remoteInfo };
 }
 
-/** Merge staged/unstaged `--numstat` counts into the parsed porcelain entries. */
+/**
+ * Read a batched-bridge command result as a numstat output for
+ * {@link applyNumstatCounts}: `null` when the command failed, so an errored
+ * numstat is never mistaken for "no tracked file has a diff".
+ */
+export function numstatFromBatchResult(
+  result: { ok: boolean; stdout: string } | undefined,
+): string | null {
+  return result?.ok ? result.stdout : null;
+}
+
+/**
+ * Merge one side's `--numstat` counts into its porcelain entries and drop the
+ * tracked rows numstat has nothing to say about. `null` means the numstat
+ * command failed — the rows are returned untouched rather than wiped.
+ */
+function applyNumstatToSide(
+  files: readonly GitFileChange[],
+  numstat: string | null,
+): GitFileChange[] {
+  if (numstat === null) return [...files];
+  const stats = new Map(parseDiffNumstat(numstat).map((entry) => [entry.path, entry]));
+  const result: GitFileChange[] = [];
+  for (const file of files) {
+    // Untracked files never appear in `git diff`; their counts are filled
+    // separately by reading the file (see `replaceUntrackedEntries`).
+    if (file.status === "?") {
+      result.push(file);
+      continue;
+    }
+    const entry = stats.get(file.path);
+    if (!entry) continue;
+    result.push({ ...file, insertions: entry.insertions, deletions: entry.deletions });
+  }
+  return result;
+}
+
+/**
+ * Merge staged/unstaged `--numstat` counts into the parsed porcelain entries,
+ * dropping tracked entries that carry no diff at all.
+ *
+ * `git status` can call a tracked file modified from cached stat data alone:
+ * git's `ie_modified()` short-circuits on a size mismatch and never re-reads the
+ * blob. On Windows with `core.autocrlf=true` that fires en masse — a tool
+ * rewrites files with LF endings, so each file's on-disk size drops below the
+ * CRLF size the index cached at checkout while the content git actually tracks
+ * is unchanged. `git status` then reports hundreds of modified files that
+ * `git diff` has nothing to say about, and the Changes panel fills with rows
+ * that show no +/- and open an empty diff.
+ *
+ * `git diff --numstat` is the ground truth for "this file has a diff": every
+ * real change surfaces there — binaries as `- -`, mode-only changes as `0 0`,
+ * dirty submodules through the `-dirty` commit marker — so a tracked row missing
+ * from it has nothing to show and is dropped. Pass `null` for a side whose
+ * numstat command failed so neither counts nor pruning are applied to it.
+ */
 export function applyNumstatCounts(
   parsed: ParsedPorcelainStatus,
-  stagedNumstat: string,
-  unstagedNumstat: string,
+  stagedNumstat: string | null,
+  unstagedNumstat: string | null,
 ): void {
-  for (const entry of parseDiffNumstat(stagedNumstat)) {
-    const match = parsed.staged.find((file) => file.path === entry.path);
-    if (match) {
-      match.insertions = entry.insertions;
-      match.deletions = entry.deletions;
-    }
-  }
-  for (const entry of parseDiffNumstat(unstagedNumstat)) {
-    const match = parsed.unstaged.find((file) => file.path === entry.path);
-    if (match) {
-      match.insertions = entry.insertions;
-      match.deletions = entry.deletions;
-    }
-  }
+  parsed.staged = applyNumstatToSide(parsed.staged, stagedNumstat);
+  parsed.unstaged = applyNumstatToSide(parsed.unstaged, unstagedNumstat);
 }
 
 /** Sum insertions/deletions across staged + unstaged entries. */
@@ -331,8 +374,10 @@ export function buildGitStatusResultFromOutputs(args: {
   isRepo: boolean;
   statusOutput: string;
   remoteOutput: string;
-  stagedNumstat: string;
-  unstagedNumstat: string;
+  /** `null` when the numstat command failed — see {@link applyNumstatCounts}. */
+  stagedNumstat: string | null;
+  /** `null` when the numstat command failed — see {@link applyNumstatCounts}. */
+  unstagedNumstat: string | null;
 }): GitStatusResult {
   if (!args.isRepo) {
     return {
