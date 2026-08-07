@@ -1185,6 +1185,7 @@ describe("Cursor SDK canonical mapping — auxiliary updates and usage", () => {
         },
       },
     ]);
+    expect(events.some((event) => event.type === "context.updated")).toBe(false);
     expectCanonical(events);
   });
 
