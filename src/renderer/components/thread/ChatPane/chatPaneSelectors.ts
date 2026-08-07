@@ -250,6 +250,16 @@ export function growingStreamLength(item: RuntimeChatItem): number {
   );
 }
 
+/**
+ * Whether text has at least one non-whitespace character. Used instead of
+ * `trim()` because the visibility filter re-runs over every item on each
+ * structural bump — trimming would copy each message's full text per pass.
+ */
+const NON_WHITESPACE = /\S/;
+function hasVisibleText(text: string): boolean {
+  return NON_WHITESPACE.test(text);
+}
+
 function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // Plans and goals are rendered exclusively in composer docks — never inline
   // in chat. Empty completed reasoning items are already dropped at the data
@@ -263,16 +273,17 @@ function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // null for `error`); excluding them here keeps the virtualized list from
   // allocating an empty slot that shows up as a gap.
   if (item.type === "error") return false;
-  // Old ACP sessions may contain completed assistant items created from an
-  // empty provider stream-boundary chunk. They have no renderable content, so
+  // Old ACP sessions may contain completed assistant items created from a blank
+  // provider stream-boundary chunk — empty, or whitespace-only (Factory Droid
+  // emits "\n\n" after tool calls). They have no renderable content, so
   // allocating a virtualized row for them only produces a blank gap. Keep an
   // empty in-flight item visible for its loader and preserve text/image payloads.
   if (item.type === "assistant_message" && item.state === "completed") {
     const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
     const hasPayloadContent = payload?.content.some(
-      (block) => (block.kind === "text" && block.text.length > 0) || block.kind === "image",
+      (block) => (block.kind === "text" && hasVisibleText(block.text)) || block.kind === "image",
     );
-    if (!(item.streams.assistant_text?.length || hasPayloadContent)) return false;
+    if (!(hasVisibleText(item.streams.assistant_text ?? "") || hasPayloadContent)) return false;
   }
   if (isToolLikeItem(item)) {
     const payload = getToolLikePayload(item);

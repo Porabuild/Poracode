@@ -194,7 +194,15 @@ describe("chatPaneSelectors", () => {
   it("hides completed assistant messages with no renderable content", () => {
     const state = {
       runtimeItemIdsByThread: {
-        t1: ["empty", "streaming", "stream-text", "payload-text", "payload-image"],
+        t1: [
+          "empty",
+          "whitespace",
+          "payload-whitespace",
+          "streaming",
+          "stream-text",
+          "payload-text",
+          "payload-image",
+        ],
       },
       runtimeItemsByIdByThread: {
         t1: {
@@ -203,6 +211,20 @@ describe("chatPaneSelectors", () => {
             type: "assistant_message",
             state: "completed",
             streams: { assistant_text: "" },
+          },
+          // Factory Droid persists "\n\n" stream-boundary chunks as assistant rows.
+          whitespace: {
+            id: "whitespace",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "\n\n" },
+          },
+          "payload-whitespace": {
+            id: "payload-whitespace",
+            type: "assistant_message",
+            state: "completed",
+            payload: { content: [{ kind: "text", text: "\n" }] },
+            streams: {},
           },
           streaming: {
             id: "streaming",
