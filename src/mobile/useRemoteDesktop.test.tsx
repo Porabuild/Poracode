@@ -2,6 +2,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { useAppStore } from "@/renderer/state/appStore";
+import { DEFAULT_TERMINAL_SIZE } from "@/shared/contracts";
 import type { RemoteShellSnapshot } from "@/shared/remote";
 import { RemoteClientError } from "@/shared/remote/client";
 import type { StoredDesktop } from "./storage";
@@ -365,7 +366,7 @@ describe("useRemoteDesktop", () => {
     h.storedThread.clear();
     h.isNativeApp = true;
     h.deviceId = "device-1";
-    useAppStore.setState({ threads: [] });
+    useAppStore.setState({ threads: [], projects: [] });
     for (const fn of [
       h.saveShellSnapshot,
       h.markDesktopConnected,
@@ -898,6 +899,109 @@ describe("useRemoteDesktop", () => {
     expect(client.startThread).not.toHaveBeenCalled();
     // The cached preload was applied conservatively (fromServer:false).
     expect(h.applyThreadSnapshot).toHaveBeenCalledWith(expect.anything(), { fromServer: false });
+  });
+
+  it("auto-starts an INACTIVE thread on open with the shared relaunch payload", async () => {
+    const d = makeDesktop("d1");
+    const inactiveThread = {
+      id: "t1",
+      projectId: "p",
+      title: "t1",
+      agentKind: "codex" as const,
+      agentInstanceId: "inst-9",
+      config: { model: "m" },
+      status: "inactive" as const,
+      attention: "none" as const,
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "terminal" as const,
+      sessionRef: { providerSessionId: "sess-1", discoveredAt: "2026-01-01T00:00:00.000Z" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const client = clientFor("d1");
+    client.threadHistory.mockResolvedValue({
+      snapshotSeq: 2,
+      thread: inactiveThread,
+      runtimeItems: [],
+      completedTurns: [],
+      contextUsage: null,
+      updatedAt: "",
+    });
+    const view = await mountWith([d], "d1");
+    await act(async () => {
+      useAppStore.setState({
+        projects: [{ id: "p", location: { kind: "posix", path: "/repo" }, name: "repo" }] as never,
+      });
+    });
+    client.startThread.mockClear();
+
+    await act(async () => {
+      await view.result.current.openThread(inactiveThread as never);
+    });
+
+    // The same empty-prompt relaunch payload the desktop renderer sends (see
+    // shared/threadRelaunch): agentInstanceId and sessionRef round-trip so the
+    // host resumes the same provider instance and session.
+    expect(client.startThread).toHaveBeenCalledTimes(1);
+    expect(client.startThread).toHaveBeenCalledWith({
+      threadId: "t1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      agentInstanceId: "inst-9",
+      config: { model: "m" },
+      prompt: "",
+      initialSize: DEFAULT_TERMINAL_SIZE,
+      sessionRef: { providerSessionId: "sess-1", discoveredAt: "2026-01-01T00:00:00.000Z" },
+      presentationMode: "terminal",
+    });
+  });
+
+  it("does not auto-start a FINISHED terminal thread on open (the live session stays untouched)", async () => {
+    const d = makeDesktop("d1");
+    const finishedThread = {
+      id: "t2",
+      projectId: "p",
+      title: "t2",
+      agentKind: "codex" as const,
+      config: { model: "m" },
+      status: "finished" as const,
+      attention: "none" as const,
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "terminal" as const,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const client = clientFor("d1");
+    client.threadHistory.mockResolvedValue({
+      snapshotSeq: 2,
+      thread: finishedThread,
+      runtimeItems: [],
+      completedTurns: [],
+      contextUsage: null,
+      updatedAt: "",
+    });
+    const view = await mountWith([d], "d1");
+    await act(async () => {
+      useAppStore.setState({
+        projects: [{ id: "p", location: { kind: "posix", path: "/repo" }, name: "repo" }] as never,
+      });
+    });
+    client.startThread.mockClear();
+
+    await act(async () => {
+      await view.result.current.openThread(finishedThread as never);
+    });
+
+    // "finished" is the unwatched-completion badge over a LIVE host session;
+    // host-side startThread is close+restart, so an open-driven relaunch would
+    // kill the run. Only "inactive" relaunches (desktop parity).
+    expect(client.startThread).not.toHaveBeenCalled();
   });
 
   it("opening a DONE thread preserves done (no set-done command to the desktop)", async () => {

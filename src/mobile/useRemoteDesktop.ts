@@ -8,8 +8,8 @@ import {
   type PromptSegment,
   type TerminalSize,
   type Thread,
-  type ThreadStatus,
 } from "@/shared/contracts";
+import { buildThreadRelaunchStartInput, shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
@@ -125,22 +125,6 @@ async function restoreSshTransport(desktop: StoredDesktop): Promise<StoredDeskto
   await updateDesktopEndpoint(desktop.desktopId, result.endpoint);
   return { ...desktop, endpoint: result.endpoint };
 }
-
-const MOBILE_TERMINAL_START_STATUSES = new Set<ThreadStatus>([
-  "inactive",
-  "launching",
-  "finished",
-  "error",
-]);
-
-// For GUI threads "finished" (and "launching") mean the structured session is
-// still alive on the desktop — restarting would close+reopen a live session.
-// Only resume sessions that are actually gone, and only ones that ended
-// CLEANLY: a prompt-less resume of an "error" thread replays its broken turn,
-// which the agent session can keep re-entering on its own — an infinite
-// relaunch-into-working loop with no user input. Errored threads wait for an
-// explicit prompt instead.
-const MOBILE_GUI_START_STATUSES = new Set<ThreadStatus>(["inactive"]);
 
 /**
  * Owns the remote-desktop session: paired desktops, cached + live snapshots,
@@ -752,22 +736,19 @@ export function useRemoteDesktop() {
 
   /**
    * Activate an inactive thread on the desktop when the user opens it in the
-   * PWA. Terminal threads spawn a fresh PTY; GUI (native chat) threads resume
-   * their structured session via `sessionRef` (or open a new one when none was
-   * ever recorded). Both are driven with an empty prompt — the supervisor's
-   * `startThread` opens/resumes the session and leaves it idle, starting a turn
-   * only when a prompt is supplied. Only the presentation and terminal size
-   * differ between the two, so a single call covers both.
+   * PWA — the same reopen contract the desktop renderer applies (see
+   * shared/threadRelaunch). Terminal threads spawn a fresh PTY; GUI (native
+   * chat) threads resume their structured session via `sessionRef` (or open a
+   * new one when none was ever recorded). Both are driven with an empty
+   * prompt — the supervisor's `startThread` opens/resumes the session and
+   * leaves it idle, starting a turn only when a prompt is supplied.
    */
   async function ensureThreadRunning(
     thread: Thread,
     desktop: StoredDesktop,
     terminalSize?: TerminalSize,
   ): Promise<void> {
-    const presentation = thread.presentationMode ?? "terminal";
-    const startStatuses =
-      presentation === "terminal" ? MOBILE_TERMINAL_START_STATUSES : MOBILE_GUI_START_STATUSES;
-    if (!startStatuses.has(thread.status)) return;
+    if (!shouldRelaunchThreadOnOpen(thread)) return;
     const projectLocation = resolveThreadProjectLocation(thread);
     if (!projectLocation) {
       // The thread is startable but its project isn't in the current shell
@@ -776,17 +757,13 @@ export function useRemoteDesktop() {
       setOperationMessage(i18n._(msg`Unable to start the thread.`));
       return;
     }
-    await clientFor(desktop).startThread({
-      threadId: thread.id,
-      projectLocation,
-      agentKind: thread.agentKind,
-      ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
-      config: thread.config,
-      prompt: "",
-      initialSize: terminalSize ?? DEFAULT_TERMINAL_SIZE,
-      ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      presentationMode: presentation,
-    });
+    await clientFor(desktop).startThread(
+      buildThreadRelaunchStartInput({
+        thread,
+        projectLocation,
+        initialSize: terminalSize ?? DEFAULT_TERMINAL_SIZE,
+      }),
+    );
     void refresh(desktop, { refreshSelectedThread: true });
   }
 
