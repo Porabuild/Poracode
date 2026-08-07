@@ -74,6 +74,33 @@ function kimiQuestionPermissionRequest(): RequestPermissionRequest {
   };
 }
 
+function droidQuestionnairePermissionRequest(): RequestPermissionRequest {
+  return {
+    sessionId: "session-1",
+    toolCall: {
+      toolCallId: "tool-ask-droid",
+      title: "AskUser",
+      kind: "other",
+      rawInput: {
+        questionnaire: [
+          "1. [question] Which features do you want to enable? (multi)",
+          "[topic] Features",
+          "[option] Auth handling",
+          "[option] Login Page",
+          "2. [question] Which library should we use for date formatting?",
+          "[topic] Library",
+          "[option] Library ABC",
+          "[option] Library BlaBla",
+        ].join("\n"),
+      },
+    },
+    options: [
+      { optionId: "proceed_once", name: "Submit", kind: "allow_once" },
+      { optionId: "cancel", name: "Cancel", kind: "reject_once" },
+    ],
+  };
+}
+
 function formElicitation(): CreateElicitationRequest {
   return {
     mode: "form",
@@ -303,6 +330,99 @@ describe("AcpSessionRequests permissions", () => {
     await expect(response).resolves.toEqual({
       outcome: { outcome: "selected", optionId: "q0_opt_1" },
       answers: { "0": "Log in via browser" },
+    });
+  });
+
+  it("maps droid AskUser questionnaires to a reply form instead of auto-approving them", async () => {
+    // `never` + no native mode is the exact config under which unrecognized
+    // permissions are silently auto-approved — the droid questionnaire must
+    // still open as a form.
+    const { emitRuntimeEvents, requests, setRequestAttention } = makeRequests({
+      config: { model: "model-a", mode: "agent", approvalPolicy: "never" },
+      availableModeIds: ["agent"],
+    });
+
+    const response = requests.requestPermission(droidQuestionnairePermissionRequest());
+
+    expect(setRequestAttention).toHaveBeenCalledExactlyOnceWith("needs_reply");
+    expect(emitRuntimeEvents).toHaveBeenCalledWith([
+      {
+        type: "request.opened",
+        threadId: "thread-1",
+        requestId: "acp-perm-0",
+        requestType: "tool_user_input",
+        payload: {
+          summary: "Which features do you want to enable?",
+          details: {
+            userInputForm: {
+              questions: [
+                {
+                  id: "0",
+                  header: "Features",
+                  question: "Which features do you want to enable?",
+                  options: [
+                    { optionId: "Auth handling", label: "Auth handling" },
+                    { optionId: "Login Page", label: "Login Page" },
+                  ],
+                  multiSelect: true,
+                },
+                {
+                  id: "1",
+                  header: "Library",
+                  question: "Which library should we use for date formatting?",
+                  options: [
+                    { optionId: "Library ABC", label: "Library ABC" },
+                    { optionId: "Library BlaBla", label: "Library BlaBla" },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    requests.resolve("acp-perm-0", {
+      answers: { "0": ["Auth handling", "Login Page"], "1": "Library ABC" },
+    });
+
+    await expect(response).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "proceed_once" },
+      answers: { "0": "Auth handling, Login Page", "1": "Library ABC" },
+    });
+    expect(setRequestAttention).toHaveBeenLastCalledWith("working");
+  });
+
+  it("echoes Kimi v2 plan-review option ids back to the server verbatim", async () => {
+    const { requests } = makeRequests();
+    const response = requests.requestPermission({
+      sessionId: "session-1",
+      toolCall: {
+        toolCallId: "3:tool-plan",
+        title: "ExitPlanMode",
+        content: [
+          {
+            type: "content",
+            content: { type: "text", text: "Plan saved to: /p.md\n\n# Plan" },
+          },
+          {
+            type: "content",
+            content: { type: "text", text: "Requesting approval to Presenting plan" },
+          },
+        ],
+      },
+      options: [
+        { optionId: "plan_opt_0", name: "Use REST", kind: "allow_once" },
+        { optionId: "plan_opt_1", name: "Use GraphQL", kind: "allow_once" },
+        { optionId: "plan_revise", name: "Revise", kind: "reject_once" },
+        { optionId: "plan_reject_and_exit", name: "Reject and Exit", kind: "reject_once" },
+      ],
+    });
+
+    requests.resolve("acp-perm-0", { optionId: "plan_opt_1" });
+    await expect(response).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "plan_opt_1" },
     });
   });
 

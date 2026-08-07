@@ -1,6 +1,10 @@
 import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
+import {
+  ProjectRemoteServerChip,
+  useProjectRemoteServerLookup,
+} from "@/renderer/components/common/ProjectRemoteServer";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useDragSource } from "@/renderer/dnd";
 import {
@@ -9,15 +13,20 @@ import {
   useIsCurrentProjectDraft,
   useLiveBackgroundThreadIds,
 } from "@/renderer/hooks/uiSelectors";
+import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentCandidateOrder } from "@/renderer/state/experimentStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
 import { useWorkspaceProjectIds } from "@/renderer/state/workspaceSelectors";
+import { sidebarBodyScrollClass } from "@/renderer/components/layout/sidebarChrome";
 import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
-import { buildSidebarProjectRows, type SidebarRow } from "./sidebarProjectRows";
+import {
+  buildSidebarProjectRows,
+  SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE,
+  type SidebarRow,
+} from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
 
@@ -47,7 +56,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const workspaceProjectIds = useWorkspaceProjectIds();
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const projects = useAppStore(useShallow((s) => s.projects));
-  const remoteRuntime = useRemoteServersStore((s) => s.runtime);
+  const remoteServerFor = useProjectRemoteServerLookup();
   const experimentCandidateOrder = useExperimentCandidateOrder();
   const collapsedWorktrees = useSidebarUiStore((s) => s.collapsedWorktrees);
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);
@@ -55,9 +64,14 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const revealMoreThreads = useSidebarUiStore((s) => s.revealMoreThreads);
   const flatListProjectFilter = useSidebarUiStore((s) => s.flatListProjectFilter);
   const setFlatListProjectFilter = useSidebarUiStore((s) => s.setFlatListProjectFilter);
-  const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE);
+  const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
   const currentThreadCount = useCurrentThreadIdsCount();
   const source = useDragSource();
+  // Own scroll container (the grouped/empty bodies use Sidebar's): the
+  // filter/new-thread head above it stays pinned while the rows scroll.
+  const { setScrollContainer, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
+    maxFadePx: 10,
+  });
 
   // Same visibility rules as the grouped sidebar — workspace projects plus Home
   // (when enabled), minus disabled projects — except remote mirrors, which are
@@ -74,7 +88,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     if (isHomeProject(project)) return homeScopeEnabled;
     if (!includedIds.has(project.id) || project.disabled) return false;
     if (!project.remoteServerId) return true;
-    return remoteRuntime[project.remoteServerId]?.status === "online";
+    return remoteServerFor(project).status === "online";
   });
   const projectsById = new Map(visibleProjects.map((project) => [project.id, project]));
 
@@ -144,11 +158,11 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     ) : null;
 
   return (
-    <div className="space-y-0.5">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {visibleProjects.length > 1 ? (
         // Filter and new-thread share one head row; the new-thread control
         // collapses to an icon button (tooltip) when the row is narrow.
-        <div className="poracode-flat-list-head flex items-center gap-1">
+        <div className="poracode-flat-list-head flex shrink-0 items-center gap-1 pb-0.5">
           <div className="min-w-0 flex-1">
             <SidebarProjectFilter
               projects={visibleProjects}
@@ -160,49 +174,58 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
           {renderNewThreadButton(true)}
         </div>
       ) : (
-        renderNewThreadButton(false)
+        <div className="shrink-0 pb-0.5">{renderNewThreadButton(false)}</div>
       )}
 
-      <div>
-        {rows.map((row) => {
-          if (row.kind === "see-more") {
+      <div ref={setScrollContainer} className={sidebarBodyScrollClass()} style={scrollFadeStyle}>
+        <div>
+          {rows.map((row) => {
+            if (row.kind === "see-more") {
+              return (
+                <SeeMoreThreadsButton
+                  key={row.key}
+                  onPress={() =>
+                    revealMoreThreads(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE)
+                  }
+                />
+              );
+            }
+            const projectId = rowProjectId(row);
+            const project: Project | undefined = projectId
+              ? projectsById.get(projectId)
+              : visibleProjects[0];
+            if (!project) return null;
+            // Children under a group header omit the tag — the header carries it.
+            const tagged = !(row.kind === "thread" && row.inGroup) && row.kind !== "section-label";
+            // Thread rows and worktree headers stack the tag on a second line;
+            // provider/experiment group headers keep the inline trailing form.
+            const stackedTag = row.kind === "thread" || row.kind === "worktree-group";
+            // Remote mirrors carry the machine name so their rows read as
+            // non-local; mirrors the grouped project header's server chip.
+            const remote = remoteServerFor(project);
             return (
-              <SeeMoreThreadsButton
+              <SidebarThreadRow
                 key={row.key}
-                onPress={() => revealMoreThreads(FLAT_LIST_SCOPE)}
+                row={row}
+                project={project}
+                editingThreadId={editingThreadId}
+                setEditingThreadId={setEditingThreadId}
+                {...(tagged
+                  ? {
+                      projectTag: (
+                        <span
+                          className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} flex items-center gap-1 text-[10px] leading-4 text-muted/70`}
+                        >
+                          <span className="truncate">{project.name}</span>
+                          <ProjectRemoteServerChip info={remote} size="xs" />
+                        </span>
+                      ),
+                    }
+                  : {})}
               />
             );
-          }
-          const projectId = rowProjectId(row);
-          const project: Project | undefined = projectId
-            ? projectsById.get(projectId)
-            : visibleProjects[0];
-          if (!project) return null;
-          // Children under a group header omit the tag — the header carries it.
-          const tagged = !(row.kind === "thread" && row.inGroup) && row.kind !== "section-label";
-          return (
-            <SidebarThreadRow
-              key={row.key}
-              row={row}
-              project={project}
-              editingThreadId={editingThreadId}
-              setEditingThreadId={setEditingThreadId}
-              {...(tagged
-                ? {
-                    projectTag: (
-                      // Fixed-height group headers keep the inline form; plain
-                      // thread rows carry the tag on a second line.
-                      <span
-                        className={`${row.kind !== "thread" ? "ml-auto max-w-[9rem] shrink-0 pl-1" : "min-w-0 flex-1"} truncate text-[10px] leading-4 text-muted/70`}
-                      >
-                        {project.name}
-                      </span>
-                    ),
-                  }
-                : {})}
-            />
-          );
-        })}
+          })}
+        </div>
       </div>
     </div>
   );

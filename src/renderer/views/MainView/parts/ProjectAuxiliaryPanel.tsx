@@ -190,11 +190,15 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   function requestedTabIsAvailable(): boolean {
     if (requestedTab === "subagent") return subAgentInCurrentThread;
     if (requestedTab === "plan") return planInCurrentThread;
+    // The browser panel is dismissed out-of-band when its last tab closes (the
+    // browser sync clears browserPanelOpen but leaves rightPanelTab pointing at
+    // "browser"), so it must honor its open flag even when no plan is present —
+    // otherwise the panel stays open on an empty browser layer.
+    if (requestedTab === "browser") return browserPanelOpen;
     if (!planInCurrentThread) return true;
     if (requestedTab === "terminal") return terminalOpen;
     if (requestedTab === "files") return filesPanelOpen;
     if (requestedTab === "git") return gitPanelOpen;
-    if (requestedTab === "browser") return browserPanelOpen;
     if (requestedTab === "usage") return usagePanelOpen;
     return requestedTab === "notes" && notesPanelOpen;
   }

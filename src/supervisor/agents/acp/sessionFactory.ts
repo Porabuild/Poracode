@@ -66,6 +66,9 @@ export function createAcpStructuredSession(
       : {}),
     ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
     ...(input.acpFsAgentHomeDirs ? { fsAgentHomeDirs: input.acpFsAgentHomeDirs } : {}),
+    ...(input.acpFsTextCapability !== undefined
+      ? { fsTextCapability: input.acpFsTextCapability }
+      : {}),
     ...(overrides?.assumedMcpCapabilities
       ? { assumedMcpCapabilities: overrides.assumedMcpCapabilities }
       : {}),

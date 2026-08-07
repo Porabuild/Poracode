@@ -8,6 +8,10 @@ import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { ContextMenuSurface, MENU_BACKDROP_ATTR } from "@/renderer/components/common/ContextMenu";
 import {
+  ProjectRemoteServerChip,
+  useProjectRemoteServerLookup,
+} from "@/renderer/components/common/ProjectRemoteServer";
+import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
 } from "@/renderer/components/common/ResponsiveMenuSurface";
@@ -209,6 +213,7 @@ export function SidebarProjectFilter(props: {
 }) {
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
+  const remoteServerFor = useProjectRemoteServerLookup();
   const [isOpen, setIsOpen] = useState(false);
   // Which project the overflow menu is open for, and where.
   const [overflowTarget, setOverflowTarget] = useState<{
@@ -252,12 +257,27 @@ export function SidebarProjectFilter(props: {
   // filters it out, matching checkbox expectations.
   const selectedProjects: ReadonlySet<string> = props.value ?? new Set(visibleIds);
 
-  const label = isAll
+  const soleSelected =
+    !isAll && selectedProjects.size === 1
+      ? props.projects.find((project) => selectedProjects.has(project.id))
+      : undefined;
+  const soleMachine = soleSelected ? remoteServerFor(soleSelected).serverName : undefined;
+  const baseLabel = isAll
     ? t`All projects`
     : selectedProjects.size === 1
-      ? (props.projects.find((project) => selectedProjects.has(project.id))?.name ??
-        t`All projects`)
+      ? (soleSelected?.name ?? t`All projects`)
       : t`${plural(selectedProjects.size, { one: `# project`, other: `# projects` })}`;
+  // A persisted filter outlives the session that set it, so a lone same-named
+  // project still has to say which machine it came from — muted, since the
+  // project stays the thing being named.
+  const label: React.ReactNode = soleMachine ? (
+    <>
+      {baseLabel}
+      <span className="text-muted/60"> · {soleMachine}</span>
+    </>
+  ) : (
+    baseLabel
+  );
 
   const selectAll = () => props.onChange(null);
 
@@ -294,7 +314,7 @@ export function SidebarProjectFilter(props: {
             type="button"
             aria-label={t`Filter by project`}
             aria-expanded={isOpen}
-            className={sidebarRowClass()}
+            className={sidebarRowClass({ size: "xs" })}
             onClick={() => setIsOpen(true)}
           >
             {triggerContent}
@@ -315,6 +335,7 @@ export function SidebarProjectFilter(props: {
           </button>
           {props.projects.map((project) => {
             const selected = selectedProjects.has(project.id);
+            const remote = remoteServerFor(project);
             return (
               <button
                 key={project.id}
@@ -323,7 +344,8 @@ export function SidebarProjectFilter(props: {
                 aria-pressed={selected || undefined}
                 onClick={() => toggleProject(project.id)}
               >
-                <span className="flex-1 truncate">{project.name}</span>
+                <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                <ProjectRemoteServerChip info={remote} size="md" />
                 <span className="shrink-0 text-xs text-muted">
                   {props.threadCounts.get(project.id) ?? 0}
                 </span>
@@ -395,7 +417,7 @@ export function SidebarProjectFilter(props: {
         <Dropdown.Trigger
           {...{ [TRIGGER_ATTR]: true }}
           aria-label={t`Filter by project`}
-          className={sidebarRowClass()}
+          className={sidebarRowClass({ size: "xs" })}
         >
           {triggerContent}
         </Dropdown.Trigger>
@@ -425,26 +447,30 @@ export function SidebarProjectFilter(props: {
             <Dropdown.ItemIndicator />
           </Dropdown.Item>
           <Separator />
-          {props.projects.map((project) => (
-            <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
-              <Label className="flex-1 truncate">{project.name}</Label>
-              <span className="ms-auto shrink-0 text-xs text-muted">
-                {props.threadCounts.get(project.id) ?? 0}
-              </span>
-              <Dropdown.ItemIndicator />
-              {isHomeProject(project) ? null : (
-                <ProjectRowMenuButton
-                  project={project}
-                  onOpenMenu={(anchor) => {
-                    // The filter menu stays open; the overflow menu stacks
-                    // on top like a submenu and closes it once an action is
-                    // picked (see ProjectOverflowMenu's onAction).
-                    setOverflowTarget({ project, anchor });
-                  }}
-                />
-              )}
-            </Dropdown.Item>
-          ))}
+          {props.projects.map((project) => {
+            const remote = remoteServerFor(project);
+            return (
+              <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                <Label className="min-w-0 truncate">{project.name}</Label>
+                <ProjectRemoteServerChip info={remote} size="md" />
+                <span className="ms-auto shrink-0 text-xs text-muted">
+                  {props.threadCounts.get(project.id) ?? 0}
+                </span>
+                <Dropdown.ItemIndicator />
+                {isHomeProject(project) ? null : (
+                  <ProjectRowMenuButton
+                    project={project}
+                    onOpenMenu={(anchor) => {
+                      // The filter menu stays open; the overflow menu stacks
+                      // on top like a submenu and closes it once an action is
+                      // picked (see ProjectOverflowMenu's onAction).
+                      setOverflowTarget({ project, anchor });
+                    }}
+                  />
+                )}
+              </Dropdown.Item>
+            );
+          })}
         </Dropdown.Menu>
         {overflowTarget ? (
           <ProjectOverflowMenu

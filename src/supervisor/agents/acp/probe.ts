@@ -134,6 +134,9 @@ const INITIAL_SLASH_COMMANDS_TIMEOUT_MS = 2_000;
 const MODE_MAP: Record<string, { mode: ThreadMode; approvalPolicyId?: string }> = {
   default: { mode: "agent", approvalPolicyId: "default" },
   autoEdit: { mode: "agent", approvalPolicyId: "auto_edit" },
+  // Kimi's `auto` mode (auto-approve safe operations) and Qwen's `auto`
+  // approval policy share the canonical `auto` policy id.
+  auto: { mode: "agent", approvalPolicyId: "auto" },
   yolo: { mode: "agent", approvalPolicyId: "never" },
   plan: { mode: "plan" },
   agent: { mode: "agent" },

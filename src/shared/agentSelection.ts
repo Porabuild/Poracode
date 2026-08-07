@@ -222,6 +222,21 @@ export function modelSelectionFor(
   };
 }
 
+/**
+ * True when a model offers more than one reasoning level — i.e. there is
+ * something for the user to pick. A single advertised level (Kimi's untiered
+ * `on`) is still sent to the agent, but no picker is drawn for it, so surfaces
+ * that gate on "has an effort control" must use this rather than a non-empty
+ * check.
+ */
+export function hasSelectableReasoning(
+  capabilities: AgentCapability | undefined,
+  model: string,
+): boolean {
+  if (!capabilities) return false;
+  return modelSelectionFor(capabilities, model).reasoning.values.length > 1;
+}
+
 export function resolveModelSelection(capabilities: AgentCapability, preferred?: string): string {
   return preferred && capabilities.models.some((model) => model.id === preferred)
     ? preferred

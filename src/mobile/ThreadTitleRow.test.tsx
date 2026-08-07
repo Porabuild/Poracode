@@ -137,4 +137,45 @@ describe("ThreadTitleRow", () => {
     expect(screen.queryByText("Delete Worktree")).toBeNull();
     expect(screen.getByText("Delete Thread")).toBeInTheDocument();
   });
+
+  it("moves a project-root thread to a worktree from the thread actions", () => {
+    const onMoveThreadToWorktree = vi.fn<(thread: Thread, withChanges: boolean) => void>();
+
+    render(
+      <ThreadTitleRow
+        thread={makeThread()}
+        onAction={() => undefined}
+        onMoveThreadToWorktree={onMoveThreadToWorktree}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Thread actions" }));
+    fireEvent.click(screen.getByText("Move to worktree with changes"));
+    expect(onMoveThreadToWorktree).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "thread-1" }),
+      true,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Thread actions" }));
+    fireEvent.click(screen.getByText("Move to clean worktree"));
+    expect(onMoveThreadToWorktree).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "thread-1" }),
+      false,
+    );
+  });
+
+  it("hides move-to-worktree for a thread already in a worktree", () => {
+    render(
+      <ThreadTitleRow
+        thread={makeThread({ worktreePath: "/repo/wt", worktreeBranch: "feature/x" })}
+        onAction={() => undefined}
+        onMoveThreadToWorktree={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Thread actions" }));
+
+    expect(screen.queryByText("Move to worktree with changes")).toBeNull();
+    expect(screen.queryByText("Move to clean worktree")).toBeNull();
+  });
 });

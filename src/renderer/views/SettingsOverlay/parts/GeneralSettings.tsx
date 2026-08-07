@@ -5,7 +5,8 @@ import { isRemoteSession, isWindows } from "@/renderer/bridge";
 import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { aiLanguageOptions, localeOptions } from "@/renderer/i18n/locales";
-import { Select, ToggleSwitch } from "@/renderer/components/common";
+import { LightballTabs, Select, ToggleSwitch } from "@/renderer/components/common";
+import type { PreventSleep } from "@/shared/settings";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { newThreadModeOptions, useLocalizedOptions } from "./settingsOptions";
 import { SidebarShortcutsSelector } from "./SidebarShortcutsSelector";
@@ -16,10 +17,8 @@ export function GeneralSettings() {
   const setLocale = useSharedSettings((state) => state.setLocale);
   const gitTextLanguage = useSharedSettings((state) => state.gitTextLanguage);
   const setGitTextLanguage = useSharedSettings((state) => state.setGitTextLanguage);
-  const preventSleepWhileWorking = useSharedSettings((state) => state.preventSleepWhileWorking);
-  const setPreventSleepWhileWorking = useSharedSettings(
-    (state) => state.setPreventSleepWhileWorking,
-  );
+  const preventSleep = useSharedSettings((state) => state.preventSleep);
+  const setPreventSleep = useSharedSettings((state) => state.setPreventSleep);
   const closeToTray = useSharedSettings((state) => state.closeToTray);
   const setCloseToTray = useSharedSettings((state) => state.setCloseToTray);
   const launchAtStartup = useSharedSettings((state) => state.launchAtStartup);
@@ -171,18 +170,23 @@ export function GeneralSettings() {
 
       {!remote && (
         <SettingRow
-          anchorId="general.preventSleepWhileWorking"
-          title={t`Prevent sleep while working`}
-          description={<Trans>Keep the system awake while any thread is actively working.</Trans>}
+          anchorId="general.preventSleep"
+          title={t`Prevent sleep`}
+          description={<Trans>Choose when this machine stays awake.</Trans>}
         >
-          <ToggleSwitch
-            aria-label={t`Prevent sleep while working`}
-            isSelected={preventSleepWhileWorking}
-            onChange={(selected) => {
+          <LightballTabs
+            tabs={[
+              { id: "while-working", label: t`While working` },
+              { id: "while-remote-access", label: t`Remote access` },
+              { id: "always", label: t`Always` },
+            ]}
+            active={preventSleep}
+            onChange={(value: PreventSleep) => {
               startTransition(() => {
-                setPreventSleepWhileWorking(selected);
+                setPreventSleep(value);
               });
             }}
+            ariaLabel={t`Prevent sleep`}
           />
         </SettingRow>
       )}

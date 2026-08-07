@@ -571,4 +571,53 @@ describe("applyThreadSnapshot", () => {
 
     expect(useAppStore.getState().threads[0]?.status).toBe("finished");
   });
+
+  it("does not force-complete a running delegated-agent tile on an active remote snapshot", () => {
+    const runningCrossagent: PersistedRuntimeItem = {
+      id: "sub:run-1",
+      type: "tool_call",
+      state: "started",
+      payload: { name: "X", status: "running", isCrossagent: true },
+      streams: {},
+    };
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "working",
+        items: [runningCrossagent],
+      }),
+    );
+
+    const item = useAppStore.getState().runtimeItemsByIdByThread[THREAD_ID]?.["sub:run-1"];
+    expect(item?.state).toBe("started");
+    expect(item?.payload).toEqual({ name: "X", status: "running", isCrossagent: true });
+  });
+
+  it("reconciles a running delegated-agent tile when the remote thread is inactive", () => {
+    const runningCrossagent: PersistedRuntimeItem = {
+      id: "sub:run-1",
+      type: "tool_call",
+      state: "started",
+      payload: { name: "X", status: "running", isCrossagent: true },
+      streams: {},
+    };
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "idle",
+        items: [runningCrossagent],
+      }),
+    );
+
+    const item = useAppStore.getState().runtimeItemsByIdByThread[THREAD_ID]?.["sub:run-1"];
+    expect(item?.state).toBe("completed");
+    expect(item?.payload).toMatchObject({
+      name: "X",
+      status: "error",
+      isCrossagent: true,
+      result: {
+        error: "Interrupted: agent session ended before completion.",
+      },
+    });
+  });
 });

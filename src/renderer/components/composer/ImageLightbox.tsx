@@ -9,9 +9,7 @@ import {
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
-import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
-import { toLocalFileUrl } from "@/shared/promptContent";
-import type { Attachment } from "./useAttachments";
+import { attachmentImageUrl, type Attachment } from "./useAttachments";
 
 /** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
 export interface LightboxImage {
@@ -69,7 +67,7 @@ export function openAttachmentLightbox(
 ): void {
   openImageLightbox(
     attachments.map((img) => ({
-      src: imageUrlForPath?.(img.path) ?? resolveLocalImageDisplayUrl(toLocalFileUrl(img.path)),
+      src: attachmentImageUrl(img, imageUrlForPath),
       alt: img.name,
     })),
     initialIndex,

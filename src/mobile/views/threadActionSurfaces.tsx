@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleCheck,
+  GitFork,
   Pencil,
   Play,
   Plus,
@@ -32,6 +33,8 @@ export interface ThreadActionCallbacks {
     readonly worktreePath: string;
     readonly threadIds: readonly string[];
   }) => void;
+  /** Move a main-checkout thread into a fresh worktree (optionally carrying uncommitted changes). */
+  readonly onMoveThreadToWorktree: (thread: Thread, withChanges: boolean) => void;
   readonly onOpenTerminal: (input: {
     readonly projectId: string;
     readonly worktreePath?: string;
@@ -78,6 +81,35 @@ function RunActionsPage(props: {
   );
 }
 
+function MoveToWorktreePage(props: {
+  readonly onBack: () => void;
+  readonly onPick: (withChanges: boolean) => void;
+}) {
+  const { t } = useLingui();
+
+  return (
+    <>
+      <div className="m-sheet-head">
+        <span className="truncate">{t`Move to Worktree`}</span>
+      </div>
+      <div className="m-sheet-list">
+        <button type="button" className="m-sheet-action" onClick={props.onBack}>
+          <ChevronLeft className="size-4 shrink-0 text-muted" />
+          <span>{t`Back`}</span>
+        </button>
+        <button type="button" className="m-sheet-action" onClick={() => props.onPick(true)}>
+          <GitFork className="size-4 shrink-0 text-muted" />
+          <span>{t`Bring Uncommitted Changes`}</span>
+        </button>
+        <button type="button" className="m-sheet-action" onClick={() => props.onPick(false)}>
+          <GitFork className="size-4 shrink-0 text-muted" />
+          <span>{t`Clean Worktree`}</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
 function SheetSubmenuPages(props: {
   readonly submenuOpen: boolean;
   readonly main: ReactNode;
@@ -112,6 +144,7 @@ export function ThreadActionsSheet(props: {
   readonly onAction: (action: ThreadAction) => void;
   readonly onNewThreadInWorktree: ThreadActionCallbacks["onNewThreadInWorktree"];
   readonly onDeleteWorktreeGroup: ThreadActionCallbacks["onDeleteWorktreeGroup"];
+  readonly onMoveThreadToWorktree: ThreadActionCallbacks["onMoveThreadToWorktree"];
   readonly onOpenTerminal: ThreadActionCallbacks["onOpenTerminal"];
   readonly onRunProjectAction: ThreadActionCallbacks["onRunProjectAction"];
   readonly onClose: () => void;
@@ -119,7 +152,7 @@ export function ThreadActionsSheet(props: {
   const { thread } = props;
   const { t } = useLingui();
   const [renaming, setRenaming] = useState(props.initialRenaming ?? false);
-  const [showRunActions, setShowRunActions] = useState(false);
+  const [submenu, setSubmenu] = useState<"run" | "move" | null>(null);
   const runActions = props.project?.scripts?.actions ?? [];
 
   const act = (action: ThreadAction) => {
@@ -150,22 +183,31 @@ export function ThreadActionsSheet(props: {
       onClose={props.onClose}
     >
       <SheetSubmenuPages
-        submenuOpen={showRunActions}
+        submenuOpen={submenu !== null}
         submenu={
-          <RunActionsPage
-            actions={runActions}
-            onBack={() => setShowRunActions(false)}
-            onRun={(actionId) =>
-              runAndClose(() =>
-                props.onRunProjectAction({
-                  projectId: thread.projectId,
-                  actionId,
-                  ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-                  sourceThreadId: thread.id,
-                }),
-              )
-            }
-          />
+          submenu === "move" ? (
+            <MoveToWorktreePage
+              onBack={() => setSubmenu(null)}
+              onPick={(withChanges) =>
+                runAndClose(() => props.onMoveThreadToWorktree(thread, withChanges))
+              }
+            />
+          ) : (
+            <RunActionsPage
+              actions={runActions}
+              onBack={() => setSubmenu(null)}
+              onRun={(actionId) =>
+                runAndClose(() =>
+                  props.onRunProjectAction({
+                    projectId: thread.projectId,
+                    actionId,
+                    ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+                    sourceThreadId: thread.id,
+                  }),
+                )
+              }
+            />
+          )
         }
         main={
           <>
@@ -197,12 +239,15 @@ export function ThreadActionsSheet(props: {
                   </span>
                 </button>
               ) : null}
+              {!worktreePath ? (
+                <button type="button" className="m-sheet-action" onClick={() => setSubmenu("move")}>
+                  <GitFork className="size-4 shrink-0 text-muted" />
+                  <span className="flex-1">{t`Move to Worktree`}</span>
+                  <ChevronRight className="size-4 shrink-0 text-muted" />
+                </button>
+              ) : null}
               {runActions.length > 0 ? (
-                <button
-                  type="button"
-                  className="m-sheet-action"
-                  onClick={() => setShowRunActions(true)}
-                >
+                <button type="button" className="m-sheet-action" onClick={() => setSubmenu("run")}>
                   <Play className="size-4 shrink-0 text-muted" />
                   <span className="flex-1">{t`Run`}</span>
                   <ChevronRight className="size-4 shrink-0 text-muted" />

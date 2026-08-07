@@ -339,7 +339,10 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
-  it("hides AskUserQuestion tool rows after a late ACP name update", () => {
+  it.each([
+    { name: "AskUserQuestion", title: "AskUserQuestion" },
+    { name: "AskUser", title: "AskUser" },
+  ])("hides $name tool rows after a late ACP name update", ({ name, title }) => {
     const itemIds = ["assistant-1", "tool-question", "answer-1"];
     const state = {
       runtimeItemIdsByThread: { question: itemIds },
@@ -355,7 +358,7 @@ describe("chatPaneSelectors", () => {
             id: "tool-question",
             type: "tool_call",
             state: "completed",
-            payload: { name: "AskUserQuestion", title: "AskUserQuestion", status: "success" },
+            payload: { name, title, status: "success" },
             streams: {},
           },
           "answer-1": {

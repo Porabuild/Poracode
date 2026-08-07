@@ -15,6 +15,7 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
+import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import type { RemoteTerminalTransport } from "@/renderer/components/thread/TerminalPane";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
@@ -109,6 +110,15 @@ export function ThreadPane(props: {
     if (!remoteDesktopId || !remoteThreadId) return Promise.resolve(null);
     return useRemoteServersStore.getState().pickAndUploadFiles(remoteDesktopId, remoteThreadId);
   }
+  // Pasted images must land on the host desktop — the agent runs there and
+  // can't read a path saved on this machine.
+  const saveRemoteClipboardImage: SaveClipboardImage | undefined =
+    remoteDesktopId && remoteThreadId
+      ? (input) =>
+          useRemoteServersStore
+            .getState()
+            .saveClipboardImage(remoteDesktopId, { ...input, threadId: remoteThreadId })
+      : undefined;
   if (!thread) return null;
   if (!project) return null;
   if (experiment && !thread.worktreePath) {
@@ -172,6 +182,7 @@ export function ThreadPane(props: {
             pickFiles: pickRemoteFiles,
           }
         : {})}
+      {...(saveRemoteClipboardImage ? { saveClipboardImage: saveRemoteClipboardImage } : {})}
       onContinueInProvider={
         props.onContinueInProvider && !thread.remoteServerId
           ? (targetKind, tConfig, targetPresentationMode, prompt, segments, closeOrig, ctx) => {

@@ -9,24 +9,24 @@ import {
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
-  quotePowerShellLiteral,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { createKimiAcpSessionUpdateTransform } from "./acpTransform";
 import { buildKimiAcpArgs, buildKimiArgs, buildKimiContinueArgs } from "./argv";
 import { createKimiBackgroundBridge } from "./backgroundBridge";
-import {
-  buildKimiCommand,
-  kimiDefaultCapabilities,
-  kimiDetectionSpec,
-  nativeKimiOAuthCredentialPath,
-} from "./detection";
+import { buildKimiCommand, kimiDefaultCapabilities, kimiDetectionSpec } from "./detection";
+import { buildKimiLogoutCommand } from "./kimiLogout";
+import { ensureKimiWorkspaceTrust } from "./kimiTrust";
 import {
   makeKimiDiscoverSessionRef,
   makeKimiWatchSessionRef,
   snapshotKimiPreSpawnSessions,
 } from "./sessionFiles";
-import { detectKimiTerminalStatus } from "./terminal";
+import {
+  detectKimiTerminalStatus,
+  KIMI_CACHE_HINT_PATTERN,
+  KIMI_TRUST_PROMPT_PATTERN,
+} from "./terminal";
 
 // Kimi Code provider implementation (Moonshot AI).
 // Docs: https://www.kimi.com/code/docs/en/
@@ -118,7 +118,17 @@ export function createKimiAdapter(): AgentAdapter {
       return { binary: "kimi", args };
     },
 
+    // The only async hook that runs ahead of every PTY spawn — used to
+    // pre-write Kimi 0.33's workspace-trust marker so the TUI's interactive
+    // "Trust this folder?" dialog never blocks a launch (the args pass
+    // through untouched).
+    async rewriteLaunchArgsForConfig(args, _config, projectLocation) {
+      await ensureKimiWorkspaceTrust(projectLocation);
+      return args;
+    },
+
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await ensureKimiWorkspaceTrust(input.projectLocation);
       const acpArgs = buildKimiAcpArgs(input.config);
       const command = buildKimiCommand(
         input.projectLocation,
@@ -134,12 +144,19 @@ export function createKimiAdapter(): AgentAdapter {
       );
       session = createAcpStructuredSession(command, {
         ...input,
-        // Kimi keeps per-session state (plan-mode plan files, profiles) under
-        // ~/.kimi-code and, once fs capability is advertised, routes those
-        // reads/writes through the ACP client too. Without this carve-out the
-        // bridge rejects them as outside-project and plan mode breaks
-        // (Write/Read of the plan file and ExitPlanMode all fail).
-        acpFsAgentHomeDirs: [".kimi-code"],
+        // Kimi's ACP host filesystem routes *every* text read/write through
+        // the client once fs capability is advertised — including its own
+        // per-session state under ~/.kimi-code — and rethrows the client's
+        // JSON-RPC error verbatim. Its "file does not exist" check only
+        // recognizes an errno-shaped `ENOENT` reached through `Error.cause`,
+        // so no JSON-RPC code (not even `-32002` resource-not-found) reads as
+        // missing. Plan mode reads the plan file before creating it, so the
+        // read of that not-yet-existing file killed every plan-mode turn:
+        // `EnterPlanMode` returned `Tool "EnterPlanMode" failed: Internal
+        // error`, and threads started in Plan mode ended with no response at
+        // all. Keeping the capability unadvertised makes Kimi read and write
+        // through its own local filesystem, where the errno survives.
+        acpFsTextCapability: false,
         acpEmptyResponseErrorResolver: resolveKimiEmptyResponseError,
         acpSessionUpdateTransform: createKimiAcpSessionUpdateTransform({
           subagents,
@@ -158,37 +175,22 @@ export function createKimiAdapter(): AgentAdapter {
       return session;
     },
 
-    // Kimi ACP advertises a single "login" auth method; the auth command is the
-    // same `kimi acp` stdio process.
+    // The `kimi acp` stdio process that dispatch uses for the ACP
+    // `authenticate`/`logout` handshake. On 0.33.0's v2 server `authenticate`
+    // only re-validates auth state (interactive sign-in is the terminal
+    // `kimi acp --login` flow), while `logout` drives the real RPC logout.
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
       return buildKimiCommand(location, ["acp"], resolveAgentBinaryPath(location, "kimi"));
     },
 
-    // Kimi has no `kimi logout` subcommand and ACP logout is unimplemented.
-    // Its own `/logout` handler removes this managed OAuth token through
-    // FileTokenStorage, so do the same here without launching an interactive
-    // TUI provider picker.
+    // Logout is ACP-RPC-first (v2 advertises `agentCapabilities.auth.logout`)
+    // with the managed-OAuth credential file as the legacy fallback. dispatch
+    // runs the RPC; this builder only describes the file cleanup, so asking
+    // the adapter for its logout spec never signs anyone out.
+    preferAcpLogoutRpc: true,
     async buildAcpLogoutCommand(ctx?: AgentEnvContext) {
-      const location = detectProbeLocation(ctx);
-      if (location.kind === "windows") {
-        return {
-          command: "powershell.exe",
-          args: [
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            `Remove-Item -LiteralPath ${quotePowerShellLiteral(nativeKimiOAuthCredentialPath())} -Force -ErrorAction SilentlyContinue`,
-          ],
-          cwd: location.path,
-        };
-      }
-      return buildKimiCommand(
-        location,
-        ["-c", 'rm -f -- "${KIMI_CODE_HOME:-$HOME/.kimi-code}/credentials/kimi-code.json"'],
-        "sh",
-      );
+      return buildKimiLogoutCommand(ctx);
     },
 
     createInitialSessionRef() {
@@ -209,6 +211,15 @@ export function createKimiAdapter(): AgentAdapter {
     },
 
     isReadyForInitialPrompt(text) {
+      // Modal dialogs are not a composer — typing the prompt into one would
+      // just corrupt the choice. The trust dialog shows if the pre-written
+      // marker ever misses; 0.34's cache-expiry dialog shows after a
+      // long-idle session is resumed (a queued resume prompt would otherwise
+      // be swallowed by the dialog and its Enter would pick "Compact and
+      // continue"). Once the user answers, the composer text returns and the
+      // gate re-passes on the next terminal update.
+      if (KIMI_TRUST_PROMPT_PATTERN.test(text)) return false;
+      if (KIMI_CACHE_HINT_PATTERN.test(text)) return false;
       const t = text.toLowerCase();
       if (t.includes("kimi")) return true;
       if (/\?\s+for shortcuts|\/\s+for commands/i.test(text)) return true;

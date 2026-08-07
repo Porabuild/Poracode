@@ -93,7 +93,14 @@ export interface RemoteServersState {
   launchRemoteThread(
     input: StartRemoteNewThreadInput & { readonly desktopId: string },
   ): Promise<void>;
-  openRemoteThread(desktopId: string, threadId: string): Promise<void>;
+  /**
+   * Hydrate a remote thread's history and focus it. Never rejects. Resolves
+   * `true` only when the snapshot was actually applied — `false` when the
+   * server is missing/unreachable or a newer open superseded this one, so
+   * callers can gate follow-up work (e.g. relaunching an inactive thread) on
+   * the open having taken effect.
+   */
+  openRemoteThread(desktopId: string, threadId: string): Promise<boolean>;
   closeRemoteThread(): void;
   sendThreadCommand(desktopId: string, command: RemoteThreadCommand): Promise<void>;
   pairServer(input: { endpoint: string; token: string }): Promise<RemoteServerRecord>;

@@ -209,6 +209,17 @@ export interface CreateStructuredSessionInput {
    * bridge rejects those paths and provider features like plan mode break.
    */
   acpFsAgentHomeDirs?: readonly string[];
+  /**
+   * Advertise the ACP `fs.readTextFile` / `fs.writeTextFile` client
+   * capabilities (default `true`). Set `false` for providers that proxy *all*
+   * text IO — including their own internal state files — through the client
+   * and then mis-handle the JSON-RPC errors that come back: a client can only
+   * answer a read for a missing file with an error, and an agent that expects
+   * an errno-shaped `ENOENT` there treats it as a hard failure. Poracode holds
+   * no unsaved editor buffers, so the on-disk content the agent reads locally
+   * is the same content the bridge would have served.
+   */
+  acpFsTextCapability?: boolean;
 }
 
 export type AcpEmptyResponseErrorResolver = (input: {
@@ -388,7 +399,21 @@ export interface AgentDetector {
  */
 export interface AgentAcpAuth {
   buildAcpAuthCommand(ctx?: AgentEnvContext): Promise<CommandSpec | undefined>;
+  /**
+   * Build the CLI fallback that signs the agent out. Must stay side-effect
+   * free — callers inspect the spec without running it, so a builder that
+   * logs out on its own would sign the user out just for being asked.
+   */
   buildAcpLogoutCommand?(ctx?: AgentEnvContext): Promise<CommandSpec | undefined>;
+  /**
+   * Try the ACP `logout` RPC (over `buildAcpAuthCommand`) before running
+   * `buildAcpLogoutCommand`. For agents whose engine owns the credential but
+   * whose older releases only ever wrote a token file: the RPC is the native
+   * path, the command is the fallback, and both are safe to run in sequence.
+   * A failing RPC never blocks the command — the command is what the adapter
+   * relied on before the RPC existed.
+   */
+  preferAcpLogoutRpc?: boolean;
 }
 
 export interface AgentPromptFormatter {

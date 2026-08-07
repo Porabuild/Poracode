@@ -27,14 +27,23 @@ interface SidebarUiState {
    * version stays 1.
    */
   flatListProjectFilter: string[] | null;
+  /**
+   * Footer nav (workspace switcher, shortcuts, Settings, Hide sidebar) shown
+   * as a compact icon row instead of labeled rows. Persisted; additive to the
+   * v1 envelope like `flatListProjectFilter` — older payloads lack the key and
+   * rehydrate to the default (false = labeled rows), older builds ignore the
+   * extra key, so the store version stays 1.
+   */
+  footerCollapsed: boolean;
   editingThreadId: string | null;
   setProjectCollapsed: (projectId: string, collapsed: boolean) => void;
   toggleProjectCollapsed: (projectId: string) => void;
   togglePinnedGitHubWorkflow: (projectId: string, workflowId: number) => void;
   setWorktreeCollapsed: (key: string, collapsed: boolean) => void;
   toggleWorktreeCollapsed: (key: string) => void;
-  revealMoreThreads: (projectId: string) => void;
+  revealMoreThreads: (projectId: string, pageSize?: number) => void;
   setFlatListProjectFilter: (projectIds: string[] | null) => void;
+  toggleFooterCollapsed: () => void;
   setEditingThreadId: (id: string | null) => void;
 }
 
@@ -62,6 +71,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
       collapsedWorktrees: {},
       threadListLimits: {},
       flatListProjectFilter: null,
+      footerCollapsed: false,
       editingThreadId: null,
 
       setProjectCollapsed: (projectId, collapsed) =>
@@ -109,13 +119,13 @@ export const useSidebarUiStore = create<SidebarUiState>()(
             },
           };
         }),
-      revealMoreThreads: (projectId) =>
+      revealMoreThreads: (projectId, pageSize = SIDEBAR_THREAD_LIST_PAGE_SIZE) =>
         set((state) => {
-          const current = state.threadListLimits[projectId] ?? SIDEBAR_THREAD_LIST_PAGE_SIZE;
+          const current = state.threadListLimits[projectId] ?? pageSize;
           return {
             threadListLimits: {
               ...state.threadListLimits,
-              [projectId]: current + SIDEBAR_THREAD_LIST_PAGE_SIZE,
+              [projectId]: current + pageSize,
             },
           };
         }),
@@ -137,6 +147,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
           }
           return { flatListProjectFilter: next };
         }),
+      toggleFooterCollapsed: () => set((state) => ({ footerCollapsed: !state.footerCollapsed })),
       setEditingThreadId: (editingThreadId) => set({ editingThreadId }),
     }),
     {
@@ -149,6 +160,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
         collapsedProjects: state.collapsedProjects,
         pinnedGitHubWorkflows: state.pinnedGitHubWorkflows,
         flatListProjectFilter: state.flatListProjectFilter,
+        footerCollapsed: state.footerCollapsed,
       }),
     },
   ),
@@ -158,8 +170,11 @@ export function useIsProjectCollapsed(projectId: string): boolean {
   return useSidebarUiStore((s) => s.collapsedProjects[projectId] ?? false);
 }
 
-export function useThreadListLimit(projectId: string): number {
-  return useSidebarUiStore((s) => s.threadListLimits[projectId] ?? SIDEBAR_THREAD_LIST_PAGE_SIZE);
+export function useThreadListLimit(
+  projectId: string,
+  pageSize: number = SIDEBAR_THREAD_LIST_PAGE_SIZE,
+): number {
+  return useSidebarUiStore((s) => s.threadListLimits[projectId] ?? pageSize);
 }
 
 export function useIsWorktreeCollapsed(key: string): boolean {

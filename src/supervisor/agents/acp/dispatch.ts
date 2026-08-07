@@ -11,6 +11,7 @@
  * the caller's responsibility — this module only owns the spawn handshake.
  */
 
+import type { ProjectLocation } from "@/shared/contracts";
 import type { AgentAdapter, AgentEnvContext } from "../base";
 import { detectProbeLocation, injectWslEnv, readCommandOutputAsync } from "../base";
 import { resolveProbeSpawnCwd } from "../probeCwd";
@@ -75,6 +76,9 @@ export async function dispatchAcpLogout(input: {
   const ctx = envContextFromPayload(input.envKind, input.wslDistro);
   const location = detectProbeLocation(ctx);
   if (input.adapter.buildAcpLogoutCommand) {
+    if (input.adapter.preferAcpLogoutRpc) {
+      await tryAcpLogoutRpc(input.adapter, ctx, location);
+    }
     const command = await input.adapter.buildAcpLogoutCommand(ctx);
     if (!command) {
       throw new Error(`Agent did not return an ACP logout command: ${input.adapter.kind}`);
@@ -103,16 +107,57 @@ export async function dispatchAcpLogout(input: {
   if (!input.adapter.buildAcpAuthCommand) {
     throw new Error(`Agent does not support ACP logout: ${input.adapter.kind}`);
   }
-  const command = await input.adapter.buildAcpAuthCommand(ctx);
-  if (!command) {
+  if (!(await runAcpLogoutRpc(input.adapter, ctx, location))) {
     throw new Error(`Agent did not return an ACP logout command: ${input.adapter.kind}`);
   }
+}
+
+/**
+ * Run the ACP `logout` RPC over the adapter's auth command. Returns false when
+ * the adapter has no auth command to spawn. Errors propagate — callers that
+ * treat the RPC as best-effort swallow them via {@link tryAcpLogoutRpc}.
+ */
+async function runAcpLogoutRpc(
+  adapter: AgentAdapter,
+  ctx: AgentEnvContext | undefined,
+  location: ProjectLocation,
+): Promise<boolean> {
+  const command = await adapter.buildAcpAuthCommand?.(ctx);
+  if (!command) return false;
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
   await logoutAcpAgent(command.command, command.args, {
     ...(processCwd ? { processCwd } : {}),
-    ...(command.env ? { env: command.env } : {}),
-    label: input.adapter.label,
+    // WSL specs bake their env exports into the wsl.exe script already.
+    ...(location.kind !== "wsl" && command.env ? { env: command.env } : {}),
+    label: adapter.label,
   });
+  return true;
+}
+
+/**
+ * Best-effort ACP `logout` RPC ahead of an adapter's logout command.
+ *
+ * Never throws: an agent that predates the RPC answers "logout is not
+ * supported", and a stalled or unspawnable ACP server must not strand the
+ * user signed in when the command fallback would have cleared the credential
+ * on its own. Both cases fall through to the command; only the unexpected one
+ * is logged.
+ */
+async function tryAcpLogoutRpc(
+  adapter: AgentAdapter,
+  ctx: AgentEnvContext | undefined,
+  location: ProjectLocation,
+): Promise<void> {
+  try {
+    await runAcpLogoutRpc(adapter, ctx, location);
+  } catch (error) {
+    if (isUnsupportedAcpLogoutError(error)) return;
+    console.log(
+      "%s ACP logout RPC failed, falling back to the logout command: %s",
+      adapter.label,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
 }
 
 export function isUnsupportedAcpLogoutError(error: unknown): boolean {

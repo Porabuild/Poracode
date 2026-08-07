@@ -12,7 +12,7 @@ import { ChevronDown, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { agentStatusForPresentation } from "@/shared/agentSelection";
+import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -39,6 +39,7 @@ import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import {
   useComposerInputInbox,
@@ -175,6 +176,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
+  // Remote-thread attachments are stored on the paired desktop; resolve
+  // previews through its image endpoint instead of the local-file protocol.
+  const remoteDesktopId = thread.remoteServerId;
+  const attachmentImageUrlForPath = remoteDesktopId
+    ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
+    : undefined;
   // Unsent composer content survives leaving this thread. The primary GUI pane
   // keeps this section mounted across thread switches, so the thread-keyed
   // layout effects below save and restore without exposing another thread's
@@ -289,12 +296,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       agentKind: thread.agentKind,
       presentationMode,
       runtimeLabel: effectiveAgentStatus?.capabilities.runtimeLabel,
-      hasEffort:
-        ((
-          effectiveAgentStatus?.capabilities.modelEfforts?.[thread.config?.model ?? ""] ??
-          effectiveAgentStatus?.capabilities.efforts ??
-          []
-        ).length ?? 0) > 0,
+      hasEffort: hasSelectableReasoning(
+        effectiveAgentStatus?.capabilities,
+        thread.config?.model ?? "",
+      ),
       supportsFast: effectiveAgentStatus
         ? supportsUsableFastMode(effectiveAgentStatus.capabilities, thread.config?.model ?? "")
         : false,
@@ -740,9 +745,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       onPreviewImage={(att) => {
                         const imageAttachments = attachments.attachments.filter((a) => a.isImage);
                         const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                        if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
+                        if (idx >= 0) {
+                          openAttachmentLightbox(imageAttachments, idx, attachmentImageUrlForPath);
+                        }
                       }}
                       onPreviewPdf={(att) => openPdfPreview(att.path)}
+                      {...(attachmentImageUrlForPath
+                        ? { imageUrlForPath: attachmentImageUrlForPath }
+                        : {})}
                     />
                   }
                   inputContent={

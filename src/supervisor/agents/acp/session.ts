@@ -81,6 +81,8 @@ import { AcpSessionConfigSync } from "./sessionConfigSync";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
+import { toAcpFsRequestError } from "./sessionFsErrors";
+import { AcpPlanModeToolTracker } from "./sessionPlanMode";
 import {
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
@@ -233,6 +235,12 @@ export interface AcpStructuredSessionOptions {
    * profiles) under their own home dir and proxy all text IO to the client.
    */
   fsAgentHomeDirs?: readonly string[];
+  /**
+   * Advertise the `fs.readTextFile` / `fs.writeTextFile` client capabilities
+   * (default `true`). Set `false` for providers that mis-handle client fs
+   * errors — see `acpFsTextCapability` in the adapter contract.
+   */
+  fsTextCapability?: boolean;
 }
 
 export interface AcpExternalSessionUpdateSource {
@@ -266,6 +274,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly mcpServers: readonly ResolvedMcpServer[];
   private readonly assumedMcpCapabilities: AcpMcpCapabilities | undefined;
   private readonly fsAgentHomeDirs: readonly string[];
+  private readonly fsTextCapability: boolean;
+  private planModeToolTrackerInstance: AcpPlanModeToolTracker | undefined;
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[];
@@ -432,6 +442,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.mcpServers = options?.mcpServers ?? [];
     this.assumedMcpCapabilities = options?.assumedMcpCapabilities;
     this.fsAgentHomeDirs = options?.fsAgentHomeDirs ?? [];
+    this.fsTextCapability = options?.fsTextCapability !== false;
   }
 
   /** Initialize the canonical mapper once we have a stable thread id. */
@@ -688,7 +699,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       protocolVersion: PROTOCOL_VERSION,
       clientInfo: { name: "poracode", version: "0.1.0" },
       clientCapabilities: {
-        fs: { readTextFile: true, writeTextFile: true },
+        fs: {
+          readTextFile: this.fsTextCapability,
+          writeTextFile: this.fsTextCapability,
+        },
         elicitation: { form: {}, url: {} },
         terminal: true,
       },
@@ -779,6 +793,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
     let availableModeIds: string[] = [];
+    let agentCurrentModeId: string | undefined;
     let configOptions: unknown[] | null | undefined;
     this.currentConfig = undefined;
     this.currentSlashCommands = undefined;
@@ -800,6 +815,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           this.adoptSessionRef(sessionRef);
           this.trackUsageScope(sessionRef.providerSessionId, false);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
+          agentCurrentModeId = result.modes?.currentModeId;
           configOptions = result.configOptions;
         } catch (error) {
           throw this.loadSessionErrorRewriter(error, sessionRef.providerSessionId);
@@ -822,6 +838,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           this.adoptSessionRef(sessionRef);
           this.trackUsageScope(sessionRef.providerSessionId, false);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
+          agentCurrentModeId = result.modes?.currentModeId;
           configOptions = result.configOptions;
         } catch (error) {
           throw this.loadSessionErrorRewriter(error, sessionRef.providerSessionId);
@@ -842,6 +859,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.stableSessionRef = createKnownSessionRef(result.sessionId);
       this.trackUsageScope(result.sessionId, true);
       availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
+      agentCurrentModeId = result.modes?.currentModeId;
       configOptions = result.configOptions;
       console.log("[acp] session created:", this.sessionId, "modes:", availableModeIds);
     }
@@ -851,6 +869,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     } else {
       this.sessionConfigSync.rememberAvailableModes(availableModeIds);
     }
+    // `SessionModeState.currentModeId` is the agent's own statement of the mode
+    // it is in — authoritative for a resumed session, where it reflects state
+    // the agent restored. Recording it keeps `applyTurnConfig` from re-pushing
+    // that same mode back at the agent.
+    this.sessionConfigSync.rememberCurrentMode(agentCurrentModeId);
+    this.planModeToolTracker.reset();
     this.currentConfig = await this.sessionConfigSync.applyTurnConfig(
       this.sessionId,
       config,
@@ -1178,7 +1202,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       params.path,
       this.fsAgentHomeDirs,
     );
-    const fullContent = await readFile(path, "utf8");
+    const fullContent = await readFile(path, "utf8").catch((error: unknown) => {
+      throw toAcpFsRequestError(error, params.path);
+    });
     const content = sliceTextFileContent(fullContent, params.line, params.limit);
     return { content };
   }
@@ -1190,7 +1216,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       params.path,
       this.fsAgentHomeDirs,
     );
-    await writeFile(path, params.content, "utf8");
+    await writeFile(path, params.content, "utf8").catch((error: unknown) => {
+      throw toAcpFsRequestError(error, params.path);
+    });
     return {};
   }
 
@@ -1423,6 +1451,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         break;
 
       case "tool_call":
+        this.observePlanModeToolCall(update);
         // A tool call that belongs to the active prompt confirms working
         // state. Some ACP agents (Qwen notably) deliver background-task
         // notifications after prompt() has already settled; those updates
@@ -1435,6 +1464,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
       case "tool_call_update":
         // Tool call status changed — still working
+        this.observePlanModeToolCall(update);
         break;
 
       case "plan":
@@ -1446,20 +1476,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
       case "current_mode_update":
       case "config_option_update": {
-        const nextConfig = this.sessionConfigSync.reduceSessionUpdate(this.currentConfig, update);
-        if (nextConfig) {
-          this.currentConfig = nextConfig;
-          const sessionRef = this.currentSessionRef();
-          // Configuration confirmations are metadata, not turn boundaries —
-          // preserve the live status so the renderer's working-time clock
-          // does not reset when an agent echoes a configuration change.
-          this.emitListenerUpdate({
-            status: this.currentStatus,
-            attention: this.currentAttention,
-            config: nextConfig,
-            ...(sessionRef ? { sessionRef } : {}),
-          });
-        }
+        this.commitAgentConfigChange(
+          this.sessionConfigSync.reduceSessionUpdate(this.currentConfig, update),
+        );
         break;
       }
 
@@ -1471,6 +1490,64 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       default:
         break;
     }
+  }
+
+  /**
+   * Commit a config the agent reported (mode, model, effort) and tell the
+   * renderer. Configuration confirmations are metadata, not turn boundaries —
+   * the live status is preserved so the renderer's working-time clock does not
+   * reset when an agent echoes a configuration change.
+   */
+  private commitAgentConfigChange(nextConfig: ThreadConfig | undefined): void {
+    if (!nextConfig) return;
+    this.currentConfig = nextConfig;
+    const sessionRef = this.currentSessionRef();
+    this.emitListenerUpdate({
+      status: this.currentStatus,
+      attention: this.currentAttention,
+      config: nextConfig,
+      ...(sessionRef ? { sessionRef } : {}),
+    });
+  }
+
+  private get planModeToolTracker(): AcpPlanModeToolTracker {
+    return (this.planModeToolTrackerInstance ??= new AcpPlanModeToolTracker());
+  }
+
+  /**
+   * Follow the agent in and out of plan mode when its tool calls say so. ACP
+   * expects an agent to announce its own mode changes with
+   * `current_mode_update`, but the spec only says it "can" (and offers no way to
+   * read the mode mid-session), so agents that skip it — Kimi Code's
+   * `EnterPlanMode` / `ExitPlanMode` — would otherwise leave the composer
+   * showing a mode the agent is no longer in. Inference only: no request is sent
+   * to the agent.
+   *
+   * Both directions matter. Adopting the entry without the exit is worse than
+   * adopting neither: the thread would keep claiming plan mode after the agent
+   * left it, and because the config then already reads `plan`, nothing would
+   * re-assert it — an edit could land while the composer still showed Plan.
+   *
+   * Skipped while replaying a loaded session's history, where
+   * `SessionModeState.currentModeId` is the authority and a historical
+   * transition may since have been reversed.
+   */
+  private observePlanModeToolCall(update: SessionUpdate): void {
+    if (this.isReplayingHistory || Date.now() < (this.replayHistoryUntil || 0)) return;
+    const transition = this.planModeToolTracker.observe(update);
+    if (!transition) return;
+    console.log(
+      "[acp] agent %s plan mode via tool call (no current_mode_update sent)",
+      transition === "entered" ? "entered" : "left",
+    );
+    this.commitAgentConfigChange(
+      transition === "entered"
+        ? this.sessionConfigSync.reduceModeChange(
+            this.currentConfig,
+            this.sessionConfigSync.resolvePlanModeId(),
+          )
+        : this.sessionConfigSync.reduceLeavePlanMode(this.currentConfig),
+    );
   }
 
   /**

@@ -12,6 +12,9 @@ import { SidebarFlatThreadList } from "./SidebarFlatThreadList";
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
+  // sidebarBodyScrollClass (scroll gutter classes) reads the platform.
+  isWindows: () => true,
+  isMac: () => false,
 }));
 
 vi.mock("@/renderer/dnd", () => ({
@@ -177,6 +180,27 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText(/thread:r1 in Mac Poracode/)).toBeInTheDocument();
   });
 
+  it("tags remote-project rows with the machine name; local rows carry none", () => {
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [homeProject, localProject, unreachableRemoteProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("r1", "remote-1", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const remoteRow = screen.getByText(/thread:r1 in Mac Poracode/).closest("[data-testid=row]");
+    expect(remoteRow).toHaveTextContent("MacBook 16");
+    const localRow = screen.getByText(/thread:p1 in Poracode/).closest("[data-testid=row]");
+    expect(localRow).not.toHaveTextContent("MacBook 16");
+  });
+
   it("hides Home threads when home scope is disabled", () => {
     useSharedSettings.setState({ homeScopeEnabled: false } as never);
     useAppStore.setState({
@@ -289,6 +313,23 @@ describe("SidebarFlatThreadList", () => {
     expect(head).toHaveTextContent("new-thread:local-1");
     expect(head?.querySelector('[data-testid="project-filter"]')).not.toBeNull();
     expect(newThreadCalls.at(-1)).toEqual({ projectId: "local-1", inline: true });
+  });
+
+  it("pins the filter/new-thread head above the scrolling rows", () => {
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z")],
+    });
+
+    const { container } = render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const head = container.querySelector(".poracode-flat-list-head");
+    const scroller = container.querySelector(".overflow-y-auto");
+    if (!head || !scroller) throw new Error("expected head row and scroll container");
+    // The head lives outside (above) the scroll container, so it stays put
+    // while the thread rows scroll underneath it.
+    expect(scroller.contains(head)).toBe(false);
+    expect(scroller).toHaveTextContent("thread:p1");
   });
 
   it("keeps the new-thread control as a full row when only one project is visible", () => {

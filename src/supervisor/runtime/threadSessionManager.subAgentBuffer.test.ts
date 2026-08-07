@@ -6,8 +6,9 @@ import { ThreadSessionManager } from "./threadSessionManager";
 /**
  * Focused tests for the sub-agent event gating + buffer-drain behavior in
  * `ThreadSessionManager`. The buffer holds child events while no overlay is
- * subscribed; the parent's completion drains it so the renderer can replay
- * every turn even if the overlay was never opened during the run.
+ * subscribed; subscribe (and parent completion) drain it onto the normal
+ * runtime stream so the renderer can replay every turn even if the overlay
+ * was never opened during the run.
  */
 
 function makeManager() {
@@ -191,7 +192,18 @@ describe("ThreadSessionManager sub-agent buffer", () => {
         payload: { progress: { stepCount: 1 } },
       },
     ]);
-    expect(manager.subagentSubscribe({ threadId, parentItemId: parentId }).history).toEqual([
+
+    // Subscribe drains the buffer onto the normal runtime stream and returns
+    // empty history (delivery is via the stream, not the RPC body).
+    expect(manager.subagentSubscribe({ threadId, parentItemId: parentId }).history).toEqual([]);
+    vi.runAllTimers();
+    expect(collectEmittedRuntimeEvents(emit)).toEqual([
+      {
+        type: "item.updated",
+        threadId,
+        itemId: parentId,
+        payload: { progress: { stepCount: 1 } },
+      },
       {
         type: "item.started",
         threadId,
@@ -201,5 +213,11 @@ describe("ThreadSessionManager sub-agent buffer", () => {
         payload: { name: "Read", status: "running" },
       },
     ]);
+
+    // Second subscribe returns empty and does not re-emit duplicates.
+    emit.mockClear();
+    expect(manager.subagentSubscribe({ threadId, parentItemId: parentId }).history).toEqual([]);
+    vi.runAllTimers();
+    expect(collectEmittedRuntimeEvents(emit)).toEqual([]);
   });
 });

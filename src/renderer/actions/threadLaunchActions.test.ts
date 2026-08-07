@@ -5,9 +5,15 @@ const mocks = vi.hoisted(() => {
   const appState = {
     updateProjectDraftConfig: vi.fn<(projectId: string, config: unknown) => void>(),
     view: { kind: "home" as const },
+    projects: [] as Project[],
     threads: [] as Thread[],
     createThread: vi.fn<(input: unknown) => Thread>(),
     queueThreadLaunch: vi.fn<(threadId: string, prompt: string, segments?: unknown[]) => void>(),
+    setThreadMcpLaunchCustomServerNames:
+      vi.fn<(threadId: string, names: readonly string[]) => void>(),
+  };
+  const remoteClient = {
+    startThread: vi.fn<(input: unknown) => Promise<{ threadId: string }>>(),
   };
   const remoteState = {
     servers: [] as Array<{
@@ -17,10 +23,22 @@ const mocks = vi.hoisted(() => {
     }>,
     runtime: {} as Record<string, { status: string }>,
     launchRemoteThread: vi.fn<(input: unknown) => Promise<void>>(),
+    withClient:
+      vi.fn<
+        (
+          desktopId: string,
+          invoke: (client: typeof remoteClient) => Promise<unknown>,
+        ) => Promise<unknown>
+      >(),
+  };
+  const bridge = {
+    startThread: vi.fn<(input: unknown) => Promise<{ threadId: string }>>(),
   };
   return {
     appState,
     remoteState,
+    remoteClient,
+    bridge,
     createWorktree:
       vi.fn<
         (
@@ -70,8 +88,15 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: {
     getState: () => ({
       pushRecentModel: vi.fn<(...args: unknown[]) => void>(),
+      mcpServers: [],
+      disabledBuiltInMcpServers: {},
+      disabledBuiltInMcpTools: {},
     }),
   },
+}));
+
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => mocks.bridge,
 }));
 
 vi.mock("@/renderer/analytics/posthog", () => ({
@@ -89,7 +114,7 @@ vi.mock("./worktreeLaunchActions", () => ({
   runWorktreeSetupScript: mocks.runWorktreeSetupScript,
 }));
 
-import { startThreadFromDraft } from "./threadLaunchActions";
+import { performInitialThreadLaunch, startThreadFromDraft } from "./threadLaunchActions";
 
 const localProject: Project = {
   id: "local-project",
@@ -116,6 +141,7 @@ describe("startThreadFromDraft host transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.appState.view = { kind: "home" };
+    mocks.appState.projects = [];
     mocks.appState.threads = [];
     mocks.appState.createThread.mockReturnValue({
       id: "local-thread",
@@ -128,6 +154,11 @@ describe("startThreadFromDraft host transport", () => {
     mocks.remoteState.servers = [];
     mocks.remoteState.runtime = { d1: { status: "online" } };
     mocks.remoteState.launchRemoteThread.mockResolvedValue(undefined);
+    mocks.remoteState.withClient.mockImplementation((desktopId, invoke) =>
+      invoke(mocks.remoteClient),
+    );
+    mocks.remoteClient.startThread.mockResolvedValue({ threadId: "rt-1" });
+    mocks.bridge.startThread.mockResolvedValue({ threadId: "local-thread" });
     mocks.primeWorktreeGitState.mockResolvedValue(undefined);
     mocks.runWorktreeSetupScript.mockResolvedValue(undefined);
   });
@@ -236,5 +267,81 @@ describe("startThreadFromDraft host transport", () => {
 
     expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledOnce();
     expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
+  });
+});
+
+describe("performInitialThreadLaunch host transport", () => {
+  const initialSize = { cols: 120, rows: 30 };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.appState.projects = [];
+    mocks.remoteState.withClient.mockImplementation((desktopId, invoke) =>
+      invoke(mocks.remoteClient),
+    );
+    mocks.remoteClient.startThread.mockResolvedValue({ threadId: "rt-1" });
+    mocks.bridge.startThread.mockResolvedValue({ threadId: "local-thread" });
+  });
+
+  const localThread = {
+    id: "local-thread",
+    projectId: localProject.id,
+    agentKind: "codex",
+    config: { model: "" },
+    presentationMode: "terminal",
+    status: "launching",
+  } as Thread;
+
+  const remoteThread = {
+    id: "remote:d1:thread:rt-1",
+    projectId: remoteProject.id,
+    remoteServerId: "d1",
+    remoteId: "rt-1",
+    agentKind: "codex",
+    config: { model: "" },
+    presentationMode: "terminal",
+    status: "launching",
+  } as Thread;
+
+  it("launches a mirrored remote thread on its host without client MCP servers", async () => {
+    await performInitialThreadLaunch({
+      thread: remoteThread,
+      projectLocation: { kind: "posix", path: "/srv/repo", remoteServerId: "d1" },
+      prompt: "",
+      initialSize,
+    });
+
+    expect(mocks.remoteState.withClient).toHaveBeenCalledWith("d1", expect.any(Function));
+    const startInput = mocks.remoteClient.startThread.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(startInput).toMatchObject({
+      threadId: "rt-1",
+      // Projection marker stripped — the host receives its own native location.
+      projectLocation: { kind: "posix", path: "/srv/repo" },
+      agentKind: "codex",
+      prompt: "",
+      initialSize,
+    });
+    // The host resolves MCP from its own settings; clients must not inject any.
+    expect(startInput).not.toHaveProperty("mcpServers");
+    expect(mocks.bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("launches a local thread over the bridge with the MCP launch snapshot", async () => {
+    await performInitialThreadLaunch({
+      thread: localThread,
+      projectLocation: localProject.location,
+      prompt: "",
+      initialSize,
+    });
+
+    expect(mocks.bridge.startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: "local-thread",
+        projectLocation: localProject.location,
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
+      }),
+    );
+    expect(mocks.remoteState.withClient).not.toHaveBeenCalled();
   });
 });

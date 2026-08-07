@@ -15,6 +15,13 @@ interface AcpPermissionQuestion {
   question: string;
   options: Array<{ optionId: string; label: string; description?: string }>;
   multiSelect: boolean;
+  /**
+   * True when the ACP requestPermission `options` themselves are this
+   * question's answer choices (the content shape below). The response side
+   * needs it to know that an unmatched reply cannot be expressed as an
+   * approval, so request and response must not re-derive it independently.
+   */
+  optionsAreAnswers?: boolean;
 }
 
 type AcpQuestionPermissionResponse = RequestPermissionResponse & {
@@ -22,8 +29,8 @@ type AcpQuestionPermissionResponse = RequestPermissionResponse & {
 };
 
 /**
- * AskUserQuestion is carried over ACP's requestPermission method in two
- * provider-native shapes, both normalized to the same AcpPermissionQuestion
+ * AskUserQuestion is carried over ACP's requestPermission method in three
+ * provider-native shapes, all normalized to the same AcpPermissionQuestion
  * contract so shared runtime and renderer code stays provider-agnostic:
  *  - Qwen Code sends a structured `rawInput.questions` array (header, question,
  *    options) — the same signal Qwen's own ACP clients use.
@@ -31,6 +38,10 @@ type AcpQuestionPermissionResponse = RequestPermissionResponse & {
  *    `toolCall.content` and the answer choices are the standard requestPermission
  *    `options`. Detection stays semantic (tool identity + payload shape) rather
  *    than keyed on the provider kind.
+ *  - Factory droid sends a single plain-text `rawInput.questionnaire` string
+ *    (`"1. [question] ..."`, `"[topic] ..."`, `"[option] ..."` lines, with
+ *    `(multi)` on the question line opting into multi-select) that is parsed
+ *    back into the same question list.
  */
 export function parseAcpPermissionQuestions(
   request: RequestPermissionRequest,
@@ -38,6 +49,9 @@ export function parseAcpPermissionQuestions(
   const rawInput = request.toolCall?.rawInput;
   if (isRecord(rawInput) && Array.isArray(rawInput.questions)) {
     return parseRawInputQuestions(rawInput.questions);
+  }
+  if (isRecord(rawInput) && typeof rawInput.questionnaire === "string") {
+    return parseQuestionnairePermissionQuestions(rawInput.questionnaire);
   }
   return parseContentPermissionQuestion(request);
 }
@@ -89,6 +103,65 @@ function parseRawInputQuestions(rawQuestions: readonly unknown[]): AcpPermission
 }
 
 /**
+ * Droid shape: a single plain-text questionnaire. The format is documented in
+ * droid's AskUser tool description — one numbered `[question]` line per
+ * question, followed by one `[topic]` label and 2-4 `[option]` lines; a
+ * trailing `(multi)` on the question line opts into multi-select. Options
+ * carry no ids in the wire format, so the label doubles as the optionId (the
+ * Qwen fallback convention) — answer echoes and label lookups round-trip.
+ */
+const DROID_QUESTION_LINE =
+  /^\s*(?:[0-9]+[.)]\s*)?\[question\]\s*(.+?)\s*(?:\((multi(?:ple)?(?:[-_ ]select)?)\))?$/iu;
+const DROID_TOPIC_LINE = /^\s*\[topic\]\s*(.+?)\s*$/iu;
+const DROID_OPTION_LINE = /^\s*\[option\]\s*(.+?)\s*$/iu;
+
+function parseQuestionnairePermissionQuestions(raw: string): AcpPermissionQuestion[] {
+  interface ParsedDroidQuestion {
+    question: string;
+    topic: string;
+    options: string[];
+    multiSelect: boolean;
+  }
+  const parsed: ParsedDroidQuestion[] = [];
+  let current: ParsedDroidQuestion | undefined;
+  for (const rawLine of raw.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.length === 0) continue;
+    const questionMatch = DROID_QUESTION_LINE.exec(line);
+    if (questionMatch) {
+      if (current) parsed.push(current);
+      current = {
+        question: questionMatch[1]!.trim(),
+        topic: "",
+        options: [],
+        multiSelect: questionMatch[2] !== undefined,
+      };
+      continue;
+    }
+    if (!current) continue;
+    const topicMatch = DROID_TOPIC_LINE.exec(line);
+    if (topicMatch) {
+      current.topic = topicMatch[1]!.trim();
+      continue;
+    }
+    const optionMatch = DROID_OPTION_LINE.exec(line);
+    if (optionMatch) {
+      current.options.push(optionMatch[1]!.trim());
+    }
+  }
+  if (current) parsed.push(current);
+  return parsed
+    .filter((question) => question.question.length > 0)
+    .map((question, index) => ({
+      id: String(index),
+      header: question.topic.length > 0 ? question.topic : question.question,
+      question: question.question,
+      options: question.options.map((label) => ({ optionId: label, label })),
+      multiSelect: question.multiSelect,
+    }));
+}
+
+/**
  * Kimi shape: no structured rawInput. The question text is carried in
  * `toolCall.content` and the answer choices are the standard requestPermission
  * `options` (the rejection option becomes the form's Cancel affordance rather
@@ -108,7 +181,9 @@ function parseContentPermissionQuestion(
     return [{ optionId: option.optionId, label }];
   });
   if (options.length === 0) return [];
-  return [{ id: "0", header: question, question, options, multiSelect: false }];
+  return [
+    { id: "0", header: question, question, options, multiSelect: false, optionsAreAnswers: true },
+  ];
 }
 
 export function mapAcpQuestionPermissionRequest(
@@ -150,9 +225,10 @@ export function normalizeAcpQuestionPermissionResponse(
 ): AcpQuestionPermissionResponse {
   if (isCancelledResponse(response)) return { outcome: { outcome: "cancelled" } };
 
-  const optionId = selectedPermissionOptionId(request, response);
+  const questions = parseAcpPermissionQuestions(request);
+  const optionId = selectedPermissionOptionId(request, response, questions);
   if (!optionId) return { outcome: { outcome: "cancelled" } };
-  const answers = normalizeQuestionAnswers(request, response);
+  const answers = normalizeQuestionAnswers(questions, response);
   return {
     outcome: { outcome: "selected", optionId },
     ...(Object.keys(answers).length > 0 ? { answers } : {}),
@@ -183,27 +259,29 @@ export function buildAcpQuestionPermissionAnswerEvents(input: {
 }
 
 /**
- * Detect an AskUserQuestion tool call by its identity (tool name / title), used
- * both to gate the Kimi content-shape parser and to suppress the redundant tool
- * row once the same call is presented as a form. Kept independent of `rawInput`
- * so it recognizes providers (Kimi Code) that omit structured input.
+ * Detect an AskUserQuestion tool call by its identity (tool name / title /
+ * programmatic name), used both to gate the Kimi content-shape parser and to
+ * suppress the redundant tool row once the same call is presented as a form.
+ * Kept independent of `rawInput` so it recognizes providers (Kimi Code, droid)
+ * that carry the question outside structured input.
  */
 export function isAcpAskUserQuestionToolCall(toolCall: {
   title?: unknown;
+  name?: unknown;
   rawInput?: unknown;
   _meta?: unknown;
 }): boolean {
   const metaName = isRecord(toolCall._meta) ? toolCall._meta.toolName : undefined;
-  return [metaName, toolCall.title].some(isAskUserQuestionToolName);
+  return [metaName, toolCall.title, toolCall.name].some(isAskUserQuestionToolName);
 }
 
 function normalizeQuestionAnswers(
-  request: RequestPermissionRequest,
+  questions: readonly AcpPermissionQuestion[],
   response: unknown,
 ): Record<string, string> {
   const rawAnswers = responseAnswers(response);
   const answers: Record<string, string> = {};
-  for (const question of parseAcpPermissionQuestions(request)) {
+  for (const question of questions) {
     const raw =
       rawAnswers[question.id] ?? rawAnswers[question.question] ?? rawAnswers[question.header];
     const selected = chosenOptionIds(raw);
@@ -226,6 +304,7 @@ function responseAnswers(response: unknown): Record<string, unknown> {
 function selectedPermissionOptionId(
   request: RequestPermissionRequest,
   response: unknown,
+  questions: readonly AcpPermissionQuestion[],
 ): string | undefined {
   const requested =
     isRecord(response) && typeof response.optionId === "string" ? response.optionId : undefined;
@@ -233,6 +312,14 @@ function selectedPermissionOptionId(
     return requested;
   const answered = answerSelectedOptionId(request, response);
   if (answered) return answered;
+  if (questions.some((question) => question.optionsAreAnswers)) {
+    // The ACP options of a content-shape question ARE the answer choices,
+    // so an unmatched reply (free text, no selection) cannot be expressed:
+    // falling back to the first option would fabricate an answer. Route to
+    // the server's skip/reject option — the ask-user tool resolves it as
+    // dismissed — and cancel when there is none.
+    return request.options.find((option) => isRejectionOptionKind(option.kind))?.optionId;
+  }
   return (
     request.options.find((option) => option.kind === "allow_once") ??
     request.options.find((option) => !isRejectionOptionKind(option.kind))

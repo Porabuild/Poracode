@@ -84,6 +84,29 @@ describe("AttachmentBar", () => {
     expect(imageUrlForPath).toHaveBeenCalledWith("/Users/host/.poracode/attachments/shot.png");
   });
 
+  it("prefers the local pasted-bytes preview over the remote URL", () => {
+    const imageUrlForPath = vi.fn<(path: string) => string>(() => "https://mac.test/remote.png");
+    render(
+      <AttachmentBar
+        attachments={[
+          {
+            id: "image-1",
+            path: "C:\\Users\\host\\.poracode\\attachments\\shot.png",
+            name: "shot.png",
+            mimeType: "image/png",
+            isImage: true,
+            previewUrl: "blob:app/pasted-1",
+          },
+        ]}
+        imagesAsPreview
+        imageUrlForPath={imageUrlForPath}
+      />,
+    );
+
+    expect(screen.getByAltText("shot.png")).toHaveAttribute("src", "blob:app/pasted-1");
+    expect(imageUrlForPath).not.toHaveBeenCalled();
+  });
+
   it("renders flush attachment bars for inline message attachments", () => {
     const { container } = render(
       <AttachmentBar

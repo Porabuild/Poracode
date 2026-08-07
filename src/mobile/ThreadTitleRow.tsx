@@ -4,6 +4,7 @@ import {
   Archive,
   CircleCheck,
   Ellipsis,
+  GitFork,
   NotebookPen,
   Pencil,
   Plus,
@@ -60,6 +61,7 @@ function ThreadActionsMenu(props: {
   readonly onAction: (action: ThreadAction) => void;
   readonly onNewThreadInWorktree?: ((input: WorktreeThreadInput) => void) | undefined;
   readonly onDeleteWorktreeGroup?: ((input: WorktreeDeleteInput) => void) | undefined;
+  readonly onMoveThreadToWorktree?: ((thread: Thread, withChanges: boolean) => void) | undefined;
   readonly onOpenNotes?: (() => void) | undefined;
   readonly onOpenTerminal?: (() => void) | undefined;
 }) {
@@ -94,6 +96,20 @@ function ThreadActionsMenu(props: {
             id: "new-worktree-thread",
             label: t`New thread in worktree`,
             icon: <Plus className="size-4 text-muted" />,
+          },
+        ]
+      : []),
+    ...(!worktreePath && props.onMoveThreadToWorktree
+      ? [
+          {
+            id: "move-to-worktree-with-changes",
+            label: t`Move to worktree with changes`,
+            icon: <GitFork className="size-4 text-muted" />,
+          },
+          {
+            id: "move-to-worktree-clean",
+            label: t`Move to clean worktree`,
+            icon: <GitFork className="size-4 text-muted" />,
           },
         ]
       : []),
@@ -137,6 +153,8 @@ function ThreadActionsMenu(props: {
         worktreeBranch,
       });
     }
+    if (id === "move-to-worktree-with-changes") props.onMoveThreadToWorktree?.(thread, true);
+    if (id === "move-to-worktree-clean") props.onMoveThreadToWorktree?.(thread, false);
     if (id === "toggle-done") props.onAction({ kind: "set-done", done: !thread.done });
     if (id === "toggle-star")
       props.onAction({ kind: "set-starred", starred: !(thread.starred ?? false) });
@@ -187,6 +205,7 @@ export function ThreadTitleRow(props: {
   readonly onAction: (action: ThreadAction) => void;
   readonly onNewThreadInWorktree?: ((input: WorktreeThreadInput) => void) | undefined;
   readonly onDeleteWorktreeGroup?: ((input: WorktreeDeleteInput) => void) | undefined;
+  readonly onMoveThreadToWorktree?: ((thread: Thread, withChanges: boolean) => void) | undefined;
   /** Adds an "Open terminal" entry to the actions menu. */
   readonly onOpenTerminal?: (() => void) | undefined;
   /** Adds a project notes and to-dos entry to the actions menu. */
@@ -228,6 +247,7 @@ export function ThreadTitleRow(props: {
         onAction={props.onAction}
         onNewThreadInWorktree={props.onNewThreadInWorktree}
         onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
+        onMoveThreadToWorktree={props.onMoveThreadToWorktree}
         onOpenNotes={props.onOpenNotes}
         onOpenTerminal={props.onOpenTerminal}
       />

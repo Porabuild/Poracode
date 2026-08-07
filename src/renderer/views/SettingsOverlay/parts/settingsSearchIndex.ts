@@ -81,10 +81,10 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "general",
-    anchor: "general.preventSleepWhileWorking",
-    title: msg`Prevent sleep while working`,
-    description: msg`Keep the system awake while any thread is actively working.`,
-    keywords: "sleep awake wake idle power system",
+    anchor: "general.preventSleep",
+    title: msg`Prevent sleep`,
+    description: msg`Choose when this machine stays awake.`,
+    keywords: "sleep awake wake idle power system server connection remote always",
     desktopOnly: true,
   },
   {
@@ -119,16 +119,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Editor LSP`,
     description: msg`Enable language server support for type checking, completions, and diagnostics. Requires a language server installed.`,
     keywords: "language server protocol type checking completion diagnostics intellisense",
-    desktopOnly: true,
-  },
-
-  // Remote Access
-  {
-    section: "remoteAccess",
-    anchor: "remoteAccess.preventSleep",
-    title: msg`Prevent sleep during remote access`,
-    description: msg`Keep the system awake while remote access is enabled.`,
-    keywords: "sleep awake wake idle power server connection",
     desktopOnly: true,
   },
 

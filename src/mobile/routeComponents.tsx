@@ -224,6 +224,9 @@ export function ThreadsRoute() {
         onDeleteWorktreeGroup={(input) => {
           void remote.deleteWorktreeGroup(input);
         }}
+        onMoveThreadToWorktree={(thread, withChanges) => {
+          void remote.moveThreadToWorktree(thread, withChanges);
+        }}
         onNew={() => setComposeExpanded(true)}
         onNewThreadInWorktree={(input) => {
           preselectWorktreeDraft(input);

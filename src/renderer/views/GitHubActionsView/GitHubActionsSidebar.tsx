@@ -20,6 +20,12 @@ import {
 } from "@/renderer/components/layout/sidebarChrome";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 
+/* The ghost recipe's hover wash is tuned for raised surfaces and vanishes on
+   dim idle rows, so revealed row actions get a stronger foreground-derived
+   wash that stays visible on both idle and active rows. */
+const workflowIconButtonHoverClass =
+  "hover:bg-[color:color-mix(in_oklab,var(--foreground)_12%,transparent)]";
+
 export function GitHubActionsSidebar(props: {
   projects: { id: string; label: string }[];
   selectedProjectId: string | null;
@@ -142,7 +148,7 @@ export function GitHubActionsSidebar(props: {
                       isIconOnly
                       size="sm"
                       variant="ghost"
-                      className="size-7 min-w-0 text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      className={`size-7 min-w-0 text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 ${workflowIconButtonHoverClass} hover:text-foreground`}
                       aria-label={t`Run workflow`}
                       onPress={() => props.onRun(workflow.id)}
                     >
@@ -152,10 +158,10 @@ export function GitHubActionsSidebar(props: {
                       isIconOnly
                       size="sm"
                       variant="ghost"
-                      className={`size-7 min-w-0 ${
+                      className={`size-7 min-w-0 ${workflowIconButtonHoverClass} ${
                         isPinned
                           ? "text-accent"
-                          : "text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                          : "text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
                       }`}
                       aria-label={isPinned ? t`Unpin workflow` : t`Pin workflow`}
                       onPress={() => props.onTogglePin(workflow.id)}

@@ -170,13 +170,17 @@ export function patchConfigForModelChange(
     thinking?: boolean;
   },
 ): ModelPickerConfigPatch {
-  const nextEfforts = capabilities.modelEfforts?.[model] ?? capabilities.efforts ?? [];
-  const effortValid = current.effort ? nextEfforts.includes(current.effort) : true;
+  const nextReasoning = modelSelectionFor(capabilities, model).reasoning;
+  const effortValid = current.effort ? nextReasoning.values.includes(current.effort) : true;
   const nextContextIds = capabilities.modelContextSizes?.[model];
   const nextContextDefault = nextContextIds?.[0] ?? capabilities.defaultContextSize;
   return {
     model,
-    ...(!effortValid && nextEfforts.length > 0 ? { effort: nextEfforts[0] } : {}),
+    // Reset to the new model's declared default, not the first tier in its
+    // list. A model with no tiers at all clears the effort rather than
+    // inheriting the previous model's — an effort it does not support would
+    // otherwise be sent to the agent, which is free to apply its own default.
+    ...(effortValid ? {} : { effort: nextReasoning.default ?? "" }),
     ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
     ...(supportsUsableFastMode(capabilities, model) ? {} : { fast: false }),
     thinking: capabilities.thinkingModels?.includes(model) ?? false,

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { readBridge } from "@/renderer/bridge";
 import type { PromptSegment } from "@/shared/contracts";
-import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
+import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
+import { fileNameFromPath, isImagePath, toLocalFileUrl } from "@/shared/promptContent";
 
 export interface Attachment {
   id: string;
@@ -13,6 +14,29 @@ export interface Attachment {
   selector?: string;
   /** Optional source page URL for picker attachments. */
   sourceUrl?: string;
+  /**
+   * Object URL of the pasted bytes. `path` may live on a remote desktop (the
+   * paste is uploaded there), so composer previews render from this local copy
+   * instead of fetching the saved file back.
+   */
+  previewUrl?: string;
+}
+
+/**
+ * Renderable URL for an image attachment. Prefers the local pasted bytes
+ * (`previewUrl`), then a caller-supplied remote resolver (the paired desktop's
+ * image endpoint when `path` lives on another machine), then the local-file
+ * protocol.
+ */
+export function attachmentImageUrl(
+  attachment: Pick<Attachment, "path" | "previewUrl">,
+  imageUrlForPath?: (path: string) => string,
+): string {
+  return (
+    attachment.previewUrl ??
+    imageUrlForPath?.(attachment.path) ??
+    resolveLocalImageDisplayUrl(toLocalFileUrl(attachment.path))
+  );
 }
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -89,6 +113,7 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
           name: `Image ${n}.${ext}`,
           mimeType: file.type,
           isImage: true,
+          previewUrl: URL.createObjectURL(file),
         },
       ];
     });
@@ -116,10 +141,15 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   }
 
   function removeAttachment(id: string) {
+    const removed = attachments.find((a) => a.id === id);
+    if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   }
 
   function clearAll() {
+    for (const a of attachments) {
+      if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
+    }
     setAttachments([]);
   }
 

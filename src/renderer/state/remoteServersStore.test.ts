@@ -201,6 +201,7 @@ function makeClient(opts?: {
   websocketUrl?: RemoteDesktopClient["websocketUrl"];
   sendThreadInput?: RemoteDesktopClient["sendThreadInput"];
   uploadAttachment?: RemoteDesktopClient["uploadAttachment"];
+  startThread?: RemoteDesktopClient["startThread"];
   startNewThread?: RemoteDesktopClient["startNewThread"];
   writeTerminal?: RemoteDesktopClient["writeTerminal"];
   resizeTerminal?: RemoteDesktopClient["resizeTerminal"];
@@ -254,6 +255,7 @@ function makeClient(opts?: {
     parseSocketMessage: (value: string) => JSON.parse(value),
     sendThreadInput: opts?.sendThreadInput ?? (async () => {}),
     uploadAttachment: opts?.uploadAttachment ?? (async () => "/remote/attachment.png"),
+    startThread: opts?.startThread ?? (async () => ({ threadId: remoteThread.id })),
     startNewThread: opts?.startNewThread ?? (async () => ({ threadId: crypto.randomUUID() })),
     writeTerminal: opts?.writeTerminal ?? (async () => {}),
     resizeTerminal: opts?.resizeTerminal ?? (async () => {}),
@@ -2015,11 +2017,13 @@ describe("useRemoteServersStore", () => {
     const firstOpen = useRemoteServersStore.getState().openRemoteThread("d1", "rt-slow");
     const secondOpen = useRemoteServersStore.getState().openRemoteThread("d1", "rt-fast");
     fast.resolve(remoteThreadSnapshot("rt-fast"));
-    await secondOpen;
+    // The applied open resolves true; the superseded one resolves false so
+    // callers can gate follow-up work (e.g. relaunching) on having applied.
+    expect(await secondOpen).toBe(true);
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-fast");
 
     slow.resolve(remoteThreadSnapshot("rt-slow"));
-    await firstOpen;
+    expect(await firstOpen).toBe(false);
 
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-fast");
     expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(applyCallsBefore + 1);
@@ -2390,10 +2394,11 @@ describe("useRemoteServersStore", () => {
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
 
     // Must resolve (not reject) so the caller's `void openRemoteThread(...)`
-    // never hits the renderer's global unhandledrejection crash screen.
-    await expect(
-      useRemoteServersStore.getState().openRemoteThread("d1", "rt-1"),
-    ).resolves.toBeUndefined();
+    // never hits the renderer's global unhandledrejection crash screen. It
+    // resolves false: no snapshot was applied, so no reopen should follow.
+    await expect(useRemoteServersStore.getState().openRemoteThread("d1", "rt-1")).resolves.toBe(
+      false,
+    );
     expect(toastDanger).toHaveBeenCalledWith("server offline");
     expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
     expect(useRemoteServersStore.getState().runtime.d1?.message).toBeUndefined();

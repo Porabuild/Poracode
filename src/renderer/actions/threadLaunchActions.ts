@@ -24,6 +24,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { findExperimentByGroupId } from "@/renderer/state/experimentStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import { unprojectProjectLocation } from "@/renderer/remoteProcedureRouter";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -97,9 +98,9 @@ export async function performInitialThreadLaunch(input: {
     thread.id,
     mcpLaunchSnapshot.mcpServers.map((server) => server.name),
   );
-  await readBridge().startThread({
-    threadId: thread.id,
-    projectLocation,
+
+  // Local and remote launches share one payload; only the transport differs.
+  const startInput = {
     agentKind: thread.agentKind,
     ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
     config: thread.config,
@@ -108,9 +109,31 @@ export async function performInitialThreadLaunch(input: {
     initialSize,
     ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-    ...mcpLaunchSnapshot,
     ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
-  });
+  };
+
+  // Mirrored remote threads must launch on their host. Spawning locally would
+  // apply the remote projectLocation on this machine (posix path →
+  // `spawn /bin/bash ENOENT` on Windows) and never reach the remote supervisor.
+  const owner = remoteOwner(thread);
+  if (owner) {
+    // No mcpLaunchSnapshot here: the host ignores client-supplied MCP servers
+    // and resolves the launch snapshot from its own settings.
+    await useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
+      client.startThread({
+        threadId: owner.remoteId,
+        projectLocation: unprojectProjectLocation(projectLocation),
+        ...startInput,
+      }),
+    );
+  } else {
+    await readBridge().startThread({
+      threadId: thread.id,
+      projectLocation,
+      ...startInput,
+      ...mcpLaunchSnapshot,
+    });
+  }
   captureThreadStarted(thread);
   if (prompt.length > 0 || (segments?.length ?? 0) > 0) {
     captureThreadPromptSubmitted(thread, prompt, segments, "initial");

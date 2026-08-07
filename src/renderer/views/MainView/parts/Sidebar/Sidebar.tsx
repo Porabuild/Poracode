@@ -1,35 +1,16 @@
-import { Tooltip } from "@heroui/react";
-import {
-  CalendarClock,
-  ChevronRight,
-  Download,
-  GitPullRequest,
-  Globe,
-  House,
-  PanelLeft,
-  PanelLeftClose,
-  Plus,
-  RefreshCw,
-  Search,
-  Settings2,
-  Smartphone,
-  Workflow,
-} from "lucide-react";
+import { ChevronRight, Globe, House, PanelLeft, Plus, Search, Settings2 } from "lucide-react";
 import { startTransition, useEffect, useLayoutEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { getAppName } from "@/shared/appName";
 import type { Thread } from "@/shared/contracts";
-import { formatBytes } from "@/shared/formatBytes";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import {
   sidebarBodyScrollClass,
   sidebarColumnLayoutClass,
-  sidebarFooterNavClass,
 } from "@/renderer/components/layout/sidebarChrome";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
@@ -63,82 +44,21 @@ import {
   useProjectIdsHiddenByWorkspace,
   useWorkspaceProjectIds,
 } from "@/renderer/state/workspaceSelectors";
-import { useUpdateStore } from "@/renderer/state/updateStore";
-import { SidebarWorkspaceSwitcher } from "./parts/SidebarWorkspaceSwitcher";
 import { SidebarFlatThreadList } from "./parts/SidebarFlatThreadList";
+import { SidebarFooterNav } from "./parts/SidebarFooterNav";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
+import { UpdateButtons } from "./parts/UpdateButtons";
+import { useSidebarShortcuts } from "./parts/sidebarShortcuts";
 import { WhatsNewButton } from "./parts/WhatsNewButton";
+import {
+  RemoteAccessSidebarIcon,
+  type RemoteAccessSidebarStatus,
+  RemoteAccessSidebarTooltip,
+} from "./parts/RemoteAccessSidebarIcon";
 import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
 
 function prewarmSettings(): void {
   void DeferredSettingsOverlay.preload();
-}
-
-function UpdateButtons(props: { iconOnly?: boolean }) {
-  const { iconOnly = false } = props;
-  const { t } = useLingui();
-  const updatePhase = useUpdateStore((s) => s.phase);
-  const updateVersion = useUpdateStore((s) => s.version);
-  const downloadPercent = useUpdateStore((s) => s.downloadPercent);
-  const transferred = useUpdateStore((s) => s.downloadTransferred);
-  const total = useUpdateStore((s) => s.downloadTotal);
-
-  if (updatePhase !== "downloading" && updatePhase !== "downloaded") {
-    return null;
-  }
-
-  if (updatePhase === "downloading") {
-    const percent = Math.min(100, Math.max(0, Math.round(downloadPercent)));
-    const byteLine =
-      transferred != null && total != null && total > 0
-        ? `${formatBytes(transferred)} / ${formatBytes(total)}`
-        : null;
-
-    if (iconOnly) {
-      return (
-        <Tooltip delay={150}>
-          <Tooltip.Trigger>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center">
-              <Download className="size-4 animate-pulse text-muted" />
-            </div>
-          </Tooltip.Trigger>
-          <Tooltip.Content placement="right">
-            <Trans>Downloading update</Trans> — {percent}%{byteLine ? ` · ${byteLine}` : ""}
-          </Tooltip.Content>
-        </Tooltip>
-      );
-    }
-
-    // Compact, fixed-height status: one line (bytes + percent) over a thin bar.
-    // The long target version is omitted — it overflowed/clipped and the About
-    // page already surfaces it. `tabular-nums` keeps the digits from reflowing.
-    return (
-      <div className="flex w-full items-center gap-2 rounded-3xl px-2 py-1.5 text-muted">
-        <Download className="size-4 shrink-0 animate-pulse text-muted" />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex min-w-0 items-center justify-between gap-2 text-xs tabular-nums">
-            <span className="truncate">{byteLine ?? <Trans>Downloading update</Trans>}</span>
-            <AnimatedNumber className="shrink-0" value={percent} suffix="%" />
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--row-active)]">
-            <div
-              className="h-1 rounded-full bg-foreground transition-[width] duration-300"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <SidebarButton
-      iconOnly={iconOnly}
-      icon={<RefreshCw className="size-4" />}
-      label={updateVersion ? t`Install v${updateVersion}` : t`Install update`}
-      onPress={() => void readBridge().installUpdate()}
-    />
-  );
 }
 
 function HomeTerminalButton(props: { projectId: string; projectName: string }) {
@@ -146,17 +66,21 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
   const hasTerminal = useIsProjectTerminalOpen(props.projectId);
   const isActiveTerminal = useIsProjectTerminalActive(props.projectId);
   const isBusy = useIsProjectTerminalBusy(props.projectId);
+  // Match thread / project-header collapse so idle home terminal does not
+  // reserve row width for the project title.
+  const hiddenPanelButtonClass =
+    "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
   return (
     <SidebarPanelDragButton
       panel="terminal"
       projectId={props.projectId}
       ariaLabel={t`Terminal for ${props.projectName}`}
-      className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+      className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
         isActiveTerminal
-          ? "text-accent"
+          ? "w-[18px] p-0.5 text-accent"
           : hasTerminal
-            ? "text-foreground"
-            : "text-muted/60 opacity-0 group-hover:opacity-100"
+            ? "w-[18px] p-0.5 text-foreground"
+            : `text-muted/60 ${hiddenPanelButtonClass}`
       }`}
       onPress={() => openTerminal(props.projectId)}
     >
@@ -167,19 +91,6 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
 
 function ThreadIcon(props: { thread: Thread }) {
   return <ThreadProviderIcon thread={props.thread} className="size-3.5" />;
-}
-
-type RemoteAccessSidebarStatus = "off" | "starting" | "online";
-
-function RemoteAccessSidebarIcon(props: { status: RemoteAccessSidebarStatus }) {
-  return (
-    <span className="relative flex size-4 items-center justify-center">
-      <Smartphone className="size-4" />
-      {props.status === "online" ? (
-        <span className="absolute -right-px -top-px size-1.5 rounded-full bg-emerald-400 ring-[1.5px] ring-[var(--sidebar-background)]" />
-      ) : null}
-    </span>
-  );
 }
 
 function CollapsedThreadRailButton(props: { thread: Thread; projectName?: string }) {
@@ -267,8 +178,6 @@ export function Sidebar() {
   const hiddenProjectCount = useProjectIdsHiddenByWorkspace().size;
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
-  const sidebarHiddenShortcuts = useSharedSettings((s) => s.sidebarHiddenShortcuts);
-  const sidebarShortcutOrder = useSharedSettings((s) => s.sidebarShortcutOrder);
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
@@ -282,7 +191,6 @@ export function Sidebar() {
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
   const browserVisible = usePanelStore((s) => s.browserPanelOpen && s.rightPanelTab === "browser");
-  const githubActionsOpen = usePanelStore((s) => s.githubActionsContext !== null);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
@@ -290,69 +198,15 @@ export function Sidebar() {
   const setProjectCollapsed = useSidebarUiStore((s) => s.setProjectCollapsed);
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
   const setWorktreeCollapsed = useSidebarUiStore((s) => s.setWorktreeCollapsed);
-  const { isCollapsed, collapse, expand } = useSidebar();
+  const { isCollapsed, expand } = useSidebar();
   const openHome = useAppStore((s) => s.openHome);
-  const openPullRequests = useAppStore((s) => s.openPullRequests);
-  const openGitHubActions = useAppStore((s) => s.openGitHubActions);
-  const openSchedules = useAppStore((s) => s.openSchedules);
   const appView = useAppStore((s) => s.view);
   const appNameForHome = getAppName(readBridge().channel, import.meta.env.DEV);
   const [remoteAccessStatus, setRemoteAccessStatus] = useState<RemoteAccessSidebarStatus>("off");
   const { setScrollContainer, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
     maxFadePx: 10,
   });
-  const remoteAccessStatusLabel =
-    remoteAccessStatus === "online"
-      ? t`Online`
-      : remoteAccessStatus === "starting"
-        ? t`Starting`
-        : t`Off`;
-  const remoteAccessTooltip = (
-    <span className="flex items-center gap-2">
-      <span>{t`Remote Access`}</span>
-      <span className="inline-flex items-center gap-1.5 text-muted">
-        {remoteAccessStatus === "online" ? (
-          <span className="size-1.5 rounded-full bg-emerald-400" />
-        ) : null}
-        {remoteAccessStatusLabel}
-      </span>
-    </span>
-  );
-  const sidebarShortcutsById = new Map([
-    [
-      "pullRequests" as const,
-      {
-        id: "pullRequests" as const,
-        icon: <GitPullRequest className="size-4" />,
-        label: t`Pull requests`,
-        onPress: () => startTransition(() => openPullRequests()),
-      },
-    ],
-    [
-      "githubActions" as const,
-      {
-        id: "githubActions" as const,
-        icon: <Workflow className="size-4" />,
-        label: t`GitHub Actions`,
-        onPress: () => startTransition(() => openGitHubActions(currentProjectId)),
-      },
-    ],
-    [
-      "schedules" as const,
-      {
-        id: "schedules" as const,
-        icon: <CalendarClock className="size-4" />,
-        label: t`Schedules`,
-        onPress: () => startTransition(() => openSchedules()),
-      },
-    ],
-  ]);
-  const sidebarShortcuts = sidebarShortcutOrder
-    .map((id) => sidebarShortcutsById.get(id))
-    .filter(
-      (shortcut): shortcut is NonNullable<typeof shortcut> =>
-        shortcut !== undefined && !sidebarHiddenShortcuts.includes(shortcut.id),
-    );
+  const sidebarShortcuts = useSidebarShortcuts();
 
   useEffect(() => {
     if (currentProjectId) {
@@ -458,9 +312,7 @@ export function Sidebar() {
                 iconOnly
                 icon={shortcut.icon}
                 label={shortcut.label}
-                isActive={
-                  shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id
-                }
+                isActive={shortcut.isActive}
                 onPress={shortcut.onPress}
               />
             ))}
@@ -476,7 +328,7 @@ export function Sidebar() {
               iconOnly
               icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
               label={t`Remote Access`}
-              tooltip={remoteAccessTooltip}
+              tooltip={<RemoteAccessSidebarTooltip status={remoteAccessStatus} />}
               isActive={remoteAccessSettingsActive}
               onPreload={prewarmSettings}
               onPress={openRemoteAccessSettings}
@@ -495,8 +347,12 @@ export function Sidebar() {
         className={`${sidebarColumnLayoutClass} ${isCollapsed ? "invisible" : ""}`}
         style={{ minWidth: SIDEBAR_MIN_WIDTH }}
       >
-        <div ref={setScrollContainer} className={sidebarBodyScrollClass()} style={scrollFadeStyle}>
-          {projectIds.length === 0 && !(homeScopeEnabled && homeProject) ? (
+        {projectIds.length === 0 && !(homeScopeEnabled && homeProject) ? (
+          <div
+            ref={setScrollContainer}
+            className={sidebarBodyScrollClass()}
+            style={scrollFadeStyle}
+          >
             <div className="pt-4">
               <p className="text-center text-sm text-muted">
                 {hiddenProjectCount > 0 ? (
@@ -508,9 +364,17 @@ export function Sidebar() {
                 )}
               </p>
             </div>
-          ) : listLayout === "flat" ? (
-            <SidebarFlatThreadList sortMode={sortMode} />
-          ) : (
+          </div>
+        ) : listLayout === "flat" ? (
+          // The flat list pins its filter/new-thread head above the thread
+          // rows, so it renders its own scroll container instead of this one.
+          <SidebarFlatThreadList sortMode={sortMode} />
+        ) : (
+          <div
+            ref={setScrollContainer}
+            className={sidebarBodyScrollClass()}
+            style={scrollFadeStyle}
+          >
             <div className="space-y-4">
               {homeScopeEnabled && homeProject ? (
                 <section className="space-y-0.5">
@@ -553,51 +417,11 @@ export function Sidebar() {
                 />
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <ProviderUsageRail orientation="row" />
-        <div className={sidebarFooterNavClass}>
-          <SidebarWorkspaceSwitcher />
-          <UpdateButtons />
-          <WhatsNewButton />
-          {sidebarShortcuts.map((shortcut) => (
-            <SidebarButton
-              key={shortcut.id}
-              icon={shortcut.icon}
-              label={shortcut.label}
-              isActive={
-                shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id
-              }
-              onPress={shortcut.onPress}
-            />
-          ))}
-          <div className="flex items-center gap-1">
-            <div className="min-w-0 flex-1">
-              <SidebarButton
-                icon={<Settings2 className="size-4" />}
-                label={t`Settings`}
-                isActive={otherSettingsActive}
-                onPreload={prewarmSettings}
-                onPress={openSettings}
-              />
-            </div>
-            <SidebarButton
-              iconOnly
-              icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
-              label={t`Remote Access`}
-              tooltip={remoteAccessTooltip}
-              isActive={remoteAccessSettingsActive}
-              onPreload={prewarmSettings}
-              onPress={openRemoteAccessSettings}
-            />
-          </div>
-          <SidebarButton
-            icon={<PanelLeftClose className="size-4" />}
-            label={t`Hide sidebar`}
-            onPress={collapse}
-          />
-        </div>
+        <SidebarFooterNav remoteAccessStatus={remoteAccessStatus} />
       </div>
     </div>
   );

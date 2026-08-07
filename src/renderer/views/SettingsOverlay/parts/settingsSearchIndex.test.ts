@@ -68,16 +68,16 @@ describe("searchSettings", () => {
 
   it("matches a setting title and shows no snippet (the title is the line)", () => {
     const results = searchSettings("prevent sleep", t);
-    const hit = results.find((r) => r.anchor === "general.preventSleepWhileWorking");
+    const hit = results.find((r) => r.anchor === "general.preventSleep");
     expect(hit).toBeDefined();
-    expect(hit?.title).toBe("Prevent sleep while working");
+    expect(hit?.title).toBe("Prevent sleep");
     expect(hit?.snippet).toBeNull();
   });
 
   it("matches description-only and surfaces the description snippet", () => {
     // "awake" is in the description, not the title.
     const results = searchSettings("awake", t);
-    const hit = results.find((r) => r.anchor === "general.preventSleepWhileWorking");
+    const hit = results.find((r) => r.anchor === "general.preventSleep");
     expect(hit).toBeDefined();
     expect(hit?.snippet).not.toBeNull();
     expect(hit?.snippet?.toLowerCase()).toContain("awake");

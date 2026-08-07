@@ -1,6 +1,87 @@
 {
   "releases": [
     {
+      "version": "1.6.1",
+      "date": "2026-08-05",
+      "title": "Flat thread list, worktree moves & workspace switching",
+      "summary": "The sidebar can now show every project's threads in one flat, filterable list, and you can move an existing thread into a worktree straight from its context menu. Kimi Code sessions, Factory Droid subagents, and Windows agent launches are all more dependable.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Sidebar",
+          "text": "Switch the thread list to a flat layout that shows every project's threads together, tagged by project and with Git status on each row, plus sort modes and per-project filters."
+        },
+        {
+          "kind": "added",
+          "label": "Sidebar",
+          "text": "The collapsed rail now has Browser and New thread buttons, and right-clicking a thread there opens the same context menu as the expanded sidebar."
+        },
+        {
+          "kind": "added",
+          "label": "Worktrees",
+          "text": "Move an existing thread into a new worktree from its context menu, either clean or carrying its uncommitted changes along."
+        },
+        {
+          "kind": "added",
+          "label": "Workspaces",
+          "text": "The project switcher groups projects by workspace, remembers the last project you used in each one, and follows you when you open a thread from another workspace."
+        },
+        {
+          "kind": "added",
+          "label": "Cursor",
+          "text": "Cursor SDK chat gains the standard composer slash commands for model, effort, fast mode, plan mode, and agent selection — the same set Codex already uses."
+        },
+        {
+          "kind": "added",
+          "label": "Plans",
+          "text": "When an ACP agent proposes a plan, the full plan shows in the approval request so you can read it before you accept."
+        },
+        {
+          "kind": "improved",
+          "label": "Pull requests",
+          "text": "The PR automation control now shows a distinct icon and label for Auto Fix and Auto Merge so the selected mode is clear at a glance."
+        },
+        {
+          "kind": "improved",
+          "label": "Kimi",
+          "text": "Kimi Code handles workspace trust, signing out, thinking levels, question dialogs, and background tasks much more reliably."
+        },
+        {
+          "kind": "improved",
+          "label": "Factory",
+          "text": "Factory Droid subagent transcripts now stream into the parent thread, and built-in HTTP MCP servers reach Droid sessions."
+        },
+        {
+          "kind": "improved",
+          "label": "Security",
+          "text": "ACP agents can no longer write through the filesystem bridge outside the project, except into an agent's own config folder such as Kimi's ~/.kimi-code."
+        },
+        {
+          "kind": "improved",
+          "label": "Editor",
+          "text": "Overflowing editor tabs scroll horizontally with the mouse wheel, and the active tab is always scrolled into view."
+        },
+        {
+          "kind": "improved",
+          "label": "Qwen",
+          "text": "Your saved Qwen model selections move from the retired Qwen 3.8 Max Preview to the released Qwen 3.8 Max."
+        },
+        {
+          "kind": "fixed",
+          "label": "Windows",
+          "text": "Agent commands containing quotes, newlines, or shell metacharacters now launch correctly through WSL and PowerShell instead of failing to parse."
+        },
+        {
+          "kind": "fixed",
+          "text": "A thread marked done stays done when you open it, and a worktree group collapses once its last thread is marked done."
+        },
+        {
+          "kind": "fixed",
+          "text": "Provider usage keeps reporting after a browser sign-in rotates its cookies, duplicated question headers are gone, and the model visibility list no longer overflows the window."
+        }
+      ]
+    },
+    {
       "version": "1.6.0",
       "date": "2026-08-03",
       "title": "Remote machines, GitHub Actions & PR automation",
