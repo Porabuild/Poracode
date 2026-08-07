@@ -200,6 +200,43 @@ describe("mapAcpSessionUpdate", () => {
     expect(state.openAssistantItemId).toBe(itemId);
   });
 
+  it("drops whitespace-only agent text chunks but keeps whitespace inside a streaming message", () => {
+    const state = createAcpMapperState("t-blank-agent-chunk");
+
+    // Factory Droid (DeepSeek models) emits "\n\n" as a post-tool-call stream
+    // boundary; it must not open a blank assistant row.
+    expect(
+      mapAcpSessionUpdate(
+        note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "\n\n" } }),
+        state,
+      ),
+    ).toEqual([]);
+    expect(state.openAssistantItemId).toBeUndefined();
+
+    mapAcpSessionUpdate(
+      note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Line" } }),
+      state,
+    );
+    const itemId = state.openAssistantItemId;
+
+    // Once a message is streaming, whitespace is real spacing.
+    expect(
+      mapAcpSessionUpdate(
+        note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "\n\n" } }),
+        state,
+      ),
+    ).toEqual([
+      {
+        type: "content.delta",
+        threadId: "t-blank-agent-chunk",
+        itemId,
+        stream: "assistant_text",
+        delta: "\n\n",
+      },
+    ]);
+    expect(state.openAssistantItemId).toBe(itemId);
+  });
+
   it("maps Factory Droid API failures in agent_message_chunk to runtime errors", () => {
     const state = createAcpMapperState("t-droid-limit");
     const text =
