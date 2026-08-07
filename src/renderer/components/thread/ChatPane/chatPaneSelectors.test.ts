@@ -9,6 +9,8 @@ import {
 import {
   selectChatScrollAnchor,
   selectChildTimelineEntries,
+  selectCompletedTurnsByAnchorItem,
+  selectMostRecentDisplayableCompletedTurn,
   selectVisibleThreadRuntimeItemIds,
   selectVisibleThreadTimelineEntries,
 } from "./chatPaneSelectors";
@@ -1115,6 +1117,90 @@ describe("chatPaneSelectors", () => {
         itemIds: ["tool-edit-1", "tool-edit-2", "tool-read-1", "tool-edit-3"],
       },
     ]);
+  });
+
+  describe("completed turn anchors", () => {
+    function stateWithGoalTail(
+      records: ReadonlyArray<{ startedAt: number; endedAt: number; anchorItemId: string | null }>,
+    ): AppStoreState {
+      return {
+        runtimeItemIdsByThread: { t1: ["user-1", "assistant-1", "goal-1"] },
+        runtimeItemsByIdByThread: {
+          t1: {
+            "user-1": { id: "user-1", type: "user_message", state: "completed", streams: {} },
+            "assistant-1": {
+              id: "assistant-1",
+              type: "assistant_message",
+              state: "completed",
+              streams: { assistant_text: "Done." },
+            },
+            "goal-1": { id: "goal-1", type: "goal", state: "completed", streams: {} },
+          },
+        },
+        runtimeStructuralVersionByThread: { t1: 1 },
+        runtimeCompletedTurnsByThread: { t1: records },
+      } as unknown as AppStoreState;
+    }
+
+    it("resolves an anchor on an unrendered goal item back to the last rendered row", () => {
+      const state = stateWithGoalTail([
+        { startedAt: 1_000, endedAt: 76_000, anchorItemId: "goal-1" },
+      ]);
+
+      expect([...selectCompletedTurnsByAnchorItem(state, "t1").keys()]).toEqual(["assistant-1"]);
+      expect(selectMostRecentDisplayableCompletedTurn(state, "t1")).toMatchObject({
+        anchorItemId: "assistant-1",
+        endedAt: 76_000,
+      });
+    });
+
+    it("does not let a later turn steal the row an earlier turn ends on", () => {
+      const state = stateWithGoalTail([
+        { startedAt: 1_000, endedAt: 76_000, anchorItemId: "assistant-1" },
+        { startedAt: 90_000, endedAt: 100_000, anchorItemId: "goal-1" },
+      ]);
+
+      expect(selectCompletedTurnsByAnchorItem(state, "t1").get("assistant-1")).toMatchObject({
+        endedAt: 76_000,
+      });
+      // The goal-only turn has no row of its own; the tail footer shows it.
+      expect(selectMostRecentDisplayableCompletedTurn(state, "t1")).toMatchObject({
+        anchorItemId: null,
+        endedAt: 100_000,
+      });
+    });
+
+    it("lets a real turn keep a row a sub-second turn was recorded against", () => {
+      const state = stateWithGoalTail([
+        { startedAt: 1_000, endedAt: 1_400, anchorItemId: "assistant-1" },
+        { startedAt: 2_000, endedAt: 62_000, anchorItemId: "goal-1" },
+      ]);
+
+      expect(selectCompletedTurnsByAnchorItem(state, "t1").get("assistant-1")).toMatchObject({
+        endedAt: 62_000,
+      });
+    });
+
+    it("never anchors a turn onto a user message row", () => {
+      const state = {
+        runtimeItemIdsByThread: { t1: ["user-1", "goal-1"] },
+        runtimeItemsByIdByThread: {
+          t1: {
+            "user-1": { id: "user-1", type: "user_message", state: "completed", streams: {} },
+            "goal-1": { id: "goal-1", type: "goal", state: "completed", streams: {} },
+          },
+        },
+        runtimeStructuralVersionByThread: { t1: 1 },
+        runtimeCompletedTurnsByThread: {
+          t1: [{ startedAt: 1_000, endedAt: 76_000, anchorItemId: "goal-1" }],
+        },
+      } as unknown as AppStoreState;
+
+      expect(selectCompletedTurnsByAnchorItem(state, "t1").size).toBe(0);
+      expect(selectMostRecentDisplayableCompletedTurn(state, "t1")).toMatchObject({
+        anchorItemId: null,
+      });
+    });
   });
 });
 // @vitest-environment node

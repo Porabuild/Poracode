@@ -1669,6 +1669,36 @@ describe("ChatPane", () => {
     expect(label.closest(".surface")).not.toBeNull();
   });
 
+  it("renders a completed turn whose stored anchor is an unrendered goal item", () => {
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+    };
+    seedAssistantMessage(thread.id, "Inspect output");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: "goal-1",
+      },
+    ]);
+
+    renderChatPane(thread);
+
+    expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
+  });
+
   it("keeps a completed turn anchored before an optimistic follow-up prompt", async () => {
     const thread = {
       ...makeThread(),
