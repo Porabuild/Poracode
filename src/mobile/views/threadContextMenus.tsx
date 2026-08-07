@@ -1,6 +1,16 @@
 import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { Archive, CircleCheck, Pencil, Play, Plus, Star, Terminal, Trash2 } from "lucide-react";
+import {
+  Archive,
+  CircleCheck,
+  GitFork,
+  Pencil,
+  Play,
+  Plus,
+  Star,
+  Terminal,
+  Trash2,
+} from "lucide-react";
 import type { Project, Thread } from "@/shared/contracts";
 import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common/ContextMenu";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
@@ -34,6 +44,26 @@ export function ThreadContextMenu(props: ThreadContextMenuProps) {
             id: "new-thread-in-worktree",
             label: t`New thread in worktree`,
             icon: <Plus className="size-3.5" />,
+          },
+        ]
+      : []),
+    ...(!worktreePath
+      ? [
+          {
+            type: "submenu" as const,
+            id: "move-to-worktree",
+            label: t`Move to Worktree`,
+            icon: <GitFork className="size-3.5" />,
+            items: [
+              {
+                id: "move-to-worktree-with-changes",
+                label: t`Bring Uncommitted Changes`,
+              },
+              {
+                id: "move-to-worktree-clean",
+                label: t`Clean Worktree`,
+              },
+            ],
           },
         ]
       : []),
@@ -101,6 +131,10 @@ export function ThreadContextMenu(props: ThreadContextMenuProps) {
         worktreePath,
         worktreeBranch,
       });
+    } else if (key === "move-to-worktree-with-changes") {
+      props.onMoveThreadToWorktree(thread, true);
+    } else if (key === "move-to-worktree-clean") {
+      props.onMoveThreadToWorktree(thread, false);
     } else if (key === "rename") {
       props.onRename();
     } else if (key === "toggle-done") {
@@ -137,7 +171,7 @@ export function ThreadContextMenu(props: ThreadContextMenuProps) {
   );
 }
 
-interface GroupContextMenuProps extends ThreadActionCallbacks {
+interface GroupContextMenuProps extends Omit<ThreadActionCallbacks, "onMoveThreadToWorktree"> {
   readonly entry: GroupEntry;
   readonly project?: Project | undefined;
   readonly children: ReactNode;

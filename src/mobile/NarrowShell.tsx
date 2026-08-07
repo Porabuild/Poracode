@@ -194,6 +194,9 @@ export function NarrowShell(props: {
                   void remote.deleteWorktreeGroup(input);
                   void navigate({ to: "/threads" });
                 }}
+                onMoveThreadToWorktree={(target, withChanges) => {
+                  void remote.moveThreadToWorktree(target, withChanges);
+                }}
                 onOpenNotes={() =>
                   void navigate({
                     to: "/notes/$threadId",
@@ -272,6 +275,7 @@ export function NarrowShell(props: {
             onAction={() => undefined}
             onNewThreadInWorktree={() => undefined}
             onDeleteWorktreeGroup={() => undefined}
+            onMoveThreadToWorktree={() => undefined}
             onOpenNotes={() => undefined}
             onOpenTerminal={() => undefined}
           />

@@ -158,6 +158,9 @@ export function ThreadDetail(props: {
           void remote.deleteWorktreeGroup(input);
           void navigate({ to: "/threads" });
         }}
+        onMoveThreadToWorktree={(target, withChanges) => {
+          void remote.moveThreadToWorktree(target, withChanges);
+        }}
       />
     </Suspense>
   );

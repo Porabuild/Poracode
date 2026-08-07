@@ -16,6 +16,7 @@ import {
   reopenPaneThreadsIfInactive,
   reopenStoredThread,
   setThreadRuntimeReopenEnabled,
+  setThreadWorktree,
   switchToAdjacentThread,
   toggleMarkThreadDone,
   toggleStarThread,
@@ -390,6 +391,107 @@ describe("threadActions", () => {
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
   });
 
+  it("queues the same empty-prompt reopen for inactive remote threads as local", () => {
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      remoteServerId: "desktop-1",
+      remoteId: "rt-1",
+      sessionRef: {
+        providerSessionId: "session-1",
+        discoveredAt: "2026-03-22T00:00:00.000Z",
+      },
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    reopenStoredThread(thread.id);
+
+    // Transport split is in performInitialThreadLaunch (remote client vs bridge).
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
+  });
+
+  it("reopens an inactive remote thread after history hydrates on open", async () => {
+    const previousOpenRemoteThread = useRemoteServersStore.getState().openRemoteThread;
+    const openRemoteThread = vi
+      .fn<(desktopId: string, threadId: string) => Promise<boolean>>()
+      .mockImplementation(async () => {
+        // Simulate history applying inactive status (same as openRemoteThread).
+        useAppStore.getState().updateThreadRuntime("thread-1", {
+          status: "inactive",
+          attention: "none",
+          canResumeWithConfig: true,
+          sessionRef: {
+            providerSessionId: "session-1",
+            discoveredAt: "2026-03-22T00:00:00.000Z",
+          },
+        });
+        return true;
+      });
+    useRemoteServersStore.setState({ openRemoteThread });
+    try {
+      const thread = makeThread({
+        presentationMode: "gui",
+        status: "inactive",
+        remoteServerId: "desktop-1",
+        remoteId: "rt-1",
+        canResumeWithConfig: true,
+        sessionRef: {
+          providerSessionId: "session-1",
+          discoveredAt: "2026-03-22T00:00:00.000Z",
+        },
+      });
+      useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+      openThread(thread.id);
+
+      await waitFor(() => {
+        expect(openRemoteThread).toHaveBeenCalledWith("desktop-1", "rt-1");
+      });
+      await waitFor(() => {
+        expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
+      });
+      expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    } finally {
+      useRemoteServersStore.setState({ openRemoteThread: previousOpenRemoteThread });
+    }
+  });
+
+  it("does not reopen when the remote open was superseded or failed", async () => {
+    const previousOpenRemoteThread = useRemoteServersStore.getState().openRemoteThread;
+    // openRemoteThread resolves false when it never applied a snapshot.
+    const openRemoteThread = vi
+      .fn<(desktopId: string, threadId: string) => Promise<boolean>>()
+      .mockResolvedValue(false);
+    useRemoteServersStore.setState({ openRemoteThread });
+    try {
+      const thread = makeThread({
+        presentationMode: "gui",
+        status: "inactive",
+        remoteServerId: "desktop-1",
+        remoteId: "rt-1",
+        canResumeWithConfig: true,
+        sessionRef: {
+          providerSessionId: "session-1",
+          discoveredAt: "2026-03-22T00:00:00.000Z",
+        },
+      });
+      useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+      openThread(thread.id);
+
+      await waitFor(() => {
+        expect(openRemoteThread).toHaveBeenCalledWith("desktop-1", "rt-1");
+      });
+      // Flush the .then gate (microtasks) before asserting nothing was queued.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+      expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
+    } finally {
+      useRemoteServersStore.setState({ openRemoteThread: previousOpenRemoteThread });
+    }
+  });
+
   it("closes a live CLI thread when marking done even before a session ref is known", async () => {
     const project = useAppStore.getState().addProject({
       kind: "posix",
@@ -441,6 +543,37 @@ describe("threadActions", () => {
 
     resolveCommand();
     await waitFor(() => expect(useAppStore.getState().threads[0]?.archived).toBe(true));
+  });
+
+  it("tags a local thread with worktree metadata in the store", async () => {
+    const thread = makeThread();
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    await setThreadWorktree(thread.id, "/repo/wt", "feature/x", { isNewWorktree: true });
+
+    expect(sendThreadCommand).not.toHaveBeenCalled();
+    expect(useAppStore.getState().threads[0]?.worktreePath).toBe("/repo/wt");
+    expect(useAppStore.getState().threads[0]?.worktreeBranch).toBe("feature/x");
+  });
+
+  it("routes set-worktree through the host for remote threads before mirroring locally", async () => {
+    const thread = makeThread({
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    await setThreadWorktree(thread.id, "/repo/wt", "feature/x", { isNewWorktree: true });
+
+    expect(sendThreadCommand).toHaveBeenCalledWith("remote-server", {
+      kind: "set-worktree",
+      threadId: "remote-thread",
+      worktreePath: "/repo/wt",
+      worktreeBranch: "feature/x",
+      isNewWorktree: true,
+    });
+    expect(useAppStore.getState().threads[0]?.worktreePath).toBe("/repo/wt");
+    expect(useAppStore.getState().threads[0]?.worktreeBranch).toBe("feature/x");
   });
 
   it("unloads a remote thread through the central bridge before refreshing its host", async () => {

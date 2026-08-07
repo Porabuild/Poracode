@@ -9,6 +9,7 @@ import {
 import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
+import { shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
@@ -173,7 +174,19 @@ export function openThread(
       store.setPendingActiveThread(null);
       if (options?.focusComposer !== false) store.requestComposerFocus(threadId);
     });
-    void useRemoteServersStore.getState().openRemoteThread(owner.desktopId, owner.remoteId);
+    // Same open pipeline as local: hydrate remote history, then if still
+    // inactive queue the empty-prompt reopen. ThreadView runs
+    // performInitialThreadLaunch, which uses remote startThread instead of
+    // local IPC — the only intentional difference.
+    void useRemoteServersStore
+      .getState()
+      .openRemoteThread(owner.desktopId, owner.remoteId)
+      .then((opened) => {
+        // Reopen only when this open actually applied. A superseded open (the
+        // user already clicked another thread) or a failed one (host
+        // unreachable — the relaunch would fail noisily) resolves false.
+        if (opened && threadRuntimeReopenEnabled) reopenStoredThread(threadId);
+      });
     return;
   }
   const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
@@ -315,7 +328,7 @@ export function reopenStoredThread(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
   if (!thread) return;
-  if (thread.status !== "inactive" || store.pendingThreadLaunches[thread.id] !== undefined) {
+  if (!shouldRelaunchThreadOnOpen(thread) || store.pendingThreadLaunches[thread.id] !== undefined) {
     return;
   }
 
@@ -328,6 +341,8 @@ export function reopenStoredThread(threadId: string): void {
       canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
     });
   });
+  // Local and remote share this queue; performInitialThreadLaunch picks the
+  // host (local bridge vs remote client.startThread).
   store.queueThreadLaunch(thread.id, "");
 }
 
@@ -528,6 +543,39 @@ export function renameThread(threadId: string, title: string): void {
   )
     return;
   store.renameThread(threadId, title);
+}
+
+/**
+ * Tag a thread with worktree metadata. Local threads update the store (and
+ * persist via the app DB); remote projected threads go through the host's
+ * existing `set-worktree` command so the durable row is updated on the machine
+ * that owns the project.
+ */
+export async function setThreadWorktree(
+  threadId: string,
+  worktreePath: string,
+  worktreeBranch?: string,
+  options?: { isNewWorktree?: boolean },
+): Promise<void> {
+  const store = useAppStore.getState();
+  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  if (!thread) return;
+
+  const apply = () => {
+    useAppStore.getState().setThreadWorktree(threadId, worktreePath, worktreeBranch);
+  };
+
+  const owner = remoteOwner(thread);
+  if (owner) {
+    await useRemoteServersStore.getState().sendThreadCommand(owner.desktopId, {
+      kind: "set-worktree",
+      threadId: owner.remoteId,
+      worktreePath,
+      ...(worktreeBranch ? { worktreeBranch } : {}),
+      ...(options?.isNewWorktree ? { isNewWorktree: true } : {}),
+    });
+  }
+  apply();
 }
 
 /** Clear the unread completion marker without navigating the source desktop. */

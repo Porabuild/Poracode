@@ -888,7 +888,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               new Error(i18n._(msg`Remote server not found.`)),
               i18n._(msg`Remote server not found.`),
             );
-            return;
+            return false;
           }
           // Hydrate the thread's history into the shared, threadId-keyed runtime
           // store so the desktop ChatPane renders it (coexists with local threads).
@@ -897,11 +897,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           try {
             snapshot = await withClient(desktopId, (client) => client.threadHistory(threadId));
           } catch (error) {
-            if (requestSeq !== openRemoteThreadRequestSeq) return;
+            if (requestSeq !== openRemoteThreadRequestSeq) return false;
             toast.danger(friendlyError(error) || i18n._(msg`Failed to open remote thread.`));
-            return;
+            return false;
           }
-          if (requestSeq !== openRemoteThreadRequestSeq) return;
+          if (requestSeq !== openRemoteThreadRequestSeq) return false;
           const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
           const viewThreadId = projectedSnapshot.thread.id;
           const firstSnapshotItemId = projectedSnapshot.runtimeItems[0]?.id;
@@ -927,6 +927,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           startRemoteServerEventStream(server);
           const eventSocket = remoteServerEventSockets.get(desktopId)?.socket;
           if (eventSocket) activateRemoteTerminalFeed(desktopId, eventSocket);
+          return true;
         },
 
         closeRemoteThread: () => {
