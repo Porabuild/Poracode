@@ -417,7 +417,7 @@ export function SidebarProjectFilter(props: {
         <Dropdown.Trigger
           {...{ [TRIGGER_ATTR]: true }}
           aria-label={t`Filter by project`}
-          className={sidebarRowClass({ size: "xs" })}
+          className={`${sidebarRowClass({ size: "xs" })} h-8`}
         >
           {triggerContent}
         </Dropdown.Trigger>
