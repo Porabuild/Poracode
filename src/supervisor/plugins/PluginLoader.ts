@@ -126,7 +126,9 @@ export function loadPluginFromDirectory(directory: string, source: PluginSource)
   const skills = discoverSkills(root, diagnostics);
   const mcpServers = discoverMcpServers(root, manifest.$schema, diagnostics);
 
-  for (const folder of Object.keys(extension.extension.skills)) {
+  const declaredSkillFolders = new Set(Object.keys(extension.extension.skills));
+  if (extension.extension.coreSkill) declaredSkillFolders.add(extension.extension.coreSkill);
+  for (const folder of declaredSkillFolders) {
     if (skills.some((skill) => skill.folder === folder)) continue;
     diagnostics.push(
       pluginDiagnostic(

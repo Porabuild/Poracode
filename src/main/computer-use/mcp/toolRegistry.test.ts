@@ -32,6 +32,15 @@ describe("computer-use toolRegistry", () => {
     expect(isInteractiveToolName("type")).toBe(true);
     expect(isInteractiveToolName("get_window_state")).toBe(false);
     expect(isInteractiveToolName("list_windows")).toBe(false);
+    expect(TOOLS.find((tool) => tool.name === "get_window_state")?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+    expect(TOOLS.find((tool) => tool.name === "click")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    });
   });
 
   it("preserves the refreshed window returned by interactive driver actions", async () => {

@@ -43,6 +43,9 @@ commit rather than the branch head.
 Propose the narrowest fix that addresses the root cause. Re-run only the failed jobs when you can. If a re-run is
 needed to confirm a flake, say that is what you are doing and why.
 
+Do not re-run, cancel, or dispatch a workflow merely to gather more evidence unless the user authorized that GitHub
+action. When a fix is local, run the closest equivalent check before asking CI to confirm it.
+
 ## Report
 
 Lead with the root cause and the evidence line from the log. Then the fix. If the fix is unverified because CI has not

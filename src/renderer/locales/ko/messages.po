@@ -1796,6 +1796,7 @@ msgstr "Poracode의 격리된 내장 브라우저에서 웹사이트를 탐색�
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -2262,6 +2263,7 @@ msgstr "서브에이전트를 선택하고 지시하고 병렬 작업을 조율�
 
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Chrome"
 msgstr "Chrome"
@@ -3449,6 +3451,7 @@ msgstr "Crossagent: {subagent}"
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -4294,10 +4297,6 @@ msgstr "프로젝트 활성화"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "설정에서 공급자 활성화"
-
-#: src/renderer/components/plugins/PluginDetail.tsx
-#~ msgid "Enable this plugin's active skills and apps for new threads."
-#~ msgstr ""
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable this plugin's skills and servers for new threads."
@@ -5763,10 +5762,6 @@ msgstr "Windows에 설치"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "패키지 설치"
-
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Install Poracode-managed bundles of skills and MCP-powered apps for every supported agent."
-#~ msgstr ""
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Install Tailscale"
@@ -8380,6 +8375,7 @@ msgid "Play notification sound"
 msgstr "알림 소리 재생"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "플러그인"
 
@@ -10283,22 +10279,6 @@ msgstr "선택 항목을 터미널로 보냈습니다."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Claude Code 계정을 설정 디렉터리별로 분리하거나, 프로필을 외부 제공자(z.ai 등)로 지정합니다. 프로필을 열어 환경 변수, 모델, 추론 강도를 구성하세요."
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" could not be started and was skipped."
-#~ msgstr ""
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" has a name Poracode cannot use."
-#~ msgstr ""
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" is not configured correctly and was skipped."
-#~ msgstr ""
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" runs on this computer and is unavailable for WSL projects."
-#~ msgstr ""
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Server {target} could not be started and was skipped."

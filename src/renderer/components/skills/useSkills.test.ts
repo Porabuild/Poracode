@@ -5,15 +5,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SkillScanResult } from "@/shared/contracts";
 import { dynamicActivate, i18n } from "@/renderer/i18n/i18n";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePlugins } from "@/renderer/state/pluginsStore";
 import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
-import { buildSkillSlashCommands, useSkills, useSkillSlashCommandState } from "./useSkills";
+import {
+  buildSkillSlashCommands,
+  usePluginMentionItems,
+  useSkills,
+  useSkillSlashCommandState,
+} from "./useSkills";
 
 const { scanSkillsMock } = vi.hoisted(() => ({
   scanSkillsMock: vi.fn<() => Promise<SkillScanResult>>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => ({ scanSkills: scanSkillsMock }),
+  readBridge: () => ({ platform: "win32", scanSkills: scanSkillsMock }),
 }));
 
 const invocationByProvider = {
@@ -127,6 +133,38 @@ describe("useSkills", () => {
     await waitFor(() => expect(scanSkillsMock).toHaveBeenCalledTimes(2));
     act(() => resolveRefresh(emptyScan()));
     await waitFor(() => expect(hook.result.current.resolved).toBe(true));
+  });
+
+  it("rescans mounted composer skills when the plugin catalog refreshes", async () => {
+    scanSkillsMock.mockResolvedValueOnce(emptyScan()).mockResolvedValueOnce(emptyScan());
+    const hook = renderHook(() => useSkills(undefined, "codex", "CatalogRefreshTest"));
+    await waitFor(() => expect(scanSkillsMock).toHaveBeenCalledTimes(1));
+
+    act(() => usePlugins.setState((state) => ({ revision: state.revision + 1 })));
+    await waitFor(() => expect(scanSkillsMock).toHaveBeenCalledTimes(2));
+    hook.unmount();
+  });
+
+  it("represents an installed plugin as one mention backed by its core skill", async () => {
+    useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
+    scanSkillsMock.mockResolvedValueOnce(pluginSkillScan());
+    const hook = renderHook(
+      () => usePluginMentionItems({ kind: "windows", path: "C:\\PluginMentionTest" }, "codex"),
+      { wrapper: I18nWrapper },
+    );
+
+    await waitFor(() => expect(hook.result.current).toHaveLength(1));
+    expect(hook.result.current[0]).toMatchObject({
+      id: "browser-tools",
+      name: "Browser Tools",
+      detail: "Plugin",
+      command: {
+        skillName: "browser-control",
+        skillInvocation: "$browser-control",
+        pluginId: "browser-tools",
+        pluginName: "Browser Tools",
+      },
+    });
   });
 
   it("scopes composer scans to the active presentation", async () => {

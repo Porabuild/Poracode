@@ -111,6 +111,8 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     invocation: z.string().min(1),
     provider: z.string().min(1),
     scope: z.enum(["global", "project"]),
+    pluginId: z.string().min(1).optional(),
+    pluginName: z.string().min(1).optional(),
   }),
   z.object({ kind: z.literal("mcp"), id: z.string().min(1), name: z.string().min(1) }),
 ]);

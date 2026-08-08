@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BUILT_IN_MCP_SERVER_IDS } from "../../contracts/mcpServer";
 import { pluginDiagnostic, type PluginDiagnostic } from "./diagnostics";
 import type { AgentPluginManifest } from "./manifest";
 
@@ -34,6 +35,10 @@ export const pluginSkillPolicySchema = z
   .object({
     name: z.string().min(1).optional(),
     description: z.string().min(1).optional(),
+    /** Provider-native package that owns this skill when it is enabled. */
+    nativePluginName: z.string().min(1).optional(),
+    /** Skill folder in the provider-native replacement package. */
+    nativeSkill: z.string().min(1).optional(),
   })
   .strict();
 export type PluginSkillPolicyEntry = z.infer<typeof pluginSkillPolicySchema>;
@@ -54,6 +59,14 @@ export const poracodePluginExtensionSchema = z
     communityMaintained: z.boolean().default(false),
     platforms: z.array(pluginPlatformSchema).optional(),
     projectKinds: z.array(pluginProjectKindSchema).optional(),
+    /** Skill invoked when the package itself is mentioned in chat. */
+    coreSkill: z.string().min(1).optional(),
+    /** Provider-native packages that collectively replace this package when all are available. */
+    nativePluginNames: z.array(z.string().min(1)).default([]),
+    /** Core skill folder inside the provider-native replacement package. */
+    nativeCoreSkill: z.string().min(1).optional(),
+    /** Poracode-owned MCP servers supplied as part of this plugin bundle. */
+    builtInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).default([]),
     /** Keyed by skill folder name under `skills/`. */
     skills: z.record(z.string().min(1), pluginSkillPolicySchema).default({}),
   })
@@ -64,6 +77,8 @@ export const EMPTY_PORACODE_EXTENSION: PoracodePluginExtension = {
   category: "developer-tools",
   featured: false,
   communityMaintained: false,
+  nativePluginNames: [],
+  builtInMcpServerIds: [],
   skills: {},
 };
 

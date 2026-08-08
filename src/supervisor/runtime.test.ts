@@ -2017,15 +2017,14 @@ describe("SupervisorRuntime thread input", () => {
         rows: 42,
       },
     });
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(emitted).toContainEqual(
-      expect.objectContaining({
-        type: "thread-state",
-        threadId: "thread-gui-pre-session-stop",
-        status: "working",
-      }),
+    await vi.waitFor(() =>
+      expect(emitted).toContainEqual(
+        expect.objectContaining({
+          type: "thread-state",
+          threadId: "thread-gui-pre-session-stop",
+          status: "working",
+        }),
+      ),
     );
 
     emitted.length = 0;

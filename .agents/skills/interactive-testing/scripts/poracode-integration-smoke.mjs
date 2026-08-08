@@ -560,9 +560,9 @@ async function pluginsSectionDeepDive(client) {
               installed: window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"] !== undefined,
               back: buttonText.includes("Back to plugins"),
               uninstall: buttonText.includes("Uninstall"),
-              apps: headings.includes("Apps") && document.body.innerText.includes("Browser"),
+              mcpServers: headings.includes("MCP servers") && document.body.innerText.includes("Browser"),
               skills: headings.includes("Skills") && document.body.innerText.includes("Browser Control"),
-              appSwitch: switchNames.includes("Browser MCP"),
+              bundledMcpHasNoSeparateSwitch: !switchNames.includes("Browser MCP"),
               skillSwitch: switchNames.includes("Browser Control Skill"),
             };
           })()`,
@@ -571,16 +571,19 @@ async function pluginsSectionDeepDive(client) {
         state.installed &&
         state.back &&
         state.uninstall &&
-        state.apps &&
+        state.mcpServers &&
         state.skills &&
-        state.appSwitch &&
+        state.bundledMcpHasNoSeparateSwitch &&
         state.skillSwitch,
       "Browser Tools plugin detail",
     );
-    assert(detailState.apps && detailState.skills, "Browser Tools contributions did not render");
     assert(
-      detailState.appSwitch && detailState.skillSwitch,
-      "Browser Tools contribution controls did not render",
+      detailState.mcpServers && detailState.skills,
+      "Browser Tools contributions did not render",
+    );
+    assert(
+      detailState.bundledMcpHasNoSeparateSwitch && detailState.skillSwitch,
+      "Browser Tools contribution controls did not match the combined plugin contract",
     );
 
     const pluginsScreenshotPath = join(outDir, "smoke-02-plugins.png");

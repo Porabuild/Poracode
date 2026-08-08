@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "browser-tools",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Browse, inspect, and test websites in Poracode's isolated in-app browser.",
   "author": {
     "name": "Poracode",
@@ -15,10 +15,17 @@
       "title": "Browser Tools",
       "category": "developer-tools",
       "featured": true,
+      "examplePrompt": "Open my local app in Poracode's browser, test the requested flow, and report visual, console, and network evidence",
+      "coreSkill": "browser-control",
+      "nativePluginNames": ["browser"],
+      "nativeCoreSkill": "control-in-app-browser",
+      "builtInMcpServerIds": ["browser"],
       "skills": {
         "browser-control": {
           "name": "Browser Control",
-          "description": "Navigate, inspect, and test pages with the in-app Browser MCP."
+          "description": "Navigate, inspect, and test pages with the in-app Browser MCP.",
+          "nativePluginName": "browser",
+          "nativeSkill": "control-in-app-browser"
         }
       }
     }

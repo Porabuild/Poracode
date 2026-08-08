@@ -24,6 +24,7 @@ import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
 import { loadPluginFromDirectory } from "@/supervisor/plugins";
 import type { AgentAdapter } from "../agents/base";
 import { SkillsService } from "./SkillsService";
+import { dropSkillSegmentsOnPolicyFailure } from "./pluginSkillPolicy";
 
 /** Packages ship with the app; tests reuse the real manifests, not copies of them. */
 const SHIPPED_PLUGINS_DIR = join(process.cwd(), "resources", "plugins");
@@ -57,6 +58,8 @@ function fakePluginPackage(name: string, root: string, skills: readonly string[]
       category: "developer-tools",
       featured: false,
       communityMaintained: false,
+      nativePluginNames: [],
+      builtInMcpServerIds: [],
       skills: {},
     },
     skills: skills.map((folder) => ({ folder, path: join(root, "skills", folder) })),
@@ -128,6 +131,23 @@ describe("SkillsService", () => {
   afterEach(async () => {
     await rm(root, { recursive: true, force: true });
     vi.unstubAllEnvs();
+  });
+
+  it("drops skill segments but preserves ordinary text when policy evaluation fails", () => {
+    expect(
+      dropSkillSegmentsOnPolicyFailure([
+        { kind: "text", content: "keep this" },
+        {
+          kind: "skill",
+          name: "disabled-plugin-skill",
+          path: "C:\\plugins\\disabled\\skills\\blocked\\SKILL.md",
+          invocation: "$blocked",
+          provider: "Disabled plugin",
+          scope: "global",
+          pluginId: "disabled",
+        },
+      ]),
+    ).toEqual([{ kind: "text", content: "keep this" }]);
   });
 
   it("discovers provider skills and imports a managed copy", async () => {
@@ -956,6 +976,132 @@ describe("SkillsService", () => {
       ],
     });
     expect(native).toBeUndefined();
+  });
+
+  it("leaves a plugin invocation to the provider when its native package is enabled", async () => {
+    const pkg = await writePluginPackage(root, "browser-tools", ["browser-control"]);
+    const nativeService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installPlugin({}, pkg.plugin),
+      readPlugins: () => [pkg.plugin],
+    });
+    const segment = {
+      kind: "skill" as const,
+      name: "browser-control",
+      path: join(pkg.skillsDir, "browser-control", "SKILL.md"),
+      invocation: "/browser-control",
+      provider: "Browser Tools",
+      scope: "global" as const,
+      pluginId: "browser-tools",
+      pluginName: "Browser Tools",
+    };
+    const nativePlugins = [{ name: "browser", root: join(root, "native-browser") }];
+
+    await expect(
+      nativeService.filterPluginSkillSegments([segment], {
+        agentKind: "claude",
+        projectLocation,
+        nativePlugins,
+      }),
+    ).resolves.toEqual([
+      {
+        ...segment,
+        name: "control-in-app-browser",
+        path: join(root, "native-browser", "skills", "control-in-app-browser", "SKILL.md"),
+        invocation: "/control-in-app-browser",
+      },
+    ]);
+
+    await expect(
+      nativeService.buildTurnSkillInjection({
+        agentKind: "claude",
+        projectLocation,
+        nativePlugins,
+        segments: [segment],
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      nativeService.rewriteTerminalSkillSegments({
+        agentKind: "claude",
+        projectLocation,
+        nativePlugins,
+        segments: [segment],
+      }),
+    ).resolves.toEqual([segment]);
+  });
+
+  it("maps specialized plugin skills to their native equivalents", async () => {
+    const pkg = await writePluginPackage(root, "github", ["github", "ci-debug"]);
+    const nativeService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installPlugin({}, pkg.plugin),
+      readPlugins: () => [pkg.plugin],
+    });
+    const segment = {
+      kind: "skill" as const,
+      name: "ci-debug",
+      path: join(pkg.skillsDir, "ci-debug", "SKILL.md"),
+      invocation: "/ci-debug",
+      provider: "GitHub",
+      scope: "global" as const,
+      pluginId: "github",
+      pluginName: "GitHub",
+    };
+    const nativePlugins = [{ name: "github", root: join(root, "native-github") }];
+
+    await expect(
+      nativeService.filterPluginSkillSegments([segment], {
+        agentKind: "claude",
+        projectLocation,
+        nativePlugins,
+      }),
+    ).resolves.toEqual([
+      {
+        ...segment,
+        name: "gh-fix-ci",
+        path: join(root, "native-github", "skills", "gh-fix-ci", "SKILL.md"),
+        invocation: "/gh-fix-ci",
+      },
+    ]);
+  });
+
+  it("maps each skill in a combined plugin to its owning native package", async () => {
+    const pkg = await writePluginPackage(root, "outlook", ["outlook-email", "outlook-calendar"]);
+    const nativeService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installPlugin({}, pkg.plugin),
+      readPlugins: () => [pkg.plugin],
+    });
+    const segment = {
+      kind: "skill" as const,
+      name: "outlook-calendar",
+      path: join(pkg.skillsDir, "outlook-calendar", "SKILL.md"),
+      invocation: "/outlook-calendar",
+      provider: "Outlook",
+      scope: "global" as const,
+      pluginId: "outlook",
+      pluginName: "Outlook",
+    };
+    const nativePlugins = [
+      { name: "outlook-email", root: join(root, "native-outlook-email") },
+      { name: "outlook-calendar", root: join(root, "native-outlook-calendar") },
+    ];
+
+    await expect(
+      nativeService.filterPluginSkillSegments([segment], {
+        agentKind: "claude",
+        projectLocation,
+        nativePlugins,
+      }),
+    ).resolves.toEqual([
+      {
+        ...segment,
+        path: join(root, "native-outlook-calendar", "skills", "outlook-calendar", "SKILL.md"),
+      },
+    ]);
   });
 
   it("skips injection for providers that natively read .agents/skills", async () => {

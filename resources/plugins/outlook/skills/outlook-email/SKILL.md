@@ -37,7 +37,8 @@ For a thread, read it in order and report the current state — the last message
 ## Drafting and sending
 
 **Never send mail without the user explicitly asking you to send that specific message.** Draft, show them the full
-text and the recipient list, and wait.
+text and the recipient list when approval is still needed. If the user explicitly supplied or approved the exact
+recipients and message and asked you to send it, do not ask for duplicate confirmation.
 
 Check the recipients yourself before showing a draft: reply versus reply-all is a real mistake with real consequences,
 and so is an autocompleted wrong address. Say which one you chose.
@@ -49,3 +50,6 @@ Deleting, moving, or marking mail read changes state the user can see. Confirm f
 ## Report
 
 Answer the question. If you triaged, lead with what needs them today.
+
+After a mailbox mutation, verify the resulting draft, sent item, folder, category, or read state. Keep private mailbox
+evidence concise and do not reproduce more message content than the user needs.

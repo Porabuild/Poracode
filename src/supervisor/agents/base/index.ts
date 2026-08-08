@@ -54,6 +54,8 @@ export type {
   AgentLaunchOptions,
   AgentLauncher,
   AgentMetadata,
+  AgentNativePlugin,
+  AgentNativePluginSupport,
   AgentOneShotRunner,
   AgentPromptFormatter,
   AgentSessionTracker,

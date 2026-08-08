@@ -149,6 +149,33 @@ describe("serializeComposerContent", () => {
     expect(serializeComposerContent(container)).toBe("$review-code");
   });
 
+  it("preserves plugin ownership on a plugin-backed core skill", () => {
+    const chip = createSlashCommandChipElement({
+      id: "github",
+      skillName: "github",
+      skillPath: "C:\\plugins\\github\\skills\\github\\SKILL.md",
+      skillInvocation: "$github",
+      skillProvider: "GitHub",
+      skillScope: "global",
+      pluginId: "github",
+      pluginName: "GitHub",
+    });
+    container.appendChild(chip);
+
+    expect(serializeToSegments(container)).toEqual([
+      {
+        kind: "skill",
+        name: "github",
+        path: "C:\\plugins\\github\\skills\\github\\SKILL.md",
+        invocation: "$github",
+        provider: "GitHub",
+        scope: "global",
+        pluginId: "github",
+        pluginName: "GitHub",
+      },
+    ]);
+  });
+
   it("preserves multiple diff comments and flattens them for the agent", () => {
     const comments = [
       {

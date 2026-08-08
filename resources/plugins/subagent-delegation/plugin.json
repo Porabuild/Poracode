@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "subagent-delegation",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Delegate focused work to other installed agents and coordinate the results.",
   "author": {
     "name": "Poracode",
@@ -15,6 +15,9 @@
       "title": "Subagent Delegation",
       "category": "productivity",
       "featured": true,
+      "examplePrompt": "Delegate independent parts of this task to the best available agents, then validate and consolidate their results",
+      "coreSkill": "subagent-delegation",
+      "builtInMcpServerIds": ["crossagents"],
       "skills": {
         "subagent-delegation": {
           "name": "Subagent Delegation",

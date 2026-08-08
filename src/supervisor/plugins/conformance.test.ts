@@ -75,6 +75,15 @@ const skillBody = (name: string) =>
 
 const codes = (diagnostics: readonly { code: string }[]) => diagnostics.map((d) => d.code);
 
+const installedPluginState = (name: string): InstalledPlugins => ({
+  [name]: {
+    version: "1.0.0",
+    enabled: true,
+    disabledSkillIds: [],
+    disabledMcpServerNames: [],
+  },
+});
+
 describe("plugin name validation", () => {
   it("accepts and rejects names per the specification", () => {
     expect(isValidPluginName("a")).toBe(true);
@@ -155,6 +164,21 @@ describe("manifest loading", () => {
 });
 
 describe("component discovery", () => {
+  it("reports a configured core skill that the package does not ship", async () => {
+    const dir = await writePackage("missing-core", {
+      manifest: manifest("missing-core", {
+        extensions: {
+          "com.poracode.client": { coreSkill: "missing" },
+        },
+      }),
+      skills: { present: skillBody("present") },
+    });
+
+    const result = loadPluginFromDirectory(dir, "bundled");
+    expect(result.plugin?.poracode.coreSkill).toBe("missing");
+    expect(codes(result.diagnostics)).toEqual(["extension-unknown-skill"]);
+  });
+
   it("discovers immediate skill directories and does not recurse", async () => {
     const dir = await writePackage("skills", {
       manifest: manifest("skills"),
@@ -651,5 +675,95 @@ describe("shipped packages", () => {
         expect(declared, `${name}/${skill.folder} name must match its folder`).toBe(skill.folder);
       }
     }
+  });
+
+  it("ships goal-specific core skill guidance for every package", () => {
+    const shippedDir = join(process.cwd(), "resources", "plugins");
+    const expectations: Record<string, string[]> = {
+      "browser-tools": [
+        "## Workflow",
+        "## Boundaries",
+        "## Output",
+        "browser.enable",
+        "browser.disable",
+      ],
+      "chrome-tools": [
+        "## Workflow",
+        "## Boundaries",
+        "## Output",
+        "chrome.enable",
+        "chrome.disable",
+      ],
+      "computer-use": [
+        "## Workflow",
+        "## Boundaries",
+        "## Output",
+        "computer_use.enable",
+        "computer_use.disable",
+      ],
+      github: ["## Before you start", "## Reading", "## Writing", "## Reporting", "Related skills"],
+      outlook: ["## Before you start", "## Triage", "## Drafting and sending", "## Report"],
+      "subagent-delegation": [
+        "## Decide whether to delegate",
+        "## Workflow",
+        "## Safety and retries",
+        "## Output",
+      ],
+    };
+
+    for (const [name, markers] of Object.entries(expectations)) {
+      const plugin = loadPluginFromDirectory(join(shippedDir, name), "bundled").plugin!;
+      const coreSkill = plugin.skills.find((skill) => skill.folder === plugin.poracode.coreSkill);
+      expect(coreSkill, `${name} has no configured core skill`).toBeTruthy();
+      expect(plugin.poracode.examplePrompt, `${name} has no example prompt`).toBeTruthy();
+      const contents = readFileSync(join(coreSkill!.path, "SKILL.md"), "utf8");
+      for (const marker of markers) {
+        expect(contents, `${name} core skill lacks '${marker}'`).toContain(marker);
+      }
+    }
+  });
+
+  it("binds built-in MCPs and suppresses the whole package when Codex owns it natively", () => {
+    const shippedDir = join(process.cwd(), "resources", "plugins");
+    const browser = loadPluginFromDirectory(join(shippedDir, "browser-tools"), "bundled").plugin!;
+    const github = loadPluginFromDirectory(join(shippedDir, "github"), "bundled").plugin!;
+    const context = { pluginDataRoot: join(root, "plugin-data"), hostPlatform: "win32" as const };
+
+    expect(
+      resolvePluginMcpServers([browser], installedPluginState("browser-tools"), context),
+    ).toMatchObject({
+      servers: [],
+      builtInMcpServerIds: ["browser"],
+    });
+    expect(
+      resolvePluginMcpServers([browser], installedPluginState("browser-tools"), {
+        ...context,
+        nativePluginNames: new Set(["browser"]),
+      }),
+    ).toMatchObject({ servers: [], builtInMcpServerIds: [] });
+
+    expect(
+      resolvePluginMcpServers([github], installedPluginState("github"), context).servers,
+    ).toHaveLength(1);
+    expect(
+      resolvePluginMcpServers([github], installedPluginState("github"), {
+        ...context,
+        nativePluginNames: new Set(["github"]),
+      }).servers,
+    ).toEqual([]);
+
+    const outlook = loadPluginFromDirectory(join(shippedDir, "outlook"), "bundled").plugin!;
+    expect(
+      resolvePluginMcpServers([outlook], installedPluginState("outlook"), {
+        ...context,
+        nativePluginNames: new Set(["outlook-email"]),
+      }).servers,
+    ).toHaveLength(1);
+    expect(
+      resolvePluginMcpServers([outlook], installedPluginState("outlook"), {
+        ...context,
+        nativePluginNames: new Set(["outlook-email", "outlook-calendar"]),
+      }).servers,
+    ).toEqual([]);
   });
 });

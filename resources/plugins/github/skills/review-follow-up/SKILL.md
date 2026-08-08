@@ -35,6 +35,9 @@ until the code is actually written.
 
 Replies are outward-facing: show the user the text before posting.
 
+Before posting, re-read the thread and the current diff so the reply describes the change that actually exists. After
+posting, verify the reply is attached to the intended thread; do not resolve a thread unless the user requested it.
+
 ## Report
 
 List what you changed, what you answered without changing, and what you deliberately left — with the reason. If some

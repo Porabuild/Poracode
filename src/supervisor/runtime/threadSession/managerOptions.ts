@@ -1,6 +1,7 @@
 import type { SupervisorEvent } from "@/shared/ipc";
 import type {
   AgentKind,
+  BuiltInMcpServerId,
   McpServer,
   ResolvedMcpServer,
   ProjectLocation,
@@ -10,7 +11,7 @@ import type {
 } from "@/shared/contracts";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
 import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
-import type { AgentAdapter } from "../../agents/base";
+import type { AgentAdapter, AgentNativePlugin } from "../../agents/base";
 import type { WindowsShellPreference } from "../../shellPreference";
 
 export interface ThreadSessionManagerOptions {
@@ -77,12 +78,15 @@ export interface ThreadSessionManagerOptions {
    * config builders. Tokens are refreshed by the supervisor's OAuth service.
    */
   applyMcpServerAuthorization?(servers: McpServer[]): Promise<McpServer[]>;
-  /**
-   * MCP servers contributed by enabled Agent Plugins packages via `mcp.json`.
-   * They join the user's own servers, so every provider translator picks them up
-   * without knowing the Agent Plugins specification exists.
-   */
-  resolvePluginMcpServers?(projectLocation: ProjectLocation): McpServer[];
+  /** Skills and MCPs contributed by enabled Agent Plugins for one provider launch. */
+  resolvePluginLaunchContributions?(
+    projectLocation: ProjectLocation,
+    agentKind: AgentKind,
+  ): Promise<{
+    mcpServers: McpServer[];
+    builtInMcpServerIds: BuiltInMcpServerId[];
+    nativePlugins: AgentNativePlugin[];
+  }>;
   /** Wrap servers with disabled tools in Poracode's same-environment filtering proxy. */
   prepareMcpToolFilters?(
     servers: McpServer[],
@@ -95,6 +99,7 @@ export interface ThreadSessionManagerOptions {
     agentKind: AgentKind;
     projectLocation: ProjectLocation;
     presentationMode?: ThreadPresentationMode;
+    nativePlugins?: readonly AgentNativePlugin[];
     segments: PromptSegment[];
   }): Promise<PromptSegment[]>;
   /**
@@ -106,6 +111,7 @@ export interface ThreadSessionManagerOptions {
     agentKind: AgentKind;
     projectLocation: ProjectLocation;
     segments: readonly PromptSegment[];
+    nativePlugins?: readonly AgentNativePlugin[];
   }): Promise<string | undefined>;
   /**
    * Portable-skills fallback for terminal (PTY) turns: replaces skill segments
@@ -116,5 +122,6 @@ export interface ThreadSessionManagerOptions {
     agentKind: AgentKind;
     projectLocation: ProjectLocation;
     segments: PromptSegment[];
+    nativePlugins?: readonly AgentNativePlugin[];
   }): Promise<PromptSegment[]>;
 }

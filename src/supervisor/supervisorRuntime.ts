@@ -35,6 +35,7 @@ import {
   setSessionFsBridgeClient,
   setWslProcessBridgeClient,
   type AgentAdapter,
+  type AgentNativePlugin,
 } from "./agents/base";
 import { setWslAttachmentBridgeClient } from "./runtime/threadAttachments";
 import { FileIndexService } from "./fileIndex";
@@ -79,6 +80,7 @@ import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 import { SkillsService } from "./skills/SkillsService";
+import { dropSkillSegmentsOnPolicyFailure } from "./skills/pluginSkillPolicy";
 import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
 import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
 
@@ -425,16 +427,41 @@ export class SupervisorRuntime {
       },
       applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
       prepareMcpToolFilters,
-      resolvePluginMcpServers: (projectLocation) =>
-        resolvePluginMcpServers(
+      resolvePluginLaunchContributions: async (projectLocation, agentKind) => {
+        const adapter = this.adapters.get(agentKind);
+        const envContext =
+          projectLocation.kind === "wsl"
+            ? {
+                envKind: "wsl" as const,
+                wslDistro: projectLocation.distro,
+                baseDir: this.baseDir,
+              }
+            : {
+                envKind: projectLocation.kind,
+                baseDir: this.baseDir,
+              };
+        let nativePlugins: readonly AgentNativePlugin[] = [];
+        try {
+          nativePlugins = (await adapter?.listNativePlugins?.(envContext)) ?? [];
+        } catch (error) {
+          console.warn(`[plugins] failed to inspect native ${agentKind} plugins:`, error);
+        }
+        const result = resolvePluginMcpServers(
           this.pluginRegistry.listPlugins(),
           this.sharedSettingsCache.readFresh().installedPlugins,
           {
             pluginDataRoot: this.pluginDataDir,
             hostPlatform: process.platform,
             projectLocation,
+            nativePluginNames: new Set(nativePlugins.map((plugin) => plugin.name)),
           },
-        ).servers,
+        );
+        return {
+          mcpServers: result.servers,
+          builtInMcpServerIds: result.builtInMcpServerIds,
+          nativePlugins: [...nativePlugins],
+        };
+      },
       prepareSkillsForLaunch: async (projectLocation, agentKind) => {
         try {
           await this.skillsService.prepareForLaunch(projectLocation, agentKind);
@@ -447,7 +474,7 @@ export class SupervisorRuntime {
           return await this.skillsService.filterPluginSkillSegments(input.segments, input);
         } catch (error) {
           console.warn("[skills] failed to apply plugin skill policy:", error);
-          return [...input.segments];
+          return dropSkillSegmentsOnPolicyFailure(input.segments);
         }
       },
       buildSkillTurnInjection: async (input) => {

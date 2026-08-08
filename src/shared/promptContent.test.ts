@@ -71,6 +71,31 @@ describe("buildPromptContentBlocks", () => {
     ]);
   });
 
+  it("preserves plugin identity on canonical skill blocks", () => {
+    expect(
+      buildPromptContentBlocks("$github", [
+        {
+          kind: "skill",
+          name: "github",
+          path: "/plugins/github/skills/github/SKILL.md",
+          invocation: "$github",
+          provider: "GitHub",
+          scope: "global",
+          pluginId: "github",
+          pluginName: "GitHub",
+        },
+      ]),
+    ).toEqual([
+      {
+        kind: "skill",
+        name: "github",
+        invocation: "$github",
+        pluginId: "github",
+        pluginName: "GitHub",
+      },
+    ]);
+  });
+
   it("preserves diff comments for badge rendering and formats provider text", () => {
     const comment = {
       kind: "diff_comment" as const,

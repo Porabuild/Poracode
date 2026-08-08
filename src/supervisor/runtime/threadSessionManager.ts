@@ -299,7 +299,11 @@ export class ThreadSessionManager {
     if (!session) return undefined;
     // Children inherit the effective launch config with built-in disables applied.
     const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
-    const effectiveConfig = effectiveLaunchConfig(session.config, disabledIds);
+    const effectiveConfig = effectiveLaunchConfig(
+      session.config,
+      disabledIds,
+      session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+    );
     return {
       projectLocation: session.projectLocation,
       config: effectiveConfig,
@@ -321,6 +325,7 @@ export class ThreadSessionManager {
     const launchConfig = effectiveLaunchConfig(
       session.config,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
     const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -357,6 +362,7 @@ export class ThreadSessionManager {
             const launchConfig = effectiveLaunchConfig(
               session.config,
               session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+              session.mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
             );
             const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
               location: session.projectLocation,
@@ -744,6 +750,7 @@ export class ThreadSessionManager {
         ...(session.presentationMode
           ? { presentationMode: session.presentationMode }
           : { presentationMode: session.adapter.capabilities.presentationMode }),
+        ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         segments,
       })) ?? segments
     );
@@ -758,6 +765,7 @@ export class ThreadSessionManager {
     return this.options.buildSkillTurnInjection?.({
       agentKind: session.agentKind,
       projectLocation: session.projectLocation,
+      ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
       segments,
     });
   }
@@ -774,6 +782,7 @@ export class ThreadSessionManager {
       (await this.options.rewriteTerminalSkillSegments?.({
         agentKind: session.agentKind,
         projectLocation: session.projectLocation,
+        ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         segments,
       })) ?? segments
     );

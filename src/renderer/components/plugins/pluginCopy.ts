@@ -72,26 +72,26 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
 
     const skills = plugin.skills.map((skill): LocalizedPluginContribution => {
       const policy = plugin.poracode.skills[skill.folder];
-      switch (skill.folder) {
-        case "browser-control":
+      switch (`${plugin.name}:${skill.folder}`) {
+        case "browser-tools:browser-control":
           return {
             id: skill.folder,
             name: t`Browser Control`,
             description: t`Navigate, inspect, and test pages with the in-app Browser MCP.`,
           };
-        case "chrome-control":
+        case "chrome-tools:chrome-control":
           return {
             id: skill.folder,
             name: t`Chrome Control`,
             description: t`Use Chrome safely when a task needs an existing browser session.`,
           };
-        case "computer-use":
+        case "computer-use:computer-use":
           return {
             id: skill.folder,
             name: t`Computer Use`,
             description: t`Operate desktop apps through Poracode's desktop-control tools.`,
           };
-        case "subagent-delegation":
+        case "subagent-delegation:subagent-delegation":
           return {
             id: skill.folder,
             name: t`Subagent Delegation`,
@@ -108,7 +108,22 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
 
     // Server transport detail is author-supplied and identifies the endpoint, so
     // it is shown verbatim rather than translated.
-    const mcpServers = plugin.mcpServers.map((server): LocalizedPluginContribution => {
+    const builtInMcpServers = plugin.poracode.builtInMcpServerIds.map(
+      (id): LocalizedPluginContribution => ({
+        id,
+        name:
+          id === "browser"
+            ? t`Browser`
+            : id === "chrome"
+              ? t`Chrome`
+              : id === "crossagents"
+                ? t`Crossagents`
+                : id === "computer-use"
+                  ? t`Computer Use`
+                  : id,
+      }),
+    );
+    const declaredMcpServers = plugin.mcpServers.map((server): LocalizedPluginContribution => {
       const entry = server.entry;
       return {
         id: server.name,
@@ -116,6 +131,7 @@ export function useLocalizedPluginCatalog(): LocalizedPlugin[] {
         description: entry.type === "stdio" ? entry.command : entry.url,
       };
     });
+    const mcpServers = [...builtInMcpServers, ...declaredMcpServers];
 
     const category =
       plugin.poracode.category === "developer-tools"

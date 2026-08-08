@@ -15,6 +15,7 @@ interface PluginsState {
   userPluginsDir: string;
   loaded: boolean;
   loading: boolean;
+  revision: number;
   error: unknown;
   load: (rescan?: boolean) => Promise<void>;
 }
@@ -24,6 +25,7 @@ export const usePlugins = create<PluginsState>()((set, get) => ({
   userPluginsDir: "",
   loaded: false,
   loading: false,
+  revision: 0,
   error: undefined,
   load: async (rescan = false) => {
     if (get().loading) return;
@@ -31,12 +33,13 @@ export const usePlugins = create<PluginsState>()((set, get) => ({
     try {
       const bridge = readBridge();
       const result = rescan ? await bridge.refreshPlugins() : await bridge.listPlugins();
-      set({
+      set((state) => ({
         plugins: result.plugins,
         userPluginsDir: result.userPluginsDir,
         loaded: true,
         loading: false,
-      });
+        revision: state.revision + 1,
+      }));
     } catch (error) {
       set({ error, loading: false, loaded: true });
     }

@@ -5,6 +5,7 @@ import type {
   LoadedPlugin,
   PluginSkillRef,
 } from "../contracts/plugin";
+import type { BuiltInMcpServerId } from "../contracts/mcpServer";
 
 /**
  * Policy over loaded Agent Plugins packages.
@@ -13,9 +14,9 @@ import type {
  * this module holds the provider-agnostic rules both the supervisor and the
  * renderer apply to them — host/project support and contribution enablement.
  *
- * A package contributes exactly what the specification defines: skills and
- * `mcp.json` servers. Poracode's own built-in MCP servers are managed on the
- * MCP Servers settings page and are not a plugin concern.
+ * A package contributes the specification's skills and `mcp.json` servers.
+ * Poracode's extension may bind those to an equivalent built-in MCP or a
+ * provider-native package without changing the standard package contents.
  */
 
 export function isPluginSupportedOnHost(
@@ -40,6 +41,34 @@ export function isPluginSupportedForProject(
 
 export function getPluginSkill(plugin: LoadedPlugin, folder: string): PluginSkillRef | undefined {
   return plugin.skills.find((skill) => skill.folder === folder);
+}
+
+/** Skill represented by an `@Plugin` composer mention. */
+export function getPluginCoreSkill(plugin: LoadedPlugin): PluginSkillRef | undefined {
+  const configured = plugin.poracode.coreSkill;
+  if (configured) return getPluginSkill(plugin, configured);
+  return (
+    getPluginSkill(plugin, plugin.name) ??
+    (plugin.skills.length === 1 ? plugin.skills[0] : undefined)
+  );
+}
+
+export function pluginBuiltInMcpServerIds(plugin: LoadedPlugin): readonly BuiltInMcpServerId[] {
+  return plugin.poracode.builtInMcpServerIds;
+}
+
+export function pluginNativeNames(plugin: LoadedPlugin): readonly string[] {
+  return [plugin.name, ...plugin.poracode.nativePluginNames];
+}
+
+export function isPluginProvidedNatively(
+  plugin: LoadedPlugin,
+  nativePluginNames: ReadonlySet<string> | undefined,
+): boolean {
+  if (nativePluginNames === undefined) return false;
+  if (nativePluginNames.has(plugin.name)) return true;
+  const replacements = plugin.poracode.nativePluginNames;
+  return replacements.length > 0 && replacements.every((name) => nativePluginNames.has(name));
 }
 
 export interface PluginSkillLaunchContext {

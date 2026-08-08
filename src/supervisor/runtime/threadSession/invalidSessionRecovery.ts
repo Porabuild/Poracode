@@ -76,6 +76,7 @@ export class InvalidSessionRecoveryCoordinator {
     const launchConfig = effectiveLaunchConfig(
       session.config,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
     );
     const resolvedMcpServers = await context.spawnPipeline.resolveMcpServersForLaunch({
       location: session.projectLocation,
@@ -135,6 +136,7 @@ export class InvalidSessionRecoveryCoordinator {
       command,
       mcpLaunchSnapshot,
       launchConfig,
+      ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
       ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
     });
   }

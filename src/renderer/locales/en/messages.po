@@ -586,11 +586,6 @@ msgstr "{usedLabel} / {maxLabel} tokens"
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} tokens"
 
-#. placeholder {0}: shortcuts.length
-#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
-#~ msgid "{visibleCount} of {0} visible"
-#~ msgstr "{visibleCount} of {0} visible"
-
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} usable"
 msgstr "{visibleCount} of {totalCount} usable"
@@ -1801,6 +1796,7 @@ msgstr "Browse, inspect, and test websites in Poracode's isolated in-app browser
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -2267,6 +2263,7 @@ msgstr "Choose, brief, and coordinate subagents for parallel work."
 
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Chrome"
 msgstr "Chrome"
@@ -3454,6 +3451,7 @@ msgstr "Crossagent: {subagent}"
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -4299,10 +4297,6 @@ msgstr "Enable Project"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "Enable providers in settings"
-
-#: src/renderer/components/plugins/PluginDetail.tsx
-#~ msgid "Enable this plugin's active skills and apps for new threads."
-#~ msgstr "Enable this plugin's active skills and apps for new threads."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable this plugin's skills and servers for new threads."
@@ -5768,10 +5762,6 @@ msgstr "Install on Windows"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "Install packages"
-
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Install Poracode-managed bundles of skills and MCP-powered apps for every supported agent."
-#~ msgstr "Install Poracode-managed bundles of skills and MCP-powered apps for every supported agent."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Install Tailscale"
@@ -8385,6 +8375,7 @@ msgid "Play notification sound"
 msgstr "Play notification sound"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "Plugin"
 
@@ -10288,22 +10279,6 @@ msgstr "Sent selection to terminal."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" could not be started and was skipped."
-#~ msgstr "Server \"{target}\" could not be started and was skipped."
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" has a name Poracode cannot use."
-#~ msgstr "Server \"{target}\" has a name Poracode cannot use."
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" is not configured correctly and was skipped."
-#~ msgstr "Server \"{target}\" is not configured correctly and was skipped."
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" runs on this computer and is unavailable for WSL projects."
-#~ msgstr "Server \"{target}\" runs on this computer and is unavailable for WSL projects."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Server {target} could not be started and was skipped."

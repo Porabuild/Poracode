@@ -4,8 +4,10 @@ import { installedPluginsSchema } from "../contracts/plugin";
 import { normalizeSharedSettings } from "../settings";
 import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL, type PluginSkillPolicyEntry } from "./spec";
 import {
+  getPluginCoreSkill,
   installPlugin,
   isPluginMcpServerEnabled,
+  isPluginProvidedNatively,
   isPluginSkillEnabled,
   isPluginSkillSupportedForLaunch,
   isPluginSupportedForProject,
@@ -33,6 +35,8 @@ function makePlugin(
       category: "developer-tools",
       featured: false,
       communityMaintained: false,
+      nativePluginNames: [],
+      builtInMcpServerIds: [],
       skills: options.skills ?? {},
       ...(options.platforms ? { platforms: options.platforms } : {}),
       ...(options.projectKinds ? { projectKinds: options.projectKinds } : {}),
@@ -189,5 +193,37 @@ describe("plugin catalog", () => {
         projectLocation: WSL_PROJECT,
       }),
     ).toBe(true);
+  });
+
+  it("resolves the plugin core skill and provider-native aliases", () => {
+    const plugin = {
+      ...BROWSER_TOOLS,
+      poracode: {
+        ...BROWSER_TOOLS.poracode,
+        coreSkill: "browser-control",
+        nativePluginNames: ["browser"],
+      },
+    };
+
+    expect(getPluginCoreSkill(plugin)?.folder).toBe("browser-control");
+    expect(isPluginProvidedNatively(plugin, new Set(["browser"]))).toBe(true);
+    expect(isPluginProvidedNatively(plugin, new Set(["github"]))).toBe(false);
+  });
+
+  it("requires the complete native replacement set for a combined plugin", () => {
+    const plugin = {
+      ...GITHUB,
+      name: "outlook",
+      poracode: {
+        ...GITHUB.poracode,
+        nativePluginNames: ["outlook-email", "outlook-calendar"],
+      },
+    };
+
+    expect(isPluginProvidedNatively(plugin, new Set(["outlook-email"]))).toBe(false);
+    expect(isPluginProvidedNatively(plugin, new Set(["outlook-email", "outlook-calendar"]))).toBe(
+      true,
+    );
+    expect(isPluginProvidedNatively(plugin, new Set(["outlook"]))).toBe(true);
   });
 });

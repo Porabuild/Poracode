@@ -71,7 +71,10 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
-import { useSkillSlashCommands } from "@/renderer/components/skills/useSkills";
+import {
+  usePluginMentionItems,
+  useSkillSlashCommands,
+} from "@/renderer/components/skills/useSkills";
 import { useDelayedPendingSteer } from "./useDelayedPendingSteer";
 
 type ThreadComposerSectionProps = {
@@ -288,7 +291,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
-  const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind);
+  const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind, presentationMode);
+  const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     effectiveAgentStatus?.capabilities.slashCommands,
@@ -779,6 +783,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         : {})}
                       projectId={thread.projectId}
                       mcpMentions={mcpMentions}
+                      pluginMentions={pluginMentions}
                       onTextChange={(hasText) => {
                         setHasContent(hasText);
                         latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];

@@ -15,7 +15,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, posix, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, posix, relative, resolve, win32 } from "node:path";
 import type {
   AgentKind,
   DeleteSkillPayload,
@@ -53,8 +53,9 @@ import {
   skillScanResultSchema,
 } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
+import { getPluginCoreSkill, pluginNativeNames } from "@/shared/plugins/catalog";
 import { parseWslUncPath, toWslUncPath } from "@/shared/wsl";
-import type { AgentAdapter, AgentSkillRootSpec } from "../agents/base";
+import type { AgentAdapter, AgentNativePlugin, AgentSkillRootSpec } from "../agents/base";
 import {
   batchWslCommandsAsync,
   quotePosixShellArg,
@@ -1142,14 +1143,20 @@ export class SkillsService {
    */
   async filterPluginSkillSegments(
     segments: PromptSegment[],
-    context: Omit<PluginSkillPolicyContext, "capabilities"> & { agentKind?: AgentKind } = {},
+    context: Omit<PluginSkillPolicyContext, "capabilities"> & {
+      agentKind?: AgentKind;
+      nativePlugins?: readonly AgentNativePlugin[];
+    } = {},
   ): Promise<PromptSegment[]> {
     const adapter = context.agentKind ? this.adapters.get(context.agentKind) : undefined;
-    return this.pluginSkillPolicy.filterSegments(segments, {
+    const filtered = await this.pluginSkillPolicy.filterSegments(segments, {
       ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
       ...(adapter ? { capabilities: adapter.capabilities } : {}),
       ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
     });
+    const nativePlugins = context.nativePlugins;
+    if (!nativePlugins?.length) return filtered;
+    return filtered.map((segment) => this.rewriteNativePluginSegment(segment, nativePlugins));
   }
 
   /**
@@ -1165,12 +1172,15 @@ export class SkillsService {
     agentKind: string;
     projectLocation?: ProjectLocation;
     segments: readonly PromptSegment[];
+    nativePlugins?: readonly AgentNativePlugin[];
   }): Promise<string | undefined> {
     if (!input.segments.some((segment) => segment.kind === "skill")) return undefined;
     const adapter = this.adapters.get(input.agentKind);
     const environment = await this.resolveEnvironment(input.projectLocation);
     const nativeRootPaths = this.nativeSkillRootPaths(adapter, environment);
-    const pending = selectSkillSegmentsForInjection(input.segments, nativeRootPaths);
+    const pending = selectSkillSegmentsForInjection(input.segments, nativeRootPaths).filter(
+      (segment) => !this.nativePluginReplacement(segment, input.nativePlugins),
+    );
     if (pending.length === 0) return undefined;
     const sources = [];
     for (const segment of pending) {
@@ -1210,6 +1220,7 @@ export class SkillsService {
     agentKind: string;
     projectLocation?: ProjectLocation;
     segments: PromptSegment[];
+    nativePlugins?: readonly AgentNativePlugin[];
   }): Promise<PromptSegment[]> {
     const segments = input.segments;
     if (!segments.some((segment) => segment.kind === "skill")) return segments;
@@ -1236,6 +1247,7 @@ export class SkillsService {
     let changed = false;
     const rewritten = segments.map<PromptSegment>((segment) => {
       if (segment.kind !== "skill") return segment;
+      if (this.nativePluginReplacement(segment, input.nativePlugins)) return segment;
       if (isPathUnderAny(segment.path, nativeRootPaths)) return segment;
       const managedDisplay = managedDisplayFor(segment.scope);
       // Managed skills this adapter projects into its own folders resolve
@@ -1282,6 +1294,47 @@ export class SkillsService {
       nativeRootPaths.push(root.displayPath);
     }
     return nativeRootPaths;
+  }
+
+  private nativePluginReplacement(
+    segment: Extract<PromptSegment, { kind: "skill" }>,
+    nativePlugins: readonly AgentNativePlugin[] | undefined,
+  ): { plugin: AgentNativePlugin; skillName: string } | undefined {
+    if (!segment.pluginId || !nativePlugins?.length) return undefined;
+    const plugin = this.readPlugins().find((candidate) => candidate.name === segment.pluginId);
+    if (!plugin) return undefined;
+    const policy = plugin.poracode.skills[segment.name];
+    const requestedPluginName = policy?.nativePluginName;
+    const native = requestedPluginName
+      ? nativePlugins.find((candidate) => candidate.name === requestedPluginName)
+      : nativePlugins.find((candidate) => pluginNativeNames(plugin).includes(candidate.name));
+    const isCoreSkill = getPluginCoreSkill(plugin)?.folder === segment.name;
+    const skillName =
+      policy?.nativeSkill ?? (isCoreSkill ? plugin.poracode.nativeCoreSkill : undefined);
+    return native && skillName ? { plugin: native, skillName } : undefined;
+  }
+
+  private rewriteNativePluginSegment(
+    segment: PromptSegment,
+    nativePlugins: readonly AgentNativePlugin[],
+  ): PromptSegment {
+    if (segment.kind !== "skill") return segment;
+    const replacement = this.nativePluginReplacement(segment, nativePlugins);
+    if (!replacement) return segment;
+    const path = (replacement.plugin.root.includes("\\") ? win32 : posix).join(
+      replacement.plugin.root,
+      "skills",
+      replacement.skillName,
+      "SKILL.md",
+    );
+    const invocation = segment.invocation.startsWith("$")
+      ? `$${replacement.skillName}`
+      : segment.invocation.startsWith("/skill:")
+        ? `/skill:${replacement.skillName}`
+        : segment.invocation.startsWith("/")
+          ? `/${replacement.skillName}`
+          : `Use the ${replacement.skillName} skill.`;
+    return { ...segment, name: replacement.skillName, path, invocation };
   }
 
   private async prepareImport(input: ImportSkillPayload): Promise<PreparedSkillImport> {

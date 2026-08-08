@@ -96,7 +96,7 @@ export const functionalAreas = [
   },
   {
     id: "plugins-marketplace",
-    title: "Plugin marketplace, installation, and contributed apps and skills",
+    title: "Plugin marketplace, installation, and bundled MCP and skill contributions",
     patterns: [
       /components\/plugins\//i,
       /shared\/(?:contracts\/plugin|plugins\/)/i,

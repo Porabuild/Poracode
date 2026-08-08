@@ -1796,6 +1796,7 @@ msgstr "Websites im isolierten In-App-Browser von Poracode ansehen, prüfen und 
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -2262,6 +2263,7 @@ msgstr "Subagenten auswählen, briefen und für parallele Arbeit koordinieren."
 
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Chrome"
 msgstr "Chrome"
@@ -3449,6 +3451,7 @@ msgstr "Crossagent: {subagent}"
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
@@ -4294,10 +4297,6 @@ msgstr "Projekt aktivieren"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "Enable providers in settings"
 msgstr "Aktivieren Sie Anbieter in den Einstellungen"
-
-#: src/renderer/components/plugins/PluginDetail.tsx
-#~ msgid "Enable this plugin's active skills and apps for new threads."
-#~ msgstr ""
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable this plugin's skills and servers for new threads."
@@ -5763,10 +5762,6 @@ msgstr "Unter Windows installieren"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "Pakete installieren"
-
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Install Poracode-managed bundles of skills and MCP-powered apps for every supported agent."
-#~ msgstr ""
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Install Tailscale"
@@ -8380,6 +8375,7 @@ msgid "Play notification sound"
 msgstr "Benachrichtigungston abspielen"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/useSkills.ts
 msgid "Plugin"
 msgstr "Plugin"
 
@@ -10283,22 +10279,6 @@ msgstr "Auswahl an Terminal gesendet."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Claude Code-Konten nach Konfigurationsverzeichnis trennen oder ein Profil auf einen externen Anbieter (z.ai, …) ausrichten. Öffnen Sie ein Profil, um dessen Umgebungsvariablen, Modelle und Reasoning-Stufe zu konfigurieren."
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" could not be started and was skipped."
-#~ msgstr ""
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" has a name Poracode cannot use."
-#~ msgstr ""
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" is not configured correctly and was skipped."
-#~ msgstr ""
-
-#: src/renderer/components/plugins/pluginCopy.ts
-#~ msgid "Server \"{target}\" runs on this computer and is unavailable for WSL projects."
-#~ msgstr ""
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Server {target} could not be started and was skipped."

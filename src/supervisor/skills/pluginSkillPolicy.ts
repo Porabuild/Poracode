@@ -55,6 +55,11 @@ export interface PluginSkillPolicyOptions {
   ) => Promise<readonly (string | undefined)[]>;
 }
 
+/** Preserve ordinary prompt content while failing closed on skill authorization. */
+export function dropSkillSegmentsOnPolicyFailure(segments: PromptSegment[]): PromptSegment[] {
+  return segments.filter((segment) => segment.kind !== "skill");
+}
+
 function normalizeRootKey(path: string): string {
   return path
     .replace(/[\\/]+$/u, "")

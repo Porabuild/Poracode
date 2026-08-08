@@ -6,10 +6,12 @@ import type {
   McpServer,
   McpTransport,
   ProjectLocation,
+  BuiltInMcpServerId,
 } from "@/shared/contracts";
 import { DEFAULT_MCP_SERVER_TIMEOUT_MS, isValidMcpServerName } from "@/shared/contracts";
 import {
   isPluginSupportedForProject,
+  isPluginProvidedNatively,
   pluginMcpServerId,
   pluginMcpServerName,
 } from "@/shared/plugins/catalog";
@@ -46,10 +48,13 @@ export interface PluginMcpRuntimeContext {
   /** Host/project policy is optional for direct conformance helpers. */
   hostPlatform?: NodeJS.Platform;
   projectLocation?: ProjectLocation;
+  /** Packages already supplied by the selected provider's native plugin runtime. */
+  nativePluginNames?: ReadonlySet<string>;
 }
 
 export interface ResolvedPluginMcpServers {
   servers: McpServer[];
+  builtInMcpServerIds: BuiltInMcpServerId[];
   diagnostics: PluginDiagnostic[];
 }
 
@@ -177,13 +182,14 @@ export function resolvePluginMcpServers(
   context: PluginMcpRuntimeContext,
 ): ResolvedPluginMcpServers {
   const servers: McpServer[] = [];
+  const builtInMcpServerIds = new Set<BuiltInMcpServerId>();
   const diagnostics: PluginDiagnostic[] = [];
 
   for (const plugin of plugins) {
     const state = installedPlugins[plugin.name];
     if (
       !state?.enabled ||
-      plugin.mcpServers.length === 0 ||
+      isPluginProvidedNatively(plugin, context.nativePluginNames) ||
       !isPluginSupportedForProject(
         plugin,
         context.hostPlatform ?? process.platform,
@@ -192,6 +198,8 @@ export function resolvePluginMcpServers(
     ) {
       continue;
     }
+
+    plugin.poracode.builtInMcpServerIds.forEach((id) => builtInMcpServerIds.add(id));
 
     const data = pluginDataDirectory(context.pluginDataRoot, plugin.name);
     let dataReady: boolean | undefined;
@@ -272,5 +280,5 @@ export function resolvePluginMcpServers(
     }
   }
 
-  return { servers, diagnostics };
+  return { servers, builtInMcpServerIds: [...builtInMcpServerIds], diagnostics };
 }

@@ -31,7 +31,9 @@ and anything that needs a decision. Note what you did not do — deliberate omis
 Do not describe tests as passing unless you ran them and saw them pass. If something is unverified, say which part and
 why.
 
-Opening a PR is outward-facing. Show the user the title and body before you create it.
+When the user asked you to publish the finished work, that authorizes the commit, push, and draft PR described by this
+workflow. Ask only when the branch, included changes, target repository/base, or PR content is materially ambiguous.
+Read the created PR back after opening it and verify its head, base, title, and URL.
 
 ## After
 

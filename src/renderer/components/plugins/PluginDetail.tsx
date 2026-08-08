@@ -10,6 +10,7 @@ import {
   isPluginMcpServerEnabled,
   isPluginSkillEnabled,
   isPluginSupportedOnHost,
+  getPluginCoreSkill,
 } from "@/shared/plugins/catalog";
 import { PluginIcon } from "./PluginIcon";
 import { PluginTag } from "./PluginTag";
@@ -37,6 +38,7 @@ export function PluginDetail(props: {
   const pluginToggleLabelId = useId();
   const author = plugin.manifest.author?.name;
   const examplePrompt = plugin.poracode.examplePrompt;
+  const coreSkill = getPluginCoreSkill(plugin);
   const closeSettings = usePanelStore((panel) => panel.closeSettings);
   const oauth = usePluginOauth(plugin);
   const describeDiagnostic = useLocalizedPluginDiagnostic();
@@ -46,9 +48,11 @@ export function PluginDetail(props: {
   // Seeds a draft composer rather than sending anything, so the user still
   // reviews the prompt and picks a model before the thread starts.
   const tryNow = async () => {
-    if (!examplePrompt) return;
+    if (!examplePrompt || !coreSkill) return;
     const project = await ensureHomeScopeProject();
-    newThreadFromText(project.id, examplePrompt);
+    newThreadFromText(project.id, `/${coreSkill.folder} ${examplePrompt}`, {
+      bindLeadingSkill: true,
+    });
     closeSettings();
   };
 
@@ -82,8 +86,13 @@ export function PluginDetail(props: {
               <p className="mt-1 text-sm text-muted">{props.plugin.description}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {examplePrompt ? (
-                <Button size="sm" variant="tertiary" onPress={() => void tryNow()}>
+              {examplePrompt && coreSkill ? (
+                <Button
+                  size="sm"
+                  variant="tertiary"
+                  isDisabled={!state?.enabled}
+                  onPress={() => void tryNow()}
+                >
                   <Sparkles className="size-4" />
                   <Trans>Try now</Trans>
                 </Button>
@@ -123,9 +132,10 @@ export function PluginDetail(props: {
         </div>
       </div>
 
-      {examplePrompt ? (
+      {examplePrompt && coreSkill ? (
         <Button
           variant="tertiary"
+          isDisabled={!state?.enabled}
           className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-surface-secondary !px-4 !py-3 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
           onPress={() => void tryNow()}
         >
@@ -187,10 +197,16 @@ export function PluginDetail(props: {
         <ContributionSection
           icon={<Plug className="size-4" />}
           title={t`MCP servers`}
-          description={t`Servers this plugin declares in mcp.json. Poracode passes them to every supported agent.`}
+          {...(plugin.mcpServers.length > 0
+            ? {
+                description: t`Servers this plugin declares in mcp.json. Poracode passes them to every supported agent.`,
+              }
+            : {})}
         >
           {props.plugin.mcpServers.map((server, index) => {
-            const enabled = state ? isPluginMcpServerEnabled(plugin, state, server.id) : true;
+            const declared = plugin.mcpServers.some((candidate) => candidate.name === server.id);
+            const enabled =
+              state && declared ? isPluginMcpServerEnabled(plugin, state, server.id) : true;
             const labelId = `${titleId}-server-${server.id}`;
             const badgeId = `${labelId}-kind`;
             return (
@@ -203,11 +219,12 @@ export function PluginDetail(props: {
                 badge={t`MCP`}
                 last={index === props.plugin.mcpServers.length - 1}
                 control={
-                  state ? (
+                  state && declared ? (
                     <div className="flex items-center gap-2">
                       {oauth.isRemoteServer(server.id) ? (
                         <ConnectControl
                           state={oauth.stateFor(server.id)}
+                          ariaLabelledBy={`${labelId} ${badgeId}`}
                           onConnect={() => void oauth.connect(server.id)}
                           onDisconnect={() => void oauth.disconnect(server.id)}
                         />
@@ -333,27 +350,28 @@ export function PluginDetail(props: {
 
 function ConnectControl(props: {
   state: "unknown" | "connected" | "disconnected" | "connecting";
+  ariaLabelledBy: string;
   onConnect: () => void;
   onDisconnect: () => void;
 }) {
-  if (props.state === "connecting") {
-    return (
-      <span className="text-xs text-muted">
-        <Trans>Connecting...</Trans>
-      </span>
-    );
-  }
-  if (props.state === "connected") {
-    return (
-      <Button size="sm" variant="tertiary" onPress={props.onDisconnect}>
-        <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-        <Trans>Connected</Trans>
-      </Button>
-    );
-  }
+  const connected = props.state === "connected";
+  const connecting = props.state === "connecting";
   return (
-    <Button size="sm" variant="tertiary" onPress={props.onConnect}>
-      <Trans>Connect</Trans>
+    <Button
+      size="sm"
+      variant="tertiary"
+      aria-labelledby={props.ariaLabelledBy}
+      isPending={connecting}
+      onPress={connected ? props.onDisconnect : props.onConnect}
+    >
+      {connected ? <span className="size-1.5 rounded-full bg-success" aria-hidden="true" /> : null}
+      {connecting ? (
+        <Trans>Connecting...</Trans>
+      ) : connected ? (
+        <Trans>Connected</Trans>
+      ) : (
+        <Trans>Connect</Trans>
+      )}
     </Button>
   );
 }
@@ -361,7 +379,7 @@ function ConnectControl(props: {
 function ContributionSection(props: {
   icon: ReactNode;
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
@@ -370,7 +388,7 @@ function ContributionSection(props: {
         <span className="mt-0.5 text-muted">{props.icon}</span>
         <div>
           <h2 className="text-sm font-semibold text-foreground">{props.title}</h2>
-          <p className="text-xs text-muted">{props.description}</p>
+          {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
         </div>
       </div>
       <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">

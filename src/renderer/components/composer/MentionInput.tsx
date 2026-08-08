@@ -30,13 +30,23 @@ export interface McpMentionItem {
   enabled: boolean;
 }
 
+/** An installed Agent Plugin surfaced as one `@`-mention. */
+export interface PluginMentionItem {
+  id: string;
+  name: string;
+  detail: string;
+  command: AgentSlashCommand;
+}
+
 /** Stable empty list so an omitted `mcpMentions` prop doesn't churn renders. */
 const EMPTY_MCP_MENTIONS: readonly McpMentionItem[] = [];
+const EMPTY_PLUGIN_MENTIONS: readonly PluginMentionItem[] = [];
 
 export function buildMentionResults(
   fileResults: FileEntry[],
   query: string,
   mcpMentions: readonly McpMentionItem[] = EMPTY_MCP_MENTIONS,
+  pluginMentions: readonly PluginMentionItem[] = EMPTY_PLUGIN_MENTIONS,
 ): MentionEntry[] {
   const q = query.trim().toLowerCase();
   // Case-insensitive prefix match on the display name, matching the legacy
@@ -51,7 +61,16 @@ export function buildMentionResults(
       detail: item.detail,
       enabled: item.enabled,
     }));
-  return [...mcpResults, ...fileResults];
+  const pluginResults: MentionEntry[] = pluginMentions
+    .filter((item) => item.name.toLowerCase().startsWith(q))
+    .map((item) => ({
+      type: "plugin",
+      path: item.id,
+      name: item.name,
+      detail: item.detail,
+      command: item.command,
+    }));
+  return [...pluginResults, ...mcpResults, ...fileResults];
 }
 
 export interface MentionInputHandle {
@@ -196,6 +215,8 @@ function skillChipDataset(segment: Extract<PromptSegment, { kind: "skill" }>) {
     skillInvocation: segment.invocation,
     skillProvider: segment.provider,
     skillScope: segment.scope,
+    ...(segment.pluginId ? { pluginId: segment.pluginId } : {}),
+    ...(segment.pluginName ? { pluginName: segment.pluginName } : {}),
   };
 }
 
@@ -246,6 +267,7 @@ export const MentionInput = forwardRef<
      * call `onMcpMentionSelect` so the composer can enable them first.
      */
     mcpMentions?: readonly McpMentionItem[];
+    pluginMentions?: readonly PluginMentionItem[];
     onMcpMentionSelect?: (id: string) => void;
     onSlashCommandChange?: (query: string | null) => void;
     commandListId?: string;
@@ -277,9 +299,11 @@ export const MentionInput = forwardRef<
     onInterceptKey,
   } = props;
   const mcpMentions = props.mcpMentions ?? EMPTY_MCP_MENTIONS;
+  const pluginMentions = props.pluginMentions ?? EMPTY_PLUGIN_MENTIONS;
   // Stable dependency key: which MCP mentions are offered, independent of the
   // array's per-render identity (mirrors the old boolean flags in the effect).
   const mcpMentionKey = mcpMentions.map((item) => `${item.id}:${item.enabled}`).join(",");
+  const pluginMentionKey = pluginMentions.map((item) => item.id).join(",");
   const editorRef = useRef<HTMLDivElement>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
@@ -292,11 +316,16 @@ export const MentionInput = forwardRef<
     mention !== null,
     projectId,
   );
-  const results = buildMentionResults(fileResults, mention?.query ?? "", mcpMentions);
+  const results = buildMentionResults(
+    fileResults,
+    mention?.query ?? "",
+    mcpMentions,
+    pluginMentions,
+  );
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [mention?.query, fileResults, mcpMentionKey]);
+  }, [mention?.query, fileResults, mcpMentionKey, pluginMentionKey]);
 
   function insertPlainText(text: string) {
     const editor = editorRef.current;
@@ -581,14 +610,31 @@ export const MentionInput = forwardRef<
     const range = detectTriggerRange("@");
     if (!range) return;
 
-    if (entry.type === "mcp") {
+    if (entry.type === "mcp" || entry.type === "plugin") {
+      const pluginSegment =
+        entry.type === "plugin" ? skillSegmentFromSlashCommand(entry.command) : undefined;
+      if (entry.type === "plugin" && !pluginSegment) return;
       const sel = window.getSelection();
       if (!sel) return;
       sel.removeAllRanges();
       sel.addRange(range);
       range.deleteContents();
 
-      if (entry.enabled) {
+      if (entry.type === "plugin") {
+        if (!pluginSegment) return;
+        const chip = createSlashCommandChipElement({
+          id: entry.command.id,
+          ...skillChipDataset(pluginSegment),
+        });
+        range.insertNode(chip);
+        const space = document.createTextNode(" ");
+        chip.after(space);
+        const nextRange = document.createRange();
+        nextRange.setStartAfter(space);
+        nextRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(nextRange);
+      } else if (entry.enabled) {
         const chip = createMcpMentionChipElement({ id: entry.path, name: entry.name });
         range.insertNode(chip);
         // Trailing nbsp keeps the caret visually separate from the chip, matching
