@@ -51,4 +51,14 @@ describe("buildProjectDraftConfig", () => {
       worktreeMode: true,
     });
   });
+
+  it("preserves an explicit Fast off selection for the next draft", () => {
+    expect(
+      buildProjectDraftConfig({
+        agentKind: "codex",
+        config: { model: "gpt-5.6-sol", fast: false },
+        worktreeMode: false,
+      }).fast,
+    ).toBe(false);
+  });
 });
