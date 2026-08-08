@@ -39,7 +39,7 @@ describe("PluginMarketplace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Chrome Tools Install" }));
 
     expect(useSharedSettings.getState().installedPlugins["chrome-tools"]).toMatchObject({
-      version: "1.0.0",
+      version: "1.1.0",
       enabled: true,
     });
     expect(onOpen).toHaveBeenLastCalledWith("chrome-tools");
