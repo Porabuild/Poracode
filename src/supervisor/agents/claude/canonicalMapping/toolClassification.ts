@@ -23,6 +23,35 @@ export function isSubAgentToolName(toolName: string): boolean {
   );
 }
 
+/**
+ * Tools that address an existing agent rather than launching one. `SendMessage`
+ * resumes a completed sub-agent from its transcript, and the resumed run
+ * reports its `task_started` / `task_notification` against the SendMessage
+ * tool_use id — so such a row can become an agent row mid-flight.
+ *
+ * A canonical item type is fixed at `item.started`, before we know whether the
+ * send actually resumed anything, so these open as `tool_call` (the item type
+ * the renderer draws agent rows from). The payload's `isSubAgent` flag — set
+ * only once a task binds — decides which row is actually drawn.
+ */
+export function isAgentAddressableToolName(toolName: string): boolean {
+  const name = toolName.toLowerCase();
+  if (parseMcpToolName(name)) return false;
+  return name === "sendmessage" || name === "send_message";
+}
+
+/**
+ * Whether a tool item is the sub-agent row itself: a launch tool, or a tool a
+ * `task_started` promoted (see {@link isAgentAddressableToolName}). MCP calls
+ * are never promoted — a Crossagents spawn owns its own row treatment.
+ */
+export function isSubAgentParentTool(
+  tool: Pick<ToolItemState, "toolName" | "subAgentParent">,
+): boolean {
+  if (isSubAgentToolName(tool.toolName)) return true;
+  return tool.subAgentParent === true && !parseMcpToolName(tool.toolName.toLowerCase());
+}
+
 function parseMcpToolName(name: string): { server: string; tool: string } | undefined {
   const canonical = /^mcp__(.+?)__(.+)$/.exec(name);
   if (canonical) return { server: canonical[1]!, tool: canonical[2]! };
@@ -34,7 +63,7 @@ function parseMcpToolName(name: string): { server: string; tool: string } | unde
 export function classifyToolItemType(toolName: string): CanonicalItemType {
   const name = toolName.toLowerCase();
   if (name === "todowrite" || name.includes("todo")) return "plan";
-  if (isSubAgentToolName(name)) {
+  if (isSubAgentToolName(name) || isAgentAddressableToolName(name)) {
     return "tool_call";
   }
   if (
