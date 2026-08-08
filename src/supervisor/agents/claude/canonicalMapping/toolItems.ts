@@ -2,7 +2,7 @@ import type { RuntimeEvent } from "@/shared/contracts";
 import { readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState, ToolItemState } from "../sdkCanonicalMappingState";
 import { applyPlanAggregatorInput } from "./planMapping";
-import { isSubAgentToolName } from "./toolClassification";
+import { isSubAgentParentTool } from "./toolClassification";
 import { toolPayload } from "./toolPayload";
 
 /**
@@ -50,7 +50,7 @@ export function startToolItem(
 }
 
 export function syncSubAgentModelProgress(tool: ToolItemState): void {
-  if (!isSubAgentToolName(tool.toolName)) return;
+  if (!isSubAgentParentTool(tool)) return;
   const model = readStringField(tool.input, "model");
   if (!model) return;
   tool.progress = { ...tool.progress, model };

@@ -214,6 +214,34 @@ describe("deriveToolDisplay", () => {
     expect(deriveToolDisplay(payload).title).toBe("Agent (rubber-duck): Critiquing path fixes");
   });
 
+  it("labels a resumed sub-agent distinctly from a fresh launch", () => {
+    // Claude Code's SendMessage resuming an agent: the args name the agent, not
+    // the run, so the provider supplies the send's summary plus the type.
+    const payload = makePayload({
+      name: "SendMessage",
+      title: "list repo files",
+      subAgentType: "general-purpose",
+      isSubAgent: true,
+      isSubAgentResume: true,
+      args: { to: "af31fc7876375a53a", message: "…", summary: "list repo files" },
+    });
+
+    expect(isSubAgentTool(payload)).toBe(true);
+    expect(deriveToolDisplay(payload).title).toBe(
+      "Agent Resume (general-purpose): list repo files",
+    );
+  });
+
+  it("does not label a fresh Agent launch as a resume", () => {
+    const payload = makePayload({
+      name: "Agent",
+      isSubAgent: true,
+      args: { description: "probe worker alpha", subagent_type: "general-purpose" },
+    });
+
+    expect(deriveToolDisplay(payload).title).toBe("Agent (general-purpose): probe worker alpha");
+  });
+
   it("keeps Crossagents distinct from native subagents", () => {
     const payload = makePayload({
       name: "Critiquing path fixes",

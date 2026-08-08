@@ -2672,6 +2672,226 @@ describe("sdkCanonicalMapping — background sub-agents", () => {
     expect(state.activeSubAgentToolToTask?.has("toolu_parent") ?? false).toBe(false);
   });
 
+  /**
+   * `SendMessage` resumes a completed sub-agent from its transcript. The
+   * resumed run reports `task_started` / `task_notification` against the
+   * SendMessage tool_use id, so that row must become an agent row — otherwise
+   * the resumed agent shows as a raw tool call and never reaches the composer's
+   * active-sub-agent dock (which keys off `isSubAgent`).
+   */
+  function startSendMessageTool(
+    state: ReturnType<typeof createClaudeMapperState>,
+    toolUseId: string,
+  ): RuntimeEvent[] {
+    return mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: toolUseId,
+          name: "SendMessage",
+          input: { to: "af31fc7876375a53a", message: "keep going", summary: "ask for more" },
+        },
+      }),
+      state,
+    );
+  }
+
+  it("promotes a SendMessage that resumes a sub-agent to an agent row", () => {
+    const state = createClaudeMapperState("thread-1");
+    const started = startSendMessageTool(state, "toolu_send");
+    // Opens as tool_call (the item type agent rows are drawn from) but is not
+    // yet an agent row — the send may not resume anything.
+    expect(started).toMatchObject([
+      {
+        type: "item.started",
+        itemId: "toolu_send",
+        itemType: "tool_call",
+        payload: { name: "SendMessage", status: "running" },
+      },
+    ]);
+    expect(
+      (started[0] as { payload: { isSubAgent?: boolean } }).payload.isSubAgent,
+    ).toBeUndefined();
+
+    const bound = mapClaudeSdkMessage(taskStarted("toolu_send", "general-purpose"), state);
+    expect(bound).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_send",
+        payload: {
+          name: "SendMessage",
+          // The send's own summary, not the agent's frozen spawn description.
+          title: "ask for more",
+          subAgentType: "general-purpose",
+          status: "running",
+          isSubAgent: true,
+          isSubAgentResume: true,
+          progress: { description: "Investigate" },
+        },
+      },
+    ]);
+
+    // The send's own tool_result must not close the row — the resumed run is
+    // still going, and its task_notification owns the close.
+    const resultEvents = mapClaudeSdkMessage(launchToolResult("toolu_send"), state);
+    expect(resultEvents.some((e) => e.type === "item.completed")).toBe(false);
+    expect(state.toolItemsById.has("toolu_send")).toBe(true);
+
+    const closed = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-A",
+        tool_use_id: "toolu_send",
+        status: "completed",
+        summary: "Recomputed per model",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(closed).toMatchObject([
+      { type: "item.updated", itemId: "toolu_send", payload: { status: "success" } },
+      {
+        type: "item.completed",
+        itemId: "toolu_send",
+        payload: {
+          status: "success",
+          isSubAgent: true,
+          isSubAgentResume: true,
+          title: "ask for more",
+        },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_send")).toBe(false);
+  });
+
+  it("re-parents a resumed agent's children from the dead launch row to the resume row", () => {
+    const state = createClaudeMapperState("thread-1");
+    // Run 1: a normal Agent launch that completes and is dropped from state.
+    startAgentTool(state, "toolu_launch");
+    mapClaudeSdkMessage(taskStarted("toolu_launch", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_launch"), state);
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-A",
+        tool_use_id: "toolu_launch",
+        status: "completed",
+        summary: "ALPHA",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(state.toolItemsById.has("toolu_launch")).toBe(false);
+
+    // Run 2: SendMessage resumes the SAME task under a new tool_use id.
+    startSendMessageTool(state, "toolu_send");
+    mapClaudeSdkMessage(taskStarted("toolu_send", "general-purpose"), state);
+
+    // The resumed run's forwarded children still name the ORIGINAL launch id.
+    const childEvents = mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        parent_tool_use_id: "toolu_launch",
+        message: {
+          role: "assistant",
+          model: "claude-opus-4-6",
+          content: [
+            { type: "tool_use", id: "toolu_child", name: "Glob", input: { pattern: "*.json" } },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    const childStart = childEvents.find(
+      (e) => e.type === "item.started" && e.itemId === "toolu_child",
+    );
+    // Without the alias this would be "toolu_launch" — a row the renderer has
+    // already closed, so the child would nest under the finished agent.
+    expect(childStart).toMatchObject({ parentItemId: "toolu_send" });
+    // …and the live row is the one whose step counter ticks.
+    expect(
+      childEvents.some(
+        (e) =>
+          e.type === "item.updated" &&
+          e.itemId === "toolu_send" &&
+          (e.payload as { progress?: { stepCount?: number } }).progress?.stepCount === 1,
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps live task_progress on the resume row (steps, last tool, description)", () => {
+    const state = createClaudeMapperState("thread-1");
+    startSendMessageTool(state, "toolu_send");
+    mapClaudeSdkMessage(taskStarted("toolu_send", "general-purpose"), state);
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_progress",
+        session_id: "claude-session",
+        task_id: "task-A",
+        tool_use_id: "toolu_send",
+        description: "Finding *.json",
+        last_tool_name: "Glob",
+        usage: { total_tokens: 30_521, tool_uses: 2, duration_ms: 27_341 },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(events).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_send",
+        payload: {
+          isSubAgent: true,
+          status: "running",
+          progress: {
+            description: "Finding *.json",
+            lastToolName: "Glob",
+            stepCount: 2,
+            toolUses: 2,
+            tokens: 30_521,
+          },
+        },
+      },
+    ]);
+  });
+
+  it("leaves a SendMessage that resumed nothing as a plain tool row", () => {
+    const state = createClaudeMapperState("thread-1");
+    startSendMessageTool(state, "toolu_send");
+    // No task_started: an unreachable name, or a message to a teammate that is
+    // already running, starts no new run.
+    const events = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_send",
+              content: '{"success":false,"message":"No agent named \'probe\' is reachable."}',
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    const updated = events.find((e) => e.type === "item.updated");
+    expect(updated).toMatchObject({ payload: { name: "SendMessage", status: "success" } });
+    expect(
+      (updated as { payload: { isSubAgent?: boolean; title?: string } }).payload.isSubAgent,
+    ).toBeUndefined();
+    expect(events.some((e) => e.type === "item.completed" && e.itemId === "toolu_send")).toBe(true);
+    expect(state.toolItemsById.has("toolu_send")).toBe(false);
+  });
+
   it("preserves structured Workflow launch metadata through the task lifecycle", () => {
     const state = createClaudeMapperState("thread-1");
     startAgentTool(state, "toolu_wf", "Workflow");

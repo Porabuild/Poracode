@@ -31,9 +31,14 @@ import {
   applyTaskUpdated,
   mapPermissionDenied,
   registerSubAgentTaskIfNeeded,
+  resolveSubAgentParentToolUseId,
 } from "./taskLifecycle";
 import { completeTextItem, ensureTextItem, closeClaudeOpenItems } from "./textItems";
-import { createToolItemState, hasToolCallPayload, isSubAgentToolName } from "./toolClassification";
+import {
+  createToolItemState,
+  hasToolCallPayload,
+  isSubAgentParentTool,
+} from "./toolClassification";
 import { startToolItem, syncSubAgentModelProgress } from "./toolItems";
 import { toolPayload } from "./toolPayload";
 import { createClaudeUsageSpentEvent, readClaudeAssistantSpendTokens } from "./usageSpent";
@@ -90,7 +95,19 @@ export function mapClaudeSdkMessage(
   options?: ClaudeSdkMessageMappingOptions,
 ): RuntimeEvent[] {
   const events = mapClaudeSdkMessageInner(message, state, options);
-  return tagParent(events, readParentToolUseId(message), state);
+  return tagParent(events, readSubAgentParentItemId(message, state), state);
+}
+
+/**
+ * The parent row a forwarded sub-agent message belongs to. A resumed agent's
+ * children still name the tool that originally launched it, so route through
+ * the alias to whichever row currently owns the run.
+ */
+function readSubAgentParentItemId(
+  message: SDKMessage,
+  state: ClaudeMapperState,
+): string | undefined {
+  return resolveSubAgentParentToolUseId(state, readParentToolUseId(message));
 }
 
 /**
@@ -189,10 +206,10 @@ function syncSubAgentModelFromChildAssistant(
   message: SDKMessage,
   state: ClaudeMapperState,
 ): RuntimeEvent[] {
-  const parentToolUseId = readParentToolUseId(message);
+  const parentToolUseId = readSubAgentParentItemId(message, state);
   if (!parentToolUseId) return [];
   const tool = state.toolItemsById.get(parentToolUseId);
-  if (!tool || !isSubAgentToolName(tool.toolName)) return [];
+  if (!tool || !isSubAgentParentTool(tool)) return [];
   if (tool.progress?.model) return [];
   const inner = (message as { message?: unknown }).message;
   if (!inner || typeof inner !== "object") return [];
