@@ -1051,6 +1051,22 @@ msgstr "Агента не знайдено"
 msgid "Agent Registry"
 msgstr "Реєстр агентів"
 
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume"
+msgstr "Агент продовжено"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume ({subagent}): {description}"
+msgstr "Агент продовжено ({subagent}): {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {description}"
+msgstr "Агент продовжено: {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {subagent}"
+msgstr "Агент продовжено: {subagent}"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
@@ -1749,6 +1765,8 @@ msgstr "Повернути на панель"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Поверніть його на цю панель або перейдіть до вікна, де він запущений."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "Перенести незакомічені зміни"
@@ -1776,7 +1794,7 @@ msgstr "Переглядайте, досліджуйте й тестуйте с�
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2285,6 +2303,8 @@ msgstr "Ім'я профілю Claude"
 msgid "Claude profile removed."
 msgstr "Профіль Claude видалено."
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "Чистий worktree"
@@ -2524,6 +2544,7 @@ msgstr "Закрити сканер"
 msgid "Close search"
 msgstr "Закрити пошук"
 
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
 msgstr "Закрити розділення"
@@ -2621,6 +2642,10 @@ msgstr "Згорнути помилку"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #~ msgid "Collapse experiment"
 #~ msgstr "Згорнути експеримент"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Collapse footer"
+msgstr "Згорнути нижню частину бічної панелі"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
@@ -3239,6 +3264,10 @@ msgstr "Не вдалося завантажити навичку."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Не вдалося завантажити статистику профілю."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't move the thread to a worktree."
+msgstr "Не вдалося перемістити тред у worktree."
 
 #: src/mobile/routeComponents.tsx
 msgid "Couldn't reach the desktop from this HTTPS page."
@@ -4018,6 +4047,14 @@ msgstr "Відображуване ім’я (необов’язково)"
 msgid "Display name in the sidebar."
 msgstr "Відображуване ім'я в бічній панелі."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock left"
+msgstr "Закріпити ліворуч"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock right"
+msgstr "Закріпити праворуч"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Docs"
 msgstr "Документація"
@@ -4058,7 +4095,7 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Завантаження до «{0}». Для великих репозиторіїв це може зайняти деякий час."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
 msgstr "Завантаження оновлення"
@@ -4099,6 +4136,10 @@ msgstr "Диски"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
 msgstr "Перетягніть сюди, щоб прикріпити"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+#~ msgid "Drop left or right to dock at the bottom"
+#~ msgstr "Перетягніть ліворуч або праворуч, щоб закріпити знизу"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4476,6 +4517,10 @@ msgstr "Розгорнути помилку"
 #~ msgid "Expand experiment"
 #~ msgstr "Розгорнути експеримент"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Expand footer"
+msgstr "Розгорнути нижню частину бічної панелі"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
@@ -4740,7 +4785,7 @@ msgstr "Файл використовує непідтримуване коду�
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
 msgstr "Файли"
@@ -5095,7 +5140,7 @@ msgstr "Отримати завдання"
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
@@ -5138,9 +5183,9 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
@@ -5356,7 +5401,7 @@ msgstr "Сховати панель налагодження середовищ�
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5736,7 +5781,7 @@ msgid "Install the package to add its API key."
 msgstr "Встановіть пакет, щоб додати його API-ключ."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "Встановити оновлення"
@@ -5746,7 +5791,7 @@ msgstr "Встановити оновлення"
 msgid "Install v{0}"
 msgstr "Установити v{0}"
 
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 msgid "Install v{updateVersion}"
 msgstr "Встановити v{updateVersion}"
 
@@ -6702,6 +6747,7 @@ msgid "Modes"
 msgstr "Режими"
 
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Більше"
@@ -6790,13 +6836,27 @@ msgstr "Перемістити браузер у вікно"
 msgid "Move changes to a new worktree"
 msgstr "Перемістити зміни в новий worktree"
 
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
+msgid "Move panel"
+msgstr "Перемістити панель"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to clean worktree"
+msgstr "Перемістити в чистий worktree"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "Перемістити до робочої області"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "Перемістити в worktree"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to worktree with changes"
+msgstr "Перемістити в worktree зі змінами"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "Move to Worktree…"
@@ -7564,7 +7624,7 @@ msgid "Not synced"
 msgstr "Не синхронізується"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Notes"
@@ -7603,7 +7663,7 @@ msgid "off"
 msgstr "вимк"
 
 #: src/renderer/components/git/PrAutomationSlider.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "Вимк."
@@ -7659,7 +7719,7 @@ msgid "One time"
 msgstr "Один раз"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Онлайн"
@@ -8298,7 +8358,7 @@ msgid "Pinned task routes"
 msgstr "Закріплені маршрути завдань"
 
 #: src/mobile/ComposerInfoChips.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -8444,7 +8504,7 @@ msgstr "Переспрямування портів не увімкнено"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 msgid "Ports"
 msgstr "Порти"
 
@@ -8799,7 +8859,7 @@ msgstr "Pull request злито"
 msgid "Pull request options"
 msgstr "Параметри pull request"
 
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
@@ -9066,6 +9126,8 @@ msgstr "Віддалений"
 msgid "Remote access"
 msgstr "Віддалений доступ"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9436,7 +9498,9 @@ msgstr "Змінити розмір відомостей про запуск"
 msgid "Resize sidebar"
 msgstr "Змінити розмір бічної панелі"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/TerminalSurfaces.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomPanelDockContainer.tsx
 msgid "Resize split"
 msgstr "Змінити розмір розділення"
 
@@ -9895,7 +9959,7 @@ msgstr "Заплановані завдання на цьому комп’ют�
 #~ msgstr "Заплановані завдання виконуються лише коли пристрій активний і Poracode відкрито."
 
 #: src/mobile/settingsSections.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "Розклади"
@@ -10277,6 +10341,7 @@ msgstr "Зафіксовано під час запуску цієї сесії 
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -10894,7 +10959,7 @@ msgstr "Тред {targetLabel} запущено"
 
 #. Button label while the microphone test is starting
 #: src/mobile/remoteConnectionState.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
@@ -11015,7 +11080,7 @@ msgid "Structured runtime"
 msgstr "Структуроване середовище виконання"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "Субагент"
@@ -11289,7 +11354,7 @@ msgstr "Укажіть цільовому провайдеру, що робит�
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12555,7 +12620,7 @@ msgstr "Потрібно вказати URL."
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -12789,6 +12854,7 @@ msgstr "Зачекайте, доки всі кандидати завершат�
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Зачекайте, доки всі кандидати завершать роботу, перш ніж відкривати pull request."
 
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Дочекайтеся завершення запуску треда, перш ніж переміщувати його в worktree."
@@ -12866,9 +12932,8 @@ msgstr "Підготовка середовища оболонки WSL…"
 msgid "We have a winner!"
 msgstr "У нас є переможець!"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "Веб-пошук"
 

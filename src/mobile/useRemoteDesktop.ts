@@ -8,9 +8,10 @@ import {
   type PromptSegment,
   type TerminalSize,
   type Thread,
-  type ThreadStatus,
 } from "@/shared/contracts";
+import { buildThreadRelaunchStartInput, shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { generateWorktreeBranch } from "@/shared/worktreeBranch";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
@@ -24,6 +25,7 @@ import {
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
 import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeActions";
+import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { seedOlderThreadRuntimeItemsCursor } from "@/renderer/state/chatRuntimePersister";
@@ -32,6 +34,7 @@ import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftCo
 import { i18n } from "@/renderer/i18n/i18n";
 import { setRemoteBridgeClient } from "./bridge";
 import { resetBrowserMirror } from "./browserMirror";
+import { useGitSummariesStore } from "./gitSummaries";
 import { buildGitAddWorktreePayload } from "./navHelpers";
 import { isNativeApp } from "./pwaInstall";
 import {
@@ -97,6 +100,9 @@ export interface WorktreeGroupDeleteInput {
   readonly threadIds: readonly string[];
 }
 
+/** Threads currently being moved to a worktree — guards against double-taps. */
+const movingThreadIds = new Set<string>();
+
 function describeError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
@@ -125,22 +131,6 @@ async function restoreSshTransport(desktop: StoredDesktop): Promise<StoredDeskto
   await updateDesktopEndpoint(desktop.desktopId, result.endpoint);
   return { ...desktop, endpoint: result.endpoint };
 }
-
-const MOBILE_TERMINAL_START_STATUSES = new Set<ThreadStatus>([
-  "inactive",
-  "launching",
-  "finished",
-  "error",
-]);
-
-// For GUI threads "finished" (and "launching") mean the structured session is
-// still alive on the desktop — restarting would close+reopen a live session.
-// Only resume sessions that are actually gone, and only ones that ended
-// CLEANLY: a prompt-less resume of an "error" thread replays its broken turn,
-// which the agent session can keep re-entering on its own — an infinite
-// relaunch-into-working loop with no user input. Errored threads wait for an
-// explicit prompt instead.
-const MOBILE_GUI_START_STATUSES = new Set<ThreadStatus>(["inactive"]);
 
 /**
  * Owns the remote-desktop session: paired desktops, cached + live snapshots,
@@ -752,22 +742,19 @@ export function useRemoteDesktop() {
 
   /**
    * Activate an inactive thread on the desktop when the user opens it in the
-   * PWA. Terminal threads spawn a fresh PTY; GUI (native chat) threads resume
-   * their structured session via `sessionRef` (or open a new one when none was
-   * ever recorded). Both are driven with an empty prompt — the supervisor's
-   * `startThread` opens/resumes the session and leaves it idle, starting a turn
-   * only when a prompt is supplied. Only the presentation and terminal size
-   * differ between the two, so a single call covers both.
+   * PWA — the same reopen contract the desktop renderer applies (see
+   * shared/threadRelaunch). Terminal threads spawn a fresh PTY; GUI (native
+   * chat) threads resume their structured session via `sessionRef` (or open a
+   * new one when none was ever recorded). Both are driven with an empty
+   * prompt — the supervisor's `startThread` opens/resumes the session and
+   * leaves it idle, starting a turn only when a prompt is supplied.
    */
   async function ensureThreadRunning(
     thread: Thread,
     desktop: StoredDesktop,
     terminalSize?: TerminalSize,
   ): Promise<void> {
-    const presentation = thread.presentationMode ?? "terminal";
-    const startStatuses =
-      presentation === "terminal" ? MOBILE_TERMINAL_START_STATUSES : MOBILE_GUI_START_STATUSES;
-    if (!startStatuses.has(thread.status)) return;
+    if (!shouldRelaunchThreadOnOpen(thread)) return;
     const projectLocation = resolveThreadProjectLocation(thread);
     if (!projectLocation) {
       // The thread is startable but its project isn't in the current shell
@@ -776,17 +763,13 @@ export function useRemoteDesktop() {
       setOperationMessage(i18n._(msg`Unable to start the thread.`));
       return;
     }
-    await clientFor(desktop).startThread({
-      threadId: thread.id,
-      projectLocation,
-      agentKind: thread.agentKind,
-      ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
-      config: thread.config,
-      prompt: "",
-      initialSize: terminalSize ?? DEFAULT_TERMINAL_SIZE,
-      ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      presentationMode: presentation,
-    });
+    await clientFor(desktop).startThread(
+      buildThreadRelaunchStartInput({
+        thread,
+        projectLocation,
+        initialSize: terminalSize ?? DEFAULT_TERMINAL_SIZE,
+      }),
+    );
     void refresh(desktop, { refreshSelectedThread: true });
   }
 
@@ -975,6 +958,81 @@ export function useRemoteDesktop() {
     }
   }
 
+  /**
+   * Move a main-checkout thread into a fresh worktree on the paired desktop.
+   * Mirrors the desktop's moveThreadToWorktree: the worktree is created through
+   * the bridge (host git), then the host's `set-worktree` command re-tags the
+   * durable row and — with isNewWorktree — primes git state and runs the setup
+   * script there. An active thread is restarted in the new directory.
+   * `withChanges` MOVES the main checkout's uncommitted changes along, leaving
+   * the current branch clean.
+   */
+  async function moveThreadToWorktree(thread: Thread, withChanges: boolean) {
+    const desktop = activeDesktop;
+    if (!desktop || thread.worktreePath || movingThreadIds.has(thread.id)) return;
+    const project = useAppStore.getState().projects.find((item) => item.id === thread.projectId);
+    if (!project) return;
+    if (thread.status === "launching") {
+      setOperationMessage(
+        i18n._(msg`Wait for the thread to finish starting before moving it to a worktree.`),
+      );
+      return;
+    }
+    const wasActive = thread.status !== "inactive";
+    const bridge = readBridge();
+    movingThreadIds.add(thread.id);
+    try {
+      // Re-tagging only sticks for a stopped thread — close any live runtime first.
+      if (wasActive) {
+        await bridge.closeThread({ threadId: thread.id });
+      }
+      const currentBranch = useGitSummariesStore.getState().byThread[thread.id]?.branch;
+      const branch = generateWorktreeBranch();
+      const created = await bridge.gitAddWorktree({
+        projectLocation: project.location,
+        branch,
+        ...(currentBranch ? { startPoint: currentBranch } : {}),
+        createBranch: true,
+        ...(project.scripts?.worktreeCopyPatterns?.length
+          ? { copyIgnoredPatterns: project.scripts.worktreeCopyPatterns }
+          : {}),
+        ...worktreePlacementPayload(project),
+        transferUncommitted: withChanges,
+        keepChangesInSource: false,
+      });
+      // Optimistic mirror; the host owns the durable row and confirms it via
+      // the next snapshot. On failure the refresh below restores its truth.
+      useAppStore.getState().setThreadWorktree(thread.id, created.path, branch);
+      await clientFor(desktop).sendThreadCommand({
+        kind: "set-worktree",
+        threadId: thread.id,
+        worktreePath: created.path,
+        worktreeBranch: branch,
+        isNewWorktree: true,
+      });
+      if (wasActive) {
+        await bridge.startThread({
+          threadId: thread.id,
+          projectLocation: buildWorktreeLocation(project.location, created.path),
+          agentKind: thread.agentKind,
+          ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
+          config: thread.config,
+          prompt: "",
+          initialSize: DEFAULT_TERMINAL_SIZE,
+          ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+          ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
+        });
+      }
+    } catch (error) {
+      setOperationMessage(
+        describeError(error, i18n._(msg`Couldn't move the thread to a worktree.`)),
+      );
+      void refresh(desktop, { refreshSelectedThread: true });
+    } finally {
+      movingThreadIds.delete(thread.id);
+    }
+  }
+
   async function switchDesktop(desktop: StoredDesktop) {
     const previous = activeDesktop;
     let restored: StoredDesktop;
@@ -1106,6 +1164,7 @@ export function useRemoteDesktop() {
     startThread,
     applyThreadAction,
     deleteWorktreeGroup,
+    moveThreadToWorktree,
     manageProject,
     switchDesktop,
     forget,

@@ -225,10 +225,14 @@ describe("GitHubActionsView", () => {
     render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
 
     expect(await screen.findByRole("heading", { name: "Alpha" })).toBeInTheDocument();
-    expect(bridge.ghListWorkflowRuns).toHaveBeenCalledWith({
-      projectLocation: project.location,
-      workflowId: 33,
-    });
+    // The runs fetch is kicked off by an effect after the selection commits, so
+    // under CI load it can lag the heading by a tick.
+    await waitFor(() =>
+      expect(bridge.ghListWorkflowRuns).toHaveBeenCalledWith({
+        projectLocation: project.location,
+        workflowId: 33,
+      }),
+    );
   });
 
   it("deep-links directly to a PR check run", async () => {

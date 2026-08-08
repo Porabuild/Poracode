@@ -163,6 +163,98 @@ describe("subagent panel lifecycle", () => {
   });
 });
 
+describe("panel dock state", () => {
+  beforeEach(() => {
+    resetPanelStore();
+    usePanelStore.setState({
+      rightPanelSplit: null,
+      bottomPanelDocks: { left: null, right: null },
+    });
+  });
+  afterEach(() => {
+    resetPanelStore();
+    usePanelStore.setState({
+      rightPanelSplit: null,
+      bottomPanelDocks: { left: null, right: null },
+    });
+  });
+
+  it("stores and clears the right-panel split", () => {
+    usePanelStore.getState().setRightPanelSplit({ tab: "usage", placement: "bottom" });
+    expect(usePanelStore.getState().rightPanelSplit).toEqual({
+      tab: "usage",
+      placement: "bottom",
+    });
+
+    usePanelStore.getState().setRightPanelSplit(null);
+    expect(usePanelStore.getState().rightPanelSplit).toBeNull();
+  });
+
+  it("bails out when setting an identical split", () => {
+    usePanelStore.getState().setRightPanelSplit({ tab: "usage", placement: "top" });
+    const before = usePanelStore.getState().rightPanelSplit;
+    usePanelStore.getState().setRightPanelSplit({ tab: "usage", placement: "top" });
+    expect(usePanelStore.getState().rightPanelSplit).toBe(before);
+  });
+
+  it("fills and clears the two bottom slots independently", () => {
+    usePanelStore.getState().setBottomPanelDock("left", "usage");
+    usePanelStore.getState().setBottomPanelDock("right", "git");
+    expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: "usage", right: "git" });
+
+    usePanelStore.getState().setBottomPanelDock("left", null);
+    expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: null, right: "git" });
+  });
+
+  it("moves a tab rather than rendering it in both slots", () => {
+    usePanelStore.getState().setBottomPanelDock("left", "usage");
+    usePanelStore.getState().setBottomPanelDock("right", "usage");
+
+    expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: null, right: "usage" });
+  });
+
+  it("clears a docked tab from whichever slot holds it", () => {
+    usePanelStore.getState().setBottomPanelDock("right", "notes");
+    usePanelStore.getState().clearBottomPanelDockTab("notes");
+
+    expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: null, right: null });
+  });
+
+  it("releases a dock slot when the docked panel closes its own content", () => {
+    usePanelStore.getState().setUsagePanelOpen(true);
+    usePanelStore.getState().setBottomPanelDock("right", "usage");
+
+    usePanelStore.getState().setUsagePanelOpen(false);
+
+    // Otherwise an empty "Usage" section keeps the bottom row on screen.
+    expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: null, right: null });
+  });
+
+  it("releases the right-panel split when its content closes", () => {
+    usePanelStore.getState().setGitReviewContext({ projectId: "p1" });
+    usePanelStore.getState().setRightPanelSplit({ tab: "git", placement: "bottom" });
+
+    usePanelStore.getState().setGitReviewContext(null);
+
+    expect(usePanelStore.getState().rightPanelSplit).toBeNull();
+  });
+
+  it("keeps a docked tab's content open when the right panel is hidden", () => {
+    usePanelStore.getState().setUsagePanelOpen(true);
+    usePanelStore.getState().setNotesPanelOpen(true);
+    usePanelStore.getState().setBottomPanelDock("right", "usage");
+    usePanelStore.getState().setRightPanelSplit({ tab: "notes", placement: "bottom" });
+
+    usePanelStore.getState().closeAllPanels();
+
+    // The bottom row is a separate surface, so its panel stays alive; the
+    // right panel's own split does not.
+    expect(usePanelStore.getState().usagePanelOpen).toBe(true);
+    expect(usePanelStore.getState().notesPanelOpen).toBe(false);
+    expect(usePanelStore.getState().rightPanelSplit).toBeNull();
+  });
+});
+
 describe("create project modal", () => {
   beforeEach(() => {
     resetPanelStore();

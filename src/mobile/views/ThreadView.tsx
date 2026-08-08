@@ -83,6 +83,8 @@ export interface ThreadViewProps {
         readonly threadIds: readonly string[];
       }) => void)
     | undefined;
+  /** Moves a main-checkout thread into a fresh worktree on the paired desktop. */
+  readonly onMoveThreadToWorktree?: ((thread: Thread, withChanges: boolean) => void) | undefined;
 }
 
 /** Read-only scrollback shown while the live terminal snapshot is loading. */
@@ -361,6 +363,7 @@ export function ThreadView(props: ThreadViewProps) {
             onAction={props.onThreadAction}
             onNewThreadInWorktree={props.onNewThreadInWorktree}
             onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
+            onMoveThreadToWorktree={props.onMoveThreadToWorktree}
             onOpenNotes={props.onOpenNotes}
             onOpenTerminal={props.onOpenTerminal}
           />

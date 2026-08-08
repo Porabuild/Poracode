@@ -1,29 +1,21 @@
-import { type CSSProperties, type ReactNode } from "react";
-import {
-  Bot,
-  FileDiff,
-  FolderOpen,
-  Gauge,
-  Globe,
-  ListChecks,
-  Lock,
-  LockOpen,
-  Maximize2,
-  NotebookPen,
-  PanelRightClose,
-  PictureInPicture2,
-  TerminalSquare,
-  Waypoints,
-  X,
-} from "lucide-react";
+import { type CSSProperties, type ReactNode, useRef } from "react";
+import { Lock, LockOpen, Maximize2, PanelRightClose, PictureInPicture2, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
+import { PanelDockDropZone } from "@/renderer/components/layout/PanelDock/PanelDockDropZone";
+import { PanelSectionHeader } from "@/renderer/components/layout/PanelDock/PanelSectionHeader";
+import { PanelTabDragButton } from "@/renderer/components/layout/PanelDock/PanelTabDragButton";
+import {
+  PANEL_TAB_ICONS,
+  usePanelTabLabels,
+} from "@/renderer/components/layout/PanelDock/panelTabMeta";
+import { useSplitPercent } from "@/renderer/components/layout/PanelDock/useSplitPercent";
 import {
   panelHeaderIconButtonClass,
   panelHeaderRowClass,
   panelHeaderTabIconButtonClass,
 } from "@/renderer/components/layout/sidebarChrome";
-import type { RightPanelTab } from "@/renderer/state/panelStore";
+import { DOCKABLE_PANEL_TABS, type RightPanelTab } from "@/renderer/state/panelStore";
 
 export type { RightPanelTab };
 
@@ -68,6 +60,13 @@ export function UnifiedRightPanel(props: {
   /** Whether the panel re-scopes itself to whichever thread is open. */
   followsThread?: boolean;
   onToggleFollowsThread?: () => void;
+  /** Second tab rendered stacked with the active one (drag-and-drop split). */
+  splitTab?: RightPanelTab;
+  /** Which half of the panel the split tab occupies. */
+  splitPlacement?: "top" | "bottom";
+  onCloseSplit?: () => void;
+  /** Tabs painted in the bottom row; their icons stay lit even though this panel skips them. */
+  dockedTabs?: readonly RightPanelTab[];
   onClose: () => void;
 }) {
   const {
@@ -109,9 +108,29 @@ export function UnifiedRightPanel(props: {
     onOpenPorts,
     followsThread = false,
     onToggleFollowsThread,
+    splitTab,
+    splitPlacement = "bottom",
+    onCloseSplit,
+    dockedTabs = [],
     onClose,
   } = props;
   const { t } = useLingui();
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const splitFirstPaneRef = useRef<HTMLDivElement>(null);
+  const {
+    percent: splitPercent,
+    minPercent: splitMinPercent,
+    maxPercent: splitMaxPercent,
+    handleResizeStart: handleSplitResizeStart,
+    handleResizeKeyDown: handleSplitResizeKeyDown,
+  } = useSplitPercent({
+    storageKey: "poracode-right-panel-split-percent",
+    orientation: "column",
+    containerRef: splitContainerRef,
+    paneRef: splitFirstPaneRef,
+    defaultPercent: 50,
+    minPercent: 20,
+  });
   const hasSubagentModel = activeTab === "subagent" && subagentModel !== undefined;
   const hasSubagentTitle = activeTab === "subagent" && subagentTitle !== undefined;
 
@@ -127,80 +146,89 @@ export function UnifiedRightPanel(props: {
   };
 
   const dragCtl = "poracode-overlay-header__controls";
+  const labels = usePanelTabLabels();
   const tabs = [
     {
       id: "plan",
-      label: t`Plan`,
-      icon: ListChecks,
+      label: labels.plan,
+      icon: PANEL_TAB_ICONS.plan,
       content: planContent,
       visible: showPlanTab,
       onOpen: undefined,
     },
     {
       id: "subagent",
-      label: t`Subagent`,
-      icon: Bot,
+      label: labels.subagent,
+      icon: PANEL_TAB_ICONS.subagent,
       content: subagentContent,
       visible: showSubagentTab,
       onOpen: undefined,
     },
     {
       id: "terminal",
-      label: t`Terminal`,
-      icon: TerminalSquare,
+      label: labels.terminal,
+      icon: PANEL_TAB_ICONS.terminal,
       content: terminalContent,
       visible: showTerminalTab,
       onOpen: onOpenTerminal,
     },
     {
       id: "files",
-      label: t`Files`,
-      icon: FolderOpen,
+      label: labels.files,
+      icon: PANEL_TAB_ICONS.files,
       content: filesContent,
       visible: showFilesTab,
       onOpen: onOpenFiles,
     },
     {
       id: "git",
-      label: t`Git`,
-      icon: FileDiff,
+      label: labels.git,
+      icon: PANEL_TAB_ICONS.git,
       content: gitContent,
       visible: showGitTab,
       onOpen: onOpenGit,
     },
     {
       id: "usage",
-      label: t`Usage`,
-      icon: Gauge,
+      label: labels.usage,
+      icon: PANEL_TAB_ICONS.usage,
       content: usageContent,
       visible: showUsageTab,
       onOpen: onOpenUsage,
     },
     {
       id: "notes",
-      label: t`Notes`,
-      icon: NotebookPen,
+      label: labels.notes,
+      icon: PANEL_TAB_ICONS.notes,
       content: notesContent,
       visible: showNotesTab,
       onOpen: onOpenNotes,
     },
     {
       id: "ports",
-      label: t`Ports`,
-      icon: Waypoints,
+      label: labels.ports,
+      icon: PANEL_TAB_ICONS.ports,
       content: portsContent,
       visible: showPortsTab,
       onOpen: onOpenPorts,
     },
     {
       id: "browser",
-      label: t`Browser`,
-      icon: Globe,
+      label: labels.browser,
+      icon: PANEL_TAB_ICONS.browser,
       content: browserContent,
       visible: showBrowserTab,
       onOpen: onOpenBrowser,
     },
   ] as const;
+
+  const splitEntry =
+    splitTab && splitTab !== activeTab
+      ? tabs.find((tab) => tab.id === splitTab && tab.visible && tab.content !== undefined)
+      : undefined;
+  /** Painted right now: the active layer, the split section, or a bottom dock slot. */
+  const isTabOnScreen = (tab: RightPanelTab) =>
+    tab === activeTab || tab === splitEntry?.id || dockedTabs.includes(tab);
 
   return (
     <div
@@ -263,16 +291,36 @@ export function UnifiedRightPanel(props: {
         {tabs.map((tab) => {
           if (!tab.visible) return null;
           const Icon = tab.icon;
+          // Lit whenever the panel is painted somewhere — the active layer, the
+          // split half, or a bottom dock slot.
+          const onScreen = isTabOnScreen(tab.id);
+          const buttonClass = `${dragCtl} ${panelHeaderTabIconButtonClass(onScreen)}`;
+          const handlePress = () => {
+            if (tab.onOpen) tab.onOpen();
+            else onTabChange(tab.id);
+          };
+          if (DOCKABLE_PANEL_TABS.has(tab.id)) {
+            return (
+              <PanelTabDragButton
+                key={tab.id}
+                tab={tab.id}
+                label={tab.label}
+                className={buttonClass}
+                aria-pressed={onScreen}
+                onPress={handlePress}
+              >
+                <Icon className="size-3.5" />
+              </PanelTabDragButton>
+            );
+          }
           return (
             <button
               key={tab.id}
               type="button"
-              className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === tab.id)}`}
+              className={buttonClass}
               title={tab.label}
-              onClick={() => {
-                if (tab.onOpen) tab.onOpen();
-                else onTabChange(tab.id);
-              }}
+              aria-pressed={onScreen}
+              onClick={handlePress}
             >
               <Icon className="size-3.5" />
             </button>
@@ -318,20 +366,73 @@ export function UnifiedRightPanel(props: {
         </div>
       ) : null}
 
-      {/* Content — stacked layers cross-fade on tab change */}
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        {tabs.map((tab) =>
-          tab.visible ? (
-            <div
-              key={tab.id}
-              className="absolute inset-0 flex min-h-0 flex-col overflow-hidden"
-              style={tabLayerStyle(tab.id)}
-            >
-              {tab.content}
+      {/* Content — stacked layers cross-fade on tab change; a dropped panel-tab
+          splits this area into two stacked sections. */}
+      <PanelDockDropZone
+        zone="right-panel"
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        {(() => {
+          const layerStack = (
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+              {tabs.map((tab) =>
+                tab.visible && tab.id !== splitEntry?.id ? (
+                  <div
+                    key={tab.id}
+                    className="absolute inset-0 flex min-h-0 flex-col overflow-hidden"
+                    style={tabLayerStyle(tab.id)}
+                  >
+                    {tab.content}
+                  </div>
+                ) : null,
+              )}
             </div>
-          ) : null,
-        )}
-      </div>
+          );
+
+          if (!splitEntry) return layerStack;
+
+          const splitSection = (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <PanelSectionHeader
+                tab={splitEntry.id}
+                label={splitEntry.label}
+                icon={splitEntry.icon}
+                {...(onCloseSplit ? { onClose: onCloseSplit } : {})}
+              />
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {splitEntry.content}
+              </div>
+            </div>
+          );
+
+          return (
+            <div ref={splitContainerRef} className="flex h-full min-h-0 flex-col">
+              <div
+                ref={splitFirstPaneRef}
+                className="flex min-h-0 flex-col overflow-hidden"
+                style={{ flexBasis: `${splitPercent}%`, flexGrow: 0, flexShrink: 0 }}
+              >
+                {splitPlacement === "top" ? splitSection : layerStack}
+              </div>
+              <div
+                className="poracode-pane-divider-horizontal"
+                onPointerDown={handleSplitResizeStart}
+                onKeyDown={handleSplitResizeKeyDown}
+                role="separator"
+                tabIndex={0}
+                aria-orientation="horizontal"
+                aria-label={t`Resize split`}
+                aria-valuenow={Math.round(splitPercent)}
+                aria-valuemin={splitMinPercent}
+                aria-valuemax={splitMaxPercent}
+              />
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {splitPlacement === "top" ? layerStack : splitSection}
+              </div>
+            </div>
+          );
+        })()}
+      </PanelDockDropZone>
     </div>
   );
 }

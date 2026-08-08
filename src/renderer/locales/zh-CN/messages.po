@@ -1051,6 +1051,22 @@ msgstr "未找到代理"
 msgid "Agent Registry"
 msgstr "代理注册表"
 
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume"
+msgstr "继续代理"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume ({subagent}): {description}"
+msgstr "继续代理 ({subagent})：{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {description}"
+msgstr "继续代理：{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {subagent}"
+msgstr "继续代理：{subagent}"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
@@ -1749,6 +1765,8 @@ msgstr "移回面板"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "将其移回此面板，或跳转到正在运行它的窗口。"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "带上未提交的更改"
@@ -1776,7 +1794,7 @@ msgstr "在 Poracode 隔离的内置浏览器中浏览、检查并测试网站�
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2285,6 +2303,8 @@ msgstr "Claude 配置文件名称"
 msgid "Claude profile removed."
 msgstr "Claude 配置文件已删除。"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Clean Worktree"
 msgstr "干净的工作树"
@@ -2524,6 +2544,7 @@ msgstr "关闭扫描器"
 msgid "Close search"
 msgstr "关闭搜索"
 
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
 msgstr "关闭分割"
@@ -2621,6 +2642,10 @@ msgstr "折叠错误"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #~ msgid "Collapse experiment"
 #~ msgstr "折叠实验"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Collapse footer"
+msgstr "折叠侧边栏底部"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
@@ -3239,6 +3264,10 @@ msgstr "无法加载技能。"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "无法加载你的资料统计。"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't move the thread to a worktree."
+msgstr "无法将线程移至工作树。"
 
 #: src/mobile/routeComponents.tsx
 msgid "Couldn't reach the desktop from this HTTPS page."
@@ -4018,6 +4047,14 @@ msgstr "显示名称（可选）"
 msgid "Display name in the sidebar."
 msgstr "在侧边栏中显示名称。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock left"
+msgstr "停靠到左侧"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+msgid "Dock right"
+msgstr "停靠到右侧"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Docs"
 msgstr "文档"
@@ -4058,7 +4095,7 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "下载到“{0}”。对于大型存储库，这可能需要一些时间。"
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
 msgstr "正在下载更新"
@@ -4099,6 +4136,10 @@ msgstr "驱动器"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
 msgstr "拖放到此处以附加"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
+#~ msgid "Drop left or right to dock at the bottom"
+#~ msgstr "拖放到左侧或右侧以停靠在底部"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4476,6 +4517,10 @@ msgstr "展开错误"
 #~ msgid "Expand experiment"
 #~ msgstr "展开实验"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Expand footer"
+msgstr "展开侧边栏底部"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
@@ -4740,7 +4785,7 @@ msgstr "文件使用不受支持的编码。"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/WorkspaceView.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Files"
 msgstr "文件"
@@ -5095,7 +5140,7 @@ msgstr "获取任务"
 #: src/mobile/settingsSections.ts
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
@@ -5138,9 +5183,9 @@ msgid "GitHub"
 msgstr "GitHub"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
@@ -5356,7 +5401,7 @@ msgstr "隐藏运行时调试面板"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5736,7 +5781,7 @@ msgid "Install the package to add its API key."
 msgstr "安装该包后即可添加其 API 密钥。"
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
 msgstr "安装更新"
@@ -5746,7 +5791,7 @@ msgstr "安装更新"
 msgid "Install v{0}"
 msgstr "安装 v{0}"
 
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 msgid "Install v{updateVersion}"
 msgstr "安装 v{updateVersion}"
 
@@ -6701,6 +6746,7 @@ msgid "Modes"
 msgstr "模式"
 
 #: src/mobile/NarrowShell.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "多"
@@ -6789,13 +6835,27 @@ msgstr "将浏览器移到窗口"
 msgid "Move changes to a new worktree"
 msgstr "将更改移至新工作树"
 
+#: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
+msgid "Move panel"
+msgstr "移动面板"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to clean worktree"
+msgstr "移至干净的工作树"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Move to Workspace"
 msgstr "移动到工作区"
 
+#: src/mobile/views/threadActionSurfaces.tsx
+#: src/mobile/views/threadContextMenus.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Move to Worktree"
 msgstr "移至工作树"
+
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Move to worktree with changes"
+msgstr "连同更改移至工作树"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "Move to Worktree…"
@@ -7563,7 +7623,7 @@ msgid "Not synced"
 msgstr "未同步"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Notes"
@@ -7602,7 +7662,7 @@ msgid "off"
 msgstr "关闭"
 
 #: src/renderer/components/git/PrAutomationSlider.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "关闭"
@@ -7658,7 +7718,7 @@ msgid "One time"
 msgstr "仅一次"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "在线"
@@ -8297,7 +8357,7 @@ msgid "Pinned task routes"
 msgstr "已固定的任务路由"
 
 #: src/mobile/ComposerInfoChips.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -8443,7 +8503,7 @@ msgstr "未启用端口转发"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 msgid "Ports"
 msgstr "端口"
 
@@ -8798,7 +8858,7 @@ msgstr "Pull request 已合并"
 msgid "Pull request options"
 msgstr "拉取请求选项"
 
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
@@ -9065,6 +9125,8 @@ msgstr "远程"
 msgid "Remote access"
 msgstr "远程访问"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9435,7 +9497,9 @@ msgstr "调整运行详情大小"
 msgid "Resize sidebar"
 msgstr "调整侧边栏大小"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/TerminalSurfaces.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomPanelDockContainer.tsx
 msgid "Resize split"
 msgstr "调整分割大小"
 
@@ -9894,7 +9958,7 @@ msgstr "此桌面上的计划任务"
 #~ msgstr "计划任务仅在此设备处于唤醒状态且 Poracode 已打开时运行。"
 
 #: src/mobile/settingsSections.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "计划"
@@ -10276,6 +10340,7 @@ msgstr "在本会话启动时已固定 — 如需更改服务器，请开始新�
 #: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -10893,7 +10958,7 @@ msgstr "开始{targetLabel}线程"
 
 #. Button label while the microphone test is starting
 #: src/mobile/remoteConnectionState.ts
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
@@ -11014,7 +11079,7 @@ msgid "Structured runtime"
 msgstr "结构化运行时"
 
 #: src/mobile/views/DesktopWorkspacePanel.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "子代理"
@@ -11288,7 +11353,7 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12554,7 +12619,7 @@ msgstr "URL 为必填项。"
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #: src/mobile/WideShell.tsx
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -12788,6 +12853,7 @@ msgstr "请等待所有候选项完成后再合并优胜者。"
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "请等待所有候选项完成后再创建拉取请求。"
 
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "请等待线程启动完成，然后再将其移至工作树。"
@@ -12865,9 +12931,8 @@ msgstr "正在预热 WSL shell 环境..."
 msgid "We have a winner!"
 msgstr "优胜者诞生了！"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 msgid "Web search"
 msgstr "网页搜索"
 

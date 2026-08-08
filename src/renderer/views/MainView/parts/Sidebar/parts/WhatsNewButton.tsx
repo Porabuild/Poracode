@@ -4,14 +4,29 @@ import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { useChangelogStore, useHasUnseenChangelog } from "@/renderer/state/changelogStore";
 
 /**
+ * Whether `WhatsNewButton` renders anything (hidden by the user with nothing
+ * new to announce → it stays out). The collapsed footer nav reads this to
+ * keep its overflow math in sync with the component's own rule.
+ */
+export function useWhatsNewEntryVisible(): boolean {
+  const hasUnseen = useHasUnseenChangelog();
+  const hidden = useChangelogStore((s) => s.whatsNewHidden);
+  return !hidden || hasUnseen;
+}
+
+/**
  * Sidebar entry for the changelog. Clicking it opens the "What's New" dialog.
  * An accent dot marks an unread release. On expanded rows a hide (X) control —
  * revealed on hover — removes the entry from the sidebar; it comes back on its
  * own when a newer release is unread. The changelog also lives in Settings →
  * Changelog regardless.
  */
-export function WhatsNewButton(props: { iconOnly?: boolean }) {
-  const { iconOnly = false } = props;
+export function WhatsNewButton(props: {
+  iconOnly?: boolean;
+  /** Icon-only tooltip placement; bottom icon rows pass "top". */
+  tooltipPlacement?: "right" | "top";
+}) {
+  const { iconOnly = false, tooltipPlacement = "right" } = props;
   const { t } = useLingui();
   const hasUnseen = useHasUnseenChangelog();
   const hidden = useChangelogStore((s) => s.whatsNewHidden);
@@ -52,6 +67,7 @@ export function WhatsNewButton(props: { iconOnly?: boolean }) {
       iconOnly={iconOnly}
       icon={icon}
       label={t`What's New`}
+      tooltipPlacement={tooltipPlacement}
       onPress={() => useChangelogStore.getState().openWhatsNew()}
       {...(suffix ? { suffix } : {})}
     />

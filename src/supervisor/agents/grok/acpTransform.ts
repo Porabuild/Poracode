@@ -9,11 +9,14 @@ import {
   withAcpTopLevelToolCall,
 } from "../acp/subagentCoordinator";
 import type { AcpSessionUpdateTransform } from "../base";
+import { plainRecord, readString, withUpdate } from "./acpRecord";
+import { createGrokWebSearchNormalizer } from "./webSearchTransform";
 
 const GROK_SPAWN_SUBAGENT_TOOL = "spawn_subagent";
 
 export function createGrokAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
   const subagents = createAcpSubagentCoordinator();
+  const normalizeWebSearch = createGrokWebSearchNormalizer();
   const pendingToolCallIds: string[] = [];
   const childSessionByToolCallId = new Map<string, string>();
   const toolCallIdByChildSession = new Map<string, string>();
@@ -128,6 +131,8 @@ export function createGrokAcpSessionUpdateTransform(): AcpSessionUpdateTransform
     const toolCallId = readString(update, "toolCallId");
     if (!toolCallId) return notification;
     if (isMappedTaskOutput(update, subagents)) return asNoop(notification);
+    const webSearch = normalizeWebSearch(notification, update, toolCallId);
+    if (webSearch) return webSearch;
     const metaTool = plainRecord(plainRecord(update._meta)["x.ai/tool"]);
     const isSpawn =
       readString(metaTool, "name") === GROK_SPAWN_SUBAGENT_TOOL ||
@@ -298,24 +303,6 @@ function withGoalMeta(
 
 function asNoop(notification: SessionNotification): SessionNotification {
   return withUpdate(notification, { sessionUpdate: "session_info_update" });
-}
-
-function withUpdate(
-  notification: SessionNotification,
-  update: Record<string, unknown>,
-): SessionNotification {
-  return { ...notification, update: update as SessionNotification["update"] };
-}
-
-function plainRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function readString(record: Record<string, unknown>, key: string): string | undefined {
-  const value = record[key];
-  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function readStringArray(record: Record<string, unknown>, key: string): string[] {

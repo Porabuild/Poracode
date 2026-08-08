@@ -1,7 +1,11 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, ToolCallProgress } from "@/shared/contracts";
 import type { ClaudeMapperState, ToolItemState } from "../sdkCanonicalMappingState";
-import { classifyToolItemType, isSubAgentToolName } from "./toolClassification";
+import {
+  classifyToolItemType,
+  isAgentAddressableToolName,
+  isSubAgentToolName,
+} from "./toolClassification";
 import { syncSubAgentModelProgress } from "./toolItems";
 import { toolPayload } from "./toolPayload";
 
@@ -98,6 +102,7 @@ export function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState
 function unregisterSubAgentTask(state: ClaudeMapperState, taskId: string, toolUseId: string): void {
   state.activeSubAgentTaskToTool?.delete(taskId);
   state.activeSubAgentToolToTask?.delete(toolUseId);
+  forgetSubAgentParentAlias(state, taskId);
 }
 
 /**
@@ -106,9 +111,20 @@ function unregisterSubAgentTask(state: ClaudeMapperState, taskId: string, toolUs
  * genuine subagent launches register: a `task_started` WITHOUT `subagent_type`
  * (a plain background Bash task) whose tool is not a subagent-like tool is
  * ignored so it still completes normally when its tool_result arrives.
+ *
+ * A `SendMessage` that resumes a completed sub-agent reports the resumed run
+ * against its OWN tool_use id, so the binding also promotes that row to a
+ * sub-agent parent (see {@link isAgentAddressableToolName}) and titles it from
+ * the run's description. A send that resumes nothing emits no `task_started`,
+ * never registers, and completes as an ordinary tool row.
  */
 export function registerSubAgentTaskIfNeeded(message: SDKMessage, state: ClaudeMapperState): void {
-  const obj = message as { task_id?: unknown; tool_use_id?: unknown; subagent_type?: unknown };
+  const obj = message as {
+    task_id?: unknown;
+    tool_use_id?: unknown;
+    subagent_type?: unknown;
+    description?: unknown;
+  };
   const taskId =
     typeof obj.task_id === "string" && obj.task_id.length > 0 ? obj.task_id : undefined;
   const toolUseId =
@@ -120,6 +136,77 @@ export function registerSubAgentTaskIfNeeded(message: SDKMessage, state: ClaudeM
   if (!hasSubagentType && !toolIsSubAgent) return;
   (state.activeSubAgentTaskToTool ??= new Map<string, string>()).set(taskId, toolUseId);
   (state.activeSubAgentToolToTask ??= new Map<string, string>()).set(toolUseId, taskId);
+  rememberSubAgentParent(state, taskId, toolUseId);
+  if (!tool || toolIsSubAgent || !isAgentAddressableToolName(tool.toolName)) return;
+  tool.subAgentParent = true;
+  const subagentType = readNonEmptyString(obj.subagent_type);
+  if (subagentType) tool.subAgentType = subagentType;
+  // The send's own `summary` describes THIS message; `task_started.description`
+  // is frozen at the agent's original spawn, so leading with it would label
+  // every resume of one agent identically.
+  const title =
+    readNonEmptyString(tool.input.summary) ?? readNonEmptyString(obj.description) ?? subagentType;
+  if (title) tool.subAgentTitle = title;
+}
+
+function readNonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+const MAX_TRACKED_SUBAGENT_LAUNCHES = 500;
+
+/**
+ * Track which tool call currently owns a sub-agent task. The first
+ * `task_started` records the launch tool; a later one for the same task means
+ * the agent was resumed by a different tool (`SendMessage`), so the launch id
+ * is aliased forward. The resumed run's forwarded children keep naming the
+ * ORIGINAL launch id in `parent_tool_use_id`, and that row was completed and
+ * dropped when the first run ended — the alias is what re-points them at the
+ * live row. Verified against the SDK: a resumed agent's `Glob`/`Read` children
+ * carry the launch `Agent` tool_use id while its `task_progress` carries the
+ * `SendMessage` id.
+ */
+function rememberSubAgentParent(state: ClaudeMapperState, taskId: string, toolUseId: string): void {
+  const launches = (state.subAgentTaskLaunchTools ??= new Map<string, string>());
+  const launchToolUseId = launches.get(taskId);
+  if (!launchToolUseId) {
+    // Bounded: one entry per sub-agent ever launched in this session.
+    if (launches.size >= MAX_TRACKED_SUBAGENT_LAUNCHES) launches.clear();
+    launches.set(taskId, toolUseId);
+    return;
+  }
+  if (launchToolUseId === toolUseId) return;
+  (state.subAgentParentAliases ??= new Map<string, string>()).set(launchToolUseId, toolUseId);
+}
+
+/**
+ * Follow {@link ClaudeMapperState.subAgentParentAliases} to the tool call that
+ * currently owns a sub-agent run. Returns the input unchanged when it is still
+ * live (or has no alias), so ordinary nesting is untouched. The hop limit
+ * guards against a cycle if a tool id were ever reused.
+ */
+export function resolveSubAgentParentToolUseId(
+  state: ClaudeMapperState,
+  parentToolUseId: string | undefined,
+): string | undefined {
+  if (!parentToolUseId) return parentToolUseId;
+  if (state.toolItemsById.has(parentToolUseId)) return parentToolUseId;
+  const aliases = state.subAgentParentAliases;
+  if (!aliases || aliases.size === 0) return parentToolUseId;
+  let current = parentToolUseId;
+  for (let hop = 0; hop < 8; hop += 1) {
+    const next = aliases.get(current);
+    if (!next || next === current) return current;
+    current = next;
+    if (state.toolItemsById.has(current)) return current;
+  }
+  return current;
+}
+
+/** Drop a superseded-parent alias once its run is closed for good. */
+export function forgetSubAgentParentAlias(state: ClaudeMapperState, taskId: string): void {
+  const launchToolUseId = state.subAgentTaskLaunchTools?.get(taskId);
+  if (launchToolUseId) state.subAgentParentAliases?.delete(launchToolUseId);
 }
 
 /**

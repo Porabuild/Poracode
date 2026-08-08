@@ -200,6 +200,43 @@ describe("mapAcpSessionUpdate", () => {
     expect(state.openAssistantItemId).toBe(itemId);
   });
 
+  it("drops whitespace-only agent text chunks but keeps whitespace inside a streaming message", () => {
+    const state = createAcpMapperState("t-blank-agent-chunk");
+
+    // Factory Droid (DeepSeek models) emits "\n\n" as a post-tool-call stream
+    // boundary; it must not open a blank assistant row.
+    expect(
+      mapAcpSessionUpdate(
+        note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "\n\n" } }),
+        state,
+      ),
+    ).toEqual([]);
+    expect(state.openAssistantItemId).toBeUndefined();
+
+    mapAcpSessionUpdate(
+      note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Line" } }),
+      state,
+    );
+    const itemId = state.openAssistantItemId;
+
+    // Once a message is streaming, whitespace is real spacing.
+    expect(
+      mapAcpSessionUpdate(
+        note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "\n\n" } }),
+        state,
+      ),
+    ).toEqual([
+      {
+        type: "content.delta",
+        threadId: "t-blank-agent-chunk",
+        itemId,
+        stream: "assistant_text",
+        delta: "\n\n",
+      },
+    ]);
+    expect(state.openAssistantItemId).toBe(itemId);
+  });
+
   it("maps Factory Droid API failures in agent_message_chunk to runtime errors", () => {
     const state = createAcpMapperState("t-droid-limit");
     const text =
@@ -387,6 +424,35 @@ describe("mapAcpSessionUpdate", () => {
     );
     expect(completed).toEqual([]);
     expect(state.suppressedToolCallIds.has("tc-question")).toBe(false);
+  });
+
+  it("suppresses Factory droid's bare AskUser tool rows presented as reply forms", () => {
+    const state = createAcpMapperState("t-question-droid");
+
+    const started = mapAcpSessionUpdate(
+      {
+        sessionId: "s1",
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "tc-question-droid",
+          title: "AskUser",
+          kind: "other",
+          status: "pending",
+          rawInput: {
+            questionnaire: [
+              "1. [question] Which features do you want to enable? (multi)",
+              "[topic] Features",
+              "[option] Auth handling",
+              "[option] Login Page",
+            ].join("\n"),
+          },
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0],
+      state,
+    );
+
+    expect(started).toEqual([]);
+    expect(state.suppressedToolCallIds.has("tc-question-droid")).toBe(true);
   });
 
   it("omits `name` on a bare tool_call so the renderer defers the unnamed row", () => {
@@ -1373,6 +1439,33 @@ describe("mapAcpSessionUpdate", () => {
     const started = events[0] as { itemType: string; payload: Record<string, unknown> };
     expect(started.itemType).toBe("web_search");
     expect(started.payload.query).toBe("repo:foo bar");
+  });
+
+  it("replaces a placeholder web_search query when a later update reveals it", () => {
+    const state = createAcpMapperState("t-ws-late");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-ws-late",
+        title: "Web search",
+        kind: "search",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-ws-late",
+        status: "completed",
+        rawInput: { query: "acp tool call update" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = events.find((event) => event.type === "item.completed");
+    expect((completed?.payload as Record<string, unknown> | undefined)?.query).toBe(
+      "acp tool call update",
+    );
   });
 
   it("keeps local ACP search tools as generic tool_call rows", () => {

@@ -690,13 +690,15 @@ export function SettingsSidebar(props: {
           )}
         </div>
 
+        {/* Footer rows keep the default density (not the compact one the section
+            list uses) so they line up with the main sidebar's own 32px footer rows. */}
         <div className={sidebarFooterNavClass}>
-          <SettingsNavButton
+          <SidebarButton
             icon={<ArrowLeft className="size-4" />}
             label={t`Return to app`}
             onPress={onClose}
           />
-          <SettingsNavButton
+          <SidebarButton
             icon={<PanelLeftClose className="size-4" />}
             label={t`Hide sidebar`}
             onPress={collapse}

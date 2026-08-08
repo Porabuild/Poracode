@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import { useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { pushEscapeHandler } from "@/renderer/components/layout/overlayEscapeStack";
 import { BrowserPanel } from "./BrowserPanel";
@@ -48,7 +49,6 @@ export function BrowserHost() {
   const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
   const drawerWidth = usePanelStore((s) => s.browserOverlayDrawerWidth);
   const setDrawerWidth = usePanelStore((s) => s.setBrowserOverlayDrawerWidth);
-  const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
   const setBrowserOverlayOpen = usePanelStore((s) => s.setBrowserOverlayOpen);
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
@@ -56,13 +56,19 @@ export function BrowserHost() {
   const hasTabs = useBrowserPanelStore((s) => s.tabs.length > 0);
   const automationActive = useBrowserPanelStore((s) => s.automationActive);
 
+  // The browser is painted wherever its dock slot lives: the right panel's
+  // active layer, a right-panel split section, or a bottom dock slot. Keying
+  // this off `rightPanelTab` alone would drop a split/docked browser into
+  // off-screen background mode, leaving an empty section behind.
+  const dockedVisible = useIsPanelTabVisible("browser");
+
   const mode: BrowserHostMode = extracted
     ? "hidden"
     : browserOverlayOpen
       ? browserOverlayMaximized
         ? "fullscreen"
         : "drawer"
-      : browserPanelOpen && rightPanelTab === "browser"
+      : browserPanelOpen && dockedVisible
         ? "docked"
         : // Panel + overlay both closed: keep tabs alive off-screen so the agent
           // can drive them headless (no forced panel reveal).
@@ -70,8 +76,6 @@ export function BrowserHost() {
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [isResizing, setIsResizing] = useState(false);
-
-  const dockedVisible = rightPanelTab === "browser";
   useBrowserHostPositioning({ wrapperRef, mode, drawerWidth, dockedVisible });
 
   useLayoutEffect(() => {

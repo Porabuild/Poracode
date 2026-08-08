@@ -1,6 +1,6 @@
 {
   "name": "poracode",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "private": true,
   "description": "The universal desktop orchestrator for AI agents. Run terminal-native and structured chat agents side-by-side.",
   "homepage": "https://poracode.com/",
@@ -70,6 +70,7 @@
     "smoke:integration": "node .agents/skills/interactive-testing/scripts/run-poracode-smoke.mjs",
     "update-server": "node scripts/update-server.mjs",
     "db:clone": "node scripts/clone-db.mjs",
+    "db:clone:nightly": "node scripts/clone-db.mjs nightly",
     "i18n:extract": "lingui extract",
     "i18n:extract:clean": "lingui extract --clean",
     "prepare": "husky"
