@@ -414,11 +414,13 @@ export function useActiveGroupName(): string | undefined {
 export function useThreadPendingLaunch(threadId: string): {
   prompt: string | undefined;
   segments: PromptSegment[] | undefined;
+  userMessageItemId: string | undefined;
 } {
   return useAppStore(
     useShallow((s) => ({
       prompt: s.pendingThreadLaunches[threadId],
       segments: s.pendingLaunchSegments[threadId],
+      userMessageItemId: s.pendingLaunchUserMessageItemIds[threadId],
     })),
   );
 }

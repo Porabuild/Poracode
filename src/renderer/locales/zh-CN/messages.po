@@ -3319,6 +3319,11 @@ msgstr "使用代理创建"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "在“{newBranch}”上创建了一个工作树，但更改发生冲突并保留在 git 存储中 - 在工作树中解决它们。"
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+msgid "Creating worktree…"
+msgstr "正在创建工作树…"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "凭证已配置。"

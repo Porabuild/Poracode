@@ -252,7 +252,35 @@ describe("ChatPane", () => {
       runtimeCompletedTurnsByThread: {},
       fileCheckpointsByThread: {},
       fileCheckpointTurnsByThread: {},
+      provisioningWorktreeThreadIds: {},
     }));
+  });
+
+  it("shows the submitted prompt while its worktree is being created", async () => {
+    const thread = {
+      ...makeThread(),
+      status: "launching",
+      worktreeBranch: "poracode/feature",
+    } as Thread;
+    useAppStore.setState({
+      threads: [thread],
+      provisioningWorktreeThreadIds: { [thread.id]: true },
+    });
+    seedUserMessage(thread.id, "Build the feature");
+
+    const { rerender } = renderChatPane(thread);
+
+    expect(await screen.findByText("Build the feature")).toBeInTheDocument();
+    expect(screen.getByText("Creating worktree…")).toBeInTheDocument();
+
+    useAppStore.setState({ provisioningWorktreeThreadIds: {} });
+    rerender(
+      <AppProvider>
+        <ChatPane {...chatPaneProps({ ...thread, status: "working" })} />
+      </AppProvider>,
+    );
+
+    expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
   });
 
   it("loads the next persisted page when LegendList reaches the start", async () => {

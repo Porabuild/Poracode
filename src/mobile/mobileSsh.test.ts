@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SshBridgePlugin } from "@poracode/ssh-bridge";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import type { SshConnectionConfig } from "@/shared/ssh";
 
 const bridge = vi.hoisted(() => ({
@@ -44,7 +45,7 @@ function response(input: { json?: unknown; bytes?: Uint8Array; ok?: boolean; sta
 function helperEnvironmentResponse() {
   return response({
     json: {
-      protocolVersion: 1,
+      protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       hostMode: "helper",
       desktopId: "remote-test",
       label: "Remote test",

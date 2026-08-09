@@ -376,7 +376,16 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             ...(command.groupName ? { groupName: command.groupName } : {}),
           });
           if (command.launchRuntime !== false) {
-            store.queueThreadLaunch(thread.id, command.prompt, command.segments);
+            if (command.userMessageItemId) {
+              store.queueThreadLaunch(
+                thread.id,
+                command.prompt,
+                command.segments,
+                command.userMessageItemId,
+              );
+            } else {
+              store.queueThreadLaunch(thread.id, command.prompt, command.segments);
+            }
           }
           const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
           const projectAgentStatuses = getProjectAgentStatuses(

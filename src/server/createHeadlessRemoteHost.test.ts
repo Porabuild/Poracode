@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadlessRemoteHost";
 
 // Mutable state shared with the hoisted vi.mock factories.
@@ -143,7 +144,7 @@ describe("createHeadlessRemoteHost", () => {
       new URL("/.well-known/poracode/environment", info.httpBaseUrl),
     ).then((response) => response.json());
     expect(descriptor).toMatchObject({
-      protocolVersion: 1,
+      protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       hostMode: "helper",
       appVersion: "9.9.9-test",
     });

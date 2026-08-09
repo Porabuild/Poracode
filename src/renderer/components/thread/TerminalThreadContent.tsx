@@ -1,4 +1,6 @@
+import { useLingui } from "@lingui/react/macro";
 import { PixelLoader } from "../common/PixelLoader";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useThread } from "@/renderer/state/useThread";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposerSection } from "./ThreadComposerSection";
@@ -24,6 +26,11 @@ export function TerminalThreadContent(
   },
 ) {
   const thread = useThread(props.threadId) ?? props.fallbackThread;
+  const { t } = useLingui();
+  const awaitingWorktree = useAppStore(
+    (state) =>
+      state.provisioningWorktreeThreadIds[thread.id] === true && thread.status === "launching",
+  );
 
   return (
     <>
@@ -43,8 +50,12 @@ export function TerminalThreadContent(
         )}
         {thread.status === "launching" ||
         (thread.remoteServerId && !props.remoteTerminalTransport) ? (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-foreground-muted"
+            aria-live="polite"
+          >
             <PixelLoader size="md" />
+            {awaitingWorktree ? <span>{t`Creating worktree…`}</span> : null}
           </div>
         ) : null}
       </div>

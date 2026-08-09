@@ -78,6 +78,7 @@ describe("threadActions", () => {
       pendingActiveThreadId: null,
       pendingComposerFocusThreadId: null,
       pendingThreadLaunches: {},
+      provisioningWorktreeThreadIds: {},
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeCompletedTurnsByThread: {},
@@ -605,6 +606,23 @@ describe("threadActions", () => {
     await waitFor(() => expect(toast.danger).toHaveBeenCalledTimes(2));
     expect(toast.danger).toHaveBeenCalledWith("remote server offline");
     expect(useAppStore.getState().threads).toEqual([thread]);
+  });
+
+  it("deletes a provisional remote thread locally before the host row exists", () => {
+    const thread = makeThread({
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread-pending",
+    });
+    useAppStore.setState({
+      threads: [thread],
+      provisioningWorktreeThreadIds: { [thread.id]: true },
+    });
+
+    deleteThread(thread.id);
+
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(sendThreadCommand).not.toHaveBeenCalled();
+    expect(bridge.closeThread).not.toHaveBeenCalled();
   });
 
   it("deletes a shared-worktree thread without prompting to remove the worktree", () => {

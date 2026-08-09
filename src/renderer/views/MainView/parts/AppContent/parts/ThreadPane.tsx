@@ -65,9 +65,11 @@ export function ThreadPane(props: {
     ? (remoteAgentStatuses ?? [])
     : projectAgentStatuses;
   const agentStatus = effectiveAgentStatuses.find((status) => status.kind === thread?.agentKind);
-  const { prompt: pendingLaunchPrompt, segments: pendingLaunchSegments } = useThreadPendingLaunch(
-    props.threadId,
-  );
+  const {
+    prompt: pendingLaunchPrompt,
+    segments: pendingLaunchSegments,
+    userMessageItemId: pendingLaunchUserMessageItemId,
+  } = useThreadPendingLaunch(props.threadId);
   const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = useAppStore.getState();
 
   const paneElementRef = useRef<HTMLDivElement>(null);
@@ -174,6 +176,7 @@ export function ThreadPane(props: {
       }}
       {...(pendingLaunchPrompt !== undefined ? { pendingLaunchPrompt } : {})}
       {...(pendingLaunchSegments ? { pendingLaunchSegments } : {})}
+      {...(pendingLaunchUserMessageItemId ? { pendingLaunchUserMessageItemId } : {})}
       installedAgents={thread.remoteServerId ? effectiveAgentStatuses : installedAgents}
       {...(thread.remoteServerId
         ? {

@@ -263,6 +263,7 @@ async function startRemoteThread(
       ...(command.segments ? { segments: command.segments } : {}),
       initialSize: DEFAULT_TERMINAL_SIZE,
       ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
+      ...(command.userMessageItemId ? { userMessageItemId: command.userMessageItemId } : {}),
       ...mcpSnapshot,
     });
   } catch (error) {
