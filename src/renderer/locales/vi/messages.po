@@ -3287,6 +3287,11 @@ msgstr "Tạo bằng tác nhân"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Đã tạo một cây làm việc trên \"{newBranch}\", nhưng những thay đổi này xung đột và vẫn nằm trong kho lưu trữ git — hãy giải quyết chúng trong cây làm việc."
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+msgid "Creating worktree…"
+msgstr "Đang tạo cây làm việc…"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "Thông tin xác thực được cấu hình."

@@ -3287,6 +3287,11 @@ msgstr "Utwórz z agentem"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Utworzono drzewo pracy na „{newBranch}”, ale zmiany kolidują ze sobą i pozostają w skrytce git — rozwiąż je w drzewie pracy."
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+msgid "Creating worktree…"
+msgstr "Tworzenie drzewa roboczego…"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "Poświadczenia są skonfigurowane."

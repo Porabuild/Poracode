@@ -2787,6 +2787,7 @@ describe("RemoteAccessServer", () => {
         config: { model: "gpt-5" },
         prompt: "",
         presentationMode: "terminal",
+        userMessageItemId: "user-optimistic",
       }),
     });
 
@@ -2809,6 +2810,7 @@ describe("RemoteAccessServer", () => {
         prompt: "",
         initialSize: { cols: 120, rows: 30 },
         presentationMode: "terminal",
+        userMessageItemId: "user-optimistic",
         ...mcpSnapshot,
       }),
     );
@@ -2818,6 +2820,7 @@ describe("RemoteAccessServer", () => {
         threadId: "thread-remote",
         projectId: "project-1",
         launchRuntime: false,
+        userMessageItemId: "user-optimistic",
       }),
     ]);
   });

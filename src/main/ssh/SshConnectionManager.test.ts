@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import { sshConnectionConfigSchema, type SshConnectionConfig } from "@/shared/ssh";
 import * as sshBootstrap from "@/shared/sshBootstrap";
 import { waitForRemoteEndpoint } from "@/shared/sshBootstrap";
@@ -88,7 +89,7 @@ function createRuntimeFixture(): {
 
 function helperDescriptor(appVersion: string) {
   return {
-    protocolVersion: 1,
+    protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
     hostMode: "helper",
     desktopId: "remote-test",
     label: "Remote test",
@@ -367,7 +368,7 @@ describe("SSH tunnel lifecycle", () => {
 describe("SSH helper readiness", () => {
   function descriptor(hostMode: "desktop" | "helper") {
     return {
-      protocolVersion: 1,
+      protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       hostMode,
       desktopId: "remote-test",
       label: "Remote test",

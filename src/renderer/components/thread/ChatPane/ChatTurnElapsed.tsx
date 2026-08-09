@@ -28,6 +28,30 @@ export function ChatTurnElapsedFooter({
   );
 }
 
+export function ChatWorktreeProvisioningFooter() {
+  const { t } = useLingui();
+  const textRef = useRef<HTMLSpanElement>(null);
+  const text = t`Creating worktree…`;
+  useShimmerRef(textRef, true);
+
+  return (
+    <div className="mx-auto w-full max-w-[920px]">
+      <Surface variant="transparent" className={chatMessageSurfaceClass}>
+        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+          <span
+            ref={textRef}
+            className="poracode-thinking-text"
+            data-poracode-shimmer-text={text}
+            aria-live="polite"
+          >
+            {text}
+          </span>
+        </div>
+      </Surface>
+    </div>
+  );
+}
+
 /**
  * Self-ticking elapsed-time label. While `turn.endedAt` is null, ticks every
  * second as "Working for N"; once set, freezes as "Worked for N". When

@@ -3287,6 +3287,11 @@ msgstr "Criar com agente"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Criou uma árvore de trabalho em \"{newBranch}\", mas as alterações entraram em conflito e permanecem em um git stash — resolva-as na árvore de trabalho."
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+msgid "Creating worktree…"
+msgstr "Criando árvore de trabalho…"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "As credenciais estão configuradas."

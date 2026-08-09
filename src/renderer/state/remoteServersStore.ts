@@ -36,6 +36,7 @@ import {
   projectRemoteThreadSnapshot,
   remoteOwner,
   remoteProjectId,
+  remoteThreadId,
 } from "@/renderer/state/remoteProjection";
 import {
   emitRemoteTerminalExited,
@@ -76,6 +77,7 @@ import type {
   RemoteServersState,
   RemoteSocketFactory,
   RemoteSocketLike,
+  RemoteThreadLaunchResult,
 } from "@/renderer/state/remoteServers/types";
 
 /**
@@ -191,6 +193,8 @@ function syncRemoteAppRows(
     };
   });
   const projectedThreads = threads?.map((thread) => projectRemoteThread(desktopId, thread));
+  const appState = useAppStore.getState();
+  const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
   if (projectedProjects) {
     const projectedProjectIds = new Set(projectedProjects.map((project) => project.id));
     for (const project of useAppStore.getState().projects) {
@@ -200,31 +204,46 @@ function syncRemoteAppRows(
     }
   }
   if (projectedThreads) {
-    const projectedThreadIds = new Set(projectedThreads.map((thread) => thread.id));
-    for (const thread of useAppStore.getState().threads) {
-      if (thread.remoteServerId === desktopId && !projectedThreadIds.has(thread.id)) {
+    for (const thread of appState.threads) {
+      if (
+        thread.remoteServerId === desktopId &&
+        !projectedThreadIds.has(thread.id) &&
+        appState.provisioningWorktreeThreadIds[thread.id] !== true
+      ) {
         useAppStore.getState().deleteThread(thread.id);
       }
     }
   }
-  useAppStore.setState((state) => ({
-    ...(projectedProjects
-      ? {
-          projects: [
-            ...state.projects.filter((project) => project.remoteServerId !== desktopId),
-            ...projectedProjects,
-          ],
-        }
-      : {}),
-    ...(projectedThreads
-      ? {
-          threads: [
-            ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
-            ...projectedThreads,
-          ],
-        }
-      : {}),
-  }));
+  useAppStore.setState((state) => {
+    const provisioningThreads = projectedThreads
+      ? state.threads.filter(
+          (thread) =>
+            thread.remoteServerId === desktopId &&
+            state.provisioningWorktreeThreadIds[thread.id] === true &&
+            !projectedThreadIds.has(thread.id) &&
+            state.projects.some((project) => project.id === thread.projectId),
+        )
+      : [];
+    return {
+      ...(projectedProjects
+        ? {
+            projects: [
+              ...state.projects.filter((project) => project.remoteServerId !== desktopId),
+              ...projectedProjects,
+            ],
+          }
+        : {}),
+      ...(projectedThreads
+        ? {
+            threads: [
+              ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
+              ...provisioningThreads,
+              ...projectedThreads,
+            ],
+          }
+        : {}),
+    };
+  });
   if (!projectedProjects) return;
   if (useRemoteServersStore.getState().runtime[desktopId]?.status !== "online") return;
   const gitStatuses = useGitStore.getState().statuses;
@@ -598,6 +617,18 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   const remoteThreadIds = new Set(
                     get().runtime[server.desktopId]?.threads.map((thread) => thread.id) ?? [],
                   );
+                  const appState = useAppStore.getState();
+                  if (Object.keys(appState.provisioningWorktreeThreadIds).length > 0) {
+                    for (const thread of appState.threads) {
+                      if (
+                        appState.provisioningWorktreeThreadIds[thread.id] === true &&
+                        thread.remoteServerId === server.desktopId &&
+                        thread.remoteId
+                      ) {
+                        remoteThreadIds.add(thread.remoteId);
+                      }
+                    }
+                  }
                   if (open?.desktopId === server.desktopId) {
                     remoteThreadIds.add(open.threadId);
                   }
@@ -762,8 +793,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               candidate.desktopId === updated.desktopId ? updated : candidate,
             ),
           }));
-        } catch {
-          // refreshServer below owns the visible connection error.
+        } catch (error) {
+          if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
+            setRemoteServerFailure(server.desktopId, "error", friendlyError(error));
+            return;
+          }
+          // refreshServer below owns other visible connection errors.
         }
         await get().refreshServer(server.desktopId);
         startRemoteServerEventStream(server);
@@ -847,23 +882,50 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           set({ socketFactory: factory });
         },
 
-        launchRemoteThread: async (input) => {
+        launchRemoteThread: async (input, options) => {
           const runtime = get().runtime[input.desktopId];
           const project = runtime?.projects.find((entry) => entry.id === input.projectId);
           if (!project) throw new Error(i18n._(msg`Remote project not found.`));
           const result = await withClient(input.desktopId, (client) =>
             client.startNewThread({
+              ...(input.threadId ? { threadId: input.threadId } : {}),
               projectId: input.projectId,
               agentKind: input.agentKind,
               config: input.config,
               prompt: input.prompt,
               ...(input.segments ? { segments: input.segments } : {}),
               presentationMode: input.presentationMode,
+              ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
               ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
               ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
               ...(input.isNewWorktree ? { isNewWorktree: true } : {}),
             }),
           );
+          const compensateIfAbandoned = async (): Promise<
+            Exclude<RemoteThreadLaunchResult, "started"> | undefined
+          > => {
+            if (options?.isPendingLaunchOwned?.() !== false) return undefined;
+            const clearProjectedLaunch = () => {
+              const open = get().openThread;
+              if (open?.desktopId === input.desktopId && open.threadId === result.threadId) {
+                get().closeRemoteThread();
+              }
+              useAppStore.getState().deleteThread(remoteThreadId(input.desktopId, result.threadId));
+            };
+            try {
+              await withClient(input.desktopId, (client) =>
+                client.sendThreadCommand({ kind: "delete", threadId: result.threadId }),
+              );
+            } catch (error) {
+              toast.danger(friendlyError(error));
+              clearProjectedLaunch();
+              return "cancellation-failed";
+            }
+            clearProjectedLaunch();
+            return "cancelled";
+          };
+          let cancellation = await compensateIfAbandoned();
+          if (cancellation) return cancellation;
           const appeared = await waitForRemoteThreadAppearance({
             refresh: () => get().refreshServer(input.desktopId),
             hasThread: () =>
@@ -872,7 +934,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               ) ?? false,
           });
           if (!appeared) throw new Error(i18n._(msg`Unable to start the remote thread.`));
+          cancellation = await compensateIfAbandoned();
+          if (cancellation) return cancellation;
           await get().openRemoteThread(input.desktopId, result.threadId);
+          cancellation = await compensateIfAbandoned();
+          if (cancellation) return cancellation;
+          return "started";
         },
 
         openRemoteThread: async (desktopId, threadId) => {

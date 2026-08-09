@@ -30,6 +30,8 @@ import type { SliceCreator } from "./shared";
 
 export interface ThreadSlice {
   threads: Thread[];
+  /** Optimistic local and projected-remote rows whose host launches are not authoritative yet. */
+  provisioningWorktreeThreadIds: Record<string, true>;
   /**
    * Per-thread snapshot of the supervisor's last-reported `session.config`.
    * Used to distinguish "supervisor truly changed the config" from "supervisor
@@ -60,6 +62,8 @@ export interface ThreadSlice {
   createThread: (input: {
     threadId?: string;
     projectId: string;
+    remoteServerId?: string;
+    remoteId?: string;
     agentKind: Thread["agentKind"];
     agentInstanceId?: AgentInstanceId;
     config: ThreadConfig;
@@ -68,6 +72,7 @@ export interface ThreadSlice {
     title?: string;
     worktreePath?: string;
     worktreeBranch?: string;
+    worktreeProvisioning?: boolean;
     groupId?: string;
     groupName?: string;
     replacePaneId?: string;
@@ -79,7 +84,12 @@ export interface ThreadSlice {
   }) => Thread;
   deleteThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
-  setThreadWorktree: (threadId: string, worktreePath: string, worktreeBranch?: string) => void;
+  setThreadWorktree: (
+    threadId: string,
+    worktreePath: string,
+    worktreeBranch?: string,
+    options?: { preserveProvisioning?: boolean },
+  ) => void;
   updateThreadConfig: (threadId: string, config: ThreadConfig) => void;
   updateThreadRuntime: (
     threadId: string,
@@ -92,6 +102,7 @@ export interface ThreadSlice {
       canResumeWithConfig: boolean;
       threadStatusSource?: ThreadStatusSource;
       forceCloseActiveTurn?: boolean;
+      errorMessage?: string;
     },
   ) => void;
   archiveThread: (threadId: string) => void;
@@ -113,6 +124,7 @@ export interface ThreadSlice {
 
 export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   threads: [],
+  provisioningWorktreeThreadIds: {},
   lastRuntimeConfigByThreadId: {},
   lastViewedAtByThreadId: {},
   mcpLaunchCustomServerNamesByThreadId: {},
@@ -145,6 +157,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   createThread: ({
     threadId,
     projectId,
+    remoteServerId,
+    remoteId,
     agentKind,
     agentInstanceId,
     config,
@@ -152,6 +166,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     title,
     worktreePath,
     worktreeBranch,
+    worktreeProvisioning,
     groupId,
     groupName,
     replacePaneId: replacePaneIdParam,
@@ -163,6 +178,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     const thread: Thread = {
       id: threadId ?? crypto.randomUUID(),
       projectId,
+      ...(remoteServerId ? { remoteServerId } : {}),
+      ...(remoteId ? { remoteId } : {}),
       title: title ?? makeThreadTitle(prompt),
       agentKind,
       ...(agentInstanceId ? { agentInstanceId } : {}),
@@ -203,6 +220,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       }
       return {
         threads: [thread, ...state.threads],
+        provisioningWorktreeThreadIds: worktreeProvisioning
+          ? { ...state.provisioningWorktreeThreadIds, [thread.id]: true }
+          : state.provisioningWorktreeThreadIds,
         view: nextView,
         lastRuntimeConfigByThreadId: {
           ...state.lastRuntimeConfigByThreadId,
@@ -246,6 +266,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.lastViewedAtByThreadId;
       const { [threadId]: _droppedMcpLaunch, ...mcpLaunchCustomServerNamesByThreadId } =
         state.mcpLaunchCustomServerNamesByThreadId;
+      const { [threadId]: _droppedProvisioning, ...provisioningWorktreeThreadIds } =
+        state.provisioningWorktreeThreadIds;
       const { [threadId]: _droppedThreadDraft, ...threadDraftContents } = state.threadDraftContents;
       // The thread is gone — drop it from the keep-alive cache so its terminal
       // disposes and doesn't leak.
@@ -254,11 +276,15 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         threads: nextThreads,
         threadDraftContents,
         mcpLaunchCustomServerNamesByThreadId,
+        provisioningWorktreeThreadIds,
         pendingThreadLaunches: Object.fromEntries(
           Object.entries(state.pendingThreadLaunches).filter(([id]) => id !== threadId),
         ),
         pendingLaunchSegments: Object.fromEntries(
           Object.entries(state.pendingLaunchSegments).filter(([id]) => id !== threadId),
+        ),
+        pendingLaunchUserMessageItemIds: Object.fromEntries(
+          Object.entries(state.pendingLaunchUserMessageItemIds).filter(([id]) => id !== threadId),
         ),
         runtimeItemIdsByThread,
         runtimeItemsByIdByThread,
@@ -278,19 +304,26 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         thread.id === threadId ? { ...thread, title, updatedAt: new Date().toISOString() } : thread,
       ),
     })),
-  setThreadWorktree: (threadId, worktreePath, worktreeBranch) =>
-    set((state) => ({
-      threads: state.threads.map((thread) =>
-        thread.id === threadId
-          ? {
-              ...thread,
-              worktreePath,
-              ...(worktreeBranch ? { worktreeBranch } : {}),
-              updatedAt: new Date().toISOString(),
-            }
-          : thread,
-      ),
-    })),
+  setThreadWorktree: (threadId, worktreePath, worktreeBranch, options) =>
+    set((state) => {
+      const { [threadId]: _droppedProvisioning, ...provisioningWorktreeThreadIds } =
+        state.provisioningWorktreeThreadIds;
+      return {
+        threads: state.threads.map((thread) =>
+          thread.id === threadId
+            ? {
+                ...thread,
+                worktreePath,
+                ...(worktreeBranch ? { worktreeBranch } : {}),
+                updatedAt: new Date().toISOString(),
+              }
+            : thread,
+        ),
+        provisioningWorktreeThreadIds: options?.preserveProvisioning
+          ? state.provisioningWorktreeThreadIds
+          : provisioningWorktreeThreadIds,
+      };
+    }),
   updateThreadConfig: (threadId, config) =>
     set((state) => {
       let changed = false;
@@ -378,7 +411,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           !sessionRefChanged &&
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
-          thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt
+          thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
+          (input.errorMessage === undefined || thread.errorMessage === input.errorMessage)
         ) {
           return thread;
         }
@@ -402,6 +436,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             : {}),
           ...(nextSessionRef ? { sessionRef: nextSessionRef } : {}),
           ...(input.slashCommands !== undefined ? { slashCommands: input.slashCommands } : {}),
+          ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {}),
           ...(turnStarted ? { updatedAt: nowIso } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,

@@ -162,6 +162,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     goalDockState,
     errorDockStates,
   } = props;
+  const awaitingWorktree = useAppStore(
+    (state) =>
+      state.provisioningWorktreeThreadIds[thread.id] === true && thread.status === "launching",
+  );
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
@@ -651,11 +655,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     <>
       {thread.status !== "launching" || !usesTerminalPresentation ? (
         <div className="relative">
-          <ThreadChangesBubble
-            projectId={thread.projectId}
-            {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-            {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
-          />
+          {awaitingWorktree ? null : (
+            <ThreadChangesBubble
+              projectId={thread.projectId}
+              {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+              {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
+            />
+          )}
           <div
             className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
             style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}

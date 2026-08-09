@@ -4,14 +4,21 @@ import type { SliceCreator } from "./shared";
 export interface LaunchSlice {
   pendingThreadLaunches: Record<string, string>;
   pendingLaunchSegments: Record<string, PromptSegment[]>;
-  queueThreadLaunch: (threadId: string, prompt: string, segments?: PromptSegment[]) => void;
+  pendingLaunchUserMessageItemIds: Record<string, string>;
+  queueThreadLaunch: (
+    threadId: string,
+    prompt: string,
+    segments?: PromptSegment[],
+    userMessageItemId?: string,
+  ) => void;
   consumeThreadLaunch: (threadId: string) => void;
 }
 
 export const createLaunchSlice: SliceCreator<LaunchSlice> = (set) => ({
   pendingThreadLaunches: {},
   pendingLaunchSegments: {},
-  queueThreadLaunch: (threadId, prompt, segments) =>
+  pendingLaunchUserMessageItemIds: {},
+  queueThreadLaunch: (threadId, prompt, segments, userMessageItemId) =>
     set((state) => ({
       pendingThreadLaunches: {
         ...state.pendingThreadLaunches,
@@ -25,6 +32,14 @@ export const createLaunchSlice: SliceCreator<LaunchSlice> = (set) => ({
             },
           }
         : {}),
+      ...(userMessageItemId
+        ? {
+            pendingLaunchUserMessageItemIds: {
+              ...state.pendingLaunchUserMessageItemIds,
+              [threadId]: userMessageItemId,
+            },
+          }
+        : {}),
     })),
   consumeThreadLaunch: (threadId) =>
     set((state) => {
@@ -34,6 +49,8 @@ export const createLaunchSlice: SliceCreator<LaunchSlice> = (set) => ({
 
       const { [threadId]: _removed, ...pendingThreadLaunches } = state.pendingThreadLaunches;
       const { [threadId]: _removedSeg, ...pendingLaunchSegments } = state.pendingLaunchSegments;
-      return { pendingThreadLaunches, pendingLaunchSegments };
+      const { [threadId]: _removedUserMessage, ...pendingLaunchUserMessageItemIds } =
+        state.pendingLaunchUserMessageItemIds;
+      return { pendingThreadLaunches, pendingLaunchSegments, pendingLaunchUserMessageItemIds };
     }),
 });

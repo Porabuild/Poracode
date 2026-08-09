@@ -247,6 +247,7 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     title: z.string().min(1).optional(),
     segments: z.array(promptSegmentSchema).optional(),
     presentationMode: threadPresentationModeSchema.optional(),
+    userMessageItemId: z.string().min(1).optional(),
     worktreePath: z.string().min(1).optional(),
     worktreeBranch: z.string().optional(),
     prNumber: z.number().int().min(1).optional(),

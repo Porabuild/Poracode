@@ -3,9 +3,10 @@ import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentStatus, Thread } from "@/shared/contracts";
+import type { AgentStatus, GitStatusResult, Thread } from "@/shared/contracts";
 import "@/renderer/components/providers/bootstrap";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import {
   useComposerInputInbox,
   worktreeComposerInboxKey,
@@ -221,7 +222,9 @@ describe("ThreadComposerSection", () => {
       pendingSteerByThreadId: {},
       pendingComposerFocusThreadId: null,
       threadDraftContents: {},
+      provisioningWorktreeThreadIds: {},
     });
+    useGitStore.setState({ statuses: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
     bridgeMock.isRemoteSession.mockReturnValue(false);
     bridgeMock.clearPendingSteer.mockClear();
@@ -240,6 +243,42 @@ describe("ThreadComposerSection", () => {
     runtimeActions.submitThreadInput.mockClear();
     runtimeActions.submitThreadInput.mockResolvedValue(undefined);
     toastDangerSpy.mockClear();
+  });
+
+  it("hides base-checkout changes while a new worktree is provisioning", () => {
+    useAppStore.setState({
+      provisioningWorktreeThreadIds: { [guiThread.id]: true },
+    });
+    useGitStore.setState({
+      statuses: {
+        "project-1": {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 12,
+          totalDeletions: 3,
+        } as GitStatusResult,
+      },
+    });
+
+    render(
+      composerElement({
+        thread: {
+          ...guiThread,
+          status: "launching",
+          sessionRef: undefined,
+          worktreeBranch: "poracode/feature",
+        },
+      }),
+    );
+
+    expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
   });
 
   function composerElement(opts?: {

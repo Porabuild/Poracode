@@ -3287,6 +3287,11 @@ msgstr "Ajanla oluştur"
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "\"{newBranch}\" üzerinde bir çalışma ağacı oluşturuldu, ancak değişiklikler çakıştı ve bir git stash'inde kaldı; bunları çalışma ağacında çözün."
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+msgid "Creating worktree…"
+msgstr "Çalışma ağacı oluşturuluyor…"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "Kimlik bilgileri yapılandırıldı."

@@ -25,9 +25,10 @@ import { findExperimentByGroupId } from "@/renderer/state/experimentStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { unprojectProjectLocation } from "@/renderer/remoteProcedureRouter";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { remoteOwner, remoteThreadId } from "@/renderer/state/remoteProjection";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
@@ -36,15 +37,17 @@ import {
   primeWorktreeGitState,
   runWorktreeSetupScript,
 } from "./worktreeLaunchActions";
+import { performWorktreeRemoval } from "./worktreeActions";
 
 export async function performInitialThreadLaunch(input: {
   thread: Thread;
   projectLocation: ProjectLocation;
   prompt: string;
   segments?: PromptSegment[];
+  userMessageItemId?: string;
   initialSize: TerminalSize;
 }): Promise<void> {
-  const { thread, projectLocation, prompt, segments, initialSize } = input;
+  const { thread, projectLocation, prompt, segments, userMessageItemId, initialSize } = input;
   const presentation = thread.presentationMode ?? "terminal";
   if (thread.config.model) {
     useSharedSettings
@@ -58,21 +61,9 @@ export async function performInitialThreadLaunch(input: {
       );
   }
 
-  let optimisticUserMessageItemId: string | undefined;
-  if (presentation === "gui" && prompt.length > 0 && thread.sessionRef === undefined) {
-    optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
-    useAppStore.getState().applyRuntimeEvent(thread.id, {
-      type: "item.started",
-      threadId: thread.id,
-      itemId: optimisticUserMessageItemId,
-      itemType: "user_message",
-      payload: { content: buildPromptContentBlocks(prompt, segments) },
-    });
-    useAppStore.getState().applyRuntimeEvent(thread.id, {
-      type: "item.completed",
-      threadId: thread.id,
-      itemId: optimisticUserMessageItemId,
-    });
+  const optimisticUserMessageItemId =
+    userMessageItemId ?? appendOptimisticInitialUserMessage(thread, prompt, segments);
+  if (optimisticUserMessageItemId) {
     useAppStore.getState().updateThreadRuntime(thread.id, {
       status: "working",
       attention: "working",
@@ -140,20 +131,27 @@ export async function performInitialThreadLaunch(input: {
   }
 }
 
+interface ThreadLaunchRequest {
+  readonly threadId?: string;
+  readonly remoteServerId?: string;
+  readonly remoteId?: string;
+  readonly project: Project;
+  readonly agentKind: string;
+  readonly config: ThreadConfig;
+  readonly prompt: string;
+  readonly segments?: PromptSegment[];
+  readonly presentationMode?: ThreadPresentationMode;
+  readonly worktreePath?: string;
+  readonly worktreeBranch?: string;
+  readonly worktreeProvisioning?: boolean;
+  readonly userMessageItemId?: string;
+  readonly isNewWorktree: boolean;
+  readonly options: { replacePaneId?: string; preserveActiveGroup?: boolean };
+}
+
 interface ThreadLaunchHostTransport {
   readonly setupRunsOnHost: boolean;
-  startThread(input: {
-    readonly project: Project;
-    readonly agentKind: string;
-    readonly config: ThreadConfig;
-    readonly prompt: string;
-    readonly segments?: PromptSegment[];
-    readonly presentationMode?: ThreadPresentationMode;
-    readonly worktreePath?: string;
-    readonly worktreeBranch?: string;
-    readonly isNewWorktree: boolean;
-    readonly options: { replacePaneId?: string; preserveActiveGroup?: boolean };
-  }): Promise<void>;
+  startThread(input: ThreadLaunchRequest): Promise<RemoteThreadLaunchResult>;
 }
 
 export async function startThreadFromDraft(
@@ -184,6 +182,7 @@ export async function startThreadFromDraft(
   }
 
   const isHomeScope = isHomeProject(project);
+  const owner = remoteOwner(project);
   const host = threadLaunchHost(project);
 
   useAppStore.getState().updateProjectDraftConfig(
@@ -197,6 +196,32 @@ export async function startThreadFromDraft(
 
   let worktreePath = isHomeScope ? undefined : existingWorktreePath;
   let isNewWorktree = false;
+  const createsWorktree = !isHomeScope && !worktreePath && !!worktreeBranch;
+  const remoteHostThreadId = createsWorktree && owner ? crypto.randomUUID() : undefined;
+  const pendingThread = createsWorktree
+    ? createThreadRow({
+        ...(owner && remoteHostThreadId
+          ? {
+              threadId: remoteThreadId(owner.desktopId, remoteHostThreadId),
+              remoteServerId: owner.desktopId,
+              remoteId: remoteHostThreadId,
+            }
+          : {}),
+        project,
+        agentKind,
+        config,
+        prompt,
+        ...(segments ? { segments } : {}),
+        ...(presentationMode ? { presentationMode } : {}),
+        worktreeBranch,
+        worktreeProvisioning: true,
+        isNewWorktree: true,
+        options,
+      })
+    : undefined;
+  const pendingUserMessageItemId = pendingThread
+    ? appendOptimisticInitialUserMessage(pendingThread, prompt, segments)
+    : undefined;
   if (!isHomeScope && !worktreePath && worktreeBranch) {
     try {
       const transferUncommitted = worktreeTransferUncommitted ?? false;
@@ -218,23 +243,109 @@ export async function startThreadFromDraft(
       }
     } catch (error) {
       console.error("[renderer] failed to create worktree:", error);
-      toast.danger(friendlyError(error));
+      const message = friendlyError(error);
+      if (pendingThread) {
+        const store = useAppStore.getState();
+        store.applyRuntimeEvent(pendingThread.id, {
+          type: "error",
+          threadId: pendingThread.id,
+          message,
+        });
+        store.updateThreadRuntime(pendingThread.id, {
+          status: "error",
+          attention: "error",
+          errorMessage: message,
+          canResumeWithConfig: false,
+        });
+      }
+      toast.danger(message);
       throw error;
     }
   }
 
-  await host.startThread({
-    project,
-    agentKind,
-    config,
-    prompt,
-    ...(segments ? { segments } : {}),
-    ...(presentationMode ? { presentationMode } : {}),
-    ...(worktreePath ? { worktreePath } : {}),
-    ...(worktreeBranch ? { worktreeBranch } : {}),
-    isNewWorktree,
-    options,
-  });
+  if (pendingThread && worktreePath) {
+    const store = useAppStore.getState();
+    const currentThread = store.threads.find((thread) => thread.id === pendingThread.id);
+    if (!currentThread) {
+      await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+      return;
+    }
+    if (currentThread.archived) {
+      store.setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
+      store.updateThreadRuntime(pendingThread.id, {
+        status: "inactive",
+        attention: "none",
+        canResumeWithConfig: false,
+      });
+    } else if (owner && remoteHostThreadId) {
+      store.setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch, {
+        preserveProvisioning: true,
+      });
+      store.updateThreadRuntime(pendingThread.id, {
+        status: "working",
+        attention: "working",
+        canResumeWithConfig: false,
+      });
+      try {
+        const started = await host.startThread({
+          threadId: remoteHostThreadId,
+          project,
+          agentKind,
+          config,
+          prompt,
+          ...(segments ? { segments } : {}),
+          ...(presentationMode ? { presentationMode } : {}),
+          worktreePath,
+          ...(worktreeBranch ? { worktreeBranch } : {}),
+          ...(pendingUserMessageItemId ? { userMessageItemId: pendingUserMessageItemId } : {}),
+          isNewWorktree: true,
+          options,
+        });
+        if (started === "cancelled") {
+          await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+          return;
+        }
+        if (started === "cancellation-failed") return;
+      } catch (error) {
+        if (!useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
+          await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+          return;
+        }
+        const message = friendlyError(error);
+        store.applyRuntimeEvent(pendingThread.id, {
+          type: "error",
+          threadId: pendingThread.id,
+          message,
+        });
+        store.updateThreadRuntime(pendingThread.id, {
+          status: "error",
+          attention: "error",
+          errorMessage: message,
+          canResumeWithConfig: false,
+        });
+        throw error;
+      }
+      if (useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
+        useAppStore.getState().setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
+      }
+    } else {
+      store.setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
+      store.queueThreadLaunch(pendingThread.id, prompt, segments, pendingUserMessageItemId);
+    }
+  } else {
+    await host.startThread({
+      project,
+      agentKind,
+      config,
+      prompt,
+      ...(segments ? { segments } : {}),
+      ...(presentationMode ? { presentationMode } : {}),
+      ...(worktreePath ? { worktreePath } : {}),
+      ...(worktreeBranch ? { worktreeBranch } : {}),
+      isNewWorktree,
+      options,
+    });
+  }
 
   if (worktreePath) {
     void primeWorktreeGitState(project, worktreePath);
@@ -260,18 +371,31 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
     return {
       setupRunsOnHost: !helperHost,
       startThread: async (launch) => {
-        await useRemoteServersStore.getState().launchRemoteThread({
-          desktopId: owner.desktopId,
-          projectId: owner.remoteId,
-          agentKind: launch.agentKind,
-          config: launch.config,
-          prompt: launch.prompt,
-          ...(launch.segments ? { segments: launch.segments } : {}),
-          presentationMode: launch.presentationMode ?? "terminal",
-          ...(launch.worktreePath ? { worktreePath: launch.worktreePath } : {}),
-          ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
-          ...(launch.isNewWorktree ? { isNewWorktree: true } : {}),
-        });
+        const remoteId = launch.threadId;
+        return useRemoteServersStore.getState().launchRemoteThread(
+          {
+            ...(remoteId ? { threadId: remoteId } : {}),
+            desktopId: owner.desktopId,
+            projectId: owner.remoteId,
+            agentKind: launch.agentKind,
+            config: launch.config,
+            prompt: launch.prompt,
+            ...(launch.segments ? { segments: launch.segments } : {}),
+            presentationMode: launch.presentationMode ?? "terminal",
+            ...(launch.worktreePath ? { worktreePath: launch.worktreePath } : {}),
+            ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
+            ...(launch.isNewWorktree ? { isNewWorktree: true } : {}),
+            ...(launch.userMessageItemId ? { userMessageItemId: launch.userMessageItemId } : {}),
+          },
+          remoteId
+            ? {
+                isPendingLaunchOwned: () =>
+                  useAppStore.getState().provisioningWorktreeThreadIds[
+                    remoteThreadId(owner.desktopId, remoteId)
+                  ] === true,
+              }
+            : undefined,
+        );
       },
     };
   }
@@ -279,47 +403,80 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
   return {
     setupRunsOnHost: false,
     startThread: (launch) => {
+      const thread = createThreadRow(launch);
       const store = useAppStore.getState();
-      const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-      const projectAgentStatuses = getProjectAgentStatuses(
-        launch.project.location,
-        agentStatuses,
-        wslAgentStatuses,
-      );
-      const titlePrompt = titlePromptFromSegments(launch.prompt, launch.segments);
-      const currentView = store.view;
-      const activeGroup =
-        launch.options.preserveActiveGroup !== false &&
-        currentView.kind === "thread" &&
-        currentView.activeGroupId &&
-        !findExperimentByGroupId(currentView.activeGroupId)
-          ? {
-              groupId: currentView.activeGroupId,
-              groupName: store.threads.find(
-                (thread) => thread.groupId === currentView.activeGroupId,
-              )?.groupName,
-            }
-          : undefined;
-
-      const thread = store.createThread({
-        projectId: launch.project.id,
-        agentKind: launch.agentKind,
-        config: launch.config,
-        prompt: titlePrompt,
-        ...(launch.presentationMode ? { presentationMode: launch.presentationMode } : {}),
-        ...(launch.worktreePath
-          ? {
-              worktreePath: launch.worktreePath,
-              ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
-            }
-          : {}),
-        ...(launch.options.replacePaneId ? { replacePaneId: launch.options.replacePaneId } : {}),
-        ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
-        ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
-      });
       store.queueThreadLaunch(thread.id, launch.prompt, launch.segments);
-      generateTitleAsync(thread.id, launch.project.location, projectAgentStatuses, titlePrompt);
-      return Promise.resolve();
+      return Promise.resolve("started");
     },
   };
+}
+
+function createThreadRow(launch: ThreadLaunchRequest): Thread {
+  const store = useAppStore.getState();
+  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+  const projectAgentStatuses = getProjectAgentStatuses(
+    launch.project.location,
+    agentStatuses,
+    wslAgentStatuses,
+  );
+  const titlePrompt = titlePromptFromSegments(launch.prompt, launch.segments);
+  const currentView = store.view;
+  const activeGroup =
+    launch.options.preserveActiveGroup !== false &&
+    currentView.kind === "thread" &&
+    currentView.activeGroupId &&
+    !findExperimentByGroupId(currentView.activeGroupId)
+      ? {
+          groupId: currentView.activeGroupId,
+          groupName: store.threads.find((thread) => thread.groupId === currentView.activeGroupId)
+            ?.groupName,
+        }
+      : undefined;
+
+  const thread = store.createThread({
+    ...(launch.threadId ? { threadId: launch.threadId } : {}),
+    projectId: launch.project.id,
+    agentKind: launch.agentKind,
+    config: launch.config,
+    prompt: titlePrompt,
+    ...(launch.presentationMode ? { presentationMode: launch.presentationMode } : {}),
+    ...(launch.worktreePath ? { worktreePath: launch.worktreePath } : {}),
+    ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
+    ...(launch.worktreeProvisioning ? { worktreeProvisioning: true } : {}),
+    ...(launch.remoteServerId ? { remoteServerId: launch.remoteServerId } : {}),
+    ...(launch.remoteId ? { remoteId: launch.remoteId } : {}),
+    ...(launch.options.replacePaneId ? { replacePaneId: launch.options.replacePaneId } : {}),
+    ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
+    ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
+  });
+  if (!launch.remoteServerId) {
+    generateTitleAsync(thread.id, launch.project.location, projectAgentStatuses, titlePrompt);
+  }
+  return thread;
+}
+
+function appendOptimisticInitialUserMessage(
+  thread: Thread,
+  prompt: string,
+  segments?: PromptSegment[],
+): string | undefined {
+  const presentation = thread.presentationMode ?? "terminal";
+  if (presentation !== "gui" || prompt.length === 0 || thread.sessionRef !== undefined) {
+    return undefined;
+  }
+
+  const itemId = `user-${crypto.randomUUID()}`;
+  useAppStore.getState().applyRuntimeEvent(thread.id, {
+    type: "item.started",
+    threadId: thread.id,
+    itemId,
+    itemType: "user_message",
+    payload: { content: buildPromptContentBlocks(prompt, segments) },
+  });
+  useAppStore.getState().applyRuntimeEvent(thread.id, {
+    type: "item.completed",
+    threadId: thread.id,
+    itemId,
+  });
+  return itemId;
 }
