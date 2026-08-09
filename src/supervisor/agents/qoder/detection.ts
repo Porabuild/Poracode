@@ -62,9 +62,11 @@ const credentialFileAuthProbe: AuthProbe = async (ctx) => {
   if (ctx.location.kind !== "wsl") {
     return existsSync(join(homedir(), ".qoder", ".auth", "user")) ? "authenticated" : "unknown";
   }
-  const [result] = await batchWslCommandsAsync(ctx.location.distro, [
-    "test -f ~/.qoder/.auth/user && echo yes",
-  ]);
+  const [result] = await batchWslCommandsAsync(
+    ctx.location.distro,
+    ["test -f ~/.qoder/.auth/user && echo yes"],
+    ctx.signal,
+  );
   return result?.ok && result.stdout.trim() === "yes" ? "authenticated" : "unknown";
 };
 
@@ -92,6 +94,7 @@ export function buildQoderProbeCapabilities(
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath: string,
+  signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult> {
   const command = buildQoderCommand(location, ["--acp"], executablePath);
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
@@ -103,6 +106,7 @@ async function probeCapabilities(
       ...(processCwd ? { processCwd } : {}),
       ...(command.env ? { env: command.env } : {}),
       timeoutMs: 20_000,
+      ...(signal ? { signal } : {}),
       label: location.kind === "wsl" ? `qoder:wsl:${location.distro}` : `qoder:${location.kind}`,
     },
   );
@@ -122,6 +126,6 @@ export const qoderDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe([...QODER_AUTH_ENV_KEYS]), credentialFileAuthProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.signal);
   },
 };

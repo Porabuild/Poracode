@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { isIgnoredWorkTreeFile, ProjectWatcher } from "./projectWatcher";
 import type { WslBridgeClient, WslLocation } from "./wsl/bridge/client";
 
-function makeLocation(linuxPath: string): WslLocation {
+function makeLocation(linuxPath: string, distro = "Ubuntu"): WslLocation {
   return {
     kind: "wsl",
-    distro: "Ubuntu",
+    distro,
     linuxPath,
-    uncPath: `\\\\wsl.localhost\\Ubuntu${linuxPath.replaceAll("/", "\\")}`,
+    uncPath: `\\\\wsl.localhost\\${distro}${linuxPath.replaceAll("/", "\\")}`,
   };
 }
 
@@ -215,6 +215,52 @@ describe("ProjectWatcher WSL worktrees", () => {
     await watcher.dispose();
   });
 
+  it("keeps replacement worktree watchers while the previous project teardown finishes", async () => {
+    vi.useFakeTimers();
+    const { unsubscribe, watch, waitForSubscription } = createWatchHarness();
+    let finishOldProjectUnsubscribe!: () => void;
+    const oldProjectUnsubscribe = new Promise<void>((resolve) => {
+      finishOldProjectUnsubscribe = resolve;
+    });
+    unsubscribe.mockReturnValueOnce(oldProjectUnsubscribe).mockResolvedValue(undefined);
+    const client = {
+      readFile: vi.fn<WslBridgeClient["readFile"]>(async () => {
+        throw new Error("missing");
+      }),
+      stat: vi.fn<WslBridgeClient["stat"]>(async () => ({ stats: [] })),
+      watch,
+    } as unknown as WslBridgeClient;
+    const onTreeChanged = vi.fn<(projectId: string) => void>();
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onTreeChanged,
+    });
+    watcher.setWslClient(client);
+    const worktreePath = "/home/demo/.poracode/worktrees/repo/feature";
+
+    watcher.watch("project-1", makeLocation("/home/demo/old"));
+    watcher.watchWorktrees("project-1", [worktreePath]);
+    await waitForSubscription(2);
+
+    watcher.watch("project-1", makeLocation("/home/demo/new", "Debian"));
+    watcher.watchWorktrees("project-1", [worktreePath]);
+    await waitForSubscription(4);
+    finishOldProjectUnsubscribe();
+    await oldProjectUnsubscribe;
+    await Promise.resolve();
+
+    expect(watcher.getWslDistros()).toEqual(["Debian"]);
+    watch.mock.calls[3]![2]({
+      subscriptionId: "replacement-worktree",
+      scope: "worktree",
+      paths: ["src/App.tsx"],
+    });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(onTreeChanged).toHaveBeenCalledWith("project-1");
+
+    await watcher.dispose();
+  });
+
   it("ignores linked-worktree directory churn from git status", async () => {
     vi.useFakeTimers();
     const { watch, waitForSubscription } = createWatchHarness();
@@ -295,19 +341,57 @@ describe("ProjectWatcher.hasWslProjects", () => {
       onTreeChanged: vi.fn<(projectId: string) => void>(),
     });
     expect(watcher.hasWslProjects()).toBe(false);
+    expect(watcher.getWslDistros()).toEqual([]);
 
     // Native projects don't count. The path doesn't exist — both fs.watch
     // calls fail into their try/catch, but the entry still registers.
     watcher.watch("native", { kind: "windows", path: "C:\\poracode-test-does-not-exist" });
     expect(watcher.hasWslProjects()).toBe(false);
+    expect(watcher.getWslDistros()).toEqual([]);
 
     // No wslClient is wired, so the WSL subscription itself is a no-op while
     // the watcher entry registers synchronously.
     watcher.watch("wsl", makeLocation("/home/u/repo"));
     expect(watcher.hasWslProjects()).toBe(true);
+    expect(watcher.getWslDistros()).toEqual(["Ubuntu"]);
 
     await watcher.unwatch("wsl");
     expect(watcher.hasWslProjects()).toBe(false);
+    expect(watcher.getWslDistros()).toEqual([]);
+    await watcher.dispose();
+  });
+
+  it("keeps a replacement WSL watcher while the previous unsubscribe finishes", async () => {
+    const { unsubscribe, watch, waitForSubscription } = createWatchHarness();
+    let finishOldUnsubscribe!: () => void;
+    const oldUnsubscribe = new Promise<void>((resolve) => {
+      finishOldUnsubscribe = resolve;
+    });
+    unsubscribe.mockReturnValueOnce(oldUnsubscribe).mockResolvedValue(undefined);
+    const client = {
+      readFile: vi.fn<WslBridgeClient["readFile"]>(async () => {
+        throw new Error("missing");
+      }),
+      stat: vi.fn<WslBridgeClient["stat"]>(async () => ({ stats: [] })),
+      watch,
+    } as unknown as WslBridgeClient;
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onTreeChanged: vi.fn<(projectId: string) => void>(),
+    });
+    watcher.setWslClient(client);
+
+    watcher.watch("project-1", makeLocation("/home/demo/old"));
+    await waitForSubscription(1);
+    watcher.watch("project-1", makeLocation("/home/demo/new", "Debian"));
+    await waitForSubscription(2);
+
+    expect(watcher.getWslDistros()).toEqual(["Debian"]);
+    finishOldUnsubscribe();
+    await oldUnsubscribe;
+    await Promise.resolve();
+    expect(watcher.getWslDistros()).toEqual(["Debian"]);
+
     await watcher.dispose();
   });
 });

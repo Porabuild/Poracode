@@ -191,6 +191,7 @@ export function spawnAgentPty(
     });
 
     signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
     if (input) pty.write(input);
   });
 }

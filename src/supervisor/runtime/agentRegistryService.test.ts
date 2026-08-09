@@ -4,6 +4,7 @@ import type {
   GetLatestAgentVersionResult,
   NpmPackageVersionQuery,
 } from "@/shared/contracts";
+import { defaultSharedSettings } from "@/shared/settings";
 import type { AgentAdapter } from "../agents/base";
 import type { AgentStatusService } from "./agentStatusService";
 import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
@@ -17,6 +18,12 @@ const detectProbeLocationMock = vi.hoisted(() =>
 const runUpdateCommandWithFallbackMock = vi.hoisted(() =>
   vi.fn<typeof import("../agents/updateAgent").runUpdateCommandWithFallback>(),
 );
+const acpRegistryMocks = vi.hoisted(() => ({
+  cacheLocalAcpRegistryIcons:
+    vi.fn<typeof import("../agents/acpRegistry").cacheLocalAcpRegistryIcons>(),
+  installAcpRegistryAgent: vi.fn<typeof import("../agents/acpRegistry").installAcpRegistryAgent>(),
+  readAcpRegistrySettings: vi.fn<typeof import("../agents/acpRegistry").readAcpRegistrySettings>(),
+}));
 
 const getLatestVersionForAdapterMock = vi.hoisted(() =>
   vi.fn<(adapter: AgentAdapter) => Promise<GetLatestAgentVersionResult>>(),
@@ -41,6 +48,16 @@ vi.mock("../agents/updateAgent", async (importOriginal) => {
     runUpdateCommandWithFallback: runUpdateCommandWithFallbackMock,
     getLatestVersionForAdapter: getLatestVersionForAdapterMock,
     getLatestSupportedNpmPackageVersion: getLatestSupportedNpmPackageVersionMock,
+  };
+});
+
+vi.mock("../agents/acpRegistry", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../agents/acpRegistry")>();
+  return {
+    ...actual,
+    cacheLocalAcpRegistryIcons: acpRegistryMocks.cacheLocalAcpRegistryIcons,
+    installAcpRegistryAgent: acpRegistryMocks.installAcpRegistryAgent,
+    readAcpRegistrySettings: acpRegistryMocks.readAcpRegistrySettings,
   };
 });
 
@@ -105,6 +122,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
       getAgentStatusService: () => agentStatusService,
+      getActiveWslProjectDistros: () => [],
     });
     runUpdateCommandWithFallbackMock.mockResolvedValue({
       ok: false,
@@ -200,6 +218,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
       getAgentStatusService: () => agentStatusService,
+      getActiveWslProjectDistros: () => ["Ubuntu"],
     });
     runUpdateCommandWithFallbackMock.mockResolvedValue({
       ok: true,
@@ -215,6 +234,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
         agentKinds: ["claude", "claude:personal", "claude:work"],
       },
     });
+    expect(listWslDistros).not.toHaveBeenCalled();
   });
 
   it("tracks the installed version for built-in updaters that require verification", async () => {
@@ -251,10 +271,13 @@ describe("AgentRegistryService.updateAgentBinary", () => {
         wsl: [],
         fromCache: false,
       });
+    const listWslDistros = vi
+      .fn<AgentStatusService["listWslDistros"]>()
+      .mockResolvedValue(["Ubuntu"]);
     const agentStatusService = {
       refreshAgentStatuses,
       getAgentStatuses: vi.fn<AgentStatusService["getAgentStatuses"]>(),
-      listWslDistros: vi.fn<AgentStatusService["listWslDistros"]>().mockResolvedValue([]),
+      listWslDistros,
     } as unknown as AgentStatusService;
     const service = new AgentRegistryService({
       adapters: new Map([["qwen", adapter]]),
@@ -265,6 +288,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
       getAgentStatusService: () => agentStatusService,
+      getActiveWslProjectDistros: () => [],
     });
     detectProbeLocationMock.mockReturnValueOnce({
       kind: "windows",
@@ -293,6 +317,11 @@ describe("AgentRegistryService.updateAgentBinary", () => {
       ["--version"],
     );
     expect(refreshAgentStatuses).toHaveBeenCalledTimes(2);
+    expect(refreshAgentStatuses).toHaveBeenNthCalledWith(2, {
+      wslDistros: [],
+      scope: { agentKinds: ["qwen"] },
+    });
+    expect(listWslDistros).not.toHaveBeenCalled();
   });
 });
 
@@ -317,6 +346,7 @@ describe("AgentRegistryService.getLatestAgentVersion", () => {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
       getAgentStatusService: () => ({}) as unknown as AgentStatusService,
+      getActiveWslProjectDistros: () => [],
     });
   }
 
@@ -352,5 +382,74 @@ describe("AgentRegistryService.getLatestAgentVersion", () => {
     expect(result).toEqual({ version: "2026.07.23", source: "homebrew-cask" });
     expect(getLatestVersionForAdapterMock).toHaveBeenCalledWith(adapter);
     expect(getLatestSupportedNpmPackageVersionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("AgentRegistryService project-scoped ACP refreshes", () => {
+  const settings = {
+    ...defaultSharedSettings,
+    agentInstances: {
+      demo: {
+        id: "demo",
+        driver: "acp-generic",
+        displayName: "Demo",
+        enabled: true,
+        config: { binary: "demo", cwd: "project", authMode: "none" },
+      },
+    },
+    acpRegistryInstalledAgents: {},
+  } satisfies ReturnType<typeof import("../agents/acpRegistry").readAcpRegistrySettings>;
+
+  function createService(activeWslDistros: string[]) {
+    const refreshAgentStatuses = vi
+      .fn<AgentStatusService["refreshAgentStatuses"]>()
+      .mockResolvedValue({ windows: [], wsl: [], fromCache: false });
+    const listWslDistros = vi
+      .fn<AgentStatusService["listWslDistros"]>()
+      .mockResolvedValue(["Ubuntu"]);
+    const agentStatusService = {
+      refreshAgentStatuses,
+      listWslDistros,
+    } as unknown as AgentStatusService;
+    const service = new AgentRegistryService({
+      adapters: new Map(),
+      settingsPath: "/data/settings.json",
+      baseDir: "/data",
+      acpIconsDir: "/data/icons",
+      sharedSettingsCache: {
+        invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
+      } as unknown as SupervisorSharedSettingsCache,
+      getAgentStatusService: () => agentStatusService,
+      getActiveWslProjectDistros: () => activeWslDistros,
+    });
+    return { listWslDistros, refreshAgentStatuses, service };
+  }
+
+  it("does not enumerate WSL during launch icon propagation without a WSL project", async () => {
+    acpRegistryMocks.cacheLocalAcpRegistryIcons.mockReset().mockResolvedValue(true);
+    acpRegistryMocks.readAcpRegistrySettings.mockReset().mockReturnValue(settings);
+    const { listWslDistros, refreshAgentStatuses, service } = createService([]);
+
+    await service.cacheLocalAcpIconsOnLaunch();
+
+    expect(refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith({
+      wslDistros: [],
+      scope: { agentKinds: ["acp-generic:demo"] },
+    });
+    expect(listWslDistros).not.toHaveBeenCalled();
+  });
+
+  it("does not enumerate WSL after an ACP install without a WSL project", async () => {
+    acpRegistryMocks.installAcpRegistryAgent.mockReset().mockResolvedValue([]);
+    acpRegistryMocks.readAcpRegistrySettings.mockReset().mockReturnValue(settings);
+    const { listWslDistros, refreshAgentStatuses, service } = createService([]);
+
+    await service.installAcpRegistryAgent({ agentId: "demo" });
+
+    expect(refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith({
+      wslDistros: [],
+      scope: { agentKinds: ["acp-generic:demo"] },
+    });
+    expect(listWslDistros).not.toHaveBeenCalled();
   });
 });

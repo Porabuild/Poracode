@@ -1,8 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import type { AgentCapability } from "@/shared/contracts";
 
 const execFileAsyncMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<{ stdout: string; stderr?: string }>>(),
+);
+const spawnMock = vi.hoisted(() =>
+  vi.fn<
+    (
+      command: string,
+      args: string[],
+      options: Record<string, unknown>,
+    ) => import("node:child_process").ChildProcess
+  >(),
 );
 
 vi.mock("node:child_process", async () => {
@@ -10,6 +21,7 @@ vi.mock("node:child_process", async () => {
   const { promisify } = require("node:util") as typeof import("node:util");
   return {
     ...actual,
+    spawn: spawnMock,
     execFile: Object.assign(vi.fn(), {
       [promisify.custom]: execFileAsyncMock,
     }),
@@ -53,6 +65,28 @@ describe("detectAgentInstall version probe", () => {
     Object.defineProperty(process, "platform", { value: "linux", configurable: true });
     clearExecutablePathCache();
     execFileAsyncMock.mockReset();
+    spawnMock.mockReset();
+    spawnMock.mockImplementation((command, args, options) => {
+      const stdout = new PassThrough();
+      const stderr = new PassThrough();
+      const child = Object.assign(new EventEmitter(), {
+        stdout,
+        stderr,
+        pid: 12_345,
+        killed: false,
+      }) as unknown as import("node:child_process").ChildProcess;
+      queueMicrotask(() => {
+        void execFileAsyncMock(command, args, options).then(
+          (result) => {
+            stdout.end(result.stdout);
+            stderr.end(result.stderr ?? "");
+            child.emit("close", 0);
+          },
+          (error: unknown) => child.emit("error", error),
+        );
+      });
+      return child;
+    });
   });
 
   afterEach(() => {

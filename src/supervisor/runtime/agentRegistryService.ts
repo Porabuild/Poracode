@@ -61,6 +61,7 @@ export interface AgentRegistryServiceDeps {
   acpIconsDir: string;
   sharedSettingsCache: SupervisorSharedSettingsCache;
   getAgentStatusService: () => AgentStatusService;
+  getActiveWslProjectDistros: () => string[];
 }
 
 /**
@@ -121,9 +122,8 @@ export class AgentRegistryService {
       .map(([id]) => acpGenericKind(id));
     if (acpKinds.length === 0) return;
     try {
-      const wslDistros = await this.agentStatusService.listWslDistros();
       await this.agentStatusService.refreshAgentStatuses({
-        wslDistros,
+        wslDistros: this.deps.getActiveWslProjectDistros(),
         scope: { agentKinds: acpKinds },
       });
     } catch (error) {
@@ -151,9 +151,8 @@ export class AgentRegistryService {
 
   private async refreshAffectedAgentStatuses(agentKinds: AgentKind[]): Promise<void> {
     try {
-      const wslDistros = await this.agentStatusService.listWslDistros();
       await this.agentStatusService.refreshAgentStatuses({
-        wslDistros,
+        wslDistros: this.deps.getActiveWslProjectDistros(),
         scope: { agentKinds },
       });
     } catch (error) {

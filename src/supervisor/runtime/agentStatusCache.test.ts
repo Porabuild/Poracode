@@ -415,8 +415,22 @@ describe("detectWslAgentStatuses", () => {
     );
 
     expect(detectInstall).toHaveBeenCalledTimes(2);
-    expect(detectInstall).toHaveBeenNthCalledWith(1, { envKind: "wsl", wslDistro: "Ubuntu" });
-    expect(detectInstall).toHaveBeenNthCalledWith(2, { envKind: "wsl", wslDistro: "Debian" });
+    expect(detectInstall).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        envKind: "wsl",
+        wslDistro: "Ubuntu",
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(detectInstall).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        envKind: "wsl",
+        wslDistro: "Debian",
+        signal: expect.any(AbortSignal),
+      }),
+    );
     expect(statuses).toEqual([
       expect.objectContaining({ envKind: "wsl", envDistro: "Ubuntu", installed: true }),
       expect.objectContaining({ envKind: "wsl", envDistro: "Debian", installed: false }),

@@ -71,6 +71,15 @@ function closeServer(server: Server): Promise<void> {
   return new Promise((resolve) => server.close(() => resolve()));
 }
 
+function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function listenLocalServer(server: Server, preferredHost: string): Promise<string> {
   return new Promise((resolve, reject) => {
     function listen(host: string) {
@@ -423,6 +432,74 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
       stdout: projectRoot,
       exitCode: 0,
     });
+  });
+
+  it("kills a timed-out process and its descendants", async () => {
+    const script = [
+      'const { spawn } = require("node:child_process");',
+      'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore" });',
+      "process.stdout.write(String(child.pid));",
+      "setInterval(() => {}, 1000);",
+    ].join("\n");
+    const { status, body } = await post(`${bridge.baseUrl}/v1/process/exec`, {
+      command: process.execPath,
+      cwd: projectRoot,
+      args: ["-e", script],
+      timeoutMs: 1_000,
+    });
+    const envelope = body as {
+      ok: boolean;
+      data: { ok: boolean; stdout: string; timedOut?: boolean };
+    };
+    const descendantPid = Number(envelope.data.stdout);
+
+    try {
+      expect(status).toBe(200);
+      expect(envelope.ok).toBe(true);
+      expect(envelope.data).toMatchObject({ ok: false, timedOut: true });
+      expect(Number.isInteger(descendantPid)).toBe(true);
+      await expect.poll(() => isProcessRunning(descendantPid), { timeout: 3_000 }).toBe(false);
+    } finally {
+      try {
+        process.kill(descendantPid, "SIGKILL");
+      } catch {
+        // Already reaped by the bridge timeout.
+      }
+    }
+  });
+
+  it("kills a successful process command's remaining process group", async () => {
+    const script = [
+      'const { spawn } = require("node:child_process");',
+      'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
+      "child.unref();",
+      "process.stdout.write(String(child.pid));",
+    ].join("\n");
+    const { status, body } = await post(`${bridge.baseUrl}/v1/process/exec`, {
+      command: process.execPath,
+      cwd: projectRoot,
+      args: ["-e", script],
+      timeoutMs: 5_000,
+    });
+    const envelope = body as {
+      ok: boolean;
+      data: { ok: boolean; stdout: string; exitCode: number };
+    };
+    const descendantPid = Number(envelope.data.stdout);
+
+    try {
+      expect(status).toBe(200);
+      expect(envelope.ok).toBe(true);
+      expect(envelope.data).toMatchObject({ ok: true, exitCode: 0 });
+      expect(Number.isInteger(descendantPid)).toBe(true);
+      await expect.poll(() => isProcessRunning(descendantPid), { timeout: 3_000 }).toBe(false);
+    } finally {
+      try {
+        process.kill(descendantPid, "SIGKILL");
+      } catch {
+        // Already reaped by the bridge completion cleanup.
+      }
+    }
   });
 
   it("strips inherited Git control variables from process env", async () => {
