@@ -33,7 +33,9 @@ describe("ContextMenu", () => {
     );
 
     fireEvent.contextMenu(screen.getByRole("button", { name: "Row" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Stop Run" }));
+    const stopButton = await screen.findByRole("button", { name: "Stop Run" });
+    expect(stopButton).toHaveClass("[--button-bg-hover:var(--row-hover)]");
+    fireEvent.click(stopButton);
 
     expect(onAction).toHaveBeenCalledWith("stop");
     expect(onAction).not.toHaveBeenCalledWith("run");
