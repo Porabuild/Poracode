@@ -115,6 +115,7 @@ export async function runGitPullFromSource(
 export async function pullMergedPrBaseIfPossible(
   projectLocation: ProjectLocation,
   baseBranch: string,
+  projectId?: string,
 ): Promise<void> {
   try {
     const status = await readBridge().getGitStatus({ projectLocation, detail: "summary" });
@@ -139,6 +140,17 @@ export async function pullMergedPrBaseIfPossible(
     });
   } catch (error) {
     console.warn("[git] post-merge pull skipped", error);
+    return;
+  }
+  if (!projectId) return;
+  try {
+    const refreshedStatus = await readBridge().getGitStatus({
+      projectLocation,
+      detail: "summary",
+    });
+    useGitStore.getState().setStatus(projectId, refreshedStatus);
+  } catch (error) {
+    console.warn("[git] post-merge status refresh failed", error);
   }
 }
 

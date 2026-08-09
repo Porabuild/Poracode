@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
 import { readBridge } from "@/renderer/bridge";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
@@ -30,7 +30,10 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
     }),
   );
 
-  const [isSyncing, setIsSyncing] = useState(false);
+  const syncKey = props.worktreePath ?? props.projectId;
+  const isSyncing = useGitReviewActionStore((state) => state.panels[syncKey]?.isSyncing ?? false);
+  const setIsSyncing = (value: boolean) =>
+    useGitReviewActionStore.getState().patch(syncKey, { isSyncing: value });
 
   if (ahead === 0 && behind === 0) return null;
   if (!hasRemote) return null;
@@ -127,6 +130,8 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
           role="button"
           tabIndex={0}
           aria-label={label}
+          aria-busy={isSyncing || undefined}
+          aria-disabled={isSyncing || undefined}
           className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:bg-[var(--row-hover)] hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation();
