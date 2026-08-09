@@ -184,6 +184,16 @@ describe("DevTerminalPanel", () => {
     await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(2));
   });
 
+  it("does not spawn an interactive shell when an idle action tab remounts", () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    useDevTerminalStore.setState({ tabs: [{ ...tab, runActionId: "dev" }] });
+    render(<DevTerminalPanel hideHeader />);
+
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+
+    expect(bridge.startShell).not.toHaveBeenCalled();
+  });
+
   it("shows the project and worktree in the terminal scope label", () => {
     const worktreePath = "/repo/.poracode/worktrees/feature";
     useSharedSettings.setState({ terminalPosition: "bottom" });

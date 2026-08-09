@@ -9,10 +9,11 @@ const bridge = vi.hoisted(() => ({
 }));
 
 const supervisorHandlers = vi.hoisted(() => [] as Array<(event: SupervisorEvent) => void>);
+const toastDanger = vi.hoisted(() => vi.fn<(message: string) => void>());
 
 vi.mock("@heroui/react", () => ({
   toast: {
-    danger: vi.fn<(message: string) => void>(),
+    danger: toastDanger,
     success: vi.fn<(message: string) => void>(),
     warning: vi.fn<(message: string) => void>(),
   },
@@ -93,10 +94,11 @@ describe("eager shell start registry", () => {
   beforeEach(() => {
     bridge.startShell.mockReset().mockResolvedValue(undefined);
     bridge.closeThread.mockReset().mockResolvedValue(undefined);
+    toastDanger.mockReset();
   });
 
   it("marks shells started via startShellWithToast and clears them on close", async () => {
-    startShellWithToast(
+    void startShellWithToast(
       { shellId: "shell:eager", projectLocation: { kind: "windows", path: "C:\\p" } },
       "dev",
     );
@@ -108,12 +110,46 @@ describe("eager shell start registry", () => {
   });
 
   it("clears entries via clearEagerShellStart", () => {
-    startShellWithToast(
+    void startShellWithToast(
       { shellId: "shell:eager2", projectLocation: { kind: "windows", path: "C:\\p" } },
       "dev",
     );
     clearEagerShellStart("shell:eager2");
     expect(wasShellStartedEagerly("shell:eager2")).toBe(false);
+  });
+
+  it("does not let an older failed start clear a newer same-id shell", async () => {
+    let rejectFirst!: (error: Error) => void;
+    let resolveSecond!: () => void;
+    bridge.startShell
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_, reject) => {
+            rejectFirst = reject;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+
+    const first = startShellWithToast(
+      { shellId: "shell:reused", projectLocation: { kind: "windows", path: "C:\\p" } },
+      "dev",
+    );
+    const second = startShellWithToast(
+      { shellId: "shell:reused", projectLocation: { kind: "windows", path: "C:\\p" } },
+      "dev",
+    );
+    resolveSecond();
+    await second;
+    rejectFirst(new Error("old start failed"));
+    await first;
+
+    expect(wasShellStartedEagerly("shell:reused")).toBe(true);
+    expect(toastDanger).not.toHaveBeenCalled();
   });
 });
 
@@ -298,6 +334,13 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     expect(innerScript).toContain("__poracode_setup_exit=$?");
     expect(innerScript).toContain('exit "$__poracode_setup_exit"');
 
+    const echoedCommand = lastWrite();
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: echoedCommand,
+      outputLength: echoedCommand.length,
+    });
     const marker = `\u001B]777;poracode-shell-complete=${token}:1\u0007`;
     emit({ type: "thread-output", threadId: "shell:1", data: marker, outputLength: marker.length });
 

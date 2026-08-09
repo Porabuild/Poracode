@@ -14,6 +14,8 @@ import { usePanelStore } from "./state/panelStore";
 import { useSidebarUiStore } from "./state/sidebarUiStore";
 import { useExperimentStore } from "./state/experimentStore";
 import { useWorkspaceStore } from "./state/workspaceStore";
+import { resetDevTerminalStore, useDevTerminalStore } from "./state/devTerminalStore";
+import { useThreadOutputStore } from "./state/threadOutputStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
@@ -429,6 +431,8 @@ describe("App", () => {
       lastViewedAtByThreadId: {},
       view: { kind: "home" },
     }));
+    resetDevTerminalStore();
+    useThreadOutputStore.setState({ buffers: {} });
     useExperimentStore.setState({ experiments: {} });
     useGitStore.setState({
       statuses: {},
@@ -629,6 +633,30 @@ describe("App", () => {
     expect(applyRuntimeEventBatches.mock.calls[1]?.[0].map((batch) => batch.threadId)).toEqual([
       "hidden",
     ]);
+  });
+
+  it("clears the running marker when an action shell exits", () => {
+    const tab = useDevTerminalStore.getState().addTab("project-1", "Dev", undefined, "dev");
+    useDevTerminalStore.getState().markShellRunning(tab.id);
+
+    supervisorEventListeners.at(-1)?.({
+      type: "thread-exited",
+      threadId: tab.id,
+      exitCode: 1,
+    });
+
+    expect(useDevTerminalStore.getState().runningTabs[tab.id]).toBeUndefined();
+  });
+
+  it("retains action output until its terminal tab is removed", () => {
+    const tab = useDevTerminalStore.getState().addTab("project-1", "Dev", undefined, "dev");
+    useThreadOutputStore.getState().appendOutput(tab.id, "finished output");
+
+    useAppStore.setState({ threads: [] });
+    expect(useThreadOutputStore.getState().readTail(tab.id, 100_000)).toBe("finished output");
+
+    useDevTerminalStore.getState().removeTab(tab.id);
+    expect(useThreadOutputStore.getState().readTail(tab.id, 100_000)).toBe("");
   });
 
   it("batches ten background threads with five subagents each into one store update", () => {

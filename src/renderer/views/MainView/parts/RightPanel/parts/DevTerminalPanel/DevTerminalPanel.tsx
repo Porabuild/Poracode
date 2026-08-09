@@ -107,6 +107,10 @@ export function DevTerminalPanel(props: {
     if (wasShellStartedEagerly(terminalId)) return;
     const owningTab = tabs.find((tab) => tab.id === terminalId || tab.splitId === terminalId);
     if (!owningTab) return;
+    // An idle action tab preserves its completed output. Only another Run
+    // action should replace its PTY; remounting the panel must not create an
+    // unrelated interactive shell in the action-owned tab.
+    if (owningTab.id === terminalId && owningTab.runActionId) return;
     const project = projects.find((p) => p.id === owningTab.projectId);
     if (!project) return;
     const location = owningTab.worktreePath

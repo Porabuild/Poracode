@@ -97,7 +97,7 @@ function startWorktreeSetupScript(
   // Visible tabs mount an XTerm surface that starts the PTY. Start it eagerly
   // only when no surface will mount, avoiding a second setup process.
   if (!openTerminalPanel || (!autoShow && !panelAlreadyOpen)) {
-    startShellWithToast(
+    void startShellWithToast(
       { shellId: tab.id, projectLocation: wtLocation, worktreePath },
       "setup shell",
     );

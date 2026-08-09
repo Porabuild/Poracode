@@ -23,6 +23,7 @@ describe("devTerminalStore cycleTab", () => {
       focusRequestId: 0,
       tabActivity: {},
       streamingTabs: {},
+      runningTabs: {},
     });
   });
 
@@ -124,6 +125,7 @@ describe("devTerminalStore explicit open marker", () => {
       focusRequestId: 0,
       tabActivity: {},
       streamingTabs: {},
+      runningTabs: {},
     });
   });
 
@@ -168,6 +170,40 @@ describe("devTerminalStore explicit open marker", () => {
       activeProjectId: "p1",
       activeTabId: "b",
     });
+  });
+});
+
+describe("devTerminalStore run-action tabs", () => {
+  beforeEach(() => {
+    useDevTerminalStore.setState({
+      tabs: [],
+      activeTabId: null,
+      runningTabs: {},
+    });
+  });
+
+  it("tags action-owned tabs and clears their running marker when removed", () => {
+    const store = useDevTerminalStore.getState();
+    const actionTab = store.addTab("p1", "Dev", "/wt/x", "dev");
+
+    store.markShellRunning(actionTab.id);
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      tabs: [{ id: actionTab.id, runActionId: "dev" }],
+      runningTabs: { [actionTab.id]: true },
+    });
+
+    store.removeTab(actionTab.id);
+    expect(useDevTerminalStore.getState().runningTabs).toEqual({});
+  });
+
+  it("clears a running marker when its shell exits", () => {
+    const store = useDevTerminalStore.getState();
+    const actionTab = store.addTab("p1", "Dev", undefined, "dev");
+    store.markShellRunning(actionTab.id);
+
+    store.markShellExited(actionTab.id);
+
+    expect(useDevTerminalStore.getState().runningTabs).toEqual({});
   });
 });
 // @vitest-environment node
