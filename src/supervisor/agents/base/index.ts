@@ -427,6 +427,7 @@ export function envVarAuthProbe(names: string[]): AuthProbe {
       const results = await batchWslCommandsAsync(
         ctx.location.distro,
         names.map((n) => `printf %s "$${n}"`),
+        ctx.signal,
       );
       const any = results.some((r) => r.ok && r.stdout.trim().length > 0);
       return any ? "authenticated" : "unknown";
@@ -467,6 +468,7 @@ export function cliSubcommandAuthProbe(args: string[]): AuthProbe {
     const result = await readCommandOutputAsync(spec.command, spec.args, {
       ...(spec.cwd ? { cwd: spec.cwd } : {}),
       ...(spec.env ? { env: spec.env } : {}),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
     });
     return result.ok ? "authenticated" : "unknown";
   };
@@ -521,7 +523,7 @@ async function resolveDetectedBinary(
         `home="\${${env}:-}"; if [ -z "$home" ]; then home="$HOME"/${quotePosixShellArg(defaultSubpath)}; fi; candidate="$home/bin/"${quotePosixShellArg(binary)}; if [ -x "$candidate" ]; then printf '%s\\n' "$candidate"; fi`,
       );
     }
-    const results = await batchWslCommandsAsync(ctx.wslDistro, commands);
+    const results = await batchWslCommandsAsync(ctx.wslDistro, commands, ctx.signal);
     // A `/mnt/...` result is a Windows binary surfaced via PATH interop, not a
     // real Linux install — reject it so detection matches launch-time
     // resolution (see isWslInteropBinaryPath).
@@ -548,7 +550,9 @@ export async function readDetectedVersion(
   executablePath: string | undefined,
   versionArgs: string[],
   probeEnv?: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<string | undefined> {
+  signal?.throwIfAborted();
   if (!executablePath) return undefined;
   if (location.kind === "wsl") {
     const result = await readWslLoginShellCommandOutputAsync(
@@ -556,8 +560,11 @@ export async function readDetectedVersion(
       PROBE_WSL_LINUX_PATH,
       executablePath,
       versionArgs,
-      probeEnv ? { env: probeEnv } : undefined,
+      probeEnv || signal
+        ? { ...(probeEnv ? { env: probeEnv } : {}), ...(signal ? { signal } : {}) }
+        : undefined,
     );
+    signal?.throwIfAborted();
     return result.ok ? extractSemverFromVersionOutput(result.stdout) : undefined;
   }
   // Run the resolved binary directly rather than re-resolving the bare name
@@ -570,8 +577,12 @@ export async function readDetectedVersion(
   const result = await readCommandOutputAsync(
     spec.command,
     spec.args,
-    spec.cwd || spec.env
-      ? { ...(spec.cwd ? { cwd: spec.cwd } : {}), ...(spec.env ? { env: spec.env } : {}) }
+    spec.cwd || spec.env || signal
+      ? {
+          ...(spec.cwd ? { cwd: spec.cwd } : {}),
+          ...(spec.env ? { env: spec.env } : {}),
+          ...(signal ? { signal } : {}),
+        }
       : undefined,
   );
   return result.ok ? extractSemverFromVersionOutput(result.stdout) : undefined;
@@ -595,14 +606,16 @@ export async function readAgentCommandOutput(
     wslLinuxCwd?: string;
     posixCwd?: string;
     env?: Record<string, string>;
+    signal?: AbortSignal;
   },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   if (location.kind === "wsl") {
     const wslOptions =
-      options?.timeoutMs !== undefined || options?.env
+      options?.timeoutMs !== undefined || options?.env || options?.signal
         ? {
             ...(options?.timeoutMs !== undefined ? { timeout: options.timeoutMs } : {}),
             ...(options?.env ? { env: options.env } : {}),
+            ...(options?.signal ? { signal: options.signal } : {}),
           }
         : undefined;
     return readWslLoginShellCommandOutputAsync(
@@ -619,6 +632,7 @@ export async function readAgentCommandOutput(
     ...(effectiveCwd ? { cwd: effectiveCwd } : {}),
     ...(spec.env ? { env: spec.env } : {}),
     ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
+    ...(options?.signal ? { signal: options.signal } : {}),
   };
   return readCommandOutputAsync(
     spec.command,
@@ -707,8 +721,10 @@ export async function detectAgentInstall(
   ctx: AgentEnvContext | undefined,
   spec: DetectionSpec,
 ): Promise<AgentStatus> {
+  ctx?.signal?.throwIfAborted();
   const location = detectProbeLocation(ctx);
   const executablePath = await resolveDetectedBinary(ctx, spec);
+  ctx?.signal?.throwIfAborted();
 
   const versionArgs = spec.versionArgs ?? ["--version"];
   const version = spec.versionProbe
@@ -717,8 +733,9 @@ export async function detectAgentInstall(
         executablePath,
         ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
         ...(spec.probeEnv ? { probeEnv: spec.probeEnv } : {}),
+        ...(ctx?.signal ? { signal: ctx.signal } : {}),
       })
-    : await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
+    : await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv, ctx?.signal);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;
@@ -734,11 +751,13 @@ export async function detectAgentInstall(
       version,
       ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
       probeEnv: spec.probeEnv,
+      ...(ctx?.signal ? { signal: ctx.signal } : {}),
     };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
       spec.capabilitiesProbe ? spec.capabilitiesProbe(probeCtx) : Promise.resolve(undefined),
       spec.statusProbe ? spec.statusProbe(probeCtx) : Promise.resolve(undefined),
     ]);
+    ctx?.signal?.throwIfAborted();
     if (capabilityPartial) {
       const {
         authMethods: probeAuthMethods,
@@ -773,6 +792,7 @@ export async function detectAgentInstall(
     executablePath,
     version,
     ...(ctx?.agentSettings ? { agentSettings: ctx.agentSettings } : {}),
+    ...(ctx?.signal ? { signal: ctx.signal } : {}),
   };
 
   let authState: AuthState;
@@ -789,6 +809,7 @@ export async function detectAgentInstall(
     authState = statusProbeResult?.authState ?? "unknown";
     if (authState !== "authenticated") {
       for (const probe of spec.authProbes ?? []) {
+        ctx?.signal?.throwIfAborted();
         const result = await probe(probeCtx);
         if (result === "authenticated") {
           authState = "authenticated";

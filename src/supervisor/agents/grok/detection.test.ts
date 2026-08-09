@@ -21,7 +21,9 @@ vi.mock("node:fs", async (importOriginal) => {
   return {
     ...actual,
     existsSync: (path: import("node:fs").PathLike) =>
-      String(path).endsWith("/.grok/auth.json") ? authFileMock.exists : actual.existsSync(path),
+      String(path).replaceAll("\\", "/").endsWith("/.grok/auth.json")
+        ? authFileMock.exists
+        : actual.existsSync(path),
   };
 });
 

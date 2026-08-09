@@ -6,7 +6,12 @@ const readCommandOutputAsyncMock = vi.hoisted(() =>
     (
       command: string,
       args: string[],
-      options?: { cwd?: string; env?: Record<string, string>; timeout?: number },
+      options?: {
+        cwd?: string;
+        env?: Record<string, string>;
+        timeout?: number;
+        signal?: AbortSignal;
+      },
     ) => Promise<{ ok: boolean; stdout: string; stderr: string }>
   >(),
 );
@@ -46,5 +51,14 @@ describe("readAgentCommandOutput", () => {
 
     expect(readCommandOutputAsyncMock).toHaveBeenCalledOnce();
     expect(readCommandOutputAsyncMock.mock.calls[0]?.[2]?.timeout).toBeUndefined();
+  });
+
+  it("forwards cancellation to native readCommandOutputAsync", async () => {
+    const abort = new AbortController();
+    await readAgentCommandOutput(WINDOWS_LOCATION, "cursor-agent", ["--version"], {
+      signal: abort.signal,
+    });
+
+    expect(readCommandOutputAsyncMock.mock.calls[0]?.[2]?.signal).toBe(abort.signal);
   });
 });

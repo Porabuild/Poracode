@@ -9,7 +9,12 @@ function isRunnablePid(pid: number): boolean {
   }
 }
 
-export function terminateProcessTree(pid: number): void {
+export interface TerminateProcessTreeOptions {
+  /** The child was launched detached and owns its POSIX process group. */
+  ownedProcessGroup?: boolean;
+}
+
+export function terminateProcessTree(pid: number, options?: TerminateProcessTreeOptions): void {
   if (!Number.isInteger(pid) || pid <= 0) {
     return;
   }
@@ -30,17 +35,33 @@ export function terminateProcessTree(pid: number): void {
     }
   }
 
+  if (options?.ownedProcessGroup) {
+    try {
+      process.kill(-pid, "SIGKILL");
+      return;
+    } catch {
+      // The group may already be gone; fall back to the immediate process.
+    }
+  }
+
   try {
-    process.kill(pid);
+    if (options?.ownedProcessGroup) {
+      process.kill(pid, "SIGKILL");
+    } else {
+      process.kill(pid);
+    }
   } catch {
     // Best effort; the process may already be gone.
   }
 }
 
-export function terminateChildProcessTree(child: Pick<ChildProcess, "pid">): void {
+export function terminateChildProcessTree(
+  child: Pick<ChildProcess, "pid">,
+  options?: TerminateProcessTreeOptions,
+): void {
   if (typeof child.pid !== "number") {
     return;
   }
 
-  terminateProcessTree(child.pid);
+  terminateProcessTree(child.pid, options);
 }

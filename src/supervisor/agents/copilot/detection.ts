@@ -45,6 +45,8 @@ export const copilotDefaultCapabilities: AgentCapability = {
   settingDefs: [],
 };
 
+const COPILOT_MODEL_EFFORT_PROBE_TIMEOUT_MS = 15_000;
+
 export function buildCopilotCommand(
   location: ProjectLocation,
   args: string[],
@@ -60,14 +62,18 @@ export function buildCopilotCommand(
  */
 const ghAuthProbe: AuthProbe = async (ctx) => {
   if (ctx.location.kind === "wsl") {
-    const [result] = await batchWslCommandsAsync(ctx.location.distro, [
-      "command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 && echo yes",
-    ]);
+    const [result] = await batchWslCommandsAsync(
+      ctx.location.distro,
+      ["command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 && echo yes"],
+      ctx.signal,
+    );
     return result?.ok && result.stdout.trim() === "yes" ? "authenticated" : "unknown";
   }
   const ghPath = await resolveExecutablePathAsync("gh");
   if (!ghPath) return "unknown";
-  const result = await readCommandOutputAsync(ghPath, ["auth", "status"]);
+  const result = await readCommandOutputAsync(ghPath, ["auth", "status"], {
+    ...(ctx.signal ? { signal: ctx.signal } : {}),
+  });
   return result.ok ? "authenticated" : "unknown";
 };
 
@@ -75,15 +81,19 @@ async function probeCopilotModelEfforts(
   location: ProjectLocation,
   executablePath: string | undefined,
   models: { id: string }[],
+  signal?: AbortSignal,
 ): Promise<{ defaultEffort?: string; modelEfforts?: Record<string, string[]> }> {
+  if (signal?.aborted) return {};
   const spec = buildCopilotCommand(location, ["--acp", "--stdio"], executablePath);
   const sessionCwd = getAgentProbeCwd(location);
   const spawnCwd = resolveProbeSpawnCwd(location, spec.cwd);
+  const ownedProcessGroup = process.platform !== "win32";
   const child = spawn(spec.command, spec.args, {
     ...(spawnCwd ? { cwd: spawnCwd } : {}),
     stdio: ["pipe", "pipe", "pipe"],
     shell: false,
     windowsHide: true,
+    detached: ownedProcessGroup,
   });
   child.on("error", (err) => {
     console.log("[copilot-probe] spawn error:", err.message);
@@ -105,124 +115,162 @@ async function probeCopilotModelEfforts(
     stream,
   );
 
+  let timeout: NodeJS.Timeout | undefined;
+  let abortProbe: (() => void) | undefined;
+  const stop = () => {
+    try {
+      child.stdin?.destroy();
+    } catch {
+      // Ignore cleanup races.
+    }
+    terminateChildProcessTree(child, { ownedProcessGroup });
+  };
+
   try {
-    await connection.initialize({
-      protocolVersion: PROTOCOL_VERSION,
-      clientInfo: { name: "poracode-probe", version: "0.1.0" },
-      clientCapabilities: {},
-    });
-    const session = await connection.newSession({ cwd: sessionCwd, mcpServers: [] });
+    const runProbe = async () => {
+      await connection.initialize({
+        protocolVersion: PROTOCOL_VERSION,
+        clientInfo: { name: "poracode-probe", version: "0.1.0" },
+        clientCapabilities: {},
+      });
+      const session = await connection.newSession({ cwd: sessionCwd, mcpServers: [] });
 
-    const baseUpdate = session.configOptions
-      ? { sessionUpdate: "config_option_update", configOptions: session.configOptions }
-      : undefined;
+      const baseUpdate = session.configOptions
+        ? { sessionUpdate: "config_option_update", configOptions: session.configOptions }
+        : undefined;
 
-    function extractThoughtLevelConfig(update: unknown):
-      | {
-          currentValue?: string;
-          options: string[];
-        }
-      | undefined {
-      if (!update || typeof update !== "object" || !("configOptions" in update)) {
-        return undefined;
-      }
-      const configOptions = (update as { configOptions?: unknown }).configOptions;
-      if (!Array.isArray(configOptions)) {
-        return undefined;
-      }
-      const thoughtLevel = configOptions.find((candidate) => {
-        if (typeof candidate !== "object" || candidate === null) {
-          return false;
-        }
-        const option = candidate as {
-          category?: string;
-          currentValue?: string;
-          options?: unknown;
-        };
-        return option.category === "thought_level";
-      }) as
+      function extractThoughtLevelConfig(update: unknown):
         | {
             currentValue?: string;
-            options?: Array<{ value?: string }> | Array<{ options?: Array<{ value?: string }> }>;
+            options: string[];
           }
-        | undefined;
-      if (!thoughtLevel) {
-        return undefined;
-      }
-      const flattened = (Array.isArray(thoughtLevel.options) ? thoughtLevel.options : []).flatMap(
-        (entry) => {
-          if (typeof entry !== "object" || entry === null) {
-            return [];
-          }
-          if ("value" in entry) {
-            return [entry as { value?: string }];
-          }
-          if ("options" in entry && Array.isArray((entry as { options?: unknown }).options)) {
-            return (entry as { options: Array<{ value?: string }> }).options;
-          }
-          return [];
-        },
-      );
-      const options = flattened
-        .map((entry) => entry.value)
-        .filter((value): value is string => typeof value === "string" && value.length > 0);
-      return {
-        options,
-        ...(thoughtLevel.currentValue ? { currentValue: thoughtLevel.currentValue } : {}),
-      };
-    }
-
-    const initialThoughtLevel = baseUpdate ? extractThoughtLevelConfig(baseUpdate) : undefined;
-    const modelEfforts: Record<string, string[]> = {};
-    const defaultEffort = initialThoughtLevel?.currentValue;
-
-    // Unstable pre-1.0 model state (see unstableModelCompat.ts) — the SDK no
-    // longer types the `models` field on the session response.
-    const sessionModels = readUnstableSessionModels(session);
-    if (sessionModels?.currentModelId && initialThoughtLevel?.options.length) {
-      modelEfforts[sessionModels.currentModelId] = initialThoughtLevel.options;
-    }
-
-    for (const model of models) {
-      try {
-        updates.length = 0;
-        await setUnstableSessionModel(connection, {
-          sessionId: session.sessionId,
-          modelId: model.id,
-        });
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        const update = updates
-          .filter(
-            (entry) =>
-              typeof entry === "object" &&
-              entry !== null &&
-              "sessionUpdate" in entry &&
-              (entry as { sessionUpdate?: string }).sessionUpdate === "config_option_update",
-          )
-          .at(-1);
-        const thoughtLevel = extractThoughtLevelConfig(update);
-        if (!thoughtLevel || thoughtLevel.options.length === 0) {
-          continue;
+        | undefined {
+        if (!update || typeof update !== "object" || !("configOptions" in update)) {
+          return undefined;
         }
-        modelEfforts[model.id] = thoughtLevel.options;
-      } catch (err) {
-        console.log(
-          `[copilot-probe] model effort probe failed at ${model.id}:`,
-          err instanceof Error ? err.message : err,
+        const configOptions = (update as { configOptions?: unknown }).configOptions;
+        if (!Array.isArray(configOptions)) {
+          return undefined;
+        }
+        const thoughtLevel = configOptions.find((candidate) => {
+          if (typeof candidate !== "object" || candidate === null) {
+            return false;
+          }
+          const option = candidate as {
+            category?: string;
+            currentValue?: string;
+            options?: unknown;
+          };
+          return option.category === "thought_level";
+        }) as
+          | {
+              currentValue?: string;
+              options?: Array<{ value?: string }> | Array<{ options?: Array<{ value?: string }> }>;
+            }
+          | undefined;
+        if (!thoughtLevel) {
+          return undefined;
+        }
+        const flattened = (Array.isArray(thoughtLevel.options) ? thoughtLevel.options : []).flatMap(
+          (entry) => {
+            if (typeof entry !== "object" || entry === null) {
+              return [];
+            }
+            if ("value" in entry) {
+              return [entry as { value?: string }];
+            }
+            if ("options" in entry && Array.isArray((entry as { options?: unknown }).options)) {
+              return (entry as { options: Array<{ value?: string }> }).options;
+            }
+            return [];
+          },
         );
-        break;
+        const options = flattened
+          .map((entry) => entry.value)
+          .filter((value): value is string => typeof value === "string" && value.length > 0);
+        return {
+          options,
+          ...(thoughtLevel.currentValue ? { currentValue: thoughtLevel.currentValue } : {}),
+        };
       }
-    }
 
-    return {
-      ...(defaultEffort ? { defaultEffort } : {}),
-      ...(Object.keys(modelEfforts).length > 0 ? { modelEfforts } : {}),
+      const initialThoughtLevel = baseUpdate ? extractThoughtLevelConfig(baseUpdate) : undefined;
+      const modelEfforts: Record<string, string[]> = {};
+      const defaultEffort = initialThoughtLevel?.currentValue;
+
+      // Unstable pre-1.0 model state (see unstableModelCompat.ts) — the SDK no
+      // longer types the `models` field on the session response.
+      const sessionModels = readUnstableSessionModels(session);
+      if (sessionModels?.currentModelId && initialThoughtLevel?.options.length) {
+        modelEfforts[sessionModels.currentModelId] = initialThoughtLevel.options;
+      }
+
+      for (const model of models) {
+        try {
+          updates.length = 0;
+          await setUnstableSessionModel(connection, {
+            sessionId: session.sessionId,
+            modelId: model.id,
+          });
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          const update = updates
+            .filter(
+              (entry) =>
+                typeof entry === "object" &&
+                entry !== null &&
+                "sessionUpdate" in entry &&
+                (entry as { sessionUpdate?: string }).sessionUpdate === "config_option_update",
+            )
+            .at(-1);
+          const thoughtLevel = extractThoughtLevelConfig(update);
+          if (!thoughtLevel || thoughtLevel.options.length === 0) {
+            continue;
+          }
+          modelEfforts[model.id] = thoughtLevel.options;
+        } catch (err) {
+          console.log(
+            `[copilot-probe] model effort probe failed at ${model.id}:`,
+            err instanceof Error ? err.message : err,
+          );
+          break;
+        }
+      }
+
+      return {
+        ...(defaultEffort ? { defaultEffort } : {}),
+        ...(Object.keys(modelEfforts).length > 0 ? { modelEfforts } : {}),
+      };
     };
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        stop();
+        reject(new Error("Copilot model-effort probe timed out"));
+      }, COPILOT_MODEL_EFFORT_PROBE_TIMEOUT_MS);
+      if (typeof timeout.unref === "function") timeout.unref();
+    });
+    const abortPromise = signal
+      ? new Promise<never>((_, reject) => {
+          abortProbe = () => {
+            stop();
+            reject(new Error("Copilot model-effort probe aborted"));
+          };
+          signal.addEventListener("abort", abortProbe, { once: true });
+          if (signal.aborted) abortProbe();
+        })
+      : undefined;
+    return await Promise.race([
+      runProbe(),
+      timeoutPromise,
+      ...(abortPromise ? [abortPromise] : []),
+    ]);
   } catch {
     return {};
   } finally {
+    if (timeout) clearTimeout(timeout);
+    if (abortProbe) signal?.removeEventListener("abort", abortProbe);
     try {
-      terminateChildProcessTree(child);
+      stop();
     } catch {
       // Ignore cleanup races.
     }
@@ -249,6 +297,7 @@ function withCopilotModelRates(
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath?: string,
+  signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult> {
   const spec = buildCopilotCommand(location, ["--acp", "--stdio"], executablePath);
   const sessionCwd = getAgentProbeCwd(location);
@@ -257,11 +306,12 @@ async function probeCapabilities(
     ...(processCwd ? { processCwd } : {}),
     timeoutMs: 15_000,
     label: location.kind === "wsl" ? `copilot:wsl:${location.distro}` : `copilot:${location.kind}`,
+    ...(signal ? { signal } : {}),
   });
 
   const modelEffortProbe =
     probe?.models?.length && executablePath !== undefined
-      ? await probeCopilotModelEfforts(location, executablePath, probe.models)
+      ? await probeCopilotModelEfforts(location, executablePath, probe.models, signal)
       : {};
 
   // Merge probe approval policies with defaults (probe labels take precedence,
@@ -310,6 +360,6 @@ export const copilotDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe(["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"]), ghAuthProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.signal);
   },
 };

@@ -1,12 +1,14 @@
-import { Server } from "lucide-react";
+import { FolderOpen, House, Monitor, Server } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
+import { isHomeProject } from "@/shared/homeScope";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { createArrayKeyedMap } from "@/renderer/state/derivations";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerRecord, RemoteServerStatus } from "@/renderer/state/remoteServers/types";
 import { RemoteServerStatusDot } from "./RemoteServerStatusDot";
+import { TuxIcon } from "./TuxIcon";
 
 /** What a surface needs to show that a project lives on another machine. */
 export interface ProjectRemoteServerInfo {
@@ -16,6 +18,12 @@ export interface ProjectRemoteServerInfo {
   readonly serverName: string | undefined;
   /** Live connection status of that machine, when known. */
   readonly status: RemoteServerStatus | undefined;
+}
+
+interface ProjectRemoteServerSource {
+  readonly remoteServerId?: string | undefined;
+  readonly remoteId?: string | undefined;
+  readonly location?: { readonly remoteServerId?: string | undefined } | undefined;
 }
 
 const LOCAL: ProjectRemoteServerInfo = {
@@ -37,7 +45,7 @@ const serverByDesktopId = createArrayKeyedMap<RemoteServerRecord, string, Remote
  * many projects from one subscription — calling a hook per row is not allowed.
  */
 export function useProjectRemoteServerLookup(): (
-  project: Project | undefined,
+  project: ProjectRemoteServerSource | undefined,
 ) => ProjectRemoteServerInfo {
   const servers = useRemoteServersStore((state) => state.servers);
   // Only the status is displayed, and the runtime map is rebuilt wholesale on
@@ -53,13 +61,16 @@ export function useProjectRemoteServerLookup(): (
     }),
   );
   return (project) => {
-    const desktopId = project?.remoteServerId;
+    const desktopId = project?.remoteServerId ?? project?.location?.remoteServerId;
     if (!desktopId || !project) return LOCAL;
     const server = serverByDesktopId(servers, desktopId);
     return {
       // An unpaired-but-mirrored project still reads as non-local, so the
       // glyph shows even once the machine record is gone.
-      isRemote: remoteOwner(project) !== undefined || server !== undefined,
+      isRemote:
+        remoteOwner(project) !== undefined ||
+        project.location?.remoteServerId !== undefined ||
+        server !== undefined,
       serverName: server ? desktopTitle(server.label) : undefined,
       status: statuses[desktopId],
     };
@@ -100,6 +111,49 @@ export function ProjectRemoteServerIcon(props: {
       ) : null}
     </span>
   );
+}
+
+export function ProjectLocationIcon(props: {
+  location: Project["location"];
+  className?: string | undefined;
+}) {
+  if (props.location.kind === "wsl") {
+    return (
+      <span
+        className={`${props.className ?? "size-3.5"} relative shrink-0 text-muted`}
+        aria-hidden="true"
+      >
+        <TuxIcon className="absolute left-1/2 top-1/2 h-3.5 w-6 -translate-x-1/2 -translate-y-1/2" />
+      </span>
+    );
+  }
+  const className = `${props.className ?? "size-4"} shrink-0 text-muted`;
+  return props.location.kind === "windows" ? (
+    <Monitor className={className} />
+  ) : (
+    <FolderOpen className={className} />
+  );
+}
+
+/** Leading glyph shared by project selectors: Home, host machine, or local path kind. */
+export function ProjectSelectorIcon(props: {
+  project: Project;
+  remote: ProjectRemoteServerInfo;
+  className?: string | undefined;
+}) {
+  if (isHomeProject(props.project)) {
+    return <House className={`${props.className ?? "size-4"} shrink-0 text-muted`} />;
+  }
+  if (props.remote.isRemote) {
+    return (
+      <ProjectRemoteServerIcon
+        info={props.remote}
+        className={`${props.className ?? "size-3.5"} text-muted`}
+        dotClassName="size-1"
+      />
+    );
+  }
+  return <ProjectLocationIcon location={props.project.location} className={props.className} />;
 }
 
 const CHIP_SIZE = {

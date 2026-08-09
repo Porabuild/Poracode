@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Selection } from "@heroui/react";
-import { Dropdown, Label, Separator } from "@heroui/react";
+import { Description, Dropdown, Label, Separator } from "@heroui/react";
 import { Check, ChevronsUpDown, ListFilter, MoreHorizontal } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
@@ -8,9 +8,10 @@ import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { ContextMenuSurface, MENU_BACKDROP_ATTR } from "@/renderer/components/common/ContextMenu";
 import {
-  ProjectRemoteServerChip,
+  ProjectSelectorIcon,
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
+import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
@@ -168,9 +169,13 @@ function ProjectOverflowMenu(props: {
   /** Fired before dispatching a picked action, so the filter menu can close. */
   onAction: () => void;
 }) {
-  // Flat-list projects are visible by construction: enabled, local or backed
-  // by an online server — nothing here is host-unreachable.
-  const projectMenu = useProjectMenu(props.project, { isUnreachable: false });
+  const remoteServerFor = useProjectRemoteServerLookup();
+  const projectMenu = useProjectMenu(props.project, {
+    isUnreachable: isRemoteProjectStatusUnreachable(
+      props.project,
+      remoteServerFor(props.project).status,
+    ),
+  });
   return (
     <ContextMenuSurface
       position={props.anchor}
@@ -200,12 +205,14 @@ function ProjectOverflowMenu(props: {
  * {@link SidebarWorkspaceSwitcher}.
  */
 export function SidebarProjectFilter(props: {
-  /** Projects offered in the menu (already visibility-filtered by the caller). */
+  /** Projects offered in the menu, including unavailable projects with actions. */
   projects: readonly Project[];
+  /** Projects whose threads can currently participate in the filter. */
+  filterableProjectIds: ReadonlySet<string>;
   /** Unarchived thread counts per project id, shown as row hints. */
   threadCounts: ReadonlyMap<string, number>;
   /**
-   * Selected project ids, pre-intersected with `projects` by the caller;
+   * Selected project ids, pre-intersected with `filterableProjectIds` by the caller;
    * null = all projects.
    */
   value: ReadonlySet<string> | null;
@@ -251,15 +258,21 @@ export function SidebarProjectFilter(props: {
     event.stopPropagation();
   };
 
-  const visibleIds = props.projects.map((project) => project.id);
+  const filterableProjects = props.projects.filter((project) =>
+    props.filterableProjectIds.has(project.id),
+  );
+  const unavailableProjects = props.projects.filter(
+    (project) => !props.filterableProjectIds.has(project.id),
+  );
+  const filterableIds = filterableProjects.map((project) => project.id);
   const isAll = props.value === null;
   // In the all state every project reads as selected — unchecking one then
   // filters it out, matching checkbox expectations.
-  const selectedProjects: ReadonlySet<string> = props.value ?? new Set(visibleIds);
+  const selectedProjects: ReadonlySet<string> = props.value ?? new Set(filterableIds);
 
   const soleSelected =
     !isAll && selectedProjects.size === 1
-      ? props.projects.find((project) => selectedProjects.has(project.id))
+      ? filterableProjects.find((project) => selectedProjects.has(project.id))
       : undefined;
   const soleMachine = soleSelected ? remoteServerFor(soleSelected).serverName : undefined;
   const baseLabel = isAll
@@ -286,7 +299,7 @@ export function SidebarProjectFilter(props: {
     if (next.has(projectId)) next.delete(projectId);
     else next.add(projectId);
     // Empty and complete selections are both just "all projects".
-    props.onChange(next.size === 0 || next.size >= visibleIds.length ? null : [...next]);
+    props.onChange(next.size === 0 || next.size >= filterableIds.length ? null : [...next]);
   };
 
   const triggerContent = (
@@ -333,7 +346,7 @@ export function SidebarProjectFilter(props: {
             </span>
             {isAll ? <Check className="size-4 shrink-0 text-accent" /> : null}
           </button>
-          {props.projects.map((project) => {
+          {filterableProjects.map((project) => {
             const selected = selectedProjects.has(project.id);
             const remote = remoteServerFor(project);
             return (
@@ -344,8 +357,13 @@ export function SidebarProjectFilter(props: {
                 aria-pressed={selected || undefined}
                 onClick={() => toggleProject(project.id)}
               >
+                <ProjectSelectorIcon project={project} remote={remote} />
                 <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                <ProjectRemoteServerChip info={remote} size="md" />
+                {remote.serverName ? (
+                  <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
+                    {remote.serverName}
+                  </span>
+                ) : null}
                 <span className="shrink-0 text-xs text-muted">
                   {props.threadCounts.get(project.id) ?? 0}
                 </span>
@@ -353,7 +371,35 @@ export function SidebarProjectFilter(props: {
               </button>
             );
           })}
+          {unavailableProjects.map((project) => {
+            const remote = remoteServerFor(project);
+            return (
+              <div key={project.id} className="m-sheet-action opacity-50" data-static="true">
+                <ProjectSelectorIcon project={project} remote={remote} />
+                <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                {remote.serverName ? (
+                  <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
+                    {remote.serverName}
+                  </span>
+                ) : null}
+                {isHomeProject(project) ? null : (
+                  <ProjectRowMenuButton
+                    project={project}
+                    onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
+        {overflowTarget ? (
+          <ProjectOverflowMenu
+            project={overflowTarget.project}
+            anchor={overflowTarget.anchor}
+            onClose={() => setOverflowTarget(null)}
+            onAction={close}
+          />
+        ) : null}
       </ResponsiveMenuSurface>
     );
   }
@@ -447,12 +493,13 @@ export function SidebarProjectFilter(props: {
             <Dropdown.ItemIndicator />
           </Dropdown.Item>
           <Separator />
-          {props.projects.map((project) => {
+          {filterableProjects.map((project) => {
             const remote = remoteServerFor(project);
             return (
               <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                <ProjectSelectorIcon project={project} remote={remote} />
                 <Label className="min-w-0 truncate">{project.name}</Label>
-                <ProjectRemoteServerChip info={remote} size="md" />
+                {remote.serverName ? <Description>{remote.serverName}</Description> : null}
                 <span className="ms-auto shrink-0 text-xs text-muted">
                   {props.threadCounts.get(project.id) ?? 0}
                 </span>
@@ -471,6 +518,25 @@ export function SidebarProjectFilter(props: {
               </Dropdown.Item>
             );
           })}
+          {unavailableProjects.length > 0 ? <Separator /> : null}
+          <Dropdown.Section selectionMode="none">
+            {unavailableProjects.map((project) => {
+              const remote = remoteServerFor(project);
+              return (
+                <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                  <ProjectSelectorIcon project={project} remote={remote} />
+                  <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
+                  {remote.serverName ? <Description>{remote.serverName}</Description> : null}
+                  {isHomeProject(project) ? null : (
+                    <ProjectRowMenuButton
+                      project={project}
+                      onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
+                    />
+                  )}
+                </Dropdown.Item>
+              );
+            })}
+          </Dropdown.Section>
         </Dropdown.Menu>
         {overflowTarget ? (
           <ProjectOverflowMenu

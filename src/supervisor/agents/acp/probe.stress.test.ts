@@ -133,4 +133,19 @@ describe("probeAcpCapabilities live-process paths", () => {
 
     expect(elapsed).toBeLessThan(1_000);
   });
+
+  it("aborts and reaps the probe process when its caller is cancelled", async () => {
+    const abort = new AbortController();
+    const started = Date.now();
+    const pending = probeAcpCapabilities(process.execPath, [FIXTURE], process.cwd(), {
+      timeoutMs: 5_000,
+      label: "cancelled",
+      signal: abort.signal,
+    });
+    setTimeout(() => abort.abort(), 100);
+
+    await pending;
+
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
 });

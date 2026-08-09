@@ -189,6 +189,7 @@ export class SupervisorRuntime {
       acpIconsDir: this.acpIconsDir,
       sharedSettingsCache: this.sharedSettingsCache,
       getAgentStatusService: () => this.agentStatusService,
+      getActiveWslProjectDistros: () => this._projectWatcher?.getWslDistros() ?? [],
     });
     this.agentRegistryService.refreshAgentRegistryAdapters();
     mkdirSync(paths.cacheDir, { recursive: true });

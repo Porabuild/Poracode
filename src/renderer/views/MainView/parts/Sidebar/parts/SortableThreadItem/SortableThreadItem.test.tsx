@@ -65,6 +65,14 @@ vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/GitBadge", () => ({
   ),
 }));
 
+vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/SyncBadge", () => ({
+  SyncBadge: (props: { projectId: string; worktreePath?: string }) => (
+    <span data-testid="sync-badge">
+      {props.projectId}:{props.worktreePath ?? "project"}
+    </span>
+  ),
+}));
+
 vi.mock("@/renderer/components/providers/statusTone", () => ({
   getStatusTone: getStatusToneMock,
 }));
@@ -82,6 +90,7 @@ vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useIsWorktreeTerminalActive: () => false,
   useIsWorktreeTerminalBusy: () => false,
   useIsWorktreeTerminalOpen: () => false,
+  useRunningProjectActionIds: () => [],
 }));
 
 vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions", () => ({
@@ -308,7 +317,7 @@ describe("SortableThreadItem", () => {
     });
   });
 
-  it("shows the project git badge on a flat-list main-branch thread row", () => {
+  it("shows project sync and git badges on a flat-list main-branch thread row", () => {
     render(
       <SortableThreadItem
         thread={makeThread()}
@@ -322,6 +331,7 @@ describe("SortableThreadItem", () => {
       />,
     );
 
+    expect(screen.getByTestId("sync-badge")).toHaveTextContent("project-1:project");
     expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
   });
 
@@ -341,5 +351,6 @@ describe("SortableThreadItem", () => {
     expect(
       screen.queryByRole("button", { name: "Git status for Project" }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
   });
 });

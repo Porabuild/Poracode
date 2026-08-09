@@ -1,8 +1,8 @@
-import { CircleCheck, GitFork, Play, Plus, Trash2 } from "lucide-react";
+import { CircleCheck, GitFork, Loader2, Play, Plus, Square, Trash2 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { Project } from "@/shared/contracts";
-import { ContextMenu } from "@/renderer/components/common/ContextMenu";
+import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useDragSource, useIsDraggingWorktreeGroup, type DragSourceData } from "@/renderer/dnd";
 import {
   useIsWorktreeFilesPanelActive,
@@ -10,7 +10,9 @@ import {
   useIsWorktreeTerminalActive,
   useIsWorktreeTerminalBusy,
   useIsWorktreeTerminalOpen,
+  useRunningProjectActionIds,
 } from "@/renderer/hooks/uiSelectors";
+import { getStatusTone } from "@/renderer/components/providers/statusTone";
 import {
   gitMergeAndRemove,
   gitMergeToSource,
@@ -20,18 +22,23 @@ import {
   gitSync,
 } from "@/renderer/actions/gitActions";
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
-import { openWorktreeTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
+import {
+  openWorktreeTerminal,
+  runProjectAction,
+  stopProjectAction,
+} from "@/renderer/actions/terminalActions";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { markThreadDone, openNewThreadInWorktree } from "@/renderer/actions/threadActions";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { gitMenuIcons } from "./gitMenuIcons";
 import type { WorktreeThreadGroup } from "./groupThreads";
 import { useWorktreeGitItems } from "./useWorktreeActions";
-import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
+import { getWorktreeGroupStatusTone, WorktreeGroupHeader } from "./WorktreeGroupHeader";
 
 export function SidebarWorktreeGroup(props: {
   group: WorktreeThreadGroup;
@@ -39,6 +46,7 @@ export function SidebarWorktreeGroup(props: {
   project: Project;
   sortableGroup: string;
   sortDisabled?: boolean;
+  liveBackgroundThreadIds: ReadonlySet<string>;
   /** Trailing project label for cross-project (flat) lists. */
   projectTag?: React.ReactNode;
 }) {
@@ -52,6 +60,36 @@ export function SidebarWorktreeGroup(props: {
   const isBusyTerminal = useIsWorktreeTerminalBusy(group.worktreePath);
   const isActiveFiles = useIsWorktreeFilesPanelActive(group.worktreePath);
   const isActiveGit = useIsWorktreeGitPanelActive(group.worktreePath);
+  const collapsedStatusTone = getWorktreeGroupStatusTone(
+    group.threads.map((thread) =>
+      getStatusTone(thread, {
+        hasBackgroundActivity: props.liveBackgroundThreadIds.has(thread.id),
+      }),
+    ),
+  );
+  const runningActionIds = useRunningProjectActionIds(project.id, group.worktreePath);
+  const runActionItems: ContextMenuItem[] = [];
+  for (const action of project.scripts?.actions ?? []) {
+    const isRunning = runningActionIds.includes(action.id);
+    runActionItems.push({
+      id: `action:${action.id}`,
+      label: action.name,
+      icon: isRunning ? (
+        <Loader2 className="size-3.5 animate-spin text-accent" aria-hidden />
+      ) : (
+        resolveActionIcon(action.icon)
+      ),
+      ...(isRunning
+        ? {
+            endAction: {
+              id: `stop-action:${action.id}`,
+              label: t`Stop ${action.name}`,
+              icon: <Square className="size-3 fill-current" aria-hidden />,
+            },
+          }
+        : {}),
+    });
+  }
   const groupThreadIds = group.threads.map((thread) => thread.id);
   const activeThreads = group.threads.filter((thread) => !thread.done);
   const isDone = group.threads.every((thread) => thread.done);
@@ -106,11 +144,7 @@ export function SidebarWorktreeGroup(props: {
                   id: "run-action",
                   label: t`Run`,
                   icon: <Play className="size-3.5" />,
-                  items: project.scripts.actions.map((action) => ({
-                    id: `action:${action.id}`,
-                    label: action.name,
-                    icon: resolveActionIcon(action.icon),
-                  })),
+                  items: runActionItems,
                 },
               ]
             : []),
@@ -131,6 +165,7 @@ export function SidebarWorktreeGroup(props: {
                 group.worktreeBranch,
             });
           if (key === "git-review") openGitReview(project.id, group.worktreePath);
+          if (key === "github-actions") useAppStore.getState().openGitHubActions(project.id);
           if (key === "delete-worktree")
             deleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds);
           if (key === "mark-all-done") {
@@ -151,6 +186,9 @@ export function SidebarWorktreeGroup(props: {
           if (key === "create-pr") openGitReview(project.id, group.worktreePath);
           if (key.startsWith("action:")) {
             runProjectAction(project.id, key.slice("action:".length), group.worktreePath);
+          }
+          if (key.startsWith("stop-action:")) {
+            stopProjectAction(project.id, key.slice("stop-action:".length), group.worktreePath);
           }
         }}
       >
@@ -175,6 +213,7 @@ export function SidebarWorktreeGroup(props: {
           isDraggingAnything={!!source}
           isDone={isDone}
           updatedAt={latestThreadUpdatedAt}
+          {...(collapsedStatusTone !== undefined ? { collapsedStatusTone } : {})}
           {...(props.projectTag !== undefined ? { projectTag: props.projectTag } : {})}
         />
       </ContextMenu>

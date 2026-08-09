@@ -3,9 +3,10 @@ import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentStatus, Thread } from "@/shared/contracts";
+import type { AgentStatus, GitStatusResult, Thread } from "@/shared/contracts";
 import "@/renderer/components/providers/bootstrap";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import {
   useComposerInputInbox,
   worktreeComposerInboxKey,
@@ -208,7 +209,10 @@ function typeComposerText(editor: HTMLElement, text: string) {
 
 describe("ThreadComposerSection", () => {
   beforeEach(() => {
-    useSharedSettings.setState({ collapseTerminalComposer: false });
+    useSharedSettings.setState({
+      collapseTerminalComposer: false,
+      disabledBuiltInMcpServers: {},
+    });
     useThreadTodoDockStore.setState({
       defaultPlacement: "composer",
       defaultCollapsed: false,
@@ -221,7 +225,9 @@ describe("ThreadComposerSection", () => {
       pendingSteerByThreadId: {},
       pendingComposerFocusThreadId: null,
       threadDraftContents: {},
+      provisioningWorktreeThreadIds: {},
     });
+    useGitStore.setState({ statuses: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
     bridgeMock.isRemoteSession.mockReturnValue(false);
     bridgeMock.clearPendingSteer.mockClear();
@@ -240,6 +246,42 @@ describe("ThreadComposerSection", () => {
     runtimeActions.submitThreadInput.mockClear();
     runtimeActions.submitThreadInput.mockResolvedValue(undefined);
     toastDangerSpy.mockClear();
+  });
+
+  it("hides base-checkout changes while a new worktree is provisioning", () => {
+    useAppStore.setState({
+      provisioningWorktreeThreadIds: { [guiThread.id]: true },
+    });
+    useGitStore.setState({
+      statuses: {
+        "project-1": {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 12,
+          totalDeletions: 3,
+        } as GitStatusResult,
+      },
+    });
+
+    render(
+      composerElement({
+        thread: {
+          ...guiThread,
+          status: "launching",
+          sessionRef: undefined,
+          worktreeBranch: "poracode/feature",
+        },
+      }),
+    );
+
+    expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
   });
 
   function composerElement(opts?: {
@@ -316,6 +358,69 @@ describe("ThreadComposerSection", () => {
     });
 
     expect(screen.getByTestId("control-kinds")).toBeEmptyDOMElement();
+  });
+
+  it("inserts @Terminal as a Poracode MCP directive", async () => {
+    const rangeRectDescriptor = Object.getOwnPropertyDescriptor(
+      Range.prototype,
+      "getBoundingClientRect",
+    );
+    const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollIntoView",
+    );
+    Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 0, top: 0 }),
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
+    try {
+      const { onSubmitInput } = renderComposer();
+      const input = screen.getByRole("textbox");
+      typeComposerText(input, "@ter");
+
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(input.querySelector('[data-mcp-id="app-controls"]')).not.toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+      await waitFor(() =>
+        expect(onSubmitInput).toHaveBeenCalledWith("@Terminal", [
+          { kind: "mcp", id: "app-controls", name: "Terminal" },
+          { kind: "text", content: " " },
+        ]),
+      );
+    } finally {
+      if (rangeRectDescriptor) {
+        Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeRectDescriptor);
+      } else {
+        Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
+      }
+      if (scrollIntoViewDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "scrollIntoView", scrollIntoViewDescriptor);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+      }
+    }
+  });
+
+  it("hides @Terminal when the provider owns MCP configuration", () => {
+    renderComposer({
+      agentStatus: {
+        ...codexGuiStatus,
+        capabilities: {
+          ...codexGuiStatus.capabilities,
+          mcpConfigSource: "agentSettings",
+        },
+      },
+    });
+    const input = screen.getByRole("textbox");
+    typeComposerText(input, "@ter");
+
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
   it("uses GUI presentation capabilities for slash commands and /fast submission", () => {

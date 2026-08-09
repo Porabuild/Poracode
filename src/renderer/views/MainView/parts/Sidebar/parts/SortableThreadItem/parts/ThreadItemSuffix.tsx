@@ -116,7 +116,11 @@ function ThreadItemStatusBadges(props: ThreadItemSuffixProps) {
 
   return (
     <>
-      {worktreePath ? <SyncBadge projectId={thread.projectId} worktreePath={worktreePath} /> : null}
+      {worktreePath ? (
+        <SyncBadge projectId={thread.projectId} worktreePath={worktreePath} />
+      ) : !thread.worktreePath && props.showProjectBadge ? (
+        <SyncBadge projectId={thread.projectId} />
+      ) : null}
       {showDoneButton ? (
         <div
           role="button"

@@ -67,6 +67,8 @@ export interface RemoteSocketLike {
 
 export type RemoteSocketFactory = (url: string) => RemoteSocketLike;
 
+export type RemoteThreadLaunchResult = "started" | "cancelled" | "cancellation-failed";
+
 export interface RemoteServersState {
   servers: RemoteServerRecord[];
   runtime: Record<string, RemoteServerRuntime>;
@@ -92,7 +94,8 @@ export interface RemoteServersState {
   openThread: OpenRemoteThread | null;
   launchRemoteThread(
     input: StartRemoteNewThreadInput & { readonly desktopId: string },
-  ): Promise<void>;
+    options?: { readonly isPendingLaunchOwned?: () => boolean },
+  ): Promise<RemoteThreadLaunchResult>;
   /**
    * Hydrate a remote thread's history and focus it. Never rejects. Resolves
    * `true` only when the snapshot was actually applied — `false` when the

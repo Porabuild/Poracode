@@ -186,13 +186,13 @@ interface StartRemoteThreadCommon {
   readonly prompt: string;
   readonly segments?: readonly PromptSegment[] | undefined;
   readonly presentationMode?: ThreadPresentationMode | undefined;
+  readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
 }
 
 export interface StartRemoteThreadInput extends StartRemoteThreadCommon {
   readonly projectLocation: ProjectLocation;
   readonly initialSize?: TerminalSize | undefined;
   readonly sessionRef?: StartThreadPayload["sessionRef"] | undefined;
-  readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
 }
 
 export interface StartRemoteNewThreadInput extends StartRemoteThreadCommon {
@@ -637,6 +637,7 @@ export class RemoteDesktopClient {
       prompt: input.prompt,
       ...(input.segments && input.segments.length > 0 ? { segments: [...input.segments] } : {}),
       ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
+      ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
       ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
       ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
       ...(input.isNewWorktree ? { isNewWorktree: true } : {}),

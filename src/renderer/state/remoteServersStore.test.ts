@@ -3,7 +3,7 @@ import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
 import type { IpcProcedureName, IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
-import type { RemoteGitSummaries } from "@/shared/remote";
+import { PORACODE_REMOTE_PROTOCOL_VERSION, type RemoteGitSummaries } from "@/shared/remote";
 import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
 import {
   __resetRemoteServersStoreForTest,
@@ -189,6 +189,7 @@ function makeClient(opts?: {
   snapshotThrows?: boolean;
   snapshot?: RemoteDesktopClient["snapshot"];
   agentStatuses?: RemoteDesktopClient["agentStatuses"];
+  environment?: RemoteDesktopClient["environment"];
   environmentHttpBaseUrl?: string;
   hostMode?: "desktop" | "helper";
   projectCommand?: RemoteDesktopClient["projectCommand"];
@@ -199,6 +200,7 @@ function makeClient(opts?: {
   threadRuntimeItemsPage?: RemoteDesktopClient["threadRuntimeItemsPage"];
   websocketTicket?: RemoteDesktopClient["websocketTicket"];
   websocketUrl?: RemoteDesktopClient["websocketUrl"];
+  sendThreadCommand?: RemoteDesktopClient["sendThreadCommand"];
   sendThreadInput?: RemoteDesktopClient["sendThreadInput"];
   uploadAttachment?: RemoteDesktopClient["uploadAttachment"];
   startThread?: RemoteDesktopClient["startThread"];
@@ -217,17 +219,19 @@ function makeClient(opts?: {
       expiresAt: "2099-01-01T00:00:00.000Z",
       scopes: ["session:read", "projects:manage"],
     }),
-    environment: async () => ({
-      protocolVersion: 1,
-      ...(opts?.hostMode ? { hostMode: opts.hostMode } : {}),
-      desktopId: "d1",
-      label: "Server One",
-      appVersion: "1.0",
-      endpoints: {
-        httpBaseUrl: opts?.environmentHttpBaseUrl ?? "http://192.168.1.9:38987/",
-        wsBaseUrl: "ws://192.168.1.9:38987/",
-      },
-    }),
+    environment:
+      opts?.environment ??
+      (async () => ({
+        protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+        ...(opts?.hostMode ? { hostMode: opts.hostMode } : {}),
+        desktopId: "d1",
+        label: "Server One",
+        appVersion: "1.0",
+        endpoints: {
+          httpBaseUrl: opts?.environmentHttpBaseUrl ?? "http://192.168.1.9:38987/",
+          wsBaseUrl: "ws://192.168.1.9:38987/",
+        },
+      })),
     agentStatuses:
       opts?.agentStatuses ?? (async () => ({ windows: [], wsl: [], updatedAt: "now" })),
     snapshot:
@@ -253,6 +257,7 @@ function makeClient(opts?: {
     websocketTicket: opts?.websocketTicket ?? (async () => "ticket-1"),
     websocketUrl: opts?.websocketUrl ?? (() => "ws://192.168.1.9:38987/ws?ticket=ticket-1"),
     parseSocketMessage: (value: string) => JSON.parse(value),
+    sendThreadCommand: opts?.sendThreadCommand ?? (async () => {}),
     sendThreadInput: opts?.sendThreadInput ?? (async () => {}),
     uploadAttachment: opts?.uploadAttachment ?? (async () => "/remote/attachment.png"),
     startThread: opts?.startThread ?? (async () => ({ threadId: remoteThread.id })),
@@ -302,6 +307,10 @@ describe("useRemoteServersStore", () => {
       lastKnownProjects: {},
       openThread: null,
     });
+    useAppStore.setState((state) => ({
+      threads: state.threads.filter((thread) => !thread.remoteServerId),
+      provisioningWorktreeThreadIds: {},
+    }));
     useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
     sync.applyThreadSnapshot.mockClear();
     sync.dispatchRemoteSupervisorEvent.mockClear();
@@ -835,6 +844,42 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
       status: "offline",
       message: "SSH connection failed",
+    });
+  });
+
+  it("stops reconnecting when a persisted server reports the previous protocol", async () => {
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>();
+    const environment = vi.fn<RemoteDesktopClient["environment"]>(async () => {
+      throw new RemoteClientError(
+        "This app version is incompatible with that server.",
+        409,
+        "protocol_version_mismatch",
+      );
+    });
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ environment, snapshot })));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Old host",
+          endpoint: "http://127.0.0.1:38987/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        d1: { status: "offline", projects: [], threads: [] },
+      },
+    });
+
+    await useRemoteServersStore.getState().connectAll();
+
+    expect(snapshot).not.toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+      status: "error",
+      message: "This app version is incompatible with that server.",
     });
   });
 
@@ -1979,22 +2024,355 @@ describe("useRemoteServersStore", () => {
     useRemoteServersStore.getState().setClientFactory(factoryFor(client));
     await pairIsolated(() => makeSocket());
     await useRemoteServersStore.getState().launchRemoteThread({
+      threadId: "rt-new",
       desktopId: "d1",
       projectId: "p1",
       agentKind: "claude",
       config: { model: "claude-sonnet" },
       prompt: "work remotely",
       presentationMode: "gui",
+      userMessageItemId: "user-optimistic",
     });
 
     expect(startNewThread).toHaveBeenCalledWith({
+      threadId: "rt-new",
       projectId: "p1",
       agentKind: "claude",
       config: { model: "claude-sonnet" },
       prompt: "work remotely",
       presentationMode: "gui",
+      userMessageItemId: "user-optimistic",
     });
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-new");
+  });
+
+  it("preserves an optimistic remote thread while its worktree is provisioning", async () => {
+    const socket = makeSocket();
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    useRemoteServersStore.getState().setSocketFactory(() => socket);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    const pendingId = remoteThreadId("d1", "rt-pending");
+    useAppStore.getState().createThread({
+      threadId: pendingId,
+      projectId: remoteProjectId("d1", "p1"),
+      remoteServerId: "d1",
+      remoteId: "rt-pending",
+      agentKind: "claude",
+      config: { model: "claude-sonnet" },
+      prompt: "work remotely",
+      presentationMode: "gui",
+      worktreeBranch: "feature",
+      worktreeProvisioning: true,
+    });
+    useAppStore.getState().createThread({
+      threadId: remoteThreadId("d1", "rt-stale"),
+      projectId: remoteProjectId("d1", "p1"),
+      remoteServerId: "d1",
+      remoteId: "rt-stale",
+      agentKind: "claude",
+      config: { model: "claude-sonnet" },
+      prompt: "stale remote row",
+      presentationMode: "gui",
+    });
+    sync.dispatchRemoteSupervisorEvent.mockClear();
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "event",
+        seq: 1,
+        event: {
+          type: "thread-state",
+          threadId: "rt-stale",
+          status: "working",
+          attention: "working",
+          canResumeWithConfig: false,
+        },
+      }),
+    });
+    expect(sync.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "event",
+        seq: 2,
+        event: {
+          type: "thread-state",
+          threadId: "rt-pending",
+          status: "working",
+          attention: "working",
+          canResumeWithConfig: false,
+        },
+      }),
+    });
+
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: pendingId }),
+    );
+
+    await useRemoteServersStore.getState().refreshServer("d1");
+
+    expect(useAppStore.getState().threads).toContainEqual(
+      expect.objectContaining({
+        id: pendingId,
+        remoteServerId: "d1",
+        remoteId: "rt-pending",
+      }),
+    );
+
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshot: async () => ({
+            snapshotSeq: 3,
+            projects: [proj],
+            threads: [
+              {
+                ...remoteThread,
+                id: "rt-pending",
+                projectId: "p1",
+                worktreePath: "/srv/worktrees/feature",
+              },
+            ],
+            runtimeSummariesByThread: {},
+            updatedAt: "confirmed",
+          }),
+        }),
+      ),
+    );
+    await useRemoteServersStore.getState().refreshServer("d1");
+
+    expect(useAppStore.getState().provisioningWorktreeThreadIds[pendingId]).toBe(true);
+  });
+
+  it("compensates when an authoritative snapshot precedes deletion and the start response", async () => {
+    const start = deferred<{ threadId: string }>();
+    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(() => start.promise);
+    const sendThreadCommand = vi.fn<RemoteDesktopClient["sendThreadCommand"]>(async () => {});
+    let authoritative = false;
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
+      snapshotSeq: authoritative ? 2 : 1,
+      projects: [proj],
+      threads: authoritative
+        ? [{ ...remoteThread, id: "rt-cancelled", worktreePath: "/srv/worktrees/feature" }]
+        : [],
+      runtimeSummariesByThread: {},
+      updatedAt: authoritative ? "authoritative" : "initial",
+    }));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ snapshot, startNewThread, sendThreadCommand })));
+    await pairIsolated(() => makeSocket());
+    const projectedId = remoteThreadId("d1", "rt-cancelled");
+    useAppStore.getState().createThread({
+      threadId: projectedId,
+      projectId: remoteProjectId("d1", "p1"),
+      remoteServerId: "d1",
+      remoteId: "rt-cancelled",
+      agentKind: "claude",
+      config: { model: "claude-sonnet" },
+      prompt: "work remotely",
+      presentationMode: "gui",
+      worktreeBranch: "feature",
+      worktreeProvisioning: true,
+    });
+
+    const launch = useRemoteServersStore.getState().launchRemoteThread(
+      {
+        threadId: "rt-cancelled",
+        desktopId: "d1",
+        projectId: "p1",
+        agentKind: "claude",
+        config: { model: "claude-sonnet" },
+        prompt: "work remotely",
+        presentationMode: "gui",
+        worktreePath: "/srv/worktrees/feature",
+      },
+      {
+        isPendingLaunchOwned: () =>
+          useAppStore.getState().provisioningWorktreeThreadIds[projectedId] === true,
+      },
+    );
+    await vi.waitFor(() => expect(startNewThread).toHaveBeenCalledOnce());
+    authoritative = true;
+    await useRemoteServersStore.getState().refreshServer("d1");
+    expect(useAppStore.getState().provisioningWorktreeThreadIds[projectedId]).toBe(true);
+    useAppStore.getState().deleteThread(projectedId);
+    start.resolve({ threadId: "rt-cancelled" });
+
+    await expect(launch).resolves.toBe("cancelled");
+    expect(sendThreadCommand).toHaveBeenCalledWith({
+      kind: "delete",
+      threadId: "rt-cancelled",
+    });
+    expect(useAppStore.getState().threads.map((thread) => thread.id)).not.toContain(projectedId);
+    expect(useRemoteServersStore.getState().openThread).toBeNull();
+  });
+
+  it("compensates when the provisional row is deleted while waiting for host appearance", async () => {
+    const appearance = deferred<Awaited<ReturnType<RemoteDesktopClient["snapshot"]>>>();
+    let snapshotCalls = 0;
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => {
+      snapshotCalls += 1;
+      if (snapshotCalls === 1) {
+        return {
+          snapshotSeq: 1,
+          projects: [proj],
+          threads: [],
+          runtimeSummariesByThread: {},
+          updatedAt: "initial",
+        };
+      }
+      return appearance.promise;
+    });
+    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
+      threadId: "rt-waiting",
+    }));
+    const sendThreadCommand = vi.fn<RemoteDesktopClient["sendThreadCommand"]>(async () => {});
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ snapshot, startNewThread, sendThreadCommand })));
+    await pairIsolated(() => makeSocket());
+    const projectedId = remoteThreadId("d1", "rt-waiting");
+    useAppStore.getState().createThread({
+      threadId: projectedId,
+      projectId: remoteProjectId("d1", "p1"),
+      remoteServerId: "d1",
+      remoteId: "rt-waiting",
+      agentKind: "claude",
+      config: { model: "claude-sonnet" },
+      prompt: "work remotely",
+      presentationMode: "gui",
+      worktreeProvisioning: true,
+    });
+
+    const launch = useRemoteServersStore.getState().launchRemoteThread(
+      {
+        threadId: "rt-waiting",
+        desktopId: "d1",
+        projectId: "p1",
+        agentKind: "claude",
+        config: { model: "claude-sonnet" },
+        prompt: "work remotely",
+        presentationMode: "gui",
+      },
+      {
+        isPendingLaunchOwned: () =>
+          useAppStore.getState().provisioningWorktreeThreadIds[projectedId] === true,
+      },
+    );
+    await vi.waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
+    useAppStore.getState().deleteThread(projectedId);
+    appearance.resolve({
+      snapshotSeq: 2,
+      projects: [proj],
+      threads: [{ ...remoteThread, id: "rt-waiting" }],
+      runtimeSummariesByThread: {},
+      updatedAt: "appeared",
+    });
+
+    await expect(launch).resolves.toBe("cancelled");
+    expect(sendThreadCommand).toHaveBeenCalledWith({
+      kind: "delete",
+      threadId: "rt-waiting",
+    });
+    expect(useRemoteServersStore.getState().openThread).toBeNull();
+  });
+
+  it("retains a cancelled remote launch when compensating deletion fails", async () => {
+    const sendThreadCommand = vi.fn<RemoteDesktopClient["sendThreadCommand"]>(async () => {
+      throw new Error("remote delete failed");
+    });
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ sendThreadCommand })));
+    await pairIsolated(() => makeSocket());
+
+    await expect(
+      useRemoteServersStore.getState().launchRemoteThread(
+        {
+          threadId: "rt-orphaned",
+          desktopId: "d1",
+          projectId: "p1",
+          agentKind: "claude",
+          config: { model: "claude-sonnet" },
+          prompt: "work remotely",
+          presentationMode: "gui",
+          worktreePath: "/srv/worktrees/feature",
+        },
+        { isPendingLaunchOwned: () => false },
+      ),
+    ).resolves.toBe("cancellation-failed");
+    expect(toastDanger).toHaveBeenCalledWith("remote delete failed");
+    expect(useRemoteServersStore.getState().openThread).toBeNull();
+  });
+
+  it("closes a deleted launch opened during history hydration when compensation fails", async () => {
+    const history = deferred<RemoteThreadHistorySnapshot>();
+    let snapshotCalls = 0;
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => {
+      snapshotCalls += 1;
+      return {
+        snapshotSeq: snapshotCalls,
+        projects: [proj],
+        threads: snapshotCalls === 1 ? [] : [{ ...remoteThread, id: "rt-hydrating" }],
+        runtimeSummariesByThread: {},
+        updatedAt: `snapshot-${snapshotCalls}`,
+      };
+    });
+    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
+      threadId: "rt-hydrating",
+    }));
+    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(() => history.promise);
+    const sendThreadCommand = vi.fn<RemoteDesktopClient["sendThreadCommand"]>(async () => {
+      throw new Error("remote delete failed");
+    });
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(
+        factoryFor(makeClient({ snapshot, startNewThread, threadHistory, sendThreadCommand })),
+      );
+    await pairIsolated(() => makeSocket());
+    const projectedId = remoteThreadId("d1", "rt-hydrating");
+    useAppStore.getState().createThread({
+      threadId: projectedId,
+      projectId: remoteProjectId("d1", "p1"),
+      remoteServerId: "d1",
+      remoteId: "rt-hydrating",
+      agentKind: "claude",
+      config: { model: "claude-sonnet" },
+      prompt: "work remotely",
+      presentationMode: "gui",
+      worktreeProvisioning: true,
+    });
+
+    const launch = useRemoteServersStore.getState().launchRemoteThread(
+      {
+        threadId: "rt-hydrating",
+        desktopId: "d1",
+        projectId: "p1",
+        agentKind: "claude",
+        config: { model: "claude-sonnet" },
+        prompt: "work remotely",
+        presentationMode: "gui",
+      },
+      {
+        isPendingLaunchOwned: () =>
+          useAppStore.getState().provisioningWorktreeThreadIds[projectedId] === true,
+      },
+    );
+    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledWith("rt-hydrating"));
+    useAppStore.getState().deleteThread(projectedId);
+    history.resolve(remoteThreadSnapshot("rt-hydrating"));
+
+    await expect(launch).resolves.toBe("cancellation-failed");
+    expect(sendThreadCommand).toHaveBeenCalledWith({
+      kind: "delete",
+      threadId: "rt-hydrating",
+    });
+    expect(useRemoteServersStore.getState().openThread).toBeNull();
+    expect(useAppStore.getState().threads.map((thread) => thread.id)).not.toContain(projectedId);
   });
 
   it("keeps the latest open remote thread when an earlier history request resolves last", async () => {
@@ -2437,6 +2815,17 @@ describe("useRemoteServersStore", () => {
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
     const callsAfterPairing = snapshot.mock.calls.length;
+    const provisionalId = remoteThreadId("d1", "rt-provisional");
+    useAppStore.getState().createThread({
+      threadId: provisionalId,
+      projectId: remoteProjectId("d1", "p1"),
+      remoteServerId: "d1",
+      remoteId: "rt-provisional",
+      agentKind: "claude",
+      config: { model: "claude-sonnet" },
+      prompt: "work remotely",
+      worktreeProvisioning: true,
+    });
 
     useRemoteServersStore.getState().setRemoteProjectSynced("d1", "p1", false);
 
@@ -2448,6 +2837,8 @@ describe("useRemoteServersStore", () => {
     expect(remoteIds()).toEqual(["p2"]);
     // Threads of an unsynced project would be orphans in the sidebar.
     expect(useAppStore.getState().threads.map((thread) => thread.remoteId)).not.toContain("rt-1");
+    expect(useAppStore.getState().threads.map((thread) => thread.id)).not.toContain(provisionalId);
+    expect(useAppStore.getState().provisioningWorktreeThreadIds[provisionalId]).toBeUndefined();
     // Purely local state — nothing was asked of the server.
     expect(snapshot).toHaveBeenCalledTimes(callsAfterPairing);
     expect(useRemoteServersStore.getState().excludedProjectIds.d1).toEqual(["p1"]);

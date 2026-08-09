@@ -15,7 +15,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 1;
+// v2 requires remote start commands to preserve caller-supplied user-message
+// ids so optimistic GUI prompts reconcile without duplication across hosts.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 2;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

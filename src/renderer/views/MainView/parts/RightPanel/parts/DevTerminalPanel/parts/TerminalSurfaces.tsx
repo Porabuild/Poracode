@@ -3,6 +3,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import type { TerminalSize } from "@/shared/contracts";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 
@@ -147,13 +148,18 @@ export function TerminalSurfaces(props: {
     setSplitPercent(clamped);
   }
 
-  function remoteSurfaceProps(terminalId: string) {
-    return watchTerminal
-      ? {
-          outputSource: (listener: TerminalFeedListener) => watchTerminal(terminalId, listener),
-          initialScrollback: "",
-          preferDomRenderer: true,
-        }
+  function surfaceProps(tab: DevTerminalTab) {
+    if (watchTerminal) {
+      return {
+        outputSource: (listener: TerminalFeedListener) => watchTerminal(tab.id, listener),
+        initialScrollback: tab.runActionId
+          ? useThreadOutputStore.getState().readTail(tab.id, 100_000)
+          : "",
+        preferDomRenderer: true,
+      };
+    }
+    return tab.runActionId
+      ? { initialScrollback: useThreadOutputStore.getState().readTail(tab.id, 100_000) }
       : {};
   }
 
@@ -203,7 +209,7 @@ export function TerminalSurfaces(props: {
                 onActivity={() => markTabActive(tab.id)}
                 onBell={() => markTabActive(tab.id)}
                 onTitleChange={(title) => updateTabTitle(tab.id, title)}
-                {...remoteSurfaceProps(tab.id)}
+                {...surfaceProps(tab)}
                 {...(onTerminalResize
                   ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
                   : {})}
@@ -241,7 +247,14 @@ export function TerminalSurfaces(props: {
                   onActivity={() => markTabActive(tab.id)}
                   onBell={() => markTabActive(tab.id)}
                   onTitleChange={(title) => updateTabTitle(tab.splitId!, title)}
-                  {...remoteSurfaceProps(tab.splitId!)}
+                  {...(watchTerminal
+                    ? {
+                        outputSource: (listener: TerminalFeedListener) =>
+                          watchTerminal(tab.splitId!, listener),
+                        initialScrollback: "",
+                        preferDomRenderer: true,
+                      }
+                    : {})}
                   {...(onTerminalResize
                     ? { onTerminalResize: (size) => onTerminalResize(tab.splitId!, size) }
                     : {})}
@@ -276,7 +289,7 @@ export function TerminalSurfaces(props: {
             onActivity={() => markTabActive(tab.id)}
             onBell={() => markTabActive(tab.id)}
             onTitleChange={(title) => updateTabTitle(tab.id, title)}
-            {...remoteSurfaceProps(tab.id)}
+            {...surfaceProps(tab)}
             {...(onTerminalResize
               ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
               : {})}

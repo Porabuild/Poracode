@@ -6,7 +6,7 @@ import {
   splitStorageKey,
   writeStoredSizes,
 } from "@/renderer/components/layout/paneSizeStorage";
-import { useAppStore } from "./appStore";
+import { useAppStore, type AppStoreState } from "./appStore";
 import { usePanelStore } from "./panelStore";
 
 describe("appStore runtime config sync", () => {
@@ -17,6 +17,8 @@ describe("appStore runtime config sync", () => {
       ...state,
       projects: [],
       threads: [],
+      pendingLaunchUserMessageItemIds: {},
+      provisioningWorktreeThreadIds: {},
       view: { kind: "home" },
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
@@ -66,6 +68,101 @@ describe("appStore runtime config sync", () => {
     const updated = useAppStore.getState().threads.find((t) => t.id === thread.id);
     expect(updated?.worktreePath).toBe("/repo/wt");
     expect(updated?.worktreeBranch).toBe("feature/x");
+  });
+
+  it("keeps an unresolved optimistic worktree thread out of persisted state", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreeBranch: "poracode/feature",
+      worktreeProvisioning: true,
+    });
+    const experimentThread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "compare it",
+      worktreeBranch: "poracode/experiment-feature",
+      groupId: "experiment-1",
+      focus: false,
+    });
+    const partialize = useAppStore.persist.getOptions().partialize!;
+
+    const unresolved = partialize(useAppStore.getState()) as Pick<
+      AppStoreState,
+      "threads" | "view"
+    >;
+    expect(unresolved.threads).not.toContainEqual(expect.objectContaining({ id: thread.id }));
+    expect(unresolved.threads).toContainEqual(expect.objectContaining({ id: experimentThread.id }));
+    expect(unresolved.view).toEqual({ kind: "home" });
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: false,
+    });
+    const failed = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads">;
+    expect(failed.threads).not.toContainEqual(expect.objectContaining({ id: thread.id }));
+
+    useAppStore
+      .getState()
+      .setThreadWorktree(thread.id, "C:\\worktrees\\feature", "poracode/feature");
+    const resolved = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads" | "view">;
+    expect(resolved.threads).toContainEqual(
+      expect.objectContaining({ id: thread.id, worktreePath: "C:\\worktrees\\feature" }),
+    );
+    expect(useAppStore.getState().provisioningWorktreeThreadIds[thread.id]).toBeUndefined();
+    expect(resolved.view).toMatchObject({ kind: "thread", panes: [thread.id] });
+    expect(useAppStore.persist.getOptions().version).toBe(4);
+  });
+
+  it("clears provisional worktree launch state when deleting its project", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreeProvisioning: true,
+    });
+    useAppStore.setState({
+      pendingLaunchUserMessageItemIds: { [thread.id]: "user-message" },
+    });
+
+    useAppStore.getState().deleteProject(project.id);
+
+    expect(useAppStore.getState().provisioningWorktreeThreadIds[thread.id]).toBeUndefined();
+    expect(useAppStore.getState().pendingLaunchUserMessageItemIds[thread.id]).toBeUndefined();
+  });
+
+  it("rehydrates the previous v4 shape without provisional launch maps", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+    });
+    const merge = useAppStore.persist.getOptions().merge!;
+    const previousV4State = {
+      projects: [project],
+      threads: [thread],
+      view: { kind: "thread", panes: [thread.id] },
+      groupLayouts: {},
+    };
+
+    const hydrated = merge(previousV4State, useAppStore.getState()) as AppStoreState;
+
+    expect(hydrated.projects).toEqual([project]);
+    expect(hydrated.threads).toEqual([
+      expect.objectContaining({ ...thread, status: "inactive", doneAt: undefined }),
+    ]);
+    expect(hydrated.view).toEqual({ kind: "thread", panes: [thread.id] });
+    expect(hydrated.pendingLaunchUserMessageItemIds).toEqual({});
+    expect(hydrated.provisioningWorktreeThreadIds).toEqual({});
   });
 
   it("ensures the hidden Home project without replacing its draft config", () => {
@@ -1187,6 +1284,57 @@ describe("appStore runtime config sync", () => {
       status: "working",
       attention: "working",
     });
+  });
+
+  it("does not reopen a completed GUI turn for a trailing goal update", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "turn.started",
+      threadId: thread.id,
+      turnId: "turn-1",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      itemType: "assistant_message",
+    });
+
+    vi.setSystemTime(new Date("2026-05-01T12:03:34.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    const completedTurns = useAppStore.getState().runtimeCompletedTurnsByThread[thread.id];
+
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Done", status: "completed" }] },
+    });
+
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      status: "idle",
+      attention: "none",
+      activeTurnStartedAt: undefined,
+      lastTurnEndedAt: "2026-05-01T12:03:34.000Z",
+    });
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBe(completedTurns);
   });
 
   it("does not add sub-second completed turns", () => {

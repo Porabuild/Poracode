@@ -2,6 +2,7 @@ import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { TerminalSurfaces } from "./TerminalSurfaces";
 
@@ -96,6 +97,7 @@ function renderSurfaces(props: {
 
 describe("TerminalSurfaces", () => {
   beforeEach(() => {
+    useThreadOutputStore.setState({ buffers: {} });
     state.focusCalls = [];
     state.refitCalls = [];
     state.surfaceProps.clear();
@@ -181,5 +183,23 @@ describe("TerminalSurfaces", () => {
     expect(surface?.preferDomRenderer).toBe(true);
     expect(surface?.outputSource?.(listener)).toBe(unsubscribe);
     expect(watchTerminal).toHaveBeenCalledWith(tabA.id, listener);
+  });
+
+  it("restores retained output when an action terminal remounts", () => {
+    const actionTab = { ...tabA, runActionId: "dev" };
+    useThreadOutputStore.getState().appendOutput(actionTab.id, "finished output\r\n");
+
+    render(
+      <TerminalSurfaces
+        tabs={[actionTab]}
+        selectedTabId={actionTab.id}
+        activeTab={actionTab}
+        focusRequestId={1}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+      />,
+    );
+
+    expect(state.surfaceProps.get(actionTab.id)?.initialScrollback).toBe("finished output\r\n");
   });
 });

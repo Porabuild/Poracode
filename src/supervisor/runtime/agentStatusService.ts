@@ -186,10 +186,12 @@ export async function detectWslAgentStatuses(
           } else {
             try {
               let timeout: NodeJS.Timeout | undefined;
+              const abort = new AbortController();
               const detected = await Promise.race([
-                adapter.detectInstall(ctx),
+                adapter.detectInstall({ ...ctx, signal: abort.signal }),
                 new Promise<never>((_, reject) => {
                   timeout = setTimeout(() => {
+                    abort.abort();
                     reject(
                       new Error(
                         `detectInstall(${adapter.kind}, wsl:${distro}) timed out after ${WSL_AGENT_DETECTION_TIMEOUT_MS}ms`,

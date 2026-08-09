@@ -181,6 +181,8 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
   if ("threadId" in event && event.threadId.startsWith("shell:")) {
     if (event.type === "thread-output") {
       useDevTerminalStore.getState().noteShellOutput(event.threadId);
+    } else if (event.type === "thread-exited") {
+      useDevTerminalStore.getState().markShellExited(event.threadId);
     }
     return;
   }
@@ -268,12 +270,23 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
 }
 
 function installThreadOutputPruning(): () => void {
-  return useAppStore.subscribe((state, previousState) => {
-    if (state.threads === previousState.threads) return;
-    useThreadOutputStore
-      .getState()
-      .retainOutputs(new Set(state.threads.map((thread) => thread.id)));
+  const retainActiveOutputs = () => {
+    const threadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
+    for (const tab of useDevTerminalStore.getState().tabs) {
+      if (tab.runActionId) threadIds.add(tab.id);
+    }
+    useThreadOutputStore.getState().retainOutputs(threadIds);
+  };
+  const unsubscribeThreads = useAppStore.subscribe((state, previousState) => {
+    if (state.threads !== previousState.threads) retainActiveOutputs();
   });
+  const unsubscribeTerminals = useDevTerminalStore.subscribe((state, previousState) => {
+    if (state.tabs !== previousState.tabs) retainActiveOutputs();
+  });
+  return () => {
+    unsubscribeThreads();
+    unsubscribeTerminals();
+  };
 }
 
 function handleUpdateStatus(status: UpdateStatus): void {
@@ -363,7 +376,16 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             ...(command.groupName ? { groupName: command.groupName } : {}),
           });
           if (command.launchRuntime !== false) {
-            store.queueThreadLaunch(thread.id, command.prompt, command.segments);
+            if (command.userMessageItemId) {
+              store.queueThreadLaunch(
+                thread.id,
+                command.prompt,
+                command.segments,
+                command.userMessageItemId,
+              );
+            } else {
+              store.queueThreadLaunch(thread.id, command.prompt, command.segments);
+            }
           }
           const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
           const projectAgentStatuses = getProjectAgentStatuses(

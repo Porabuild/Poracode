@@ -1,8 +1,9 @@
-import { execFile, spawnSync } from "node:child_process";
+import { execFile, spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
+import { terminateChildProcessTree } from "@/shared/processTree";
 import {
   getPosixLoginShellArgs,
   getWindowsSystemCommand,
@@ -16,6 +17,7 @@ const execFileAsync = promisify(execFile);
 
 /** Default exec timeout for agent CLI probes and commands without an explicit `timeout`. */
 export const DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS = 30_000;
+const DEFAULT_COMMAND_OUTPUT_MAX_BUFFER = 1024 * 1024;
 
 let cachedWindowsSearchPath: string | undefined | null = null;
 
@@ -824,30 +826,74 @@ export async function resolveExecutablePathAsync(command: string): Promise<strin
 export async function readCommandOutputAsync(
   command: string,
   args: string[],
-  options?: { cwd?: string; env?: Record<string, string>; timeout?: number },
+  options?: {
+    cwd?: string;
+    env?: Record<string, string>;
+    timeout?: number;
+    signal?: AbortSignal;
+  },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
-  try {
-    const { stdout, stderr } = await execFileAsync(command, args, {
+  if (options?.signal?.aborted) {
+    return { ok: false, stdout: "", stderr: "" };
+  }
+
+  return new Promise((resolve) => {
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    const ownedProcessGroup = process.platform !== "win32";
+    const child = spawn(command, args, {
       windowsHide: true,
-      timeout: options?.timeout ?? DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS,
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false,
+      detached: ownedProcessGroup,
       ...(options?.cwd ? { cwd: options.cwd } : {}),
       ...(options?.env ? { env: { ...process.env, ...options.env } } : {}),
     });
-    return { ok: true, stdout: (stdout ?? "").trim(), stderr: (stderr ?? "").trim() };
-  } catch (error: unknown) {
-    const err = error as { stdout?: string; stderr?: string } | undefined;
-    return {
-      ok: false,
-      stdout: (err?.stdout ?? "").trim(),
-      stderr: (err?.stderr ?? "").trim(),
+
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      options?.signal?.removeEventListener("abort", stop);
+      terminateChildProcessTree(child, { ownedProcessGroup });
+      resolve({ ok, stdout: stdout.trim(), stderr: stderr.trim() });
     };
-  }
+    const stop = () => {
+      finish(false);
+    };
+    const timer = setTimeout(stop, options?.timeout ?? DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS);
+    if (typeof timer.unref === "function") timer.unref();
+
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
+      if (stdout.length + chunk.length > DEFAULT_COMMAND_OUTPUT_MAX_BUFFER) {
+        stop();
+        return;
+      }
+      stdout += chunk;
+    });
+    child.stderr?.on("data", (chunk: string) => {
+      if (stderr.length + chunk.length > DEFAULT_COMMAND_OUTPUT_MAX_BUFFER) {
+        stop();
+        return;
+      }
+      stderr += chunk;
+    });
+    child.once("error", () => finish(false));
+    child.once("close", (code) => finish(code === 0));
+    options?.signal?.addEventListener("abort", stop, { once: true });
+    if (options?.signal?.aborted) stop();
+  });
 }
 
 export async function batchWslCommandsAsync(
   distro: string,
   commands: string[],
+  signal?: AbortSignal,
 ): Promise<{ ok: boolean; stdout: string }[]> {
+  signal?.throwIfAborted();
   if (!wslProcessBridgeClient) return bridgeBatchFallback(commands.length);
   try {
     const result = await wslProcessBridgeClient.processBatch(makeWslBridgeLocation(distro), {
@@ -859,11 +905,13 @@ export async function batchWslCommandsAsync(
         loginEnv: true,
       })),
     });
+    signal?.throwIfAborted();
     return result.results.map((entry) => ({
       ok: entry.ok,
       stdout: entry.stdout.trim(),
     }));
   } catch {
+    signal?.throwIfAborted();
     return bridgeBatchFallback(commands.length);
   }
 }
@@ -925,8 +973,14 @@ export async function readWslLoginShellCommandOutputAsync(
   linuxCwd: string,
   command: string,
   args: string[],
-  options?: { timeout?: number; maxBuffer?: number; env?: Record<string, string> },
+  options?: {
+    timeout?: number;
+    maxBuffer?: number;
+    env?: Record<string, string>;
+    signal?: AbortSignal;
+  },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+  options?.signal?.throwIfAborted();
   if (!wslProcessBridgeClient) return { ok: false, stdout: "", stderr: "" };
   try {
     const result = await wslProcessBridgeClient.processExec(
@@ -940,8 +994,10 @@ export async function readWslLoginShellCommandOutputAsync(
         ...(options?.env ? { env: options.env } : {}),
       },
     );
+    options?.signal?.throwIfAborted();
     return bridgeProcessOutput(result);
   } catch {
+    options?.signal?.throwIfAborted();
     return { ok: false, stdout: "", stderr: "" };
   }
 }

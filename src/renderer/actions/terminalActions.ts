@@ -6,8 +6,15 @@ import {
   useSharedSettings,
   whenSharedSettingsHydrated,
 } from "@/renderer/state/sharedSettingsStore";
-import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
+import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
+import {
+  closeThreads,
+  startShellWithToast,
+  writeScriptToShellThenExitOnSuccess,
+} from "@/renderer/utils/shellUtils";
 import { closeAllPanels } from "./panelActions";
+
+const actionRunTokens = new Map<string, symbol>();
 
 function applyTerminalPanel(
   projectId: string,
@@ -77,8 +84,18 @@ export function runProjectAction(projectId: string, actionId: string, worktreePa
 
   const store = useDevTerminalStore.getState();
   const tabLabel = action.name;
-  const tab = store.addTab(projectId, tabLabel, worktreePath);
+  const tab =
+    store.tabs.find(
+      (candidate) =>
+        candidate.projectId === projectId &&
+        (candidate.worktreePath ?? undefined) === worktreePath &&
+        candidate.runActionId === actionId,
+    ) ?? store.addTab(projectId, tabLabel, worktreePath, actionId);
   store.setActiveTab(tab.id);
+  store.markShellRunning(tab.id);
+  useThreadOutputStore.getState().clearOutput(tab.id);
+  const runToken = Symbol(tab.id);
+  actionRunTokens.set(tab.id, runToken);
 
   // Decide panel visibility only once the authoritative settings are loaded —
   // right after launch the store still holds defaults (autoShowTerminalPanel:
@@ -92,13 +109,53 @@ export function runProjectAction(projectId: string, actionId: string, worktreePa
     }
   });
 
-  startShellWithToast(
+  void startShellWithToast(
     {
       shellId: tab.id,
       projectLocation: location,
       ...(worktreePath ? { worktreePath } : {}),
     },
     tabLabel,
+  ).then((started) => {
+    if (actionRunTokens.get(tab.id) !== runToken || started) return;
+    actionRunTokens.delete(tab.id);
+    useDevTerminalStore.getState().markShellExited(tab.id);
+  });
+  const markActionComplete = () => {
+    if (actionRunTokens.get(tab.id) !== runToken) return;
+    actionRunTokens.delete(tab.id);
+    useDevTerminalStore.getState().markShellExited(tab.id);
+    void closeThreads([tab.id]);
+  };
+  writeScriptToShellThenExitOnSuccess(
+    tab.id,
+    action.command,
+    location.kind,
+    markActionComplete,
+    markActionComplete,
+    project.remoteServerId,
+    {
+      onOutput: (output) => useThreadOutputStore.getState().appendOutput(tab.id, output),
+      onReset: () => useThreadOutputStore.getState().clearOutput(tab.id),
+    },
   );
-  writeScriptToShell(tab.id, action.command, project.remoteServerId);
+}
+
+export function stopProjectAction(
+  projectId: string,
+  actionId: string,
+  worktreePath?: string,
+): void {
+  const store = useDevTerminalStore.getState();
+  const tab = store.tabs.find(
+    (candidate) =>
+      candidate.projectId === projectId &&
+      (candidate.worktreePath ?? undefined) === worktreePath &&
+      candidate.runActionId === actionId,
+  );
+  if (!tab) return;
+
+  actionRunTokens.delete(tab.id);
+  store.markShellExited(tab.id);
+  void closeThreads([tab.id]);
 }

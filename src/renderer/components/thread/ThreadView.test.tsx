@@ -95,6 +95,7 @@ describe("ThreadView", () => {
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
+      provisioningWorktreeThreadIds: {},
     });
   });
 
@@ -1823,6 +1824,56 @@ describe("ThreadView", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("hides base-checkout thread tools while a new worktree is provisioning", async () => {
+    const thread: Thread = {
+      id: "thread-worktree-provisioning",
+      projectId: "project-1",
+      title: "Provisioning worktree",
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      status: "launching",
+      attention: "none",
+      canResumeWithConfig: false,
+      worktreeBranch: "poracode/feature",
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const props: Parameters<typeof ThreadView>[0] = {
+      thread,
+      agentStatus: undefined,
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      paneCount: 2,
+    };
+    useAppStore.setState({
+      provisioningWorktreeThreadIds: { [thread.id]: true },
+    });
+    const { rerender } = renderThreadView(props);
+
+    expect(screen.queryByRole("button", { name: "Show thread tools" })).toBeNull();
+    expect(screen.getByText("Creating worktree…")).toBeInTheDocument();
+
+    rerender(
+      <AppProvider>
+        <ThreadView
+          {...props}
+          thread={{
+            ...thread,
+            status: "error",
+            attention: "error",
+            errorMessage: "Host refused launch",
+            worktreePath: "C:\\worktrees\\feature",
+          }}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Show thread tools" })).toBeInTheDocument();
+    expect(screen.queryByText("Creating worktree…")).toBeNull();
   });
 
   it("allows queued follow-ups and stop while a GUI ACP thread is running", async () => {

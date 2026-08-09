@@ -7,6 +7,13 @@ import { useGitStore } from "./gitStore";
 import { startPrWatchStatusSync } from "./prWatchStatusSync";
 
 let statusListener: ((event: PrWatchStatusEvent) => void) | undefined;
+const syncMergedPrBaseMock = vi.hoisted(() =>
+  vi.fn<(projectId: string, pr: PrData) => Promise<void>>(),
+);
+
+vi.mock("./prMergeBaseSync", () => ({
+  syncMergedPrBase: (projectId: string, pr: PrData) => syncMergedPrBaseMock(projectId, pr),
+}));
 
 const openPr: PrData = {
   number: 7,
@@ -85,6 +92,8 @@ let stop: () => void = () => {};
 
 describe("prWatchStatusSync", () => {
   beforeEach(() => {
+    syncMergedPrBaseMock.mockReset();
+    syncMergedPrBaseMock.mockResolvedValue(undefined);
     Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
@@ -135,6 +144,7 @@ describe("prWatchStatusSync", () => {
     const state = useGitStore.getState();
     expect(state.prData[buildBranchNamePrKey("p1", "feature/wt")]?.state).toBe("merged");
     expect(state.prDetails["p1#7"]).toEqual(details);
+    expect(syncMergedPrBaseMock).toHaveBeenCalledWith("p1", mergedPr);
   });
 
   it("reaches worktree threads on the head branch when the watch has no worktree path", () => {

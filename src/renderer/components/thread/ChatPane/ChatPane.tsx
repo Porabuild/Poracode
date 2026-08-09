@@ -32,7 +32,11 @@ import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
-import { ChatTurnElapsedFooter, type TurnTiming } from "./ChatTurnElapsed";
+import {
+  ChatTurnElapsedFooter,
+  ChatWorktreeProvisioningFooter,
+  type TurnTiming,
+} from "./ChatTurnElapsed";
 import {
   selectMostRecentDisplayableCompletedTurn,
   selectVisibleThreadTimelineEntries,
@@ -286,6 +290,9 @@ export function ChatPane(props: ChatPaneProps) {
 
   const isEmpty = timelineEntries.length === 0 && !hasSupplementaryContent;
   const isLive = isThreadTurnActive(status);
+  const isWorktreeProvisioning = useAppStore(
+    (s) => s.provisioningWorktreeThreadIds[threadId] === true && status === "launching",
+  );
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -390,7 +397,9 @@ export function ChatPane(props: ChatPaneProps) {
               ) : null
             }
             footer={
-              showTailLoader && tailTurn ? (
+              isWorktreeProvisioning ? (
+                <ChatWorktreeProvisioningFooter />
+              ) : showTailLoader && tailTurn ? (
                 <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
               ) : null
             }
@@ -447,7 +456,7 @@ export function ChatPane(props: ChatPaneProps) {
             layoutChangeToken={layoutChangeToken}
             tailEntryId={timelineEntries.at(-1)?.id ?? null}
             threadId={threadId}
-            tailLoaderVisible={showTailLoader}
+            tailLoaderVisible={isWorktreeProvisioning || showTailLoader}
             initialScrollSettled={isInitialScrollSettled}
             initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
             virtualScrollToBottomRef={virtualScrollToBottomRef}

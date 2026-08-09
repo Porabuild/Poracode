@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { Button, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
+import { House } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
+import type { AgentStatus, ProjectLocation, ThreadPresentationMode } from "@/shared/contracts";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
+import { ProjectLocationIcon } from "@/renderer/components/common/ProjectRemoteServer";
 import { useAppStore } from "@/renderer/state/appStore";
 import { HOME_PROJECT_ID, isHomeProject } from "@/shared/homeScope";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
@@ -34,6 +36,10 @@ interface ScheduleEditorProps {
 
 const CONTROL_WIDTH = "w-[280px] max-w-[60%] shrink-0";
 
+function projectLocationLabel(location: ProjectLocation): string {
+  return location.kind === "wsl" ? `${location.distro}: ${location.linuxPath}` : location.path;
+}
+
 /** A titled group of rows, matching the settings section header treatment. */
 function EditorSection(props: { title: ReactNode; children: ReactNode }) {
   return (
@@ -62,10 +68,19 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
   const projects = useAppStore((state) => state.projects);
   const draft = props.draft;
   const projectOptions = [
-    { id: HOME_PROJECT_ID, label: t`Home` },
+    {
+      id: HOME_PROJECT_ID,
+      label: t`Home`,
+      icon: <House className="size-4 shrink-0 text-muted" />,
+    },
     ...projects
       .filter((project) => !isHomeProject(project) && !project.remoteServerId)
-      .map((project) => ({ id: project.id, label: project.name })),
+      .map((project) => ({
+        id: project.id,
+        label: project.name,
+        icon: <ProjectLocationIcon location={project.location} />,
+        detail: projectLocationLabel(project.location),
+      })),
   ];
   // A schedule can reference a project that was deleted since it was created.
   // Surface it as a fallback option (rather than silently snapping to Home) so

@@ -7,6 +7,7 @@ import { isPrActive } from "@/renderer/utils/prStatus";
 
 export type GitMenuIcons = {
   review: React.ReactNode;
+  githubActions: React.ReactNode;
   sync: React.ReactNode;
   push: React.ReactNode;
   pull: React.ReactNode;
@@ -97,6 +98,11 @@ export function buildWorktreeGitItems(
 
   return [
     { id: "git-review", label: i18n._(msg`Review Changes`), icon: icons.review },
+    {
+      id: "github-actions",
+      label: i18n._(msg`GitHub Actions`),
+      icon: icons.githubActions,
+    },
     syncMap[vis.syncAction],
     ...(vis.showPullFromSource
       ? [

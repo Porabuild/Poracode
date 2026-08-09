@@ -627,7 +627,7 @@ function runTerminalCommand(args: unknown): void {
   }
   terminal.setActiveTab(tab.id);
 
-  startShellWithToast(
+  void startShellWithToast(
     {
       shellId: tab.id,
       projectLocation: location,

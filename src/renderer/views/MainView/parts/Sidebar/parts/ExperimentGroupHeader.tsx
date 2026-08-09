@@ -18,6 +18,7 @@ export function ExperimentGroupHeader(props: {
   onOpenBoard: () => void;
   onOpenAll: () => void;
   onDiscard: () => void;
+  projectSyncBadge?: React.ReactNode;
 }) {
   const { t } = useLingui();
   const hiddenPanelButtonClass =
@@ -67,6 +68,7 @@ export function ExperimentGroupHeader(props: {
       suffix={
         props.isRenaming ? undefined : (
           <>
+            {props.projectSyncBadge}
             <Tooltip delay={300}>
               <Tooltip.Trigger>
                 <button

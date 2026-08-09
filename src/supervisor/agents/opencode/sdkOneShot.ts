@@ -57,6 +57,10 @@ function extractAssistantText(parts: ReadonlyArray<unknown> | undefined): string
   return out.trim();
 }
 
+function containsDsmlToolCallMarker(text: string): boolean {
+  return /<[\s|｜]*DSML[\s|｜]*tool_calls\b/i.test(text);
+}
+
 function extractInfoErrorMessage(info: unknown): string | undefined {
   if (!info || typeof info !== "object") return undefined;
   const err = (info as { error?: unknown }).error;
@@ -153,6 +157,9 @@ export async function runOpenCodeOneShot(input: RunOneShotInput): Promise<string
       );
     }
     const text = extractAssistantText(result.data?.parts);
+    if (containsDsmlToolCallMarker(text)) {
+      throw new Error("OpenCode returned a provider tool-call marker instead of text.");
+    }
     if (text.length === 0) {
       throw new Error("OpenCode returned empty output for one-shot prompt.");
     }

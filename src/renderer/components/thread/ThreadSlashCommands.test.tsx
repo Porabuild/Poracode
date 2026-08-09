@@ -201,7 +201,10 @@ describe("ThreadSlashCommands", () => {
     useAppStore.getState().clearDraftContent(draftProject.id);
     useAppStore.setState({ draftContentDiscardRequests: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
-    useSharedSettings.setState({ collapseTerminalComposer: false });
+    useSharedSettings.setState({
+      collapseTerminalComposer: false,
+      disabledBuiltInMcpServers: {},
+    });
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
       value: scrollIntoView,
@@ -981,6 +984,25 @@ describe("ThreadSlashCommands", () => {
     expect(onStart).not.toHaveBeenCalled();
     expect(screen.queryByText("Commands")).not.toBeInTheDocument();
     expect(editor.textContent).toBe("/review ");
+  });
+
+  it("hides @Terminal in drafts when the provider owns MCP configuration", async () => {
+    const baseCapabilities = makeAgentStatus().capabilities;
+    await renderDraftComposer(
+      makeAgentStatus({
+        capabilities: {
+          ...baseCapabilities,
+          mcpConfigSource: "agentSettings",
+        },
+      }),
+      vi.fn(),
+      "gui",
+    );
+
+    const editor = screen.getByRole("textbox");
+    typeSlashQuery(editor, "@ter");
+
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
   it("saves draft composer content on ordinary unmount", () => {

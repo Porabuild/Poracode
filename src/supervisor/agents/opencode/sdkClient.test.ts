@@ -283,6 +283,78 @@ describe("acquireOpenCodeServer", () => {
     expect(handle.dispose).not.toHaveBeenCalled();
   });
 
+  it("stops the shared sidecar after its last lease stays idle", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = makeHandle("http://127.0.0.1:4350");
+      mocks.spawnOpenCodeServer.mockReturnValue(handle);
+
+      const { acquireOpenCodeServer } = await import("./sdkClient");
+      const first = await acquireOpenCodeServer({
+        projectLocation: { kind: "posix", path: "/repo-a" },
+      });
+      const second = await acquireOpenCodeServer({
+        projectLocation: { kind: "posix", path: "/repo-b" },
+      });
+
+      await first.dispose();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(handle.dispose).not.toHaveBeenCalled();
+
+      await second.dispose();
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(handle.dispose).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(handle.dispose).toHaveBeenCalledOnce();
+
+      await acquireOpenCodeServer({
+        projectLocation: { kind: "posix", path: "/repo-c" },
+      });
+      expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes the shared sidecar immediately when the last probe lease is released", async () => {
+    const handle = makeHandle("http://127.0.0.1:4375");
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const activeSession = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo-active" },
+    });
+    const probe = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo-probe" },
+    });
+
+    await probe.dispose({ closeServerIfIdle: true });
+    expect(handle.dispose).not.toHaveBeenCalled();
+
+    await activeSession.dispose({ closeServerIfIdle: true });
+    expect(handle.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the sidecar alive for an acquisition that is still starting", async () => {
+    const handle = makeHandle("http://127.0.0.1:4380");
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const probe = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo-probe" },
+    });
+    const sessionPromise = acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo-session" },
+    });
+
+    await probe.dispose({ closeServerIfIdle: true });
+    expect(handle.dispose).not.toHaveBeenCalled();
+
+    const session = await sessionPromise;
+    await session.dispose({ closeServerIfIdle: true });
+    expect(handle.dispose).toHaveBeenCalledOnce();
+  });
+
   it("pools WSL directories by distro", async () => {
     const ubuntuHandle = makeHandle("http://127.0.0.1:4400");
     const debianHandle = makeHandle("http://127.0.0.1:4401");

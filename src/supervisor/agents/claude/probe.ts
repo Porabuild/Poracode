@@ -73,10 +73,14 @@ async function probeClaudeSdkPartialNative(
   executablePath: string,
   timeoutMs: number,
   envOverrides?: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<Partial<AgentCapability> | undefined> {
+  if (signal?.aborted) return undefined;
   try {
     const { query } = await import("@anthropic-ai/claude-agent-sdk");
     const abort = new AbortController();
+    const abortFromParent = () => abort.abort();
+    signal?.addEventListener("abort", abortFromParent, { once: true });
     const timer = setTimeout(() => abort.abort(), timeoutMs);
     const queue = new AsyncPromptQueue();
     try {
@@ -120,6 +124,8 @@ async function probeClaudeSdkPartialNative(
       };
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abortFromParent);
+      abort.abort();
     }
   } catch (error) {
     console.log(
@@ -155,6 +161,7 @@ async function probeClaudeSdkPartialWsl(
     {
       timeout: timeoutMs + 3000,
       ...(envOverrides ? { env: envOverrides } : {}),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
     },
   );
 
@@ -209,7 +216,7 @@ export async function probeClaudeCapabilities(
   const sdkPartial =
     ctx.location.kind === "wsl"
       ? await probeClaudeSdkPartialWsl(ctx, timeoutMs, options?.env)
-      : await probeClaudeSdkPartialNative(ctx.executablePath, timeoutMs, options?.env);
+      : await probeClaudeSdkPartialNative(ctx.executablePath, timeoutMs, options?.env, ctx.signal);
 
   const versionPartial = claudeCapabilitiesFromCliVersion(ctx.version);
 

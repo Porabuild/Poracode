@@ -25,6 +25,8 @@ import { serializeToSegments, flattenSegments } from "./serializeMentions";
 export interface McpMentionItem {
   id: string;
   name: string;
+  /** Stable non-visible names that should also match the typed query. */
+  searchAliases?: readonly string[];
   icon: LucideIcon;
   detail: string;
   enabled: boolean;
@@ -49,10 +51,11 @@ export function buildMentionResults(
   pluginMentions: readonly PluginMentionItem[] = EMPTY_PLUGIN_MENTIONS,
 ): MentionEntry[] {
   const q = query.trim().toLowerCase();
-  // Case-insensitive prefix match on the display name, matching the legacy
-  // "browser".startsWith(q) / "computer use".startsWith(q) behavior.
+  // Case-insensitive prefix match on the display name or a stable alias.
   const mcpResults: MentionEntry[] = mcpMentions
-    .filter((item) => item.name.toLowerCase().startsWith(q))
+    .filter((item) =>
+      [item.name, ...(item.searchAliases ?? [])].some((name) => name.toLowerCase().startsWith(q)),
+    )
     .map((item) => ({
       type: "mcp",
       path: item.id,

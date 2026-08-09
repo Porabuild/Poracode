@@ -174,6 +174,7 @@ export async function probeClaudeStatus(
     {
       posixCwd: getAgentProbeCwd(ctx.location),
       ...(options?.env ? { env: options.env } : {}),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
     },
   );
   const parsed = parseClaudeAuthStatusJson(result.stdout || result.stderr);

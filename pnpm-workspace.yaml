@@ -156,9 +156,20 @@ minimumReleaseAgeExclude:
   - "@opentelemetry/core@2.8.0"
   - "protobufjs@7.6.4"
   - "form-data@4.0.6"
-  # 2026-06-18 Dependabot advisory batch: security patches published within the
-  # 7-day guard window, adopted immediately (alerts #129-#131).
-  - "undici@6.27.0 || 7.28.0"
+  # 2026-08-08 Dependabot advisory batch: security patches published within the
+  # 7-day guard window, adopted immediately (alerts #165-#201).
+  - "@hono/node-server@2.0.10"
+  - "brace-expansion@1.1.18 || 2.1.4 || 5.0.9"
+  - "dompurify@3.4.13"
+  - "fast-uri@3.1.5"
+  - "hono@4.12.34"
+  - "ip-address@10.3.1"
+  - "js-yaml@4.3.1"
+  - "mermaid@11.16.1"
+  - "nanoid@3.3.17"
+  - "postcss@8.5.23"
+  - "tar@7.5.21"
+  - "undici@6.28.0 || 7.29.0"
   # 2026-07-08: TypeScript 7.0 GA (official Microsoft package) — TS7 migration;
   # remove after 2026-07-15 when it ages past the window. The @typescript/
   # typescript-* entries are its platform binaries (optionalDependencies of the
@@ -265,34 +276,38 @@ minimumReleaseAge: 10080
 overrides:
   "axios@<1.16.0": "^1.16.0"
   "tmp@<0.2.6": "^0.2.6"
-  "brace-expansion@>=5.0.0 <5.0.6": "^5.0.6"
+  "brace-expansion@>=5.0.0 <5.0.9": "5.0.9"
   "esbuild@<0.28.1": "0.28.1"
   "shell-quote@<1.9.0": "^1.9.0"
   "cross-spawn@<6.0.6": "6.0.6"
   "@xmldom/xmldom@<0.8.13": "0.8.13"
-  # DOMPurify custom-element hook bypass (#141).
-  "dompurify@>=3.0.0 <3.4.12": "3.4.12"
+  # DOMPurify custom-element hook bypasses (#141, #197).
+  "dompurify@>=3.0.0 <3.4.13": "3.4.13"
   # 2026-06-15 advisory batch (alerts #88-#102).
   "@opentelemetry/core@>=2.0.0 <2.8.0": "2.8.0"
   "protobufjs@>=7.0.0 <7.6.5": "7.6.5"
   "form-data@>=4.0.0 <4.0.6": "4.0.6"
-  "tar@>=7.0.0 <7.5.16": "^7.5.16"
+  "tar@>=7.0.0 <7.5.21": "7.5.21"
   "vite@>=8.0.0 <8.0.16": "^8.0.16"
-  "js-yaml@>=4.0.0 <4.2.0": "^4.2.0"
+  "js-yaml@>=4.0.0 <4.3.1": "4.3.1"
   "@babel/core@>=7.0.0 <7.29.6": "^7.29.6"
-  # PostCSS source-map arbitrary file read (#153, #164).
-  "postcss@<8.5.12": "8.5.12"
-  "mermaid@>=11.0.0-alpha.1 <=11.14.0": "11.15.0"
+  # PostCSS source-map arbitrary file reads (#153, #164, #166, #176).
+  "postcss@<8.5.23": "8.5.23"
+  "mermaid@>=11.0.0-alpha.1 <11.16.1": "11.16.1"
   "joi@>=18.0.0 <18.2.1": "18.2.1"
-  # 2026-06-18 advisory batch.
-  "undici@>=6.0.0 <6.27.0": "6.27.0"
-  "undici@>=7.0.0 <7.28.0": "7.28.0"
+  # 2026-08-08 advisory batch.
+  "undici@>=6.0.0 <6.28.0": "6.28.0"
+  "undici@>=7.0.0 <7.29.0": "7.29.0"
   # Hono request-context disclosure / JSX XSS / header de-duplication
   # (#138-#140), plus the node adapter's encoded-backslash traversal (#137).
-  "hono@<4.12.27": "4.12.27"
-  "@hono/node-server@<2.0.5": "2.0.5"
+  "hono@<4.12.34": "4.12.34"
+  "@hono/node-server@<2.0.10": "2.0.10"
   # fast-uri host confusion through a backslash authority delimiter (#143).
-  "fast-uri@>=3.0.0 <3.1.4": "3.1.4"
+  "fast-uri@>=3.0.0 <3.1.5": "3.1.5"
+  # nanoid zero-size infinite loop (#201).
+  "nanoid@<3.3.17": "3.3.17"
+  # ip-address address parsing and validation advisories (#186-#188).
+  "ip-address@>=10.0.0 <10.3.1": "10.3.1"
   # sharp 0.35.x upgrades libvips past the inherited CVE batch (#142, #154).
   # Use 0.35.3, which also restores exported TypeScript declarations.
   "sharp@<0.35.3": "0.35.3"
@@ -309,5 +324,5 @@ overrides:
   # script to extract trusted NuGet archives.
   "adm-zip@<0.6.0": "^0.6.0"
   # brace-expansion exponential-time expansion DoS, 1.x/2.x lines.
-  "brace-expansion@<1.1.16": "^1.1.16"
-  "brace-expansion@>=2.0.0 <2.1.2": "^2.1.2"
+  "brace-expansion@<1.1.18": "1.1.18"
+  "brace-expansion@>=2.0.0 <2.1.4": "2.1.4"

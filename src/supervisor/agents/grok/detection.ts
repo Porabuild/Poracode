@@ -63,6 +63,7 @@ export function buildGrokCommand(location: ProjectLocation, args: string[], wslE
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath?: string,
+  signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult> {
   const spec = buildGrokCommand(location, ["--no-auto-update", "agent", "stdio"], executablePath);
   const sessionCwd = getAgentProbeCwd(location);
@@ -75,6 +76,7 @@ async function probeCapabilities(
     // exits before ACP initialize with `env: node: No such file or directory`.
     ...(spec.env ? { env: spec.env } : {}),
     timeoutMs: 20_000, // grok may take a moment on first init
+    ...(signal ? { signal } : {}),
     label: location.kind === "wsl" ? `grok:wsl:${location.distro}` : `grok:${location.kind}`,
     // Grok returns identity (email, auth_mode, subscription_tier) in the
     // `authenticate` response's `_meta`. `cached_token` is the non-interactive
@@ -230,9 +232,11 @@ async function grokAuthFileProbe(
   if (ctx.location.kind !== "wsl") {
     return check(homedir());
   }
-  const [r] = await batchWslCommandsAsync(ctx.location.distro, [
-    "test -f ~/.grok/auth.json && echo yes || echo no",
-  ]);
+  const [r] = await batchWslCommandsAsync(
+    ctx.location.distro,
+    ["test -f ~/.grok/auth.json && echo yes || echo no"],
+    ctx.signal,
+  );
   if (!r?.ok) return "unknown";
   return r.stdout.trim() === "yes" ? "authenticated" : "missing";
 }
@@ -258,6 +262,6 @@ export const grokDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe(["GROK_API_KEY", "XAI_API_KEY"]), grokAuthFileProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.signal);
   },
 };
