@@ -1513,6 +1513,10 @@ msgstr "Інтервал автооновлення у хвилинах, 0 — �
 msgid "Auto-review"
 msgstr "Автоперевірка"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Auto-selection"
+msgstr "Автовибір"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
@@ -3315,8 +3319,8 @@ msgstr "Crossagent ({subagent}): {description}"
 #~ msgstr "Crossagent не знайдено."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Crossagent providers and models"
-msgstr "Провайдери та моделі Crossagent"
+#~ msgid "Crossagent providers and models"
+#~ msgstr "Провайдери та моделі Crossagent"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3350,6 +3354,10 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagents auto-selection"
+msgstr "Автовибір Crossagents"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
@@ -8532,8 +8540,8 @@ msgid "Providers"
 msgstr "Постачальники"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Providers & models"
-msgstr "Провайдери та моделі"
+#~ msgid "Providers & models"
+#~ msgstr "Провайдери та моделі"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -12021,8 +12029,12 @@ msgstr "Не позначено"
 #~ msgstr "Непозначені моделі пропускаються лише Crossagents."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Unchecked providers and models are skipped by Crossagents only."
-msgstr "Непозначені провайдери та моделі пропускаються лише Crossagents."
+msgid "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads."
+msgstr "Постачальники й моделі без позначки виключаються з автоматичної маршрутизації Crossagents, але залишаються доступними для потоків агентів, запущених вручну."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+#~ msgid "Unchecked providers and models are skipped by Crossagents only."
+#~ msgstr "Непозначені провайдери та моделі пропускаються лише Crossagents."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
