@@ -1529,6 +1529,10 @@ msgstr "Khoảng thời gian tự động làm mới tính bằng phút, 0 để
 msgid "Auto-review"
 msgstr "Tự động xem xét"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Auto-selection"
+msgstr "Tự động chọn"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
@@ -3331,8 +3335,8 @@ msgstr "Crossagent ({subagent}): {description}"
 #~ msgstr "Không tìm thấy Crossagent."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Crossagent providers and models"
-msgstr "Nhà cung cấp và mô hình Crossagent"
+#~ msgid "Crossagent providers and models"
+#~ msgstr "Nhà cung cấp và mô hình Crossagent"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3366,6 +3370,10 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagents auto-selection"
+msgstr "Tự động chọn Crossagents"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
@@ -8548,8 +8556,8 @@ msgid "Providers"
 msgstr "Nhà cung cấp"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Providers & models"
-msgstr "Nhà cung cấp & mô hình"
+#~ msgid "Providers & models"
+#~ msgstr "Nhà cung cấp & mô hình"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -12037,8 +12045,12 @@ msgstr "Bỏ chọn"
 #~ msgstr "Các mô hình không được chọn chỉ bị Crossagents bỏ qua."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Unchecked providers and models are skipped by Crossagents only."
-msgstr "Nhà cung cấp và mô hình không được chọn chỉ bị Crossagents bỏ qua."
+msgid "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads."
+msgstr "Nhà cung cấp và mô hình bị bỏ chọn sẽ không được dùng trong định tuyến Crossagents tự động, nhưng vẫn khả dụng cho các luồng tác nhân được khởi chạy thủ công."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+#~ msgid "Unchecked providers and models are skipped by Crossagents only."
+#~ msgstr "Nhà cung cấp và mô hình không được chọn chỉ bị Crossagents bỏ qua."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"

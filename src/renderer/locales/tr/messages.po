@@ -1529,6 +1529,10 @@ msgstr "Dakika cinsinden otomatik yenileme aralığı, kapatmak için 0"
 msgid "Auto-review"
 msgstr "Otomatik inceleme"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Auto-selection"
+msgstr "Otomatik seçim"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
@@ -3331,8 +3335,8 @@ msgstr "Crossagent ({subagent}): {description}"
 #~ msgstr "Crossagent bulunamadı."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Crossagent providers and models"
-msgstr "Crossagent sağlayıcıları ve modelleri"
+#~ msgid "Crossagent providers and models"
+#~ msgstr "Crossagent sağlayıcıları ve modelleri"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3366,6 +3370,10 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagents auto-selection"
+msgstr "Crossagents otomatik seçimi"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
@@ -8548,8 +8556,8 @@ msgid "Providers"
 msgstr "Sağlayıcılar"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Providers & models"
-msgstr "Sağlayıcılar ve modeller"
+#~ msgid "Providers & models"
+#~ msgstr "Sağlayıcılar ve modeller"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -12037,8 +12045,12 @@ msgstr "İşaretlenmemiş"
 #~ msgstr "İşaretlenmemiş modeller yalnızca Crossagents tarafından atlanır."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Unchecked providers and models are skipped by Crossagents only."
-msgstr "İşaretlenmemiş sağlayıcılar ve modeller yalnızca Crossagents tarafından atlanır."
+msgid "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads."
+msgstr "İşareti kaldırılan sağlayıcılar ve modeller, otomatik Crossagents yönlendirmesinin dışında tutulur ancak elle başlatılan aracı iş parçacıkları için kullanılabilir olmaya devam eder."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+#~ msgid "Unchecked providers and models are skipped by Crossagents only."
+#~ msgstr "İşaretlenmemiş sağlayıcılar ve modeller yalnızca Crossagents tarafından atlanır."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"

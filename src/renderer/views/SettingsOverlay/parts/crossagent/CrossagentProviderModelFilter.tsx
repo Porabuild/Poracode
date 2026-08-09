@@ -48,7 +48,7 @@ export function CrossagentProviderModelFilter(props: {
   });
   if (menuProviders.length === 0) return null;
 
-  const ariaLabel = t`Crossagent providers and models`;
+  const ariaLabel = t`Crossagents auto-selection`;
   return (
     <ModelVisibilityPopover
       providers={menuProviders}
@@ -58,10 +58,15 @@ export function CrossagentProviderModelFilter(props: {
         uncheckedKinds: crossagentPausedProviders,
         onCheckedChange: (kind, checked) => setCrossagentProviderPaused(kind, !checked),
       }}
-      triggerLabel={<Trans>Providers & models</Trans>}
+      triggerLabel={<Trans>Auto-selection</Trans>}
       listAriaLabel={ariaLabel}
       summaryKind="usable"
-      footer={<Trans>Unchecked providers and models are skipped by Crossagents only.</Trans>}
+      footer={
+        <Trans>
+          Unchecked providers and models are excluded from automatic Crossagents routing, but remain
+          available for manual agent threads.
+        </Trans>
+      }
       compactTriggerCount
       triggerAriaLabel={ariaLabel}
       triggerClassName="shrink-0 tabular-nums"

@@ -83,7 +83,7 @@ export function CrossagentMemorySection() {
           <Trans>No learned selections yet.</Trans>
         </p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
           {learned.map((entry) => {
             const key = entryRowKey(entry);
             const tags = normalizeCrossagentTags(entry.tags);

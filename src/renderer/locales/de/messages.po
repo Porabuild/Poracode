@@ -1529,6 +1529,10 @@ msgstr "Automatisches Aktualisierungsintervall in Minuten, 0 zum Ausschalten"
 msgid "Auto-review"
 msgstr "Automatische Überprüfung"
 
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Auto-selection"
+msgstr "Auto-Auswahl"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
@@ -3331,8 +3335,8 @@ msgstr "Crossagent ({subagent}): {description}"
 #~ msgstr "Crossagent nicht gefunden."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Crossagent providers and models"
-msgstr "Crossagent-Anbieter und -Modelle"
+#~ msgid "Crossagent providers and models"
+#~ msgstr "Crossagent-Anbieter und -Modelle"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3366,6 +3370,10 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagents auto-selection"
+msgstr "Automatische Crossagents-Auswahl"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
@@ -8548,8 +8556,8 @@ msgid "Providers"
 msgstr "Anbieter"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Providers & models"
-msgstr "Anbieter & Modelle"
+#~ msgid "Providers & models"
+#~ msgstr "Anbieter & Modelle"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -12037,8 +12045,12 @@ msgstr "Deaktiviert"
 #~ msgstr "Nicht markierte Modelle werden nur von Crossagents übersprungen."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Unchecked providers and models are skipped by Crossagents only."
-msgstr "Nicht markierte Anbieter und Modelle werden nur von Crossagents übersprungen."
+msgid "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads."
+msgstr "Nicht ausgewählte Anbieter und Modelle werden vom automatischen Crossagents-Routing ausgeschlossen, bleiben aber für manuell gestartete Agenten-Threads verfügbar."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+#~ msgid "Unchecked providers and models are skipped by Crossagents only."
+#~ msgstr "Nicht markierte Anbieter und Modelle werden nur von Crossagents übersprungen."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
