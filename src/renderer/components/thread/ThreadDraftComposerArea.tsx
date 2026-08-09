@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { toast } from "@heroui/react";
-import { Download, Monitor, Webhook, X } from "lucide-react";
+import { Download, Monitor, TerminalSquare, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
@@ -420,10 +420,10 @@ export function ThreadDraftComposerArea(props: {
   // which workspace entries override global ones, so the menu can't drift from
   // what actually launches. Providers whose MCP set lives on their settings
   // page show no rows here at all.
-  const hideCustomMcpRows = providerOwnsMcpConfig(props.selectedAgent.capabilities);
+  const providerOwnsMcp = providerOwnsMcpConfig(props.selectedAgent.capabilities);
   const projectCustomMcpServers = props.project.mcpServers ?? [];
   const projectCustomMcpIds = new Set(projectCustomMcpServers.map((server) => server.id));
-  const mergedCustomMcpServers = hideCustomMcpRows
+  const mergedCustomMcpServers = providerOwnsMcp
     ? []
     : mergeMcpServers(userCustomMcpServers, projectCustomMcpServers);
   const customMcpServers: ComposerCustomMcpItem[] = mergedCustomMcpServers.map((server) => {
@@ -511,6 +511,18 @@ export function ThreadDraftComposerArea(props: {
   // draft; already-effective servers remain available and insert a textual
   // mention that directs the agent to use them for this turn.
   const mcpMentions: McpMentionItem[] = [
+    ...(disabledBuiltInMcpServers["app-controls"] !== true && !providerOwnsMcp
+      ? [
+          {
+            id: "app-controls",
+            name: t`Terminal`,
+            searchAliases: ["Terminal"],
+            icon: TerminalSquare,
+            detail: t`Terminal`,
+            enabled: true,
+          },
+        ]
+      : []),
     ...availableComposerMcpServers
       .filter(
         (descriptor) =>

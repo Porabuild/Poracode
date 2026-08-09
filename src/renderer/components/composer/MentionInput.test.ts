@@ -129,6 +129,28 @@ describe("buildMentionResults", () => {
     ]);
   });
 
+  it("matches a stable alias while preserving the localized display name", () => {
+    const localizedTerminal: McpMentionItem = {
+      id: "app-controls",
+      name: "Терминал",
+      searchAliases: ["Terminal"],
+      icon: Monitor,
+      detail: "Терминал",
+      enabled: true,
+    };
+
+    expect(buildMentionResults([], "ter", [localizedTerminal])).toEqual([
+      {
+        type: "mcp",
+        path: "app-controls",
+        name: "Терминал",
+        icon: Monitor,
+        detail: "Терминал",
+        enabled: true,
+      },
+    ]);
+  });
+
   it("preserves the caller's order for an empty @ mention", () => {
     expect(buildMentionResults(fileResults, "", [browser, crossagents, computerUse])).toEqual([
       {
