@@ -11,6 +11,7 @@ import {
   useIsWorktreeTerminalBusy,
   useIsWorktreeTerminalOpen,
 } from "@/renderer/hooks/uiSelectors";
+import { getStatusTone } from "@/renderer/components/providers/statusTone";
 import {
   gitMergeAndRemove,
   gitMergeToSource,
@@ -31,7 +32,7 @@ import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { gitMenuIcons } from "./gitMenuIcons";
 import type { WorktreeThreadGroup } from "./groupThreads";
 import { useWorktreeGitItems } from "./useWorktreeActions";
-import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
+import { getWorktreeGroupStatusTone, WorktreeGroupHeader } from "./WorktreeGroupHeader";
 
 export function SidebarWorktreeGroup(props: {
   group: WorktreeThreadGroup;
@@ -39,6 +40,7 @@ export function SidebarWorktreeGroup(props: {
   project: Project;
   sortableGroup: string;
   sortDisabled?: boolean;
+  liveBackgroundThreadIds: ReadonlySet<string>;
   /** Trailing project label for cross-project (flat) lists. */
   projectTag?: React.ReactNode;
 }) {
@@ -52,6 +54,13 @@ export function SidebarWorktreeGroup(props: {
   const isBusyTerminal = useIsWorktreeTerminalBusy(group.worktreePath);
   const isActiveFiles = useIsWorktreeFilesPanelActive(group.worktreePath);
   const isActiveGit = useIsWorktreeGitPanelActive(group.worktreePath);
+  const collapsedStatusTone = getWorktreeGroupStatusTone(
+    group.threads.map((thread) =>
+      getStatusTone(thread, {
+        hasBackgroundActivity: props.liveBackgroundThreadIds.has(thread.id),
+      }),
+    ),
+  );
   const groupThreadIds = group.threads.map((thread) => thread.id);
   const activeThreads = group.threads.filter((thread) => !thread.done);
   const isDone = group.threads.every((thread) => thread.done);
@@ -175,6 +184,7 @@ export function SidebarWorktreeGroup(props: {
           isDraggingAnything={!!source}
           isDone={isDone}
           updatedAt={latestThreadUpdatedAt}
+          {...(collapsedStatusTone !== undefined ? { collapsedStatusTone } : {})}
           {...(props.projectTag !== undefined ? { projectTag: props.projectTag } : {})}
         />
       </ContextMenu>
