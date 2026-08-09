@@ -137,7 +137,6 @@ export async function applyRemoteThreadCommand(
       updateRemoteThread(command.threadId, (thread) => ({
         ...thread,
         title: command.title,
-        updatedAt: new Date().toISOString(),
       }));
       return false;
     case "acknowledge":

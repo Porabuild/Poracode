@@ -99,11 +99,10 @@ export function ExperimentView(props: { experimentId: string }) {
       }
     }
     if (nextTitles.size > 0) {
-      const updatedAt = new Date().toISOString();
       useAppStore.setState((state) => ({
         threads: state.threads.map((thread) => {
           const title = nextTitles.get(thread.id);
-          return title ? { ...thread, title, updatedAt } : thread;
+          return title ? { ...thread, title } : thread;
         }),
       }));
     }
