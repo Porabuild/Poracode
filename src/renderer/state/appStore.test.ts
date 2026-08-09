@@ -1189,6 +1189,57 @@ describe("appStore runtime config sync", () => {
     });
   });
 
+  it("does not reopen a completed GUI turn for a trailing goal update", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "turn.started",
+      threadId: thread.id,
+      turnId: "turn-1",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      itemType: "assistant_message",
+    });
+
+    vi.setSystemTime(new Date("2026-05-01T12:03:34.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    const completedTurns = useAppStore.getState().runtimeCompletedTurnsByThread[thread.id];
+
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Done", status: "completed" }] },
+    });
+
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      status: "idle",
+      attention: "none",
+      activeTurnStartedAt: undefined,
+      lastTurnEndedAt: "2026-05-01T12:03:34.000Z",
+    });
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBe(completedTurns);
+  });
+
   it("does not add sub-second completed turns", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));

@@ -149,11 +149,22 @@ function isLiveAssistantActivity(
   event: RuntimeEvent,
 ): boolean {
   if (event.type === "item.started") {
-    return event.itemType !== "user_message" && event.itemType !== "error";
+    return (
+      event.itemType !== "user_message" &&
+      event.itemType !== "error" &&
+      event.itemType !== "plan" &&
+      event.itemType !== "goal"
+    );
   }
   if (event.type !== "item.updated" && event.type !== "content.delta") return false;
   const item = state.runtimeItemsByIdByThread[threadId]?.[event.itemId];
-  return item !== undefined && item.state !== "completed" && item.type !== "user_message";
+  return (
+    item !== undefined &&
+    item.state !== "completed" &&
+    item.type !== "user_message" &&
+    item.type !== "plan" &&
+    item.type !== "goal"
+  );
 }
 
 function parseTurnMs(iso: string | undefined): number | null {
