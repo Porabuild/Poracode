@@ -3,10 +3,10 @@ import { Description, FieldError, Input, Label, Modal, TextArea, TextField } fro
 import { ChevronDown } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { DEFAULT_MCP_SERVER_TIMEOUT_MS, type McpServer } from "@/shared/contracts";
-import { Button, LightballTabs, Select, TuxIcon } from "@/renderer/components/common";
+import { Button, LightballTabs, Select } from "@/renderer/components/common";
 import {
-  GLOBAL_MCP_DESTINATION_ID,
   McpProjectDestinationDropdown,
+  McpProjectDropdownTriggerContent,
   mcpProjectDestinationId,
   type McpProjectDestination,
 } from "./McpProjectDestinationDropdown";
@@ -200,16 +200,11 @@ export function McpServerEditor(props: {
                       aria-label={t`Scope`}
                       className="w-44 justify-between text-foreground"
                     >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate">
-                          {props.scopeId === GLOBAL_MCP_DESTINATION_ID
-                            ? t`Global`
-                            : selectedProject?.name}
-                        </span>
-                        {selectedProject?.location.kind === "wsl" ? (
-                          <TuxIcon aria-hidden="true" className="h-3.5 w-6 shrink-0 text-muted" />
-                        ) : null}
-                      </span>
+                      {selectedProject ? (
+                        <McpProjectDropdownTriggerContent project={selectedProject} />
+                      ) : (
+                        <span className="truncate">{t`Global`}</span>
+                      )}
                       <ChevronDown className="size-3.5 shrink-0 text-muted" />
                     </Button>
                   }

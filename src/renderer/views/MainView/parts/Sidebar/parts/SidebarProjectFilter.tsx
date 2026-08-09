@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Selection } from "@heroui/react";
-import { Dropdown, Label, Separator } from "@heroui/react";
+import { Description, Dropdown, Label, Separator } from "@heroui/react";
 import { Check, ChevronsUpDown, ListFilter, MoreHorizontal } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
@@ -8,7 +8,7 @@ import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { ContextMenuSurface, MENU_BACKDROP_ATTR } from "@/renderer/components/common/ContextMenu";
 import {
-  ProjectRemoteServerChip,
+  ProjectSelectorIcon,
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
 import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
@@ -357,8 +357,13 @@ export function SidebarProjectFilter(props: {
                 aria-pressed={selected || undefined}
                 onClick={() => toggleProject(project.id)}
               >
+                <ProjectSelectorIcon project={project} remote={remote} />
                 <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                <ProjectRemoteServerChip info={remote} size="md" />
+                {remote.serverName ? (
+                  <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
+                    {remote.serverName}
+                  </span>
+                ) : null}
                 <span className="shrink-0 text-xs text-muted">
                   {props.threadCounts.get(project.id) ?? 0}
                 </span>
@@ -370,8 +375,13 @@ export function SidebarProjectFilter(props: {
             const remote = remoteServerFor(project);
             return (
               <div key={project.id} className="m-sheet-action opacity-50" data-static="true">
+                <ProjectSelectorIcon project={project} remote={remote} />
                 <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                <ProjectRemoteServerChip info={remote} size="md" />
+                {remote.serverName ? (
+                  <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
+                    {remote.serverName}
+                  </span>
+                ) : null}
                 {isHomeProject(project) ? null : (
                   <ProjectRowMenuButton
                     project={project}
@@ -487,8 +497,9 @@ export function SidebarProjectFilter(props: {
             const remote = remoteServerFor(project);
             return (
               <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                <ProjectSelectorIcon project={project} remote={remote} />
                 <Label className="min-w-0 truncate">{project.name}</Label>
-                <ProjectRemoteServerChip info={remote} size="md" />
+                {remote.serverName ? <Description>{remote.serverName}</Description> : null}
                 <span className="ms-auto shrink-0 text-xs text-muted">
                   {props.threadCounts.get(project.id) ?? 0}
                 </span>
@@ -513,8 +524,9 @@ export function SidebarProjectFilter(props: {
               const remote = remoteServerFor(project);
               return (
                 <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                  <ProjectSelectorIcon project={project} remote={remote} />
                   <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
-                  <ProjectRemoteServerChip info={remote} size="md" />
+                  {remote.serverName ? <Description>{remote.serverName}</Description> : null}
                   {isHomeProject(project) ? null : (
                     <ProjectRowMenuButton
                       project={project}

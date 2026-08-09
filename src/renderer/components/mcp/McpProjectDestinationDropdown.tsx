@@ -2,7 +2,11 @@ import type { ReactNode } from "react";
 import { Description, Dropdown, Header, Label } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
-import { TuxIcon } from "@/renderer/components/common";
+import {
+  ProjectLocationIcon,
+  ProjectRemoteServerIcon,
+  useProjectRemoteServerLookup,
+} from "@/renderer/components/common/ProjectRemoteServer";
 
 export const GLOBAL_MCP_DESTINATION_ID = "user";
 export const MCP_WSL_DESTINATION_PREFIX = "wsl:";
@@ -27,20 +31,36 @@ export function mcpProjectLocationLabel(location: ProjectLocation): string {
 }
 
 export function McpProjectDropdownItemContent(props: { project: McpProjectDestination }) {
+  const remote = useProjectRemoteServerLookup()(props.project);
   return (
     <>
-      <Label>
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate">{props.project.name}</span>
-          {props.project.location.kind === "wsl" ? (
-            <span className="relative size-4 shrink-0 text-muted" aria-hidden="true">
-              <TuxIcon className="absolute left-1/2 top-1/2 h-3.5 w-6 -translate-x-1/2 -translate-y-1/2" />
-            </span>
-          ) : null}
-        </span>
-      </Label>
-      <Description>{mcpProjectLocationLabel(props.project.location)}</Description>
+      {remote.isRemote ? (
+        <ProjectRemoteServerIcon info={remote} className="size-3.5 text-muted" />
+      ) : (
+        <ProjectLocationIcon location={props.project.location} />
+      )}
+      <Label>{props.project.name}</Label>
+      <Description>
+        {remote.serverName ?? mcpProjectLocationLabel(props.project.location)}
+      </Description>
     </>
+  );
+}
+
+export function McpProjectDropdownTriggerContent(props: { project: McpProjectDestination }) {
+  const remote = useProjectRemoteServerLookup()(props.project);
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      {remote.isRemote ? (
+        <ProjectRemoteServerIcon info={remote} className="size-3.5 text-muted" />
+      ) : (
+        <ProjectLocationIcon location={props.project.location} className="size-3.5" />
+      )}
+      <span className="min-w-0 truncate">{props.project.name}</span>
+      {remote.serverName ? (
+        <span className="min-w-0 shrink truncate text-xs text-muted/60">{remote.serverName}</span>
+      ) : null}
+    </span>
   );
 }
 

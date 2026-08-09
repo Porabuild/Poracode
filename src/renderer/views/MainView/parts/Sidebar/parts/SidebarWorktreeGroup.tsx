@@ -31,6 +31,7 @@ import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { markThreadDone, openNewThreadInWorktree } from "@/renderer/actions/threadActions";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -164,6 +165,7 @@ export function SidebarWorktreeGroup(props: {
                 group.worktreeBranch,
             });
           if (key === "git-review") openGitReview(project.id, group.worktreePath);
+          if (key === "github-actions") useAppStore.getState().openGitHubActions(project.id);
           if (key === "delete-worktree")
             deleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds);
           if (key === "mark-all-done") {

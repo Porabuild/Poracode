@@ -6,11 +6,13 @@ import {
   GitMerge,
   GitPullRequest,
   RefreshCw,
+  Workflow,
 } from "lucide-react";
 import type { GitMenuIcons } from "./useWorktreeActions";
 
 export const gitMenuIcons: GitMenuIcons = {
   review: <FileDiff className="size-3.5" />,
+  githubActions: <Workflow className="size-3.5" />,
   sync: <RefreshCw className="size-3.5" />,
   push: <ArrowUpFromLine className="size-3.5" />,
   pull: <ArrowDownToLine className="size-3.5" />,
