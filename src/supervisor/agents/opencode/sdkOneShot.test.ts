@@ -67,4 +67,22 @@ describe("runOpenCodeOneShot", () => {
       permission: [{ permission: "*", pattern: "*", action: "deny" }],
     });
   });
+
+  it.each(["<｜DSML｜tool_calls>", "< | | DSML | | tool_calls>"])(
+    "rejects a leaked DeepSeek tool-call marker: %s",
+    async (marker) => {
+      prompt.mockResolvedValue({
+        data: { info: {}, parts: [{ type: "text", text: marker }] },
+      });
+
+      await expect(
+        runOpenCodeOneShot({
+          location,
+          model: "opencode-go/deepseek-v4-flash",
+          prompt: "Generate a title",
+        }),
+      ).rejects.toThrow("OpenCode returned a provider tool-call marker instead of text.");
+      expect(dispose).toHaveBeenCalledOnce();
+    },
+  );
 });
