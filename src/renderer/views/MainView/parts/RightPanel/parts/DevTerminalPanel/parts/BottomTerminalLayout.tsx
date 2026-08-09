@@ -1,4 +1,4 @@
-import { Columns2, PanelBottomClose, Plus, Trash2 } from "lucide-react";
+import { Columns2, Loader2, PanelBottomClose, Play, Plus, Trash2 } from "lucide-react";
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { TerminalSize } from "@/shared/contracts";
@@ -60,6 +60,7 @@ export function BottomTerminalLayout(props: {
   } = props;
   const { sidebarRef, sidebarWidth, handleResizeStart, handleResizeKeyDown } =
     useBottomTerminalSidebarResize();
+  const runningTabs = useDevTerminalStore((state) => state.runningTabs);
 
   // Build flat entries: primary tabs + their split children
   type TabRow = { id: string; tab: DevTerminalTab; isSplit: boolean };
@@ -110,6 +111,13 @@ export function BottomTerminalLayout(props: {
                       key={id}
                       id={id}
                       className={`group w-full gap-0 pl-3 pr-1 text-xs ${isSplit && parentSelected ? "text-foreground" : ""}`}
+                      {...(!isSplit && tab.runActionId
+                        ? {
+                            "aria-label": runningTabs[tab.id]
+                              ? t`${tab.title}, Running`
+                              : t`${tab.title}, Idle`,
+                          }
+                        : {})}
                     >
                       <ContextMenu
                         items={getTabContextItems(tab)}
@@ -122,6 +130,18 @@ export function BottomTerminalLayout(props: {
                           >
                             {isSplit ? (tab.splitTitle ?? tab.title) : tab.title}
                           </span>
+                          {!isSplit && tab.runActionId ? (
+                            <>
+                              {runningTabs[tab.id] ? (
+                                <Loader2
+                                  className="size-3 shrink-0 animate-spin text-accent"
+                                  aria-hidden
+                                />
+                              ) : (
+                                <Play className="size-3 shrink-0 text-accent" aria-hidden />
+                              )}
+                            </>
+                          ) : null}
                           {isSplit ? <Columns2 className="size-3 shrink-0 text-accent" /> : null}
                         </span>
                       </ContextMenu>

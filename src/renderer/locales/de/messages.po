@@ -345,6 +345,18 @@ msgstr "{0} verwendet"
 #~ msgid "{0} workflows"
 #~ msgstr "{0} Workflows"
 
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Idle"
+msgstr "{0}, Leerlauf"
+
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Running"
+msgstr "{0}, Wird ausgeführt"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -10719,6 +10731,13 @@ msgstr "stdio (lokaler Befehl)"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
 msgstr "Stopp"
+
+#. placeholder {0}: action.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+msgid "Stop {0}"
+msgstr "{0} stoppen"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Stop forwarding"

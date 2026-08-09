@@ -224,6 +224,25 @@ export function useIsWorktreeTerminalBusy(worktreePath: string | null | undefine
   });
 }
 
+export function useRunningProjectActionIds(
+  projectId: string,
+  worktreePath?: string,
+): readonly string[] {
+  return useDevTerminalStore(
+    useShallow((state) =>
+      state.tabs
+        .filter(
+          (tab) =>
+            tab.projectId === projectId &&
+            (tab.worktreePath ?? undefined) === worktreePath &&
+            tab.runActionId &&
+            state.runningTabs[tab.id],
+        )
+        .map((tab) => tab.runActionId!),
+    ),
+  );
+}
+
 export function useIsProjectGitPanelActive(projectId: string): boolean {
   const onScreen = usePanelTabOnScreen("git");
   return usePanelStore((s) => {

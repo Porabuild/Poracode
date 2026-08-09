@@ -345,6 +345,18 @@ msgstr "已使用 {0}"
 #~ msgid "{0} workflows"
 #~ msgstr "{0} 个工作流"
 
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Idle"
+msgstr "{0}，空闲"
+
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Running"
+msgstr "{0}，正在运行"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -10718,6 +10730,13 @@ msgstr "stdio（本地命令）"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
 msgstr "停止"
+
+#. placeholder {0}: action.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+msgid "Stop {0}"
+msgstr "停止 {0}"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Stop forwarding"

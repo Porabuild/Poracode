@@ -3,21 +3,23 @@ import {
   FileDiff,
   GitFork,
   Layers,
+  Loader2,
   Play,
   Power,
   PowerOff,
   RefreshCw,
   Settings2,
+  Square,
   Trash2,
   Workflow,
 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
-import type { ContextMenuEntry } from "@/renderer/components/common/ContextMenu";
+import type { ContextMenuEntry, ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { setProjectDisabled, deleteProject } from "@/renderer/actions/projectActions";
 import { openGitReview, openProjectSettings } from "@/renderer/actions/panelActions";
 import { gitSync } from "@/renderer/actions/gitActions";
-import { runProjectAction } from "@/renderer/actions/terminalActions";
+import { runProjectAction, stopProjectAction } from "@/renderer/actions/terminalActions";
 import {
   WORKSPACE_UNFILED_KEY,
   parseWorkspaceMenuKey,
@@ -28,6 +30,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
+import { useRunningProjectActionIds } from "@/renderer/hooks/uiSelectors";
 
 /**
  * The project context menu: entries plus their action dispatcher, shared by
@@ -46,6 +49,31 @@ export function useProjectMenu(
   const setRemoteProjectSynced = useRemoteServersStore((state) => state.setRemoteProjectSynced);
   const isDisabled = !!project.disabled;
   const isRemote = project.remoteServerId !== undefined && project.remoteId !== undefined;
+  const runningActionIds = useRunningProjectActionIds(project.id);
+  const runActionItems: ContextMenuItem[] = [];
+  for (const action of project.scripts?.actions ?? []) {
+    const isRunning = runningActionIds.includes(action.id);
+    runActionItems.push({
+      id: `action:${action.id}`,
+      label: action.name,
+      icon: isRunning ? (
+        <Loader2 className="size-3.5 animate-spin text-accent" aria-hidden />
+      ) : (
+        resolveActionIcon(action.icon)
+      ),
+      isDisabled: isUnreachable,
+      ...(isRunning
+        ? {
+            endAction: {
+              id: `stop-action:${action.id}`,
+              label: t`Stop ${action.name}`,
+              icon: <Square className="size-3 fill-current" aria-hidden />,
+              isDisabled: isUnreachable,
+            },
+          }
+        : {}),
+    });
+  }
 
   const items: ContextMenuEntry[] = [
     {
@@ -89,12 +117,7 @@ export function useProjectMenu(
                   id: "run-action",
                   label: t`Run`,
                   icon: <Play className="size-3.5" />,
-                  items: project.scripts.actions.map((action) => ({
-                    id: `action:${action.id}`,
-                    label: action.name,
-                    icon: resolveActionIcon(action.icon),
-                    isDisabled: isUnreachable,
-                  })),
+                  items: runActionItems,
                 },
               ]
             : []),
@@ -163,6 +186,9 @@ export function useProjectMenu(
     if (key === "git-sync") gitSync(project.id);
     if (key.startsWith("action:")) {
       runProjectAction(project.id, key.slice("action:".length));
+    }
+    if (key.startsWith("stop-action:")) {
+      stopProjectAction(project.id, key.slice("stop-action:".length));
     }
     const workspaceChoice = parseWorkspaceMenuKey(key);
     if (workspaceChoice?.kind === "unfiled") {
