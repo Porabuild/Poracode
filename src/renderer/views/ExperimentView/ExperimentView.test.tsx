@@ -79,7 +79,12 @@ describe("ExperimentView", () => {
 
     render(<ExperimentView experimentId={experiment.id} />);
 
-    await waitFor(() => expect(useAppStore.getState().threads[0]?.title).toBe("model-a · codex"));
+    await waitFor(() =>
+      expect(useAppStore.getState().threads[0]).toMatchObject({
+        title: "model-a · codex",
+        updatedAt: "2026-07-16T00:00:00.000Z",
+      }),
+    );
   });
 
   it("allows discarding while a candidate is running", () => {

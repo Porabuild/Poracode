@@ -473,7 +473,7 @@ export const threadTools: ToolDomain = {
       // Ordered so `applied` preserves rename→group→done→starred→archived.
       applyField(parsed.rename, "rename", (title) => ({
         command: { kind: "rename", threadId, title },
-        mutate: (thread) => ({ ...thread, title, updatedAt: stamp() }),
+        mutate: (thread) => ({ ...thread, title }),
       }));
       applyField(parsed.group, "group", (group) => ({
         command: { kind: "set-group", threadId, groupId: group, groupName: group },

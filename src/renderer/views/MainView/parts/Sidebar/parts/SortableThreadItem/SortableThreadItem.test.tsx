@@ -335,6 +335,26 @@ describe("SortableThreadItem", () => {
     expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
   });
 
+  it("keeps the flat-list row metadata while renaming only its title", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId="thread-1"
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Rename thread" })).toHaveValue("Thread 1");
+    expect(screen.getByText("Project")).toBeInTheDocument();
+    expect(screen.getByTestId("sync-badge")).toHaveTextContent("project-1:project");
+    expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+  });
+
   it("omits the project git badge in grouped lists, where the project header carries it", () => {
     render(
       <SortableThreadItem
