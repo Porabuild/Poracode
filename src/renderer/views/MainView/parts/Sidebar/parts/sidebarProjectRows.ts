@@ -31,6 +31,7 @@ export type SidebarRow =
       entryIndex: number;
       sortableGroup: string;
       sortDisabled: boolean;
+      liveBackgroundThreadIds: ReadonlySet<string>;
     }
   | {
       kind: "thread-group";
@@ -121,6 +122,7 @@ function pushEntryRows(
     dndDisabled: boolean;
     isCollapsed: (key: string) => boolean;
     nextUngroupedIndex: () => number;
+    liveBackgroundThreadIds: ReadonlySet<string>;
     experimentCandidateOrder?: ReadonlyMap<string, number>;
   },
 ) {
@@ -147,6 +149,7 @@ function pushEntryRows(
       entryIndex,
       sortableGroup: input.dndGroup,
       sortDisabled: input.dndDisabled,
+      liveBackgroundThreadIds: input.liveBackgroundThreadIds,
     });
     if (!input.isCollapsed(entry.group.worktreePath)) {
       entry.group.threads.forEach((thread, threadIndex) => {
@@ -311,6 +314,7 @@ export function buildSidebarProjectRows(input: {
         dndDisabled: true,
         isCollapsed,
         nextUngroupedIndex,
+        liveBackgroundThreadIds,
         ...(input.experimentCandidateOrder
           ? { experimentCandidateOrder: input.experimentCandidateOrder }
           : {}),

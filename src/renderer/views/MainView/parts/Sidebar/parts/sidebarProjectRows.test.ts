@@ -170,6 +170,32 @@ describe("buildSidebarProjectRows — See more cap (date sort)", () => {
     expect(allDone[1]).toMatchObject({ kind: "worktree-group" });
   });
 
+  it("carries live background thread ids to worktree group rows", () => {
+    const liveBackgroundThreadIds = new Set(["wt-live"]);
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        makeThread({
+          id: "wt-live",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature",
+        }),
+        makeThread({
+          id: "wt-idle",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature",
+        }),
+      ],
+      sortMode: "updated",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      liveBackgroundThreadIds,
+    });
+
+    const group = rows.find((row) => row.kind === "worktree-group");
+    expect(group?.liveBackgroundThreadIds).toBe(liveBackgroundThreadIds);
+  });
+
   it("hides done threads behind See more before live ones", () => {
     const threads = [
       ...Array.from({ length: 8 }, (_, i) => makeThread({ id: `live-${i}` })),

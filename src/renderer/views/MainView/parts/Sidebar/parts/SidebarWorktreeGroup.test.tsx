@@ -1,8 +1,9 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
-import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import type { WorktreeThreadGroup } from "./groupThreads";
 import { SidebarWorktreeGroup } from "./SidebarWorktreeGroup";
 
 const terminalActions = vi.hoisted(() => ({
@@ -26,13 +27,20 @@ vi.mock("./useWorktreeActions", () => ({
   useWorktreeGitItems: () => [],
 }));
 
-vi.mock("./WorktreeGroupHeader", () => ({
-  WorktreeGroupHeader: (props: { onContextMenu?: React.MouseEventHandler<HTMLButtonElement> }) => (
-    <button type="button" onContextMenu={props.onContextMenu}>
-      worktree
-    </button>
-  ),
-}));
+vi.mock("./WorktreeGroupHeader", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./WorktreeGroupHeader")>();
+  return {
+    ...actual,
+    WorktreeGroupHeader: (props: {
+      collapsedStatusTone?: string;
+      onContextMenu?: React.MouseEventHandler<HTMLButtonElement>;
+    }) => (
+      <button type="button" aria-label="worktree" onContextMenu={props.onContextMenu}>
+        <span data-testid="group-status">{props.collapsedStatusTone ?? "none"}</span>
+      </button>
+    ),
+  };
+});
 
 const worktreePath = "C:\\repo\\wt";
 const project = {
@@ -43,20 +51,63 @@ const project = {
   scripts: { actions: [{ id: "build", name: "Build", command: "pnpm build" }] },
 } satisfies Project;
 
-const thread = {
-  id: "t1",
-  projectId: project.id,
-  title: "Thread",
-  status: "inactive",
-  done: false,
-  starred: false,
-  archived: false,
-  createdAt: "2026-08-08T00:00:00.000Z",
-  updatedAt: "2026-08-08T00:00:00.000Z",
-  agentKind: "claude",
-  worktreePath,
-  worktreeBranch: "feature",
-} as unknown as Thread;
+function makeThread(id: string, status: Thread["status"]): Thread {
+  return {
+    id,
+    projectId: project.id,
+    title: id,
+    agentKind: "codex",
+    config: { model: "gpt-5.4" },
+    status,
+    attention: "none",
+    canResumeWithConfig: false,
+    archived: false,
+    done: false,
+    starred: false,
+    createdAt: "2026-08-08T00:00:00.000Z",
+    updatedAt: "2026-08-08T00:00:00.000Z",
+    worktreePath,
+    worktreeBranch: "feature",
+  };
+}
+
+function renderGroup(threads: Thread[], liveBackgroundThreadIds: ReadonlySet<string>) {
+  const group: WorktreeThreadGroup = {
+    kind: "worktree",
+    threads,
+    worktreePath,
+    worktreeBranch: "feature",
+  };
+  render(
+    <SidebarWorktreeGroup
+      group={group}
+      entryIndex={0}
+      project={project}
+      sortableGroup="project:p1"
+      liveBackgroundThreadIds={liveBackgroundThreadIds}
+    />,
+  );
+}
+
+describe("SidebarWorktreeGroup status tone", () => {
+  it("shows working when a settled child has live background activity", () => {
+    renderGroup(
+      [makeThread("live", "idle"), makeThread("inactive", "inactive")],
+      new Set(["live"]),
+    );
+
+    expect(screen.getByTestId("group-status")).toHaveTextContent("working");
+  });
+
+  it("keeps finished priority over a child with live background activity", () => {
+    renderGroup(
+      [makeThread("live", "idle"), makeThread("finished", "finished")],
+      new Set(["live"]),
+    );
+
+    expect(screen.getByTestId("group-status")).toHaveTextContent("finished");
+  });
+});
 
 describe("SidebarWorktreeGroup Run menu", () => {
   beforeEach(() => {
@@ -68,19 +119,7 @@ describe("SidebarWorktreeGroup Run menu", () => {
   });
 
   it("offers a scoped Stop action for a running worktree command", async () => {
-    render(
-      <SidebarWorktreeGroup
-        group={{
-          kind: "worktree",
-          threads: [thread],
-          worktreePath,
-          worktreeBranch: "feature",
-        }}
-        entryIndex={0}
-        project={project}
-        sortableGroup="project:p1"
-      />,
-    );
+    renderGroup([makeThread("t1", "inactive")], new Set());
 
     fireEvent.contextMenu(screen.getByRole("button", { name: "worktree" }));
     fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Run" }));
