@@ -8,19 +8,18 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { refreshSinglePr } from "@/renderer/state/gitRefresh";
-import { pullMergedPrBaseIfPossible } from "@/renderer/actions/gitCommandRunner";
+import { syncMergedPrBase } from "@/renderer/state/prMergeBaseSync";
 
 const ADMIN_BYPASS_RX = /--admin|base branch policy|not mergeable/i;
 
 export interface UsePrWriteActionsArgs {
   projectLocation: ProjectLocation;
   localSyncLocation?: ProjectLocation | undefined;
-  mergeSyncLocation?: ProjectLocation | undefined;
   skipLocalSync?: boolean | undefined;
   prKey: string | undefined;
   /** PR head branch — required for the on-demand `handleRefreshPr` refetch. */
   branch?: string | undefined;
-  /** Project id used to build the PR-details cache key (`${projectId}#${number}`). */
+  /** Project id used for PR-details caching and post-merge base synchronization. */
   projectId?: string | undefined;
   onRefresh: () => void;
 }
@@ -48,16 +47,8 @@ export interface UsePrWriteActionsResult {
  * stay in lockstep across surfaces.
  */
 export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteActionsResult {
-  const {
-    projectLocation,
-    localSyncLocation,
-    mergeSyncLocation,
-    skipLocalSync,
-    prKey,
-    branch,
-    projectId,
-    onRefresh,
-  } = args;
+  const { projectLocation, localSyncLocation, skipLocalSync, prKey, branch, projectId, onRefresh } =
+    args;
   const [pendingAction, setPendingAction] = useState<PrWriteAction | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const prLoading = pendingAction !== null;
@@ -100,10 +91,11 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
         method,
         admin,
       });
-      await pullMergedPrBaseIfPossible(mergeSyncLocation ?? projectLocation, prData.baseBranch);
+      const mergedPr = { ...prData, state: "merged" as const };
       if (prKey) {
-        useGitStore.getState().setPrData(prKey, { ...prData, state: "merged" });
+        useGitStore.getState().setPrData(prKey, mergedPr);
       }
+      if (projectId) await syncMergedPrBase(projectId, mergedPr);
       onRefresh();
     } catch (err) {
       console.error("[git] merge PR failed", err);

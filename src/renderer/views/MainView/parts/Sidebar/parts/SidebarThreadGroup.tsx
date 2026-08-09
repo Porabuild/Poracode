@@ -23,6 +23,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { ExperimentGroupHeader } from "./ExperimentGroupHeader";
 import { InlineRenameInput } from "./InlineRenameInput";
+import { SyncBadge } from "./SyncBadge";
 import type { ThreadListEntry } from "./groupThreads";
 
 export function SidebarThreadGroup(props: {
@@ -71,6 +72,8 @@ export function SidebarThreadGroup(props: {
   };
   const hiddenGroupActionClass =
     "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
+  const projectSyncBadge =
+    props.projectTag !== undefined ? <SyncBadge projectId={props.project.id} /> : null;
 
   const contextItems: ContextMenuEntry[] = experiment
     ? [
@@ -196,6 +199,7 @@ export function SidebarThreadGroup(props: {
               onOpenBoard={openExperimentBoard}
               onOpenAll={() => useAppStore.getState().openGroupGrid(entry.group.groupId)}
               onDiscard={removeGroupThreads}
+              projectSyncBadge={projectSyncBadge}
             />
           ) : (
             <div className="group flex w-full items-center gap-1 rounded px-2 py-1">
@@ -236,6 +240,7 @@ export function SidebarThreadGroup(props: {
                   </>
                 )}
               </button>
+              {projectSyncBadge}
               {!isRenamingGroup && activeThreads.length >= 2 && (
                 <Tooltip delay={300}>
                   <Tooltip.Trigger>

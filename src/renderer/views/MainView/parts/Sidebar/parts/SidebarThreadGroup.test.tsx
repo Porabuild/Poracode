@@ -20,6 +20,11 @@ vi.mock("@/renderer/utils/shellUtils", () => ({
 vi.mock("@/renderer/analytics/productAnalytics", () => ({
   captureProductEvent: vi.fn<(name: string) => void>(),
 }));
+vi.mock("./SyncBadge", () => ({
+  SyncBadge: (props: { projectId: string }) => (
+    <span data-testid="project-sync-badge">{props.projectId}</span>
+  ),
+}));
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
@@ -120,5 +125,29 @@ describe("SidebarThreadGroup — experiment header", () => {
     expect(useSidebarUiStore.getState().collapsedWorktrees["group:exp-1"]).toBeUndefined();
     fireEvent.click(screen.getByText("refine docs"));
     expect(useSidebarUiStore.getState().collapsedWorktrees["group:exp-1"]).toBe(true);
+  });
+
+  it("shows project sync state on a flat-list group header", () => {
+    useExperimentStore.setState({ experiments: {} });
+
+    render(
+      <SidebarThreadGroup
+        entry={{
+          kind: "thread-group",
+          group: {
+            kind: "default",
+            groupId: "group-1",
+            groupName: "Continue in Other Provider",
+            threads: useAppStore.getState().threads,
+          },
+        }}
+        project={project}
+        editingThreadId={null}
+        setEditingThreadId={() => undefined}
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(screen.getByTestId("project-sync-badge")).toHaveTextContent(project.id);
   });
 });

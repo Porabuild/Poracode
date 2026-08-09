@@ -3,7 +3,9 @@ import type { PrWatchMergedEvent } from "@/shared/ipc";
 import { markThreadDone } from "@/renderer/actions/threadActions";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "./appStore";
+import { buildBranchNamePrKey, buildBranchPrKey } from "./gitSelectors";
 import { useGitStore } from "./gitStore";
+import { syncMergedPrBase } from "./prMergeBaseSync";
 import { useSharedSettings } from "./sharedSettingsStore";
 
 /**
@@ -27,15 +29,42 @@ const pendingThreadIds = new Set<string>();
 type PrDataMap = Record<string, PrData | null>;
 
 /** PR keys that just went from a known non-merged state to merged. */
-function collectFreshlyMergedKeys(next: PrDataMap, prev: PrDataMap): Set<string> {
-  const keys = new Set<string>();
+function collectFreshlyMerged(
+  next: PrDataMap,
+  prev: PrDataMap,
+): Array<{
+  key: string;
+  pr: PrData;
+}> {
+  const merged: Array<{ key: string; pr: PrData }> = [];
   for (const [key, pr] of Object.entries(next)) {
     if (pr?.state !== "merged") continue;
     const before = prev[key];
     if (!before || before.state === "merged") continue;
-    keys.add(key);
+    merged.push({ key, pr });
   }
-  return keys;
+  return merged;
+}
+
+function syncObservedBases(merged: ReadonlyArray<{ key: string; pr: PrData }>): void {
+  const { projects, threads } = useAppStore.getState();
+  for (const item of merged) {
+    const thread = threads.find((candidate) => candidate.worktreePath === item.key);
+    const projectId =
+      thread?.projectId ??
+      projects.find(
+        (project) =>
+          item.key === buildBranchPrKey(project.id) ||
+          item.key.startsWith(`${buildBranchNamePrKey(project.id, "")}`),
+      )?.id;
+    if (projectId) void syncMergedPrBase(projectId, item.pr);
+  }
+}
+
+function syncPrWatchBase(merged: PrWatchMergedEvent): void {
+  if (!merged.worktreePath) return;
+  const prData = useGitStore.getState().prData[merged.worktreePath];
+  if (prData?.number === merged.prNumber) void syncMergedPrBase(merged.projectId, prData);
 }
 
 /**
@@ -90,15 +119,18 @@ function flushPendingThreads(): void {
 /** Starts the watcher. Runtime-owner only, so a remote session never duplicates it. */
 export function startPrMergeAutoDone(): () => void {
   const unsubscribePrWatchMerged = readBridge().onPrWatchMerged((merged) => {
+    syncPrWatchBase(merged);
     if (!useSharedSettings.getState().autoMarkDoneOnPrMerge) return;
     settlePrWatchThreads(merged);
   });
 
   const unsubscribeGit = useGitStore.subscribe((state, prev) => {
     if (state.prData === prev.prData) return;
+    const merged = collectFreshlyMerged(state.prData, prev.prData);
+    if (merged.length === 0) return;
+    syncObservedBases(merged);
     if (!useSharedSettings.getState().autoMarkDoneOnPrMerge) return;
-    const merged = collectFreshlyMergedKeys(state.prData, prev.prData);
-    if (merged.size > 0) settleWorktreeThreads(merged);
+    settleWorktreeThreads(new Set(merged.map((item) => item.key)));
   });
 
   const unsubscribeThreads = useAppStore.subscribe((state, prev) => {
