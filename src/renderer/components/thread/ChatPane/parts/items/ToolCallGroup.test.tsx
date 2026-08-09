@@ -80,7 +80,7 @@ describe("ToolCallGroup", () => {
     );
 
     // Header still derives from the summary while collapsed.
-    expect(screen.getByText(byTextContent("2 views"))).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("2 views"))).toHaveClass("[word-spacing:-0.25em]");
     // No child row content and no viewport container are mounted.
     expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
     expect(screen.queryByText("Read file one")).not.toBeInTheDocument();
