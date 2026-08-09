@@ -48,6 +48,29 @@ export interface ToolItemState {
    */
   fileChangeMetadata?: FileChangeMetadata;
   /**
+   * Set when a `task_started` bound this tool call to a live sub-agent run even
+   * though the tool is not itself a launch tool. `SendMessage` resumes a
+   * completed sub-agent from its transcript, and the resumed run reports
+   * `task_started` / `task_notification` against the *SendMessage* tool_use id
+   * — so that row is an agent row, not a plain tool row. A send that resumes
+   * nothing (unreachable name, message to a live teammate) gets no
+   * `task_started` and stays unflagged.
+   */
+  subAgentParent?: boolean;
+  /**
+   * Display title for a promoted sub-agent parent. Prefers the send's own
+   * `summary` — the recap of what THIS message asked for — because the resumed
+   * run's `task_started` description is frozen at the agent's original spawn,
+   * so every resume of one agent would otherwise carry an identical, stale
+   * label.
+   */
+  subAgentTitle?: string;
+  /**
+   * Sub-agent type reported by `task_started`, kept because a promoted row's
+   * own tool args name the agent, not its type.
+   */
+  subAgentType?: string;
+  /**
    * Structured launch metadata from a `Workflow` tool's `tool_use_result`
    * (SDK `WorkflowOutput`). Kept on the tool state so every later payload —
    * task_progress updates and the closing task_notification — still carries
@@ -59,6 +82,21 @@ export interface ToolItemState {
 
 export interface ClaudeMapperState {
   threadId: string;
+  /**
+   * First tool_use id that launched each sub-agent task, kept for the life of
+   * the session. A resumed run reports a NEW `tool_use_id` (the `SendMessage`
+   * call), but its forwarded children still carry the ORIGINAL launch id in
+   * `parent_tool_use_id` — so this is what lets a resume recognize that it
+   * supersedes an earlier row. See {@link subAgentParentAliases}.
+   */
+  subAgentTaskLaunchTools?: Map<string, string>;
+  /**
+   * Superseded sub-agent parent tool id → the tool id that currently owns the
+   * run. Children of a resumed agent name the original launch tool, which was
+   * completed and dropped when the first run finished; without this redirect
+   * they would nest under that dead row instead of the live resume row.
+   */
+  subAgentParentAliases?: Map<string, string>;
   /**
    * Per-call usage scope (SDK session id + epoch) for `usage.spent` emission.
    * Owned by the session layer (sdkSession.ts); undefined in tests/terminal

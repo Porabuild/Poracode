@@ -345,6 +345,18 @@ msgstr "{0} usado"
 #~ msgid "{0} workflows"
 #~ msgstr "{0} fluxos de trabalho"
 
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Idle"
+msgstr "{0}, Inativo"
+
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Running"
+msgstr "{0}, Em execução"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -1033,6 +1045,22 @@ msgstr "Agente não encontrado"
 msgid "Agent Registry"
 msgstr "Registro de Agente"
 
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume"
+msgstr "Agente retomado"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume ({subagent}): {description}"
+msgstr "Agente retomado ({subagent}):{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {description}"
+msgstr "Agente retomado:{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {subagent}"
+msgstr "Agente retomado:{subagent}"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
@@ -1512,6 +1540,10 @@ msgstr "Intervalo de atualização automática em minutos, 0 para desligar"
 #: src/renderer/components/providers/cursor/index.tsx
 msgid "Auto-review"
 msgstr "Revisão automática"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Auto-selection"
+msgstr "Seleção automática"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -3315,8 +3347,8 @@ msgstr "Crossagent ({subagent}): {description}"
 #~ msgstr "Crossagent não encontrado."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Crossagent providers and models"
-msgstr "Provedores e modelos do Crossagent"
+#~ msgid "Crossagent providers and models"
+#~ msgstr "Provedores e modelos do Crossagent"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3350,6 +3382,10 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagents auto-selection"
+msgstr "Seleção automática do Crossagents"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
@@ -8532,8 +8568,8 @@ msgid "Providers"
 msgstr "Provedores"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Providers & models"
-msgstr "Provedores e modelos"
+#~ msgid "Providers & models"
+#~ msgstr "Provedores e modelos"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -10720,6 +10756,13 @@ msgstr "stdio (comando local)"
 msgid "Stop"
 msgstr "Parar"
 
+#. placeholder {0}: action.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+msgid "Stop {0}"
+msgstr "Parar {0}"
+
 #: src/mobile/views/PortsView.tsx
 msgid "Stop forwarding"
 msgstr "Parar encaminhamento"
@@ -11042,6 +11085,8 @@ msgstr "Diga ao provedor alvo o que fazer a seguir..."
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12021,8 +12066,12 @@ msgstr "Desmarcado"
 #~ msgstr "Os modelos desmarcados são ignorados apenas pelo Crossagents."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Unchecked providers and models are skipped by Crossagents only."
-msgstr "Provedores e modelos desmarcados são ignorados apenas pelo Crossagents."
+msgid "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads."
+msgstr "Provedores e modelos desmarcados são excluídos do roteamento automático do Crossagents, mas continuam disponíveis para threads de agentes iniciadas manualmente."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+#~ msgid "Unchecked providers and models are skipped by Crossagents only."
+#~ msgstr "Provedores e modelos desmarcados são ignorados apenas pelo Crossagents."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"

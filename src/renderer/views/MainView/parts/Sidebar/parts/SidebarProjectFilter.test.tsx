@@ -78,9 +78,9 @@ describe("SidebarProjectFilter", () => {
 
   it("labels the trigger with the current selection", () => {
     renderFilter(null);
-    expect(screen.getByRole("button", { name: "Filter by project" })).toHaveTextContent(
-      "All projects",
-    );
+    const trigger = screen.getByRole("button", { name: "Filter by project" });
+    expect(trigger).toHaveTextContent("All projects");
+    expect(trigger).toHaveClass("h-8");
   });
 
   it("labels the trigger with the project name when one project is selected", () => {

@@ -20,6 +20,7 @@ function buildPrompt(language?: string): string {
     languageRule +
     "- Preserve technical terms, function names, file names, and libraries exactly\n" +
     "- No quotes, no prefix label, no markdown — just the title text\n" +
+    "- Answer from the message alone; do not call tools or output tool-call syntax\n" +
     "- Use sentence case (capitalize only the first word)\n" +
     "- Reply with only the title, nothing else\n\n"
   );

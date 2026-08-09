@@ -1,9 +1,16 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project, Thread } from "@/shared/contracts";
+import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { SidebarWorktreeGroup } from "./SidebarWorktreeGroup";
+import type { Project, Thread } from "@/shared/contracts";
 import type { WorktreeThreadGroup } from "./groupThreads";
+import { SidebarWorktreeGroup } from "./SidebarWorktreeGroup";
+
+const terminalActions = vi.hoisted(() => ({
+  openWorktreeTerminal: vi.fn<(projectId: string, worktreePath: string) => void>(),
+  runProjectAction: vi.fn<(projectId: string, actionId: string, worktreePath?: string) => void>(),
+  stopProjectAction: vi.fn<(projectId: string, actionId: string, worktreePath?: string) => void>(),
+}));
 
 vi.mock("@dnd-kit/react/sortable", () => ({
   useSortable: () => ({ ref: vi.fn<(node: HTMLElement | null) => void>() }),
@@ -14,23 +21,7 @@ vi.mock("@/renderer/dnd", () => ({
   useIsDraggingWorktreeGroup: () => false,
 }));
 
-vi.mock("@/renderer/components/common/ContextMenu", () => ({
-  ContextMenu: (props: { children: React.ReactNode }) => props.children,
-}));
-
-vi.mock("@/renderer/hooks/uiSelectors", () => ({
-  useIsWorktreeFilesPanelActive: () => false,
-  useIsWorktreeGitPanelActive: () => false,
-  useIsWorktreeTerminalActive: () => false,
-  useIsWorktreeTerminalBusy: () => false,
-  useIsWorktreeTerminalOpen: () => false,
-}));
-
-vi.mock("@/renderer/state/sidebarUiStore", () => ({
-  useIsWorktreeCollapsed: () => true,
-  useSidebarUiStore: (selector: (state: { toggleWorktreeCollapsed: () => void }) => unknown) =>
-    selector({ toggleWorktreeCollapsed: vi.fn<() => void>() }),
-}));
+vi.mock("@/renderer/actions/terminalActions", () => terminalActions);
 
 vi.mock("./useWorktreeActions", () => ({
   useWorktreeGitItems: () => [],
@@ -40,18 +31,25 @@ vi.mock("./WorktreeGroupHeader", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./WorktreeGroupHeader")>();
   return {
     ...actual,
-    WorktreeGroupHeader: (props: { collapsedStatusTone?: string }) => (
-      <div data-testid="group-status">{props.collapsedStatusTone ?? "none"}</div>
+    WorktreeGroupHeader: (props: {
+      collapsedStatusTone?: string;
+      onContextMenu?: React.MouseEventHandler<HTMLButtonElement>;
+    }) => (
+      <button type="button" aria-label="worktree" onContextMenu={props.onContextMenu}>
+        <span data-testid="group-status">{props.collapsedStatusTone ?? "none"}</span>
+      </button>
     ),
   };
 });
 
+const worktreePath = "C:\\repo\\wt";
 const project = {
-  id: "project-1",
+  id: "p1",
   name: "Poracode",
   location: { kind: "windows", path: "C:\\repo" },
   createdAt: "2026-08-08T00:00:00.000Z",
-} as Project;
+  scripts: { actions: [{ id: "build", name: "Build", command: "pnpm build" }] },
+} satisfies Project;
 
 function makeThread(id: string, status: Thread["status"]): Thread {
   return {
@@ -68,8 +66,8 @@ function makeThread(id: string, status: Thread["status"]): Thread {
     starred: false,
     createdAt: "2026-08-08T00:00:00.000Z",
     updatedAt: "2026-08-08T00:00:00.000Z",
-    worktreePath: "C:\\repo\\worktree",
-    worktreeBranch: "feature/status",
+    worktreePath,
+    worktreeBranch: "feature",
   };
 }
 
@@ -77,25 +75,21 @@ function renderGroup(threads: Thread[], liveBackgroundThreadIds: ReadonlySet<str
   const group: WorktreeThreadGroup = {
     kind: "worktree",
     threads,
-    worktreePath: "C:\\repo\\worktree",
-    worktreeBranch: "feature/status",
+    worktreePath,
+    worktreeBranch: "feature",
   };
   render(
     <SidebarWorktreeGroup
       group={group}
       entryIndex={0}
       project={project}
-      sortableGroup="project-entries:project-1"
+      sortableGroup="project:p1"
       liveBackgroundThreadIds={liveBackgroundThreadIds}
     />,
   );
 }
 
-describe("SidebarWorktreeGroup", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
+describe("SidebarWorktreeGroup status tone", () => {
   it("shows working when a settled child has live background activity", () => {
     renderGroup(
       [makeThread("live", "idle"), makeThread("inactive", "inactive")],
@@ -112,5 +106,29 @@ describe("SidebarWorktreeGroup", () => {
     );
 
     expect(screen.getByTestId("group-status")).toHaveTextContent("finished");
+  });
+});
+
+describe("SidebarWorktreeGroup Run menu", () => {
+  beforeEach(() => {
+    resetDevTerminalStore();
+    terminalActions.stopProjectAction.mockReset();
+    const terminal = useDevTerminalStore.getState();
+    const tab = terminal.addTab(project.id, "Build", worktreePath, "build");
+    terminal.markShellRunning(tab.id);
+  });
+
+  it("offers a scoped Stop action for a running worktree command", async () => {
+    renderGroup([makeThread("t1", "inactive")], new Set());
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "worktree" }));
+    fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Run" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stop Build" }));
+
+    expect(terminalActions.stopProjectAction).toHaveBeenCalledWith(
+      project.id,
+      "build",
+      worktreePath,
+    );
   });
 });

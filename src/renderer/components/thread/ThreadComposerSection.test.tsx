@@ -208,7 +208,10 @@ function typeComposerText(editor: HTMLElement, text: string) {
 
 describe("ThreadComposerSection", () => {
   beforeEach(() => {
-    useSharedSettings.setState({ collapseTerminalComposer: false });
+    useSharedSettings.setState({
+      collapseTerminalComposer: false,
+      disabledBuiltInMcpServers: {},
+    });
     useThreadTodoDockStore.setState({
       defaultPlacement: "composer",
       defaultCollapsed: false,
@@ -316,6 +319,69 @@ describe("ThreadComposerSection", () => {
     });
 
     expect(screen.getByTestId("control-kinds")).toBeEmptyDOMElement();
+  });
+
+  it("inserts @Terminal as a Poracode MCP directive", async () => {
+    const rangeRectDescriptor = Object.getOwnPropertyDescriptor(
+      Range.prototype,
+      "getBoundingClientRect",
+    );
+    const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollIntoView",
+    );
+    Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 0, top: 0 }),
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
+    try {
+      const { onSubmitInput } = renderComposer();
+      const input = screen.getByRole("textbox");
+      typeComposerText(input, "@ter");
+
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(input.querySelector('[data-mcp-id="app-controls"]')).not.toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+      await waitFor(() =>
+        expect(onSubmitInput).toHaveBeenCalledWith("@Terminal", [
+          { kind: "mcp", id: "app-controls", name: "Terminal" },
+          { kind: "text", content: " " },
+        ]),
+      );
+    } finally {
+      if (rangeRectDescriptor) {
+        Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeRectDescriptor);
+      } else {
+        Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
+      }
+      if (scrollIntoViewDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "scrollIntoView", scrollIntoViewDescriptor);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+      }
+    }
+  });
+
+  it("hides @Terminal when the provider owns MCP configuration", () => {
+    renderComposer({
+      agentStatus: {
+        ...codexGuiStatus,
+        capabilities: {
+          ...codexGuiStatus.capabilities,
+          mcpConfigSource: "agentSettings",
+        },
+      },
+    });
+    const input = screen.getByRole("textbox");
+    typeComposerText(input, "@ter");
+
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
   it("uses GUI presentation capabilities for slash commands and /fast submission", () => {

@@ -201,7 +201,7 @@ describe("CrossagentRoutingSection", () => {
   it("pauses a provider by unchecking it in the global filter and resumes it", async () => {
     render(<CrossagentRoutingSection />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Crossagent providers and models" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagents auto-selection" }));
     fireEvent.click(await screen.findByRole("option", { name: /Kimi Code/ }));
     expect(useSharedSettings.getState().crossagentPausedProviders).toEqual(["kimi"]);
 
@@ -218,7 +218,7 @@ describe("CrossagentRoutingSection", () => {
   it("filters Crossagent models from the global filter without touching global visibility", async () => {
     render(<CrossagentRoutingSection />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Crossagent providers and models" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagents auto-selection" }));
     fireEvent.click(await screen.findByRole("option", { name: /k3/i }));
 
     expect(useSharedSettings.getState().crossagentHiddenModels).toEqual({ kimi: ["k3"] });
@@ -228,7 +228,7 @@ describe("CrossagentRoutingSection", () => {
   it("treats Hide all and Show all as inverses across providers and models", async () => {
     render(<CrossagentRoutingSection />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Crossagent providers and models" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagents auto-selection" }));
     fireEvent.click(await screen.findByRole("button", { name: "Hide all" }));
 
     // Nothing is usable afterwards: every model hidden and every provider unchecked.
@@ -252,12 +252,17 @@ describe("CrossagentRoutingSection", () => {
     useSharedSettings.setState({ crossagentHiddenModels: { kimi: ["k3"] } });
     render(<CrossagentRoutingSection />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Crossagent providers and models" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Crossagents auto-selection" }));
 
     const [kimiHeader] = await screen.findAllByRole("option", { name: /Kimi Code/ });
     expect(kimiHeader).toHaveAccessibleName(/Unchecked/);
     const [claudeHeader] = screen.getAllByRole("option", { name: /Claude Code/ });
     expect(claudeHeader).toHaveAccessibleName(/Checked/);
+    expect(
+      screen.getByText(
+        "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("edits tags and removes learned memory entries", async () => {
@@ -292,6 +297,9 @@ describe("CrossagentRoutingSection", () => {
 
     expect(await screen.findByText("Learned selections")).toBeInTheDocument();
     expect(screen.getByText("#mobile · #simulator")).toBeInTheDocument();
+    expect(screen.getByText("#mobile · #simulator").closest("div.max-h-80")).toHaveClass(
+      "overflow-y-auto",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Edit tags for Kimi Code" }));
     fireEvent.click(await screen.findByRole("button", { name: "Remove tag mobile" }));

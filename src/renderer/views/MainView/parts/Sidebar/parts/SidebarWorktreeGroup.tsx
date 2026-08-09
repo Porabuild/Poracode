@@ -1,8 +1,8 @@
-import { CircleCheck, GitFork, Play, Plus, Trash2 } from "lucide-react";
+import { CircleCheck, GitFork, Loader2, Play, Plus, Square, Trash2 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { Project } from "@/shared/contracts";
-import { ContextMenu } from "@/renderer/components/common/ContextMenu";
+import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useDragSource, useIsDraggingWorktreeGroup, type DragSourceData } from "@/renderer/dnd";
 import {
   useIsWorktreeFilesPanelActive,
@@ -10,6 +10,7 @@ import {
   useIsWorktreeTerminalActive,
   useIsWorktreeTerminalBusy,
   useIsWorktreeTerminalOpen,
+  useRunningProjectActionIds,
 } from "@/renderer/hooks/uiSelectors";
 import { getStatusTone } from "@/renderer/components/providers/statusTone";
 import {
@@ -21,7 +22,11 @@ import {
   gitSync,
 } from "@/renderer/actions/gitActions";
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
-import { openWorktreeTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
+import {
+  openWorktreeTerminal,
+  runProjectAction,
+  stopProjectAction,
+} from "@/renderer/actions/terminalActions";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { markThreadDone, openNewThreadInWorktree } from "@/renderer/actions/threadActions";
 import { readBridge } from "@/renderer/bridge";
@@ -61,6 +66,29 @@ export function SidebarWorktreeGroup(props: {
       }),
     ),
   );
+  const runningActionIds = useRunningProjectActionIds(project.id, group.worktreePath);
+  const runActionItems: ContextMenuItem[] = [];
+  for (const action of project.scripts?.actions ?? []) {
+    const isRunning = runningActionIds.includes(action.id);
+    runActionItems.push({
+      id: `action:${action.id}`,
+      label: action.name,
+      icon: isRunning ? (
+        <Loader2 className="size-3.5 animate-spin text-accent" aria-hidden />
+      ) : (
+        resolveActionIcon(action.icon)
+      ),
+      ...(isRunning
+        ? {
+            endAction: {
+              id: `stop-action:${action.id}`,
+              label: t`Stop ${action.name}`,
+              icon: <Square className="size-3 fill-current" aria-hidden />,
+            },
+          }
+        : {}),
+    });
+  }
   const groupThreadIds = group.threads.map((thread) => thread.id);
   const activeThreads = group.threads.filter((thread) => !thread.done);
   const isDone = group.threads.every((thread) => thread.done);
@@ -115,11 +143,7 @@ export function SidebarWorktreeGroup(props: {
                   id: "run-action",
                   label: t`Run`,
                   icon: <Play className="size-3.5" />,
-                  items: project.scripts.actions.map((action) => ({
-                    id: `action:${action.id}`,
-                    label: action.name,
-                    icon: resolveActionIcon(action.icon),
-                  })),
+                  items: runActionItems,
                 },
               ]
             : []),
@@ -160,6 +184,9 @@ export function SidebarWorktreeGroup(props: {
           if (key === "create-pr") openGitReview(project.id, group.worktreePath);
           if (key.startsWith("action:")) {
             runProjectAction(project.id, key.slice("action:".length), group.worktreePath);
+          }
+          if (key.startsWith("stop-action:")) {
+            stopProjectAction(project.id, key.slice("stop-action:".length), group.worktreePath);
           }
         }}
       >

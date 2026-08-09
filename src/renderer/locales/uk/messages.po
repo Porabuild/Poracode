@@ -345,6 +345,18 @@ msgstr "{0} використано"
 #~ msgid "{0} workflows"
 #~ msgstr "{0} робочих процесів"
 
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Idle"
+msgstr "{0}, Очікування"
+
+#. placeholder {0}: tab.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "{0}, Running"
+msgstr "{0}, Виконується"
+
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}: {stateLabel}"
@@ -1033,6 +1045,22 @@ msgstr "Агента не знайдено"
 msgid "Agent Registry"
 msgstr "Реєстр агентів"
 
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume"
+msgstr "Агент продовжено"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume ({subagent}): {description}"
+msgstr "Агент продовжено ({subagent}): {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {description}"
+msgstr "Агент продовжено: {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent Resume: {subagent}"
+msgstr "Агент продовжено: {subagent}"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
@@ -1512,6 +1540,10 @@ msgstr "Інтервал автооновлення у хвилинах, 0 — �
 #: src/renderer/components/providers/cursor/index.tsx
 msgid "Auto-review"
 msgstr "Автоперевірка"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Auto-selection"
+msgstr "Автовибір"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -3315,8 +3347,8 @@ msgstr "Crossagent ({subagent}): {description}"
 #~ msgstr "Crossagent не знайдено."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Crossagent providers and models"
-msgstr "Провайдери та моделі Crossagent"
+#~ msgid "Crossagent providers and models"
+#~ msgstr "Провайдери та моделі Crossagent"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Crossagent Result"
@@ -3350,6 +3382,10 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+msgid "Crossagents auto-selection"
+msgstr "Автовибір Crossagents"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Crossagents enabled for this thread"
@@ -8532,8 +8568,8 @@ msgid "Providers"
 msgstr "Постачальники"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Providers & models"
-msgstr "Провайдери та моделі"
+#~ msgid "Providers & models"
+#~ msgstr "Провайдери та моделі"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -10720,6 +10756,13 @@ msgstr "stdio (локальна команда)"
 msgid "Stop"
 msgstr "Зупинити"
 
+#. placeholder {0}: action.name
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
+msgid "Stop {0}"
+msgstr "Зупинити {0}"
+
 #: src/mobile/views/PortsView.tsx
 msgid "Stop forwarding"
 msgstr "Зупинити переспрямування"
@@ -11042,6 +11085,8 @@ msgstr "Укажіть цільовому провайдеру, що робит�
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12021,8 +12066,12 @@ msgstr "Не позначено"
 #~ msgstr "Непозначені моделі пропускаються лише Crossagents."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
-msgid "Unchecked providers and models are skipped by Crossagents only."
-msgstr "Непозначені провайдери та моделі пропускаються лише Crossagents."
+msgid "Unchecked providers and models are excluded from automatic Crossagents routing, but remain available for manual agent threads."
+msgstr "Постачальники й моделі без позначки виключаються з автоматичної маршрутизації Crossagents, але залишаються доступними для потоків агентів, запущених вручну."
+
+#: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
+#~ msgid "Unchecked providers and models are skipped by Crossagents only."
+#~ msgstr "Непозначені провайдери та моделі пропускаються лише Crossagents."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
