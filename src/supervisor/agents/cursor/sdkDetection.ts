@@ -46,7 +46,10 @@ export interface CursorSdkRuntimeProbe {
 export interface CursorSdkDetectionDependencies {
   spawnWorker?(
     options: CursorSdkWorkerSpawnOptions,
-  ): Promise<Pick<CursorSdkWorkerClient, "probe" | "dispose">>;
+  ): Promise<
+    Pick<CursorSdkWorkerClient, "probe" | "dispose"> &
+      Partial<Pick<CursorSdkWorkerClient, "terminate">>
+  >;
 }
 
 /**
@@ -233,11 +236,18 @@ export async function probeCursorSdkRuntime(
   const projectLocation = detectProbeLocation(ctx);
   const configuredApiKey =
     typeof ctx?.agentSettings?.sdkApiKey === "string" ? ctx.agentSettings.sdkApiKey.trim() : "";
-  let worker: Pick<CursorSdkWorkerClient, "probe" | "dispose"> | undefined;
+  let worker:
+    | (Pick<CursorSdkWorkerClient, "probe" | "dispose"> &
+        Partial<Pick<CursorSdkWorkerClient, "terminate">>)
+    | undefined;
+  const abortProbe = () => worker?.terminate?.();
+  ctx?.signal?.addEventListener("abort", abortProbe, { once: true });
   try {
+    ctx?.signal?.throwIfAborted();
     worker = await (dependencies.spawnWorker ?? spawnCursorSdkWorker)({
       projectLocation,
     });
+    ctx?.signal?.throwIfAborted();
     const result = await worker.probe(configuredApiKey || undefined);
     return {
       installed: true,
@@ -260,6 +270,7 @@ export async function probeCursorSdkRuntime(
       diagnosticMessage: cursorSdkProbeErrorMessage(error),
     };
   } finally {
+    ctx?.signal?.removeEventListener("abort", abortProbe);
     await worker?.dispose().catch(() => undefined);
   }
 }

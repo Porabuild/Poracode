@@ -42,9 +42,11 @@ function nativeAuthProviders(): string[] {
 
 const piAuthFileProbe: AuthProbe = async (ctx) => {
   if (ctx.location.kind === "wsl") {
-    const [result] = await batchWslCommandsAsync(ctx.location.distro, [
-      'test -s "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/auth.json"',
-    ]);
+    const [result] = await batchWslCommandsAsync(
+      ctx.location.distro,
+      ['test -s "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/auth.json"'],
+      ctx.signal,
+    );
     return result?.ok ? "authenticated" : "missing";
   }
   return existsSync(nativePiAuthPath()) && nativeAuthProviders().length > 0
@@ -101,11 +103,13 @@ export function parsePiModelList(stdout: string): PiCliModel[] {
 async function probePiCapabilities(
   location: ProjectLocation,
   executablePath: string,
+  signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult> {
   // Native and WSL alike probe the installed CLI's model table — no bundled Pi
   // SDK. The GUI structured session likewise drives the installed `pi --mode rpc`.
   const output = await readAgentCommandOutput(location, executablePath, ["--list-models"], {
     timeoutMs: 15_000,
+    ...(signal ? { signal } : {}),
   });
   const models = output.ok ? parsePiModelList(output.stdout) : [];
   const modelEfforts = Object.fromEntries(
@@ -152,7 +156,7 @@ export const piDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe([...PI_AUTH_ENV_KEYS]), piAuthFileProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probePiCapabilities(ctx.location, ctx.executablePath);
+    return probePiCapabilities(ctx.location, ctx.executablePath, ctx.signal);
   },
 };
 

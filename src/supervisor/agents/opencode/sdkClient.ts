@@ -47,7 +47,7 @@ export interface AcquiredOpenCodeServer {
   handle: OpenCodeServerHandle;
   onServerExit?(callback: () => void): () => void;
   updateMcpServers(servers: readonly ResolvedMcpServer[]): Promise<void>;
-  dispose(): Promise<void>;
+  dispose(options?: { closeServerIfIdle?: boolean }): Promise<void>;
 }
 
 interface ServerSnapshot {
@@ -67,6 +67,8 @@ interface PoolEntry {
   ready: Promise<ServerSnapshot>;
   /** Dynamic MCP state is isolated by OpenCode directory instance. */
   directoryMcp: Map<string, DirectoryMcpState>;
+  leases: number;
+  idleTimer: ReturnType<typeof setTimeout> | undefined;
 }
 
 async function installSharedServerPlugin(projectLocation: ProjectLocation): Promise<void> {
@@ -92,11 +94,38 @@ async function installSharedServerPlugin(projectLocation: ProjectLocation): Prom
   }
 }
 
-// One app-lifetime server per execution runtime: one native process for the
+// One shared server per active execution runtime: one native process for the
 // host platform, plus one process per WSL distro. OpenCode routes each SDK
 // request to a lazily-created directory instance via x-opencode-directory,
 // matching the official Desktop app's shared-server compatibility path.
 const pool = new Map<string, PoolEntry>();
+const IDLE_SHUTDOWN_MS = 30_000;
+
+function clearIdleShutdown(entry: PoolEntry): void {
+  if (entry.idleTimer === undefined) return;
+  clearTimeout(entry.idleTimer);
+  entry.idleTimer = undefined;
+}
+
+async function closeServerIfIdle(key: string, entry: PoolEntry): Promise<void> {
+  if (entry.leases > 0 || pool.get(key) !== entry) return;
+  clearIdleShutdown(entry);
+  pool.delete(key);
+  const snapshot = await entry.ready;
+  await snapshot.handle.dispose();
+}
+
+function scheduleIdleShutdown(key: string, entry: PoolEntry): void {
+  if (entry.leases > 0 || pool.get(key) !== entry) return;
+  clearIdleShutdown(entry);
+  entry.idleTimer = setTimeout(() => {
+    entry.idleTimer = undefined;
+    void closeServerIfIdle(key, entry).catch((error) =>
+      console.warn("[opencode] failed to dispose idle server:", error),
+    );
+  }, IDLE_SHUTDOWN_MS);
+  entry.idleTimer.unref();
+}
 
 // Total budget for confirming the server is reachable once it has announced
 // its URL, and the per-attempt fetch timeout inside that budget.
@@ -195,9 +224,8 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
  * Spawn (or reuse) an authenticated `opencode serve` for the given execution
  * runtime, wait for the ready URL, and return a project-directory SDK client.
  *
- * Each acquisition keeps the existing `dispose()` contract, but normal
- * releases leave the app-lifetime sidecar warm. Only a crash, a connection-loss
- * replacement, or supervisor shutdown tears it down.
+ * Each acquisition leases the shared sidecar. The last release leaves it warm
+ * briefly for follow-up requests, then tears it down after the idle grace.
  */
 export interface AcquireOpenCodeServerInput {
   projectLocation: ProjectLocation;
@@ -283,13 +311,19 @@ async function acquireOpenCodeServerInner(
 
   if (!entry) {
     const ready = spawnAndWire(input.projectLocation);
-    entry = { ready, directoryMcp: new Map() };
+    const createdEntry: PoolEntry = {
+      ready,
+      directoryMcp: new Map(),
+      leases: 0,
+      idleTimer: undefined,
+    };
+    entry = createdEntry;
     pool.set(key, entry);
 
     // If spawn fails, evict so the next acquire respawns instead of resolving
     // a poisoned promise forever.
     ready.catch(() => {
-      if (pool.get(key) === entry) pool.delete(key);
+      if (pool.get(key) === createdEntry) pool.delete(key);
     });
 
     // If the server crashes after wiring, evict so subsequent acquires get a
@@ -298,7 +332,8 @@ async function acquireOpenCodeServerInner(
     void ready.then(
       (snapshot) => {
         snapshot.handle.child.once("exit", () => {
-          if (pool.get(key) === entry) pool.delete(key);
+          clearIdleShutdown(createdEntry);
+          if (pool.get(key) === createdEntry) pool.delete(key);
         });
       },
       () => undefined,
@@ -306,12 +341,29 @@ async function acquireOpenCodeServerInner(
   }
 
   const acquiringEntry = entry;
+  clearIdleShutdown(acquiringEntry);
+  acquiringEntry.leases += 1;
+  let released = false;
+  const releaseLease = (scheduleIdle = true): boolean => {
+    if (released) return false;
+    released = true;
+    acquiringEntry.leases -= 1;
+    if (scheduleIdle) scheduleIdleShutdown(key, acquiringEntry);
+    return true;
+  };
 
-  const snapshot = await acquiringEntry.ready;
+  let snapshot: ServerSnapshot;
+  try {
+    snapshot = await acquiringEntry.ready;
+  } catch (error) {
+    releaseLease(false);
+    throw error;
+  }
 
   const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
-  const client = await createLegacySdkClient(snapshot.baseUrl, snapshot.authorization, directory);
+  let client: LegacyOpenCodeClient;
   try {
+    client = await createLegacySdkClient(snapshot.baseUrl, snapshot.authorization, directory);
     // Omitted MCP config means this caller (notably one-shot generation) does
     // not own provider settings and must leave the directory instance alone.
     // An explicit empty array is the settings-level request to clear the set.
@@ -321,8 +373,11 @@ async function acquireOpenCodeServerInner(
     }
   } catch (error) {
     if (!retryMcpConnectionLoss || !isOpenCodeConnectionLoss(error)) {
+      releaseLease();
       throw error;
     }
+    releaseLease(false);
+    clearIdleShutdown(acquiringEntry);
     if (pool.get(key) === acquiringEntry) pool.delete(key);
     await snapshot.handle.dispose().catch((disposeErr) => {
       console.warn("[opencode] failed to dispose handle during retry:", disposeErr);
@@ -346,7 +401,11 @@ async function acquireOpenCodeServerInner(
     updateMcpServers: async (servers) => {
       await syncDirectoryMcpServers(acquiringEntry, directory, buildOpenCodeMcp(servers), client);
     },
-    dispose: () => Promise.resolve(),
+    dispose: async (options) => {
+      const closeImmediately = options?.closeServerIfIdle === true;
+      if (!releaseLease(!closeImmediately) || !closeImmediately) return;
+      await closeServerIfIdle(key, acquiringEntry);
+    },
   };
 }
 
@@ -357,6 +416,7 @@ async function acquireOpenCodeServerInner(
  * `opencode.exe` processes the user started outside the app.
  */
 export function shutdownSpawnedOpenCodeServers(): void {
+  for (const entry of pool.values()) clearIdleShutdown(entry);
   pool.clear();
   disposeSpawnedOpenCodeServerHandles();
 }

@@ -17,7 +17,11 @@ vi.mock("../agents/base", async (importActual) => {
 });
 
 import { invalidateExecutablePathCache } from "../agents/base";
-import { AgentStatusService, parseWslRegistryDistributionNames } from "./agentStatusService";
+import {
+  AgentStatusService,
+  detectWslAgentStatuses,
+  parseWslRegistryDistributionNames,
+} from "./agentStatusService";
 
 const tempDirs: string[] = [];
 
@@ -298,6 +302,36 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     );
   });
 
+  it("aborts the underlying WSL probe when its launch deadline expires", async () => {
+    vi.useFakeTimers();
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let signal: AbortSignal | undefined;
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>((ctx) => {
+      signal = ctx?.signal;
+      return new Promise(() => undefined);
+    });
+    const adapter = makeAdapter("codex", "Codex", detectInstall);
+
+    try {
+      const pending = detectWslAgentStatuses([adapter], ["Ubuntu"]);
+      await vi.advanceTimersByTimeAsync(60_000);
+      const statuses = await pending;
+
+      expect(signal?.aborted).toBe(true);
+      expect(statuses).toEqual([
+        expect.objectContaining({
+          kind: "codex",
+          installed: false,
+          envKind: "wsl",
+          envDistro: "Ubuntu",
+        }),
+      ]);
+    } finally {
+      error.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("passes provider settings to native, WSL, and scoped detection", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
     const adapter = makeAdapter("cursor", "Cursor", detectInstall);
@@ -322,11 +356,14 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
       envKind: process.platform === "win32" ? "windows" : "posix",
       agentSettings: initialSettings,
     });
-    expect(detectInstall).toHaveBeenCalledWith({
-      envKind: "wsl",
-      wslDistro: "Ubuntu",
-      agentSettings: initialSettings,
-    });
+    expect(detectInstall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        envKind: "wsl",
+        wslDistro: "Ubuntu",
+        agentSettings: initialSettings,
+        signal: expect.any(AbortSignal),
+      }),
+    );
 
     const updatedSettings = {
       structuredRuntime: "acp",

@@ -195,6 +195,7 @@ export function buildQwenProbeCapabilities(
 async function probeCapabilities(
   location: ProjectLocation,
   executablePath: string,
+  signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult> {
   const command = buildQwenCommand(location, ["--acp"], executablePath);
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
@@ -206,6 +207,7 @@ async function probeCapabilities(
       ...(processCwd ? { processCwd } : {}),
       ...(command.env ? { env: command.env } : {}),
       timeoutMs: 20_000,
+      ...(signal ? { signal } : {}),
       label: location.kind === "wsl" ? `qwen:wsl:${location.distro}` : `qwen:${location.kind}`,
     },
   );
@@ -227,6 +229,6 @@ export const qwenDetectionSpec: DetectionSpec = {
   authProbes: [envVarAuthProbe([...QWEN_AUTH_ENV_KEYS])],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return probeCapabilities(ctx.location, ctx.executablePath);
+    return probeCapabilities(ctx.location, ctx.executablePath, ctx.signal);
   },
 };

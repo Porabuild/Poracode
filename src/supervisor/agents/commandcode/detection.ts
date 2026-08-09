@@ -434,6 +434,7 @@ export const commandCodeDetectionSpec: DetectionSpec = {
         posixCwd: getAgentProbeCwd(ctx.location),
         // Suppress the CLI's background self-updater (sourced from spec.probeEnv).
         ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
+        ...(ctx.signal ? { signal: ctx.signal } : {}),
       },
     ).catch((error) => {
       console.warn("[commandcode] model list probe failed:", error);

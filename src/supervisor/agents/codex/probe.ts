@@ -427,6 +427,7 @@ interface RunWithCodexAppServerOptions {
   wslExecPath?: string;
   timeoutMs?: number;
   label?: string;
+  signal?: AbortSignal;
 }
 
 /**
@@ -444,6 +445,11 @@ async function runWithCodexAppServer<T>(
   const tag = options?.label ? `[codex-probe:${options.label}]` : "[codex-probe]";
   let appServer: ChildProcess | undefined;
   let client: ProbeClient | undefined;
+  let timeout: NodeJS.Timeout | undefined;
+  let abortProbe: (() => void) | undefined;
+  const ownedProcessGroup = process.platform !== "win32";
+
+  if (options?.signal?.aborted) return undefined;
 
   try {
     const wslNodePath =
@@ -460,6 +466,7 @@ async function runWithCodexAppServer<T>(
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
       windowsHide: true,
+      detached: ownedProcessGroup,
     });
     const transport = new CodexStdioTransport(appServer);
 
@@ -476,6 +483,20 @@ async function runWithCodexAppServer<T>(
       return undefined;
     }
 
+    const stop = () => {
+      if (appServer) terminateChildProcessTree(appServer, { ownedProcessGroup });
+    };
+    const signal = options?.signal;
+    const abortPromise = signal
+      ? new Promise<never>((_, reject) => {
+          abortProbe = () => {
+            stop();
+            reject(new Error("Codex probe aborted"));
+          };
+          signal.addEventListener("abort", abortProbe, { once: true });
+          if (signal.aborted) abortProbe();
+        })
+      : undefined;
     return await Promise.race([
       (async () => {
         client = new ProbeClient(transport);
@@ -486,17 +507,24 @@ async function runWithCodexAppServer<T>(
         client.notify("initialized");
         return await fn({ client, initResult });
       })(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Codex probe timed out")), timeoutMs),
-      ),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          stop();
+          reject(new Error("Codex probe timed out"));
+        }, timeoutMs);
+        if (typeof timeout.unref === "function") timeout.unref();
+      }),
+      ...(abortPromise ? [abortPromise] : []),
     ]);
   } catch (err) {
     console.log("%s failed: %s", tag, err instanceof Error ? err.message : err);
     return undefined;
   } finally {
+    if (timeout) clearTimeout(timeout);
+    if (abortProbe) options?.signal?.removeEventListener("abort", abortProbe);
     client?.dispose();
     if (appServer && !appServer.killed) {
-      terminateChildProcessTree(appServer);
+      terminateChildProcessTree(appServer, { ownedProcessGroup });
     }
   }
 }

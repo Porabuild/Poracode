@@ -149,10 +149,18 @@ export class ProjectWatcher {
 
   /** True when at least one watched project lives inside a WSL distro. */
   hasWslProjects(): boolean {
-    for (const entry of this.watchers.values()) {
-      if (entry.location.kind === "wsl") return true;
-    }
-    return false;
+    return this.getWslDistros().length > 0;
+  }
+
+  /** Distinct WSL distros backing watched (non-disabled) projects. */
+  getWslDistros(): string[] {
+    return [
+      ...new Set(
+        [...this.watchers.values()].flatMap((entry) =>
+          entry.location.kind === "wsl" ? [entry.location.distro] : [],
+        ),
+      ),
+    ];
   }
 
   /**
@@ -322,8 +330,18 @@ export class ProjectWatcher {
 
   /** Stop watching a project and its worktrees. */
   async unwatch(projectId: string): Promise<void> {
+    const worktreeEntries = [...this.worktreeWatchers].filter(
+      ([, worktreeEntry]) => worktreeEntry.projectId === projectId,
+    );
+    for (const [path] of worktreeEntries) {
+      this.worktreeWatchers.delete(path);
+    }
+
     const entry = this.watchers.get(projectId);
     if (entry) {
+      // Remove the captured entry before the first await. A replacement watch
+      // for the same projectId must not be deleted when this teardown resumes.
+      this.watchers.delete(projectId);
       if (entry.gitDebounceTimer) clearTimeout(entry.gitDebounceTimer);
       if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
       entry.gitWatcher?.close();
@@ -333,13 +351,10 @@ export class ProjectWatcher {
           console.warn(`[watcher] WSL unsubscribe failed for project ${projectId}:`, error);
         });
       }
-      this.watchers.delete(projectId);
     }
 
-    for (const [path, wtEntry] of this.worktreeWatchers) {
-      if (wtEntry.projectId === projectId) {
-        await this.closeWorktreeWatcher(path);
-      }
+    for (const [path, worktreeEntry] of worktreeEntries) {
+      await this.closeWorktreeWatcherEntry(path, worktreeEntry);
     }
   }
 
@@ -400,6 +415,16 @@ export class ProjectWatcher {
   private async closeWorktreeWatcher(path: string): Promise<void> {
     const entry = this.worktreeWatchers.get(path);
     if (!entry) return;
+    // Match project watcher ownership: async teardown must not delete a
+    // replacement registered for the same path.
+    this.worktreeWatchers.delete(path);
+    await this.closeWorktreeWatcherEntry(path, entry);
+  }
+
+  private async closeWorktreeWatcherEntry(
+    path: string,
+    entry: WorktreeWatcherEntry,
+  ): Promise<void> {
     if (entry.gitDebounceTimer) clearTimeout(entry.gitDebounceTimer);
     if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
     entry.watcher?.close();
@@ -408,7 +433,6 @@ export class ProjectWatcher {
         console.warn(`[watcher] WSL worktree unsubscribe failed for ${path}:`, error);
       });
     }
-    this.worktreeWatchers.delete(path);
   }
 
   private async startWslSubscription(

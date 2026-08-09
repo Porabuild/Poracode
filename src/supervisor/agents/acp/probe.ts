@@ -399,6 +399,7 @@ export async function probeAcpCapabilities(
     timeoutMs?: number;
     label?: string;
     env?: Record<string, string>;
+    signal?: AbortSignal;
     /**
      * Auth method IDs to call `authenticate` with (in order) after `initialize`
      * but before `newSession`. Stops at the first one advertised by the agent.
@@ -414,7 +415,11 @@ export async function probeAcpCapabilities(
   const deadline = Date.now() + timeoutMs;
   const tag = options?.label ? `[acp-probe:${options.label}]` : "[acp-probe]";
   let child: ReturnType<typeof spawn> | undefined;
+  let abortProbe: (() => void) | undefined;
+  const ownedProcessGroup = process.platform !== "win32";
   const probeResult: AcpProbeResult = {};
+
+  if (options?.signal?.aborted) return undefined;
 
   try {
     const configOptionsWaiters: Array<(configOptions: unknown[] | undefined) => void> = [];
@@ -430,6 +435,7 @@ export async function probeAcpCapabilities(
       env: options?.env ? { ...process.env, ...options.env } : process.env,
       shell: false,
       windowsHide: true,
+      detached: ownedProcessGroup,
     });
 
     let childExited = false;
@@ -441,6 +447,16 @@ export async function probeAcpCapabilities(
       child!.once("error", markClosed);
       child!.once("exit", markClosed);
     });
+    abortProbe = () => {
+      try {
+        child?.stdin?.destroy();
+      } catch {
+        // Ignore cleanup races.
+      }
+      if (child) terminateChildProcessTree(child, { ownedProcessGroup });
+    };
+    options?.signal?.addEventListener("abort", abortProbe, { once: true });
+    if (options?.signal?.aborted) abortProbe();
     const remainingBudgetMs = () => Math.max(0, deadline - Date.now());
     const waitForProbeWindow = async (maxMs: number): Promise<void> => {
       const waitMs = Math.min(maxMs, remainingBudgetMs());
@@ -717,6 +733,7 @@ export async function probeAcpCapabilities(
     }
     return undefined;
   } finally {
+    if (abortProbe) options?.signal?.removeEventListener("abort", abortProbe);
     if (child && !child.killed) {
       // Destroy stdin before killing to prevent the ACP SDK from writing
       // to a dead pipe (which causes noisy "ACP write error" logs).
@@ -725,7 +742,7 @@ export async function probeAcpCapabilities(
       } catch {
         /* ignore */
       }
-      terminateChildProcessTree(child);
+      terminateChildProcessTree(child, { ownedProcessGroup });
     }
   }
 }

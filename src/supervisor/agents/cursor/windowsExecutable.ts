@@ -138,6 +138,7 @@ export async function readCursorAgentCommandOutput(
     wslLinuxCwd?: string;
     posixCwd?: string;
     env?: Record<string, string>;
+    signal?: AbortSignal;
   },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   if (location.kind !== "windows") {
@@ -149,6 +150,7 @@ export async function readCursorAgentCommandOutput(
     ...(effectiveCwd ? { cwd: effectiveCwd } : {}),
     ...(spec.env || options?.env ? { env: { ...spec.env, ...options?.env } } : {}),
     ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
+    ...(options?.signal ? { signal: options.signal } : {}),
   };
   return readCommandOutputAsync(
     spec.command,

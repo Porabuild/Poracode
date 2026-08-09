@@ -40,6 +40,8 @@ export interface CommandSpec {
 export interface AgentEnvContext {
   envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
+  /** Cancels short-lived install, version, status, and capability probes. */
+  signal?: AbortSignal;
   /**
    * Provider-global settings for this adapter. Detection receives the same
    * snapshot launch receives, allowing a provider with multiple structured
@@ -258,6 +260,7 @@ export interface DetectProbeCtx {
   location: ProjectLocation;
   executablePath: string | undefined;
   version?: string | undefined;
+  signal?: AbortSignal;
   agentSettings?: Record<string, boolean | string>;
   /** {@link DetectionSpec.probeEnv}, so `capabilitiesProbe`/`statusProbe` can forward it. */
   probeEnv?: Record<string, string> | undefined;
