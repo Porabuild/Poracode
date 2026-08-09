@@ -82,6 +82,7 @@ vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useIsWorktreeTerminalActive: () => false,
   useIsWorktreeTerminalBusy: () => false,
   useIsWorktreeTerminalOpen: () => false,
+  useRunningProjectActionIds: () => [],
 }));
 
 vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions", () => ({
