@@ -1957,10 +1957,12 @@ msgstr "프로젝트 제거 취소"
 msgid "Cancel workflow"
 msgstr "워크플로 취소"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "취소됨"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2754,6 +2756,7 @@ msgstr "이 터미널의 프롬프트를 완료하세요. 완료되면 닫힙니
 msgid "completed"
 msgstr "완료"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Completed"
 msgstr "완료됨"
@@ -4568,6 +4571,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "실패"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx

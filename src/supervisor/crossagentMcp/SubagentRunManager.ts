@@ -211,6 +211,7 @@ export class SubagentRunManager {
       name: firstAttempt.label,
       status: "running",
       isCrossagent: true,
+      crossagentStatus: "running",
     };
     this.deps.host.appendRuntimeEvent(parentThreadId, {
       type: "item.started",
@@ -294,8 +295,8 @@ export class SubagentRunManager {
     const record = this.ownedRun(runId, parentThreadId);
     if (!record) return;
     record.cancelRequested = true;
+    this.settle(record, "cancelled", undefined, { teardown: false });
     await this.attemptRunner.teardown(record);
-    this.settle(record, "cancelled");
   }
 
   /**
@@ -609,7 +610,12 @@ export class SubagentRunManager {
    * the synthetic tile completion (which drains buffered child events in the
    * router), and release waiters.
    */
-  private settle(record: RunRecord, status: SubagentRunStatus, errorMessage?: string): void {
+  private settle(
+    record: RunRecord,
+    status: SubagentRunStatus,
+    errorMessage?: string,
+    options?: { teardown?: boolean },
+  ): void {
     if (record.settled) return;
     record.settled = true;
     if (record.status === "running") record.status = status;
@@ -634,7 +640,7 @@ export class SubagentRunManager {
       }
     }
 
-    void this.attemptRunner.teardown(record);
+    if (options?.teardown !== false) void this.attemptRunner.teardown(record);
 
     const text = errorMessage ? `${record.output}\n${errorMessage}`.trim() : record.output;
     if (errorMessage) {
@@ -650,6 +656,7 @@ export class SubagentRunManager {
       name: record.label,
       status: record.status === "completed" ? "success" : "error",
       isCrossagent: true,
+      crossagentStatus: record.status,
       ...(record.stepCount > 0 ? { progress: { stepCount: record.stepCount } } : {}),
       ...(text ? { result: text } : {}),
     };

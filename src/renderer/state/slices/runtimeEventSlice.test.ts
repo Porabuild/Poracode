@@ -503,6 +503,34 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
+  it("marks a stale Crossagent terminal in both status fields", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "crossagent-tool",
+      itemType: "tool_call",
+      payload: {
+        name: "Crossagent",
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+
+    store.getState().reconcileStaleSubAgents("t1");
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["crossagent-tool"]).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        crossagentStatus: "failed",
+        result: {
+          error: "Interrupted: agent session ended before completion.",
+        },
+      },
+    });
+  });
+
   it("does not force-complete stale Crossagents MCP calls tagged by older mappers", () => {
     apply("t1", {
       type: "item.started",

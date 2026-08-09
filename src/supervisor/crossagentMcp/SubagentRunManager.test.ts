@@ -32,6 +32,8 @@ class FakeHandle implements StructuredSessionHandle {
   startTurns: Array<{ prompt: string; config: ThreadConfig }> = [];
   resolvedRequests: Array<{ requestId: string | number; response: unknown }> = [];
 
+  constructor(private readonly interruptError?: string) {}
+
   setListener(listener: StructuredSessionListener): void {
     this.listener = listener;
   }
@@ -40,6 +42,7 @@ class FakeHandle implements StructuredSessionHandle {
   }
   async interruptTurn(): Promise<void> {
     this.interrupted = true;
+    if (this.interruptError) this.listener?.onError(this.interruptError);
   }
   async resolveServerRequest(requestId: string | number, response: unknown): Promise<void> {
     this.resolvedRequests.push({ requestId, response });
@@ -82,6 +85,7 @@ function makeHarness(options?: {
   statusCapabilities?: AgentCapability | null;
   createFailures?: number;
   deferCreate?: boolean;
+  interruptError?: string;
 }): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
@@ -119,7 +123,7 @@ function makeHarness(options?: {
         createFailures -= 1;
         throw new Error("session launch failed");
       }
-      const handle = new FakeHandle();
+      const handle = new FakeHandle(options?.interruptError);
       handles.push(handle);
       return handle;
     },
@@ -456,6 +460,27 @@ describe("SubagentRunManager", () => {
     expect(h.handles[0]!.interrupted).toBe(true);
     expect(h.handles[0]!.disposed).toBe(true);
     expect(h.manager.getStatus(runId).status).toBe("cancelled");
+  });
+
+  it("keeps explicit cancellation terminal when provider teardown reports Aborted", async () => {
+    const h = makeHarness({ interruptError: "Aborted" });
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    await h.manager.cancel(runId);
+
+    expect(h.manager.getStatus(runId)).toMatchObject({ status: "cancelled", output: "" });
+    const completion = h.appended
+      .map(({ event }) => event)
+      .find(
+        (event): event is Extract<RuntimeEvent, { type: "item.completed" }> =>
+          event.type === "item.completed" && event.itemId === `sub:${runId}`,
+      );
+    expect(completion?.payload).toMatchObject({
+      status: "error",
+      crossagentStatus: "cancelled",
+    });
+    expect(completion?.payload).not.toHaveProperty("result");
   });
 
   it("cancelAllForThread cancels live children and evicts records", async () => {

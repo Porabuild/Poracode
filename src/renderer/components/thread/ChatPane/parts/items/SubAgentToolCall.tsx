@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from "react";
+import { memo, useId, useState, type ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -81,9 +81,11 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     (workflowRun.run === null || isWorkflowRunLive(workflowRun.run));
   const isRunning = !isCompleted || workflowIsLive;
   const titleRef = useShimmer<HTMLElement>(isRunning);
+  const statusDescriptionId = useId();
   if (!payload?.name) return null;
   const display = deriveToolDisplay(payload);
   const isCrossagent = isCrossagentTool(payload);
+  const describesCancelledStatus = isCrossagent && payload.crossagentStatus === "cancelled";
   const displayTitle = normalizeCallTitleSeparator(display.title);
   const displayPrefix = display.parts
     ? normalizeCallTitleSeparator(display.parts.prefix)
@@ -118,6 +120,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
         aria-label={
           isCrossagent ? t`Open Crossagent: ${display.title}` : t`Open subagent: ${display.title}`
         }
+        {...(describesCancelledStatus ? { "aria-describedby": statusDescriptionId } : {})}
       >
         <span className="size-3 shrink-0 text-[color:var(--muted)]">
           <Icon className="size-3" />
@@ -155,7 +158,10 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
           </code>
         )}
         {status.rightLabel ? (
-          <span className={`shrink-0 tabular-nums font-medium ${status.rightLabelClassName}`}>
+          <span
+            className={`shrink-0 tabular-nums font-medium ${status.rightLabelClassName}`}
+            {...(describesCancelledStatus ? { id: statusDescriptionId } : {})}
+          >
             {status.rightLabel}
           </span>
         ) : null}
@@ -265,6 +271,12 @@ function resolveStatus(
           liveMaxClassName="max-w-[28ch]"
         />
       ),
+      rightLabelClassName: "!text-[color:var(--muted)]",
+    };
+  }
+  if (payload?.crossagentStatus === "cancelled") {
+    return {
+      rightLabel: <Trans>cancelled</Trans>,
       rightLabelClassName: "!text-[color:var(--muted)]",
     };
   }

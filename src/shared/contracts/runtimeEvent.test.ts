@@ -293,6 +293,19 @@ describe("item payload schemas", () => {
       isSubAgent: true,
     };
     expect(toolCallPayloadSchema.parse(roundTrip(payload))).toEqual(payload);
+    expect(
+      toolCallPayloadSchema.parse({
+        name: "Crossagent",
+        status: "error",
+        isCrossagent: true,
+        crossagentStatus: "cancelled",
+      }),
+    ).toEqual({
+      name: "Crossagent",
+      status: "error",
+      isCrossagent: true,
+      crossagentStatus: "cancelled",
+    });
     expect(toolCallPayloadSchema.safeParse({ name: "Bash" }).success).toBe(false);
   });
 

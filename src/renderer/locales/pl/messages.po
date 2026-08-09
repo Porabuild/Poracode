@@ -1957,10 +1957,12 @@ msgstr "Anuluj usuwanie projektu"
 msgid "Cancel workflow"
 msgstr "Anuluj przepływ pracy"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
 msgstr "anulowane"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2754,6 +2756,7 @@ msgstr "Wypełnij monity w tym terminalu. Zamyka się po zakończeniu."
 msgid "completed"
 msgstr "ukończone"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Completed"
 msgstr "Ukończono"
@@ -4568,6 +4571,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "nie powiodło się"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
