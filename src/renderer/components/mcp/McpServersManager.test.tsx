@@ -12,6 +12,7 @@ import {
   type McpOauthBeginResult,
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { McpServersManager, type McpImportProjectTarget } from "./McpServersManager";
 
@@ -140,6 +141,7 @@ describe("McpServersManager", () => {
     bridge.openExternalNative.mockClear();
     bridge.waitMcpServerOauth.mockClear();
     bridge.clearMcpServerOauth.mockClear();
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
 
   it("renders immutable built-ins separately from editable configured servers", () => {
@@ -458,6 +460,34 @@ describe("McpServersManager", () => {
     expect(
       screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Full configuration" }).value,
     ).toContain('"cwd": "C:\\\\repo"');
+  });
+
+  it("identifies a remote project by its host in the scope trigger and menu", async () => {
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "d1", label: "Poracode on MacBook 16" }],
+      runtime: { d1: { status: "online", projects: [], threads: [] } },
+    } as never);
+    render(
+      managerElement({
+        workspaceServers: [],
+        defaultScope: "workspace",
+        projectLocation: {
+          kind: "posix",
+          path: "/remote/project",
+          remoteServerId: "d1",
+        },
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add MCP server" }));
+    const scope = screen.getByLabelText("Scope");
+    expect(scope).toHaveTextContent("Demo projectMacBook 16");
+    expect(scope.querySelector(".lucide-server")).not.toBeNull();
+
+    fireEvent.click(scope);
+    const option = await screen.findByRole("menuitemradio", { name: /Demo project.*MacBook 16/u });
+    expect(option.querySelector(".lucide-server")).not.toBeNull();
+    expect(option).not.toHaveTextContent("/remote/project");
   });
 
   it("dismisses the modal with Escape", () => {

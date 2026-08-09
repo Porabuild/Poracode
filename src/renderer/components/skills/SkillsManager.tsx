@@ -14,6 +14,7 @@ import {
 import {
   GLOBAL_MCP_DESTINATION_ID,
   McpProjectDestinationDropdown,
+  McpProjectDropdownTriggerContent,
   type McpProjectDestination,
 } from "@/renderer/components/mcp/McpProjectDestinationDropdown";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
@@ -267,7 +268,11 @@ export function SkillsManager(props: {
               aria-label={t`Skills location`}
               className="min-w-48 justify-between"
             >
-              <span className="truncate">{targetLabel}</span>
+              {target.project ? (
+                <McpProjectDropdownTriggerContent project={target.project} />
+              ) : (
+                <span className="truncate">{targetLabel}</span>
+              )}
               <ChevronDown className="size-3.5 shrink-0 text-muted" />
             </Button>
           }

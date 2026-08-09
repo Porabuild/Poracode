@@ -4,6 +4,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { ThreadContextMenu } from "./ThreadContextMenu";
 
 vi.mock("@/renderer/bridge", () => ({
@@ -58,6 +59,7 @@ function renderMenu(
 describe("ThreadContextMenu project actions", () => {
   beforeEach(() => {
     resetDevTerminalStore();
+    usePanelStore.setState({ githubActionsContext: null });
   });
 
   it("offers project Git and Run submenus on flat main-branch rows", async () => {
@@ -92,6 +94,15 @@ describe("ThreadContextMenu project actions", () => {
 
     expect(screen.getAllByRole("menuitem", { name: "Git" })).toHaveLength(1);
     expect(screen.getByRole("menuitem", { name: "Run" })).toBeInTheDocument();
+  });
+
+  it("opens GitHub Actions from a worktree Git submenu", async () => {
+    await renderMenu(thread({ worktreePath: "C:\\repo\\wt" }), project);
+
+    fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Git" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "GitHub Actions" }));
+
+    expect(usePanelStore.getState().githubActionsContext).toEqual({ projectId: project.id });
   });
 
   it("omits the Run submenu when the project defines no scripts", async () => {

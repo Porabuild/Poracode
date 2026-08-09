@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, ScheduledTask, ScheduledTaskRun } from "@/shared/contracts";
+import type { AgentStatus, Project, ScheduledTask, ScheduledTaskRun } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const task: ScheduledTask = {
@@ -60,7 +60,7 @@ const appState = vi.hoisted(() => ({
     projectId: string;
     config: { model: string; effort?: string };
   }[],
-  projects: [] as { id: string; name: string; remoteServerId?: string }[],
+  projects: [] as Project[],
 }));
 
 const agentState = vi.hoisted(() => ({
@@ -288,8 +288,20 @@ describe("SchedulesView", () => {
 
   it("does not offer remote projects to device-owned schedules", async () => {
     appState.projects = [
-      { id: "local-project", name: "Local project" },
-      { id: "remote-project", name: "Remote project", remoteServerId: "d1" },
+      {
+        id: "local-project",
+        name: "Local project",
+        location: { kind: "windows", path: "C:\\local-project" },
+        createdAt: "2026-07-01T00:00:00.000Z",
+      },
+      {
+        id: "remote-project",
+        name: "Remote project",
+        location: { kind: "windows", path: "C:\\remote-project", remoteServerId: "d1" },
+        remoteServerId: "d1",
+        remoteId: "remote-project",
+        createdAt: "2026-07-01T00:00:00.000Z",
+      },
     ];
     bridge.getSchedules.mockResolvedValueOnce([]);
     render(<SchedulesView />);
@@ -299,6 +311,8 @@ describe("SchedulesView", () => {
     fireEvent.click(screen.getByLabelText("Project"));
 
     expect((await screen.findAllByText("Local project")).length).toBeGreaterThan(0);
+    const location = screen.getByText("C:\\local-project");
+    expect(location.closest('[role="option"]')?.querySelector(".lucide-monitor")).not.toBeNull();
     expect(screen.queryByText("Remote project")).not.toBeInTheDocument();
   });
 

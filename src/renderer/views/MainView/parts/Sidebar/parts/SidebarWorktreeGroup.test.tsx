@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import type { WorktreeThreadGroup } from "./groupThreads";
 import { SidebarWorktreeGroup } from "./SidebarWorktreeGroup";
 
@@ -24,7 +25,7 @@ vi.mock("@/renderer/dnd", () => ({
 vi.mock("@/renderer/actions/terminalActions", () => terminalActions);
 
 vi.mock("./useWorktreeActions", () => ({
-  useWorktreeGitItems: () => [],
+  useWorktreeGitItems: () => [{ id: "github-actions", label: "GitHub Actions", icon: null }],
 }));
 
 vi.mock("./WorktreeGroupHeader", async (importOriginal) => {
@@ -130,5 +131,18 @@ describe("SidebarWorktreeGroup Run menu", () => {
       "build",
       worktreePath,
     );
+  });
+});
+
+describe("SidebarWorktreeGroup Git menu", () => {
+  it("opens GitHub Actions for the project", async () => {
+    usePanelStore.setState({ githubActionsContext: null });
+    renderGroup([makeThread("t1", "inactive")], new Set());
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "worktree" }));
+    fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Git" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "GitHub Actions" }));
+
+    expect(usePanelStore.getState().githubActionsContext).toEqual({ projectId: project.id });
   });
 });
