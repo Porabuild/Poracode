@@ -524,6 +524,17 @@ describe("ThreadDraftView", () => {
     expect(container.querySelector("[data-draft-worktree-row]")).toBeInTheDocument();
   });
 
+  it("reserves the worktree control row for Home drafts", () => {
+    const { container } = render(
+      <ThreadDraftView project={homeProject} agentStatuses={[codexStatus]} onStart={() => {}} />,
+    );
+
+    const worktreeRow = container.querySelector("[data-draft-worktree-row]");
+    expect(worktreeRow).toBeEmptyDOMElement();
+    expect(worktreeRow).toHaveClass("min-h-[1.625rem]");
+    expect(screen.queryByRole("button", { name: "Worktree mode" })).not.toBeInTheDocument();
+  });
+
   it("restores the selection replaced by a targeted worktree when the inline composer collapses", async () => {
     useGitStore.setState({
       statuses: {
